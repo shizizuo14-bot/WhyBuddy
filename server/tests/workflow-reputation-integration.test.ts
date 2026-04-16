@@ -10,6 +10,7 @@
  */
 
 import { describe, expect, it, vi, beforeEach } from "vitest";
+import { randomUUID } from "node:crypto";
 import { AssignmentScorer } from "../core/reputation/assignment-scorer.js";
 import { ReputationService } from "../core/reputation/reputation-service.js";
 import { ReputationCalculator } from "../core/reputation/reputation-calculator.js";
@@ -173,11 +174,13 @@ describe("WorkflowEngine reputation integration — task completed signal", () =
       config
     );
 
+    const agentId = `worker-workflow-integration-${randomUUID()}`;
+
     // Initialize a profile first
-    service.initializeProfile("worker-workflow-integration-1", false);
+    service.initializeProfile(agentId, false);
 
     const signal: ReputationSignal = {
-      agentId: "worker-workflow-integration-1",
+      agentId,
       taskId: 1,
       taskQualityScore: 80,
       actualDurationMs: 5000,
@@ -193,7 +196,7 @@ describe("WorkflowEngine reputation integration — task completed signal", () =
     expect(() => service.handleTaskCompleted(signal)).not.toThrow();
 
     // Verify the profile was updated
-    const profile = service.getReputation("worker-workflow-integration-1");
+    const profile = service.getReputation(agentId);
     expect(profile).toBeDefined();
     expect(profile!.totalTasks).toBe(1);
     expect(profile!.lastActiveAt).not.toBeNull();

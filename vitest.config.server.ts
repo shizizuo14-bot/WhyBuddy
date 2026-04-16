@@ -9,6 +9,16 @@ export default defineConfig({
   },
   test: {
     environment: "node",
+    pool: "forks",
+    fileParallelism: false,
+    maxWorkers: 1,
+    minWorkers: 1,
+    poolOptions: {
+      forks: {
+        singleFork: true,
+        execArgv: ["--max-old-space-size=6144"],
+      },
+    },
     include: [
       "server/tests/**/*.test.ts",
       "server/permission/**/*.test.ts",

@@ -160,6 +160,8 @@ export default defineConfig(() => {
     process.env.GITHUB_REPOSITORY || "opencroc/cube-pets-office";
   const repositoryName = repository.split("/")[1] || "cube-pets-office";
   const repositoryUrl = `https://github.com/${repository}`;
+  const isCI =
+    process.env.CI === "true" || process.env.GITHUB_ACTIONS === "true";
   const isGitHubPagesBuild =
     process.env.GITHUB_PAGES === "true" ||
     process.env.DEPLOY_TARGET === "github-pages";
@@ -167,6 +169,16 @@ export default defineConfig(() => {
   return {
     test: {
       css: false,
+      pool: "forks",
+      maxWorkers: isCI ? 2 : undefined,
+      minWorkers: 1,
+      poolOptions: {
+        forks: {
+          minForks: 1,
+          maxForks: isCI ? 2 : undefined,
+          execArgv: isCI ? ["--max-old-space-size=4096"] : [],
+        },
+      },
     },
     base: isGitHubPagesBuild ? `/${repositoryName}/` : "/",
     define: {
