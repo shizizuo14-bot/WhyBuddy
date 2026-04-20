@@ -509,9 +509,9 @@ C01-C08 契约冻结 (已完成)
   - 重点收敛首页壳体、信息层级、模块归位与桌面断点稳定性
   - 不并行
 - [ ] `task-runtime-visibility-v1`
-  - 当前状态：进行中，约 96%；是这批主线里最接近收尾的一条
-  - 已落地：`MissionStepFlow`、`Logs / Artifacts / Runtime` 归口、详情页与 cockpit 的运行证据 defer、workflow / review handoff 直连首页 `Artifacts`
-  - 剩余：`socket / callback` 仍是轻量派生摘要；若继续整理墙面浏览器回传与截图放大路径一致性，应转入 `office-wall-display-redesign-v2`
+  - 当前状态：进行中，约 98%；主线收口已基本完成，剩余主要是边界声明与人工验收
+  - 已落地：`MissionStepFlow`、`Logs / Artifacts / Runtime` 归口、详情页与 cockpit 的运行证据 defer、workflow / review handoff 直连首页 `Artifacts`、`socket / callback` 可读摘要与连接态即时同步，以及共享 `office-runtime-evidence` 事件 helper / 回归测试
+  - 剩余：`socket / callback` 仍保持前端轻量派生而不扩成第二套真相源；若继续整理墙面浏览器回传与截图放大路径一致性，应转入 `office-wall-display-redesign-v2`
   - 依赖 `task-os-home-redesign-v1`
   - 基于现有 mission / workflow / task detail / socket 数据，把步骤流、Logs、Artifacts、Runtime 收敛到首页
   - 优先做运行证据归口，不再造第二套真相源
@@ -536,9 +536,9 @@ C01-C08 契约冻结 (已完成)
 - 主线收敛三件套已经形成明确梯度：
   - `office-shell-convergence-v1` 负责入口、导航与壳体语义，当前约 `97%`
   - `task-os-home-redesign-v1` 负责首页四区骨架与桌面主次，当前约 `75%`
-  - `task-runtime-visibility-v1` 负责步骤流与运行证据归口，当前约 `96%`
+  - `task-runtime-visibility-v1` 负责步骤流与运行证据归口，当前约 `98%`
 - 就“离收尾最近”而言，优先级应是：
-  - 先收 `task-runtime-visibility-v1` 的 `socket / callback` 事件粒度和剩余边界说明
+  - 先完成 `task-runtime-visibility-v1` 的剩余边界确认与人工验收
   - 再收 `office-shell-convergence-v1` 的 `/debug/*` 回归边界
   - 再做 `task-os-home-redesign-v1` 的右侧控制区归位和桌面断点 / 手测闭环
 - `release-stability-guardrails-v2` 当前约 `70%`，统一入口、最小 CI 与 README 口径已基本收口，但仍不应误判为“已具备完整发布门禁”
@@ -547,7 +547,7 @@ C01-C08 契约冻结 (已完成)
 ### 剩余动作清单（建议顺序）
 
 1. 收尾 `task-runtime-visibility-v1`
-   - 视需要继续细化 `socket / callback` 的 relay / callback 事件粒度
+   - 保持 `socket / callback` 与 shared runtime evidence 事件都为派生摘要 / 导航语义层，不再扩成第二套 runtime 真相源
    - 将墙面浏览器回传 / 截图放大链路的后续收尾明确转交 `office-wall-display-redesign-v2`
 2. 收尾 `office-shell-convergence-v1`
    - 补一轮 `/debug/*` 子路径与旧深链跳转的人工回归
@@ -570,8 +570,8 @@ C01-C08 契约冻结 (已完成)
    - [x] 清掉首页主视图里残留的重复日志主入口
    - [x] 清掉首页主视图里残留的重复 artifact 主入口
    - [x] 清掉独立任务详情页里仍与首页运行证据容器平级竞争的日志 / artifact 主入口
-   - [ ] 补一轮定向回归，确保 `Logs / Artifacts / Runtime` 继续维持唯一主出口语义
-   - [ ] 视需要继续细化 `socket / callback` 的 relay / callback 事件粒度
+   - [x] 补一轮定向回归，确保 `Logs / Artifacts / Runtime` 继续维持唯一主出口语义
+   - [x] 细化 `socket / callback` 的 relay / callback 可读摘要与连接态同步
    - 完成判断：首页与详情页不再出现两套平级运行证据主入口；相关回归测试通过；墙面浏览器回传后续问题不再混入本 spec
 
 2. 再收 `office-shell-convergence-v1`
