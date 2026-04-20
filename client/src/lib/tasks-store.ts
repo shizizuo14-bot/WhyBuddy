@@ -319,6 +319,32 @@ function formatDurationMs(value: number | null): string {
   return minutes > 0 ? `${hours}h ${minutes}m` : `${hours}h`;
 }
 
+const TASKS_SELECTED_TASK_STORAGE_KEY = "cube-office:selected-task-id";
+
+function readPersistedSelectedTaskId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    return window.sessionStorage?.getItem(TASKS_SELECTED_TASK_STORAGE_KEY) || null;
+  } catch {
+    return null;
+  }
+}
+
+function persistSelectedTaskId(taskId: string | null) {
+  if (typeof window === "undefined") return;
+  try {
+    const storage = window.sessionStorage;
+    if (!storage) return;
+    if (taskId) {
+      storage.setItem(TASKS_SELECTED_TASK_STORAGE_KEY, taskId);
+      return;
+    }
+    storage.removeItem(TASKS_SELECTED_TASK_STORAGE_KEY);
+  } catch {
+    // Ignore sessionStorage failures and keep the in-memory focus intact.
+  }
+}
+
 function buildSocketRuntimeChannel(missionSocketConnected: boolean) {
   return missionSocketConnected
     ? {
@@ -538,6 +564,34 @@ function applyExecutorEventToRuntimeChannels(
       eventSummary: eventSummary || undefined,
     },
   };
+}
+
+function applyMissionSocketState(
+  runtimeChannels: MissionTaskDetail["runtimeChannels"],
+  missionSocketConnected: boolean
+): MissionTaskDetail["runtimeChannels"] {
+  return {
+    ...runtimeChannels,
+    socket: buildSocketRuntimeChannel(missionSocketConnected),
+  };
+}
+
+function updateDetailsSocketConnection(
+  detailsById: Record<string, MissionTaskDetail>,
+  missionSocketConnected: boolean
+): Record<string, MissionTaskDetail> {
+  return Object.fromEntries(
+    Object.entries(detailsById).map(([taskId, detail]) => [
+      taskId,
+      {
+        ...detail,
+        runtimeChannels: applyMissionSocketState(
+          detail.runtimeChannels,
+          missionSocketConnected
+        ),
+      },
+    ])
+  ) as Record<string, MissionTaskDetail>;
 }
 
 function clampPercentage(value: number | null | undefined, fallback = 0): number {
@@ -1435,13 +1489,21 @@ function resolveSelectedTaskId(
   currentSelectedTaskId: string | null,
   preferredTaskId?: string | null
 ): string | null {
-  const nextSelectedTaskId = preferredTaskId ?? currentSelectedTaskId ?? null;
-  if (
-    nextSelectedTaskId &&
-    summaries.some(summary => summary.id === nextSelectedTaskId)
-  ) {
-    return nextSelectedTaskId;
+  const candidateTaskIds = [
+    preferredTaskId,
+    currentSelectedTaskId,
+    readPersistedSelectedTaskId(),
+  ].filter(
+    (taskId, index, allTaskIds): taskId is string =>
+      Boolean(taskId) && allTaskIds.indexOf(taskId) === index
+  );
+
+  for (const taskId of candidateTaskIds) {
+    if (summaries.some(summary => summary.id === taskId)) {
+      return taskId;
+    }
   }
+
   return pickFallbackTaskId(summaries);
 }
 
@@ -1468,6 +1530,12 @@ export async function patchMissionRecordInStore(
   set(state => {
     const nextTasks = [...state.tasks.filter(task => task.id !== missionId), summary]
       .sort((left, right) => right.updatedAt - left.updatedAt);
+    const nextSelectedTaskId = resolveSelectedTaskId(
+      nextTasks,
+      state.selectedTaskId,
+      state.selectedTaskId === missionId ? missionId : undefined
+    );
+    persistSelectedTaskId(nextSelectedTaskId);
 
     return {
       ready: true,
@@ -1478,11 +1546,7 @@ export async function patchMissionRecordInStore(
         ...state.detailsById,
         [missionId]: detail,
       },
-      selectedTaskId: resolveSelectedTaskId(
-        nextTasks,
-        state.selectedTaskId,
-        state.selectedTaskId === missionId ? missionId : undefined
-      ),
+      selectedTaskId: nextSelectedTaskId,
     };
   });
 }
@@ -1516,24 +1580,12 @@ function ensureMissionSocket(
   useSandboxStore.getState().initSocket(missionSocket);
 
   missionSocket.on("connect", () => {
-    set(state => {
-      const nextDetailsById = Object.fromEntries(
-        Object.entries(state.detailsById).map(([missionId, detail]) => [
-          missionId,
-          {
-            ...detail,
-            runtimeChannels: applySocketConnectionToRuntimeChannels(
-              detail.runtimeChannels,
-              true
-            ),
-          },
-        ])
-      );
-
-      return {
-        missionSocketConnected: true,
-        detailsById: nextDetailsById,
-      };
+    set(state => ({
+      missionSocketConnected: true,
+      detailsById: updateDetailsSocketConnection(state.detailsById, true),
+    }));
+    queueTasksRefresh({
+      preferredTaskId: get().selectedTaskId,
     });
   });
 
@@ -1624,25 +1676,10 @@ function ensureMissionSocket(
   });
 
   missionSocket.on("disconnect", () => {
-    set(state => {
-      const nextDetailsById = Object.fromEntries(
-        Object.entries(state.detailsById).map(([missionId, detail]) => [
-          missionId,
-          {
-            ...detail,
-            runtimeChannels: applySocketConnectionToRuntimeChannels(
-              detail.runtimeChannels,
-              false
-            ),
-          },
-        ])
-      );
-
-      return {
-        missionSocketConnected: false,
-        detailsById: nextDetailsById,
-      };
-    });
+    set(state => ({
+      missionSocketConnected: false,
+      detailsById: updateDetailsSocketConnection(state.detailsById, false),
+    }));
     if (useAppStore.getState().runtimeMode !== "advanced") {
       stopMissionSocket();
     }
@@ -1724,6 +1761,12 @@ async function hydrateTaskData(
   const summaries = enrichedMissions
     .map(mission => buildSummaryRecord(mission))
     .sort((left, right) => right.updatedAt - left.updatedAt);
+  const selectedTaskId = resolveSelectedTaskId(
+    summaries,
+    get().selectedTaskId,
+    options?.preferredTaskId
+  );
+  persistSelectedTaskId(selectedTaskId);
 
   const detailsById = Object.fromEntries(
     enrichedMissions.map(mission => [
@@ -1738,11 +1781,7 @@ async function hydrateTaskData(
     error: null,
     tasks: summaries,
     detailsById,
-    selectedTaskId: resolveSelectedTaskId(
-      summaries,
-      get().selectedTaskId,
-      options?.preferredTaskId
-    ),
+    selectedTaskId,
   });
 }
 
@@ -1779,6 +1818,7 @@ async function hydratePlanetTaskData(
     get().selectedTaskId,
     options?.preferredTaskId
   );
+  persistSelectedTaskId(selectedTaskId);
 
   const detailsById: Record<string, MissionTaskDetail> = {};
   for (const planet of planets) {
@@ -1897,6 +1937,7 @@ export const useTasksStore = create<TasksStoreState>((set, get) => ({
   },
 
   selectTask: taskId => {
+    persistSelectedTaskId(taskId);
     set({ selectedTaskId: taskId });
   },
 
@@ -1944,6 +1985,12 @@ export const useTasksStore = create<TasksStoreState>((set, get) => ({
           ...state.tasks.filter(task => task.id !== taskId),
           summary,
         ].sort((left, right) => right.updatedAt - left.updatedAt);
+        const nextSelectedTaskId = resolveSelectedTaskId(
+          nextTasks,
+          state.selectedTaskId,
+          taskId,
+        );
+        persistSelectedTaskId(nextSelectedTaskId);
 
         return {
           tasks: nextTasks,
@@ -1951,11 +1998,7 @@ export const useTasksStore = create<TasksStoreState>((set, get) => ({
             ...state.detailsById,
             [taskId]: detail,
           },
-          selectedTaskId: resolveSelectedTaskId(
-            nextTasks,
-            state.selectedTaskId,
-            taskId,
-          ),
+          selectedTaskId: nextSelectedTaskId,
         };
       });
 
@@ -2007,6 +2050,12 @@ export const useTasksStore = create<TasksStoreState>((set, get) => ({
           ...state.tasks.filter(task => task.id !== taskId),
           summary,
         ].sort((left, right) => right.updatedAt - left.updatedAt);
+        const nextSelectedTaskId = resolveSelectedTaskId(
+          nextTasks,
+          state.selectedTaskId,
+          taskId,
+        );
+        persistSelectedTaskId(nextSelectedTaskId);
 
         return {
           tasks: nextTasks,
@@ -2014,11 +2063,7 @@ export const useTasksStore = create<TasksStoreState>((set, get) => ({
             ...state.detailsById,
             [taskId]: detail,
           },
-          selectedTaskId: resolveSelectedTaskId(
-            nextTasks,
-            state.selectedTaskId,
-            taskId,
-          ),
+          selectedTaskId: nextSelectedTaskId,
         };
       });
 
