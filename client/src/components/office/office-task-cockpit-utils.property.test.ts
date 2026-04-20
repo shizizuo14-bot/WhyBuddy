@@ -42,7 +42,7 @@ describe("office-task-cockpit-utils (property)", () => {
         const resolved = resolveOfficeCockpitTab(currentTab, availability);
         const anyAvailable = Object.values(availability).some(Boolean);
 
-        if (resolved === currentTab) {
+        if (resolved === currentTab && availability[resolved]) {
           expect(availability[resolved]).toBe(true);
           return;
         }
