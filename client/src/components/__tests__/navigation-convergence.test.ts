@@ -4,15 +4,21 @@ import {
   DEBUG_AUDIT_PATH,
   DEBUG_CONFIG_PATH,
   DEBUG_HELP_PATH,
+  DEBUG_LINEAGE_PATH,
   DEBUG_PERMISSIONS_PATH,
   DEBUG_PATH,
+  LEGACY_LINEAGE_PATH,
   LEGACY_COMMAND_CENTER_LEGACY_PATH,
   LEGACY_COMMAND_CENTER_PATH,
   MAIN_PATH_ITEMS,
   MORE_NAV_ITEMS,
+  OFFICE_PATH,
   PRIMARY_NAV_ITEMS,
+  getCompatibilityRedirect,
+  getDebugPath,
   getPrimaryNavigationId,
   isLowFrequencyPath,
+  resolveDebugTab,
 } from "../navigation-config";
 
 describe("navigation convergence config", () => {
@@ -60,6 +66,37 @@ describe("navigation convergence config", () => {
     expect(MORE_NAV_ITEMS.find(item => item.id === "help")?.href).toBe(
       DEBUG_HELP_PATH
     );
+  });
+
+  it("maps debug tabs to stable debug subpaths", () => {
+    expect(getDebugPath("overview")).toBe(DEBUG_PATH);
+    expect(getDebugPath("config")).toBe(DEBUG_CONFIG_PATH);
+    expect(getDebugPath("permissions")).toBe(DEBUG_PERMISSIONS_PATH);
+    expect(getDebugPath("audit")).toBe(DEBUG_AUDIT_PATH);
+    expect(getDebugPath("lineage")).toBe(DEBUG_LINEAGE_PATH);
+    expect(getDebugPath("help")).toBe(DEBUG_HELP_PATH);
+  });
+
+  it("resolves debug subpaths back to the expected debug tab", () => {
+    expect(resolveDebugTab(DEBUG_PATH)).toBe("overview");
+    expect(resolveDebugTab(DEBUG_CONFIG_PATH)).toBe("config");
+    expect(resolveDebugTab(DEBUG_PERMISSIONS_PATH)).toBe("permissions");
+    expect(resolveDebugTab(DEBUG_AUDIT_PATH)).toBe("audit");
+    expect(resolveDebugTab(DEBUG_LINEAGE_PATH)).toBe("lineage");
+    expect(resolveDebugTab(DEBUG_HELP_PATH)).toBe("help");
+  });
+
+  it("keeps legacy low-frequency deep links on the compatibility redirect map", () => {
+    expect(getCompatibilityRedirect(LEGACY_COMMAND_CENTER_PATH)).toBe(
+      OFFICE_PATH
+    );
+    expect(getCompatibilityRedirect(LEGACY_COMMAND_CENTER_LEGACY_PATH)).toBe(
+      OFFICE_PATH
+    );
+    expect(getCompatibilityRedirect(LEGACY_LINEAGE_PATH)).toBe(
+      DEBUG_LINEAGE_PATH
+    );
+    expect(getCompatibilityRedirect(DEBUG_HELP_PATH)).toBeNull();
   });
 
   it("treats debug, lineage, and legacy command center routes as low-frequency paths", () => {

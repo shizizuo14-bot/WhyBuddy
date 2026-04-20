@@ -16,6 +16,13 @@ export type MoreNavigationId =
   | "permissions"
   | "audit"
   | "help";
+export type DebugTab =
+  | "overview"
+  | "config"
+  | "permissions"
+  | "audit"
+  | "lineage"
+  | "help";
 
 export interface NavigationItem<TId extends string> {
   id: TId;
@@ -29,7 +36,52 @@ export const DEBUG_PATH = "/debug";
 export const DEBUG_CONFIG_PATH = "/debug/config";
 export const DEBUG_PERMISSIONS_PATH = "/debug/permissions";
 export const DEBUG_AUDIT_PATH = "/debug/audit";
+export const DEBUG_LINEAGE_PATH = "/debug/lineage";
 export const DEBUG_HELP_PATH = "/debug/help";
+export const LEGACY_LINEAGE_PATH = "/lineage";
+export const OFFICE_PATH = "/";
+
+export function getDebugPath(tab: DebugTab): string {
+  switch (tab) {
+    case "config":
+      return DEBUG_CONFIG_PATH;
+    case "permissions":
+      return DEBUG_PERMISSIONS_PATH;
+    case "audit":
+      return DEBUG_AUDIT_PATH;
+    case "lineage":
+      return DEBUG_LINEAGE_PATH;
+    case "help":
+      return DEBUG_HELP_PATH;
+    default:
+      return DEBUG_PATH;
+  }
+}
+
+export function resolveDebugTab(path: string): DebugTab {
+  if (path.startsWith(DEBUG_CONFIG_PATH)) return "config";
+  if (path.startsWith(DEBUG_PERMISSIONS_PATH)) return "permissions";
+  if (path.startsWith(DEBUG_AUDIT_PATH)) return "audit";
+  if (path.startsWith(DEBUG_LINEAGE_PATH)) return "lineage";
+  if (path.startsWith(DEBUG_HELP_PATH)) return "help";
+  return "overview";
+}
+
+export function getCompatibilityRedirect(path: string): string | null {
+  if (path.startsWith(LEGACY_COMMAND_CENTER_LEGACY_PATH)) {
+    return OFFICE_PATH;
+  }
+
+  if (path.startsWith(LEGACY_COMMAND_CENTER_PATH)) {
+    return OFFICE_PATH;
+  }
+
+  if (path.startsWith(LEGACY_LINEAGE_PATH)) {
+    return DEBUG_LINEAGE_PATH;
+  }
+
+  return null;
+}
 
 export const PRIMARY_NAV_ITEMS: Array<NavigationItem<PrimaryNavigationId>> = [
   {
@@ -82,7 +134,7 @@ export const MORE_NAV_ITEMS: Array<NavigationItem<MoreNavigationId>> = [
 export function isLowFrequencyPath(path: string) {
   return (
     path.startsWith(DEBUG_PATH) ||
-    path.startsWith("/lineage") ||
+    path.startsWith(LEGACY_LINEAGE_PATH) ||
     path.startsWith(LEGACY_COMMAND_CENTER_PATH)
   );
 }

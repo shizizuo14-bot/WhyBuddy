@@ -494,7 +494,7 @@ C01-C08 契约冻结 (已完成)
 - [ ] `office-shell-convergence-v1`
   - 当前状态：进行中，约 97%；主路由、主导航和 `/tasks` 语义已基本收敛
   - 已落地：`/debug` 壳路由、`/command-center` -> `/`、`Toolbar` 主导航收敛为 `office / more`、`MoreDrawer` 低频治理入口统一导向 `/debug/*`、`/lineage` -> `/debug/lineage`、`/command-center/legacy` 纯兼容跳转
-  - 剩余：`/debug/*` 子路径人工回归；定向自动校验待更新到包含 `/debug/help` 的最新一轮
+  - 剩余：`/debug/*` 子路径人工回归；定向自动校验已覆盖 `/debug/help` 与兼容跳转的最新一轮
   - 主线起点，负责首页默认入口、导航心智与路由壳收敛
   - 锁定 `/tasks` 为“查看 / 跟进 / 深度处理”的全屏工作台，不再承担发起语义
   - 只定义 `/debug` 的隐藏路由壳与入口策略，不要求同轮完成所有低频能力迁移
@@ -525,7 +525,7 @@ C01-C08 契约冻结 (已完成)
 - [ ] `replay-and-debug-surface-v1`
   - 当前状态：进行中，约 88%；回放主链稳定，debug 壳已存在，主壳治理入口已基本接线
   - 已落地：`/replay/:missionId`、任务详情页“查看回放”入口、`/debug` 页面与低频路径识别、`config / permissions / audit / lineage / help` 导向 `/debug`
-  - 剩余：`/debug/*` 子路径和旧深链跳转的人工回归；定向自动校验待更新到包含 `/debug/help` 的最新一轮
+  - 剩余：`/debug/*` 子路径和旧深链跳转的人工回归；定向自动校验已覆盖 `/debug/help`、`/debug/lineage` 与旧深链跳转
   - 与主线“部分并行”，不再视为完全独立并行项
   - 可先并行：回放稳定性、低频能力盘点、debug 信息架构设计
   - 后置接线：`/debug` 最终接线、主导航低频入口移除，等待主壳路由与导航定稿后再落

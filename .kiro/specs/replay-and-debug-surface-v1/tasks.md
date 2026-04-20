@@ -12,7 +12,7 @@
   - 旧 `/lineage` 路径已降级为兼容跳转，主承接面改为 `/debug/lineage`
 - 当前剩余：
   - 还缺一轮围绕 `/debug/*` 子路径与旧深链跳转的人工验收
-  - 定向自动校验待更新到包含 `/debug/help` 的最新一轮
+  - 定向自动校验已更新到覆盖 `/debug/help`、`/debug/lineage` 与旧深链跳转，剩余主要是人工验收
 
 ## Tasks
 
