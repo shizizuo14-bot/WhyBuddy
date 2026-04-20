@@ -185,15 +185,18 @@ $env:LOBSTER_EXECUTION_MODE='mock'
 
 ## 发布护栏
 
-当前发布护栏已经收口到统一入口，CI 与本地执行口径一致：
+当前发布护栏已经收口到统一入口，CI 与本地执行口径基本一致，并补了一个轻量关键链路验证入口：
 
 - 基线门禁：`pnpm run lint`、`pnpm run typecheck`、`pnpm run test`、`pnpm run build`
+- 轻量关键链路回归：`pnpm run test:guardrails`
 - 发布串联检查：`pnpm run test:release`
+- 决策回归入口：`pnpm run test:decision`
 - Smoke 脚本：`pnpm run smoke:prod`、`pnpm run smoke:executor`、`pnpm run smoke:mission`、`pnpm run smoke:restart`
 - 最小 CI：`.github/workflows/release-guardrails.yml`
 - GitHub Pages 构建：`.github/workflows/deploy-pages.yml`
 
 当前 `lint` 先收口到发布护栏相关文件的 Prettier 校验，避免在未统一历史风格基线前把整个仓库一次性拖入格式迁移。
+当前 websocket 恢复口径已包含“socket 重连后主动刷新任务数据”；但“完整 re-attach 到断线前任务工作上下文”的端到端闭环仍需要进一步补齐。
 
 ---
 
@@ -261,6 +264,8 @@ pnpm run test            # 前端 + 服务端 + 执行器测试聚合入口
 pnpm run build           # 构建前端 + 服务端
 pnpm run build:pages     # 构建 GitHub Pages 产物
 pnpm run preview         # 本地预览前端构建结果
+pnpm run test:guardrails # 轻量关键链路回归（decision + socket 重连恢复）
+pnpm run test:decision   # approve / reject / request-changes 决策回归
 pnpm run test:client     # 前端测试
 pnpm run test:server     # 服务端测试
 pnpm run test:executor   # 执行器测试
@@ -305,7 +310,7 @@ pnpm run test:release    # 发布前总检查
 
 ### 发布前最少需要跑哪些命令？
 
-最小门禁是 `pnpm run lint`、`pnpm run typecheck`、`pnpm run test`、`pnpm run build`。如果要做发布前串联检查，再运行 `pnpm run test:release`。
+最小门禁是 `pnpm run lint`、`pnpm run typecheck`、`pnpm run test`、`pnpm run build`。如果只想先做一次轻量 spot-check，可先运行 `pnpm run test:guardrails`；如果要做发布前串联检查，再运行 `pnpm run test:release`。
 
 ---
 

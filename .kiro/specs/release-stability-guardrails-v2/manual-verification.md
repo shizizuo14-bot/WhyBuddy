@@ -27,12 +27,14 @@
 2. 观察 executor 正常执行
 3. 触发 decision
 4. 完成任务并查看结果
-5. 如需脚本化验证，可运行 `pnpm run smoke:mission`
+5. 如需轻量回归 decision + socket 重连恢复，可运行 `pnpm run test:guardrails`
+6. 如需显式回归 approve / reject / request-changes，可运行 `pnpm run test:decision`
+7. 如需脚本化验证整条 mission 链路，可运行 `pnpm run smoke:mission`
 
 ## 4. 错误恢复验证
 
 1. 人为断开 websocket
-2. 验证页面至少能给出恢复提示或重新建立连接；若当前链路只能部分恢复，应明确记录缺口
+2. 验证页面至少能给出恢复提示或重新建立连接，并在重连后主动刷新任务数据；若当前链路只能部分恢复，应明确记录缺口
 3. 人为制造 executor 超时
 4. 验证任务进入失败或可恢复状态，而不是无声卡死
 5. 如需脚本化验证，可运行 `pnpm run smoke:executor`
@@ -40,5 +42,5 @@
 ## 5. 任务恢复验证
 
 1. 执行中刷新页面或重启服务
-2. 验证页面能重新 attach 当前任务或恢复足够上下文；若只能恢复到最小任务状态，也应记录当前恢复边界
+2. 验证页面能重新 attach 当前任务或恢复足够上下文；当前已知最小保证是 socket 重连后刷新任务数据，完整 re-attach 工作上下文仍需继续补齐
 3. 如需脚本化验证，可运行 `pnpm run smoke:restart`

@@ -41,6 +41,9 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
+      - name: Guardrails
+        run: pnpm run test:guardrails
+
       - name: Test
         run: pnpm run test
 

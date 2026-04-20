@@ -1381,6 +1381,9 @@ function ensureMissionSocket(
 
   missionSocket.on("connect", () => {
     set({ missionSocketConnected: true });
+    queueTasksRefresh({
+      preferredTaskId: get().selectedTaskId,
+    });
   });
 
   missionSocket.on(MISSION_SOCKET_EVENT, (payload: MissionSocketPayload) => {

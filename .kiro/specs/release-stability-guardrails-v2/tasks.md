@@ -2,16 +2,17 @@
 
 ## 当前状态快照（2026-04-20，已按仓库脚本与 CI 现状复核）
 
-- 总体状态：进行中，约 70%
+- 总体状态：进行中，约 85%
 - 已有落地：
-  - `package.json` 已提供统一 `lint`、`typecheck`、`test`、`build` 与 `test:release` 聚合入口，并保留 `check`、`test:client`、`test:server`、`test:executor`
-  - `.github/workflows/release-guardrails.yml` 已提供最小 GitHub Actions；`.github/workflows/deploy-pages.yml` 已对齐 `pnpm`
+  - `package.json` 已提供统一 `lint`、`typecheck`、`test`、`build` 与 `test:release` 聚合入口，并补充 `test:guardrails` / `test:decision` / `test:socket-reconnect`
+  - `.github/workflows/release-guardrails.yml` 已提供最小 GitHub Actions，并显式串联 `test:guardrails`；`.github/workflows/deploy-pages.yml` 已对齐 `pnpm`
   - README 已补齐 Quick Start、环境变量样例、执行器单独启动方式、package manager 口径、FAQ 与常用命令
-  - 恢复能力已有基础：浏览器侧恢复流程、`MissionRuntime.recoverInterruptedMissions(...)` 与 `mission-restart-smoke.mjs`
-  - 关键链路测试已有一定覆盖：mission routes / operator actions / executor smoke / mission integration smoke / restart recovery
+  - 恢复能力已有基础：浏览器侧恢复流程、`MissionRuntime.recoverInterruptedMissions(...)`、socket 重连后主动任务刷新，以及 `mission-restart-smoke.mjs`
+  - 关键链路测试已有一定覆盖：mission routes / operator actions / executor smoke / mission integration smoke / restart recovery / explicit decision regression / socket reconnect refresh recovery
 - 当前剩余：
-  - 决策 approve / reject / modify 的显式回归口径仍需在脚本或测试命名上进一步收口
-  - websocket 自动重连与任务重新 attach 仍缺少明确的 spec 级验收闭环
+  - 决策 approve / reject / modify 已有显式回归脚本，但 `modify` 语义当前以 `request-changes` 命名承接，若产品文案最终统一为 `modify` 仍需同步命名
+  - websocket 自动重连已具备最小实现，但“断线后完整 re-attach 到断线前任务工作上下文”的 spec 级验收闭环仍未完成
+  - 本轮最小验证建议以 `pnpm run lint`、`pnpm run typecheck`、`pnpm run test:guardrails` 为主；完整 `pnpm run test` / `pnpm run build` 仍按发布前口径复跑
 
 ## Tasks
 
@@ -30,10 +31,10 @@
 - [ ] 3. 补齐关键链路测试
   - [x] 3.1 任务状态机测试
   - [x] 3.2 executor 成功 / 超时 / 失败测试
-  - [ ] 3.3 decision approve / reject / modify 测试
+  - [x] 3.3 decision approve / reject / modify 测试
 
 - [ ] 4. 补齐错误恢复
-  - [ ] 4.1 websocket 自动重连
+  - [x] 4.1 websocket 自动重连
   - [x] 4.2 executor 超时 fail
   - [ ] 4.3 任务重新 attach
   - [x] 4.4 server 重启后最小状态恢复

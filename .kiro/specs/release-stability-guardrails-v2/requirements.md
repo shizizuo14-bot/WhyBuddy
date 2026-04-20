@@ -12,11 +12,12 @@
 
 ## 当前状态（2026-04-20）
 
-- 本 spec 当前完成度约 `70%`
+- 本 spec 当前完成度约 `85%`
 - 仓库已具备统一 `lint`、`typecheck`、`test`、`build` 聚合入口，并保留 `check`、`test:client`、`test:server`、`test:executor` 等拆分命令兼容
 - README 已补齐 Quick Start、环境变量样例、执行器启动方式、package manager 口径、常用命令与 FAQ
-- `.github/workflows/release-guardrails.yml` 已串联最小质量门禁，`.github/workflows/deploy-pages.yml` 已对齐仓库声明的 `pnpm`
-- 当前最主要缺口收敛为：decision approve / reject / modify 的显式回归收口，以及 websocket 自动重连 / 任务重新 attach 的 spec 级验收闭环
+- `.github/workflows/release-guardrails.yml` 已串联最小质量门禁，并显式加入轻量 `test:guardrails`；`.github/workflows/deploy-pages.yml` 已对齐仓库声明的 `pnpm`
+- 仓库已新增显式 `decision` 回归入口、`test:guardrails` 轻量关键链路入口，并为 mission socket 重连补上“重连后主动刷新任务数据”的最小恢复逻辑
+- 当前最主要缺口收敛为：`modify` 语义与 `request-changes` 命名的最终统一，以及任务完整 re-attach 的 spec 级验收闭环
 
 ## 范围
 
@@ -61,6 +62,8 @@
 当前收口口径：
 
 - 推荐主口径：`pnpm run lint`、`pnpm run typecheck`、`pnpm run test`、`pnpm run build`
+- 轻量关键链路回归：`pnpm run test:guardrails`
+- 决策显式回归：`pnpm run test:decision`
 - 发布前串联检查：`pnpm run test:release`
 - 若本机没有全局 `pnpm`，允许使用 `corepack pnpm ...`
 - 如需单独排查，仍可使用 `npm run check`、`npm run test:client`、`npm run test:server`、`npm run test:executor`
