@@ -196,7 +196,7 @@ $env:LOBSTER_EXECUTION_MODE='mock'
 - GitHub Pages 构建：`.github/workflows/deploy-pages.yml`
 
 当前 `lint` 先收口到发布护栏相关文件的 Prettier 校验，避免在未统一历史风格基线前把整个仓库一次性拖入格式迁移。
-当前 websocket 恢复口径已包含“socket 重连后主动刷新任务数据”；但“完整 re-attach 到断线前任务工作上下文”的端到端闭环仍需要进一步补齐。
+当前 websocket 恢复口径已包含“socket 重连后主动刷新任务数据 + 恢复当前任务焦点 + 回写已加载详情的 socket 运行态”；但“完整 re-attach 到断线前任务工作上下文”的端到端闭环仍需要进一步补齐。
 
 ---
 

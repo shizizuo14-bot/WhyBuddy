@@ -98,6 +98,11 @@ describe("tasks-store socket reconnect recovery", () => {
     (globalThis as typeof globalThis & { window?: typeof globalThis & { location: { origin: string } } }).window = {
       ...(globalThis as typeof globalThis & { window?: typeof globalThis }).window,
       location: { origin: "http://localhost:3000" },
+      sessionStorage: {
+        getItem: vi.fn(() => null),
+        setItem: vi.fn(),
+        removeItem: vi.fn(),
+      },
       setTimeout: ((...args: Parameters<typeof globalThis.setTimeout>) =>
         globalThis.setTimeout(...args)) as typeof globalThis.setTimeout,
       clearTimeout: ((...args: Parameters<typeof globalThis.clearTimeout>) =>
@@ -162,6 +167,44 @@ describe("tasks-store socket reconnect recovery", () => {
 
       expect(mockListMissions).toHaveBeenCalledWith(200);
       expect(mockListMissionEvents).toHaveBeenCalledWith("mission-1", 60);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("keeps the focused task attached and updates socket runtime status immediately", async () => {
+    vi.useFakeTimers();
+    try {
+      await useTasksStore.getState().refresh({ preferredTaskId: "mission-1" });
+
+      const beforeConnectDetail =
+        useTasksStore.getState().detailsById["mission-1"];
+      expect(beforeConnectDetail.runtimeChannels.socket.status).toBe(
+        "disconnected"
+      );
+
+      const connectHandler = socketHandlers.get("connect");
+      expect(connectHandler).toBeTypeOf("function");
+
+      connectHandler?.();
+
+      const connectedState = useTasksStore.getState();
+      expect(connectedState.selectedTaskId).toBe("mission-1");
+      expect(
+        connectedState.detailsById["mission-1"].runtimeChannels.socket.status
+      ).toBe("connected");
+
+      await vi.advanceTimersByTimeAsync(150);
+
+      const disconnectHandler = socketHandlers.get("disconnect");
+      expect(disconnectHandler).toBeTypeOf("function");
+      disconnectHandler?.();
+
+      const disconnectedState = useTasksStore.getState();
+      expect(disconnectedState.selectedTaskId).toBe("mission-1");
+      expect(
+        disconnectedState.detailsById["mission-1"].runtimeChannels.socket.status
+      ).toBe("disconnected");
     } finally {
       vi.useRealTimers();
     }
