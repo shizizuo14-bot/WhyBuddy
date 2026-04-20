@@ -62,6 +62,7 @@ describe("office-task-cockpit-utils", () => {
   it("falls back to task tab when the current tab has no usable context", () => {
     expect(
       resolveOfficeCockpitTab("flow", {
+        launch: true,
         task: true,
         flow: false,
         agent: true,
