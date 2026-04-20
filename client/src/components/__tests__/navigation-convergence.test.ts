@@ -14,9 +14,11 @@ import {
   MORE_NAV_ITEMS,
   OFFICE_PATH,
   PRIMARY_NAV_ITEMS,
+  REPLAY_PATH_PREFIX,
   getCompatibilityRedirect,
   getDebugPath,
   getPrimaryNavigationId,
+  getReplayPath,
   isLowFrequencyPath,
   resolveDebugTab,
 } from "../navigation-config";
@@ -34,6 +36,7 @@ describe("navigation convergence config", () => {
     expect(getPrimaryNavigationId("/")).toBe("office");
     expect(getPrimaryNavigationId("/tasks")).toBe("office");
     expect(getPrimaryNavigationId("/tasks/task-42")).toBe("office");
+    expect(getPrimaryNavigationId(getReplayPath("mission-42"))).toBe("office");
     expect(getPrimaryNavigationId("/lineage")).toBe("more");
     expect(getPrimaryNavigationId(DEBUG_PATH)).toBe("more");
     expect(getPrimaryNavigationId(DEBUG_CONFIG_PATH)).toBe("more");
@@ -84,6 +87,7 @@ describe("navigation convergence config", () => {
     expect(resolveDebugTab(DEBUG_AUDIT_PATH)).toBe("audit");
     expect(resolveDebugTab(DEBUG_LINEAGE_PATH)).toBe("lineage");
     expect(resolveDebugTab(DEBUG_HELP_PATH)).toBe("help");
+    expect(resolveDebugTab(`${DEBUG_PATH}/unknown-panel`)).toBe("overview");
   });
 
   it("keeps legacy low-frequency deep links on the compatibility redirect map", () => {
@@ -97,6 +101,14 @@ describe("navigation convergence config", () => {
       DEBUG_LINEAGE_PATH
     );
     expect(getCompatibilityRedirect(DEBUG_HELP_PATH)).toBeNull();
+  });
+
+  it("builds replay deep links from a shared route helper", () => {
+    expect(REPLAY_PATH_PREFIX).toBe("/replay");
+    expect(getReplayPath("mission-42")).toBe("/replay/mission-42");
+    expect(getReplayPath("mission/with/slash")).toBe(
+      "/replay/mission/with/slash"
+    );
   });
 
   it("treats debug, lineage, and legacy command center routes as low-frequency paths", () => {

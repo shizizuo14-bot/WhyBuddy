@@ -40,6 +40,11 @@ export const DEBUG_LINEAGE_PATH = "/debug/lineage";
 export const DEBUG_HELP_PATH = "/debug/help";
 export const LEGACY_LINEAGE_PATH = "/lineage";
 export const OFFICE_PATH = "/";
+export const REPLAY_PATH_PREFIX = "/replay";
+
+export function getReplayPath(missionId: string): string {
+  return `${REPLAY_PATH_PREFIX}/${missionId}`;
+}
 
 export function getDebugPath(tab: DebugTab): string {
   switch (tab) {
