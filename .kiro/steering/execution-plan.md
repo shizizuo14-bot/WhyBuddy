@@ -500,9 +500,9 @@ C01-C08 契约冻结 (已完成)
   - 只定义 `/debug` 的隐藏路由壳与入口策略，不要求同轮完成所有低频能力迁移
   - 不与后两项主线 spec 并行
 - [ ] `task-os-home-redesign-v1`
-  - 当前状态：进行中，约 75%；首页四区骨架已落地，主要剩断点与人工验收收尾
-  - 已落地：顶部状态条、左侧任务队列、中间场景与任务主线、右侧任务上下文、底部运行区
-  - 剩余：输入 / 澄清仍停留在中央浮层，`1280 / 1440 / 1728+` 与移动端最终手测未完成
+  - 当前状态：进行中，约 85%；首页四区骨架与右侧主交互归位已落地，主要剩断点与人工验收收尾
+  - 已落地：顶部状态条、左侧任务队列、中间场景与任务主线、右侧任务上下文、底部运行区，以及右侧 `launch` tab 承接统一发起 / 澄清
+  - 剩余：首屏主次稳定性验收、`1280 / 1440 / 1728+` 与移动端最终手测未完成
   - 依赖 `office-shell-convergence-v1`
   - 在现有视觉基底上做首页四区骨架重构，不重做设计系统
   - 重点收敛首页壳体、信息层级、模块归位与桌面断点稳定性
@@ -540,7 +540,7 @@ C01-C08 契约冻结 (已完成)
   - 先收 `task-runtime-visibility-v1` 的 `socket / callback` 事件粒度和剩余边界说明
   - 再收 `office-shell-convergence-v1` 的 `/debug/*` 回归边界
   - 再做 `task-os-home-redesign-v1` 的右侧控制区归位和桌面断点 / 手测闭环
-- `release-stability-guardrails-v2` 当前约 `40%`，是这批里最适合并行推进的工程护栏项，但仍不应误判为“已具备完整发布门禁”
+- `release-stability-guardrails-v2` 当前约 `70%`，统一入口、最小 CI 与 README 口径已基本收口，但仍不应误判为“已具备完整发布门禁”
 - `replay-and-debug-surface-v1` 当前约 `88%`，建议继续保持“信息架构先行、最终接线后置”的节奏，不要早于主壳定稿强行完成全部 debug 迁移
 
 ### 剩余动作清单（建议顺序）
@@ -551,7 +551,6 @@ C01-C08 契约冻结 (已完成)
 2. 收尾 `office-shell-convergence-v1`
    - 补一轮 `/debug/*` 子路径与旧深链跳转的人工回归
 3. 收尾 `task-os-home-redesign-v1`
-   - 把任务输入 / 澄清从中央浮层继续并入右侧控制语义
    - 完成 `1280 / 1440 / 1728+` 桌面宽度与移动端最小回归手测
 4. 并行推进 `release-stability-guardrails-v2`
    - 建立统一 `lint / typecheck / test / build` 入口
@@ -584,8 +583,6 @@ C01-C08 契约冻结 (已完成)
    - 完成判断：`/command-center` 与 `/command-center/legacy` 的退场策略稳定，主导航不再给低频入口过高权重
 
 3. 再收 `task-os-home-redesign-v1`
-   - [ ] 把任务输入入口继续向右侧控制语义归位
-   - [ ] 把澄清链路继续向右侧控制语义归位
    - [ ] 做 `1280 / 1440 / 1728+` 桌面宽度手测
    - [ ] 做一轮移动端最小回归，确认本轮改造未直接破坏主路径
    - [ ] 按 `manual-verification.md` 补一轮首页主次与模块归位验收
@@ -594,11 +591,11 @@ C01-C08 契约冻结 (已完成)
 #### 并行护栏
 
 4. 并行推进 `release-stability-guardrails-v2`
-   - [ ] 新增统一 `lint` 聚合入口
-   - [ ] 新增统一 `typecheck` 聚合入口
-   - [ ] 新增统一 `test` 聚合入口
-   - [ ] 对齐 `build`、`check`、分拆测试脚本与外部统一口径
-   - [ ] 建立最小 CI：install -> lint -> typecheck -> test -> build
+   - [x] 新增统一 `lint` 聚合入口
+   - [x] 新增统一 `typecheck` 聚合入口
+   - [x] 新增统一 `test` 聚合入口
+   - [x] 对齐 `build`、`check`、分拆测试脚本与外部统一口径
+   - [x] 建立最小 CI：install -> lint -> typecheck -> test -> build
    - [ ] 补 decision approve / reject / modify 的关键链路回归
    - [ ] 明确 websocket 恢复与任务 re-attach 的 spec 级验收口径
    - 完成判断：仓库具备统一门禁命令，CI 与 README 口径一致，关键恢复链路有明确验收闭环
