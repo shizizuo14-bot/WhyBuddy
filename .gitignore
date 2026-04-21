@@ -113,6 +113,7 @@ data/telemetry-history.json
 data/cost-governance-audit.json
 data/nl-audit.json
 data/test_retrieval_meta.json
+data/role-analytics.json
 data/replay/
 data/__test_*/
 data/agents/*/role-state.json

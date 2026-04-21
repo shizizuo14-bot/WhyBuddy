@@ -14,7 +14,30 @@ import type { RoleTemplate, RoleChangeLogEntry } from '../../shared/role-schema.
 
 const __rr_filename = fileURLToPath(import.meta.url);
 const __rr_dirname = dirname(__rr_filename);
-const DEFAULT_STORE_PATH = resolve(__rr_dirname, '../../data/role-templates.json');
+
+function shouldPersistRoleRegistryByDefault(): boolean {
+  if (process.env.CUBE_PETS_DISABLE_ROLE_PERSISTENCE === '1') {
+    return false;
+  }
+
+  if (process.env.NODE_ENV === 'test') {
+    return false;
+  }
+
+  if (
+    process.env.VITEST === 'true' ||
+    process.env.VITEST_WORKER_ID !== undefined ||
+    process.env.VITEST_POOL_ID !== undefined
+  ) {
+    return false;
+  }
+
+  return true;
+}
+
+const DEFAULT_STORE_PATH = shouldPersistRoleRegistryByDefault()
+  ? resolve(__rr_dirname, '../../data/role-templates.json')
+  : null;
 
 /** Persistence file schema */
 interface RoleTemplateStore {
