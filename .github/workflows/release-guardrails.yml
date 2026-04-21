@@ -14,7 +14,8 @@ permissions:
   contents: read
 
 jobs:
-  quality-gates:
+  static-checks:
+    name: static-checks
     runs-on: ubuntu-latest
 
     steps:
@@ -42,11 +43,139 @@ jobs:
       - name: Typecheck
         run: pnpm run typecheck
 
-      - name: Guardrails
-        run: pnpm run test:guardrails
+  test-client:
+    name: test-client
+    runs-on: ubuntu-latest
 
-      - name: Test
-        run: pnpm run test
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test Client
+        run: pnpm run test:client
+
+  test-server:
+    name: test-server
+    runs-on: ubuntu-latest
+    env:
+      TEST_SERVER_BATCH_SIZE: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test Server
+        run: pnpm run test:server
+
+  test-executor:
+    name: test-executor
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Test Executor
+        run: pnpm run test:executor
+
+  build:
+    name: build
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+
+      - name: Install Dependencies
+        run: pnpm install --frozen-lockfile
 
       - name: Build
         run: pnpm run build
+
+  quality-gates:
+    name: quality-gates
+    if: always()
+    runs-on: ubuntu-latest
+    needs:
+      - static-checks
+      - test-client
+      - test-server
+      - test-executor
+      - build
+
+    steps:
+      - name: Summarize dependency results
+        run: |
+          echo "static-checks=${{ needs.static-checks.result }}"
+          echo "test-client=${{ needs.test-client.result }}"
+          echo "test-server=${{ needs.test-server.result }}"
+          echo "test-executor=${{ needs.test-executor.result }}"
+          echo "build=${{ needs.build.result }}"
+
+      - name: Fail if any dependency failed
+        run: |
+          if [ "${{ needs.static-checks.result }}" != "success" ] || \
+             [ "${{ needs.test-client.result }}" != "success" ] || \
+             [ "${{ needs.test-server.result }}" != "success" ] || \
+             [ "${{ needs.test-executor.result }}" != "success" ] || \
+             [ "${{ needs.build.result }}" != "success" ]; then
+            echo "One or more quality gate jobs failed."
+            exit 1
+          fi
