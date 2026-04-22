@@ -23,6 +23,10 @@ import type { ReviewAction } from "../../shared/knowledge/types.js";
 import type { GraphStore } from "../knowledge/graph-store.js";
 import type { KnowledgeReviewQueue } from "../knowledge/review-queue.js";
 import type { KnowledgeService } from "../knowledge/knowledge-service.js";
+import {
+  executeKnowledgeNode,
+  isKnowledgeNodeType,
+} from "./node-adapters/knowledge-node-adapter.js";
 
 // ---------------------------------------------------------------------------
 // Route prefix — strip the common prefix so we can mount at /api/knowledge
@@ -193,6 +197,30 @@ export function createKnowledgeRouter(deps: {
         error: err instanceof Error ? err.message : "Unknown error",
       };
       res.status(500).json(errResp);
+    }
+  });
+
+  router.post("/nodes/execute", async (req, res) => {
+    const nodeType = req.body?.nodeType;
+
+    if (!isKnowledgeNodeType(nodeType)) {
+      return res.status(400).json({ error: "nodeType must be knowledge_qa" });
+    }
+
+    try {
+      const result = await executeKnowledgeNode(
+        {
+          nodeType,
+          input: req.body?.input,
+        },
+        { knowledgeService },
+      );
+
+      res.json(result);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Unknown error";
+      const status = /requires question|requires projectId/i.test(message) ? 400 : 500;
+      res.status(status).json({ error: message });
     }
   });
 

@@ -3,7 +3,6 @@ import type {
   GraphEdgeTransitionSnapshot,
   GraphInstanceSnapshot,
   GraphNodeRunSnapshot,
-  GraphRuntimeStatus,
 } from "../../shared/workflow-graph.js";
 import type {
   MessageRecord,
@@ -14,62 +13,24 @@ import type {
   WorkflowOrganizationNode,
   WorkflowOrganizationSnapshot,
 } from "../../shared/organization-schema.js";
+import {
+  toWebAigcNodeRunStatus,
+  toWebAigcRuntimeStatus,
+} from "../../shared/workflow-domain.js";
+import { buildWebAigcControlFlowSnapshot } from "./web-aigc-controlflow.js";
 
 function mapWorkflowStatusToGraphStatus(
   workflowStatus: string,
   mission?: Pick<MissionRecord, "status" | "waitingFor">,
-): GraphRuntimeStatus {
-  if (mission?.status === "waiting" || mission?.waitingFor) {
-    return "WAITING_INPUT";
-  }
-
-  switch (workflowStatus) {
-    case "pending":
-      return "PENDING";
-    case "running":
-      return "EXECUTING";
-    case "completed":
-    case "completed_with_errors":
-      return "EXECUTED";
-    case "failed":
-      return "EXCEPTION";
-    case "cancelled":
-    case "force_terminated":
-      return "FORCE_TERMINATED";
-    default:
-      return "EXECUTING";
-  }
+){
+  return toWebAigcRuntimeStatus(workflowStatus, {
+    waitingFor: mission?.status === "waiting" || mission?.waitingFor,
+  });
 }
 
-function mapTaskStatusToNodeStatus(taskStatus?: string): GraphRuntimeStatus {
-  switch (taskStatus) {
-    case "pending":
-    case "queued":
-    case "created":
-      return "PENDING";
-    case "running":
-    case "in_progress":
-    case "submitted":
-    case "reviewed":
-      return "EXECUTING";
-    case "waiting":
-    case "waiting_input":
-      return "WAITING_INPUT";
-    case "done":
-    case "completed":
-    case "verified":
-    case "passed":
-      return "EXECUTED";
-    case "failed":
-    case "rejected":
-    case "error":
-      return "EXCEPTION";
-    case "cancelled":
-    case "terminated":
-      return "FORCE_TERMINATED";
-    default:
-      return "PENDING";
-  }
+function mapTaskStatusToNodeStatus(taskStatus?: string) {
+  const status = toWebAigcNodeRunStatus(taskStatus);
+  return status === "SKIPPED" ? "EXECUTED" : status;
 }
 
 function buildOutputPreview(task?: Pick<TaskRecord, "deliverable" | "deliverable_v2" | "deliverable_v3">): string | undefined {
@@ -166,6 +127,16 @@ export function buildWorkflowGraphInstanceSnapshot(input: {
   mission?: MissionRecord;
 }): GraphInstanceSnapshot {
   const { workflow, tasks, messages, mission } = input;
+  const webAigcSnapshot = buildWebAigcControlFlowSnapshot({
+    workflow,
+    mission,
+    messageCount: messages.length,
+    taskCount: tasks.length || undefined,
+  });
+  if (webAigcSnapshot) {
+    return webAigcSnapshot;
+  }
+
   const organization = workflow.results?.organization as
     | WorkflowOrganizationSnapshot
     | undefined;

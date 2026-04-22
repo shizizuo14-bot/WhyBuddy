@@ -14,6 +14,11 @@ import { guestLifecycleManager } from "../core/guest-lifecycle.js";
 import { generateGuestId, sanitizeGuestConfig } from "../../shared/guest-agent-utils.js";
 import { ensureAgentWorkspace } from "../memory/workspace.js";
 import type { GuestAgentConfig, GuestAgentNode } from "../../shared/organization-schema.js";
+import {
+  getAutoAgentExecutor,
+  mapAutoAgentErrorToStatusCode,
+  normalizeAutoAgentContextInput,
+} from "../tool/api/auto-agent-adapter.js";
 
 const router = Router();
 
@@ -112,6 +117,33 @@ router.get("/", (_req: Request, res: Response) => {
     config: sanitizeGuestConfig(agent.guestConfig),
   }));
   return res.json({ guests });
+});
+
+/**
+ * POST /api/agents/guest/:id/execute — 调用 guest agent 的最小闭环入口。
+ */
+router.post("/:id/execute", async (req: Request, res: Response) => {
+  try {
+    const executor = getAutoAgentExecutor();
+    const result = await executor.execute({
+      kind: "guest_agent",
+      targetId: req.params.id,
+      input: req.body?.input,
+      context: normalizeAutoAgentContextInput(req.body?.context),
+      workflowId: typeof req.body?.workflowId === "string" ? req.body.workflowId : undefined,
+      stage: typeof req.body?.stage === "string" ? req.body.stage : "guest_agent_execute",
+      metadata:
+        req.body?.metadata && typeof req.body.metadata === "object"
+          ? req.body.metadata
+          : undefined,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return res.status(mapAutoAgentErrorToStatusCode(error)).json({
+      error: error instanceof Error ? error.message : "Guest agent execution failed",
+    });
+  }
 });
 
 /**

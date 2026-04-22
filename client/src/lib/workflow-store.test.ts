@@ -95,6 +95,9 @@ describe("workflow-store advanced fallback handling", () => {
       workflowsError: null,
       currentWorkflow: null,
       currentWorkflowGraphInstance: null,
+      currentWorkflowMonitoringInstance: null,
+      currentWorkflowMonitoringSession: null,
+      monitoringInstances: [],
       workflowDetailError: null,
       tasks: [],
       messages: [],
@@ -236,7 +239,7 @@ describe("workflow-store advanced fallback handling", () => {
     });
   });
 
-  it("fetches graph-instance together with advanced workflow detail", async () => {
+  it("fetches graph-instance and monitoring payloads together with advanced workflow detail", async () => {
     vi.spyOn(globalThis, "fetch")
       .mockResolvedValueOnce(
         new Response(
@@ -300,8 +303,115 @@ describe("workflow-store advanced fallback handling", () => {
                 messageCount: 2,
                 taskCount: 1,
                 errorCount: 0,
-                waitingFor: "等待市场部回传",
+                waitingFor: "marketing feedback",
               },
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              id: 101,
+              instanceUuid: "wf-graph",
+              orchestrationCode: "growth-agent-pipeline",
+              orchestrationName: "Growth Agent Pipeline",
+              orchestrationVersion: 3,
+              category: "growth",
+              sourceApp: "web-aigc",
+              status: "EXECUTING",
+              executor: "office-runtime",
+              startTime: "2026-04-15T00:00:01.000Z",
+              endTime: null,
+              lastUpdateTime: "2026-04-15T00:03:00.000Z",
+              inputVariables: {},
+              outputVariables: {},
+              nodes: [
+                {
+                  id: 1,
+                  nodeId: "node-1",
+                  nodeLabel: "CEO node",
+                  nodeType: "planner",
+                  status: "EXECUTING",
+                  startTime: "2026-04-15T00:00:01.000Z",
+                  endTime: null,
+                  inputData: null,
+                  outputData: null,
+                  errorMessage: null,
+                  position: { x: 0, y: 0 },
+                },
+              ],
+              edges: [],
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              content: [
+                {
+                  id: 101,
+                  instanceUuid: "wf-graph",
+                  orchestrationCode: "growth-agent-pipeline",
+                  orchestrationName: "Growth Agent Pipeline",
+                  orchestrationVersion: 3,
+                  category: "growth",
+                  sourceApp: "web-aigc",
+                  status: "EXECUTING",
+                  executor: "office-runtime",
+                  lastExecutionTime: "2026-04-15T00:03:00.000Z",
+                  startTime: "2026-04-15T00:00:01.000Z",
+                  endTime: null,
+                },
+              ],
+              totalElements: 1,
+              totalPages: 1,
+              page: 0,
+              size: 1,
+            },
+          }),
+          {
+            status: 200,
+            headers: {
+              "content-type": "application/json",
+            },
+          }
+        )
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            success: true,
+            data: {
+              sessionId: "session-graph",
+              user: "operator",
+              startTime: "2026-04-15T00:00:01.000Z",
+              sourceApp: "web-aigc",
+              messages: [
+                {
+                  id: "msg-1",
+                  role: "assistant",
+                  content: "Graph execution is in progress.",
+                  timestamp: "2026-04-15T00:02:00.000Z",
+                },
+              ],
             },
           }),
           {
@@ -320,7 +430,14 @@ describe("workflow-store advanced fallback handling", () => {
     expect(state.currentWorkflow?.id).toBe("wf-graph");
     expect(state.currentWorkflowGraphInstance?.workflowId).toBe("wf-graph");
     expect(state.currentWorkflowGraphInstance?.telemetry.waitingFor).toBe(
-      "等待市场部回传"
+      "marketing feedback"
+    );
+    expect(state.currentWorkflowMonitoringInstance?.instanceUuid).toBe(
+      "wf-graph"
+    );
+    expect(state.monitoringInstances).toHaveLength(1);
+    expect(state.currentWorkflowMonitoringSession?.sessionId).toBe(
+      "session-graph"
     );
   });
 });

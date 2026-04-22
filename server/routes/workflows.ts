@@ -8,6 +8,11 @@ import { getAIConfig } from "../core/ai-config.js";
 import { generateWorkflowOrganization } from "../core/dynamic-organization.js";
 import { workflowEngine } from "../core/workflow-engine.js";
 import { buildWorkflowGraphInstanceSnapshot } from "../core/workflow-graph-projection.js";
+import {
+  buildWorkflowGraphDefinition,
+  buildWorkflowGraphInstance,
+  webAigcRuntimeEngine,
+} from "../core/workflow-runtime-engine.js";
 import { reportStore } from "../memory/report-store.js";
 import { serverRuntime } from "../runtime/server-runtime.js";
 import { missionRuntime } from "../tasks/mission-runtime.js";
@@ -19,6 +24,7 @@ import {
   buildWorkflowDirectiveContext,
   buildWorkflowInputSignature,
   normalizeWorkflowAttachments,
+  normalizeWorkflowInputProjection,
 } from "../../shared/workflow-input.js";
 
 const router = Router();
@@ -77,6 +83,15 @@ router.post("/organization/preview", async (req, res) => {
 router.post("/", async (req, res) => {
   const { directive } = req.body;
   const attachments = normalizeWorkflowAttachments(req.body?.attachments);
+  const projection = normalizeWorkflowInputProjection({
+    ...(typeof req.body?.projection === "object" && req.body?.projection !== null
+      ? req.body.projection
+      : {}),
+    sessionId:
+      typeof req.body?.sessionId === "string" ? req.body.sessionId : undefined,
+    sourceApp:
+      typeof req.body?.sourceApp === "string" ? req.body.sourceApp : undefined,
+  });
   if (!directive || typeof directive !== "string") {
     return res.status(400).json({ error: "directive is required" });
   }
@@ -133,11 +148,33 @@ router.post("/", async (req, res) => {
       directiveContext,
       inputSignature,
     });
+    const workflow = db.getWorkflow(workflowId);
+    if (workflow) {
+      db.updateWorkflow(workflowId, {
+        results: {
+          ...(workflow.results || {}),
+          input: {
+            ...(workflow.results?.input || {}),
+            ...(projection?.sessionId ? { sessionId: projection.sessionId } : {}),
+            ...(projection?.sourceApp ? { sourceApp: projection.sourceApp } : {}),
+            ...(projection ? { projection } : {}),
+          },
+        },
+      });
+    }
 
     // Create a Mission and link it to the workflow so ExecutionBridge can dispatch to Docker
     const mission = missionRuntime.createChatTask(
       normalizedDirective.slice(0, 120),
       normalizedDirective,
+      projection?.sessionId,
+      {
+        workflowId,
+        instanceId: workflowId,
+        replayId: workflowId,
+        sessionId: projection?.sessionId,
+        sourceApp: projection?.sourceApp,
+      },
     );
     linkWorkflowToMission(workflowId, mission.id);
     missionRuntime.markMissionRunning(mission.id, "execute", `Workflow ${workflowId} started`);
@@ -272,6 +309,122 @@ router.get("/:id/graph-instance", (req, res) => {
   });
 
   res.json({ instance });
+});
+
+router.get("/:id/runtime-definition", (req, res) => {
+  const workflow = db.getWorkflow(req.params.id);
+  if (!workflow) {
+    return res.status(404).json({ error: "Workflow not found" });
+  }
+
+  const tasks = db.getTasksByWorkflow(req.params.id);
+  const missionId = resolveWorkflowMission(req.params.id);
+  const mission = missionId ? missionRuntime.getTask(missionId) : undefined;
+  const definition = buildWorkflowGraphDefinition({
+    workflow,
+    tasks,
+    mission,
+  });
+
+  res.json({ definition });
+});
+
+router.get("/:id/runtime-state", (req, res) => {
+  const workflow = db.getWorkflow(req.params.id);
+  if (!workflow) {
+    return res.status(404).json({ error: "Workflow not found" });
+  }
+
+  const missionId = resolveWorkflowMission(req.params.id);
+  const mission = missionId ? missionRuntime.getTask(missionId) : undefined;
+  const persisted = webAigcRuntimeEngine.getState(req.params.id, mission);
+  if (persisted) {
+    return res.json({ state: persisted });
+  }
+
+  const tasks = db.getTasksByWorkflow(req.params.id);
+  const definition = buildWorkflowGraphDefinition({
+    workflow,
+    tasks,
+    mission,
+  });
+  const instance = buildWorkflowGraphInstance({
+    workflow,
+    tasks,
+    mission,
+    definition,
+  });
+
+  res.json({
+    state: {
+      domainModelVersion: 1,
+      definition,
+      instance,
+      updatedAt: new Date().toISOString(),
+    },
+  });
+});
+
+router.post("/:id/runtime/run", async (req, res) => {
+  const workflow = db.getWorkflow(req.params.id);
+  if (!workflow) {
+    return res.status(404).json({ error: "Workflow not found" });
+  }
+
+  const tasks = db.getTasksByWorkflow(req.params.id);
+  const missionId = resolveWorkflowMission(req.params.id);
+  const mission = missionId ? missionRuntime.getTask(missionId) : undefined;
+
+  try {
+    const definition = buildWorkflowGraphDefinition({
+      workflow,
+      tasks,
+      mission,
+    });
+    const variables =
+      req.body && typeof req.body.variables === "object" && req.body.variables !== null
+        ? req.body.variables
+        : undefined;
+    const maxSteps =
+      typeof req.body?.maxSteps === "number" && Number.isFinite(req.body.maxSteps)
+        ? req.body.maxSteps
+        : undefined;
+
+    const state = await webAigcRuntimeEngine.runToCheckpoint({
+      workflowId: req.params.id,
+      definition,
+      variables,
+      maxSteps,
+    });
+
+    res.json({ state });
+  } catch (err: any) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+router.post("/:id/runtime/resume", async (req, res) => {
+  const workflow = db.getWorkflow(req.params.id);
+  if (!workflow) {
+    return res.status(404).json({ error: "Workflow not found" });
+  }
+
+  try {
+    const payload =
+      req.body && typeof req.body.payload === "object" && req.body.payload !== null
+        ? req.body.payload
+        : {};
+    const state = await webAigcRuntimeEngine.resume(req.params.id, payload);
+    res.json({ state });
+  } catch (err: any) {
+    if (typeof err.message === "string" && err.message.includes("not waiting for input")) {
+      return res.status(409).json({ error: err.message });
+    }
+    if (typeof err.message === "string" && err.message.includes("not found")) {
+      return res.status(404).json({ error: err.message });
+    }
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // GET /api/workflows/:id/nodes/:nodeId/skills — 查询节点的 Skill 列表

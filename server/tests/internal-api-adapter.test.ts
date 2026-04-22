@@ -1,0 +1,343 @@
+import { describe, expect, it } from "vitest";
+
+import type {
+  GetMissionSessionResponse,
+  MissionProjectionView,
+} from "../../shared/mission/api.js";
+import type { MissionRecord } from "../../shared/mission/contracts.js";
+import type {
+  MessageRecord,
+  TaskRecord,
+  WorkflowRecord,
+} from "../../shared/workflow-runtime.js";
+import { InternalApiExecutor } from "../tool/api/internal-api-adapter.js";
+
+function makeWorkflow(id: string): WorkflowRecord {
+  return {
+    id,
+    directive: "为宠物办公室生成一套并行执行方案",
+    status: "running",
+    current_stage: "execution",
+    departments_involved: ["engineering"],
+    started_at: "2026-04-22T08:00:00.000Z",
+    completed_at: null,
+    results: {
+      organization: {
+        taskProfile: "web-aigc-migration",
+        departments: [
+          {
+            id: "engineering",
+            label: "工程",
+            managerNodeId: "manager-node-1",
+          },
+        ],
+        nodes: [
+          {
+            id: "manager-node-1",
+            agentId: "manager-1",
+            parentId: null,
+            name: "工程经理",
+            title: "工程经理",
+            role: "manager",
+            departmentId: "engineering",
+            departmentLabel: "工程",
+          },
+          {
+            id: "worker-node-1",
+            agentId: "worker-1",
+            parentId: "manager-node-1",
+            name: "执行工程师",
+            title: "执行工程师",
+            role: "worker",
+            departmentId: "engineering",
+            departmentLabel: "工程",
+          },
+        ],
+      },
+      input: {
+        sourceApp: "cube-pets-office",
+      },
+    },
+    created_at: "2026-04-22T07:50:00.000Z",
+  };
+}
+
+function makeTask(workflowId: string): TaskRecord {
+  return {
+    id: 1,
+    workflow_id: workflowId,
+    worker_id: "worker-1",
+    manager_id: "manager-1",
+    department: "engineering",
+    description: "将 Web-AIGC 编排接口迁移到 Cube",
+    deliverable: "已建立 internal_api 薄切片",
+    deliverable_v2: null,
+    deliverable_v3: null,
+    score_accuracy: null,
+    score_completeness: null,
+    score_actionability: null,
+    score_format: null,
+    total_score: null,
+    manager_feedback: null,
+    meta_audit_feedback: null,
+    verify_result: null,
+    version: 1,
+    status: "running",
+    created_at: "2026-04-22T08:01:00.000Z",
+    updated_at: "2026-04-22T08:02:00.000Z",
+  };
+}
+
+function makeMessage(workflowId: string): MessageRecord {
+  return {
+    id: 1,
+    workflow_id: workflowId,
+    from_agent: "manager-1",
+    to_agent: "worker-1",
+    stage: "execution",
+    content: "先把最薄的 internal_api 接起来。",
+    metadata: {
+      thinking: "优先做零外部依赖的薄代理。",
+      toolCalls: [{ name: "buildWorkflowGraphInstanceSnapshot", arguments: "{}" }],
+    },
+    created_at: "2026-04-22T08:03:00.000Z",
+  };
+}
+
+function makeMission(): MissionRecord {
+  return {
+    id: "mission-1",
+    kind: "chat",
+    title: "推进 web-aigc 迁移",
+    status: "running",
+    progress: 55,
+    createdAt: Date.parse("2026-04-22T07:49:00.000Z"),
+    updatedAt: Date.parse("2026-04-22T08:05:00.000Z"),
+    startedAt: Date.parse("2026-04-22T08:00:00.000Z"),
+    completedAt: undefined,
+    sourceText: "迁移 web-aigc 编排接口",
+    stageLabels: [],
+    eventLog: [],
+    artifacts: [],
+    decisionHistory: [],
+    topicId: "topic-1",
+    projection: {
+      workflowId: "wf-detail-1",
+      instanceId: "wf-detail-1",
+      sessionId: "topic-1",
+      sourceApp: "cube-pets-office",
+    },
+    executor: {
+      name: "parallel-engine",
+    },
+  } as MissionRecord;
+}
+
+describe("InternalApiExecutor", () => {
+  it("projects a mission projection view for internal_api execution", async () => {
+    const mission = makeMission();
+    const projection: MissionProjectionView = {
+      missionId: mission.id,
+      links: {
+        workflowId: "wf-detail-1",
+        sessionId: "topic-1",
+      },
+      workflow: {
+        id: "wf-detail-1",
+        directive: "为宠物办公室生成一套并行执行方案",
+        status: "running",
+        currentStage: "execution",
+        createdAt: "2026-04-22T07:50:00.000Z",
+        startedAt: "2026-04-22T08:00:00.000Z",
+        completedAt: null,
+        attachmentCount: 0,
+        sourceApp: "cube-pets-office",
+        sessionId: "topic-1",
+      },
+      session: {
+        sessionId: "topic-1",
+        messageCount: 1,
+        memoryEntryCount: 0,
+        latestActivityAt: "2026-04-22T08:03:00.000Z",
+      },
+    };
+
+    const executor = new InternalApiExecutor({
+      workflowRepo: {
+        getWorkflow: () => undefined,
+        getWorkflows: () => [],
+        getTasksByWorkflow: () => [],
+        getMessagesByWorkflow: () => [],
+      },
+      resolveMissionId: () => mission.id,
+      getMission: () => mission,
+      missionRuntime: {
+        getTask: (id: string) => (id === mission.id ? mission : undefined),
+      },
+      buildMissionProjection: () => projection,
+      buildMissionSession: () => null,
+    });
+
+    const result = await executor.execute({
+      targetId: "mission.projection.get",
+      input: "读取任务聚合视图",
+      context: [],
+      metadata: {
+        missionId: mission.id,
+      },
+    });
+
+    expect(result.targetLabel).toBe("Mission 聚合投影视图");
+    expect(result.operation).toBe("mission.projection.get");
+    expect(result.output).toContain('"missionId": "mission-1"');
+    expect(result.output).toContain('"sessionId": "topic-1"');
+  });
+
+  it("projects a mission session view for internal_api execution", async () => {
+    const mission = makeMission();
+    const session: GetMissionSessionResponse = {
+      ok: true,
+      missionId: mission.id,
+      links: {
+        workflowId: "wf-detail-1",
+        sessionId: "topic-1",
+      },
+      session: {
+        sessionId: "topic-1",
+        user: "topic-1",
+        startTime: "2026-04-22T07:49:00.000Z",
+        sourceApp: "cube-pets-office",
+        messages: [
+          {
+            id: "1",
+            role: "assistant",
+            content: "先把最薄的 internal_api 接起来。",
+            timestamp: "2026-04-22T08:03:00.000Z",
+          },
+        ],
+      },
+      memoryEntries: [],
+    };
+
+    const executor = new InternalApiExecutor({
+      workflowRepo: {
+        getWorkflow: () => undefined,
+        getWorkflows: () => [],
+        getTasksByWorkflow: () => [],
+        getMessagesByWorkflow: () => [],
+      },
+      resolveMissionId: () => mission.id,
+      getMission: () => mission,
+      missionRuntime: {
+        getTask: (id: string) => (id === mission.id ? mission : undefined),
+      },
+      buildMissionProjection: () => null,
+      buildMissionSession: () => session,
+    });
+
+    const result = await executor.execute({
+      targetId: "mission.session.get",
+      input: "读取任务会话视图",
+      context: [],
+      metadata: {
+        missionId: mission.id,
+      },
+    });
+
+    expect(result.targetLabel).toBe("Mission 会话与记忆视图");
+    expect(result.operation).toBe("mission.session.get");
+    expect(result.output).toContain('"ok": true');
+    expect(result.output).toContain('"sessionId": "topic-1"');
+  });
+
+  it("projects a workflow graph snapshot for internal_api execution", async () => {
+    const workflow = makeWorkflow("wf-graph-1");
+    const executor = new InternalApiExecutor({
+      workflowRepo: {
+        getWorkflow: (id: string) => (id === workflow.id ? workflow : undefined),
+        getWorkflows: () => [workflow],
+        getTasksByWorkflow: () => [makeTask(workflow.id)],
+        getMessagesByWorkflow: () => [makeMessage(workflow.id)],
+      },
+      resolveMissionId: (workflowId: string) =>
+        workflowId === workflow.id ? "mission-1" : undefined,
+      getMission: () => makeMission(),
+      missionRuntime: {
+        getTask: () => makeMission(),
+      },
+      buildMissionProjection: () => null,
+      buildMissionSession: () => null,
+    });
+
+    const result = await executor.execute({
+      targetId: "workflow.graph_instance_snapshot",
+      input: "读取工作流图",
+      context: [],
+      workflowId: workflow.id,
+    });
+
+    expect(result.targetLabel).toBe("工作流图实例快照");
+    expect(result.operation).toBe("workflow.graph_instance_snapshot");
+    expect(result.output).toContain('"kind": "graph_instance_snapshot"');
+  });
+
+  it("projects monitoring instance detail for internal_api execution", async () => {
+    const workflow = makeWorkflow("wf-detail-1");
+    const executor = new InternalApiExecutor({
+      workflowRepo: {
+        getWorkflow: (id: string) => (id === workflow.id ? workflow : undefined),
+        getWorkflows: () => [workflow],
+        getTasksByWorkflow: () => [makeTask(workflow.id)],
+        getMessagesByWorkflow: () => [makeMessage(workflow.id)],
+      },
+      resolveMissionId: (workflowId: string) =>
+        workflowId === workflow.id ? "mission-1" : undefined,
+      getMission: () => makeMission(),
+      missionRuntime: {
+        getTask: () => makeMission(),
+      },
+      buildMissionProjection: () => null,
+      buildMissionSession: () => null,
+    });
+
+    const result = await executor.execute({
+      targetId: "aigc_monitoring.instance_detail",
+      input: "读取监控详情",
+      context: [],
+      metadata: {
+        workflowId: workflow.id,
+      },
+    });
+
+    expect(result.targetLabel).toBe("AIGC 监控实例详情");
+    expect(result.output).toContain('"instanceUuid": "wf-detail-1"');
+    expect(result.output).toContain('"orchestrationName"');
+  });
+
+  it("returns the web-aigc risk action catalog", async () => {
+    const executor = new InternalApiExecutor({
+      workflowRepo: {
+        getWorkflow: () => undefined,
+        getWorkflows: () => [],
+        getTasksByWorkflow: () => [],
+        getMessagesByWorkflow: () => [],
+      },
+      resolveMissionId: () => undefined,
+      getMission: () => undefined,
+      missionRuntime: {
+        getTask: () => undefined,
+      },
+      buildMissionProjection: () => null,
+      buildMissionSession: () => null,
+    });
+
+    const result = await executor.execute({
+      targetId: "web_aigc.risk_action_catalog",
+      input: "列出风险动作",
+      context: [],
+    });
+
+    expect(result.targetLabel).toBe("Web-AIGC 风险动作目录");
+    expect(result.output).toContain("/api/rag/risk-actions/vector-insert");
+  });
+});

@@ -16,6 +16,7 @@ import type {
   MissionInstanceContext,
   MissionRecord,
   MissionStage,
+  MissionProjectionLinks,
 } from '../../shared/mission/contracts.js';
 import { getSocketIO } from '../core/socket.js';
 import { DatabaseMissionSnapshotStore } from '../db/mission-storage.js';
@@ -95,13 +96,15 @@ export class MissionRuntime {
   createChatTask(
     title: string,
     sourceText?: string,
-    topicId?: string
+    topicId?: string,
+    projection?: MissionProjectionLinks,
   ): MissionRecord {
     return this.createTask({
       kind: 'chat',
       title,
       sourceText,
       topicId,
+      projection,
       stageLabels: [...MISSION_CORE_STAGE_BLUEPRINT],
     });
   }

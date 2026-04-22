@@ -6,6 +6,11 @@ import { skillRegistry } from "../core/dynamic-organization.js";
 import { SkillMonitor } from "../core/skill-monitor.js";
 import db from "../db/index.js";
 import type { SkillDefinition } from "../../shared/skill-contracts.js";
+import {
+  getAutoAgentExecutor,
+  mapAutoAgentErrorToStatusCode,
+  normalizeAutoAgentContextInput,
+} from "../tool/api/auto-agent-adapter.js";
 
 const router = Router();
 const monitor = new SkillMonitor(db);
@@ -66,6 +71,35 @@ router.get("/:id/metrics", (req, res) => {
   const timeRange = start && end ? { start, end } : undefined;
   const metrics = monitor.getSkillMetrics(req.params.id, timeRange);
   res.json(metrics);
+});
+
+// POST /api/skills/:id/execute — 通过 auto-agent 薄适配执行 skill
+router.post("/:id/execute", async (req, res) => {
+  try {
+    const executor = getAutoAgentExecutor();
+    const result = await executor.execute({
+      kind: "skill",
+      targetId: req.params.id,
+      input: req.body?.input,
+      context: normalizeAutoAgentContextInput(req.body?.context),
+      workflowId: typeof req.body?.workflowId === "string" ? req.body.workflowId : undefined,
+      stage: typeof req.body?.stage === "string" ? req.body.stage : "skills_execute",
+      version: typeof req.body?.version === "string" ? req.body.version : undefined,
+      delegateAgentId:
+        typeof req.body?.delegateAgentId === "string" ? req.body.delegateAgentId : undefined,
+      maxSkills: typeof req.body?.maxSkills === "number" ? req.body.maxSkills : undefined,
+      metadata:
+        req.body?.metadata && typeof req.body.metadata === "object"
+          ? req.body.metadata
+          : undefined,
+    });
+
+    res.json(result);
+  } catch (error) {
+    res.status(mapAutoAgentErrorToStatusCode(error)).json({
+      error: error instanceof Error ? error.message : "Skill execution failed",
+    });
+  }
 });
 
 export default router;

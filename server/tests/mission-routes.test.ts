@@ -229,6 +229,72 @@ describe('tasks routes', () => {
     });
   });
 
+  it('returns mission projection view from GET /api/tasks/:id/projection', async () => {
+    const task = runtime.createTask({
+      kind: 'chat',
+      title: 'Projection detail route',
+      sourceText: 'Project workflow into mission route',
+      topicId: 'session-route',
+      projection: {
+        workflowId: 'wf-route',
+        instanceId: 'wf-route',
+        replayId: 'wf-route',
+        sessionId: 'session-route',
+        sourceApp: 'web-aigc',
+      },
+      stageLabels: [{ key: 'receive', label: 'Receive task' }],
+    });
+
+    const response = await fetch(`${baseUrl}/api/tasks/${task.id}/projection`);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      missionId: task.id,
+      projection: {
+        missionId: task.id,
+        links: {
+          workflowId: 'wf-route',
+          instanceId: 'wf-route',
+          replayId: 'wf-route',
+          sessionId: 'session-route',
+          sourceApp: 'web-aigc',
+        },
+      },
+    });
+  });
+
+  it('returns mission session view from GET /api/tasks/:id/session', async () => {
+    const task = runtime.createTask({
+      kind: 'chat',
+      title: 'Session detail route',
+      sourceText: 'Return mission session view',
+      topicId: 'session-task',
+      projection: {
+        sessionId: 'session-task',
+      },
+      stageLabels: [{ key: 'receive', label: 'Receive task' }],
+    });
+
+    const response = await fetch(`${baseUrl}/api/tasks/${task.id}/session`);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      missionId: task.id,
+      links: {
+        sessionId: 'session-task',
+      },
+      session: {
+        sessionId: 'session-task',
+        user: 'session-task',
+      },
+    });
+    expect(Array.isArray(body.memoryEntries)).toBe(true);
+  });
+
   it('submits a waiting decision and resumes mission progress', async () => {
     const task = runtime.createChatTask('Decision task');
     runtime.markMissionRunning(task.id, 'receive', 'Task accepted', 10);

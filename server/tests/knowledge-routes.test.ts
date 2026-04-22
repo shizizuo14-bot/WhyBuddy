@@ -330,3 +330,53 @@ describe("POST /api/knowledge/query", () => {
     });
   });
 });
+
+describe("POST /api/knowledge/nodes/execute", () => {
+  it("executes knowledge_qa node with normalized output", async () => {
+    await withServer(async (baseUrl, deps) => {
+      const projectId = uniqueProjectId("proj");
+      seedEntity(deps.graphStore, { name: "auth-module", projectId });
+
+      const res = await fetch(`${baseUrl}/api/knowledge/nodes/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nodeType: "knowledge_qa",
+          input: {
+            question: "What modules exist?",
+            projectId,
+            options: { mode: "preferStructured" },
+          },
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.ok).toBe(true);
+      expect(body.nodeType).toBe("knowledge_qa");
+      expect(body.output.answer).toBeDefined();
+      expect(body.output.reply.content).toBe(body.output.answer);
+      expect(body.output.result).toBeDefined();
+      expect(body.output.evidence.structuredEntityCount).toBeGreaterThan(0);
+    });
+  });
+
+  it("returns 400 when node input is missing question", async () => {
+    await withServer(async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/api/knowledge/nodes/execute`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nodeType: "knowledge_qa",
+          input: {
+            projectId: "proj-1",
+          },
+        }),
+      });
+
+      expect(res.status).toBe(400);
+      const body = await res.json();
+      expect(body.error).toContain("question");
+    });
+  });
+});

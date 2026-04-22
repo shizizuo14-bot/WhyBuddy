@@ -18,9 +18,11 @@ import {
   type MissionInstanceContext,
   type MissionOperatorActionRecord,
   type MissionOperatorState,
+  type MissionProjectionLinks,
   type MissionRecord,
   type MissionStage,
 } from '../../shared/mission/contracts.js';
+import { normalizeMissionProjectionLinks } from '../../shared/mission/projection.js';
 import type { MissionSnapshotStore } from './mission-store.js';
 
 interface SerializedMissionSnapshotFile {
@@ -332,6 +334,7 @@ function normalizeTask(value: unknown): MissionRecord | null {
     sourceText:
       typeof candidate.sourceText === 'string' ? candidate.sourceText : undefined,
     topicId: typeof candidate.topicId === 'string' ? candidate.topicId : undefined,
+    projection: normalizeMissionProjectionLinks(candidate.projection),
     status: isMissionStatus(candidate.status) ? candidate.status : 'queued',
     progress: Math.max(0, Math.min(100, Math.round(candidate.progress))),
     currentStageKey:

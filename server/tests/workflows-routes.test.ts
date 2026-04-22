@@ -6,6 +6,10 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { MissionRecord } from "../../shared/mission/contracts.js";
 import type { GraphInstanceSnapshot } from "../../shared/workflow-graph.js";
 import type {
+  WebAigcGraphDefinition,
+  WebAigcGraphInstance,
+} from "../../shared/workflow-domain.js";
+import type {
   MessageRecord,
   TaskRecord,
   WorkflowRecord,
@@ -14,12 +18,18 @@ import type {
 const {
   state,
   getWorkflow,
+  updateWorkflow,
   getWorkflows,
   getTasksByWorkflow,
   getMessagesByWorkflow,
   resolveWorkflowMission,
   getMissionTask,
   buildWorkflowGraphInstanceSnapshot,
+  buildWorkflowGraphDefinition,
+  buildWorkflowGraphInstance,
+  getRuntimeState,
+  runToCheckpoint,
+  resumeRuntime,
 } = vi.hoisted(() => {
   const state: {
     workflow?: WorkflowRecord;
@@ -28,6 +38,14 @@ const {
     missionId?: string;
     mission?: MissionRecord;
     instance?: GraphInstanceSnapshot;
+    definition?: WebAigcGraphDefinition;
+    runtimeInstance?: WebAigcGraphInstance;
+    runtimeState?: {
+      domainModelVersion: 1;
+      definition: WebAigcGraphDefinition;
+      instance: WebAigcGraphInstance;
+      updatedAt?: string;
+    };
   } = {
     workflow: undefined,
     tasks: [],
@@ -35,6 +53,9 @@ const {
     missionId: undefined,
     mission: undefined,
     instance: undefined,
+    definition: undefined,
+    runtimeInstance: undefined,
+    runtimeState: undefined,
   };
 
   return {
@@ -42,6 +63,18 @@ const {
     getWorkflow: vi.fn((id: string) =>
       state.workflow?.id === id ? state.workflow : undefined
     ),
+    updateWorkflow: vi.fn((id: string, patch: Partial<WorkflowRecord>) => {
+      if (state.workflow?.id === id) {
+        state.workflow = {
+          ...state.workflow,
+          ...patch,
+          results: {
+            ...(state.workflow.results || {}),
+            ...((patch.results as Record<string, unknown> | undefined) || {}),
+          },
+        } as WorkflowRecord;
+      }
+    }),
     getWorkflows: vi.fn(() => (state.workflow ? [state.workflow] : [])),
     getTasksByWorkflow: vi.fn((workflowId: string) =>
       state.tasks.filter(task => task.workflow_id === workflowId)
@@ -61,12 +94,38 @@ const {
       }
       return state.instance;
     }),
+    buildWorkflowGraphDefinition: vi.fn(() => {
+      if (!state.definition) {
+        throw new Error("runtime definition not seeded for test");
+      }
+      return state.definition;
+    }),
+    buildWorkflowGraphInstance: vi.fn(() => {
+      if (!state.runtimeInstance) {
+        throw new Error("runtime instance not seeded for test");
+      }
+      return state.runtimeInstance;
+    }),
+    getRuntimeState: vi.fn(() => state.runtimeState),
+    runToCheckpoint: vi.fn(async () => {
+      if (!state.runtimeState) {
+        throw new Error("runtime state not seeded for test");
+      }
+      return state.runtimeState;
+    }),
+    resumeRuntime: vi.fn(async () => {
+      if (!state.runtimeState) {
+        throw new Error("runtime state not seeded for test");
+      }
+      return state.runtimeState;
+    }),
   };
 });
 
 vi.mock("../db/index.js", () => ({
   default: {
     getWorkflow,
+    updateWorkflow,
     getWorkflows,
     getTasksByWorkflow,
     getMessagesByWorkflow,
@@ -83,12 +142,22 @@ vi.mock("../core/dynamic-organization.js", () => ({
 
 vi.mock("../core/workflow-engine.js", () => ({
   workflowEngine: {
-    startWorkflow: vi.fn(),
+    startWorkflow: vi.fn(async () => "wf-created"),
   },
 }));
 
 vi.mock("../core/workflow-graph-projection.js", () => ({
   buildWorkflowGraphInstanceSnapshot,
+}));
+
+vi.mock("../core/workflow-runtime-engine.js", () => ({
+  buildWorkflowGraphDefinition,
+  buildWorkflowGraphInstance,
+  webAigcRuntimeEngine: {
+    getState: getRuntimeState,
+    runToCheckpoint,
+    resume: resumeRuntime,
+  },
 }));
 
 vi.mock("../memory/report-store.js", () => ({
@@ -108,6 +177,8 @@ vi.mock("../runtime/server-runtime.js", () => ({
 vi.mock("../tasks/mission-runtime.js", () => ({
   missionRuntime: {
     getTask: getMissionTask,
+    createChatTask: vi.fn(() => makeMission({ id: "mission-created" })),
+    markMissionRunning: vi.fn(),
   },
 }));
 
@@ -121,6 +192,9 @@ vi.mock("../../shared/workflow-input.js", () => ({
   buildWorkflowInputSignature: vi.fn(() => "test-signature"),
   normalizeWorkflowAttachments: vi.fn((attachments: unknown) =>
     Array.isArray(attachments) ? attachments : []
+  ),
+  normalizeWorkflowInputProjection: vi.fn((projection: unknown) =>
+    projection && typeof projection === "object" ? projection : undefined
   ),
 }));
 
@@ -233,6 +307,86 @@ function makeInstance(
   };
 }
 
+function makeRuntimeDefinition(
+  overrides: Partial<WebAigcGraphDefinition> = {}
+): WebAigcGraphDefinition {
+  return {
+    kind: "graph_definition",
+    version: 1,
+    definitionId: "wf-graph-route",
+    code: "wf-graph-route",
+    name: "Build workflow graph projection",
+    source: "task_projection",
+    entryNodeId: "task-1",
+    graphVersion: {
+      kind: "graph_version",
+      version: 1,
+      definitionId: "wf-graph-route",
+      graphVersion: "v1",
+      createdAt: "2026-04-22T00:00:00.000Z",
+    },
+    links: {
+      workflowId: "wf-graph-route",
+      missionId: "mission-route",
+      sessionId: "session-route",
+      replayId: "wf-graph-route",
+    },
+    nodeSchemas: [
+      {
+        id: "task-1",
+        type: "agent_task",
+        title: "Answer the user question",
+        inputs: [],
+        outputs: [],
+        config: [],
+      },
+    ],
+    edgeSchemas: [],
+    ...overrides,
+  };
+}
+
+function makeRuntimeInstance(
+  overrides: Partial<WebAigcGraphInstance> = {}
+): WebAigcGraphInstance {
+  return {
+    kind: "graph_instance",
+    version: 1,
+    instanceId: "wf-graph-route",
+    definitionId: "wf-graph-route",
+    status: "WAITING_INPUT",
+    currentNodeId: "task-1",
+    createdAt: "2026-04-22T00:00:00.000Z",
+    startedAt: "2026-04-22T00:00:00.000Z",
+    completedAt: null,
+    links: {
+      workflowId: "wf-graph-route",
+      missionId: "mission-route",
+      sessionId: "session-route",
+      replayId: "wf-graph-route",
+    },
+    variables: {},
+    nodeRuns: [
+      {
+        nodeId: "task-1",
+        status: "WAITING_INPUT",
+        attempts: 1,
+        startedAt: "2026-04-22T00:00:00.000Z",
+        completedAt: null,
+        waitingFor: "approval token",
+      },
+    ],
+    edgeTransitions: [],
+    checkpoint: {
+      nodeId: "task-1",
+      waitingFor: "approval token",
+      createdAt: "2026-04-22T00:00:01.000Z",
+      resumeCount: 0,
+    },
+    ...overrides,
+  };
+}
+
 async function withServer(
   handler: (baseUrl: string) => Promise<void>
 ): Promise<void> {
@@ -279,14 +433,23 @@ describe("workflow graph-instance route", () => {
     state.missionId = undefined;
     state.mission = undefined;
     state.instance = undefined;
+    state.definition = undefined;
+    state.runtimeInstance = undefined;
+    state.runtimeState = undefined;
 
     getWorkflow.mockClear();
+    updateWorkflow.mockClear();
     getWorkflows.mockClear();
     getTasksByWorkflow.mockClear();
     getMessagesByWorkflow.mockClear();
     resolveWorkflowMission.mockClear();
     getMissionTask.mockClear();
     buildWorkflowGraphInstanceSnapshot.mockClear();
+    buildWorkflowGraphDefinition.mockClear();
+    buildWorkflowGraphInstance.mockClear();
+    getRuntimeState.mockClear();
+    runToCheckpoint.mockClear();
+    resumeRuntime.mockClear();
   });
 
   it("returns 404 when the workflow does not exist", async () => {
@@ -361,6 +524,195 @@ describe("workflow graph-instance route", () => {
         messages: state.messages,
         mission: undefined,
       });
+    });
+  });
+
+  it("returns a projected runtime definition", async () => {
+    state.workflow = makeWorkflow();
+    state.tasks = [makeTask()];
+    state.missionId = "mission-route";
+    state.mission = makeMission();
+    state.definition = makeRuntimeDefinition();
+
+    await withServer(async baseUrl => {
+      const response = await fetch(
+        `${baseUrl}/api/workflows/${state.workflow?.id}/runtime-definition`
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({ definition: state.definition });
+      expect(buildWorkflowGraphDefinition).toHaveBeenCalledWith({
+        workflow: state.workflow,
+        tasks: state.tasks,
+        mission: state.mission,
+      });
+    });
+  });
+
+  it("returns persisted runtime state when available", async () => {
+    state.workflow = makeWorkflow();
+    state.runtimeState = {
+      domainModelVersion: 1,
+      definition: makeRuntimeDefinition(),
+      instance: makeRuntimeInstance(),
+      updatedAt: "2026-04-22T00:00:02.000Z",
+    };
+
+    await withServer(async baseUrl => {
+      const response = await fetch(
+        `${baseUrl}/api/workflows/${state.workflow?.id}/runtime-state`
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({ state: state.runtimeState });
+      expect(getRuntimeState).toHaveBeenCalledWith("wf-graph-route", undefined);
+      expect(buildWorkflowGraphDefinition).not.toHaveBeenCalled();
+    });
+  });
+
+  it("runs the lightweight runtime until checkpoint", async () => {
+    state.workflow = makeWorkflow();
+    state.tasks = [makeTask()];
+    state.missionId = "mission-route";
+    state.mission = makeMission();
+    state.definition = makeRuntimeDefinition();
+    state.runtimeState = {
+      domainModelVersion: 1,
+      definition: state.definition,
+      instance: makeRuntimeInstance(),
+      updatedAt: "2026-04-22T00:00:02.000Z",
+    };
+
+    await withServer(async baseUrl => {
+      const response = await fetch(
+        `${baseUrl}/api/workflows/${state.workflow?.id}/runtime/run`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            variables: { seed: "value" },
+            maxSteps: 3,
+          }),
+        }
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({ state: state.runtimeState });
+      expect(runToCheckpoint).toHaveBeenCalledWith({
+        workflowId: "wf-graph-route",
+        definition: state.definition,
+        variables: { seed: "value" },
+        maxSteps: 3,
+      });
+    });
+  });
+
+  it("resumes a waiting lightweight runtime", async () => {
+    state.workflow = makeWorkflow();
+    state.runtimeState = {
+      domainModelVersion: 1,
+      definition: makeRuntimeDefinition(),
+      instance: makeRuntimeInstance({
+        status: "EXECUTED",
+        checkpoint: undefined,
+        output: {
+          acceptedToken: "approved",
+        },
+      }),
+      updatedAt: "2026-04-22T00:00:03.000Z",
+    };
+
+    await withServer(async baseUrl => {
+      const response = await fetch(
+        `${baseUrl}/api/workflows/${state.workflow?.id}/runtime/resume`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            payload: {
+              token: "approved",
+            },
+          }),
+        }
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({ state: state.runtimeState });
+      expect(resumeRuntime).toHaveBeenCalledWith("wf-graph-route", {
+        token: "approved",
+      });
+    });
+  });
+
+  it("stores workflow projection input and creates mission with projection links", async () => {
+    state.workflow = makeWorkflow({
+      id: "wf-created",
+      status: "done",
+      created_at: "2026-04-01T00:00:00.000Z",
+      results: {},
+    });
+    const { workflowEngine } = await import("../core/workflow-engine.js");
+    const { missionRuntime } = await import("../tasks/mission-runtime.js");
+    const { linkWorkflowToMission } = await import("../core/mission-enrichment-bridge.js");
+
+    await withServer(async baseUrl => {
+      const response = await fetch(`${baseUrl}/api/workflows`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          directive: "Build a projected workflow",
+          sessionId: "session-created",
+          sourceApp: "web-aigc",
+        }),
+      });
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({
+        workflowId: "wf-created",
+        missionId: "mission-created",
+        status: "running",
+        deduped: false,
+      });
+      expect(workflowEngine.startWorkflow).toHaveBeenCalled();
+      expect(updateWorkflow).toHaveBeenCalledWith(
+        "wf-created",
+        expect.objectContaining({
+          results: expect.objectContaining({
+            input: expect.objectContaining({
+              sessionId: "session-created",
+              sourceApp: "web-aigc",
+              projection: {
+                sessionId: "session-created",
+                sourceApp: "web-aigc",
+              },
+            }),
+          }),
+        }),
+      );
+      expect(missionRuntime.createChatTask).toHaveBeenCalledWith(
+        "Build a projected workflow",
+        "Build a projected workflow",
+        "session-created",
+        {
+          workflowId: "wf-created",
+          instanceId: "wf-created",
+          replayId: "wf-created",
+          sessionId: "session-created",
+          sourceApp: "web-aigc",
+        },
+      );
+      expect(linkWorkflowToMission).toHaveBeenCalledWith("wf-created", "mission-created");
     });
   });
 });

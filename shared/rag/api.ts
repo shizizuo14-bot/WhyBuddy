@@ -48,6 +48,7 @@ export interface RetrievalOptions {
   projectId: string;
   topK?: number;                // 默认 10
   sourceTypes?: SourceType[];
+  sourceIds?: string[];
   timeRange?: { start: Date; end: Date };
   agentId?: string;
   codeLanguage?: string;

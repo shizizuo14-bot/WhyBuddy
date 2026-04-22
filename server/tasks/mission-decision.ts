@@ -100,9 +100,11 @@ export function submitMissionDecision(
 
   const optionId = request.optionId?.trim() || undefined;
   const freeText = request.freeText?.trim() || undefined;
+  const metadata = request.metadata;
   const decision: MissionDecisionResolved = {
     optionId,
     freeText,
+    metadata,
   };
 
   if (task.status !== 'waiting') {
@@ -188,6 +190,7 @@ export function submitMissionDecision(
     optionId: selectedOption?.id,
     optionLabel: selectedOption?.label,
     freeText,
+    metadata,
   };
 
   // Build DecisionHistoryEntry and append to decisionHistory
@@ -202,6 +205,10 @@ export function submitMissionDecision(
     submittedAt: Date.now(),
     reason: freeText,
     stageKey: task.currentStageKey,
+    sessionId: metadata?.sessionId,
+    nodeType: metadata?.nodeType,
+    interactionId: metadata?.interactionId,
+    branchKey: metadata?.branchKey,
   };
 
   if (!updated.decisionHistory) {
@@ -224,6 +231,11 @@ export function submitMissionDecision(
           optionLabel: selectedOption?.label,
           freeText,
           type: historyEntry.type,
+          sessionId: metadata?.sessionId,
+          nodeType: metadata?.nodeType,
+          interactionId: metadata?.interactionId,
+          branchKey: metadata?.branchKey,
+          formData: metadata?.formData,
         },
       });
     }

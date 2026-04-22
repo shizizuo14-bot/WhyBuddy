@@ -3,6 +3,7 @@ import type {
   MissionEvent,
   MissionOperatorActionRecord,
   MissionOperatorActionType,
+  MissionProjectionLinks,
   MissionDecisionResolved,
   MissionDecisionSubmission,
   MissionPlanetEdge,
@@ -12,11 +13,18 @@ import type {
   MissionRecord,
 } from "./contracts.js";
 import type { DecisionTemplate } from "./decision-templates.js";
+import type {
+  AigcMonitoringExecutionStatus,
+  AigcMonitoringSessionDetail,
+} from "../aigc-monitoring.js";
+import type { GraphInstanceSnapshot } from "../workflow-graph.js";
 
 export const MISSION_API_ROUTES = {
   createTask: "/api/tasks",
   listTasks: "/api/tasks",
   getTask: "/api/tasks/:id",
+  getTaskProjection: "/api/tasks/:id/projection",
+  getTaskSession: "/api/tasks/:id/session",
   listTaskEvents: "/api/tasks/:id/events",
   cancelTask: "/api/tasks/:id/cancel",
   submitTaskOperatorAction: "/api/tasks/:id/operator-actions",
@@ -50,6 +58,9 @@ export interface CreateMissionRequest {
   title?: string;
   sourceText?: string;
   topicId?: string;
+  workflowId?: string;
+  sessionId?: string;
+  sourceApp?: string;
   autoDispatch?: boolean;
 }
 
@@ -160,4 +171,66 @@ export interface ListDecisionHistoryResponse {
   ok: true;
   missionId: string;
   decisions: DecisionHistoryEntry[];
+}
+
+export interface MissionProjectionWorkflowSummary {
+  id: string;
+  directive: string;
+  status: string;
+  currentStage: string | null;
+  createdAt: string;
+  startedAt: string | null;
+  completedAt: string | null;
+  attachmentCount: number;
+  inputSignature?: string;
+  sourceApp?: string | null;
+  sessionId?: string;
+}
+
+export interface MissionProjectionSessionSummary {
+  sessionId: string;
+  messageCount: number;
+  memoryEntryCount: number;
+  latestActivityAt: string | null;
+}
+
+export interface MissionProjectionView {
+  missionId: string;
+  links: MissionProjectionLinks;
+  workflow?: MissionProjectionWorkflowSummary;
+  graph?: GraphInstanceSnapshot;
+  monitoring?: {
+    instanceUuid: string;
+    status: AigcMonitoringExecutionStatus;
+    lastUpdateTime: string;
+    executor: string | null;
+  };
+  session?: MissionProjectionSessionSummary;
+}
+
+export interface MissionSessionMemoryEntry {
+  timestamp: string;
+  workflowId: string | null;
+  stage: string | null;
+  type: "message" | "llm_prompt" | "llm_response" | "workflow_summary";
+  direction?: "inbound" | "outbound";
+  agentId?: string;
+  otherAgentId?: string;
+  preview: string;
+  content: string;
+  metadata?: unknown;
+}
+
+export interface GetMissionProjectionResponse {
+  ok: true;
+  missionId: string;
+  projection: MissionProjectionView;
+}
+
+export interface GetMissionSessionResponse {
+  ok: true;
+  missionId: string;
+  links: MissionProjectionLinks;
+  session: AigcMonitoringSessionDetail;
+  memoryEntries: MissionSessionMemoryEntry[];
 }

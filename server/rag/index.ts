@@ -37,7 +37,11 @@ import { QuotaManager } from './observability/quota-manager.js';
 import { HealthChecker } from './observability/health-checker.js';
 import type { RAGRouteDeps } from '../routes/rag.js';
 
-export function initRAG(): RAGRouteDeps {
+export interface InitializedRAGDeps extends RAGRouteDeps {
+  metadataStore: MetadataStore;
+}
+
+export function initRAG(): InitializedRAGDeps {
   const config = getRAGConfig();
 
   // Stores
@@ -121,6 +125,7 @@ export function initRAG(): RAGRouteDeps {
     healthChecker,
     metrics: ragMetrics,
     augmentationLogger,
+    metadataStore,
   };
 }
 

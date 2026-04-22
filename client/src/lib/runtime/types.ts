@@ -5,6 +5,17 @@ import type {
 } from "@shared/organization-schema";
 export type { WorkflowInputAttachment } from "@shared/workflow-input";
 export type {
+  AigcMonitoringApiEnvelope,
+  AigcMonitoringExecutionStatus,
+  AigcMonitoringInstanceDetail,
+  AigcMonitoringInstanceListItem,
+  AigcMonitoringInstanceListResponse,
+  AigcMonitoringNodeExecutionStatus,
+  AigcMonitoringSessionDetail,
+  AigcMonitoringSessionMessage,
+  AigcMonitoringTerminateResult,
+} from "@shared/aigc-monitoring";
+export type {
   GraphEdgeTransitionSnapshot,
   GraphInstanceSnapshot,
   GraphInstanceTelemetry,

@@ -14,6 +14,7 @@
 
 import type {
   Action,
+  GovernanceDecision,
   PermissionCheckResult,
   PermissionMatrixEntry,
   ResourceType,
@@ -21,6 +22,10 @@ import type {
 import type { ResourceChecker } from "./checkers/filesystem-checker.js";
 import type { TokenService } from "./token-service.js";
 import { InvalidTokenError, TokenExpiredError } from "./token-service.js";
+import {
+  evaluateGovernanceDecision,
+  isGovernanceBlockingDecision,
+} from "./governance-policy.js";
 
 // ─── AuditLogger interface (optional dependency) ────────────────────────────
 
@@ -33,6 +38,7 @@ export interface AuditLogger {
     resource: string;
     result: "allowed" | "denied" | "error";
     reason?: string;
+    governance?: GovernanceDecision;
     metadata?: Record<string, unknown>;
   }): void;
 }
@@ -264,6 +270,28 @@ export class PermissionCheckEngine {
       }
     }
 
+    const governance = evaluateGovernanceDecision(resourceType, action, resource);
+    if (governance && isGovernanceBlockingDecision(governance)) {
+      const blockingGovernance = governance;
+      const result: PermissionCheckResult = {
+        allowed: false,
+        reason: blockingGovernance.rationale,
+        suggestion: "Submit the operation for manual approval or use a lower-risk path",
+        matchedRule: {
+          resourceType: matchedAllow.resourceType,
+          action,
+          constraints: matchedAllow.constraints,
+          effect: "allow",
+        },
+        governance: blockingGovernance,
+      };
+      this.cache.set(cacheKey, result);
+      this.audit(agentId, resourceType, action, resource, "denied", result.reason, blockingGovernance, {
+        governancePolicyId: blockingGovernance.policyId,
+      });
+      return result;
+    }
+
     // 6. Allowed
     const result: PermissionCheckResult = {
       allowed: true,
@@ -317,6 +345,8 @@ export class PermissionCheckEngine {
     resource: string,
     result: "allowed" | "denied" | "error",
     reason?: string,
+    governance?: GovernanceDecision,
+    metadata?: Record<string, unknown>,
   ): void {
     if (!this.auditLogger) return;
     try {
@@ -328,6 +358,8 @@ export class PermissionCheckEngine {
         resource,
         result,
         reason,
+        governance,
+        metadata,
       });
     } catch {
       // Audit failures must not block permission checks

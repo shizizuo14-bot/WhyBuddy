@@ -37,7 +37,7 @@ export interface GraphEdgeTransitionSnapshot {
   edgeId: string;
   fromNodeId: string;
   toNodeId: string;
-  kind: "parent_child";
+  kind: "parent_child" | "control_flow";
   status: "known" | "executed" | "blocked";
 }
 

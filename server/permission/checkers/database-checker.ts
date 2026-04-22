@@ -66,6 +66,10 @@ export class DatabaseChecker implements ResourceChecker {
 }
 
 function extractTableName(resource: string): string {
+  if (resource.includes("/")) {
+    const slashIdx = resource.lastIndexOf("/");
+    return resource.slice(slashIdx + 1);
+  }
   // If resource contains a dot, take the part after the last dot
   const dotIdx = resource.lastIndexOf(".");
   if (dotIdx !== -1) {

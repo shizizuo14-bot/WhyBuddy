@@ -163,4 +163,41 @@ describe('MissionStore', () => {
       ],
     });
   });
+
+  it('persists mission projection links across snapshot reloads', () => {
+    const filePath = path.join(tempDir, 'mission-snapshots.json');
+    const store = new MissionStore(new MissionFileSnapshotStore(filePath));
+
+    const mission = store.create({
+      kind: 'chat',
+      title: 'Projection mission',
+      topicId: 'session-projection',
+      projection: {
+        workflowId: 'wf-projection',
+        instanceId: 'wf-projection',
+        replayId: 'wf-projection',
+        sessionId: 'session-projection',
+        sourceApp: 'web-aigc',
+      },
+      stageLabels: [{ key: 'execute', label: 'Run execution' }],
+    });
+
+    store.patchExecution(mission.id, {
+      projection: {
+        sourceApp: 'cube-pets-office',
+      },
+    });
+
+    const restored = new MissionStore(
+      new MissionFileSnapshotStore(filePath)
+    ).get(mission.id);
+
+    expect(restored?.projection).toEqual({
+      workflowId: 'wf-projection',
+      instanceId: 'wf-projection',
+      replayId: 'wf-projection',
+      sessionId: 'session-projection',
+      sourceApp: 'cube-pets-office',
+    });
+  });
 });

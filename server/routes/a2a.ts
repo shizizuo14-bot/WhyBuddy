@@ -6,6 +6,11 @@ import type { A2AEnvelope } from "../../shared/a2a-protocol.js";
 import { A2A_ERROR_CODES } from "../../shared/a2a-protocol.js";
 import type { A2AServer } from "../core/a2a-server.js";
 import type { A2AClient } from "../core/a2a-client.js";
+import {
+  getAutoAgentExecutor,
+  mapAutoAgentErrorToStatusCode,
+  normalizeAutoAgentContextInput,
+} from "../tool/api/auto-agent-adapter.js";
 
 const router = Router();
 
@@ -162,6 +167,48 @@ router.get("/sessions", (_req, res) => {
     return res.status(500).json({ error: "A2A client not initialized" });
   }
   res.json({ sessions: a2aClient.getActiveSessions() });
+});
+
+// POST /api/a2a/auto-agent
+router.post("/auto-agent", async (req, res) => {
+  try {
+    const kind = req.body?.kind;
+    if (
+      kind !== "agent" &&
+      kind !== "guest_agent" &&
+      kind !== "skill" &&
+      kind !== "internal_api"
+    ) {
+      return res.status(400).json({
+        error:
+          'Missing or invalid field: kind. Expected "agent", "guest_agent", "skill", or "internal_api".',
+      });
+    }
+
+    const executor = getAutoAgentExecutor();
+    const result = await executor.execute({
+      kind,
+      targetId: req.body?.targetId,
+      input: req.body?.input,
+      context: normalizeAutoAgentContextInput(req.body?.context),
+      workflowId: typeof req.body?.workflowId === "string" ? req.body.workflowId : undefined,
+      stage: typeof req.body?.stage === "string" ? req.body.stage : "a2a_auto_agent",
+      version: typeof req.body?.version === "string" ? req.body.version : undefined,
+      delegateAgentId:
+        typeof req.body?.delegateAgentId === "string" ? req.body.delegateAgentId : undefined,
+      maxSkills: typeof req.body?.maxSkills === "number" ? req.body.maxSkills : undefined,
+      metadata:
+        req.body?.metadata && typeof req.body.metadata === "object"
+          ? req.body.metadata
+          : undefined,
+    });
+
+    return res.json(result);
+  } catch (error) {
+    return res.status(mapAutoAgentErrorToStatusCode(error)).json({
+      error: error instanceof Error ? error.message : "Auto-agent execution failed",
+    });
+  }
 });
 
 export default router;

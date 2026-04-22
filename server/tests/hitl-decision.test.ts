@@ -184,6 +184,52 @@ describe('submitMissionDecision — decision history append', () => {
       expect(history[1].decisionId).toBe('dec_2');
     }
   });
+
+  it('preserves web-aigc metadata in resolved decision and history', () => {
+    const decision: MissionDecision = {
+      prompt: 'Choose direction',
+      options: [
+        { id: 'left', label: 'Go Left' },
+        { id: 'right', label: 'Go Right' },
+      ],
+      type: 'custom-action',
+      decisionId: 'dec_hitl_selection_1',
+      payload: {
+        nodeType: 'selection',
+        sessionId: 'sess-1',
+        interactionId: 'int-1',
+        branchKey: 'branch-left',
+      },
+    };
+    const task = makeWaitingTask('task_hitl_1', decision);
+    const runtime = createMockRuntime([task]);
+
+    const result = submitMissionDecision(runtime, 'task_hitl_1', {
+      optionId: 'left',
+      metadata: {
+        nodeType: 'selection',
+        sessionId: 'sess-1',
+        interactionId: 'int-1',
+        branchKey: 'branch-left',
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.decision.metadata?.nodeType).toBe('selection');
+      expect(result.decision.metadata?.sessionId).toBe('sess-1');
+      expect(result.decision.metadata?.interactionId).toBe('int-1');
+      expect(result.decision.metadata?.branchKey).toBe('branch-left');
+
+      const history = result.task.decisionHistory ?? [];
+      expect(history).toHaveLength(1);
+      expect(history[0].nodeType).toBe('selection');
+      expect(history[0].sessionId).toBe('sess-1');
+      expect(history[0].interactionId).toBe('int-1');
+      expect(history[0].branchKey).toBe('branch-left');
+      expect(history[0].resolved.metadata?.sessionId).toBe('sess-1');
+    }
+  });
 });
 
 describe('submitMissionDecision — multi-step decision chain', () => {
@@ -337,5 +383,49 @@ describe('API endpoints', () => {
         (option: { id: string; label: string }) => option.label
       )
     ).toContain('Modify');
+  });
+
+  it('POST /api/tasks/:id/decision keeps web-aigc metadata on task history', async () => {
+    const task = runtime.createChatTask('HITL selection metadata test');
+    runtime.markMissionRunning(task.id, 'execute', 'Running', 50);
+    runtime.waitOnMission(task.id, 'selection', 'Choose a branch', 50, {
+      prompt: 'Choose a branch',
+      options: [
+        { id: 'branch-a', label: 'Branch A' },
+        { id: 'branch-b', label: 'Branch B' },
+      ],
+      type: 'custom-action',
+      decisionId: 'dec_api_hitl_1',
+      payload: {
+        nodeType: 'selection',
+        sessionId: 'session-api-1',
+        interactionId: 'interaction-api-1',
+      },
+    });
+
+    const response = await fetch(`${baseUrl}/api/tasks/${task.id}/decision`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        optionId: 'branch-a',
+        metadata: {
+          nodeType: 'selection',
+          sessionId: 'session-api-1',
+          interactionId: 'interaction-api-1',
+          branchKey: 'branch-a',
+        },
+      }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.decision.metadata.sessionId).toBe('session-api-1');
+    expect(body.decision.metadata.interactionId).toBe('interaction-api-1');
+    expect(body.task.decisionHistory).toBeInstanceOf(Array);
+    expect(body.task.decisionHistory.at(-1).nodeType).toBe('selection');
+    expect(body.task.decisionHistory.at(-1).sessionId).toBe('session-api-1');
+    expect(body.task.decisionHistory.at(-1).interactionId).toBe('interaction-api-1');
+    expect(body.task.decisionHistory.at(-1).branchKey).toBe('branch-a');
   });
 });

@@ -99,6 +99,8 @@ export class AuditQuery {
       AuditEventType.PERMISSION_GRANTED,
       AuditEventType.PERMISSION_REVOKED,
       AuditEventType.ESCALATION_APPROVED,
+      AuditEventType.PERMISSION_CHECKED,
+      AuditEventType.GOVERNANCE_ENFORCED,
     ]);
 
     const allEntries = this.getAllEntries();

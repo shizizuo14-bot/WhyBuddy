@@ -6,10 +6,12 @@
 
 import { describe, expect, it, beforeEach } from "vitest";
 import * as fc from "fast-check";
+import { generateKeyPairSync } from "node:crypto";
 import type {
   AgentRole,
   AgentPermissionPolicy,
   Permission,
+  PermissionAuditEntry,
   PermissionTemplate,
   ResourceType,
   Action,
@@ -20,6 +22,12 @@ import { PolicyStore } from "./policy-store.js";
 import { TokenService, signJwt } from "./token-service.js";
 import { PermissionCheckEngine, LRUCache } from "./check-engine.js";
 import type { ResourceChecker } from "./checkers/filesystem-checker.js";
+import { AuditChain } from "../audit/audit-chain.js";
+import { AuditCollector as PlatformAuditCollector } from "../audit/audit-collector.js";
+import { TimestampProvider } from "../audit/timestamp-provider.js";
+import { AuditQuery } from "../audit/audit-query.js";
+import { AuditLogger } from "./audit-logger.js";
+import { AuditEventType } from "../../shared/audit/contracts.js";
 
 /* ─── In-memory Database stub ─── */
 
@@ -54,6 +62,43 @@ function setup() {
   for (const rt of RESOURCE_TYPES) checkers.set(rt, new AlwaysAllowChecker());
   const engine = new PermissionCheckEngine(tokenService, undefined, checkers);
   return { db, roleStore, policyStore, tokenService, engine };
+}
+
+function setupWithPlatformAudit() {
+  const db = {
+    ...createInMemoryDb(),
+    getPermissionAudit: () => permissionAudit,
+    addPermissionAudit: (entry: PermissionAuditEntry) => {
+      permissionAudit.push(entry);
+    },
+  };
+  const roleStore = new RoleStore(db as any);
+  const policyStore = new PolicyStore(db as any, roleStore);
+  const tokenService = new TokenService(policyStore, roleStore, SECRET);
+  const chainKeys = generateTestKeys();
+  const chain = new AuditChain({
+    privateKey: chainKeys.privateKey,
+    publicKey: chainKeys.publicKey,
+  });
+  const collector = new PlatformAuditCollector(chain, new TimestampProvider());
+  const auditLogger = new AuditLogger(db as any, collector);
+  const checkers = new Map<ResourceType, ResourceChecker>();
+  for (const rt of RESOURCE_TYPES) checkers.set(rt, new AlwaysAllowChecker());
+  const engine = new PermissionCheckEngine(tokenService, auditLogger, checkers);
+  const query = new AuditQuery(chain, collector);
+  return { db, roleStore, policyStore, tokenService, engine, query, collector };
+}
+
+let permissionAudit: PermissionAuditEntry[] = [];
+
+function generateTestKeys() {
+  const { privateKey, publicKey } = generateKeyPairSync("ec", {
+    namedCurve: "prime256v1",
+  });
+  return {
+    privateKey: privateKey.export({ type: "sec1", format: "pem" }) as string,
+    publicKey: publicKey.export({ type: "spki", format: "pem" }) as string,
+  };
 }
 
 function seedAgent(
@@ -126,6 +171,10 @@ describe("LRUCache", () => {
 // ─── PermissionCheckEngine Tests ────────────────────────────────────────────
 
 describe("PermissionCheckEngine", () => {
+  beforeEach(() => {
+    permissionAudit = [];
+  });
+
   describe("checkPermission", () => {
     it("allows access with valid token and matching allow rule", () => {
       const { roleStore, policyStore, tokenService, engine } = setup();
@@ -228,6 +277,52 @@ describe("PermissionCheckEngine", () => {
       expect(engine.getCacheSize()).toBe(1);
       engine.invalidateCache("agent-1");
       expect(engine.getCacheSize()).toBe(0);
+    });
+
+    it("blocks high-risk MCP calls with a governance decision", () => {
+      const { roleStore, policyStore, tokenService, engine } = setup();
+      seedAgent(roleStore, policyStore, "agent-mcp", [
+        { resourceType: "mcp_tool", action: "call", constraints: {}, effect: "allow" },
+      ]);
+      const cap = tokenService.issueToken("agent-mcp");
+      const result = engine.checkPermission("agent-mcp", "mcp_tool", "call", "mcp://tool/search", cap.token);
+
+      expect(result.allowed).toBe(false);
+      expect(result.governance?.outcome).toBe("approval_required");
+      expect(result.governance?.policyId).toBe("security-governance.mcp-approval-gate");
+    });
+
+    it("blocks vector write operations with a governance decision", () => {
+      const { roleStore, policyStore, tokenService, engine } = setup();
+      seedAgent(roleStore, policyStore, "agent-vector", [
+        { resourceType: "database", action: "update", constraints: {}, effect: "allow" },
+      ]);
+      const cap = tokenService.issueToken("agent-vector");
+      const result = engine.checkPermission(
+        "agent-vector",
+        "database",
+        "update",
+        "vector_update:knowledge_embeddings",
+        cap.token,
+      );
+
+      expect(result.allowed).toBe(false);
+      expect(result.governance?.policyId).toBe("security-governance.vector-write-gate");
+    });
+
+    it("mirrors governance denials into the platform audit chain", () => {
+      const { roleStore, policyStore, tokenService, engine, query, collector } = setupWithPlatformAudit();
+      seedAgent(roleStore, policyStore, "agent-audit", [
+        { resourceType: "mcp_tool", action: "call", constraints: {}, effect: "allow" },
+      ]);
+      const cap = tokenService.issueToken("agent-audit");
+      const result = engine.checkPermission("agent-audit", "mcp_tool", "call", "mcp://tool/search", cap.token);
+
+      expect(result.allowed).toBe(false);
+
+      collector.flush();
+      const trail = query.getPermissionTrail("agent-audit");
+      expect(trail.some((entry) => entry.event.eventType === AuditEventType.GOVERNANCE_ENFORCED)).toBe(true);
     });
   });
 

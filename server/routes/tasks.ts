@@ -14,9 +14,14 @@ import type {
 import { EXECUTOR_API_ROUTES, type CancelExecutorJobRequest } from '../../shared/executor/api.js';
 import type { SubmitMissionOperatorActionRequest } from '../../shared/mission/api.js';
 import { BUILTIN_DECISION_TEMPLATES } from '../../shared/mission/decision-templates.js';
+import { normalizeWorkflowInputProjection } from '../../shared/workflow-input.js';
 import { buildExecutionPlan } from '../core/execution-plan-builder.js';
 import { ExecutorClient } from '../core/executor-client.js';
 import { submitMissionDecision } from '../tasks/mission-decision.js';
+import {
+  buildMissionProjectionView,
+  buildMissionSessionView,
+} from '../tasks/mission-projection.js';
 import {
   MissionOperatorActionError,
   createMissionOperatorService,
@@ -447,6 +452,13 @@ export function createTaskRouter(
   router.post('/', async (req, res) => {
     const body = req.body || {};
     const title = buildTaskTitle(body.title, body.sourceText);
+    const projection = normalizeWorkflowInputProjection({
+      ...(typeof body.projection === 'object' && body.projection !== null
+        ? body.projection
+        : {}),
+      sessionId: typeof body.sessionId === 'string' ? body.sessionId : body.topicId,
+      sourceApp: typeof body.sourceApp === 'string' ? body.sourceApp : undefined,
+    });
     if (!title) {
       return res.status(400).json({
         error: 'title or sourceText is required',
@@ -463,7 +475,17 @@ export function createTaskRouter(
       topicId:
         typeof body.topicId === 'string' && body.topicId.trim()
           ? body.topicId.trim()
-          : undefined,
+          : projection?.sessionId,
+      projection: {
+        ...(typeof body.workflowId === 'string' && body.workflowId.trim()
+          ? {
+              workflowId: body.workflowId.trim(),
+              instanceId: body.workflowId.trim(),
+              replayId: body.workflowId.trim(),
+            }
+          : {}),
+        ...(projection || {}),
+      },
       stageLabels: [...MISSION_CORE_STAGE_BLUEPRINT],
     });
 
@@ -513,6 +535,28 @@ export function createTaskRouter(
       ok: true,
       task,
     });
+  });
+
+  router.get('/:id/projection', (req, res) => {
+    const projection = buildMissionProjectionView(runtime, req.params.id);
+    if (!projection) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    res.json({
+      ok: true,
+      missionId: req.params.id,
+      projection,
+    });
+  });
+
+  router.get('/:id/session', (req, res) => {
+    const result = buildMissionSessionView(runtime, req.params.id);
+    if (!result) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    res.json(result);
   });
 
   router.get('/:id/events', (req, res) => {

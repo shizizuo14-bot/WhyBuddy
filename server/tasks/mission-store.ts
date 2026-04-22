@@ -9,8 +9,13 @@ import type {
   MissionStage,
   DecisionHistoryEntry,
   DecisionType,
+  MissionProjectionLinks,
 } from '../../shared/mission/contracts.js';
 import { MISSION_CORE_STAGE_BLUEPRINT } from '../../shared/mission/contracts.js';
+import {
+  mergeMissionProjectionLinks,
+  normalizeMissionProjectionLinks,
+} from '../../shared/mission/projection.js';
 import { generateDecisionId } from './mission-decision.js';
 
 export interface MissionSnapshotStore {
@@ -23,6 +28,7 @@ export interface CreateMissionInput {
   title: string;
   sourceText?: string;
   topicId?: string;
+  projection?: MissionProjectionLinks;
   stageLabels?: Array<{ key: string; label: string }>;
 }
 
@@ -36,6 +42,7 @@ export interface PatchMissionExecutionInput {
   executor?: MissionExecutorContext;
   instance?: MissionInstanceContext;
   artifacts?: MissionArtifact[];
+  projection?: Partial<MissionProjectionLinks>;
   securitySummary?: MissionRecord["securitySummary"];
 }
 
@@ -111,6 +118,7 @@ export class MissionStore {
       title: input.title,
       sourceText: input.sourceText,
       topicId: input.topicId,
+      projection: normalizeMissionProjectionLinks(input.projection),
       status: 'queued',
       progress: 0,
       stages: stageLabels.map(stage => ({
@@ -187,6 +195,9 @@ export class MissionStore {
       }
       if (patch.artifacts !== undefined) {
         task.artifacts = structuredClone(patch.artifacts);
+      }
+      if (patch.projection !== undefined) {
+        task.projection = mergeMissionProjectionLinks(task.projection, patch.projection);
       }
       if (patch.securitySummary !== undefined) {
         task.securitySummary = structuredClone(patch.securitySummary);

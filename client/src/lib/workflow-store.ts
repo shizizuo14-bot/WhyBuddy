@@ -29,6 +29,11 @@ import {
 import { runtimeEventBus } from "./runtime/local-event-bus";
 import { localRuntime } from "./runtime/local-runtime-client";
 import type {
+  AigcMonitoringInstanceDetail,
+  AigcMonitoringInstanceListItem,
+  AigcMonitoringInstanceListResponse,
+  AigcMonitoringSessionDetail,
+  AigcMonitoringTerminateResult,
   AgentInfo,
   AgentMemoryEntry,
   AgentMemorySummary,
@@ -86,6 +91,12 @@ interface WorkflowDetailResponse {
 
 interface WorkflowGraphInstanceResponse {
   instance?: GraphInstanceSnapshot | null;
+}
+
+interface WorkflowMonitoringEnvelope<T> {
+  success?: boolean;
+  data: T;
+  message?: string;
 }
 
 interface WorkflowRecentMemoryResponse {
@@ -257,6 +268,9 @@ interface WorkflowState {
   workflowsError: ApiRequestError | null;
   currentWorkflow: WorkflowInfo | null;
   currentWorkflowGraphInstance: GraphInstanceSnapshot | null;
+  currentWorkflowMonitoringInstance: AigcMonitoringInstanceDetail | null;
+  currentWorkflowMonitoringSession: AigcMonitoringSessionDetail | null;
+  monitoringInstances: AigcMonitoringInstanceListItem[];
   workflowDetailError: ApiRequestError | null;
   tasks: TaskInfo[];
   messages: MessageInfo[];
@@ -286,6 +300,12 @@ interface WorkflowState {
   fetchWorkflows: () => Promise<void>;
   fetchWorkflowDetail: (id: string) => Promise<void>;
   fetchWorkflowGraphInstance: (id: string) => Promise<void>;
+  fetchWorkflowMonitoringInstance: (id: string) => Promise<void>;
+  fetchWorkflowMonitoringSession: (id: string) => Promise<void>;
+  terminateWorkflowMonitoringInstance: (
+    id: string,
+    reason?: string
+  ) => Promise<AigcMonitoringTerminateResult | null>;
   fetchAgentRecentMemory: (
     agentId: string,
     workflowId?: string | null,
@@ -384,6 +404,8 @@ function handleRuntimeEvent(
         void get().fetchWorkflowDetail(event.workflowId);
         if (isAdvancedMode()) {
           void get().fetchWorkflowGraphInstance(event.workflowId);
+          void get().fetchWorkflowMonitoringInstance(event.workflowId);
+          void get().fetchWorkflowMonitoringSession(event.workflowId);
         }
       }
       break;
@@ -429,6 +451,8 @@ function handleRuntimeEvent(
         void get().fetchWorkflowDetail(event.workflowId);
         if (isAdvancedMode()) {
           void get().fetchWorkflowGraphInstance(event.workflowId);
+          void get().fetchWorkflowMonitoringInstance(event.workflowId);
+          void get().fetchWorkflowMonitoringSession(event.workflowId);
         }
       }
       break;
@@ -449,6 +473,8 @@ function handleRuntimeEvent(
         void get().fetchWorkflowDetail(event.workflowId);
         if (isAdvancedMode()) {
           void get().fetchWorkflowGraphInstance(event.workflowId);
+          void get().fetchWorkflowMonitoringInstance(event.workflowId);
+          void get().fetchWorkflowMonitoringSession(event.workflowId);
         }
       }
       void get().fetchWorkflows();
@@ -484,6 +510,8 @@ function handleRuntimeEvent(
         void get().fetchWorkflowDetail(event.workflowId);
         if (isAdvancedMode()) {
           void get().fetchWorkflowGraphInstance(event.workflowId);
+          void get().fetchWorkflowMonitoringInstance(event.workflowId);
+          void get().fetchWorkflowMonitoringSession(event.workflowId);
         }
       }
       break;
@@ -502,6 +530,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
   workflowsError: null,
   currentWorkflow: null,
   currentWorkflowGraphInstance: null,
+  currentWorkflowMonitoringInstance: null,
+  currentWorkflowMonitoringSession: null,
+  monitoringInstances: [],
   workflowDetailError: null,
   tasks: [],
   messages: [],
@@ -743,8 +774,15 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
       });
       if (isAdvancedMode()) {
         await get().fetchWorkflowGraphInstance(id);
+        await get().fetchWorkflowMonitoringInstance(id);
+        await get().fetchWorkflowMonitoringSession(id);
       } else {
-        set({ currentWorkflowGraphInstance: null });
+        set({
+          currentWorkflowGraphInstance: null,
+          currentWorkflowMonitoringInstance: null,
+          currentWorkflowMonitoringSession: null,
+          monitoringInstances: [],
+        });
       }
     } catch (err) {
       console.error("[Store] Failed to fetch workflow detail:", err);
@@ -762,6 +800,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
             currentWorkflowId: id,
             workflowDetailError,
             currentWorkflowGraphInstance: null,
+            currentWorkflowMonitoringInstance: null,
+            currentWorkflowMonitoringSession: null,
+            monitoringInstances: [],
           });
         }
       } catch (storageError) {
@@ -795,6 +836,97 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
           currentWorkflowGraphInstance: null,
         });
       }
+    }
+  },
+
+  fetchWorkflowMonitoringInstance: async (id: string) => {
+    if (!isAdvancedMode()) {
+      set({
+        currentWorkflowMonitoringInstance: null,
+        monitoringInstances: [],
+      });
+      return;
+    }
+
+    try {
+      const [detail, list] = await Promise.all([
+        fetchAdvancedJsonOrThrow<
+          WorkflowMonitoringEnvelope<AigcMonitoringInstanceDetail>
+        >(`/api/v1/1/aigc-monitoring/instances/${id}`),
+        fetchAdvancedJsonOrThrow<
+          WorkflowMonitoringEnvelope<AigcMonitoringInstanceListResponse>
+        >(
+          `/api/v1/1/aigc-monitoring/instances?instanceUuid=${encodeURIComponent(id)}&page=0&size=1`
+        ),
+      ]);
+      if (get().currentWorkflowId !== id) {
+        return;
+      }
+
+      set({
+        currentWorkflowMonitoringInstance: detail.data || null,
+        monitoringInstances: list.data?.content || [],
+      });
+    } catch (err) {
+      console.error("[Store] Failed to fetch workflow monitoring instance:", err);
+      if (get().currentWorkflowId === id) {
+        set({
+          currentWorkflowMonitoringInstance: null,
+          monitoringInstances: [],
+        });
+      }
+    }
+  },
+
+  fetchWorkflowMonitoringSession: async (id: string) => {
+    if (!isAdvancedMode()) {
+      set({ currentWorkflowMonitoringSession: null });
+      return;
+    }
+
+    try {
+      const data = await fetchAdvancedJsonOrThrow<
+        WorkflowMonitoringEnvelope<AigcMonitoringSessionDetail>
+      >(`/api/v1/1/aigc-monitoring/instances/${id}/session`);
+      if (get().currentWorkflowId !== id) {
+        return;
+      }
+
+      set({
+        currentWorkflowMonitoringSession: data.data || null,
+      });
+    } catch (err) {
+      console.error("[Store] Failed to fetch workflow monitoring session:", err);
+      if (get().currentWorkflowId === id) {
+        set({
+          currentWorkflowMonitoringSession: null,
+        });
+      }
+    }
+  },
+
+  terminateWorkflowMonitoringInstance: async (id: string, reason?: string) => {
+    if (!isAdvancedMode()) {
+      return null;
+    }
+
+    try {
+      const data = await fetchAdvancedJsonOrThrow<
+        WorkflowMonitoringEnvelope<AigcMonitoringTerminateResult>
+      >(`/api/v1/1/aigc-monitoring/instances/${id}/terminate`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(reason?.trim() ? { reason: reason.trim() } : {}),
+      });
+
+      if (get().currentWorkflowId === id) {
+        await get().fetchWorkflowDetail(id);
+      }
+
+      return data.data || null;
+    } catch (err) {
+      console.error("[Store] Failed to terminate workflow monitoring instance:", err);
+      return null;
     }
   },
 
@@ -1197,6 +1329,9 @@ export const useWorkflowStore = create<WorkflowState>((set, get) => ({
         currentWorkflowId: null,
         currentWorkflow: null,
         currentWorkflowGraphInstance: null,
+        currentWorkflowMonitoringInstance: null,
+        currentWorkflowMonitoringSession: null,
+        monitoringInstances: [],
         tasks: [],
         messages: [],
       });

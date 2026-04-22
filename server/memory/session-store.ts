@@ -227,6 +227,37 @@ class SessionStore {
     return readJsonLines(agentId, workflowId);
   }
 
+  getMissionWorkflowEntries(
+    mission: {
+      workPackages?: Array<{ workerId?: string }>;
+      agentCrew?: Array<{ id: string }>;
+      projection?: { workflowId?: string };
+    },
+    options: {
+      workflowId?: string;
+      limit?: number;
+    } = {}
+  ): SessionEntry[] {
+    const workflowId = options.workflowId || mission.projection?.workflowId;
+    if (!workflowId) return [];
+
+    const agentIds = uniqueSorted(
+      [
+        ...(mission.workPackages || []).flatMap(workPackage =>
+          workPackage.workerId ? [workPackage.workerId] : []
+        ),
+        ...(mission.agentCrew || []).map(agent => agent.id),
+      ].filter(Boolean)
+    );
+
+    const entries = agentIds.flatMap(agentId => this.getWorkflowEntries(agentId, workflowId));
+    const sorted = entries
+      .slice()
+      .sort((left, right) => left.timestamp.localeCompare(right.timestamp));
+    const limit = options.limit ?? sorted.length;
+    return sorted.slice(-limit);
+  }
+
   getRecentEntries(agentId: string, workflowId?: string, limit: number = 8): SessionEntry[] {
     const entries = workflowId ? this.getWorkflowEntries(agentId, workflowId) : readJsonLines(agentId, null);
     return entries.slice(-limit);

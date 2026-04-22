@@ -13,6 +13,7 @@ import type {
   MissionAgentCrewMember,
   MissionRecord,
 } from "../../shared/mission/contracts.js";
+import { mergeMissionProjectionLinks } from "../../shared/mission/projection.js";
 import type {
   WorkflowRepository,
   TaskRecord,
@@ -46,6 +47,7 @@ export function initEnrichmentBridge(
 ): void {
   _missionRuntime = missionRuntime;
   _workflowRepo = workflowRepo;
+  hydrateWorkflowMissionMap();
 }
 
 /**
@@ -54,6 +56,13 @@ export function initEnrichmentBridge(
  */
 export function linkWorkflowToMission(workflowId: string, missionId: string): void {
   workflowMissionMap.set(workflowId, missionId);
+  _missionRuntime?.patchMissionExecution(missionId, {
+    projection: {
+      workflowId,
+      instanceId: workflowId,
+      replayId: workflowId,
+    },
+  });
 }
 
 /**
@@ -61,7 +70,19 @@ export function linkWorkflowToMission(workflowId: string, missionId: string): vo
  * Returns undefined if no mapping exists.
  */
 export function resolveWorkflowMission(workflowId: string): string | undefined {
-  return workflowMissionMap.get(workflowId);
+  const cached = workflowMissionMap.get(workflowId);
+  if (cached) return cached;
+
+  if (!_missionRuntime) return undefined;
+
+  for (const task of _missionRuntime.listTasks(500)) {
+    if (task.projection?.workflowId === workflowId) {
+      workflowMissionMap.set(workflowId, task.id);
+      return task.id;
+    }
+  }
+
+  return undefined;
 }
 
 /**
@@ -78,6 +99,10 @@ export async function onWorkflowStageCompleted(
   try {
     const workflow = _workflowRepo.getWorkflow(workflowId);
     if (!workflow) return;
+    const workflowInput =
+      typeof workflow.results?.input === "object" && workflow.results.input !== null
+        ? (workflow.results.input as Record<string, unknown>)
+        : undefined;
 
     const enrichment: Partial<Pick<
       MissionRecord,
@@ -106,11 +131,41 @@ export async function onWorkflowStageCompleted(
     enrichment.messageLog = extractMessageLog(_workflowRepo, workflowId, 50);
 
     _missionRuntime.patchEnrichment(missionId, enrichment);
+    _missionRuntime.patchMissionExecution(missionId, {
+      projection: mergeMissionProjectionLinks(
+        _missionRuntime.getTask(missionId)?.projection,
+        {
+          workflowId,
+          instanceId: workflowId,
+          replayId: workflowId,
+          sessionId:
+            typeof workflowInput?.sessionId === "string"
+              ? workflowInput.sessionId
+              : undefined,
+          sourceApp:
+            typeof workflowInput?.sourceApp === "string"
+              ? workflowInput.sourceApp
+              : undefined,
+        },
+      ),
+    });
   } catch (err) {
     console.warn(
       `[EnrichmentBridge] Failed to enrich mission after stage "${completedStage}":`,
       err instanceof Error ? err.message : err,
     );
+  }
+}
+
+function hydrateWorkflowMissionMap(): void {
+  if (!_missionRuntime) return;
+
+  workflowMissionMap.clear();
+  for (const task of _missionRuntime.listTasks(500)) {
+    const workflowId = task.projection?.workflowId;
+    if (workflowId) {
+      workflowMissionMap.set(workflowId, task.id);
+    }
   }
 }
 

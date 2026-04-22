@@ -14,6 +14,7 @@ export interface KeywordSearchOptions {
   projectId: string;
   topK?: number;
   sourceTypes?: string[];
+  sourceIds?: string[];
   agentId?: string;
   codeLanguage?: string;
 }
@@ -35,6 +36,7 @@ export class KeywordSearcher {
     const candidates = this.metadataStore.query({
       projectId: options.projectId,
       sourceType: options.sourceTypes?.[0] as any,
+      sourceId: options.sourceIds?.[0],
       agentId: options.agentId,
     });
 

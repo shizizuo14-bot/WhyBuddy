@@ -6,6 +6,7 @@
 
 import { describe, expect, it, beforeEach } from "vitest";
 import * as fc from "fast-check";
+import { generateKeyPairSync } from "node:crypto";
 import type {
   PermissionAuditEntry,
   ResourceType,
@@ -14,6 +15,11 @@ import type {
 import { RESOURCE_TYPES, ACTIONS } from "../../shared/permission/contracts.js";
 import { AuditLogger } from "./audit-logger.js";
 import type { AuditLoggerDb } from "./audit-logger.js";
+import { AuditChain } from "../audit/audit-chain.js";
+import { AuditCollector } from "../audit/audit-collector.js";
+import { TimestampProvider } from "../audit/timestamp-provider.js";
+import { AuditQuery } from "../audit/audit-query.js";
+import { AuditEventType } from "../../shared/audit/contracts.js";
 
 /* ─── In-memory Database stub ─── */
 
@@ -40,6 +46,7 @@ function makeEntry(overrides: Partial<Omit<PermissionAuditEntry, "id" | "timesta
     reason: overrides.reason,
     operator: overrides.operator,
     metadata: overrides.metadata,
+    governance: overrides.governance,
   };
 }
 
@@ -96,6 +103,40 @@ describe("AuditLogger", () => {
       logger.log(makeEntry());
       const entries = db.getPermissionAudit();
       expect(entries[0].id).not.toBe(entries[1].id);
+    });
+
+    it("mirrors entries into the platform audit chain when configured", () => {
+      const { privateKey, publicKey } = generateKeyPairSync("ec", {
+        namedCurve: "prime256v1",
+      });
+      const chain = new AuditChain({
+        privateKey: privateKey.export({ type: "sec1", format: "pem" }) as string,
+        publicKey: publicKey.export({ type: "spki", format: "pem" }) as string,
+      });
+      const collector = new AuditCollector(chain, new TimestampProvider());
+      const mirroredLogger = new AuditLogger(db, collector);
+      const query = new AuditQuery(chain, collector);
+
+      mirroredLogger.log(makeEntry({
+        agentId: "agent-mirror",
+        operation: "check",
+        resourceType: "mcp_tool",
+        action: "call",
+        resource: "mcp://tool/search",
+        result: "denied",
+        governance: {
+          outcome: "approval_required",
+          riskLevel: "critical",
+          policyId: "security-governance.mcp-approval-gate",
+          rationale: "manual approval required",
+          requiresAudit: true,
+        },
+      }));
+
+      collector.flush();
+      const trail = query.getPermissionTrail("agent-mirror");
+      expect(trail.some((entry) => entry.event.eventType === AuditEventType.GOVERNANCE_ENFORCED)).toBe(true);
+      collector.destroy();
     });
   });
 

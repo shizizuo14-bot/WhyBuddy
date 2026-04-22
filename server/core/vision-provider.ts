@@ -97,6 +97,40 @@ const DEFAULT_VISION_PROMPT =
   "TEXT: <any text found, or NONE>";
 
 /**
+ * Send an arbitrary multimodal prompt to the configured vision model.
+ * Higher-level adapters such as OCR can reuse this transport.
+ */
+export async function runVisionPrompt(
+  base64DataUrl: string,
+  prompt: string
+): Promise<string> {
+  const config = getVisionConfig();
+
+  const contentParts: LLMMessageContentPart[] = [
+    { type: "text", text: prompt },
+    {
+      type: "image_url",
+      image_url: { url: base64DataUrl, detail: config.detail },
+    },
+  ];
+
+  const messages = [
+    {
+      role: "user" as const,
+      content: contentParts,
+    },
+  ];
+
+  const response = await callLLM(messages, {
+    model: config.model,
+    maxTokens: config.maxTokens,
+    temperature: 0.3,
+  });
+
+  return response.content;
+}
+
+/**
  * Parse the raw LLM response text into a structured VisionAnalysisResult.
  * Gracefully handles responses that don't follow the expected format.
  */
@@ -146,30 +180,12 @@ export async function analyzeImage(
   base64DataUrl: string,
   prompt?: string
 ): Promise<VisionAnalysisResult> {
-  const config = getVisionConfig();
+  const rawResponse = await runVisionPrompt(
+    base64DataUrl,
+    prompt || DEFAULT_VISION_PROMPT
+  );
 
-  const contentParts: LLMMessageContentPart[] = [
-    { type: "text", text: prompt || DEFAULT_VISION_PROMPT },
-    {
-      type: "image_url",
-      image_url: { url: base64DataUrl, detail: config.detail },
-    },
-  ];
-
-  const messages = [
-    {
-      role: "user" as const,
-      content: contentParts,
-    },
-  ];
-
-  const response = await callLLM(messages, {
-    model: config.model,
-    maxTokens: config.maxTokens,
-    temperature: 0.3,
-  });
-
-  return parseVisionResponse(response.content);
+  return parseVisionResponse(rawResponse);
 }
 
 /**

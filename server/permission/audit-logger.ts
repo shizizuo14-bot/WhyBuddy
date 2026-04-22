@@ -9,13 +9,16 @@
 
 import { randomUUID } from "node:crypto";
 import type {
+  GovernanceDecision,
   PermissionAuditEntry,
   PermissionUsageReport,
   ResourceType,
   Action,
 } from "../../shared/permission/contracts.js";
 import { RESOURCE_TYPES } from "../../shared/permission/contracts.js";
+import { AuditEventType } from "../../shared/audit/contracts.js";
 import type { AuditLogger as IAuditLogger } from "./check-engine.js";
+import type { AuditCollector } from "../audit/audit-collector.js";
 
 // ─── Database interface (subset used by this module) ────────────────────────
 
@@ -27,7 +30,10 @@ export interface AuditLoggerDb {
 // ─── AuditLogger ────────────────────────────────────────────────────────────
 
 export class AuditLogger implements IAuditLogger {
-  constructor(private db: AuditLoggerDb) {}
+  constructor(
+    private db: AuditLoggerDb,
+    private platformAuditCollector?: AuditCollector,
+  ) {}
 
   /**
    * Record an audit entry. Auto-generates id and timestamp.
@@ -41,6 +47,7 @@ export class AuditLogger implements IAuditLogger {
       ...entry,
     };
     this.db.addPermissionAudit(full);
+    this.mirrorToPlatformAudit(full);
   }
 
   /**
@@ -149,5 +156,64 @@ export class AuditLogger implements IAuditLogger {
       null,
       2,
     );
+  }
+
+  private mirrorToPlatformAudit(entry: PermissionAuditEntry): void {
+    if (!this.platformAuditCollector) {
+      return;
+    }
+
+    const eventType = selectPlatformAuditEvent(entry);
+    try {
+      this.platformAuditCollector.record({
+        eventType,
+        actor: { type: "agent", id: entry.agentId },
+        action: `permission.${entry.operation}`,
+        resource: {
+          type: entry.resourceType,
+          id: entry.resource || `${entry.resourceType}:${entry.action}`,
+          name: entry.action,
+        },
+        result: mapAuditResult(entry.result),
+        metadata: {
+          permissionAction: entry.action,
+          operator: entry.operator,
+          reason: entry.reason,
+          governance: entry.governance,
+          permissionAuditId: entry.id,
+          ...entry.metadata,
+        },
+      });
+    } catch {
+      // Platform audit mirroring must not break permission audit writes.
+    }
+  }
+}
+
+function mapAuditResult(
+  result: PermissionAuditEntry["result"],
+): "success" | "failure" | "denied" | "error" {
+  switch (result) {
+    case "allowed":
+      return "success";
+    case "denied":
+      return "denied";
+    case "error":
+      return "error";
+  }
+}
+
+function selectPlatformAuditEvent(entry: PermissionAuditEntry): AuditEventType {
+  if (entry.governance && entry.governance.outcome !== "allowed") {
+    return AuditEventType.GOVERNANCE_ENFORCED;
+  }
+
+  switch (entry.operation) {
+    case "grant":
+      return AuditEventType.PERMISSION_GRANTED;
+    case "revoke":
+      return AuditEventType.PERMISSION_REVOKED;
+    default:
+      return AuditEventType.PERMISSION_CHECKED;
   }
 }

@@ -81,6 +81,42 @@ export const DECISION_TYPES = [
 
 export type DecisionType = (typeof DECISION_TYPES)[number];
 
+export const WEB_AIGC_HITL_NODE_TYPES = [
+  "user_input",
+  "selection",
+  "param_collection",
+  "confirm_judge",
+  "intent_recognition",
+  "command_list",
+  "recommended_commands",
+] as const;
+
+export type WebAigcHitlNodeType =
+  (typeof WEB_AIGC_HITL_NODE_TYPES)[number];
+
+export interface WebAigcHitlFieldDefinition {
+  key: string;
+  label: string;
+  type?: "text" | "textarea" | "number" | "boolean" | "selection";
+  required?: boolean;
+  placeholder?: string;
+  defaultValue?: string | number | boolean | null;
+  options?: Array<{
+    value: string;
+    label: string;
+    description?: string;
+  }>;
+}
+
+export interface WebAigcHitlSubmissionMetadata {
+  nodeType?: WebAigcHitlNodeType;
+  sessionId?: string;
+  nodeId?: string;
+  interactionId?: string;
+  branchKey?: string;
+  formData?: Record<string, string | number | boolean | null>;
+}
+
 export interface MissionStage {
   key: string;
   label: string;
@@ -125,12 +161,14 @@ export interface MissionDecisionSubmission {
   freeText?: string;
   detail?: string;
   progress?: number;
+  metadata?: WebAigcHitlSubmissionMetadata;
 }
 
 export interface MissionDecisionResolved {
   optionId?: string;
   optionLabel?: string;
   freeText?: string;
+  metadata?: WebAigcHitlSubmissionMetadata;
 }
 
 /* ─── Decision History ─── */
@@ -147,6 +185,10 @@ export interface DecisionHistoryEntry {
   submittedAt: number;
   reason?: string;
   stageKey?: string;
+  sessionId?: string;
+  nodeType?: WebAigcHitlNodeType;
+  interactionId?: string;
+  branchKey?: string;
 }
 
 export const MISSION_CORE_STAGE_BLUEPRINT = [
@@ -251,12 +293,16 @@ export interface MissionInstanceContext {
   host?: string;
 }
 
+export type MissionProjectionLinks =
+  import("./projection.js").MissionProjectionLinks;
+
 export interface MissionRecord {
   id: string;
   kind: string;
   title: string;
   sourceText?: string;
   topicId?: string;
+  projection?: MissionProjectionLinks;
   status: MissionStatus;
   progress: number;
   currentStageKey?: string;

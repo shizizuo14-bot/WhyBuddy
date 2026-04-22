@@ -1,4 +1,5 @@
 import type { MissionRecord } from "../../shared/mission/contracts.js";
+import { resolveMissionProjectionLinks } from "../../shared/mission/projection.js";
 import type {
   AigcMonitoringExecutionStatus,
   AigcMonitoringInstanceDetail,
@@ -112,6 +113,19 @@ function toSourceApp(
   workflow: WorkflowRecord,
   mission?: MissionRecord
 ): string | null {
+  const projection = resolveMissionProjectionLinks({
+    mission,
+    workflowId: workflow.id,
+    workflowInput:
+      typeof workflow.results?.input === "object" && workflow.results.input !== null
+        ? (workflow.results.input as Record<string, unknown>)
+        : undefined,
+    replayId: workflow.id,
+  });
+  if (projection.sourceApp) {
+    return projection.sourceApp;
+  }
+
   const fromInput = workflow.results?.input?.sourceApp;
   if (typeof fromInput === "string" && fromInput.trim()) {
     return fromInput.trim();
@@ -343,6 +357,7 @@ export function buildMonitoringInstanceDetail(input: {
       id: edge.edgeId,
       source: edge.fromNodeId,
       target: edge.toNodeId,
+      kind: edge.kind,
     })),
   };
 }
@@ -364,8 +379,17 @@ export function buildMonitoringSessionDetail(input: {
   messages: MessageRecord[];
 }): AigcMonitoringSessionDetail {
   const { workflow, mission, messages } = input;
+  const projection = resolveMissionProjectionLinks({
+    mission,
+    workflowId: workflow.id,
+    workflowInput:
+      typeof workflow.results?.input === "object" && workflow.results.input !== null
+        ? (workflow.results.input as Record<string, unknown>)
+        : undefined,
+    replayId: workflow.id,
+  });
 
-  const sessionId = mission?.topicId || workflow.id;
+  const sessionId = projection.sessionId || workflow.id;
   const startTime = toStartTime(workflow, mission);
   const items: AigcMonitoringSessionMessage[] = messages.map(message => {
     const citations = Array.isArray(message.metadata?.citations)
@@ -410,7 +434,7 @@ export function buildMonitoringSessionDetail(input: {
 
   return {
     sessionId,
-    user: mission?.topicId || "workflow-user",
+    user: projection.sessionId || mission?.topicId || "workflow-user",
     startTime,
     sourceApp: toSourceApp(workflow, mission),
     messages: items,

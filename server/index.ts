@@ -538,6 +538,24 @@ async function startServer() {
     app.use("/api/rag", createRAGRouter(ragDeps));
   }
 
+  // Audit chain / observability wiring
+  const { auditChain } = await import("./audit/audit-chain.js");
+  const { auditStore } = await import("./audit/audit-store.js");
+  const { auditQuery } = await import("./audit/audit-query.js");
+  const { auditVerifier } = await import("./audit/audit-verifier.js");
+  const { anomalyDetector } = await import("./audit/anomaly-detector.js");
+  const { complianceMapper } = await import("./audit/compliance-mapper.js");
+  const { auditExport } = await import("./audit/audit-export.js");
+  const { auditRetention } = await import("./audit/audit-retention.js");
+  const { auditCollector } = await import("./audit/audit-collector.js");
+  const { installAuditHooks } = await import("./audit/audit-hooks.js");
+  const { createAuditRouter } = await import("./routes/audit.js");
+
+  auditStore.init();
+  auditChain.setStore(auditStore);
+  auditChain.init();
+  installAuditHooks({ collector: auditCollector });
+
   app.use("/api/agents", agentRoutes);
   app.use("/api/chat", chatRoutes);
   app.use("/api/reports", reportRoutes);
@@ -566,6 +584,16 @@ async function startServer() {
   app.use("/api/feishu", createFeishuRouter());
   app.use("/api/knowledge", createKnowledgeRouter({ graphStore, reviewQueue, knowledgeService }));
   app.use("/api/admin/knowledge", createKnowledgeAdminRouter({ graphStore, ontologyRegistry, reviewQueue }));
+  app.use("/api/audit", createAuditRouter({
+    chain: auditChain,
+    query: auditQuery,
+    verifier: auditVerifier,
+    anomalyDetector,
+    complianceMapper,
+    auditExport,
+    auditRetention,
+    collector: auditCollector,
+  }));
 
   // ── Agent Permission Model ──
   const { RoleStore } = await import("./permission/role-store.js");
@@ -580,7 +608,7 @@ async function startServer() {
   permRoleStore.initBuiltinRoles();
   const permPolicyStore = new PolicyStore(db, permRoleStore);
   const permTokenService = new TokenService(permPolicyStore, permRoleStore);
-  const permAuditLogger = new AuditLogger(db);
+  const permAuditLogger = new AuditLogger(db, auditCollector);
   const permDynamicManager = new DynamicPermissionManager(permPolicyStore, permTokenService, db, permAuditLogger);
   const permConflictDetector = new ConflictDetector(permPolicyStore, permRoleStore);
 
@@ -598,15 +626,44 @@ async function startServer() {
   const { setPermissionCheckEngine } = await import("./core/agent.js");
   const { PermissionCheckEngine } = await import("./permission/check-engine.js");
   const { FilesystemChecker } = await import("./permission/checkers/filesystem-checker.js");
+  const { DatabaseChecker } = await import("./permission/checkers/database-checker.js");
 
   wfEngine.tokenService = permTokenService;
 
   const permCheckEngine = new PermissionCheckEngine(
     permTokenService,
     permAuditLogger,
-    new Map([["filesystem", new FilesystemChecker()]]),
+    new Map([
+      ["filesystem", new FilesystemChecker()],
+      ["database", new DatabaseChecker()],
+    ]),
   );
   setPermissionCheckEngine(permCheckEngine);
+
+  if (ragConfig.enabled) {
+    try {
+      const { initRAG } = await import("./rag/index.js");
+      const ragDeps = initRAG();
+      const { VectorInsertAdapter } = await import("./web-aigc/vector-insert-adapter.js");
+      const { createWebAigcRiskActionRouter } = await import("./routes/web-aigc-risk-actions.js");
+
+      app.use(
+        "/api/rag/risk-actions",
+        createWebAigcRiskActionRouter({
+          vectorInsertAdapter: new VectorInsertAdapter({
+            ingestionPipeline: ragDeps.ingestionPipeline,
+            metadataStore: (ragDeps as any).metadataStore ?? (() => {
+              throw new Error("RAG metadata store unavailable");
+            })(),
+            permissionEngine: permCheckEngine,
+            auditLogger: permAuditLogger,
+          }),
+        }),
+      );
+    } catch (error) {
+      console.warn("[Web-AIGC] Risk action routes disabled:", error);
+    }
+  }
 
   const nlCommandRoutes = (await import("./routes/nl-command.js")).default;
   app.use("/api/nl-command", nlCommandRoutes);
@@ -622,7 +679,41 @@ async function startServer() {
     capabilities: [] as string[],
     description: agent.role ?? agent.name,
   }));
-  const a2aServer = new A2AServerClass({ agentExecutor: { execute: async () => "", executeStream: async function* () {} }, exposedAgents: a2aAgents });
+  const a2aServer = new A2AServerClass({
+    agentExecutor: {
+      execute: async (agentId, task, context) => {
+        const agent = registry.get(agentId);
+        if (!agent) {
+          throw new Error(`Agent not found: ${agentId}`);
+        }
+        const prompt = context?.trim()
+          ? `${task}\n\nAdditional context:\n${context}`
+          : task;
+        return agent.invoke(prompt, context?.trim() ? [context] : undefined, {
+          stage: "a2a",
+        });
+      },
+      executeStream: async function* (agentId, task, context) {
+        const agent = registry.get(agentId);
+        if (!agent) {
+          throw new Error(`Agent not found: ${agentId}`);
+        }
+        const prompt = context?.trim()
+          ? `${task}\n\nAdditional context:\n${context}`
+          : task;
+        const output = await agent.invoke(prompt, context?.trim() ? [context] : undefined, {
+          stage: "a2a",
+        });
+        if (!output) {
+          return;
+        }
+        for (const chunk of output.match(/[\s\S]{1,400}/g) ?? [output]) {
+          yield chunk;
+        }
+      },
+    },
+    exposedAgents: a2aAgents,
+  });
   const a2aClient = new A2AClientClass();
   a2aRoutes.initA2ARoutes(a2aServer, a2aClient);
   app.use("/api/a2a", a2aRoutes.default);

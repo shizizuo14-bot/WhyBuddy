@@ -372,6 +372,62 @@ describe("web-aigc monitoring compatibility routes", () => {
         nodeLabel: "Worker",
         status: "EXECUTING",
       });
+      expect(body.data.edges[0]).toMatchObject({
+        id: "node-root->node-worker",
+        source: "node-root",
+        target: "node-worker",
+        kind: "parent_child",
+      });
+    });
+  });
+
+  it("preserves control_flow edge kind in monitoring instance detail", async () => {
+    const workflow = makeWorkflow({
+      id: "wf-control-monitor",
+      directive: "Project controlflow monitoring detail",
+    });
+    state.workflows = [workflow];
+    state.tasksByWorkflow[workflow.id] = [];
+    state.messagesByWorkflow[workflow.id] = [];
+    state.missionIdsByWorkflow[workflow.id] = "mission-monitor";
+    state.missionsById["mission-monitor"] = makeMission();
+    state.instancesByWorkflow[workflow.id] = makeInstance({
+      instanceId: "wf-control-monitor",
+      workflowId: "wf-control-monitor",
+      directive: "Project controlflow monitoring detail",
+      links: {
+        workflowId: "wf-control-monitor",
+        missionId: "mission-monitor",
+        sessionId: "session-monitor",
+        replayId: "wf-control-monitor",
+      },
+      edgeTransitions: [
+        {
+          edgeId: "condition-1->end-approved",
+          fromNodeId: "condition-1",
+          toNodeId: "end-approved",
+          kind: "control_flow",
+          status: "known",
+        },
+      ],
+    });
+
+    await withServer(async baseUrl => {
+      const response = await fetch(
+        `${baseUrl}/api/v1/1/aigc-monitoring/instances/wf-control-monitor`
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.success).toBe(true);
+      expect(body.data.edges).toEqual([
+        {
+          id: "condition-1->end-approved",
+          source: "condition-1",
+          target: "end-approved",
+          kind: "control_flow",
+        },
+      ]);
     });
   });
 
@@ -400,6 +456,44 @@ describe("web-aigc monitoring compatibility routes", () => {
         id: "11",
         role: "assistant",
         content: "Compatibility adapter drafted",
+      });
+    });
+  });
+
+  it("prefers projection sessionId and sourceApp for monitoring session detail", async () => {
+    const workflow = makeWorkflow({
+      results: {
+        input: {
+          projection: {
+            sessionId: "projection-session",
+            sourceApp: "web-aigc",
+          },
+        },
+      },
+    });
+    state.workflows = [workflow];
+    state.messagesByWorkflow[workflow.id] = [makeMessage()];
+    state.missionIdsByWorkflow[workflow.id] = "mission-monitor";
+    state.missionsById["mission-monitor"] = makeMission({
+      topicId: "mission-session",
+      projection: {
+        sessionId: "projection-session",
+        sourceApp: "web-aigc",
+      },
+    });
+
+    await withServer(async baseUrl => {
+      const response = await fetch(
+        `${baseUrl}/api/v1/1/aigc-monitoring/instances/wf-monitor/session`
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body.success).toBe(true);
+      expect(body.data).toMatchObject({
+        sessionId: "projection-session",
+        user: "projection-session",
+        sourceApp: "web-aigc",
       });
     });
   });

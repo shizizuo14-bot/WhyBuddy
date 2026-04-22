@@ -136,7 +136,11 @@ export class IngestionPipeline {
     }
 
     // --- Stage: store (vector) ---
-    const collectionName = `rag_${cleaned.projectId}`;
+    const collectionName =
+      typeof cleaned.metadata?.targetCollection === "string" &&
+      cleaned.metadata.targetCollection.trim()
+        ? cleaned.metadata.targetCollection.trim()
+        : `rag_${cleaned.projectId}`;
     const vectorRecords: VectorRecord[] = embedded.map((ec) => ({
       id: ec.chunk.chunkId,
       vector: ec.vector,

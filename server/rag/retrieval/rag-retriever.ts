@@ -62,6 +62,11 @@ export class RAGRetriever {
             ? options.sourceTypes[0]
             : options.sourceTypes;
         }
+        if (options.sourceIds?.length) {
+          filter.sourceId = options.sourceIds.length === 1
+            ? options.sourceIds[0]
+            : options.sourceIds;
+        }
         if (options.agentId) filter.agentId = options.agentId;
         if (options.codeLanguage) filter.codeLanguage = options.codeLanguage;
         if (options.timeRange) {
@@ -91,6 +96,7 @@ export class RAGRetriever {
         projectId: options.projectId,
         topK: topK * 2,
         sourceTypes: options.sourceTypes,
+        sourceIds: options.sourceIds,
         agentId: options.agentId,
         codeLanguage: options.codeLanguage,
       });

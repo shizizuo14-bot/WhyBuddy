@@ -111,6 +111,7 @@ export interface PermissionCheckResult {
   reason?: string;
   suggestion?: string;
   matchedRule?: Permission;
+  governance?: GovernanceDecision;
 }
 
 // ─── 审计日志 ───────────────────────────────────────────────────────────────
@@ -127,6 +128,16 @@ export interface PermissionAuditEntry {
   reason?: string;
   operator?: string;
   metadata?: Record<string, unknown>;
+  governance?: GovernanceDecision;
+}
+
+export interface GovernanceDecision {
+  outcome: "allowed" | "blocked" | "approval_required";
+  riskLevel: RiskLevel;
+  policyId: string;
+  rationale: string;
+  requiresAudit: boolean;
+  specRefs?: string[];
 }
 
 // ─── 权限模板 ───────────────────────────────────────────────────────────────

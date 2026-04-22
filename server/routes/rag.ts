@@ -14,6 +14,16 @@ import type { LifecycleManager } from '../rag/lifecycle/lifecycle-manager.js';
 import type { HealthChecker } from '../rag/observability/health-checker.js';
 import type { RAGMetrics } from '../rag/observability/metrics.js';
 import type { AugmentationLogger } from '../rag/augmentation/augmentation-logger.js';
+import type {
+  WebAigcSearchRequest,
+  WebAigcSearchMode,
+} from '../../shared/rag/web-aigc-search.js';
+import {
+  normalizeWebAigcSearchRequest,
+  projectDocumentSearchResponse,
+  projectFragmentSearchResponse,
+  validateWebAigcSearchRequest,
+} from '../rag/web-aigc-search-adapter.js';
 
 export interface RAGRouteDeps {
   ingestionPipeline: IngestionPipeline;
@@ -28,6 +38,36 @@ export interface RAGRouteDeps {
 
 export function createRAGRouter(deps: RAGRouteDeps): Router {
   const router = Router();
+
+  async function runWebAigcSearch(
+    reqBody: Partial<WebAigcSearchRequest> | undefined,
+    projector: typeof projectDocumentSearchResponse | typeof projectFragmentSearchResponse,
+  ) {
+    const validationError = validateWebAigcSearchRequest(reqBody);
+    if (validationError) {
+      return {
+        status: 400,
+        body: { error: validationError },
+      };
+    }
+
+    const request = reqBody as WebAigcSearchRequest;
+    const normalizedOptions = normalizeWebAigcSearchRequest(request);
+    const mode = (normalizedOptions.mode ?? 'hybrid') as WebAigcSearchMode;
+    const start = Date.now();
+    const results = await deps.retriever.search(request.query, normalizedOptions);
+
+    return {
+      status: 200,
+      body: projector({
+        query: request.query,
+        results,
+        documentIds: request.scope.documentIds,
+        latencyMs: Date.now() - start,
+        mode,
+      }),
+    };
+  }
 
   // POST /api/rag/ingest
   router.post('/ingest', async (req, res) => {
@@ -72,6 +112,32 @@ export function createRAGRouter(deps: RAGRouteDeps): Router {
         latencyMs: Date.now() - start,
         mode: options.mode ?? 'hybrid',
       });
+    } catch (err) {
+      return res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // POST /api/rag/web-aigc/document-search
+  router.post('/web-aigc/document-search', async (req, res) => {
+    try {
+      const response = await runWebAigcSearch(
+        req.body as Partial<WebAigcSearchRequest>,
+        projectDocumentSearchResponse,
+      );
+      return res.status(response.status).json(response.body);
+    } catch (err) {
+      return res.status(500).json({ error: String(err) });
+    }
+  });
+
+  // POST /api/rag/web-aigc/fragment-search
+  router.post('/web-aigc/fragment-search', async (req, res) => {
+    try {
+      const response = await runWebAigcSearch(
+        req.body as Partial<WebAigcSearchRequest>,
+        projectFragmentSearchResponse,
+      );
+      return res.status(response.status).json(response.body);
     } catch (err) {
       return res.status(500).json({ error: String(err) });
     }

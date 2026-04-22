@@ -1777,6 +1777,7 @@ export function OfficeTaskCockpit({
                   )}
                 >
                   <OfficeWorkflowHistoryPanel
+                    workflow={activeWorkflow}
                     activeWorkflowId={activeWorkflow?.id || null}
                     onSelectWorkflow={workflowId => {
                       setCurrentWorkflow(workflowId);

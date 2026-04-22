@@ -101,6 +101,14 @@ describe("DatabaseChecker", () => {
       expect(checker.checkConstraints("select", "mydb.users", constraints)).toBe(true);
       expect(checker.checkConstraints("select", "mydb.orders", constraints)).toBe(false);
     });
+
+    it("handles namespace/collection format used by high-risk vector actions", () => {
+      const constraints: PermissionConstraints = {
+        tables: ["rag_proj-1"],
+      };
+      expect(checker.checkConstraints("insert", "tenant_alpha/rag_proj-1", constraints)).toBe(true);
+      expect(checker.checkConstraints("insert", "tenant_alpha/rag_proj-2", constraints)).toBe(false);
+    });
   });
 });
 

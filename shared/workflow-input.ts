@@ -21,8 +21,19 @@ export interface WorkflowInputAttachment {
   visualDescription?: string;
 }
 
+export interface WorkflowInputProjectionContext {
+  sessionId?: string;
+  sourceApp?: string;
+}
+
 function normalizeDirectiveText(value: string) {
   return value.trim().replace(/\s+/g, " ");
+}
+
+function normalizeProjectionText(value: unknown) {
+  if (typeof value !== "string") return undefined;
+  const normalized = value.trim();
+  return normalized || undefined;
 }
 
 export function normalizeWorkflowAttachmentContent(value: string) {
@@ -127,6 +138,25 @@ export function normalizeWorkflowAttachments(
     .slice(0, MAX_WORKFLOW_ATTACHMENTS)
     .map(normalizeWorkflowAttachment)
     .filter((item): item is WorkflowInputAttachment => Boolean(item));
+}
+
+export function normalizeWorkflowInputProjection(
+  value: unknown
+): WorkflowInputProjectionContext | undefined {
+  if (!value || typeof value !== "object") return undefined;
+
+  const candidate = value as Partial<WorkflowInputProjectionContext>;
+  const sessionId = normalizeProjectionText(candidate.sessionId);
+  const sourceApp = normalizeProjectionText(candidate.sourceApp);
+
+  if (!sessionId && !sourceApp) {
+    return undefined;
+  }
+
+  return {
+    ...(sessionId ? { sessionId } : {}),
+    ...(sourceApp ? { sourceApp } : {}),
+  };
 }
 
 export function buildWorkflowInputSignature(

@@ -36,7 +36,8 @@ export type WorkflowStatus =
   | "running"
   | "completed"
   | "completed_with_errors"
-  | "failed";
+  | "failed"
+  | "force_terminated";
 
 export interface AgentRecord {
   id: string;

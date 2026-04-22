@@ -28,7 +28,12 @@ import {
 } from "@/lib/workflow-selectors";
 import { cn } from "@/lib/utils";
 import { useWorkflowStore, type WorkflowInfo } from "@/lib/workflow-store";
-import type { GraphInstanceSnapshot, GraphNodeRunSnapshot } from "@/lib/runtime/types";
+import type {
+  AigcMonitoringInstanceDetail,
+  AigcMonitoringSessionDetail,
+  GraphInstanceSnapshot,
+  GraphNodeRunSnapshot,
+} from "@/lib/runtime/types";
 
 function t(locale: string, zh: string, en: string) {
   return locale === "zh-CN" ? zh : en;
@@ -138,6 +143,39 @@ function graphRuntimeLabel(locale: string, status: GraphNodeRunSnapshot["status"
   }
 }
 
+function monitoringStatusTone(status: string | null | undefined) {
+  switch (status) {
+    case "EXECUTING":
+      return "border-sky-200 bg-sky-50 text-sky-700";
+    case "EXECUTED":
+      return "border-emerald-200 bg-emerald-50 text-emerald-700";
+    case "WAITING_INPUT":
+      return "border-amber-200 bg-amber-50 text-amber-700";
+    case "EXCEPTION":
+    case "FORCE_TERMINATED":
+      return "border-rose-200 bg-rose-50 text-rose-700";
+    default:
+      return "border-stone-200 bg-stone-50 text-stone-600";
+  }
+}
+
+function monitoringStatusLabel(locale: string, status: string | null | undefined) {
+  switch (status) {
+    case "EXECUTING":
+      return t(locale, "执行中", "Executing");
+    case "EXECUTED":
+      return t(locale, "已执行", "Executed");
+    case "WAITING_INPUT":
+      return t(locale, "等待录入", "Waiting input");
+    case "EXCEPTION":
+      return t(locale, "执行异常", "Exception");
+    case "FORCE_TERMINATED":
+      return t(locale, "强制结束", "Force terminated");
+    default:
+      return t(locale, "未执行", "Pending");
+  }
+}
+
 function summarizeGraphInstance(instance: GraphInstanceSnapshot | null) {
   if (!instance) {
     return {
@@ -167,6 +205,57 @@ function summarizeGraphInstance(instance: GraphInstanceSnapshot | null) {
       waiting: 0,
       exception: 0,
     }
+  );
+}
+
+function summarizeMonitoringInstance(
+  instance: AigcMonitoringInstanceDetail | null
+) {
+  if (!instance) {
+    return {
+      total: 0,
+      executing: 0,
+      executed: 0,
+      pending: 0,
+      exception: 0,
+    };
+  }
+
+  return instance.nodes.reduce(
+    (summary, node) => {
+      summary.total += 1;
+      if (node.status === "EXECUTING") summary.executing += 1;
+      if (node.status === "EXECUTED") summary.executed += 1;
+      if (node.status === "PENDING") summary.pending += 1;
+      if (node.status === "EXCEPTION") summary.exception += 1;
+      return summary;
+    },
+    {
+      total: 0,
+      executing: 0,
+      executed: 0,
+      pending: 0,
+      exception: 0,
+    }
+  );
+}
+
+function summarizeSessionMessage(
+  message: AigcMonitoringSessionDetail["messages"][number],
+  locale: string
+) {
+  const toolCallSummary =
+    message.toolCalls && message.toolCalls.length > 0
+      ? message.toolCalls.map(tool => tool.name).join(", ")
+      : "";
+  const merged = [message.content, message.thinking, toolCallSummary]
+    .filter(Boolean)
+    .join(" ");
+
+  return summarizeText(
+    merged,
+    t(locale, "暂无会话内容", "No session content yet"),
+    140
   );
 }
 
@@ -1099,20 +1188,109 @@ export function OfficeMemoryReportsPanel({
 }
 
 export function OfficeWorkflowHistoryPanel({
+  workflow,
   activeWorkflowId,
   onSelectWorkflow,
 }: {
+  workflow: WorkflowInfo | null;
   activeWorkflowId: string | null;
   onSelectWorkflow: (workflowId: string) => void;
 }) {
   const { locale } = useI18n();
   const workflows = useWorkflowStore(state => state.workflows);
   const workflowsError = useWorkflowStore(state => state.workflowsError);
+  const graphInstance = useWorkflowStore(
+    state => state.currentWorkflowGraphInstance
+  );
+  const monitoringInstances = useWorkflowStore(state => state.monitoringInstances);
+  const monitoringInstance = useWorkflowStore(
+    state => state.currentWorkflowMonitoringInstance
+  );
+  const monitoringSession = useWorkflowStore(
+    state => state.currentWorkflowMonitoringSession
+  );
   const fetchWorkflows = useWorkflowStore(state => state.fetchWorkflows);
+  const fetchWorkflowGraphInstance = useWorkflowStore(
+    state => state.fetchWorkflowGraphInstance
+  );
+  const fetchWorkflowMonitoringInstance = useWorkflowStore(
+    state => state.fetchWorkflowMonitoringInstance
+  );
+  const fetchWorkflowMonitoringSession = useWorkflowStore(
+    state => state.fetchWorkflowMonitoringSession
+  );
+  const terminateWorkflowMonitoringInstance = useWorkflowStore(
+    state => state.terminateWorkflowMonitoringInstance
+  );
+  const [isTerminating, setIsTerminating] = useState(false);
 
   useEffect(() => {
     void fetchWorkflows();
   }, [fetchWorkflows]);
+
+  useEffect(() => {
+    if (!workflow?.id) {
+      return;
+    }
+
+    void fetchWorkflowGraphInstance(workflow.id);
+    void fetchWorkflowMonitoringInstance(workflow.id);
+    void fetchWorkflowMonitoringSession(workflow.id);
+  }, [
+    fetchWorkflowGraphInstance,
+    fetchWorkflowMonitoringInstance,
+    fetchWorkflowMonitoringSession,
+    workflow?.id,
+  ]);
+
+  const monitoringListItem = useMemo(() => {
+    if (!workflow?.id) {
+      return null;
+    }
+
+    return (
+      monitoringInstances.find(item => item.instanceUuid === workflow.id) || null
+    );
+  }, [monitoringInstances, workflow?.id]);
+
+  const monitoringSummary = useMemo(
+    () => summarizeMonitoringInstance(monitoringInstance),
+    [monitoringInstance]
+  );
+  const graphSummary = useMemo(
+    () => summarizeGraphInstance(graphInstance),
+    [graphInstance]
+  );
+  const graphNodePreview = useMemo(
+    () => graphInstance?.nodeRuns.slice(0, 4) || [],
+    [graphInstance]
+  );
+  const monitoringNodePreview = useMemo(
+    () => monitoringInstance?.nodes.slice(0, 4) || [],
+    [monitoringInstance]
+  );
+  const monitoringMessagesPreview = useMemo(
+    () => monitoringSession?.messages.slice(-3).reverse() || [],
+    [monitoringSession]
+  );
+
+  async function handleTerminateMonitoringInstance() {
+    if (!workflow?.id || isTerminating) {
+      return;
+    }
+
+    setIsTerminating(true);
+    try {
+      await terminateWorkflowMonitoringInstance(
+        workflow.id,
+        "office-history-compatibility-panel"
+      );
+      await fetchWorkflowMonitoringInstance(workflow.id);
+      await fetchWorkflowMonitoringSession(workflow.id);
+    } finally {
+      setIsTerminating(false);
+    }
+  }
 
   if (workflows.length === 0 && !workflowsError) {
     return (
@@ -1141,6 +1319,413 @@ export function OfficeWorkflowHistoryPanel({
               "The office cockpit owns the active runtime and high-frequency context, while /tasks stays as the fullscreen deep-link page and the legacy workflow panel remains the compatibility entry for session history."
             )}
           </div>
+        </ContextCard>
+
+        <ContextCard
+          title={t(locale, "web-aigc 兼容监控", "web-aigc compatibility monitor")}
+          icon={<Bot className="size-4" />}
+          action={
+            workflow ? (
+              <Button
+                type="button"
+                className="rounded-full bg-[#c65d38] text-white hover:bg-[#ad502f]"
+                disabled={isTerminating || !monitoringInstance}
+                onClick={() => void handleTerminateMonitoringInstance()}
+              >
+                {isTerminating ? (
+                  <Loader2 className="size-4 animate-spin" />
+                ) : (
+                  <CircleAlert className="size-4" />
+                )}
+                {t(locale, "强制终止", "Terminate")}
+              </Button>
+            ) : null
+          }
+        >
+          {!workflow ? (
+            <div className="rounded-[18px] border border-dashed border-stone-300 bg-stone-50/75 px-3 py-3 text-sm leading-6 text-stone-500">
+              {t(
+                locale,
+                "先选择一个 workflow，这里会显示 web-aigc 编排实例摘要、节点执行和最近会话消息。",
+                "Select a workflow to view the web-aigc orchestration summary, node execution, and recent session messages."
+              )}
+            </div>
+          ) : monitoringInstance ? (
+            <div className="space-y-3">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
+                <div className="rounded-[18px] border border-stone-200/80 bg-stone-50/80 px-3 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+                    {t(locale, "执行状态", "Execution status")}
+                  </div>
+                  <div className="mt-2 flex items-center gap-2">
+                    <span
+                      className={cn(
+                        "inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold",
+                        monitoringStatusTone(monitoringInstance.status)
+                      )}
+                    >
+                      {monitoringStatusLabel(locale, monitoringInstance.status)}
+                    </span>
+                    <span className="text-xs text-stone-500">
+                      {monitoringInstance.executor ||
+                        t(locale, "未记录执行器", "Unknown executor")}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-[18px] border border-stone-200/80 bg-stone-50/80 px-3 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+                    {t(locale, "编排信息", "Orchestration")}
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-stone-900">
+                    {monitoringInstance.orchestrationCode}
+                  </div>
+                  <div className="mt-1 text-xs leading-5 text-stone-500">
+                    {monitoringInstance.orchestrationName}
+                    {typeof monitoringInstance.orchestrationVersion === "number"
+                      ? ` · v${monitoringInstance.orchestrationVersion}`
+                      : ""}
+                  </div>
+                </div>
+
+                <div className="rounded-[18px] border border-stone-200/80 bg-stone-50/80 px-3 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+                    {t(locale, "节点概览", "Node summary")}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-stone-600">
+                    <span>{t(locale, "总数", "Total")}: {monitoringSummary.total}</span>
+                    <span>{t(locale, "执行中", "Executing")}: {monitoringSummary.executing}</span>
+                    <span>{t(locale, "已完成", "Executed")}: {monitoringSummary.executed}</span>
+                    <span>{t(locale, "待执行", "Pending")}: {monitoringSummary.pending}</span>
+                    <span>{t(locale, "异常", "Exception")}: {monitoringSummary.exception}</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-2 md:grid-cols-2">
+                <div className="rounded-[18px] border border-stone-200/80 bg-stone-50/80 px-3 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+                    {t(locale, "时间轴", "Timeline")}
+                  </div>
+                  <div className="mt-2 space-y-1 text-sm leading-6 text-stone-600">
+                    <div>
+                      {t(locale, "开始时间", "Started")}:{" "}
+                      {formatDate(locale, monitoringInstance.startTime)}
+                    </div>
+                    <div>
+                      {t(locale, "最近更新", "Last updated")}:{" "}
+                      {formatDate(locale, monitoringInstance.lastUpdateTime)}
+                    </div>
+                    <div>
+                      {t(locale, "结束时间", "Finished")}:{" "}
+                      {formatDate(locale, monitoringInstance.endTime)}
+                    </div>
+                  </div>
+                </div>
+
+                <div className="rounded-[18px] border border-stone-200/80 bg-stone-50/80 px-3 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+                    {t(locale, "兼容映射", "Compatibility mapping")}
+                  </div>
+                  <div className="mt-2 space-y-1 text-sm leading-6 text-stone-600">
+                    <div>
+                      {t(locale, "实例标识", "Instance")}:{" "}
+                      {monitoringListItem?.instanceUuid || workflow.id}
+                    </div>
+                    <div>
+                      {t(locale, "来源应用", "Source app")}:{" "}
+                      {monitoringInstance.sourceApp ||
+                        monitoringListItem?.sourceApp ||
+                        t(locale, "未记录", "Not recorded")}
+                    </div>
+                    <div>
+                      {t(locale, "分类", "Category")}:{" "}
+                      {monitoringInstance.category ||
+                        monitoringListItem?.category ||
+                        t(locale, "未分类", "Uncategorized")}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid gap-3 xl:grid-cols-[1.15fr_0.85fr]">
+                <div className="rounded-[18px] border border-stone-200/80 bg-stone-50/80 px-3 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-stone-900">
+                      {t(locale, "节点执行快照", "Node execution snapshot")}
+                    </div>
+                    <div className="text-xs text-stone-400">
+                      {t(locale, "展示前 4 个节点", "Showing first 4 nodes")}
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {monitoringNodePreview.length > 0 ? (
+                      monitoringNodePreview.map(node => (
+                        <div
+                          key={node.nodeId}
+                          className="rounded-[16px] border border-stone-200/80 bg-white/80 px-3 py-3"
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="text-sm font-semibold text-stone-900">
+                                {node.nodeLabel}
+                              </div>
+                              <div className="mt-1 text-xs leading-5 text-stone-500">
+                                {node.nodeType}
+                              </div>
+                            </div>
+                            <span
+                              className={cn(
+                                "inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold",
+                                monitoringStatusTone(node.status)
+                              )}
+                            >
+                              {monitoringStatusLabel(locale, node.status)}
+                            </span>
+                          </div>
+                          <div className="mt-2 text-xs leading-5 text-stone-500">
+                            {t(locale, "开始", "Started")}:{" "}
+                            {formatDate(locale, node.startTime)}
+                            {" · "}
+                            {t(locale, "结束", "Finished")}:{" "}
+                            {formatDate(locale, node.endTime)}
+                          </div>
+                          {node.errorMessage ? (
+                            <div className="mt-2 text-xs leading-5 text-rose-700">
+                              {node.errorMessage}
+                            </div>
+                          ) : null}
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-[16px] border border-dashed border-stone-300 bg-white/70 px-3 py-3 text-sm leading-6 text-stone-500">
+                        {t(
+                          locale,
+                          "当前没有可展示的节点执行数据。",
+                          "No node execution data is available yet."
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div className="rounded-[18px] border border-stone-200/80 bg-stone-50/80 px-3 py-3">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="text-sm font-semibold text-stone-900">
+                      {t(locale, "最近会话消息", "Recent session messages")}
+                    </div>
+                    <div className="text-xs text-stone-400">
+                      {monitoringSession?.sessionId
+                        ? `${t(locale, "会话", "Session")}: ${monitoringSession.sessionId}`
+                        : t(locale, "未关联会话", "No session linked")}
+                    </div>
+                  </div>
+                  <div className="mt-3 space-y-2">
+                    {monitoringMessagesPreview.length > 0 ? (
+                      monitoringMessagesPreview.map(message => (
+                        <div
+                          key={message.id}
+                          className="rounded-[16px] border border-stone-200/80 bg-white/80 px-3 py-3"
+                        >
+                          <div className="flex items-center justify-between gap-3">
+                            <div className="text-xs font-semibold uppercase tracking-[0.1em] text-stone-500">
+                              {message.role}
+                            </div>
+                            <div className="text-[11px] text-stone-400">
+                              {formatDate(locale, message.timestamp)}
+                            </div>
+                          </div>
+                          <div className="mt-2 text-sm leading-6 text-stone-600">
+                            {summarizeSessionMessage(message, locale)}
+                          </div>
+                        </div>
+                      ))
+                    ) : (
+                      <div className="rounded-[16px] border border-dashed border-stone-300 bg-white/70 px-3 py-3 text-sm leading-6 text-stone-500">
+                        {t(
+                          locale,
+                          "当前还没有可预览的 session 消息。",
+                          "No session messages are available yet."
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[18px] border border-dashed border-stone-300 bg-stone-50/75 px-3 py-3 text-sm leading-6 text-stone-500">
+              {t(
+                locale,
+                "当前 workflow 还没有映射到 web-aigc 兼容监控实例，或兼容接口尚未返回数据。",
+                "This workflow is not mapped to a web-aigc compatibility instance yet, or the compatibility API has not returned data."
+              )}
+            </div>
+          )}
+        </ContextCard>
+
+        <ContextCard
+          title={t(
+            locale,
+            "Graph runtime compatibility",
+            "Graph runtime compatibility"
+          )}
+          icon={<Sparkles className="size-4" />}
+        >
+          {!workflow ? (
+            <div className="rounded-[18px] border border-dashed border-stone-300 bg-stone-50/75 px-3 py-3 text-sm leading-6 text-stone-500">
+              {t(
+                locale,
+                "Select a workflow to view the graph runtime snapshot, waiting state, and node preview.",
+                "Select a workflow to view the graph runtime snapshot, waiting state, and node preview."
+              )}
+            </div>
+          ) : graphInstance ? (
+            <div className="space-y-3">
+              <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-4">
+                <div className="rounded-[18px] border border-stone-200/80 bg-stone-50/80 px-3 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+                    {t(locale, "Runtime status", "Runtime status")}
+                  </div>
+                  <div className="mt-2">
+                    <span
+                      className={cn(
+                        "inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold",
+                        graphRuntimeTone(graphInstance.status)
+                      )}
+                    >
+                      {graphRuntimeLabel(locale, graphInstance.status)}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="rounded-[18px] border border-stone-200/80 bg-stone-50/80 px-3 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+                    {t(locale, "Total nodes", "Total nodes")}
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-stone-900">
+                    {graphSummary.total}
+                  </div>
+                </div>
+
+                <div className="rounded-[18px] border border-stone-200/80 bg-stone-50/80 px-3 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+                    {t(locale, "Edge transitions", "Edge transitions")}
+                  </div>
+                  <div className="mt-2 text-sm font-semibold text-stone-900">
+                    {graphInstance.edgeTransitions.length}
+                  </div>
+                </div>
+
+                <div className="rounded-[18px] border border-stone-200/80 bg-stone-50/80 px-3 py-3">
+                  <div className="text-[11px] font-semibold uppercase tracking-[0.12em] text-stone-500">
+                    {t(locale, "Compatibility summary", "Compatibility summary")}
+                  </div>
+                  <div className="mt-2 flex flex-wrap gap-2 text-xs text-stone-600">
+                    <span>
+                      {t(locale, "Executing", "Executing")}: {graphSummary.executing}
+                    </span>
+                    <span>
+                      {t(locale, "Executed", "Executed")}: {graphSummary.executed}
+                    </span>
+                    <span>
+                      {t(locale, "Waiting", "Waiting")}: {graphSummary.waiting}
+                    </span>
+                    <span>
+                      {t(locale, "Exception", "Exception")}: {graphSummary.exception}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {graphInstance.telemetry.waitingFor ? (
+                <div className="rounded-[18px] border border-amber-200/80 bg-amber-50/80 px-3 py-3 text-sm leading-6 text-amber-800">
+                  <div className="flex items-start gap-2">
+                    <CircleAlert className="mt-0.5 size-4 shrink-0" />
+                    <div>
+                      <div className="font-semibold">
+                        {t(locale, "Currently waiting", "Currently waiting")}
+                      </div>
+                      <div>{graphInstance.telemetry.waitingFor}</div>
+                    </div>
+                  </div>
+                </div>
+              ) : null}
+
+              <div className="rounded-[18px] border border-stone-200/80 bg-stone-50/80 px-3 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="text-sm font-semibold text-stone-900">
+                    {t(locale, "Graph node preview", "Graph node preview")}
+                  </div>
+                  <div className="text-xs text-stone-400">
+                    {t(locale, "Showing first 4 nodes", "Showing first 4 nodes")}
+                  </div>
+                </div>
+                <div className="mt-3 space-y-2">
+                  {graphNodePreview.length > 0 ? (
+                    graphNodePreview.map(node => (
+                      <div
+                        key={node.nodeId}
+                        className="rounded-[16px] border border-stone-200/80 bg-white/80 px-3 py-3"
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <div className="text-sm font-semibold text-stone-900">
+                              {node.title}
+                            </div>
+                            <div className="mt-1 text-xs leading-5 text-stone-500">
+                              {[node.departmentLabel, node.role, node.stageKey]
+                                .filter(Boolean)
+                                .join(" / ") ||
+                                t(locale, "Unlabeled", "Unlabeled")}
+                            </div>
+                          </div>
+                          <span
+                            className={cn(
+                              "inline-flex rounded-full border px-2.5 py-1 text-[10px] font-semibold",
+                              graphRuntimeTone(node.status)
+                            )}
+                          >
+                            {graphRuntimeLabel(locale, node.status)}
+                          </span>
+                        </div>
+                        {node.outputPreview ? (
+                          <div className="mt-2 text-xs leading-5 text-stone-500">
+                            {summarizeText(
+                              node.outputPreview,
+                              t(locale, "No output summary", "No output summary"),
+                              140
+                            )}
+                          </div>
+                        ) : null}
+                        {node.error ? (
+                          <div className="mt-2 text-xs leading-5 text-rose-700">
+                            {node.error}
+                          </div>
+                        ) : null}
+                      </div>
+                    ))
+                  ) : (
+                    <div className="rounded-[16px] border border-dashed border-stone-300 bg-white/70 px-3 py-3 text-sm leading-6 text-stone-500">
+                      {t(
+                        locale,
+                        "No graph runtime nodes are available yet.",
+                        "No graph runtime nodes are available yet."
+                      )}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[18px] border border-dashed border-stone-300 bg-stone-50/75 px-3 py-3 text-sm leading-6 text-stone-500">
+              {t(
+                locale,
+                "No graph runtime snapshot is available for the current workflow yet.",
+                "No graph runtime snapshot is available for the current workflow yet."
+              )}
+            </div>
+          )}
         </ContextCard>
 
         {workflowsError ? (

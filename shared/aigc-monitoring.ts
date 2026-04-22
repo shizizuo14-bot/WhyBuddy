@@ -77,6 +77,7 @@ export interface AigcMonitoringEdgeDetail {
   id: string;
   source: string;
   target: string;
+  kind?: "parent_child" | "control_flow";
 }
 
 export interface AigcMonitoringInstanceDetail {
