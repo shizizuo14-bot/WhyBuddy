@@ -346,6 +346,13 @@ export function buildMonitoringInstanceDetail(input: {
     startTime: toStartTime(workflow, mission),
     endTime: toEndTime(workflow, mission),
     lastUpdateTime: toLastUpdateTime(workflow, mission),
+    links: {
+      workflowId: instance.links.workflowId,
+      missionId: instance.links.missionId || null,
+      sessionId: instance.links.sessionId || null,
+      replayId: instance.links.replayId || null,
+      auditId: instance.links.auditId || null,
+    },
     inputVariables: buildInputData(workflow, mission),
     outputVariables: {
       summary: mission?.summary || workflow.results?.ceo_feedback || null,

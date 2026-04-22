@@ -458,6 +458,32 @@ describe("Audit routes", () => {
       expect(parsed.format).toBe("json");
     });
   });
+
+  it("GET /web-aigc/matrix returns platform permission matrix", async () => {
+    await withServer(async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/api/permissions/web-aigc/matrix`);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.matrix)).toBe(true);
+      expect(
+        body.matrix.some((entry: any) => entry.operationId === "runtime.terminate"),
+      ).toBe(true);
+    });
+  });
+
+  it("GET /web-aigc/node-risk returns node risk matrix", async () => {
+    await withServer(async (baseUrl) => {
+      const res = await fetch(`${baseUrl}/api/permissions/web-aigc/node-risk`);
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.nodes)).toBe(true);
+      expect(
+        body.nodes.some((entry: any) => entry.nodeType === "vector_insert"),
+      ).toBe(true);
+    });
+  });
 });
 
 // ===========================================================================

@@ -93,6 +93,13 @@ export interface AigcMonitoringInstanceDetail {
   startTime: string;
   endTime: string | null;
   lastUpdateTime: string;
+  links: {
+    workflowId: string;
+    missionId: string | null;
+    sessionId: string | null;
+    replayId: string | null;
+    auditId: string | null;
+  };
   inputVariables: Record<string, unknown>;
   outputVariables: Record<string, unknown>;
   nodes: AigcMonitoringInstanceNodeDetail[];

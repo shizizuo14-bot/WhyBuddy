@@ -26,6 +26,8 @@ export const AUDIT_API = {
   // 权限审计
   permissionTrail:         "GET    /api/audit/permissions/:agentId",
   permissionViolations:    "GET    /api/audit/permissions/violations",
+  webAigcCatalog:          "GET    /api/audit/web-aigc/catalog",
+  webAigcRelationIndexes:  "GET    /api/audit/web-aigc/relation-indexes",
 
   // 数据血缘
   dataLineage:             "GET    /api/audit/lineage/:dataId",

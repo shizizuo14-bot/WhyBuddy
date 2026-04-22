@@ -364,6 +364,13 @@ describe("web-aigc monitoring compatibility routes", () => {
         instanceUuid: "wf-monitor",
         status: "EXECUTING",
         executor: "lobster-executor",
+        links: {
+          workflowId: "wf-monitor",
+          missionId: "mission-monitor",
+          sessionId: "session-monitor",
+          replayId: "wf-monitor",
+          auditId: null,
+        },
       });
       expect(body.data.nodes).toHaveLength(2);
       expect(body.data.edges).toHaveLength(1);

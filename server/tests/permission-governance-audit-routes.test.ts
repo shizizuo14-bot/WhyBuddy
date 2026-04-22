@@ -180,4 +180,33 @@ describe("Permission governance audit routes", () => {
       ).toBe(true);
     });
   });
+
+  it("returns web-aigc observability catalog from /api/audit/web-aigc/catalog", async () => {
+    await withServer(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/audit/web-aigc/catalog`);
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.ok).toBe(true);
+      expect(typeof body.version).toBe("string");
+      expect(Array.isArray(body.events)).toBe(true);
+      expect(
+        body.events.some((entry: any) => entry.eventKey === "human.approved"),
+      ).toBe(true);
+    });
+  });
+
+  it("returns web-aigc relation indexes from /api/audit/web-aigc/relation-indexes", async () => {
+    await withServer(async (baseUrl) => {
+      const response = await fetch(`${baseUrl}/api/audit/web-aigc/relation-indexes`);
+      expect(response.status).toBe(200);
+
+      const body = await response.json();
+      expect(body.ok).toBe(true);
+      expect(Array.isArray(body.indexes)).toBe(true);
+      expect(
+        body.indexes.some((entry: any) => entry.key === "decisionId"),
+      ).toBe(true);
+    });
+  });
 });

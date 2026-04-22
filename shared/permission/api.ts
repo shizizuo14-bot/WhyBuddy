@@ -32,6 +32,8 @@ export const PERMISSION_API = {
   usageReport:      "GET    /api/permissions/usage/:agentId",
   violations:       "GET    /api/permissions/violations",
   exportReport:     "GET    /api/permissions/export",
+  webAigcMatrix:    "GET    /api/permissions/web-aigc/matrix",
+  webAigcNodeRisk:  "GET    /api/permissions/web-aigc/node-risk",
 
   // 模板
   listTemplates:    "GET    /api/permissions/templates",

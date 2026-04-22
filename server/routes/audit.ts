@@ -14,6 +14,11 @@ import {
   DEFAULT_RETENTION_POLICIES,
   DEFAULT_EVENT_TYPE_REGISTRY,
 } from "../../shared/audit/contracts.js";
+import {
+  WEB_AIGC_OBSERVABILITY_EVENT_CATALOG,
+  WEB_AIGC_OBSERVABILITY_CATALOG_VERSION,
+  WEB_AIGC_RELATION_INDEXES,
+} from "../../shared/web-aigc-observability.js";
 import type { AuditQueryFilters, PageOptions, AuditEventType, AuditSeverity, AuditCategory, ComplianceFramework } from "../../shared/audit/contracts.js";
 import type { AuditChain } from "../audit/audit-chain.js";
 import type { AuditQuery } from "../audit/audit-query.js";
@@ -302,6 +307,29 @@ export function createAuditRouter(deps: AuditRouterDeps): Router {
     try {
       const entries = query.getDataLineageAudit(req.params.dataId);
       res.json({ ok: true, entries });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: errorMessage(err) });
+    }
+  });
+
+  router.get(stripPrefix(AUDIT_API.webAigcCatalog), (_req, res) => {
+    try {
+      res.json({
+        ok: true,
+        version: WEB_AIGC_OBSERVABILITY_CATALOG_VERSION,
+        events: WEB_AIGC_OBSERVABILITY_EVENT_CATALOG,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: errorMessage(err) });
+    }
+  });
+
+  router.get(stripPrefix(AUDIT_API.webAigcRelationIndexes), (_req, res) => {
+    try {
+      res.json({
+        ok: true,
+        indexes: WEB_AIGC_RELATION_INDEXES,
+      });
     } catch (err) {
       res.status(500).json({ ok: false, error: errorMessage(err) });
     }

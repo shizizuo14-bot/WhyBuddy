@@ -9,6 +9,10 @@
 import { Router } from "express";
 
 import { PERMISSION_API } from "../../shared/permission/api.js";
+import {
+  WEB_AIGC_NODE_RISK_LEVELS,
+  WEB_AIGC_PLATFORM_PERMISSION_MATRIX,
+} from "../../shared/web-aigc-governance.js";
 import type { RoleStore } from "../permission/role-store.js";
 import type { PolicyStore } from "../permission/policy-store.js";
 import type { TokenService } from "../permission/token-service.js";
@@ -323,6 +327,28 @@ export function createPermissionRouter(deps: PermissionRouterDeps): Router {
       const data = auditLogger.exportReport("json", timeRange);
       res.setHeader("Content-Type", "application/json");
       res.send(data);
+    } catch (err) {
+      res.status(500).json({ ok: false, error: errorMessage(err) });
+    }
+  });
+
+  router.get(stripPrefix(PERMISSION_API.webAigcMatrix), (_req, res) => {
+    try {
+      res.json({
+        ok: true,
+        matrix: WEB_AIGC_PLATFORM_PERMISSION_MATRIX,
+      });
+    } catch (err) {
+      res.status(500).json({ ok: false, error: errorMessage(err) });
+    }
+  });
+
+  router.get(stripPrefix(PERMISSION_API.webAigcNodeRisk), (_req, res) => {
+    try {
+      res.json({
+        ok: true,
+        nodes: WEB_AIGC_NODE_RISK_LEVELS,
+      });
     } catch (err) {
       res.status(500).json({ ok: false, error: errorMessage(err) });
     }
