@@ -125,8 +125,8 @@ data/agents/*/reports/
 data/agents/*/SOUL.md
 data/agents/*/HEARTBEAT.md
 
-# Audit keys (never commit private keys)
-data/audit/keys/
+# Audit runtime data and keys (never commit audit WAL/index/private keys)
+data/audit/
 
 # Local debug artifacts
 .manus-logs/
