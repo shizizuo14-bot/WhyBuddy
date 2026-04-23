@@ -16,10 +16,13 @@ import {
 import { reportStore } from "../memory/report-store.js";
 import { serverRuntime } from "../runtime/server-runtime.js";
 import { missionRuntime } from "../tasks/mission-runtime.js";
+import { getPermissionCheckEngine } from "../core/agent.js";
+import { ServerReplayStore } from "../replay/replay-store.js";
 import {
   linkWorkflowToMission,
   resolveWorkflowMission,
 } from "../core/mission-enrichment-bridge.js";
+import { createOpenReportRouter } from "./open-report.js";
 import {
   buildWorkflowDirectiveContext,
   buildWorkflowInputSignature,
@@ -30,6 +33,7 @@ import {
 const router = Router();
 const ACTIVE_WORKFLOW_STATUSES = ["pending", "running"] as const;
 const RECENT_DUPLICATE_WINDOW_MS = 15_000;
+const replayStore = new ServerReplayStore();
 
 function normalizeDirective(directive: string): string {
   return directive.trim().replace(/\s+/g, " ");
@@ -53,6 +57,31 @@ function withMissionLink<T extends { id: string }>(workflow: T): T & {
     missionId: resolveWorkflowMission(workflow.id) ?? null,
   };
 }
+
+router.use(
+  "/open-report",
+  createOpenReportRouter({
+    getWorkflow: (workflowId) => db.getWorkflow(workflowId),
+    readFinalWorkflowReport: (workflowId) =>
+      reportStore.readFinalWorkflowReport(workflowId),
+    getFinalWorkflowReportFilePath: (workflowId, format) =>
+      reportStore.getFinalWorkflowReportFilePath(workflowId, format),
+    getDepartmentReportFilePath: (managerId, workflowId, format) =>
+      reportStore.getDepartmentReportFilePath(managerId, workflowId, format),
+    getReplayTimeline: async (replayId) => {
+      try {
+        const timeline = await replayStore.getTimeline(replayId);
+        return {
+          missionId: timeline.missionId,
+          eventCount: timeline.eventCount,
+        };
+      } catch {
+        return null;
+      }
+    },
+    permissionEngine: getPermissionCheckEngine(),
+  }),
+);
 
 // POST /api/workflows — Start a new workflow
 router.post("/organization/preview", async (req, res) => {
@@ -376,11 +405,32 @@ router.post("/:id/runtime/run", async (req, res) => {
   const mission = missionId ? missionRuntime.getTask(missionId) : undefined;
 
   try {
+    const runtimeGovernance =
+      req.body && typeof req.body.runtimeGovernance === "object" && req.body.runtimeGovernance !== null
+        ? req.body.runtimeGovernance
+        : undefined;
     const definition = buildWorkflowGraphDefinition({
       workflow,
       tasks,
       mission,
     });
+    const runtimeDefinition =
+      runtimeGovernance && definition.metadata && typeof definition.metadata === "object"
+        ? {
+            ...definition,
+            metadata: {
+              ...definition.metadata,
+              runtimeGovernance,
+            },
+          }
+        : runtimeGovernance
+          ? {
+              ...definition,
+              metadata: {
+                runtimeGovernance,
+              },
+            }
+          : definition;
     const variables =
       req.body && typeof req.body.variables === "object" && req.body.variables !== null
         ? req.body.variables
@@ -392,7 +442,7 @@ router.post("/:id/runtime/run", async (req, res) => {
 
     const state = await webAigcRuntimeEngine.runToCheckpoint({
       workflowId: req.params.id,
-      definition,
+      definition: runtimeDefinition,
       variables,
       maxSteps,
     });

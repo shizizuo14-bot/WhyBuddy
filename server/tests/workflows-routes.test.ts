@@ -639,6 +639,64 @@ describe("workflow graph-instance route", () => {
     });
   });
 
+  it("passes runtime governance policy into the runtime run definition", async () => {
+    state.workflow = makeWorkflow();
+    state.tasks = [makeTask()];
+    state.missionId = "mission-route";
+    state.mission = makeMission();
+    state.definition = makeRuntimeDefinition({
+      metadata: {
+        existing: true,
+      },
+    });
+    state.runtimeState = {
+      domainModelVersion: 1,
+      definition: state.definition,
+      instance: makeRuntimeInstance(),
+      updatedAt: "2026-04-22T00:00:02.000Z",
+    };
+
+    await withServer(async baseUrl => {
+      const response = await fetch(
+        `${baseUrl}/api/workflows/${state.workflow?.id}/runtime/run`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            runtimeGovernance: {
+              maxAutomaticRetries: 2,
+              maxManualRetries: 1,
+              maxTotalRetries: 2,
+              retryDelayMs: 25,
+            },
+          }),
+        }
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(200);
+      expect(body).toEqual({ state: state.runtimeState });
+      expect(runToCheckpoint).toHaveBeenCalledWith({
+        workflowId: "wf-graph-route",
+        definition: expect.objectContaining({
+          metadata: {
+            existing: true,
+            runtimeGovernance: {
+              maxAutomaticRetries: 2,
+              maxManualRetries: 1,
+              maxTotalRetries: 2,
+              retryDelayMs: 25,
+            },
+          },
+        }),
+        variables: undefined,
+        maxSteps: undefined,
+      });
+    });
+  });
+
   it("resumes a waiting lightweight runtime", async () => {
     state.workflow = makeWorkflow();
     state.runtimeState = {
@@ -755,6 +813,44 @@ describe("workflow graph-instance route", () => {
         requestedBy: "operator-2",
         reason: "Retry after transient provider failure",
         maxSteps: 4,
+      });
+    });
+  });
+
+  it("returns 409 when runtime retry is blocked by governance policy", async () => {
+    state.workflow = makeWorkflow();
+    retryRuntime.mockRejectedValueOnce(
+      new Error(
+        "Runtime retry blocked by governance policy: manual_retry_budget_exhausted"
+      )
+    );
+
+    await withServer(async baseUrl => {
+      const response = await fetch(
+        `${baseUrl}/api/workflows/${state.workflow?.id}/runtime/retry`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            requestedBy: "operator-governance",
+            reason: "Retry after governance review",
+            maxSteps: 2,
+          }),
+        }
+      );
+      const body = await response.json();
+
+      expect(response.status).toBe(409);
+      expect(body).toEqual({
+        error:
+          "Runtime retry blocked by governance policy: manual_retry_budget_exhausted",
+      });
+      expect(retryRuntime).toHaveBeenCalledWith("wf-graph-route", {
+        requestedBy: "operator-governance",
+        reason: "Retry after governance review",
+        maxSteps: 2,
       });
     });
   });
