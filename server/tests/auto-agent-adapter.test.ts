@@ -63,6 +63,11 @@ describe("AutoAgentExecutor", () => {
       metadata: {
         agentId: "operator-1",
         sessionId: "session-1",
+        traceId: "trace-auto-agent-1",
+        replayId: "replay-auto-agent-1",
+        lineageId: "lineage-auto-agent-1",
+        decisionId: "decision-auto-agent-1",
+        sourceApp: "web-aigc",
       },
     });
 
@@ -81,6 +86,7 @@ describe("AutoAgentExecutor", () => {
     expect(auditLogger.entries).toHaveLength(1);
     expect(auditLogger.entries[0]).toMatchObject({
       agentId: "operator-1",
+      lineageId: "lineage-auto-agent-1",
       operation: "auto_agent",
       resourceType: "api",
       action: "call",
@@ -91,6 +97,11 @@ describe("AutoAgentExecutor", () => {
         targetId: "agent-1",
         workflowId: "wf-1",
         sessionId: "session-1",
+        replayId: "replay-auto-agent-1",
+        traceId: "trace-auto-agent-1",
+        lineageId: "lineage-auto-agent-1",
+        decisionId: "decision-auto-agent-1",
+        sourceApp: "web-aigc",
         delegatedAgentId: "agent-1",
         delegatedAgentKind: "agent",
         targetLabel: "Resident Agent",
@@ -503,6 +514,11 @@ describe("AutoAgentExecutor", () => {
       input: "Need backup",
       metadata: {
         retryCount: 1,
+        traceId: "trace-auto-agent-fallback",
+        replayId: "replay-auto-agent-fallback",
+        lineageId: "lineage-auto-agent-fallback",
+        decisionId: "decision-auto-agent-fallback",
+        sourceApp: "ops-console",
         fallback: {
           kind: "agent",
           targetId: "backup-agent",
@@ -527,7 +543,13 @@ describe("AutoAgentExecutor", () => {
     expect(auditLogger.entries).toHaveLength(1);
     expect(auditLogger.entries[0]).toMatchObject({
       result: "allowed",
+      lineageId: "lineage-auto-agent-fallback",
       metadata: expect.objectContaining({
+        replayId: "replay-auto-agent-fallback",
+        traceId: "trace-auto-agent-fallback",
+        lineageId: "lineage-auto-agent-fallback",
+        decisionId: "decision-auto-agent-fallback",
+        sourceApp: "ops-console",
         fallbackUsed: true,
         fallbackTargetKind: "agent",
         fallbackTargetId: "backup-agent",

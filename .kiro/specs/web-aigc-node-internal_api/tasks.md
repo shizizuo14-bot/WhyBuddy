@@ -4,6 +4,17 @@
   - 已由 `server/tool/api/internal-api-adapter.ts` 落地统一请求/响应结构：
     - 请求：`targetId`、`input`、`context`、`workflowId?`、`stage?`、`metadata?`
     - 返回：`output`、`targetLabel`、`operation`、`response`
+  - 当前请求元数据解析已明确支持：
+    - `workflowId`
+    - `instanceId`
+    - `missionId`
+    - `taskId`
+    - `agentId`
+    - `requestedBy`
+    - `operator`
+    - `token`
+    - `capabilityToken`
+    - `fallback` / `errorFallback`
   - 按当前第一阶段落地方式，调用结构以 `targetId` 目录式分发为主，而不是完整实现“服务标识 + 接口路径 + 参数模板”的通用协议；若按“已形成可执行的内部调用 contract”判断，该项可以保持已勾。
   - 已沉淀首批可调用目标：
     - `mission.projection.get`
@@ -17,9 +28,20 @@
 
 - [x] 增加权限与审计钩子
   - 已具备的范围：
-    - `server/tool/api/internal-api-adapter.ts` 已新增统一入口级 `permissionEngine` / `auditLogger` 钩子，并在执行前进行权限检查。
-    - 当启用治理能力时，已强制要求 `metadata.agentId` 与 `metadata.token`，并统一资源标识为 `internal_api:<targetId>`。
-    - 已在入口记录 `allowed / denied / error` 审计结果，并补齐 `targetId / workflowId / missionId / stage / inputPreview` 等元数据。
+    - `server/tool/api/internal-api-adapter.ts` 已形成统一入口级 `permissionEngine` / `auditLogger` 钩子，并在执行前先做 access control。
+    - 当启用治理能力时，已强制要求 `metadata.agentId` 与 `metadata.token`，并兼容 `capabilityToken`。
+    - 已统一资源标识为 `internal_api:<targetId>`。
+    - 已在入口记录 `allowed / denied / error` 审计结果，并补齐：
+      - `targetId`
+      - `workflowId`
+      - `missionId`
+      - `stage`
+      - `inputPreview`
+      - `governanceHook`
+      - `fallbackUsed`
+      - `fallbackStrategy`
+      - `fallbackReason`
+    - 已在权限检查之后继续经过 `evaluateGovernanceDecision(...)`，并在治理阻断时以 `governanceHook: "governance-policy"` 留痕。
   - 仍缺的范围：
     - 目前钩子仍以 agent 级权限与审计为主，尚未看到租户、多环境、调用配额等更高阶治理维度。
     - 统一审计模型已经形成基础字段，但针对不同内部目标的细粒度策略模板还未独立配置化。
@@ -36,7 +58,11 @@
     - `metadata.workflowId`
     - `metadata.stage`
     - `metadata.targetLabel`
+    - `metadata.requestMetadata`
   - 路由层 `/api/a2a/auto-agent` 已接受 `kind = "internal_api"`，说明输出契约已经能够穿透到对外调用面。
+  - `server/tests/auto-agent-adapter.test.ts` 与 `server/tests/auto-agent-routes.test.ts` 已验证：
+    - `internal_api` 结果会进入 auto-agent 统一输出
+    - `workflowId` 与请求元数据会穿透到执行器
 
 - [x] 验证错误回退策略
   - 已具备的范围：
@@ -61,6 +87,7 @@
       - 错误不在 `recoverableErrors` 中时不回退
       - 权限拒绝时即使提供 fallback 也不回退
       - 成功回退后写入 fallback 审计元数据
+      - 治理入口启用后，fallback 仍只会发生在执行阶段，不会绕过入口权限与治理检查
   - 仍缺的范围：
     - 目前回退策略仍是节点级最小实现，尚未形成按 `targetId` 维度统一配置的策略目录。
     - 还没有把 fallback 结果进一步接入工作流 runtime 的分支控制语义。

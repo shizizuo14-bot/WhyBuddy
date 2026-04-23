@@ -184,6 +184,26 @@ function readNumber(
     : undefined;
 }
 
+function resolveAuditMetadataRecord(
+  request: InternalApiExecutionRequest,
+): Record<string, unknown> | undefined {
+  return isRecord(request.metadata) ? request.metadata : undefined;
+}
+
+function readNestedString(
+  value: Record<string, unknown> | undefined,
+  key: string,
+): string | undefined {
+  if (!value) {
+    return undefined;
+  }
+
+  return (
+    readString(value, key) ||
+    (isRecord(value.links) ? readString(value.links, key) : undefined)
+  );
+}
+
 function serializeInternalApiResponse(payload: unknown): string {
   return JSON.stringify(payload, null, 2);
 }
@@ -248,41 +268,78 @@ function resolveRequestedWorkflowId(
 function resolveRequestedMissionId(
   request: InternalApiExecutionRequest,
 ): string | undefined {
-  if (!isRecord(request.metadata)) {
+  const metadata = resolveAuditMetadataRecord(request);
+  if (!metadata) {
     return undefined;
   }
 
   return (
-    readString(request.metadata, "missionId") ||
-    readString(request.metadata, "taskId")
+    readNestedString(metadata, "missionId") ||
+    readString(metadata, "taskId")
   );
 }
 
 function resolveRequestedAgentId(
   request: InternalApiExecutionRequest,
 ): string | undefined {
-  if (!isRecord(request.metadata)) {
+  const metadata = resolveAuditMetadataRecord(request);
+  if (!metadata) {
     return undefined;
   }
 
   return (
-    readString(request.metadata, "agentId") ||
-    readString(request.metadata, "requestedBy") ||
-    readString(request.metadata, "operator")
+    readNestedString(metadata, "agentId") ||
+    readString(metadata, "requestedBy") ||
+    readString(metadata, "operator")
   );
 }
 
 function resolveRequestedToken(
   request: InternalApiExecutionRequest,
 ): string | undefined {
-  if (!isRecord(request.metadata)) {
+  const metadata = resolveAuditMetadataRecord(request);
+  if (!metadata) {
     return undefined;
   }
 
   return (
-    readString(request.metadata, "token") ||
-    readString(request.metadata, "capabilityToken")
+    readString(metadata, "token") ||
+    readString(metadata, "capabilityToken")
   );
+}
+
+function resolveRequestedSessionId(
+  request: InternalApiExecutionRequest,
+): string | undefined {
+  return readNestedString(resolveAuditMetadataRecord(request), "sessionId");
+}
+
+function resolveRequestedReplayId(
+  request: InternalApiExecutionRequest,
+): string | undefined {
+  const metadata = resolveAuditMetadataRecord(request);
+  return (
+    readNestedString(metadata, "replayId") ||
+    readString(metadata ?? {}, "instanceId")
+  );
+}
+
+function resolveRequestedLineageId(
+  request: InternalApiExecutionRequest,
+): string | undefined {
+  return readNestedString(resolveAuditMetadataRecord(request), "lineageId");
+}
+
+function resolveRequestedDecisionId(
+  request: InternalApiExecutionRequest,
+): string | undefined {
+  return readNestedString(resolveAuditMetadataRecord(request), "decisionId");
+}
+
+function resolveRequestedSourceApp(
+  request: InternalApiExecutionRequest,
+): string | undefined {
+  return readNestedString(resolveAuditMetadataRecord(request), "sourceApp");
 }
 
 function readFallbackConfig(
@@ -490,6 +547,7 @@ export class InternalApiExecutor implements InternalApiExecutorLike {
     );
     access.agentId = agentId;
     access.permission = permission;
+    access.governance = permission.governance;
 
     if (!permission.allowed) {
       const reason =
@@ -532,6 +590,9 @@ export class InternalApiExecutor implements InternalApiExecutorLike {
       return;
     }
 
+    const requestMetadata = resolveAuditMetadataRecord(request);
+    const fallback = readFallbackConfig(request);
+
     this.auditLogger.log({
       agentId: access.agentId,
       operation: "internal_api",
@@ -545,8 +606,21 @@ export class InternalApiExecutor implements InternalApiExecutorLike {
         targetId: request.targetId,
         workflowId: resolveRequestedWorkflowId(request),
         missionId: resolveRequestedMissionId(request),
+        sessionId: resolveRequestedSessionId(request),
+        replayId: resolveRequestedReplayId(request),
+        lineageId: resolveRequestedLineageId(request),
+        decisionId: resolveRequestedDecisionId(request),
+        sourceApp: resolveRequestedSourceApp(request),
         stage: request.stage,
         inputPreview: summarizeInput(request.input),
+        contextCount: request.context.length,
+        metadataKeys: requestMetadata ? Object.keys(requestMetadata).sort() : [],
+        fallbackConfigured: Boolean(fallback),
+        fallbackMode: fallback?.mode,
+        fallbackTargetLabel: fallback?.targetLabel,
+        fallbackOperation: fallback?.operation,
+        fallbackRecoverableErrors: fallback?.recoverableErrors,
+        fallbackUsed: false,
         ...metadata,
       },
     });

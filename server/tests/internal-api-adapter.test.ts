@@ -561,10 +561,18 @@ describe("InternalApiExecutor governance hooks", () => {
       executor.execute({
         targetId: "web_aigc.risk_action_catalog",
         input: "list risk actions",
-        context: [],
+        context: ["deny internal api call"],
+        stage: "internal_api_guard",
         metadata: {
           agentId: "agent-internal-api",
           token: "token-1",
+          workflowId: "wf-internal-denied",
+          missionId: "mission-internal-denied",
+          sessionId: "session-internal-denied",
+          replayId: "replay-internal-denied",
+          lineageId: "lineage-internal-denied",
+          decisionId: "decision-internal-denied",
+          sourceApp: "cube-pets-office",
         },
       }),
     ).rejects.toThrow("No allow rule found for api:call");
@@ -577,6 +585,32 @@ describe("InternalApiExecutor governance hooks", () => {
       action: "call",
       resource: "internal_api:web_aigc.risk_action_catalog",
       result: "denied",
+      reason: "No allow rule found for api:call",
+      metadata: expect.objectContaining({
+        workflowId: "wf-internal-denied",
+        missionId: "mission-internal-denied",
+        sessionId: "session-internal-denied",
+        replayId: "replay-internal-denied",
+        lineageId: "lineage-internal-denied",
+        decisionId: "decision-internal-denied",
+        sourceApp: "cube-pets-office",
+        stage: "internal_api_guard",
+        contextCount: 1,
+        metadataKeys: [
+          "agentId",
+          "decisionId",
+          "lineageId",
+          "missionId",
+          "replayId",
+          "sessionId",
+          "sourceApp",
+          "token",
+          "workflowId",
+        ],
+        fallbackConfigured: false,
+        fallbackUsed: false,
+        governanceHook: "permission-engine",
+      }),
     });
   });
 
@@ -601,11 +635,18 @@ describe("InternalApiExecutor governance hooks", () => {
     const result = await executor.execute({
       targetId: "web_aigc.risk_action_catalog",
       input: "list risk actions",
-      context: [],
+      context: ["allowed path"],
+      stage: "internal_api_allowed",
       metadata: {
         agentId: "agent-internal-api",
         token: "token-1",
         workflowId: "wf-internal-api",
+        missionId: "mission-internal-api",
+        sessionId: "session-internal-api",
+        replayId: "replay-internal-api",
+        lineageId: "lineage-internal-api",
+        decisionId: "decision-internal-api",
+        sourceApp: "cube-pets-office",
       },
     });
 
@@ -619,6 +660,35 @@ describe("InternalApiExecutor governance hooks", () => {
       resource: "internal_api:web_aigc.risk_action_catalog",
       result: "allowed",
     });
+    expect(auditLogger.entries[0].metadata).toEqual(
+      expect.objectContaining({
+        workflowId: "wf-internal-api",
+        missionId: "mission-internal-api",
+        sessionId: "session-internal-api",
+        replayId: "replay-internal-api",
+        lineageId: "lineage-internal-api",
+        decisionId: "decision-internal-api",
+        sourceApp: "cube-pets-office",
+        stage: "internal_api_allowed",
+        contextCount: 1,
+        metadataKeys: [
+          "agentId",
+          "decisionId",
+          "lineageId",
+          "missionId",
+          "replayId",
+          "sessionId",
+          "sourceApp",
+          "token",
+          "workflowId",
+        ],
+        fallbackConfigured: false,
+        fallbackUsed: false,
+        targetId: "web_aigc.risk_action_catalog",
+        targetLabel: "Web-AIGC 风险动作目录",
+        operation: "web_aigc.risk_action_catalog",
+      }),
+    );
   });
 
   it("does not bypass permission denial with fallback metadata", async () => {
@@ -687,13 +757,21 @@ describe("InternalApiExecutor governance hooks", () => {
     const result = await executor.execute({
       targetId: "mission.projection.get",
       input: "list risk actions",
-      context: [],
+      context: ["fallback path"],
+      stage: "internal_api_fallback",
       metadata: {
         agentId: "agent-internal-api",
         token: "token-1",
         missionId: "mission-missing",
+        sessionId: "session-internal-fallback",
+        replayId: "replay-internal-fallback",
+        lineageId: "lineage-internal-fallback",
+        decisionId: "decision-internal-fallback",
+        sourceApp: "cube-pets-office",
         fallback: {
           mode: "empty_result",
+          targetLabel: "Mission Projection Empty Fallback",
+          operation: "mission.projection.get.fallback",
           recoverableErrors: ["Mission not found"],
         },
       },
@@ -706,8 +784,33 @@ describe("InternalApiExecutor governance hooks", () => {
       operation: "internal_api",
       result: "allowed",
       metadata: expect.objectContaining({
+        missionId: "mission-missing",
+        sessionId: "session-internal-fallback",
+        replayId: "replay-internal-fallback",
+        lineageId: "lineage-internal-fallback",
+        decisionId: "decision-internal-fallback",
+        sourceApp: "cube-pets-office",
+        stage: "internal_api_fallback",
+        contextCount: 1,
+        metadataKeys: [
+          "agentId",
+          "decisionId",
+          "fallback",
+          "lineageId",
+          "missionId",
+          "replayId",
+          "sessionId",
+          "sourceApp",
+          "token",
+        ],
+        fallbackConfigured: true,
+        fallbackMode: "empty_result",
+        fallbackTargetLabel: "Mission Projection Empty Fallback",
+        fallbackOperation: "mission.projection.get.fallback",
+        fallbackRecoverableErrors: ["Mission not found"],
         fallbackUsed: true,
         fallbackStrategy: "empty_result",
+        fallbackReason: "Mission not found: mission-missing",
       }),
     });
   });
