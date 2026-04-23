@@ -44,6 +44,9 @@ export const NL_COMMAND_API_ROUTES = {
   // 指令管理
   commands: `${NL_COMMAND_API_BASE}/commands`,
   commandById: (id: string) => `${NL_COMMAND_API_BASE}/commands/${id}`,
+  commandListGenerate: `${NL_COMMAND_API_BASE}/command-list/generate`,
+  commandListSelect: (listId: string) =>
+    `${NL_COMMAND_API_BASE}/command-list/${listId}/select`,
 
   // 澄清对话
   clarificationPreview: `${NL_COMMAND_API_BASE}/clarification-preview`,
@@ -99,6 +102,50 @@ export interface SubmitCommandResponse {
   command: StrategicCommand;
   analysis: CommandAnalysis;
   needsClarification: boolean;
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// command_list — POST /api/nl-command/command-list/generate
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface GenerateCommandListRequest {
+  commandText: string;
+  userId: string;
+  priority?: CommandPriority;
+  locale?: "zh-CN" | "en-US";
+  prompt?: string;
+  candidates?: Array<{
+    candidateId?: string;
+    label?: string;
+    commandText: string;
+    description?: string;
+    recommended?: boolean;
+    source?: "manual" | "heuristic" | "nl-command";
+  }>;
+  context?: Record<string, unknown>;
+}
+
+export interface GenerateCommandListResponse {
+  ok: true;
+  nodeType: "command_list";
+  output: import("./command-list.js").CommandListNodeExecutionResult["output"];
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// command_list — POST /api/nl-command/command-list/:listId/select
+// ─────────────────────────────────────────────────────────────────────────────
+
+export interface SelectCommandListCandidateRequest {
+  candidateId: string;
+  submittedBy?: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface SelectCommandListCandidateResponse {
+  ok: true;
+  listId: string;
+  selection: import("./command-list.js").CommandListSelectionResult["selection"];
+  event: import("./command-list.js").CommandListSelectionResult["event"];
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -283,10 +330,38 @@ export interface Suggestion {
   description: string;
   estimatedImpact: AdjustmentImpact;
   changes: AdjustPlanRequest["changes"];
+  source?: "decision_support" | "heuristic" | "mixed";
+  rationale?: string;
+  recommendedCommand?: string;
+  selectionOption?: RecommendedCommandDecisionOption;
+  confirmOption?: RecommendedCommandDecisionOption;
+  metadata?: Record<string, unknown>;
+}
+
+export interface RecommendedCommandDecisionOption {
+  optionId: string;
+  suggestionId: string;
+  label: string;
+  description?: string;
+  action: "multi-choice" | "approve";
+}
+
+export interface RecommendedCommandsConfirmPayload {
+  prompt: string;
+  branchKeyField: "suggestionId";
+  defaultSuggestionId?: string;
+  options: RecommendedCommandDecisionOption[];
 }
 
 export interface GetSuggestionsResponse {
   suggestions: Suggestion[];
+  selectionOptions?: RecommendedCommandDecisionOption[];
+  confirmPayload?: RecommendedCommandsConfirmPayload;
+  observability?: {
+    generatedEventId: string;
+    generatedAt: number;
+    source: "decision_support" | "heuristic" | "mixed";
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -295,11 +370,16 @@ export interface GetSuggestionsResponse {
 
 export interface ApplySuggestionRequest {
   suggestionId: string;
+  operator?: string;
 }
 
 export interface ApplySuggestionResponse {
   adjustment: PlanAdjustment;
-  updatedPlan: NLExecutionPlan;
+  updatedPlan?: NLExecutionPlan;
+  appliedSuggestion?: Suggestion;
+  audit?: {
+    suggestionAppliedEntryId: string;
+  };
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

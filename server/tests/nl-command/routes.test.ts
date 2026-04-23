@@ -76,6 +76,135 @@ beforeAll(async () => {
         },
       ],
     }),
+    recommendedCommandsService: {
+      async listSuggestions(planId) {
+        return {
+          suggestions: [
+            {
+              suggestionId: 'sug-cost-1',
+              type: 'cost',
+              title: `收敛 ${planId} 成本`,
+              description: '优先降低高成本任务的模型与执行开销。',
+              estimatedImpact: {
+                timelineImpact: '默认保持当前节奏',
+                costImpact: '预计节省 12% 成本',
+                riskImpact: '需要确认质量门槛不下降',
+              },
+              changes: [
+                {
+                  entityId: 'task-1',
+                  entityType: 'task',
+                  field: 'estimatedCost',
+                  oldValue: 100,
+                  newValue: 88,
+                },
+              ],
+              source: 'decision_support',
+              rationale: '来自 recommendation lane 的最小测试闭环。',
+              recommendedCommand: `apply_suggestion --plan ${planId} --suggestion sug-cost-1`,
+              selectionOption: {
+                optionId: 'sug-cost-1',
+                suggestionId: 'sug-cost-1',
+                label: `收敛 ${planId} 成本`,
+                description: '优先降低高成本任务的模型与执行开销。',
+                action: 'multi-choice',
+              },
+              confirmOption: {
+                optionId: 'confirm:sug-cost-1',
+                suggestionId: 'sug-cost-1',
+                label: `采纳：收敛 ${planId} 成本`,
+                description: '来自 recommendation lane 的最小测试闭环。',
+                action: 'approve',
+              },
+            },
+          ],
+          selectionOptions: [
+            {
+              optionId: 'sug-cost-1',
+              suggestionId: 'sug-cost-1',
+              label: `收敛 ${planId} 成本`,
+              description: '优先降低高成本任务的模型与执行开销。',
+              action: 'multi-choice',
+            },
+          ],
+          confirmPayload: {
+            prompt: `请确认是否采纳计划 ${planId} 的推荐命令。`,
+            branchKeyField: 'suggestionId',
+            defaultSuggestionId: 'sug-cost-1',
+            options: [
+              {
+                optionId: 'confirm:sug-cost-1',
+                suggestionId: 'sug-cost-1',
+                label: `采纳：收敛 ${planId} 成本`,
+                description: '来自 recommendation lane 的最小测试闭环。',
+                action: 'approve',
+              },
+            ],
+          },
+          observability: {
+            generatedEventId: 'audit-generated-1',
+            generatedAt: 1710000000000,
+            source: 'decision_support',
+          },
+        };
+      },
+      async applySuggestion(planId, request) {
+        if (planId !== 'plan-1' || request.suggestionId !== 'sug-cost-1') {
+          return null;
+        }
+
+        return {
+          adjustment: {
+            adjustmentId: 'adj-1',
+            planId,
+            reason: '采纳推荐命令：收敛 plan-1 成本',
+            changes: [
+              {
+                entityId: 'task-1',
+                entityType: 'task',
+                field: 'estimatedCost',
+                oldValue: 100,
+                newValue: 88,
+              },
+            ],
+            impact: {
+              timelineImpact: '默认保持当前节奏',
+              costImpact: '预计节省 12% 成本',
+              riskImpact: '需要确认质量门槛不下降',
+            },
+            approvalRequired: false,
+            status: 'applied',
+            createdAt: 1710000001000,
+          },
+          appliedSuggestion: {
+            suggestionId: 'sug-cost-1',
+            type: 'cost',
+            title: '收敛 plan-1 成本',
+            description: '优先降低高成本任务的模型与执行开销。',
+            estimatedImpact: {
+              timelineImpact: '默认保持当前节奏',
+              costImpact: '预计节省 12% 成本',
+              riskImpact: '需要确认质量门槛不下降',
+            },
+            changes: [
+              {
+                entityId: 'task-1',
+                entityType: 'task',
+                field: 'estimatedCost',
+                oldValue: 100,
+                newValue: 88,
+              },
+            ],
+            source: 'decision_support',
+            rationale: '来自 recommendation lane 的最小测试闭环。',
+            recommendedCommand: 'apply_suggestion --plan plan-1 --suggestion sug-cost-1',
+          },
+          audit: {
+            suggestionAppliedEntryId: 'audit-applied-1',
+          },
+        };
+      },
+    },
   }));
   await new Promise<void>((resolve) => {
     server = app.listen(0, () => {
@@ -317,6 +446,48 @@ describe('NL Command Center REST API routes', () => {
   });
 
   // ─── POST /api/nl-command/alerts/rules ───
+
+  describe('GET /api/nl-command/plans/:id/suggestions', () => {
+    it('should return recommended commands with selection and confirmation payloads', async () => {
+      const res = await request('GET', '/api/nl-command/plans/plan-1/suggestions');
+
+      expect(res.status).toBe(200);
+      expect(((res.body as { suggestions?: unknown[] }).suggestions ?? []).length).toBe(1);
+      expect((res.body as Record<string, any>).selectionOptions?.[0]?.suggestionId).toBe('sug-cost-1');
+      expect((res.body as Record<string, any>).confirmPayload?.branchKeyField).toBe('suggestionId');
+      expect((res.body as Record<string, any>).observability?.generatedEventId).toBe('audit-generated-1');
+    });
+  });
+
+  describe('POST /api/nl-command/plans/:id/apply-suggestion', () => {
+    it('should apply a known suggestion', async () => {
+      const res = await request('POST', '/api/nl-command/plans/plan-1/apply-suggestion', {
+        suggestionId: 'sug-cost-1',
+        operator: 'user-1',
+      });
+
+      expect(res.status).toBe(200);
+      expect((res.body as Record<string, any>).adjustment?.status).toBe('applied');
+      expect((res.body as Record<string, any>).appliedSuggestion?.suggestionId).toBe('sug-cost-1');
+      expect((res.body as Record<string, any>).audit?.suggestionAppliedEntryId).toBe('audit-applied-1');
+    });
+
+    it('should return 404 when suggestion is not found', async () => {
+      const res = await request('POST', '/api/nl-command/plans/plan-1/apply-suggestion', {
+        suggestionId: 'missing-suggestion',
+      });
+
+      expect(res.status).toBe(404);
+      expect((res.body as Record<string, unknown>).error).toBe('Not found');
+    });
+  });
+
+  describe('GET /api/nl-command/plans/:id/suggestions', () => {
+    it('should return 400 when plan id is missing', async () => {
+      const res = await request('GET', '/api/nl-command/plans//suggestions');
+      expect(res.status).toBeGreaterThanOrEqual(400);
+    });
+  });
 
   describe('POST /api/nl-command/alerts/rules', () => {
     it('should return 400 when required fields are missing', async () => {

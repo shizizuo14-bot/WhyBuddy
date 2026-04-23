@@ -372,7 +372,7 @@ export type AuditOperationType =
   | 'adjustment_proposed' | 'adjustment_applied'
   | 'alert_triggered' | 'comment_created' | 'comment_edited'
   | 'permission_changed' | 'report_generated'
-  | 'suggestion_applied' | 'template_saved';
+  | 'suggestion_generated' | 'suggestion_applied' | 'template_saved';
 
 export interface AuditEntry {
   entryId: string;

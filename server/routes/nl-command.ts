@@ -17,8 +17,20 @@ import type {
   ExportAuditRequest,
   ClarificationPreviewRequest,
   ClarificationPreviewResponse,
+  GenerateCommandListRequest,
+  SelectCommandListCandidateRequest,
 } from "../../shared/nl-command/api.js";
 import type { ClarificationQuestion } from "../../shared/nl-command/contracts.js";
+import {
+  createInMemoryCommandListEventStore,
+  createInMemoryCommandListSnapshotStore,
+  executeCommandListNode,
+  selectCommandListCandidate,
+} from "./node-adapters/command-list-node-adapter.js";
+import {
+  RecommendedCommandsAdapter,
+  type RecommendedCommandsService,
+} from "./node-adapters/recommended-commands-node-adapter.js";
 
 type PreviewGenerationMode = "judge" | "questions" | "repair";
 
@@ -27,7 +39,12 @@ export interface NLCommandRouterDeps {
   previewClarificationQuestions?: (
     request: ClarificationPreviewRequest,
   ) => Promise<ClarificationPreviewResponse>;
+  recommendedCommandsService?: RecommendedCommandsService;
 }
+
+const defaultCommandListEventStore = createInMemoryCommandListEventStore();
+const defaultCommandListSnapshotStore = createInMemoryCommandListSnapshotStore();
+const defaultRecommendedCommandsService = new RecommendedCommandsAdapter();
 
 function notImplemented(res: Response, endpoint: string) {
   res.status(501).json({
@@ -377,6 +394,76 @@ export function createNLCommandRouter(
   deps: NLCommandRouterDeps = {},
 ): Router {
   const router = Router();
+  const recommendedCommandsService =
+    deps.recommendedCommandsService ?? defaultRecommendedCommandsService;
+
+  router.post("/command-list/generate", async (req, res) => {
+    try {
+      const body = req.body as GenerateCommandListRequest;
+      if (!body?.commandText || !body?.userId) {
+        res.status(400).json({
+          error: "Bad request",
+          message: "commandText and userId are required",
+        });
+        return;
+      }
+
+      const result = await executeCommandListNode(
+        {
+          nodeType: "command_list",
+          input: body,
+        },
+        {
+          eventStore: defaultCommandListEventStore,
+          snapshotStore: defaultCommandListSnapshotStore,
+        },
+      );
+
+      res.json(result);
+    } catch (error) {
+      res.status(400).json({
+        error: "Bad request",
+        message:
+          error instanceof Error ? error.message : "Unknown command list error",
+      });
+    }
+  });
+
+  router.post("/command-list/:listId/select", async (req, res) => {
+    try {
+      const { listId } = req.params;
+      const body = req.body as SelectCommandListCandidateRequest;
+      if (!listId || !body?.candidateId) {
+        res.status(400).json({
+          error: "Bad request",
+          message: "listId and candidateId are required",
+        });
+        return;
+      }
+
+      const result = await selectCommandListCandidate(
+        {
+          listId,
+          candidateId: body.candidateId,
+          submittedBy: body.submittedBy,
+          metadata: body.metadata,
+        },
+        {
+          eventStore: defaultCommandListEventStore,
+          snapshotStore: defaultCommandListSnapshotStore,
+        },
+      );
+
+      res.json(result);
+    } catch (error) {
+      const message =
+        error instanceof Error ? error.message : "Unknown command selection error";
+      res.status(/not found/i.test(message) ? 404 : 400).json({
+        error: /not found/i.test(message) ? "Not found" : "Bad request",
+        message,
+      });
+    }
+  });
 
   router.post("/clarification-preview", async (req, res) => {
     try {
@@ -605,7 +692,19 @@ export function createNLCommandRouter(
         });
         return;
       }
-      notImplemented(res, "GET /plans/:id/suggestions");
+
+      void recommendedCommandsService
+        .listSuggestions(id)
+        .then(result => {
+          res.json(result);
+        })
+        .catch(error => {
+          res.status(500).json({
+            error: "Failed to generate suggestions",
+            message:
+              error instanceof Error ? error.message : "Unknown server error",
+          });
+        });
     } catch {
       res.status(500).json({ error: "Internal server error" });
     }
@@ -629,7 +728,26 @@ export function createNLCommandRouter(
         });
         return;
       }
-      notImplemented(res, "POST /plans/:id/apply-suggestion");
+
+      void recommendedCommandsService
+        .applySuggestion(id, body)
+        .then(result => {
+          if (!result) {
+            res.status(404).json({
+              error: "Not found",
+              message: "Suggestion not found for the specified plan",
+            });
+            return;
+          }
+          res.json(result);
+        })
+        .catch(error => {
+          res.status(500).json({
+            error: "Failed to apply suggestion",
+            message:
+              error instanceof Error ? error.message : "Unknown server error",
+          });
+        });
     } catch {
       res.status(500).json({ error: "Internal server error" });
     }
