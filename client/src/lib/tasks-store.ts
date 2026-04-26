@@ -17,9 +17,26 @@ import {
   type MissionRecord,
   type MissionStage,
 } from "@shared/mission/contracts";
-import { MISSION_SOCKET_EVENT, MISSION_SOCKET_TYPES, type MissionSocketPayload } from "@shared/mission/socket";
+import {
+  MISSION_SOCKET_EVENT,
+  MISSION_SOCKET_TYPES,
+  type MissionSocketPayload,
+} from "@shared/mission/socket";
 import { io, type Socket } from "socket.io-client";
 import type { ExecutorEvent } from "@shared/executor/contracts";
+import {
+  buildMissionAutopilotSummary as buildSharedMissionAutopilotSummary,
+  type MissionAutopilotConfidenceLevel,
+  type MissionAutopilotDriveState,
+  type MissionAutopilotFleetRole,
+  type MissionAutopilotFleetRoleStatus,
+  type MissionAutopilotFleetRoleType,
+  type MissionAutopilotRiskLevel,
+  type MissionAutopilotRouteStage,
+  type MissionAutopilotSummary,
+  type MissionAutopilotTakeoverStatus,
+  type MissionAutopilotTakeoverType,
+} from "@shared/mission/autopilot";
 
 import {
   cancelMission as cancelMissionRequest,
@@ -74,6 +91,71 @@ export type InteriorAgentStatus =
   | "done"
   | "error";
 
+export type TaskAutopilotDriveState = MissionAutopilotDriveState;
+export type TaskAutopilotRiskLevel = MissionAutopilotRiskLevel;
+export type TaskAutopilotConfidenceLevel = MissionAutopilotConfidenceLevel;
+export type TaskAutopilotTakeoverStatus = MissionAutopilotTakeoverStatus;
+export type TaskAutopilotTakeoverType = MissionAutopilotTakeoverType;
+export type TaskAutopilotFleetRoleType = MissionAutopilotFleetRoleType;
+export type TaskAutopilotFleetRoleStatus = MissionAutopilotFleetRoleStatus;
+export type TaskAutopilotDestinationTaskType =
+  MissionAutopilotSummary["destination"]["taskType"];
+export type TaskAutopilotRouteStage = MissionAutopilotRouteStage;
+export type TaskAutopilotFleetRole = MissionAutopilotFleetRole;
+export type TaskAutopilotRouteMode = MissionAutopilotSummary["route"]["mode"];
+export type TaskAutopilotCandidateRoute =
+  MissionAutopilotSummary["route"]["candidateRoutes"][number];
+export type TaskAutopilotControlAction =
+  MissionAutopilotSummary["execution"]["availableActions"][number];
+export type TaskAutopilotExecutionView = MissionAutopilotSummary["execution"];
+export type TaskAutopilotRecoverySummary = MissionAutopilotSummary["recovery"];
+export type TaskAutopilotEvidenceTimelineItem =
+  MissionAutopilotSummary["evidence"]["timeline"][number];
+export type TaskAutopilotExplanationSummary =
+  MissionAutopilotSummary["explanation"];
+export type TaskAutopilotRouteSelectionStatus = NonNullable<
+  MissionAutopilotSummary["route"]["selectionStatus"]
+>;
+type TaskAutopilotExplanationCurrentState = NonNullable<
+  TaskAutopilotExplanationSummary["currentState"]
+>;
+type TaskAutopilotRecommendationDetail = NonNullable<
+  TaskAutopilotExplanationSummary["recommendationDetails"]
+>[number];
+type TaskAutopilotRemainingSteps = NonNullable<
+  TaskAutopilotExplanationSummary["remainingSteps"]
+>;
+type TaskAutopilotDestinationSubGoal = NonNullable<
+  MissionAutopilotSummary["destination"]["subGoals"]
+>[number];
+
+export interface TaskAutopilotSummary
+  extends Omit<MissionAutopilotSummary, "version" | "source"> {
+  version: string;
+  source: string;
+  destination: Omit<MissionAutopilotSummary["destination"], "subGoals"> & {
+    subGoals?: TaskAutopilotDestinationSubGoal[];
+    impact?: string | null;
+    blockingReason?: string | null;
+  };
+}
+
+function readStringArrayOfRecords(
+  value: unknown,
+  extractor: (item: Record<string, unknown>) => string | null,
+  fallback: string[]
+): string[] {
+  if (!Array.isArray(value)) {
+    return fallback;
+  }
+
+  const normalized = value
+    .map(item => (isRecord(item) ? extractor(item) : null))
+    .filter((item): item is string => typeof item === "string" && item.length > 0);
+
+  return normalized;
+}
+
 export interface MissionTaskSummary {
   id: string;
   title: string;
@@ -103,6 +185,7 @@ export interface MissionTaskSummary {
   issueCount: number;
   hasWarnings: boolean;
   lastSignal: string | null;
+  autopilotSummary?: TaskAutopilotSummary;
 }
 
 export interface TaskTimelineEvent {
@@ -149,7 +232,12 @@ export interface TaskArtifact {
   format?: string;
   filename?: string;
   workflowId?: string;
-  downloadKind?: "workflow" | "department" | "attachment" | "external" | "server";
+  downloadKind?:
+    | "workflow"
+    | "department"
+    | "attachment"
+    | "external"
+    | "server";
   href?: string;
   content?: string;
   mimeType?: string;
@@ -264,16 +352,22 @@ interface TasksStoreState {
     topicId?: string;
     autoDispatch?: boolean;
   }) => Promise<string | null>;
-  cancelMission: (taskId: string, payload: {
-    reason?: string;
-    requestedBy?: string;
-    source?: "user" | "brain" | "feishu" | "mission-core" | "executor";
-  }) => Promise<string | null>;
-  submitOperatorAction: (taskId: string, payload: {
-    action: MissionOperatorActionType;
-    reason?: string;
-    requestedBy?: string;
-  }) => Promise<string | null>;
+  cancelMission: (
+    taskId: string,
+    payload: {
+      reason?: string;
+      requestedBy?: string;
+      source?: "user" | "brain" | "feishu" | "mission-core" | "executor";
+    }
+  ) => Promise<string | null>;
+  submitOperatorAction: (
+    taskId: string,
+    payload: {
+      action: MissionOperatorActionType;
+      reason?: string;
+      requestedBy?: string;
+    }
+  ) => Promise<string | null>;
   setDecisionNote: (taskId: string, note: string) => void;
   launchDecision: (taskId: string, presetId: string) => Promise<string | null>;
   clearDecisionLaunch: () => void;
@@ -324,7 +418,9 @@ const TASKS_SELECTED_TASK_STORAGE_KEY = "cube-office:selected-task-id";
 function readPersistedSelectedTaskId(): string | null {
   if (typeof window === "undefined") return null;
   try {
-    return window.sessionStorage?.getItem(TASKS_SELECTED_TASK_STORAGE_KEY) || null;
+    return (
+      window.sessionStorage?.getItem(TASKS_SELECTED_TASK_STORAGE_KEY) || null
+    );
   } catch {
     return null;
   }
@@ -350,16 +446,20 @@ function buildSocketRuntimeChannel(missionSocketConnected: boolean) {
     ? {
         status: "connected" as const,
         label: "Socket connected",
-        detail: "Mission socket is connected and can receive live runtime updates.",
+        detail:
+          "Mission socket is connected and can receive live runtime updates.",
       }
     : {
         status: "disconnected" as const,
         label: "Socket disconnected",
-        detail: "Mission socket is offline, so runtime updates may be delayed until refresh.",
+        detail:
+          "Mission socket is offline, so runtime updates may be delayed until refresh.",
       };
 }
 
-function formatExecutorEventLabel(eventType: string | null | undefined): string {
+function formatExecutorEventLabel(
+  eventType: string | null | undefined
+): string {
   if (!eventType) {
     return "Callback idle";
   }
@@ -594,7 +694,10 @@ function updateDetailsSocketConnection(
   ) as Record<string, MissionTaskDetail>;
 }
 
-function clampPercentage(value: number | null | undefined, fallback = 0): number {
+function clampPercentage(
+  value: number | null | undefined,
+  fallback = 0
+): number {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return fallback;
   }
@@ -653,7 +756,9 @@ function missionStartedAt(mission: MissionRecord): number | null {
   return mission.status === "queued" ? null : mission.createdAt;
 }
 
-function syntheticWorkflowFromMission(mission: MissionRecord): SyntheticWfSnapshot {
+function syntheticWorkflowFromMission(
+  mission: MissionRecord
+): SyntheticWfSnapshot {
   return {
     id: mission.id,
     directive: mission.sourceText || mission.title,
@@ -772,10 +877,3097 @@ function missionSummaryText(
   }
 
   if (mission.status === "cancelled") {
-    return trimText(mission.cancelReason, 180) || "Mission was cancelled before the execution chain completed.";
+    return (
+      trimText(mission.cancelReason, 180) ||
+      "Mission was cancelled before the execution chain completed."
+    );
   }
 
   return "Mission is progressing through the execution pipeline.";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function readText(value: unknown, fallback: string): string {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function readNullableText(
+  value: unknown,
+  fallback: string | null
+): string | null {
+  return typeof value === "string" && value.trim() ? value.trim() : fallback;
+}
+
+function readBoolean(value: unknown, fallback: boolean): boolean {
+  return typeof value === "boolean" ? value : fallback;
+}
+
+function readStringArray(value: unknown, fallback: string[]): string[] {
+  if (Array.isArray(value)) {
+    const normalized = value
+      .map(item => (typeof item === "string" ? trimText(item, 180) : ""))
+      .filter(Boolean);
+    return normalized.length > 0 ? normalized : fallback;
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    return [trimText(value, 180)];
+  }
+
+  return fallback;
+}
+
+function readStringArrayAllowEmpty(value: unknown, fallback: string[]): string[] {
+  if (Array.isArray(value)) {
+    return value
+      .map(item => (typeof item === "string" ? trimText(item, 180) : ""))
+      .filter(Boolean);
+  }
+
+  if (typeof value === "string" && value.trim()) {
+    return [trimText(value, 180)];
+  }
+
+  return fallback;
+}
+
+function readNullableTextFromCandidates(
+  values: unknown[],
+  fallback: string | null
+): string | null {
+  for (const value of values) {
+    const normalized = readNullableText(value, null);
+    if (normalized !== null) {
+      return normalized;
+    }
+  }
+
+  return fallback;
+}
+
+function readStringArrayFromCandidates(
+  values: unknown[],
+  fallback: string[]
+): string[] {
+  const normalized: string[] = [];
+
+  for (const value of values) {
+    for (const item of readStringArrayAllowEmpty(value, [])) {
+      if (!normalized.includes(item)) {
+        normalized.push(item);
+      }
+    }
+  }
+
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+function readRecordValue(
+  value: Record<string, unknown>,
+  aliases: string[]
+): unknown {
+  for (const alias of aliases) {
+    if (alias in value) {
+      return value[alias];
+    }
+  }
+
+  return undefined;
+}
+
+function readValuesFromRecordAliases(
+  value: Record<string, unknown>,
+  aliases: string[]
+): unknown[] {
+  return aliases
+    .filter(alias => alias in value)
+    .map(alias => value[alias]);
+}
+
+function readStringArrayFromRecordAliases(
+  value: Record<string, unknown>,
+  aliases: string[],
+  fallback: string[]
+): string[] {
+  return readStringArrayFromCandidates(
+    readValuesFromRecordAliases(value, aliases),
+    fallback
+  );
+}
+
+function normalizeAutopilotDestinationSubGoals(
+  value: unknown,
+  fallback: TaskAutopilotDestinationSubGoal[]
+): TaskAutopilotDestinationSubGoal[] {
+  const normalizeSubGoal = (
+    item: unknown,
+    index: number
+  ): TaskAutopilotDestinationSubGoal | null => {
+    if (typeof item === "string") {
+      const title = trimText(item, 180);
+      return title
+        ? {
+            id: `destination-sub-goal:${index + 1}`,
+            title,
+            source: "mission-text",
+            status: null,
+          }
+        : null;
+    }
+
+    if (!isRecord(item)) return null;
+
+    const fallbackItem = fallback[index];
+    const title = readText(
+      readRecordValue(item, ["title", "label", "goal", "objective"]),
+      fallbackItem?.title ?? ""
+    );
+    if (!title) return null;
+
+    const source =
+      item.source === "work-package" || item.source === "mission-stage"
+        ? item.source
+        : fallbackItem?.source ?? "mission-text";
+    const status =
+      item.status === "pending" ||
+      item.status === "running" ||
+      item.status === "done" ||
+      item.status === "failed"
+        ? item.status
+        : fallbackItem?.status ?? null;
+
+    return {
+      id: readText(item.id, fallbackItem?.id ?? `destination-sub-goal:${index + 1}`),
+      title,
+      source,
+      status,
+    };
+  };
+
+  const normalized = Array.isArray(value)
+    ? value
+        .map(normalizeSubGoal)
+        .filter((item): item is TaskAutopilotDestinationSubGoal => item !== null)
+    : typeof value === "string" && value.trim()
+      ? [normalizeSubGoal(value, 0)].filter(
+          (item): item is TaskAutopilotDestinationSubGoal => item !== null
+        )
+      : [];
+
+  return normalized.length > 0 ? normalized : fallback;
+}
+
+function readAutopilotSummaryCandidate(value: unknown): unknown {
+  if (!isRecord(value)) return undefined;
+
+  if ("autopilotSummary" in value) {
+    return value.autopilotSummary;
+  }
+
+  if ("autopilotProjection" in value) {
+    return value.autopilotProjection;
+  }
+
+  const autopilot = value.autopilot;
+  if (isRecord(autopilot)) {
+    return autopilot.summary ?? autopilot;
+  }
+
+  const projection = value.projection;
+  if (isRecord(projection)) {
+    if ("autopilotSummary" in projection) {
+      return projection.autopilotSummary;
+    }
+
+    const projectionAutopilot = projection.autopilot;
+    if (isRecord(projectionAutopilot)) {
+      return projectionAutopilot.summary ?? projectionAutopilot;
+    }
+  }
+
+  return undefined;
+}
+
+function isAutopilotDriveState(
+  value: unknown
+): value is TaskAutopilotDriveState {
+  return (
+    value === "understanding" ||
+    value === "clarifying" ||
+    value === "planning" ||
+    value === "fleet-forming" ||
+    value === "executing" ||
+    value === "reviewing" ||
+    value === "blocked" ||
+    value === "takeover-required" ||
+    value === "replanning" ||
+    value === "delivered"
+  );
+}
+
+function readAutopilotDriveState(
+  value: unknown,
+  fallback: TaskAutopilotDriveState
+): TaskAutopilotDriveState {
+  return isAutopilotDriveState(value) ? value : fallback;
+}
+
+function readAutopilotRiskLevel(
+  value: unknown,
+  fallback: TaskAutopilotRiskLevel
+): TaskAutopilotRiskLevel {
+  return value === "low" ||
+    value === "medium" ||
+    value === "high" ||
+    value === "unknown"
+    ? value
+    : fallback;
+}
+
+function readAutopilotConfidenceLevel(
+  value: unknown,
+  fallback: TaskAutopilotConfidenceLevel
+): TaskAutopilotConfidenceLevel {
+  return value === "low" ||
+    value === "medium" ||
+    value === "high" ||
+    value === "unknown"
+    ? value
+    : fallback;
+}
+
+function readAutopilotDestinationTaskType(
+  value: unknown,
+  fallback: TaskAutopilotDestinationTaskType
+): TaskAutopilotDestinationTaskType {
+  return value === "analysis" ||
+    value === "research" ||
+    value === "generation" ||
+    value === "transformation" ||
+    value === "implementation" ||
+    value === "coordination" ||
+    value === "mixed" ||
+    value === "unknown"
+    ? value
+    : fallback;
+}
+
+function readSyntheticWorkflowStatus(
+  value: unknown,
+  fallback: SyntheticWfStatus
+): SyntheticWfStatus {
+  return value === "pending" ||
+    value === "running" ||
+    value === "completed" ||
+    value === "completed_with_errors" ||
+    value === "failed"
+    ? value
+    : fallback;
+}
+
+function readAutopilotTakeoverType(
+  value: unknown,
+  fallback: TaskAutopilotTakeoverType | null
+): TaskAutopilotTakeoverType | null {
+  return value === "clarification" ||
+    value === "approval" ||
+    value === "permission" ||
+    value === "budget" ||
+    value === "risk-acceptance" ||
+    value === "route-selection" ||
+    value === "delivery-review" ||
+    value === "exception" ||
+    value === "operator"
+    ? value
+    : fallback;
+}
+
+function readAutopilotTakeoverStatus(
+  value: unknown,
+  fallback: TaskAutopilotTakeoverStatus | null
+): TaskAutopilotTakeoverStatus | null {
+  return value === "pending" ||
+    value === "required" ||
+    value === "resolved" ||
+    value === "advisory"
+    ? value
+    : fallback;
+}
+
+function readAutopilotFleetRoleType(
+  value: unknown,
+  fallback: TaskAutopilotFleetRoleType
+): TaskAutopilotFleetRoleType {
+  return value === "planner" ||
+    value === "clarifier" ||
+    value === "researcher" ||
+    value === "generator" ||
+    value === "reviewer" ||
+    value === "auditor" ||
+    value === "operator" ||
+    value === "executor" ||
+    value === "custom"
+    ? value
+    : fallback;
+}
+
+function readAutopilotFleetRoleStatus(
+  value: unknown,
+  fallback: TaskAutopilotFleetRoleStatus
+): TaskAutopilotFleetRoleStatus {
+  return value === "idle" ||
+    value === "running" ||
+    value === "waiting" ||
+    value === "blocked" ||
+    value === "failed" ||
+    value === "done"
+    ? value
+    : fallback;
+}
+
+function readInteriorStageStatus(
+  value: unknown,
+  fallback: InteriorStageStatus
+): InteriorStageStatus {
+  return value === "pending" ||
+    value === "running" ||
+    value === "done" ||
+    value === "failed"
+    ? value
+    : fallback;
+}
+
+function readAutopilotUrgency(
+  value: unknown,
+  fallback: "low" | "medium" | "high"
+): "low" | "medium" | "high" {
+  return value === "low" || value === "medium" || value === "high"
+    ? value
+    : fallback;
+}
+
+function readAutopilotRouteMode(
+  value: unknown,
+  fallback: TaskAutopilotRouteMode
+): TaskAutopilotRouteMode {
+  return value === "fast" ||
+    value === "standard" ||
+    value === "deep" ||
+    value === "custom"
+    ? value
+    : fallback;
+}
+
+function readAutopilotRouteSelectionStatus(
+  value: unknown,
+  fallback: TaskAutopilotRouteSelectionStatus
+): TaskAutopilotRouteSelectionStatus {
+  return value === "recommended" ||
+    value === "alternatives-available" ||
+    value === "user-selected" ||
+    value === "locked" ||
+    value === "replanned"
+    ? value
+    : fallback;
+}
+
+function readNullableAutopilotRouteSelectionStatus(
+  value: unknown,
+  fallback: TaskAutopilotRecommendationDetail["routeSelectionStatus"]
+): TaskAutopilotRecommendationDetail["routeSelectionStatus"] {
+  if (value === null) return null;
+  if (typeof value === "undefined") return fallback;
+  return readAutopilotRouteSelectionStatus(value, fallback ?? "recommended");
+}
+
+function readAutopilotRouteSelectionMode(
+  value: unknown,
+  fallback: TaskAutopilotSummary["route"]["selection"]["mode"]
+): TaskAutopilotSummary["route"]["selection"]["mode"] {
+  return value === "planner_default" ||
+    value === "user_selected" ||
+    value === "runtime_replanned" ||
+    value === "system_downgraded"
+    ? value
+    : fallback;
+}
+
+function readAutopilotRouteChangeActor(
+  value: unknown,
+  fallback: TaskAutopilotSummary["route"]["selection"]["changedBy"]
+): TaskAutopilotSummary["route"]["selection"]["changedBy"] {
+  return value === "planner" ||
+    value === "user" ||
+    value === "runtime" ||
+    value === "operator"
+    ? value
+    : fallback;
+}
+
+function readAutopilotRouteEvidenceEventType(
+  value: unknown,
+  fallback: TaskAutopilotSummary["route"]["evidence"]["lastEventType"]
+): TaskAutopilotSummary["route"]["evidence"]["lastEventType"] {
+  return value === "route.recommended" ||
+    value === "route.selected" ||
+    value === "route.locked" ||
+    value === "route.replanned"
+    ? value
+    : fallback;
+}
+
+function readAutopilotControlActionType(
+  value: unknown,
+  fallback: TaskAutopilotControlAction["type"]
+): TaskAutopilotControlAction["type"] {
+  return value === "run" ||
+    value === "wait" ||
+    value === "resume" ||
+    value === "retry" ||
+    value === "escalate" ||
+    value === "terminate" ||
+    value === "replan"
+    ? value
+    : fallback;
+}
+
+function readNullableAutopilotControlActionType(
+  value: unknown,
+  fallback: NonNullable<
+    TaskAutopilotExplanationSummary["recommendationDetails"]
+  >[number]["actionType"]
+): NonNullable<
+  TaskAutopilotExplanationSummary["recommendationDetails"]
+>[number]["actionType"] {
+  if (value === null) return null;
+  return readAutopilotControlActionType(value, fallback ?? "wait");
+}
+
+function readAutopilotControlScope(
+  value: unknown,
+  fallback: TaskAutopilotControlAction["scope"]
+): TaskAutopilotControlAction["scope"] {
+  return value === "step" ||
+    value === "stage" ||
+    value === "route" ||
+    value === "mission"
+    ? value
+    : fallback;
+}
+
+function readAutopilotExecutionStatus(
+  value: unknown,
+  fallback: TaskAutopilotExecutionView["currentStepStatus"]
+): TaskAutopilotExecutionView["currentStepStatus"] {
+  return value === "pending" ||
+    value === "running" ||
+    value === "waiting" ||
+    value === "blocked" ||
+    value === "done" ||
+    value === "failed"
+    ? value
+    : fallback;
+}
+
+function readAutopilotRecoveryState(
+  value: unknown,
+  fallback: TaskAutopilotRecoverySummary["state"]
+): TaskAutopilotRecoverySummary["state"] {
+  return value === "healthy" ||
+    value === "watching" ||
+    value === "recovering" ||
+    value === "takeover-required" ||
+    value === "escalated"
+    ? value
+    : fallback;
+}
+
+function readAutopilotDeviationCategory(
+  value: unknown,
+  fallback: TaskAutopilotRecoverySummary["deviationCategory"]
+): TaskAutopilotRecoverySummary["deviationCategory"] {
+  return value === "none" ||
+    value === "goal-deviation" ||
+    value === "route-deviation" ||
+    value === "quality-deviation" ||
+    value === "governance-deviation" ||
+    value === "dependency-failure" ||
+    value === "state-block" ||
+    value === "recovery-exhausted"
+    ? value
+    : fallback;
+}
+
+function readAutopilotEvidenceTrustLevel(
+  value: unknown,
+  fallback: TaskAutopilotSummary["evidence"]["trustLevel"]
+): TaskAutopilotSummary["evidence"]["trustLevel"] {
+  return value === "verified" ||
+    value === "partial" ||
+    value === "unverified" ||
+    value === "redacted"
+    ? value
+    : fallback;
+}
+
+function readAutopilotTimelineEventType(
+  value: unknown,
+  fallback: TaskAutopilotEvidenceTimelineItem["type"]
+): TaskAutopilotEvidenceTimelineItem["type"] {
+  return value === "drive_state_change" ||
+    value === "decision" ||
+    value === "route_change" ||
+    value === "takeover" ||
+    value === "tool_call" ||
+    value === "result" ||
+    value === "operator_action" ||
+    value === "system"
+    ? value
+    : fallback;
+}
+
+function readAutopilotTimelineEventStatus(
+  value: unknown,
+  fallback: TaskAutopilotEvidenceTimelineItem["status"]
+): TaskAutopilotEvidenceTimelineItem["status"] {
+  return value === "info" ||
+    value === "running" ||
+    value === "waiting" ||
+    value === "blocked" ||
+    value === "done" ||
+    value === "failed"
+    ? value
+    : fallback;
+}
+
+function readMissionTaskStatus(
+  value: unknown,
+  fallback: TaskAutopilotExplanationSummary["currentState"] extends infer T
+    ? T extends { missionStatus: infer U }
+      ? U
+      : MissionTaskStatus
+    : MissionTaskStatus
+): MissionTaskStatus {
+  return value === "queued" ||
+    value === "running" ||
+    value === "waiting" ||
+    value === "done" ||
+    value === "failed" ||
+    value === "cancelled"
+    ? value
+    : fallback;
+}
+
+function readAutopilotExplanationSource(
+  value: unknown,
+  fallback: TaskAutopilotExplanationCurrentState["sources"][number]
+): TaskAutopilotExplanationCurrentState["sources"][number] {
+  return value === "mission-runtime" ||
+    value === "workflow-runtime" ||
+    value === "route-planner" ||
+    value === "recovery-engine" ||
+    value === "takeover-state" ||
+    value === "combined-inference"
+    ? value
+    : fallback;
+}
+
+function readAutopilotRecommendationKind(
+  value: unknown,
+  fallback: TaskAutopilotRecommendationDetail["kind"]
+): TaskAutopilotRecommendationDetail["kind"] {
+  return value === "route" ||
+    value === "action" ||
+    value === "takeover" ||
+    value === "replan"
+    ? value
+    : fallback;
+}
+
+function normalizeAutopilotExplanationSources(
+  value: unknown,
+  fallback: TaskAutopilotExplanationCurrentState["sources"]
+): TaskAutopilotExplanationCurrentState["sources"] {
+  if (!Array.isArray(value)) return fallback;
+
+  const sources = value
+    .map(item =>
+      readAutopilotExplanationSource(
+        item,
+        fallback[0] ?? "combined-inference"
+      )
+    )
+    .filter(Boolean);
+
+  return sources.length > 0 ? Array.from(new Set(sources)) : fallback;
+}
+
+function normalizeAutopilotRecommendationDetails(
+  value: unknown,
+  fallback: TaskAutopilotRecommendationDetail[]
+): TaskAutopilotRecommendationDetail[] {
+  if (!Array.isArray(value)) return fallback;
+
+  const details: TaskAutopilotRecommendationDetail[] = [];
+
+  for (const [index, item] of value.entries()) {
+    if (!isRecord(item)) continue;
+
+    const routeId = readNullableText(item.routeId, null);
+    const fallbackItem =
+      fallback.find(candidate => {
+        const fallbackRouteId =
+          typeof candidate.routeId === "string" ? candidate.routeId : null;
+        return (
+          candidate.kind ===
+            readAutopilotRecommendationKind(
+              item.kind,
+              fallback[index]?.kind ?? fallback[0]?.kind ?? "action"
+            ) &&
+          (routeId === null || fallbackRouteId === routeId)
+        );
+      }) ??
+      fallback[index] ??
+      fallback[0];
+    const summary = readText(item.summary, fallbackItem?.summary ?? "");
+
+    if (!summary) continue;
+
+    details.push({
+      kind: readAutopilotRecommendationKind(
+        item.kind,
+        fallbackItem?.kind ?? "action"
+      ),
+      summary,
+      source: readAutopilotExplanationSource(
+        item.source,
+        fallbackItem?.source ?? "combined-inference"
+      ),
+      routeId: readNullableText(item.routeId, fallbackItem?.routeId ?? null),
+      actionType: readNullableAutopilotControlActionType(
+        item.actionType,
+        fallbackItem?.actionType ?? null
+      ),
+      takeoverType: readAutopilotTakeoverType(
+        item.takeoverType,
+        fallbackItem?.takeoverType ?? null
+      ),
+      decisionId: readNullableText(
+        item.decisionId,
+        fallbackItem?.decisionId ?? null
+      ),
+      routeSelectionStatus: readNullableAutopilotRouteSelectionStatus(
+        item.routeSelectionStatus,
+        fallbackItem?.routeSelectionStatus
+      ),
+      correlationTimelineId: readNullableText(
+        item.correlationTimelineId,
+        fallbackItem?.correlationTimelineId ?? null
+      ),
+      updatedAt: readText(
+        item.updatedAt,
+        fallbackItem?.updatedAt ??
+          fallback[0]?.updatedAt ??
+          new Date(0).toISOString()
+      ),
+    });
+  }
+
+  if (details.length === 0) {
+    return fallback;
+  }
+
+  const merged: TaskAutopilotRecommendationDetail[] = [...details];
+  const seen = new Set(
+    details.map(item =>
+      [
+        item.kind,
+        item.source,
+        item.routeId ?? "",
+        item.actionType ?? "",
+        item.takeoverType ?? "",
+        item.decisionId ?? "",
+        item.summary,
+      ].join("|")
+    )
+  );
+
+  for (const fallbackItem of fallback) {
+    const signature = [
+      fallbackItem.kind,
+      fallbackItem.source,
+      fallbackItem.routeId ?? "",
+      fallbackItem.actionType ?? "",
+      fallbackItem.takeoverType ?? "",
+      fallbackItem.decisionId ?? "",
+      fallbackItem.summary,
+    ].join("|");
+    if (seen.has(signature)) {
+      continue;
+    }
+    seen.add(signature);
+    merged.push(fallbackItem);
+  }
+
+  return merged;
+}
+
+function normalizeAutopilotRemainingStepsItems(
+  value: unknown,
+  fallback: NonNullable<
+    TaskAutopilotExplanationSummary["remainingSteps"]
+  >["pendingSteps"]
+): NonNullable<TaskAutopilotExplanationSummary["remainingSteps"]>["pendingSteps"] {
+  if (!Array.isArray(value)) return fallback;
+
+  const items = value
+    .map((item, index) => {
+      if (!isRecord(item)) return null;
+      const rawKey =
+        typeof item.key === "string" && item.key.trim() ? item.key.trim() : "";
+      const fallbackItem =
+        (rawKey
+          ? fallback.find(candidate => candidate.key === rawKey)
+          : undefined) ??
+        fallback[index] ??
+        fallback[0];
+      const key = readText(item.key, fallbackItem?.key ?? "");
+      const label = readText(item.label, fallbackItem?.label ?? key);
+      if (!key || !label) return null;
+
+      return {
+        key,
+        label,
+        status: readInteriorStageStatus(
+          item.status,
+          fallbackItem?.status ?? "pending"
+        ),
+        isCurrent: readBoolean(item.isCurrent, fallbackItem?.isCurrent ?? false),
+      };
+    })
+    .filter(
+      (
+        item
+      ): item is NonNullable<
+        TaskAutopilotExplanationSummary["remainingSteps"]
+      >["pendingSteps"][number] => item !== null
+    );
+
+  return items.length > 0 ? items : fallback;
+}
+
+function deriveAutopilotPendingSteps(
+  mainlineSteps: NonNullable<
+    TaskAutopilotExplanationSummary["remainingSteps"]
+  >["mainlineSteps"]
+): NonNullable<TaskAutopilotExplanationSummary["remainingSteps"]>["pendingSteps"] {
+  return mainlineSteps.filter(
+    step => step.status === "pending" || step.status === "running"
+  );
+}
+
+function findAutopilotStepLabel(
+  steps: NonNullable<
+    TaskAutopilotExplanationSummary["remainingSteps"]
+  >["mainlineSteps"],
+  stepKey: string | null
+): string | null {
+  if (!stepKey) return null;
+  return steps.find(step => step.key === stepKey)?.label ?? null;
+}
+
+function normalizeAutopilotExplanationCurrentState(
+  value: unknown,
+  fallback: TaskAutopilotExplanationSummary["currentState"]
+): TaskAutopilotExplanationSummary["currentState"] {
+  if (!isRecord(value)) return fallback;
+
+  return {
+    summary: readText(value.summary, fallback?.summary ?? ""),
+    driveState: readAutopilotDriveState(
+      value.driveState,
+      fallback?.driveState ?? "understanding"
+    ),
+    missionStatus: readMissionTaskStatus(
+      value.missionStatus,
+      fallback?.missionStatus ?? "queued"
+    ),
+    currentStageKey: readNullableText(
+      value.currentStageKey,
+      fallback?.currentStageKey ?? null
+    ),
+    currentStageLabel: readNullableText(
+      value.currentStageLabel,
+      fallback?.currentStageLabel ?? null
+    ),
+    workflowStatus: readNullableText(
+      value.workflowStatus,
+      fallback?.workflowStatus ?? null
+    ),
+    workflowStage: readNullableText(
+      value.workflowStage,
+      fallback?.workflowStage ?? null
+    ),
+    routeSelectionStatus:
+      readNullableAutopilotRouteSelectionStatus(
+        value.routeSelectionStatus,
+        fallback?.routeSelectionStatus ?? "recommended"
+      ) ?? null,
+    selectedRouteId: readNullableText(
+      value.selectedRouteId,
+      fallback?.selectedRouteId ?? null
+    ),
+    correlationTimelineId: readNullableText(
+      value.correlationTimelineId,
+      fallback?.correlationTimelineId ?? null
+    ),
+    sources: normalizeAutopilotExplanationSources(
+      value.sources,
+      fallback?.sources ?? ["combined-inference"]
+    ),
+    updatedAt: readText(
+      value.updatedAt,
+      fallback?.updatedAt ?? new Date(0).toISOString()
+    ),
+  };
+}
+
+function normalizeAutopilotExplanationRemainingSteps(
+  value: unknown,
+  fallback: TaskAutopilotExplanationSummary["remainingSteps"]
+): TaskAutopilotExplanationSummary["remainingSteps"] {
+  if (!isRecord(value)) return fallback;
+
+  return {
+    currentStepKey: readNullableText(
+      value.currentStepKey,
+      fallback?.currentStepKey ?? null
+    ),
+    currentStepLabel: readNullableText(
+      value.currentStepLabel,
+      fallback?.currentStepLabel ?? null
+    ),
+    mainlineSteps: normalizeAutopilotRemainingStepsItems(
+      value.mainlineSteps,
+      fallback?.mainlineSteps ?? ([] as TaskAutopilotRemainingSteps["mainlineSteps"])
+    ),
+    pendingSteps: normalizeAutopilotRemainingStepsItems(
+      value.pendingSteps,
+      fallback?.pendingSteps ?? ([] as TaskAutopilotRemainingSteps["pendingSteps"])
+    ),
+    parallelBranchCount: Number.isFinite(value.parallelBranchCount)
+      ? Number(value.parallelBranchCount)
+      : fallback?.parallelBranchCount ?? 0,
+    replanChangeSummary: readNullableText(
+      value.replanChangeSummary,
+      fallback?.replanChangeSummary ?? null
+    ),
+    selectedRouteId: readNullableText(
+      value.selectedRouteId,
+      fallback?.selectedRouteId ?? null
+    ),
+    routeSelectionStatus:
+      readNullableAutopilotRouteSelectionStatus(
+        value.routeSelectionStatus,
+        fallback?.routeSelectionStatus ?? "recommended"
+      ) ?? null,
+  };
+}
+
+function normalizeAutopilotRouteStages(
+  value: unknown,
+  fallback: TaskAutopilotRouteStage[]
+): TaskAutopilotRouteStage[] {
+  if (!Array.isArray(value)) return fallback;
+
+  const stages = value
+    .map((item): TaskAutopilotRouteStage | null => {
+      if (!isRecord(item)) return null;
+      const key = readText(item.key, "");
+      const label = readText(item.label, key);
+      if (!key || !label) return null;
+      return {
+        key,
+        label,
+        status: readInteriorStageStatus(item.status, "pending"),
+        detail: readNullableText(item.detail, null),
+        isCurrent: readBoolean(item.isCurrent, false),
+      };
+    })
+    .filter((item): item is TaskAutopilotRouteStage => item !== null);
+
+  return stages.length > 0 ? stages : fallback;
+}
+
+function normalizeAutopilotFleetRoles(
+  value: unknown,
+  fallback: TaskAutopilotFleetRole[]
+): TaskAutopilotFleetRole[] {
+  if (!Array.isArray(value)) return fallback;
+
+  const roles = value
+    .map((item): TaskAutopilotFleetRole | null => {
+      if (!isRecord(item)) return null;
+      const id = readText(item.id ?? item.roleId, "");
+      const title = readText(item.title, id);
+      if (!id || !title) return null;
+
+      return {
+        id,
+        roleType: readAutopilotFleetRoleType(item.roleType, "custom"),
+        title,
+        status: readAutopilotFleetRoleStatus(item.status, "idle"),
+        responsibility: readText(item.responsibility, title),
+        boundAgents: readStringArray(item.boundAgents, []),
+        boundExecutors: readStringArray(item.boundExecutors, []),
+        currentFocus: readNullableText(item.currentFocus, null),
+      };
+    })
+    .filter((item): item is TaskAutopilotFleetRole => item !== null);
+
+  return roles.length > 0 ? roles : fallback;
+}
+
+function normalizeAutopilotTakeoverOptions(
+  value: unknown,
+  fallback: TaskAutopilotSummary["takeover"]["options"]
+): TaskAutopilotSummary["takeover"]["options"] {
+  if (!Array.isArray(value)) return fallback;
+
+  const options = value
+    .map(item => {
+      if (!isRecord(item)) return null;
+      const id = readText(item.id, "");
+      const label = readText(item.label, id);
+      if (!id || !label) return null;
+
+      return {
+        id,
+        label,
+        ...(typeof item.description === "string" && item.description.trim()
+          ? { description: item.description.trim() }
+          : {}),
+      };
+    })
+    .filter(
+      (item): item is TaskAutopilotSummary["takeover"]["options"][number] =>
+        item !== null
+    );
+
+  return options.length > 0 ? options : fallback;
+}
+
+function normalizeAutopilotCandidateRoutes(
+  value: unknown,
+  fallback: TaskAutopilotSummary["route"]["candidateRoutes"]
+): TaskAutopilotSummary["route"]["candidateRoutes"] {
+  if (!Array.isArray(value)) return fallback;
+
+  const routes = value
+    .map(item => {
+      if (!isRecord(item)) return null;
+      const id = readText(item.id, "");
+      const label = readText(item.label, id);
+      if (!id || !label) return null;
+
+      return {
+        id,
+        label,
+        mode: readAutopilotRouteMode(item.mode, "standard"),
+        status: readSyntheticWorkflowStatus(
+          item.status,
+          fallback.find(route => route.id === id)?.status ?? "running"
+        ),
+        title: readText(
+          item.title,
+          fallback.find(route => route.id === id)?.title ?? label
+        ),
+        name: readText(
+          item.name,
+          fallback.find(route => route.id === id)?.name ??
+            readText(item.title, label)
+        ),
+        summary: readText(item.summary, label),
+        recommended: readBoolean(item.recommended, false),
+        selected: readBoolean(item.selected, false),
+        locked: readBoolean(item.locked, false),
+        reason: readNullableText(item.reason, null),
+        description: readNullableText(
+          item.description,
+          fallback.find(route => route.id === id)?.description ?? null
+        ),
+        estimatedCost: readNullableText(item.estimatedCost, null),
+        estimatedDuration: readNullableText(item.estimatedDuration, null),
+        takeoverLoad: readAutopilotUrgency(item.takeoverLoad, "medium"),
+        riskLevel: readAutopilotRiskLevel(item.riskLevel, "unknown"),
+        stageKeys: readStringArray(item.stageKeys, []),
+      };
+    })
+    .filter(
+      (item): item is TaskAutopilotSummary["route"]["candidateRoutes"][number] =>
+        item !== null
+    );
+
+  return routes.length > 0 ? routes : fallback;
+}
+
+function normalizeAutopilotCandidateRoute(
+  value: unknown,
+  fallback:
+    | TaskAutopilotSummary["route"]["selected"]
+    | TaskAutopilotSummary["route"]["selectedRoute"]
+): TaskAutopilotSummary["route"]["selected"] {
+  if (!isRecord(value)) return fallback;
+
+  const id = readText(value.id, fallback?.id ?? "");
+  const label = readText(
+    value.label ?? value.title ?? value.name,
+    fallback?.label ?? fallback?.title ?? fallback?.name ?? id
+  );
+  if (!id || !label) return fallback;
+
+  const title = readText(value.title, fallback?.title ?? label);
+
+  return {
+    id,
+    label,
+    mode: readAutopilotRouteMode(value.mode, fallback?.mode ?? "standard"),
+    status: readSyntheticWorkflowStatus(
+      value.status,
+      fallback?.status ?? "running"
+    ),
+    title,
+    name: readText(value.name, fallback?.name ?? title),
+    summary: readText(value.summary, fallback?.summary ?? title),
+    recommended: readBoolean(value.recommended, fallback?.recommended ?? false),
+    selected: readBoolean(value.selected, fallback?.selected ?? true),
+    locked: readBoolean(value.locked, fallback?.locked ?? false),
+    reason: readNullableText(value.reason, fallback?.reason ?? null),
+    description: readNullableText(
+      value.description,
+      fallback?.description ?? null
+    ),
+    estimatedCost: readNullableText(
+      value.estimatedCost,
+      fallback?.estimatedCost ?? null
+    ),
+    estimatedDuration: readNullableText(
+      value.estimatedDuration,
+      fallback?.estimatedDuration ?? null
+    ),
+    takeoverLoad: readAutopilotUrgency(
+      value.takeoverLoad,
+      fallback?.takeoverLoad ?? "medium"
+    ),
+    riskLevel: readAutopilotRiskLevel(
+      value.riskLevel,
+      fallback?.riskLevel ?? "unknown"
+    ),
+    stageKeys: readStringArray(value.stageKeys, fallback?.stageKeys ?? []),
+  };
+}
+
+function normalizeAutopilotControlActions(
+  value: unknown,
+  fallback: TaskAutopilotControlAction[]
+): TaskAutopilotControlAction[] {
+  if (!Array.isArray(value)) return fallback;
+
+  const actions = value
+    .map(item => {
+      if (!isRecord(item)) return null;
+      const id = readText(item.id, "");
+      const label = readText(item.label, id);
+      if (!id || !label) return null;
+
+      return {
+        id,
+        type: readAutopilotControlActionType(item.type, "run"),
+        label,
+        scope: readAutopilotControlScope(item.scope, "mission"),
+        enabled: readBoolean(item.enabled, true),
+        reason: readNullableText(item.reason, null),
+      };
+    })
+    .filter((item): item is TaskAutopilotControlAction => item !== null);
+
+  return actions.length > 0 ? actions : fallback;
+}
+
+function normalizeAutopilotEvidenceTimeline(
+  value: unknown,
+  fallback: TaskAutopilotEvidenceTimelineItem[]
+): TaskAutopilotEvidenceTimelineItem[] {
+  if (!Array.isArray(value)) return fallback;
+
+  const items = value
+    .map(item => {
+      if (!isRecord(item)) return null;
+      const id = readText(item.id, "");
+      const label = readText(item.label, id);
+      if (!id || !label) return null;
+
+      return {
+        id,
+        type: readAutopilotTimelineEventType(item.type, "system"),
+        label,
+        detail: readNullableText(item.detail, null),
+        status: readAutopilotTimelineEventStatus(item.status, "info"),
+        source: readNullableText(item.source, null),
+        time: readText(item.time, new Date(0).toISOString()),
+      };
+    })
+    .filter((item): item is TaskAutopilotEvidenceTimelineItem => item !== null);
+
+  return items.length > 0 ? items : fallback;
+}
+
+function normalizeAutopilotEvidenceCorrelation(
+  value: unknown,
+  fallback: TaskAutopilotSummary["evidence"]["correlation"]
+): TaskAutopilotSummary["evidence"]["correlation"] {
+  if (!isRecord(value)) return fallback;
+  const links = isRecord(value.links) ? value.links : {};
+
+  return {
+    missionId: readText(value.missionId, fallback.missionId),
+    workflowId: readNullableText(value.workflowId, fallback.workflowId),
+    replayId: readNullableText(value.replayId, fallback.replayId),
+    sessionId: readNullableText(value.sessionId, fallback.sessionId),
+    timelineId: readText(value.timelineId, fallback.timelineId),
+    routeIds: readStringArray(value.routeIds, fallback.routeIds),
+    recommendedRouteId: readNullableText(
+      value.recommendedRouteId,
+      fallback.recommendedRouteId ?? null
+    ),
+    selectedRouteId: readNullableText(
+      value.selectedRouteId,
+      fallback.selectedRouteId ?? null
+    ),
+    routeStageKeys: readStringArray(
+      value.routeStageKeys,
+      fallback.routeStageKeys
+    ),
+    currentStepKey: readNullableText(
+      value.currentStepKey,
+      fallback.currentStepKey ?? null
+    ),
+    runtimeEventIds: readStringArray(
+      value.runtimeEventIds,
+      fallback.runtimeEventIds
+    ),
+    decisionIds: readStringArray(value.decisionIds, fallback.decisionIds),
+    operatorActionIds: readStringArray(
+      value.operatorActionIds,
+      fallback.operatorActionIds
+    ),
+    auditEventIds: readStringArrayFromCandidates(
+      [
+        value.auditEventIds,
+        value.auditEventId,
+        value.auditId,
+        links.auditEventIds,
+        links.auditEventId,
+        links.auditId,
+      ],
+      fallback.auditEventIds
+    ),
+    lineageIds: readStringArrayFromCandidates(
+      [value.lineageIds, value.lineageId, links.lineageIds, links.lineageId],
+      fallback.lineageIds
+    ),
+  };
+}
+
+function normalizeAutopilotRouteEvidenceEvents(
+  value: unknown,
+  fallback: TaskAutopilotSummary["route"]["evidence"]["events"]
+): TaskAutopilotSummary["route"]["evidence"]["events"] {
+  if (!Array.isArray(value)) return fallback;
+
+  const events: TaskAutopilotSummary["route"]["evidence"]["events"] = [];
+  for (const item of value) {
+    if (!isRecord(item)) continue;
+    const at = readText(item.at, "");
+    if (!at) continue;
+    const eventType =
+      readAutopilotRouteEvidenceEventType(item.eventType, null) ?? "route.selected";
+    const actor =
+      readAutopilotRouteChangeActor(item.actor, null) ?? "planner";
+
+    events.push({
+      eventType,
+      at,
+      actor,
+      reason: readNullableText(item.reason, null),
+      fromRouteId: readNullableText(item.fromRouteId, null) || undefined,
+      toRouteId: readNullableText(item.toRouteId, null) || undefined,
+    });
+  }
+
+  return events.length > 0 ? events : fallback;
+}
+
+function inferRouteSelectionMode(
+  routeSelectionMode: unknown,
+  normalizedSelectionStatus: TaskAutopilotRouteSelectionStatus,
+  routeReplanActive: boolean,
+  routeReplanTriggeredBy: TaskAutopilotSummary["route"]["replan"]["triggeredBy"],
+  selectedRouteId: string | null,
+  recommendedRouteId: string | null
+): TaskAutopilotSummary["route"]["selection"]["mode"] {
+  if (
+    routeSelectionMode === "planner_default" ||
+    routeSelectionMode === "user_selected" ||
+    routeSelectionMode === "runtime_replanned" ||
+    routeSelectionMode === "system_downgraded"
+  ) {
+    return routeSelectionMode;
+  }
+
+  if (normalizedSelectionStatus === "replanned" || routeReplanActive) {
+    return routeReplanTriggeredBy === "user"
+      ? "user_selected"
+      : "runtime_replanned";
+  }
+
+  if (
+    selectedRouteId &&
+    recommendedRouteId &&
+    selectedRouteId !== recommendedRouteId
+  ) {
+    return "user_selected";
+  }
+
+  return "planner_default";
+}
+
+function normalizeAutopilotSummary(
+  value: unknown,
+  fallback: TaskAutopilotSummary
+): TaskAutopilotSummary {
+  if (!isRecord(value)) return fallback;
+
+  const destination = isRecord(value.destination) ? value.destination : {};
+  const route = isRecord(value.route) ? value.route : {};
+  const driveState = isRecord(value.driveState) ? value.driveState : {};
+  const fleet = isRecord(value.fleet) ? value.fleet : {};
+  const takeover = isRecord(value.takeover) ? value.takeover : {};
+  const execution = isRecord(value.execution) ? value.execution : {};
+  const recovery = isRecord(value.recovery) ? value.recovery : {};
+  const evidence = isRecord(value.evidence) ? value.evidence : {};
+  const explanation = isRecord(value.explanation) ? value.explanation : {};
+  const bindings = isRecord(value.bindings) ? value.bindings : {};
+  const normalizedRoles = normalizeAutopilotFleetRoles(
+    fleet.roles,
+    fallback.fleet.roles
+  );
+  const normalizedCandidateRoutes = normalizeAutopilotCandidateRoutes(
+    route.candidateRoutes,
+    fallback.route.candidateRoutes
+  );
+  const explicitRecommendedRouteId = readNullableText(
+    route.recommendedRouteId,
+    null
+  );
+  const explicitSelectedRouteId = readNullableTextFromCandidates(
+    [
+      route.selectedRouteId,
+      isRecord(route.selected) ? route.selected.id : null,
+      isRecord(route.selectedRoute) ? route.selectedRoute.id : null,
+    ],
+    null
+  );
+  const routeSelection = isRecord(route.selection) ? route.selection : {};
+  const routeEvidence = isRecord(route.evidence) ? route.evidence : {};
+  const routeReplan = isRecord(route.replan) ? route.replan : {};
+  const explanationCurrentState = isRecord(explanation.currentState)
+    ? explanation.currentState
+    : null;
+  const explanationRemainingSteps = isRecord(explanation.remainingSteps)
+    ? explanation.remainingSteps
+    : null;
+  const evidenceCorrelation = isRecord(evidence.correlation)
+    ? evidence.correlation
+    : null;
+  const projectedRecommendedRouteId = readNullableText(
+    evidenceCorrelation?.recommendedRouteId,
+    null
+  );
+  const projectedSelectedRouteId = readNullableTextFromCandidates(
+    [
+      evidenceCorrelation?.selectedRouteId,
+      explanationCurrentState?.selectedRouteId,
+      explanationRemainingSteps?.selectedRouteId,
+    ],
+    null
+  );
+  const normalizedSelectionStatus = readAutopilotRouteSelectionStatus(
+    route.selectionStatus ??
+      routeSelection.status ??
+      explanationCurrentState?.routeSelectionStatus ??
+      explanationRemainingSteps?.routeSelectionStatus,
+    fallback.route.selectionStatus
+  );
+  const routeReplanActive = readBoolean(
+    normalizedSelectionStatus === "replanned" ? true : routeReplan.active,
+    fallback.route.replan.active
+  );
+  const fallbackRouteChangeReason = readNullableTextFromCandidates(
+    [
+      fallback.route.changeReason,
+      fallback.route.selection.changedReason,
+      normalizedSelectionStatus === "replanned" || routeReplanActive
+        ? fallback.route.replan.reason
+        : null,
+    ],
+    null
+  );
+  const normalizedRouteChangeReason = readNullableTextFromCandidates(
+    [
+      route.changeReason,
+      routeSelection.changedReason,
+      normalizedSelectionStatus === "replanned" || routeReplanActive
+        ? routeReplan.reason
+        : null,
+      explanationRemainingSteps?.replanChangeSummary,
+    ],
+    fallbackRouteChangeReason
+  );
+  const normalizedRouteReplanTriggeredBy = readAutopilotRouteChangeActor(
+    routeReplan.triggeredBy,
+    normalizedSelectionStatus === "replanned" || routeReplanActive
+      ? readAutopilotRouteChangeActor(
+          routeSelection.changedBy,
+          fallback.route.replan.triggeredBy
+        )
+      : fallback.route.replan.triggeredBy
+  );
+  const selectionLocked = readBoolean(
+    route.selectionLocked,
+    readBoolean(routeSelection.locked, fallback.route.selectionLocked)
+  );
+  const recommendedRouteId =
+    readNullableTextFromCandidates(
+      [
+        explicitRecommendedRouteId,
+        normalizedCandidateRoutes.find(candidate => candidate.recommended)?.id,
+        projectedRecommendedRouteId,
+        explicitSelectedRouteId,
+        projectedSelectedRouteId,
+      ],
+      fallback.route.recommendedRouteId
+    ) ?? null;
+  const selectedRouteId =
+    readNullableTextFromCandidates(
+      [
+        explicitSelectedRouteId,
+        projectedSelectedRouteId,
+        normalizedCandidateRoutes.find(candidate => candidate.selected)?.id,
+      ],
+      fallback.route.selectedRouteId
+    ) ?? null;
+  const selectedRouteFallback =
+    normalizedCandidateRoutes.find(candidate => candidate.id === selectedRouteId) ??
+    normalizedCandidateRoutes.find(candidate => candidate.selected) ??
+    fallback.route.selectedRoute ??
+    fallback.route.selected;
+  const selectedFromProjection = normalizeAutopilotCandidateRoute(
+    route.selectedRoute,
+    selectedRouteFallback
+  );
+  const normalizedSelectedRoute = normalizeAutopilotCandidateRoute(
+    route.selected,
+    selectedFromProjection
+  );
+
+  const normalizedRoute = {
+    id: readText(route.id, fallback.route.id),
+    label: readText(route.label, fallback.route.label),
+    mode: readAutopilotRouteMode(route.mode, fallback.route.mode),
+    status: readSyntheticWorkflowStatus(route.status, fallback.route.status),
+    progress: clampPercentage(
+      typeof route.progress === "number" ? route.progress : undefined,
+      fallback.route.progress
+    ),
+    currentStageKey: readNullableText(
+      route.currentStageKey,
+      fallback.route.currentStageKey
+    ),
+    currentStageLabel: readNullableText(
+      route.currentStageLabel,
+      fallback.route.currentStageLabel
+    ),
+    stages: normalizeAutopilotRouteStages(route.stages, fallback.route.stages),
+    riskPoints: readStringArray(route.riskPoints, fallback.route.riskPoints),
+    takeoverPointIds: readStringArray(
+      route.takeoverPointIds,
+      fallback.route.takeoverPointIds
+    ),
+    recommendedRouteId,
+    selectedRouteId,
+    locked: readBoolean(route.locked, fallback.route.locked),
+    changeReason: normalizedRouteChangeReason,
+    candidateRoutes: normalizedCandidateRoutes,
+    selectionStatus: normalizedSelectionStatus,
+    selectionLocked,
+    selected: normalizedSelectedRoute,
+    selectedRoute: normalizedSelectedRoute,
+    selection: {
+      status: readAutopilotRouteSelectionStatus(
+        routeSelection.status,
+        normalizedSelectionStatus
+      ),
+      mode: inferRouteSelectionMode(
+        routeSelection.mode,
+        normalizedSelectionStatus,
+        routeReplanActive,
+        normalizedRouteReplanTriggeredBy,
+        selectedRouteId,
+        recommendedRouteId
+      ),
+      locked: readBoolean(routeSelection.locked, selectionLocked),
+      canSwitch: readBoolean(
+        routeSelection.canSwitch,
+        fallback.route.selection.canSwitch
+      ),
+      switchRequiresConfirmation: readBoolean(
+        routeSelection.switchRequiresConfirmation,
+        fallback.route.selection.switchRequiresConfirmation
+      ),
+      changedAt: readNullableText(
+        routeSelection.changedAt,
+        fallback.route.selection.changedAt
+      ),
+      changedBy: readAutopilotRouteChangeActor(
+        routeSelection.changedBy,
+        normalizedSelectionStatus === "replanned" || routeReplanActive
+          ? normalizedRouteReplanTriggeredBy
+          : fallback.route.selection.changedBy
+      ),
+      changedReason: readNullableTextFromCandidates(
+        [
+          routeSelection.changedReason,
+          route.changeReason,
+          normalizedSelectionStatus === "replanned" || routeReplanActive
+            ? routeReplan.reason
+            : null,
+          explanationRemainingSteps?.replanChangeSummary,
+        ],
+        normalizedRouteChangeReason
+      ),
+    },
+    evidence: {
+      lastEventType: readAutopilotRouteEvidenceEventType(
+        routeEvidence.lastEventType,
+        fallback.route.evidence.lastEventType
+      ),
+      lastEventAt: readNullableText(
+        routeEvidence.lastEventAt,
+        fallback.route.evidence.lastEventAt
+      ),
+      events: normalizeAutopilotRouteEvidenceEvents(
+        routeEvidence.events,
+        fallback.route.evidence.events
+      ),
+    },
+    replan: {
+      active: routeReplanActive,
+      reason: readNullableText(
+        routeReplan.reason,
+        normalizedSelectionStatus === "replanned" || routeReplanActive
+          ? normalizedRouteChangeReason
+          : fallback.route.replan.reason
+      ),
+      fromRouteId: readNullableText(
+        routeReplan.fromRouteId,
+        normalizedSelectionStatus === "replanned" &&
+          recommendedRouteId &&
+          selectedRouteId &&
+          recommendedRouteId !== selectedRouteId
+          ? recommendedRouteId
+          : fallback.route.replan.fromRouteId
+      ),
+      toRouteId: readNullableText(
+        routeReplan.toRouteId,
+        normalizedSelectionStatus === "replanned"
+          ? selectedRouteId
+          : fallback.route.replan.toRouteId
+      ),
+      triggeredBy: normalizedRouteReplanTriggeredBy,
+    },
+  } satisfies TaskAutopilotSummary["route"];
+
+  const normalizedDriveState = {
+    state: readAutopilotDriveState(
+      driveState.state ?? value.driveState,
+      fallback.driveState.state
+    ),
+    label: readText(driveState.label, fallback.driveState.label),
+    detail: readText(driveState.detail, fallback.driveState.detail),
+    currentStageKey: readNullableText(
+      driveState.currentStageKey,
+      fallback.driveState.currentStageKey
+    ),
+    currentStageLabel: readNullableText(
+      driveState.currentStageLabel,
+      fallback.driveState.currentStageLabel
+    ),
+    blocked: readBoolean(driveState.blocked, fallback.driveState.blocked),
+    waitingForUser: readBoolean(
+      driveState.waitingForUser,
+      fallback.driveState.waitingForUser
+    ),
+    riskLevel: readAutopilotRiskLevel(
+      driveState.riskLevel,
+      fallback.driveState.riskLevel
+    ),
+    confidence: readAutopilotConfidenceLevel(
+      driveState.confidence,
+      fallback.driveState.confidence
+    ),
+  } satisfies TaskAutopilotSummary["driveState"];
+
+  const normalizedExecution = {
+    currentStepKey: readNullableText(
+      execution.currentStepKey,
+      fallback.execution.currentStepKey
+    ),
+    currentStepLabel: readNullableText(
+      execution.currentStepLabel,
+      fallback.execution.currentStepLabel
+    ),
+    currentStepStatus: readAutopilotExecutionStatus(
+      execution.currentStepStatus,
+      fallback.execution.currentStepStatus
+    ),
+    parallelBranchCount: Number.isFinite(execution.parallelBranchCount)
+      ? Number(execution.parallelBranchCount)
+      : fallback.execution.parallelBranchCount,
+    blockedReasons: readStringArray(
+      execution.blockedReasons,
+      fallback.execution.blockedReasons
+    ),
+    intermediateDeliverables: readStringArray(
+      execution.intermediateDeliverables,
+      fallback.execution.intermediateDeliverables
+    ),
+    availableActions: normalizeAutopilotControlActions(
+      execution.availableActions,
+      fallback.execution.availableActions
+    ),
+  } satisfies TaskAutopilotSummary["execution"];
+  const normalizedCorrelationTimelineId =
+    readNullableTextFromCandidates(
+      [
+        evidenceCorrelation?.timelineId,
+        explanationCurrentState?.correlationTimelineId,
+        explanationRemainingSteps?.correlationTimelineId,
+      ],
+      fallback.evidence.correlation.timelineId
+    ) ?? fallback.evidence.correlation.timelineId;
+  const normalizedEvidenceCorrelationBase = normalizeAutopilotEvidenceCorrelation(
+    evidenceCorrelation,
+    fallback.evidence.correlation
+  );
+  const normalizedEvidenceCorrelation = {
+    ...normalizedEvidenceCorrelationBase,
+    timelineId: normalizedCorrelationTimelineId,
+    recommendedRouteId: readNullableTextFromCandidates(
+      [
+        evidenceCorrelation?.recommendedRouteId,
+        normalizedRoute.recommendedRouteId,
+      ],
+      normalizedEvidenceCorrelationBase.recommendedRouteId ?? null
+    ),
+    selectedRouteId: readNullableTextFromCandidates(
+      [
+        evidenceCorrelation?.selectedRouteId,
+        normalizedRoute.selectedRouteId,
+        explanationCurrentState?.selectedRouteId,
+        explanationRemainingSteps?.selectedRouteId,
+      ],
+      normalizedEvidenceCorrelationBase.selectedRouteId ?? null
+    ),
+    currentStepKey: readNullableTextFromCandidates(
+      [
+        evidenceCorrelation?.currentStepKey,
+        normalizedExecution.currentStepKey,
+        normalizedRoute.currentStageKey,
+      ],
+      normalizedEvidenceCorrelationBase.currentStepKey ?? null
+    ),
+  } satisfies TaskAutopilotSummary["evidence"]["correlation"];
+
+  const normalizedExplanationCurrentStateBase =
+    normalizeAutopilotExplanationCurrentState(
+      explanation.currentState,
+      fallback.explanation.currentState
+    );
+  const normalizedRemainingStepsBase =
+    normalizeAutopilotExplanationRemainingSteps(
+      explanation.remainingSteps,
+      fallback.explanation.remainingSteps
+    );
+  const normalizedMainlineSteps = Array.isArray(
+    explanationRemainingSteps?.mainlineSteps
+  )
+    ? normalizeAutopilotRemainingStepsItems(
+        explanationRemainingSteps.mainlineSteps,
+        fallback.explanation.remainingSteps?.mainlineSteps ?? []
+      )
+    : normalizedRemainingStepsBase?.mainlineSteps ?? [];
+  const normalizedPendingSteps = Array.isArray(
+    explanationRemainingSteps?.pendingSteps
+  )
+    ? normalizeAutopilotRemainingStepsItems(
+        explanationRemainingSteps.pendingSteps,
+        fallback.explanation.remainingSteps?.pendingSteps ?? []
+      )
+    : deriveAutopilotPendingSteps(normalizedMainlineSteps).length > 0
+      ? deriveAutopilotPendingSteps(normalizedMainlineSteps)
+      : normalizedRemainingStepsBase?.pendingSteps ?? [];
+  const normalizedCurrentStepKey =
+    readNullableText(
+      explanationRemainingSteps?.currentStepKey,
+      normalizedRemainingStepsBase?.currentStepKey ?? null
+    ) ??
+    normalizedExecution.currentStepKey ??
+    normalizedRoute.currentStageKey;
+  const normalizedCurrentStepLabel =
+    readNullableText(
+      explanationRemainingSteps?.currentStepLabel,
+      normalizedRemainingStepsBase?.currentStepLabel ?? null
+    ) ??
+    findAutopilotStepLabel(normalizedMainlineSteps, normalizedCurrentStepKey) ??
+    findAutopilotStepLabel(normalizedPendingSteps, normalizedCurrentStepKey) ??
+    normalizedExecution.currentStepLabel ??
+    normalizedRoute.currentStageLabel;
+  const normalizedExplanationCurrentStateBaseSafe =
+    normalizedExplanationCurrentStateBase ?? {
+      summary: fallback.explanation.current,
+      driveState: normalizedDriveState.state,
+      missionStatus: "queued" as MissionTaskStatus,
+      currentStageKey: normalizedCurrentStepKey,
+      currentStageLabel: normalizedCurrentStepLabel,
+      workflowStatus: normalizedRoute.status,
+      workflowStage: normalizedRoute.currentStageKey,
+      routeSelectionStatus: normalizedRoute.selectionStatus,
+      selectedRouteId: normalizedRoute.selectedRouteId,
+      correlationTimelineId: normalizedCorrelationTimelineId,
+      sources: ["combined-inference"] as NonNullable<
+        TaskAutopilotExplanationSummary["currentState"]
+      >["sources"],
+      updatedAt: fallback.evidence.updatedAt,
+    };
+  const normalizedExplanationCurrentState: NonNullable<
+    TaskAutopilotExplanationSummary["currentState"]
+  > = {
+    summary: readText(
+      explanationCurrentState?.summary,
+      normalizedExplanationCurrentStateBaseSafe.summary ??
+        fallback.explanation.current ??
+        normalizedDriveState.detail
+    ),
+    driveState: readAutopilotDriveState(
+      explanationCurrentState?.driveState,
+      normalizedDriveState.state
+    ),
+    currentStageKey:
+      readNullableText(
+        explanationCurrentState?.currentStageKey,
+        normalizedExplanationCurrentStateBaseSafe.currentStageKey
+      ) ??
+      normalizedCurrentStepKey,
+    currentStageLabel:
+      readNullableText(
+        explanationCurrentState?.currentStageLabel,
+        normalizedExplanationCurrentStateBaseSafe.currentStageLabel
+      ) ??
+      normalizedCurrentStepLabel,
+    workflowStatus:
+      readNullableText(
+        explanationCurrentState?.workflowStatus,
+        normalizedExplanationCurrentStateBaseSafe.workflowStatus
+      ) ?? normalizedRoute.status,
+    workflowStage:
+      readNullableText(
+        explanationCurrentState?.workflowStage,
+        normalizedExplanationCurrentStateBaseSafe.workflowStage
+      ) ??
+      normalizedRoute.currentStageKey,
+    missionStatus: readMissionTaskStatus(
+      explanationCurrentState?.missionStatus,
+      normalizedExplanationCurrentStateBaseSafe.missionStatus
+    ),
+    routeSelectionStatus:
+      explanationCurrentState?.routeSelectionStatus === null
+        ? null
+        : readAutopilotRouteSelectionStatus(
+            explanationCurrentState?.routeSelectionStatus,
+            normalizedExplanationCurrentStateBaseSafe.routeSelectionStatus ??
+              normalizedRoute.selectionStatus
+          ),
+    selectedRouteId: readNullableText(
+      explanationCurrentState?.selectedRouteId,
+      normalizedExplanationCurrentStateBaseSafe.selectedRouteId ??
+        normalizedRoute.selectedRouteId
+    ),
+    correlationTimelineId: readNullableText(
+      explanationCurrentState?.correlationTimelineId,
+      normalizedExplanationCurrentStateBaseSafe.correlationTimelineId ??
+        normalizedCorrelationTimelineId
+    ),
+    sources: normalizeAutopilotExplanationSources(
+      explanationCurrentState?.sources,
+      normalizedExplanationCurrentStateBaseSafe.sources
+    ),
+    updatedAt: readText(
+      explanationCurrentState?.updatedAt,
+      normalizedExplanationCurrentStateBaseSafe.updatedAt ??
+        fallback.evidence.updatedAt
+    ),
+  };
+  const normalizedExplanationRemainingSteps: NonNullable<
+    TaskAutopilotExplanationSummary["remainingSteps"]
+  > = {
+    ...normalizedRemainingStepsBase,
+    currentStepKey: normalizedCurrentStepKey,
+    currentStepLabel: normalizedCurrentStepLabel,
+    mainlineSteps: normalizedMainlineSteps,
+    pendingSteps: normalizedPendingSteps,
+    parallelBranchCount: Number.isFinite(explanationRemainingSteps?.parallelBranchCount)
+      ? Number(explanationRemainingSteps?.parallelBranchCount)
+      : normalizedRemainingStepsBase?.parallelBranchCount ??
+        normalizedExecution.parallelBranchCount,
+    replanChangeSummary: readNullableText(
+      explanationRemainingSteps?.replanChangeSummary,
+      normalizedRemainingStepsBase?.replanChangeSummary ??
+        normalizedRoute.replan.reason
+    ),
+    selectedRouteId: readNullableText(
+      explanationRemainingSteps?.selectedRouteId,
+      normalizedRemainingStepsBase?.selectedRouteId ??
+        normalizedRoute.selectedRouteId
+    ),
+    routeSelectionStatus:
+      explanationRemainingSteps?.routeSelectionStatus === null
+        ? null
+        : readAutopilotRouteSelectionStatus(
+            explanationRemainingSteps?.routeSelectionStatus,
+            normalizedRemainingStepsBase?.routeSelectionStatus ??
+              normalizedRoute.selectionStatus
+          ),
+  };
+
+  const destinationMissingInfoDetailsValue = readRecordValue(destination, [
+    "missingInfoDetails",
+    "missing_info_details",
+    "missingDetails",
+    "clarificationDetails",
+    "clarification_details",
+  ]);
+  const destinationMissingInfoValues = readValuesFromRecordAliases(destination, [
+    "missingInfo",
+    "missing_info",
+    "missingInformation",
+    "missing_information",
+    "openQuestions",
+    "open_questions",
+    "questions",
+  ]);
+  const destinationSuggestedClarificationValues = readValuesFromRecordAliases(
+    destination,
+    [
+      "suggestedClarifications",
+      "suggested_clarifications",
+      "clarificationQuestions",
+      "clarification_questions",
+      "clarifications",
+      "questions",
+    ]
+  );
+  const normalizedDestinationImpact = readNullableText(
+    isRecord(destinationMissingInfoDetailsValue)
+      ? null
+      : readRecordValue(destination, ["impact", "impactSummary", "impact_summary"]),
+    readStringArrayOfRecords(
+      destinationMissingInfoDetailsValue,
+      item =>
+        readNullableTextFromCandidates(
+          [item.impact, item.impactSummary, item.impact_summary],
+          null
+        ),
+      []
+    )[0] ?? fallback.destination.impact ?? null
+  );
+  const normalizedDestinationBlockingReason = readNullableText(
+    isRecord(destinationMissingInfoDetailsValue)
+      ? null
+      : readRecordValue(destination, [
+          "blockingReason",
+          "blocking_reason",
+          "blocker",
+          "blockedReason",
+          "blocked_reason",
+        ]),
+    readStringArrayOfRecords(
+      destinationMissingInfoDetailsValue,
+      item =>
+        readBoolean(item.blocking, false)
+          ? readNullableTextFromCandidates(
+              [
+                item.blockingReason,
+                item.blocking_reason,
+                item.impact,
+                item.impactSummary,
+                item.impact_summary,
+              ],
+              null
+            )
+          : null,
+      []
+    )[0] ?? fallback.destination.blockingReason ?? null
+  );
+
+  const normalizedMissingInfoDetails:
+    | TaskAutopilotSummary["destination"]["missingInfoDetails"]
+    | undefined = Array.isArray(destinationMissingInfoDetailsValue)
+    ? destinationMissingInfoDetailsValue
+        .map((item, index): NonNullable<
+          TaskAutopilotSummary["destination"]["missingInfoDetails"]
+        >[number] | null => {
+          if (!isRecord(item)) return null;
+          const fallbackItem = fallback.destination.missingInfoDetails?.[index];
+          const itemLabel = readText(
+            readRecordValue(item, [
+              "item",
+              "label",
+              "question",
+              "prompt",
+              "missingInfo",
+              "missing_info",
+            ]),
+            fallbackItem?.item ??
+              readStringArrayFromCandidates(destinationMissingInfoValues, [])[index] ??
+              fallback.destination.missingInfo[index] ??
+              ""
+          );
+          const impact = readText(
+            readRecordValue(item, ["impact", "impactSummary", "impact_summary"]),
+            fallbackItem?.impact ?? normalizedDestinationImpact ?? ""
+          );
+          if (!itemLabel || !impact) return null;
+          const clarification = readNullableTextFromCandidates(
+            [
+              item.clarification,
+              item.suggestedClarification,
+              item.suggested_clarification,
+              item.question,
+              item.prompt,
+            ],
+            fallbackItem?.clarification ?? null
+          );
+          return {
+            item: itemLabel,
+            impact,
+            blocking: readBoolean(
+              item.blocking,
+              fallbackItem?.blocking ??
+                impact === normalizedDestinationBlockingReason
+            ),
+            ...(clarification ? { clarification } : {}),
+          };
+        })
+        .filter(
+          (
+            item
+          ): item is NonNullable<
+            TaskAutopilotSummary["destination"]["missingInfoDetails"]
+          >[number] => item !== null
+        )
+    : fallback.destination.missingInfoDetails;
+
+  const normalizedMissingInfo = Array.from(
+    new Set([
+      ...readStringArrayFromCandidates(
+        destinationMissingInfoValues,
+        fallback.destination.missingInfo
+      ),
+      ...(normalizedMissingInfoDetails ?? [])
+        .map(item => readNullableText(item.item, null))
+        .filter((item): item is string => item !== null),
+    ])
+  );
+
+  return {
+    version: readText(value.version, fallback.version),
+    source: readText(value.source, fallback.source),
+    destination: {
+      id: readText(destination.id, fallback.destination.id),
+      goal: readText(destination.goal, fallback.destination.goal),
+      request: readText(destination.request, fallback.destination.request),
+      taskType: readAutopilotDestinationTaskType(
+        destination.taskType,
+        fallback.destination.taskType
+      ),
+      auxiliaryTaskTypes: readStringArrayFromCandidates(
+        readValuesFromRecordAliases(destination, [
+          "auxiliaryTaskTypes",
+          "auxiliary_task_types",
+          "secondaryTaskTypes",
+          "secondary_task_types",
+        ]),
+        fallback.destination.auxiliaryTaskTypes ?? []
+      ).map(taskType =>
+        readAutopilotDestinationTaskType(taskType, "unknown")
+      ),
+      confidence:
+        destination.confidence === null
+          ? undefined
+          : {
+              level: readAutopilotConfidenceLevel(
+                isRecord(destination.confidence)
+                  ? destination.confidence.level
+                  : destination.confidence,
+                fallback.destination.confidence?.level ??
+                  fallback.driveState.confidence
+              ),
+              reason: readNullableTextFromCandidates(
+                [
+                  isRecord(destination.confidence)
+                    ? destination.confidence.reason
+                    : null,
+                ],
+                fallback.destination.confidence?.reason ?? null
+              ),
+              signals: readStringArrayFromCandidates(
+                [
+                  isRecord(destination.confidence)
+                    ? destination.confidence.signals
+                    : undefined,
+                ],
+                fallback.destination.confidence?.signals ?? []
+              ),
+            },
+      constraints: readStringArrayAllowEmpty(
+        readRecordValue(destination, [
+          "constraints",
+          "constraintList",
+          "constraint_list",
+          "requirements",
+          "guardrails",
+        ]),
+        fallback.destination.constraints
+      ),
+      successCriteria: readStringArrayAllowEmpty(
+        readRecordValue(destination, [
+          "successCriteria",
+          "success_criteria",
+          "acceptanceCriteria",
+          "acceptance_criteria",
+          "doneCriteria",
+          "done_criteria",
+        ]),
+        fallback.destination.successCriteria
+      ),
+      subGoals: normalizeAutopilotDestinationSubGoals(
+        readRecordValue(destination, [
+          "subGoals",
+          "sub_goals",
+          "subgoals",
+          "goals",
+          "objectives",
+        ]),
+        fallback.destination.subGoals ?? []
+      ),
+      deliverables: readStringArrayAllowEmpty(
+        destination.deliverables,
+        fallback.destination.deliverables
+      ),
+      missingInfo: normalizedMissingInfo,
+      missingInfoDetails: normalizedMissingInfoDetails,
+      suggestedClarifications: readStringArrayFromCandidates(
+        [
+          ...destinationSuggestedClarificationValues,
+          Array.isArray(destinationMissingInfoDetailsValue)
+            ? destinationMissingInfoDetailsValue
+                .map(item =>
+                  isRecord(item)
+                    ? readNullableTextFromCandidates(
+                        [
+                          item.clarification,
+                          item.suggestedClarification,
+                          item.suggested_clarification,
+                          item.question,
+                          item.prompt,
+                        ],
+                        null
+                      )
+                    : null
+                )
+                .filter((item): item is string => item !== null)
+            : undefined,
+        ],
+        fallback.destination.suggestedClarifications ?? []
+      ),
+      impact: normalizedDestinationImpact,
+      blockingReason: normalizedDestinationBlockingReason,
+    },
+    route: normalizedRoute,
+    driveState: normalizedDriveState,
+    fleet: {
+      roles: normalizedRoles,
+      activeRoleCount: Number.isFinite(fleet.activeRoleCount)
+        ? Number(fleet.activeRoleCount)
+        : normalizedRoles.filter(
+            role => role.status === "running" || role.status === "waiting"
+          ).length,
+      blockedRoleCount: Number.isFinite(fleet.blockedRoleCount)
+        ? Number(fleet.blockedRoleCount)
+        : normalizedRoles.filter(
+            role => role.status === "blocked" || role.status === "failed"
+          ).length,
+    },
+    takeover: {
+      status: readAutopilotTakeoverStatus(
+        takeover.status,
+        fallback.takeover.status
+      ),
+      required: readBoolean(takeover.required, fallback.takeover.required),
+      blocking: readBoolean(takeover.blocking, fallback.takeover.blocking),
+      type: readAutopilotTakeoverType(takeover.type, fallback.takeover.type),
+      reason: readNullableText(takeover.reason, fallback.takeover.reason),
+      prompt: readNullableText(takeover.prompt, fallback.takeover.prompt),
+      decisionId: readNullableText(
+        takeover.decisionId,
+        fallback.takeover.decisionId
+      ),
+      options: normalizeAutopilotTakeoverOptions(
+        takeover.options,
+        fallback.takeover.options
+      ),
+      urgency: readAutopilotUrgency(
+        takeover.urgency,
+        fallback.takeover.urgency
+      ),
+    },
+    execution: normalizedExecution,
+    recovery: {
+      state: readAutopilotRecoveryState(
+        recovery.state,
+        fallback.recovery.state
+      ),
+      deviationCategory: readAutopilotDeviationCategory(
+        recovery.deviationCategory,
+        fallback.recovery.deviationCategory
+      ),
+      reason: readNullableText(recovery.reason, fallback.recovery.reason),
+      attemptedActions: readStringArray(
+        recovery.attemptedActions,
+        fallback.recovery.attemptedActions
+      ),
+      suggestedActions: readStringArray(
+        recovery.suggestedActions,
+        fallback.recovery.suggestedActions
+      ) as TaskAutopilotRecoverySummary["suggestedActions"],
+      needsHuman: readBoolean(
+        recovery.needsHuman,
+        fallback.recovery.needsHuman
+      ),
+      canAutoRecover: readBoolean(
+        recovery.canAutoRecover,
+        fallback.recovery.canAutoRecover
+      ),
+    },
+    evidence: {
+      eventCount: Number.isFinite(evidence.eventCount)
+        ? Number(evidence.eventCount)
+        : fallback.evidence.eventCount,
+      artifactCount: Number.isFinite(evidence.artifactCount)
+        ? Number(evidence.artifactCount)
+        : fallback.evidence.artifactCount,
+      lastSignal: readNullableText(
+        evidence.lastSignal,
+        fallback.evidence.lastSignal
+      ),
+      latestEventType: readNullableText(
+        evidence.latestEventType,
+        fallback.evidence.latestEventType
+      ),
+      updatedAt: readText(evidence.updatedAt, fallback.evidence.updatedAt),
+      trustLevel: readAutopilotEvidenceTrustLevel(
+        evidence.trustLevel,
+        fallback.evidence.trustLevel
+      ),
+      gaps: readStringArray(evidence.gaps, fallback.evidence.gaps),
+      timeline: normalizeAutopilotEvidenceTimeline(
+        evidence.timeline,
+        fallback.evidence.timeline
+      ),
+      correlation: normalizedEvidenceCorrelation,
+    },
+    explanation: {
+      current: readText(explanation.current, fallback.explanation.current),
+      nextSteps: readStringArray(
+        explanation.nextSteps,
+        fallback.explanation.nextSteps
+      ),
+      recommendationReasons: readStringArray(
+        explanation.recommendationReasons,
+        fallback.explanation.recommendationReasons
+      ),
+      currentState: normalizedExplanationCurrentState,
+      recommendationDetails: normalizeAutopilotRecommendationDetails(
+        explanation.recommendationDetails,
+        fallback.explanation.recommendationDetails ?? []
+      ).map(detail => ({
+        ...detail,
+        routeSelectionStatus:
+          detail.routeSelectionStatus ?? normalizedRoute.selectionStatus,
+        correlationTimelineId:
+          detail.correlationTimelineId ?? normalizedCorrelationTimelineId,
+      })),
+      remainingSteps: normalizedExplanationRemainingSteps,
+      riskSummary: readStringArray(
+        explanation.riskSummary,
+        fallback.explanation.riskSummary
+      ),
+      evidenceHints: readStringArray(
+        explanation.evidenceHints,
+        fallback.explanation.evidenceHints
+      ),
+      telemetrySignals: readStringArray(
+        explanation.telemetrySignals,
+        fallback.explanation.telemetrySignals
+      ),
+    },
+    bindings: {
+      missionId: readText(bindings.missionId, fallback.bindings.missionId),
+      workflowId: readNullableText(
+        bindings.workflowId,
+        fallback.bindings.workflowId
+      ),
+      executorJobId: readNullableText(
+        bindings.executorJobId,
+        fallback.bindings.executorJobId
+      ),
+      instanceId: readNullableText(
+        bindings.instanceId,
+        fallback.bindings.instanceId
+      ),
+    },
+  };
+}
+
+function autopilotDriveStateLabel(state: TaskAutopilotDriveState): string {
+  switch (state) {
+    case "understanding":
+      return "Understanding destination";
+    case "clarifying":
+      return "Clarifying destination";
+    case "planning":
+      return "Planning route";
+    case "fleet-forming":
+      return "Forming fleet";
+    case "executing":
+      return "Executing route";
+    case "reviewing":
+      return "Reviewing result";
+    case "blocked":
+      return "Blocked";
+    case "takeover-required":
+      return "Takeover required";
+    case "replanning":
+      return "Replanning route";
+    case "delivered":
+      return "Delivered";
+  }
+}
+
+function inferAutopilotDriveState(
+  mission: MissionRecord,
+  currentStageKey: string | null,
+  operatorState: MissionOperatorState,
+  waitingFor: string | null
+): TaskAutopilotDriveState {
+  if (mission.status === "done") return "delivered";
+  if (operatorState === "blocked") return "blocked";
+  if (mission.status === "waiting" || waitingFor || mission.decision) {
+    return "takeover-required";
+  }
+  if (mission.status === "failed" || mission.status === "cancelled") {
+    return "blocked";
+  }
+  if (operatorState === "paused" || operatorState === "terminating") {
+    return "blocked";
+  }
+
+  switch (currentStageKey) {
+    case "receive":
+    case "understand":
+      return "understanding";
+    case "plan":
+      return "planning";
+    case "provision":
+      return "fleet-forming";
+    case "finalize":
+      return "reviewing";
+    case "execute":
+      return "executing";
+    default:
+      return mission.status === "queued" ? "understanding" : "executing";
+  }
+}
+
+function inferAutopilotRiskLevel(
+  mission: MissionRecord,
+  failureReasons: string[],
+  operatorState: MissionOperatorState
+): TaskAutopilotRiskLevel {
+  if (mission.status === "failed" || operatorState === "blocked") return "high";
+  if (
+    failureReasons.length > 0 ||
+    mission.status === "cancelled" ||
+    mission.events.some(event => event.level === "error")
+  ) {
+    return "high";
+  }
+  if (
+    mission.status === "waiting" ||
+    mission.decision ||
+    mission.blocker ||
+    mission.events.some(event => event.level === "warn")
+  ) {
+    return "medium";
+  }
+  return "low";
+}
+
+function inferAutopilotConfidenceLevel(
+  mission: MissionRecord,
+  riskLevel: TaskAutopilotRiskLevel,
+  waitingFor: string | null
+): TaskAutopilotConfidenceLevel {
+  if (mission.status === "failed" || riskLevel === "high") return "low";
+  if (waitingFor || mission.decision || riskLevel === "medium") return "medium";
+  if (mission.status === "queued") return "unknown";
+  return "high";
+}
+
+function inferAutopilotTakeoverType(
+  mission: MissionRecord,
+  operatorState: MissionOperatorState
+): TaskAutopilotTakeoverType | null {
+  if (mission.decision?.type === "multi-choice") return "route-selection";
+  if (mission.decision?.type === "approve") return "approval";
+  if (mission.decision?.type === "request-info") return "clarification";
+  if (mission.decision?.type === "escalate") return "exception";
+  if (mission.decision?.type) return "approval";
+  if (operatorState === "blocked") return "operator";
+  if (mission.status === "waiting") return "clarification";
+  return null;
+}
+
+function inferAutopilotTakeoverStatus(
+  mission: MissionRecord,
+  operatorState: MissionOperatorState,
+  takeoverRequired: boolean
+): TaskAutopilotTakeoverStatus | null {
+  if (operatorState === "blocked" || mission.blocker) {
+    return "required";
+  }
+  if (takeoverRequired || mission.decision) {
+    return "pending";
+  }
+  if (mission.waitingFor) {
+    return "advisory";
+  }
+  return null;
+}
+
+function buildAutopilotSummaryFallback(
+  mission: MissionRecord,
+  options?: {
+    currentStageKey?: string | null;
+    currentStageLabel?: string | null;
+    waitingFor?: string | null;
+    summaryText?: string;
+    lastSignal?: string | null;
+    failureReasons?: string[];
+    departmentLabels?: string[];
+  }
+): TaskAutopilotSummary {
+  const workflowId = mission.projection?.workflowId || mission.id;
+  const fallback = buildSharedMissionAutopilotSummary({
+    mission,
+    workflowId,
+    source: "client-mission-projection",
+    version: "client-autopilot-projection/v1",
+  });
+  const currentStageKey =
+    options?.currentStageKey ?? stageKeyFromMission(mission);
+  const currentStageLabel =
+    options?.currentStageLabel ??
+    stageLabelFromMission(mission, currentStageKey);
+  const operatorState = missionOperatorStateFromMission(mission);
+  const waitingFor =
+    options?.waitingFor ??
+    mission.waitingFor ??
+    (mission.status === "waiting"
+      ? mission.decision?.prompt || "Awaiting decision"
+      : null);
+  const summaryText =
+    options?.summaryText ?? missionSummaryText(mission, mission.events, waitingFor);
+  const failureReasons =
+    options?.failureReasons ?? missionFailureReasons(mission, mission.events);
+  const driveState = inferAutopilotDriveState(
+    mission,
+    currentStageKey,
+    operatorState,
+    waitingFor
+  );
+  const riskLevel = inferAutopilotRiskLevel(
+    mission,
+    failureReasons,
+    operatorState
+  );
+  const confidence = inferAutopilotConfidenceLevel(
+    mission,
+    riskLevel,
+    waitingFor
+  );
+  const takeoverRequired =
+    driveState === "takeover-required" ||
+    Boolean(waitingFor) ||
+    Boolean(mission.decision) ||
+    operatorState === "blocked";
+  const lastSignal =
+    options?.lastSignal ?? fallback.evidence.lastSignal ?? null;
+  const routeMode: TaskAutopilotRouteMode =
+    mission.kind === "chat" || mission.kind === "nl-command"
+      ? "fast"
+      : mission.status === "waiting" || operatorState === "blocked"
+        ? "deep"
+        : "standard";
+  const routeStatus = workflowStatusFromMission(mission.status);
+  const routeLocked =
+    mission.status === "waiting" ||
+    mission.status === "done" ||
+    mission.status === "failed" ||
+    mission.status === "cancelled";
+  const routeChangeReason =
+    (mission.attempt ?? 1) > 1
+      ? `Mission has retried ${Math.max((mission.attempt ?? 1) - 1, 0)} time(s).`
+      : waitingFor || mission.blocker?.reason || null;
+  const routeChangeActor: TaskAutopilotSummary["route"]["selection"]["changedBy"] =
+    mission.status === "waiting"
+      ? "user"
+      : (mission.attempt ?? 1) > 1
+        ? "runtime"
+        : operatorState === "blocked" || operatorState === "paused"
+          ? "operator"
+          : "planner";
+  const candidateRoutes: TaskAutopilotSummary["route"]["candidateRoutes"] = [
+    {
+      id: `${workflowId}:fast`,
+      label: "Fast route",
+      mode: "fast",
+      status: routeStatus,
+      title: "Fast route",
+      name: "Fast route",
+      summary: "Favor shorter execution chains and minimal confirmations.",
+      recommended: routeMode === "fast",
+      selected: routeMode === "fast",
+      locked: routeLocked,
+      reason: summaryText,
+      description: "Favor shorter execution chains and minimal confirmations.",
+      estimatedCost: "low",
+      estimatedDuration: "short",
+      takeoverLoad: "medium",
+      riskLevel: riskLevel === "high" ? "medium" : "low",
+      stageKeys: mission.stages.map(stage => stage.key),
+    },
+    {
+      id: `${workflowId}:standard`,
+      label: "Standard route",
+      mode: "standard",
+      status: routeStatus,
+      title: "Standard route",
+      name: "Standard route",
+      summary: "Balance execution depth, governance, and delivery confidence.",
+      recommended: routeMode === "standard",
+      selected: routeMode === "standard",
+      locked: routeLocked,
+      reason: summaryText,
+      description:
+        "Balance execution depth, governance, and delivery confidence.",
+      estimatedCost: "medium",
+      estimatedDuration: "medium",
+      takeoverLoad: "medium",
+      riskLevel,
+      stageKeys: mission.stages.map(stage => stage.key),
+    },
+    {
+      id: `${workflowId}:deep`,
+      label: "Deep route",
+      mode: "deep",
+      status: routeStatus,
+      title: "Deep route",
+      name: "Deep route",
+      summary: "Favor verification, recovery headroom, and auditability.",
+      recommended: routeMode === "deep",
+      selected: routeMode === "deep",
+      locked: routeLocked,
+      reason: waitingFor || mission.blocker?.reason || summaryText,
+      description: "Favor verification, recovery headroom, and auditability.",
+      estimatedCost: "high",
+      estimatedDuration: "long",
+      takeoverLoad: "high",
+      riskLevel: riskLevel === "unknown" ? "medium" : riskLevel,
+      stageKeys: mission.stages.map(stage => stage.key),
+    },
+  ];
+  const selectedRoute =
+    candidateRoutes.find(route => route.selected) ?? candidateRoutes[0] ?? null;
+  const recommendedRouteId =
+    candidateRoutes.find(route => route.recommended)?.id || null;
+  const selectedRouteId = selectedRoute?.id || null;
+  const waitingForRouteSelection = mission.decision?.type === "multi-choice";
+  const selectionStatus: TaskAutopilotSummary["route"]["selectionStatus"] =
+    (mission.attempt ?? 1) > 1
+      ? "replanned"
+      : waitingForRouteSelection
+        ? "alternatives-available"
+        : routeLocked
+        ? "locked"
+        : "recommended";
+  const selectionMode: TaskAutopilotSummary["route"]["selection"]["mode"] =
+    (mission.attempt ?? 1) > 1 ? "runtime_replanned" : "planner_default";
+  const routeEvidenceEvents: TaskAutopilotSummary["route"]["evidence"]["events"] =
+    [
+      {
+        eventType: "route.recommended",
+        at: new Date(mission.updatedAt).toISOString(),
+        actor: "planner",
+        reason: summaryText,
+        toRouteId: recommendedRouteId || undefined,
+      },
+      {
+        eventType:
+          (mission.attempt ?? 1) > 1 ? "route.replanned" : "route.selected",
+        at: new Date(mission.updatedAt).toISOString(),
+        actor: routeChangeActor,
+        reason: routeChangeReason,
+        fromRouteId:
+          (mission.attempt ?? 1) > 1 &&
+          recommendedRouteId &&
+          recommendedRouteId !== selectedRouteId
+            ? recommendedRouteId
+            : undefined,
+        toRouteId: selectedRouteId || undefined,
+      },
+      ...(routeLocked
+        ? [
+            {
+              eventType: "route.locked" as const,
+              at: new Date(mission.updatedAt).toISOString(),
+              actor: routeChangeActor,
+              reason: routeChangeReason,
+              toRouteId: selectedRouteId || undefined,
+            },
+          ]
+        : []),
+    ];
+  const routeRiskPoints = Array.from(
+    new Set([
+      ...failureReasons,
+      ...(waitingFor ? [`Awaiting ${waitingFor}`] : []),
+      ...(mission.blocker?.reason ? [mission.blocker.reason] : []),
+      ...(mission.status === "failed"
+        ? ["Mission failed and needs recovery"]
+        : []),
+      ...(operatorState === "blocked"
+        ? ["Operator intervention is blocking progress"]
+        : []),
+    ])
+  ).filter(Boolean);
+  const explanationUpdatedAt = new Date(mission.updatedAt).toISOString();
+  const evidenceTimelineId = `${mission.id}:timeline`;
+  const recommendationDetails: NonNullable<
+    TaskAutopilotExplanationSummary["recommendationDetails"]
+  > = [];
+
+  if (selectedRoute) {
+    recommendationDetails.push({
+      kind: "route",
+      summary: selectedRoute.reason || selectedRoute.summary,
+      source: "route-planner",
+      routeId: selectedRoute.id,
+      actionType: null,
+      takeoverType: null,
+      decisionId: null,
+      routeSelectionStatus: selectionStatus,
+      correlationTimelineId: evidenceTimelineId,
+      updatedAt: explanationUpdatedAt,
+    });
+  }
+
+  if (mission.status === "waiting") {
+    recommendationDetails.push({
+      kind: "takeover",
+      summary:
+        mission.decision?.prompt ||
+        waitingFor ||
+        "Explicit operator confirmation is required before execution resumes.",
+      source: "takeover-state",
+      routeId: selectedRoute?.id || null,
+      actionType: "wait",
+      takeoverType: inferAutopilotTakeoverType(mission, operatorState),
+      decisionId: mission.decision?.decisionId || null,
+      routeSelectionStatus: selectionStatus,
+      correlationTimelineId: evidenceTimelineId,
+      updatedAt: explanationUpdatedAt,
+    });
+  }
+
+  if (selectionStatus === "replanned") {
+    recommendationDetails.push({
+      kind: "replan",
+      summary:
+        routeChangeReason ||
+        "Runtime signals changed enough that the route was replanned.",
+      source:
+        routeChangeActor === "runtime" ? "recovery-engine" : "mission-runtime",
+      routeId: selectedRoute?.id || null,
+      actionType: "replan",
+      takeoverType: null,
+      decisionId: null,
+      routeSelectionStatus: selectionStatus,
+      correlationTimelineId: evidenceTimelineId,
+      updatedAt: explanationUpdatedAt,
+    });
+  }
+
+  const explanationMainlineSteps = mission.stages.map(stage => ({
+    key: stage.key,
+    label: stage.label,
+    status: stage.status,
+    isCurrent: stage.key === currentStageKey,
+  }));
+  const explanationPendingSteps = explanationMainlineSteps.filter(
+    stage => stage.status === "pending" || stage.status === "running"
+  );
+  const explanationSources: NonNullable<
+    TaskAutopilotExplanationSummary["currentState"]
+  >["sources"] = Array.from(
+    new Set([
+      "mission-runtime",
+      ...(mission.projection?.workflowId ? (["workflow-runtime"] as const) : []),
+      ...(selectedRoute ? (["route-planner"] as const) : []),
+      ...(takeoverRequired ? (["takeover-state"] as const) : []),
+      ...((selectionStatus === "replanned" ||
+      routeChangeActor === "runtime") ? (["recovery-engine"] as const) : []),
+    ])
+  );
+
+  return {
+    ...fallback,
+    destination: {
+      ...fallback.destination,
+      missingInfo: waitingFor
+        ? Array.from(new Set([waitingFor, ...fallback.destination.missingInfo]))
+        : fallback.destination.missingInfo,
+      confidence: {
+        level: confidence,
+        reason:
+          waitingFor
+            ? `Pending clarification: ${waitingFor}`
+            : mission.summary
+              ? "Mission summary and runtime state provide destination context."
+              : mission.sourceText
+                ? "Source text provides the current destination intent."
+                : "Destination intent is inferred from the live mission record.",
+        signals: Array.from(
+          new Set([
+            ...(mission.summary ? ["mission-summary"] : []),
+            ...((mission.artifacts?.length ?? 0) > 0 ? ["artifacts-present"] : []),
+            ...(mission.events.length > 0 ? ["runtime-events-present"] : []),
+            ...(waitingFor ? ["waiting-for-input"] : []),
+            ...(mission.blocker?.reason ? ["blocked-by-runtime"] : []),
+            ...(mission.decision?.prompt ? ["decision-prompt-present"] : []),
+            ...(mission.sourceText ? ["source-text-present"] : []),
+          ])
+        ),
+      },
+      suggestedClarifications:
+        waitingFor && mission.decision?.prompt
+          ? [mission.decision.prompt]
+          : fallback.destination.suggestedClarifications,
+      missingInfoDetails: waitingFor
+        ? [
+            {
+              item: waitingFor,
+              impact:
+                mission.decision?.type === "multi-choice"
+                  ? "Route selection cannot continue until this input is resolved."
+                  : mission.decision?.type === "request-info"
+                    ? "Goal understanding remains incomplete until this input is resolved."
+                    : "Mission progress remains paused until this input is resolved.",
+              blocking: true,
+            },
+          ]
+        : mission.operatorState === "blocked" && mission.blocker?.reason
+          ? [
+              {
+                item: mission.blocker.reason,
+                impact: "Runtime recovery and execution handoff remain blocked.",
+                blocking: true,
+              },
+            ]
+          : fallback.destination.missingInfoDetails,
+    },
+    route: {
+      ...fallback.route,
+      mode: routeMode,
+      status: workflowStatusFromMission(mission.status),
+      currentStageKey: currentStageKey ?? fallback.route.currentStageKey,
+      currentStageLabel: currentStageLabel ?? fallback.route.currentStageLabel,
+      riskPoints: routeRiskPoints,
+      takeoverPointIds: mission.decision?.decisionId
+        ? [mission.decision.decisionId]
+        : takeoverRequired
+          ? [`${mission.id}:takeover`]
+          : fallback.route.takeoverPointIds,
+      recommendedRouteId,
+      selectedRouteId,
+      locked: routeLocked,
+      changeReason: routeChangeReason,
+      candidateRoutes,
+      selectionStatus,
+      selectionLocked: routeLocked,
+      selected: selectedRoute,
+      selectedRoute,
+      selection: {
+        status: selectionStatus,
+        mode: selectionMode,
+        locked: routeLocked,
+        canSwitch: waitingForRouteSelection ? true : !routeLocked,
+        switchRequiresConfirmation: takeoverRequired,
+        changedAt: new Date(mission.updatedAt).toISOString(),
+        changedBy: routeChangeActor,
+        changedReason: routeChangeReason,
+      },
+      evidence: {
+        lastEventType: routeEvidenceEvents.at(-1)?.eventType || null,
+        lastEventAt: routeEvidenceEvents.at(-1)?.at || null,
+        events: routeEvidenceEvents,
+      },
+      replan: {
+        active: selectionStatus === "replanned",
+        reason: selectionStatus === "replanned" ? routeChangeReason : null,
+        fromRouteId:
+          selectionStatus === "replanned" &&
+          recommendedRouteId &&
+          recommendedRouteId !== selectedRouteId
+            ? recommendedRouteId
+            : null,
+        toRouteId: selectionStatus === "replanned" ? selectedRouteId : null,
+        triggeredBy:
+          selectionStatus === "replanned" ? routeChangeActor : null,
+      },
+    },
+    driveState: {
+      state: driveState,
+      label: autopilotDriveStateLabel(driveState),
+      detail: summaryText || fallback.driveState.detail,
+      currentStageKey: currentStageKey ?? fallback.driveState.currentStageKey,
+      currentStageLabel:
+        currentStageLabel ?? fallback.driveState.currentStageLabel,
+      blocked: driveState === "blocked" || operatorState === "blocked",
+      waitingForUser: takeoverRequired,
+      riskLevel,
+      confidence,
+    },
+    takeover: {
+      status: inferAutopilotTakeoverStatus(
+        mission,
+        operatorState,
+        takeoverRequired
+      ),
+      required: takeoverRequired,
+      blocking:
+        driveState === "takeover-required" || operatorState === "blocked",
+      type: inferAutopilotTakeoverType(mission, operatorState),
+      reason: waitingFor ?? fallback.takeover.reason,
+      prompt: mission.decision?.prompt || waitingFor || fallback.takeover.prompt,
+      decisionId:
+        mission.decision?.decisionId || fallback.takeover.decisionId,
+      options: (mission.decision?.options ?? []).map(option => ({
+        id: option.id,
+        label: option.label,
+        ...(option.description ? { description: option.description } : {}),
+      })),
+      urgency:
+        riskLevel === "high"
+          ? "high"
+          : takeoverRequired || riskLevel === "medium"
+            ? "medium"
+            : "low",
+    },
+    execution: {
+      currentStepKey: currentStageKey,
+      currentStepLabel: currentStageLabel,
+      currentStepStatus:
+        mission.status === "done"
+          ? "done"
+          : mission.status === "failed"
+            ? "failed"
+            : operatorState === "blocked" || mission.blocker
+              ? "blocked"
+              : mission.status === "waiting"
+                ? "waiting"
+                : mission.status === "queued"
+                  ? "pending"
+                  : "running",
+      parallelBranchCount: Math.max(
+        mission.agentCrew?.length ?? 0,
+        mission.workPackages?.length ?? 0,
+        mission.executor ? 1 : 0
+      ),
+      blockedReasons: Array.from(
+        new Set([
+          ...(waitingFor ? [waitingFor] : []),
+          ...(mission.blocker?.reason ? [mission.blocker.reason] : []),
+          ...failureReasons,
+        ])
+      ),
+      intermediateDeliverables: Array.from(
+        new Set([
+          ...(mission.artifacts?.map(artifact => artifact.name) ?? []),
+          ...(mission.workPackages
+            ?.map(pkg => pkg.deliverable)
+            .filter((item): item is string => Boolean(item)) ?? []),
+        ])
+      ).slice(0, 5),
+      availableActions: [
+        {
+          id: `${mission.id}:run`,
+          type: "run",
+          label: "run",
+          scope: "stage",
+          enabled: mission.status === "running" || mission.status === "queued",
+          reason: null,
+        },
+        {
+          id: `${mission.id}:wait`,
+          type: "wait",
+          label: "wait",
+          scope: "stage",
+          enabled: mission.status === "waiting",
+          reason: waitingFor ? "Mission is waiting on human input." : null,
+        },
+        {
+          id: `${mission.id}:resume`,
+          type: "resume",
+          label: "resume",
+          scope: "mission",
+          enabled: mission.status === "waiting" || operatorState === "blocked",
+          reason:
+            mission.status === "waiting" || operatorState === "blocked"
+              ? null
+              : "Resume is only available for waiting or blocked missions.",
+        },
+        {
+          id: `${mission.id}:replan`,
+          type: "replan",
+          label: "replan",
+          scope: "route",
+          enabled: mission.status !== "done" && mission.status !== "cancelled",
+          reason: null,
+        },
+      ],
+    },
+    recovery: {
+      state:
+        operatorState === "blocked"
+          ? "takeover-required"
+          : mission.status === "failed"
+            ? (mission.attempt ?? 1) > 1
+              ? "escalated"
+              : "recovering"
+            : waitingFor
+              ? "watching"
+              : "healthy",
+      deviationCategory:
+        operatorState === "blocked"
+          ? "state-block"
+          : mission.status === "failed"
+            ? (mission.attempt ?? 1) > 1
+              ? "recovery-exhausted"
+              : "dependency-failure"
+            : mission.decision?.type === "multi-choice"
+              ? "route-deviation"
+              : mission.decision?.type === "request-info"
+                ? "goal-deviation"
+                : waitingFor
+                  ? "governance-deviation"
+                  : failureReasons.length > 0
+                    ? "quality-deviation"
+                    : "none",
+      reason: mission.blocker?.reason || waitingFor || null,
+      attemptedActions: (mission.operatorActions ?? []).map(action => action.action),
+      suggestedActions:
+        operatorState === "blocked"
+          ? ["resume", "retry", "escalate"]
+          : waitingFor
+            ? ["resume", "replan"]
+            : mission.status === "failed"
+              ? ["retry", "escalate"]
+              : ["run"],
+      needsHuman:
+        operatorState === "blocked" ||
+        mission.status === "waiting" ||
+        ((mission.attempt ?? 1) > 1 && mission.status === "failed"),
+      canAutoRecover:
+        mission.status !== "done" &&
+        mission.status !== "cancelled" &&
+        operatorState !== "blocked" &&
+        ((mission.attempt ?? 1) <= 2 || mission.status !== "failed"),
+    },
+    evidence: {
+      ...fallback.evidence,
+      lastSignal,
+      updatedAt: new Date(mission.updatedAt).toISOString(),
+      trustLevel:
+        (mission.artifacts?.length ?? 0) > 0 && mission.events.length > 0
+          ? "verified"
+          : mission.events.length > 0
+            ? "partial"
+            : "unverified",
+      gaps: Array.from(
+        new Set([
+          ...(mission.artifacts?.length ? [] : ["No artifacts captured yet"]),
+          ...(mission.events.length > 0 ? [] : ["No runtime events captured yet"]),
+          ...(mission.status === "waiting" &&
+          (mission.decisionHistory?.length ?? 0) === 0
+            ? ["Waiting mission has no resolved decision history yet"]
+            : []),
+        ])
+      ),
+      timeline: [
+        ...mission.events.slice(-6).map(event => ({
+          id: `${mission.id}:event:${event.time}:${event.type}`,
+          type:
+            event.type === "waiting"
+              ? "takeover"
+              : event.type === "done"
+                ? "result"
+                : event.type === "progress"
+                  ? "drive_state_change"
+                  : "system",
+          label: event.type,
+          detail: event.message || null,
+          status:
+            event.level === "error"
+              ? "failed"
+              : event.type === "waiting"
+                ? "waiting"
+                : event.type === "done"
+                  ? "done"
+                  : "running",
+          source: event.source || null,
+          time: new Date(event.time).toISOString(),
+        }) satisfies TaskAutopilotEvidenceTimelineItem),
+        ...(mission.operatorActions ?? []).slice(-3).map(action => ({
+          id: action.id,
+          type: "operator_action" as const,
+          label: action.action,
+          detail: action.detail || action.reason || null,
+          status:
+            action.result === "rejected"
+              ? "failed"
+              : action.result === "completed"
+                ? "done"
+                : "running",
+          source: action.requestedBy || "operator",
+          time: new Date(action.createdAt).toISOString(),
+        }) satisfies TaskAutopilotEvidenceTimelineItem),
+      ].slice(-8),
+      correlation: {
+        ...fallback.evidence.correlation,
+        missionId: mission.id,
+        workflowId,
+        timelineId: evidenceTimelineId,
+        routeIds: candidateRoutes.map(route => route.id),
+        recommendedRouteId,
+        selectedRouteId,
+        routeStageKeys: mission.stages.map(stage => stage.key),
+        currentStepKey: currentStageKey,
+        runtimeEventIds: mission.events.map(
+          event => `${mission.id}:event:${event.time}:${event.type}`
+        ),
+        decisionIds: Array.from(
+          new Set([
+            mission.decision?.decisionId,
+            ...(mission.decisionHistory ?? []).map(entry => entry.decisionId),
+          ].filter((value): value is string => Boolean(value)))
+        ),
+        operatorActionIds: (mission.operatorActions ?? []).map(action => action.id),
+        auditEventIds: fallback.evidence.correlation.auditEventIds,
+        lineageIds: fallback.evidence.correlation.lineageIds,
+      },
+    },
+    explanation: {
+      current: summaryText,
+      currentState: {
+        summary: summaryText,
+        driveState,
+        missionStatus: mission.status,
+        currentStageKey,
+        currentStageLabel,
+        workflowStatus: routeStatus,
+        workflowStage: currentStageKey,
+        routeSelectionStatus: selectionStatus,
+        selectedRouteId,
+        correlationTimelineId: evidenceTimelineId,
+        sources: explanationSources,
+        updatedAt: explanationUpdatedAt,
+      },
+      nextSteps: explanationPendingSteps.map(stage => stage.label).slice(0, 3),
+      recommendationReasons:
+        recommendationDetails.length > 0
+          ? recommendationDetails.map(item => item.summary)
+          : [
+              waitingFor
+                ? "Current route keeps human review in the loop before continuing."
+                : "Current route is inferred from mission kind, risk, and runtime readiness.",
+            ],
+      recommendationDetails:
+        recommendationDetails.length > 0 ? recommendationDetails : undefined,
+      remainingSteps: {
+        currentStepKey: currentStageKey,
+        currentStepLabel: currentStageLabel,
+        mainlineSteps: explanationMainlineSteps,
+        pendingSteps: explanationPendingSteps,
+        parallelBranchCount: Math.max(
+          mission.agentCrew?.length ?? 0,
+          mission.workPackages?.length ?? 0,
+          mission.executor ? 1 : 0
+        ),
+        replanChangeSummary:
+          selectionStatus === "replanned" ? routeChangeReason : null,
+      },
+      riskSummary: Array.from(
+        new Set([
+          ...failureReasons,
+          ...(waitingFor ? [waitingFor] : []),
+          ...(mission.blocker?.reason ? [mission.blocker.reason] : []),
+        ])
+      ),
+      evidenceHints: Array.from(
+        new Set([
+          ...(mission.artifacts?.length ? ["Artifacts are available for review."] : []),
+          ...(mission.events.length > 0 ? ["Runtime events are available."] : []),
+          ...((mission.decisionHistory?.length ?? 0) > 0
+            ? ["Decision history is available."]
+            : []),
+        ])
+      ),
+      telemetrySignals: [
+        `mission.status:${mission.status}`,
+        `drive.state:${driveState}`,
+        `risk.level:${riskLevel}`,
+      ],
+    },
+    bindings: {
+      ...fallback.bindings,
+      workflowId,
+      instanceId:
+        mission.projection?.instanceId ||
+        mission.instance?.id ||
+        fallback.bindings.instanceId,
+    },
+  };
+}
+
+function buildAutopilotSummary(
+  mission: MissionRecord,
+  options?: Parameters<typeof buildAutopilotSummaryFallback>[1]
+): TaskAutopilotSummary {
+  const fallback = buildAutopilotSummaryFallback(mission, options);
+  return normalizeAutopilotSummary(
+    readAutopilotSummaryCandidate(mission),
+    fallback
+  );
+}
+
+function buildPlanetAutopilotSummaryFallback(
+  planet: MissionPlanetOverviewItem,
+  options: {
+    summaryText: string;
+    currentStageKey: string | null;
+    currentStageLabel: string | null;
+    waitingFor: string | null;
+    lastSignal: string | null;
+  }
+): TaskAutopilotSummary {
+  const syntheticMission: MissionRecord = {
+    id: planet.id,
+    kind: planet.kind || "general",
+    title: trimText(planet.title, 140) || "Untitled mission",
+    sourceText: planet.sourceText || planet.title,
+    status: planet.status === "archived" ? "done" : planet.status,
+    progress: clampPercentage(planet.progress),
+    currentStageKey: options.currentStageKey ?? undefined,
+    projection: {
+      workflowId: planet.id,
+    },
+    stages: options.currentStageKey
+      ? [
+          {
+            key: options.currentStageKey,
+            label: options.currentStageLabel || options.currentStageKey,
+            status:
+              planet.status === "archived"
+                ? "done"
+                : planet.status === "failed"
+                  ? "failed"
+                  : "running",
+            detail: options.summaryText,
+          },
+        ]
+      : [],
+    summary: options.summaryText,
+    waitingFor: options.waitingFor || undefined,
+    operatorState: "active",
+    operatorActions: [],
+    attempt: 1,
+    createdAt: planet.createdAt,
+    updatedAt: planet.updatedAt,
+    completedAt: planet.completedAt,
+    events: [],
+  };
+
+  const summary = buildAutopilotSummaryFallback(syntheticMission, {
+    currentStageKey: options.currentStageKey,
+    currentStageLabel: options.currentStageLabel,
+    waitingFor: options.waitingFor,
+    summaryText: options.summaryText,
+    lastSignal: options.lastSignal,
+  });
+
+  return {
+    ...summary,
+    source: "client-planet-projection",
+    bindings: {
+      ...summary.bindings,
+      workflowId: planet.id,
+    },
+  };
 }
 
 function timelineLevelForMissionEvent(event: MissionEvent): TimelineLevel {
@@ -822,7 +4014,9 @@ function buildMissionTimeline(
     level: timelineLevelForMissionEvent(event),
     title: titleForMissionEvent(mission, event),
     description: event.message,
-    actor: event.source ? capitalize(event.source.replace(/-/g, " ")) : undefined,
+    actor: event.source
+      ? capitalize(event.source.replace(/-/g, " "))
+      : undefined,
   }));
 
   if (!items.some(item => item.type === "created")) {
@@ -832,7 +4026,9 @@ function buildMissionTimeline(
       time: mission.createdAt,
       level: "info",
       title: "Mission created",
-      description: trimText(mission.sourceText || mission.title, 180) || "Mission created.",
+      description:
+        trimText(mission.sourceText || mission.title, 180) ||
+        "Mission created.",
     });
   }
 
@@ -1035,7 +4231,10 @@ function buildMissionInstanceInfo(
   return [
     { label: "Mission ID", value: mission.id },
     { label: "Runtime", value: "Advanced server runtime" },
-    { label: "Current stage", value: summary.currentStageLabel || "Not started" },
+    {
+      label: "Current stage",
+      value: summary.currentStageLabel || "Not started",
+    },
     { label: "Executor", value: mission.executor?.name || "n/a" },
     { label: "Executor job", value: mission.executor?.jobId || "n/a" },
     { label: "Executor request", value: mission.executor?.requestId || "n/a" },
@@ -1057,11 +4256,15 @@ function buildMissionLogSummary(
     { label: "Event entries", value: formatCount(events.length) },
     {
       label: "Progress signals",
-      value: formatCount(events.filter(event => event.type === "progress").length),
+      value: formatCount(
+        events.filter(event => event.type === "progress").length
+      ),
     },
     {
       label: "Waiting signals",
-      value: formatCount(events.filter(event => event.type === "waiting").length),
+      value: formatCount(
+        events.filter(event => event.type === "waiting").length
+      ),
     },
     {
       label: "Log entries",
@@ -1099,7 +4302,9 @@ export function buildPlanetSummaryRecord(
   ).length;
   const messageCount = messageLog.length;
   const activeAgentCount = mission?.agentCrew
-    ? mission.agentCrew.filter(a => a.status === "working" || a.status === "thinking").length
+    ? mission.agentCrew.filter(
+        a => a.status === "working" || a.status === "thinking"
+      ).length
     : 0;
 
   const failureReasons: string[] = [];
@@ -1113,12 +4318,34 @@ export function buildPlanetSummaryRecord(
 
   const summaryText = mission
     ? missionSummaryText(mission, events, waitingFor)
-    : trimText(planet.summary, 180) || "Mission is progressing through the execution pipeline.";
+    : trimText(planet.summary, 180) ||
+      "Mission is progressing through the execution pipeline.";
 
   const startedAt = mission ? missionStartedAt(mission) : null;
 
   const lastEvent = events[events.length - 1];
   const lastMessage = messageLog[messageLog.length - 1];
+  const lastSignal =
+    trimText(lastEvent?.message, 96) ||
+    trimText(lastMessage?.content, 96) ||
+    currentStageLabel ||
+    null;
+  const autopilotSummary = mission
+    ? buildAutopilotSummary(mission, {
+        currentStageKey,
+        currentStageLabel,
+        waitingFor,
+        summaryText,
+        lastSignal,
+        failureReasons,
+      })
+    : buildPlanetAutopilotSummaryFallback(planet, {
+        summaryText,
+        currentStageKey,
+        currentStageLabel,
+        waitingFor,
+        lastSignal,
+      });
 
   return {
     id: planet.id,
@@ -1126,7 +4353,9 @@ export function buildPlanetSummaryRecord(
     kind: planet.kind || "general",
     sourceText: planet.sourceText || planet.title,
     status: planet.status === "archived" ? "done" : planet.status,
-    operatorState: mission ? missionOperatorStateFromMission(mission) : "active",
+    operatorState: mission
+      ? missionOperatorStateFromMission(mission)
+      : "active",
     workflowStatus: workflowStatusFromMission(
       planet.status === "archived" ? "done" : planet.status
     ),
@@ -1157,11 +4386,8 @@ export function buildPlanetSummaryRecord(
     hasWarnings:
       failureReasons.length > 0 ||
       events.some((event: MissionEvent) => event.level === "warn"),
-    lastSignal:
-      trimText(lastEvent?.message, 96) ||
-      trimText(lastMessage?.content, 96) ||
-      currentStageLabel ||
-      null,
+    lastSignal,
+    autopilotSummary,
   };
 }
 
@@ -1180,6 +4406,17 @@ function buildSummaryRecord(mission: MissionRecord): MissionTaskSummary {
       : null);
   const failureReasons = missionFailureReasons(mission, mission.events);
   const lastEvent = mission.events[mission.events.length - 1];
+  const summaryText = missionSummaryText(mission, mission.events, waitingFor);
+  const lastSignal =
+    trimText(latestOperatorAction?.detail, 96) ||
+    trimText(latestOperatorAction?.reason, 96) ||
+    trimText(lastEvent?.message, 96) ||
+    trimText(
+      mission.messageLog?.[mission.messageLog.length - 1]?.content,
+      96
+    ) ||
+    currentStageLabel ||
+    null;
 
   return {
     id: mission.id,
@@ -1192,7 +4429,7 @@ function buildSummaryRecord(mission: MissionRecord): MissionTaskSummary {
     progress: clampPercentage(mission.progress),
     currentStageKey,
     currentStageLabel,
-    summary: missionSummaryText(mission, mission.events, waitingFor),
+    summary: summaryText,
     waitingFor,
     blocker: mission.blocker ?? null,
     attempt: Math.max(1, mission.attempt ?? 1),
@@ -1201,8 +4438,7 @@ function buildSummaryRecord(mission: MissionRecord): MissionTaskSummary {
     updatedAt: mission.updatedAt,
     startedAt: missionStartedAt(mission),
     completedAt: mission.completedAt || null,
-    departmentLabels:
-      mission.organization?.departments.map(d => d.label) ?? [],
+    departmentLabels: mission.organization?.departments.map(d => d.label) ?? [],
     taskCount: mission.workPackages?.length ?? 0,
     completedTaskCount:
       mission.workPackages?.filter(
@@ -1219,16 +4455,15 @@ function buildSummaryRecord(mission: MissionRecord): MissionTaskSummary {
       failureReasons.length > 0 ||
       operatorState === "blocked" ||
       mission.events.some(e => e.level === "warn"),
-    lastSignal:
-      trimText(latestOperatorAction?.detail, 96) ||
-      trimText(latestOperatorAction?.reason, 96) ||
-      trimText(lastEvent?.message, 96) ||
-      trimText(
-        mission.messageLog?.[mission.messageLog.length - 1]?.content,
-        96
-      ) ||
-      currentStageLabel ||
-      null,
+    lastSignal,
+    autopilotSummary: buildAutopilotSummary(mission, {
+      currentStageKey,
+      currentStageLabel,
+      waitingFor,
+      summaryText,
+      lastSignal,
+      failureReasons,
+    }),
   };
 }
 
@@ -1271,7 +4506,7 @@ function buildNativeInteriorAgents(
     title: "Mission controller",
     status: inferMissionCoreAgentStatus(
       mission.status,
-      missionOperatorStateFromMission(mission),
+      missionOperatorStateFromMission(mission)
     ),
     stageKey: currentStageKey,
     stageLabel: currentStageLabel,
@@ -1336,7 +4571,7 @@ function buildDetailRecord(
     instance: mission.instance,
     missionArtifacts: mission.artifacts,
   };
-}/**
+} /**
  * Build a MissionTaskDetail from the /api/planets/:id/interior response.
  * This is the planet-native counterpart of buildMissionDetailRecord —
  * it derives every field from MissionPlanetInteriorData + MissionRecord,
@@ -1346,9 +4581,10 @@ export function buildPlanetDetailRecord(
   planet: MissionPlanetOverviewItem,
   interior: MissionPlanetInteriorData,
   mission: MissionRecord,
-  missionSocketConnected = false
+  missionSocketConnected = false,
+  summaryOverride?: MissionTaskSummary
 ): MissionTaskDetail {
-  const summary = buildSummaryRecord(mission);
+  const summary = summaryOverride ?? buildPlanetSummaryRecord(planet, mission);
   const events = interior.events ?? [];
 
   // ── stages: MissionPlanetInteriorStage[] → TaskStageRing[] ──
@@ -1357,12 +4593,15 @@ export function buildPlanetDetailRecord(
     label: s.label,
     status: s.status,
     progress: s.progress,
-    detail: s.detail || (
-      s.status === 'done' ? 'Completed'
-        : s.status === 'running' ? 'Live stage'
-        : s.status === 'failed' ? 'Blocked'
-        : 'Queued'
-    ),
+    detail:
+      s.detail ||
+      (s.status === "done"
+        ? "Completed"
+        : s.status === "running"
+          ? "Live stage"
+          : s.status === "failed"
+            ? "Blocked"
+            : "Queued"),
     arcStart: s.arcStart,
     arcEnd: s.arcEnd,
     midAngle: s.midAngle,
@@ -1373,7 +4612,10 @@ export function buildPlanetDetailRecord(
     id: a.id,
     name: a.name,
     role: a.role,
-    department: a.role === 'orchestrator' ? 'Mission' : capitalize(a.stageLabel || a.stageKey),
+    department:
+      a.role === "orchestrator"
+        ? "Mission"
+        : capitalize(a.stageLabel || a.stageKey),
     title: a.currentAction || a.role,
     status: a.status as InteriorAgentStatus,
     stageKey: a.stageKey,
@@ -1426,9 +4668,10 @@ export function buildPlanetDetailRecord(
 /* buildMissionDetailRecord — kept for backward compat, delegates to buildDetailRecord */
 function buildMissionDetailRecord(
   mission: MissionRecord,
-  missionSocketConnected = false
+  missionSocketConnected = false,
+  summaryOverride?: MissionTaskSummary
 ): MissionTaskDetail {
-  const summary = buildSummaryRecord(mission);
+  const summary = summaryOverride ?? buildSummaryRecord(mission);
   const failureReasons = missionFailureReasons(mission, mission.events);
 
   return {
@@ -1528,8 +4771,10 @@ export async function patchMissionRecordInStore(
   );
 
   set(state => {
-    const nextTasks = [...state.tasks.filter(task => task.id !== missionId), summary]
-      .sort((left, right) => right.updatedAt - left.updatedAt);
+    const nextTasks = [
+      ...state.tasks.filter(task => task.id !== missionId),
+      summary,
+    ].sort((left, right) => right.updatedAt - left.updatedAt);
     const nextSelectedTaskId = resolveSelectedTaskId(
       nextTasks,
       state.selectedTaskId,
@@ -1645,15 +4890,14 @@ function ensureMissionSocket(
             ...state.detailsById,
             [payload.missionId]: {
               ...detail,
-              lastSignal: trimText(
-                executorEvent.summary ||
-                  executorEvent.detail ||
-                  executorEvent.message,
-                180
-              ) || detail.lastSignal,
-              waitingFor:
-                executorEvent.waitingFor ||
-                detail.waitingFor,
+              lastSignal:
+                trimText(
+                  executorEvent.summary ||
+                    executorEvent.detail ||
+                    executorEvent.message,
+                  180
+                ) || detail.lastSignal,
+              waitingFor: executorEvent.waitingFor || detail.waitingFor,
               runtimeChannels: applyExecutorEventToRuntimeChannels(
                 detail.runtimeChannels,
                 executorEvent
@@ -1721,7 +4965,10 @@ async function hydrateTaskData(
       await hydratePlanetTaskData(set, get, options);
       return;
     } catch (error) {
-      console.warn("[Tasks] Planet hydration failed, falling back to mission hydration:", error);
+      console.warn(
+        "[Tasks] Planet hydration failed, falling back to mission hydration:",
+        error
+      );
     }
   }
 
@@ -1810,8 +5057,13 @@ async function hydratePlanetTaskData(
   );
 
   const summaries = planets
-    .map((planet: MissionPlanetOverviewItem) => buildPlanetSummaryRecord(planet, missionById.get(planet.id)))
-    .sort((left: MissionTaskSummary, right: MissionTaskSummary) => right.updatedAt - left.updatedAt);
+    .map((planet: MissionPlanetOverviewItem) =>
+      buildPlanetSummaryRecord(planet, missionById.get(planet.id))
+    )
+    .sort(
+      (left: MissionTaskSummary, right: MissionTaskSummary) =>
+        right.updatedAt - left.updatedAt
+    );
 
   const selectedTaskId = resolveSelectedTaskId(
     summaries,
@@ -1820,10 +5072,14 @@ async function hydratePlanetTaskData(
   );
   persistSelectedTaskId(selectedTaskId);
 
+  const summaryById = new Map<string, MissionTaskSummary>(
+    summaries.map(summary => [summary.id, summary])
+  );
   const detailsById: Record<string, MissionTaskDetail> = {};
   for (const planet of planets) {
     const mission = missionById.get(planet.id);
     if (!mission) continue;
+    const summary = summaryById.get(planet.id);
 
     if (planet.id === selectedTaskId) {
       try {
@@ -1832,18 +5088,21 @@ async function hydratePlanetTaskData(
           planet,
           interiorResponse.interior,
           mission,
-          get().missionSocketConnected
+          get().missionSocketConnected,
+          summary
         );
       } catch {
         detailsById[planet.id] = buildMissionDetailRecord(
           mission,
-          get().missionSocketConnected
+          get().missionSocketConnected,
+          summary
         );
       }
     } else {
       detailsById[planet.id] = buildMissionDetailRecord(
         mission,
-        get().missionSocketConnected
+        get().missionSocketConnected,
+        summary
       );
     }
   }
@@ -1988,7 +5247,7 @@ export const useTasksStore = create<TasksStoreState>((set, get) => ({
         const nextSelectedTaskId = resolveSelectedTaskId(
           nextTasks,
           state.selectedTaskId,
-          taskId,
+          taskId
         );
         persistSelectedTaskId(nextSelectedTaskId);
 
@@ -2005,7 +5264,8 @@ export const useTasksStore = create<TasksStoreState>((set, get) => ({
       return response.task.id;
     } catch (error) {
       set({
-        error: error instanceof Error ? error.message : "Failed to cancel mission.",
+        error:
+          error instanceof Error ? error.message : "Failed to cancel mission.",
       });
       throw error;
     } finally {
@@ -2053,7 +5313,7 @@ export const useTasksStore = create<TasksStoreState>((set, get) => ({
         const nextSelectedTaskId = resolveSelectedTaskId(
           nextTasks,
           state.selectedTaskId,
-          taskId,
+          taskId
         );
         persistSelectedTaskId(nextSelectedTaskId);
 
@@ -2123,8 +5383,7 @@ export const useTasksStore = create<TasksStoreState>((set, get) => ({
     const response = await submitMissionDecisionRequest(taskId, {
       optionId: preset.optionId,
       freeText: detail.decisionAllowsFreeText ? note || undefined : undefined,
-      detail:
-        detail.decisionAllowsFreeText !== true && note ? note : undefined,
+      detail: detail.decisionAllowsFreeText !== true && note ? note : undefined,
     });
 
     set(state => ({

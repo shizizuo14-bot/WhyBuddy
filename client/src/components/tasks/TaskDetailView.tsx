@@ -67,6 +67,7 @@ import { RAGDebugPanel } from "@/components/rag/RAGDebugPanel";
 import { EmptyHintBlock } from "./EmptyHintBlock";
 import { DecisionHistory } from "./DecisionHistory";
 import { DecisionPanel } from "./DecisionPanel";
+import { TaskAutopilotPanel } from "./TaskAutopilotPanel";
 import { TaskOperationsHero } from "./TaskOperationsHero";
 import { TaskPlanetInterior } from "./TaskPlanetInterior";
 import {
@@ -1105,6 +1106,7 @@ export function TaskDetailView({
         <DetailTabViewport isDesktop={isDesktop} autoHeight={autoHeight}>
           {showCockpitDecisionSection ? decisionsWorkspace : null}
           <TaskPlanetInterior detail={detail} compact />
+          <TaskAutopilotPanel detail={detail} />
           {sourceDirectivePanel}
           {securitySummaryPanel}
           {detail.tasks.length > 0 ? workPackagesPanel : null}
@@ -1182,6 +1184,7 @@ export function TaskDetailView({
             >
               <TaskPlanetInterior detail={detail} compact={isCockpit} />
               <div className="self-start space-y-3">
+                <TaskAutopilotPanel detail={detail} />
                 {sourceDirectivePanel}
                 {/* RAG Augmentation Info */}
                 <Card className={DETAIL_CARD_CLASS}>

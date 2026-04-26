@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   AlertTriangle,
   CheckCircle2,
@@ -15,6 +15,7 @@ import {
   readWebAigcHitlFieldDefinitions,
   type DecisionType,
   type MissionDecision,
+  type MissionDecisionSubmission,
   type MissionDecisionOption,
   type WebAigcHitlAttachmentValue,
   type WebAigcHitlFieldDefinition,
@@ -64,6 +65,16 @@ type ParamCollectionSubmissionMetadata = {
   interactionId?: string;
   branchKey?: string;
   formData: Record<string, WebAigcHitlFieldValue>;
+};
+
+type RequestInfoSubmission = {
+  optionId?: string;
+  freeText: string;
+};
+
+type DecisionContextNotice = {
+  label: string;
+  detail: string;
 };
 
 export function buildParamCollectionSubmission(
@@ -117,12 +128,345 @@ export function buildParamCollectionSubmission(
   };
 }
 
+export function buildParamCollectionDecisionSubmission(
+  decision: MissionDecision,
+  optionId: string,
+  draft: Record<string, WebAigcHitlFieldValue | undefined>
+): {
+  submission?: MissionDecisionSubmission;
+  fieldErrors: Record<string, string>;
+  error?: string;
+} {
+  const trimmedOptionId = optionId.trim();
+  if (!trimmedOptionId) {
+    return {
+      fieldErrors: {},
+      error: "A submission option is required.",
+    };
+  }
+
+  const paramCollection = buildParamCollectionSubmission(decision, draft);
+  if (paramCollection.error) {
+    return paramCollection;
+  }
+
+  if (!paramCollection.metadata) {
+    return {
+      fieldErrors: {},
+      error: "This decision does not collect structured parameters.",
+    };
+  }
+
+  return {
+    submission: {
+      optionId: trimmedOptionId,
+      metadata: paramCollection.metadata,
+    },
+    fieldErrors: {},
+  };
+}
+
+export function buildRequestInfoSubmission(
+  decision: MissionDecision,
+  freeText: string
+): {
+  submission?: RequestInfoSubmission;
+  error?: string;
+} {
+  const trimmed = freeText.trim();
+  if (!trimmed) {
+    return {
+      error: "Please provide the requested information.",
+    };
+  }
+
+  if (decision.allowFreeText === true) {
+    return {
+      submission: {
+        freeText: trimmed,
+      },
+    };
+  }
+
+  const clarificationOption = decision.options?.find(
+    option => option.requiresComment
+  );
+  if (clarificationOption?.requiresComment) {
+    return {
+      submission: {
+        optionId: clarificationOption.id,
+        freeText: trimmed,
+      },
+    };
+  }
+
+  return {
+    error: "This clarification step does not accept free-text submissions.",
+  };
+}
+
 function t(locale: string, zh: string, en: string) {
   return locale === "zh-CN" ? zh : en;
 }
 
 function resolveDecisionType(decision: MissionDecision): DecisionType {
   return decision.type ?? "custom-action";
+}
+
+function isPayloadRecord(
+  value: MissionDecision["payload"]
+): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function payloadNodeType(decision: MissionDecision): string | null {
+  if (!isPayloadRecord(decision.payload)) {
+    return null;
+  }
+  return typeof decision.payload.nodeType === "string"
+    ? decision.payload.nodeType
+    : null;
+}
+
+function payloadString(
+  decision: MissionDecision,
+  key: string
+): string | null {
+  if (!isPayloadRecord(decision.payload)) {
+    return null;
+  }
+  const value = decision.payload[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function formatTokenLabel(value: string): string {
+  return value
+    .split(/[-_]/)
+    .filter(Boolean)
+    .map(token => `${token.slice(0, 1).toUpperCase()}${token.slice(1)}`)
+    .join(" ");
+}
+
+function localizeNodeType(locale: string, value: string): string {
+  switch (value) {
+    case "param_collection":
+      return t(locale, "参数采集", "Param Collection");
+    case "confirm_judge":
+      return t(locale, "确认判断", "Confirm Judge");
+    case "selection":
+      return t(locale, "选择", "Selection");
+    default:
+      return formatTokenLabel(value);
+  }
+}
+
+function payloadRecordList(
+  decision: MissionDecision,
+  key: string
+): Array<Record<string, unknown>> {
+  if (!isPayloadRecord(decision.payload)) {
+    return [];
+  }
+  const value = decision.payload[key];
+  return Array.isArray(value)
+    ? value.filter(
+        item =>
+          Boolean(item) && typeof item === "object" && !Array.isArray(item)
+      )
+    : [];
+}
+
+function candidateValue(
+  candidate: Record<string, unknown>,
+  key: string
+): string | null {
+  const value = candidate[key];
+  return typeof value === "string" && value.trim() ? value.trim() : null;
+}
+
+function candidateLabel(candidate: Record<string, unknown>): string | null {
+  return (
+    candidateValue(candidate, "label") ||
+    candidateValue(candidate, "title") ||
+    candidateValue(candidate, "optionId") ||
+    candidateValue(candidate, "routeId")
+  );
+}
+
+function candidateRouteId(candidate: Record<string, unknown>): string | null {
+  return (
+    candidateValue(candidate, "routeId") ||
+    candidateValue(candidate, "id") ||
+    candidateValue(candidate, "optionId")
+  );
+}
+
+function buildDecisionContextNotices(
+  decision: MissionDecision,
+  fields: WebAigcHitlFieldDefinition[],
+  locale: string
+): DecisionContextNotice[] {
+  const notices: DecisionContextNotice[] = [];
+  const nodeType = payloadNodeType(decision);
+  const branchKey = payloadString(decision, "branchKey");
+  const sessionId = payloadString(decision, "sessionId");
+  const interactionId = payloadString(decision, "interactionId");
+  const candidates = payloadRecordList(decision, "candidateRoutes");
+  const recommendedRouteId = payloadString(decision, "recommendedRouteId");
+  const recommendedRoute = recommendedRouteId
+    ? candidates.find(candidate => candidateRouteId(candidate) === recommendedRouteId)
+    : null;
+
+  if (nodeType === "confirm_judge") {
+    notices.push({
+      label: t(locale, "节点", "Node"),
+      detail: branchKey
+        ? t(
+            locale,
+            `${localizeNodeType(locale, nodeType)} 将使用 branchKey "${branchKey}" 路由后续分支。`,
+            `${localizeNodeType(locale, nodeType)} routes the next branch with branchKey "${branchKey}".`
+          )
+        : t(
+            locale,
+            `${localizeNodeType(locale, nodeType)} 将根据人工确认结果切换后续分支。`,
+            `${localizeNodeType(locale, nodeType)} will switch the next branch from the human confirmation result.`
+          ),
+    });
+  }
+
+  if (nodeType === "param_collection" && fields.length > 0) {
+    const fieldLabels = fields
+      .map(field => field.label)
+      .filter(Boolean)
+      .slice(0, 3)
+      .join(", ");
+
+    notices.push({
+      label: t(locale, "表单数据", "Form Data"),
+      detail: t(
+        locale,
+        `将提交结构化表单数据${fieldLabels ? `：${fieldLabels}` : ""}。`,
+        `Structured form data will be submitted${fieldLabels ? `: ${fieldLabels}` : ""}.`
+      ),
+    });
+  }
+
+  if (resolveDecisionType(decision) === "request-info" && decision.allowFreeText) {
+    notices.push({
+      label: t(locale, "输入方式", "Input"),
+      detail: t(
+        locale,
+        "当前步骤接受自由文本补充说明。",
+        "This step accepts a free-text clarification response."
+      ),
+    });
+  }
+
+  if (
+    resolveDecisionType(decision) === "multi-choice" &&
+    candidates.length > 0
+  ) {
+    notices.push({
+      label: t(locale, "路线选择", "Route Selection"),
+      detail: recommendedRoute
+        ? t(
+            locale,
+            `推荐路线：${candidateLabel(recommendedRoute) ?? recommendedRouteId ?? ""}。`,
+            `Recommended route: ${candidateLabel(recommendedRoute) ?? recommendedRouteId ?? ""}.`
+          )
+        : t(
+            locale,
+            "当前多选步骤将提交所选路线的结构化元数据。",
+            "This multi-choice step will submit structured metadata for the selected route."
+          ),
+    });
+    notices.push({
+      label: t(locale, "提交语义", "Submission"),
+      detail: t(
+        locale,
+        "会记录所选路线、路线标签、路线 ID；若填写评论，则作为改线原因提交。",
+        "The submission records the selected route option, route label, and route id; any comment is submitted as the route change reason."
+      ),
+    });
+  }
+
+  const metadataRefs = [
+    sessionId ? `${t(locale, "Session", "Session")}: ${sessionId}` : null,
+    interactionId
+      ? `${t(locale, "Interaction", "Interaction")}: ${interactionId}`
+      : null,
+    branchKey ? `${t(locale, "Branch", "Branch")}: ${branchKey}` : null,
+  ].filter(Boolean) as string[];
+
+  if (metadataRefs.length > 0 && nodeType !== "confirm_judge") {
+    notices.push({
+      label: t(locale, "上下文", "Context"),
+      detail: metadataRefs.join(" | "),
+    });
+  }
+
+  return notices;
+}
+
+function snapshotDecisionOption(option: MissionDecisionOption) {
+  return {
+    id: option.id,
+    label: option.label,
+    description: option.description,
+    action: option.action,
+    severity: option.severity,
+    requiresComment: option.requiresComment === true,
+  };
+}
+
+function snapshotDecisionField(field: WebAigcHitlFieldDefinition) {
+  return {
+    key: field.key,
+    label: field.label,
+    type: field.type,
+    required: field.required === true,
+    placeholder: field.placeholder,
+    defaultValue: field.defaultValue,
+    options: field.options?.map(option => ({
+      value: option.value,
+      label: option.label,
+    })),
+  };
+}
+
+export function buildDecisionInteractionKey(
+  decision: MissionDecision
+): string {
+  const payload =
+    decision.payload && typeof decision.payload === "object"
+      ? (decision.payload as Record<string, unknown>)
+      : undefined;
+
+  return JSON.stringify({
+    decisionId:
+      typeof decision.decisionId === "string" ? decision.decisionId : undefined,
+    type: resolveDecisionType(decision),
+    prompt: decision.prompt,
+    placeholder: decision.placeholder,
+    allowFreeText: decision.allowFreeText === true,
+    options: (decision.options ?? []).map(snapshotDecisionOption),
+    payload: {
+      nodeType:
+        typeof payload?.nodeType === "string" ? payload.nodeType : undefined,
+      sessionId:
+        typeof payload?.sessionId === "string" ? payload.sessionId : undefined,
+      nodeId: typeof payload?.nodeId === "string" ? payload.nodeId : undefined,
+      interactionId:
+        typeof payload?.interactionId === "string"
+          ? payload.interactionId
+          : undefined,
+      branchKey:
+        typeof payload?.branchKey === "string" ? payload.branchKey : undefined,
+      fields: readWebAigcHitlFieldDefinitions(decision.payload).map(
+        snapshotDecisionField
+      ),
+    },
+  });
 }
 
 function severityClasses(severity?: "info" | "warn" | "danger"): string {
@@ -243,7 +587,7 @@ function ParamCollectionField({
 }) {
   const fieldLabel = field.required ? `${field.label} *` : field.label;
   const placeholder =
-    field.placeholder || t(locale, "请输入", "Enter a value");
+    field.placeholder || t(locale, "请输入内容", "Enter a value");
 
   if (field.type === "textarea") {
     return (
@@ -356,10 +700,18 @@ function ParamCollectionField({
         kind: "attachment",
       };
 
-      if (normalized === undefined) {
-        delete (nextAttachment as Record<string, unknown>)[key];
+      if (key === "name") {
+        nextAttachment.name =
+          typeof normalized === "string" ? normalized : undefined;
+      } else if (key === "url") {
+        nextAttachment.url =
+          typeof normalized === "string" ? normalized : undefined;
+      } else if (key === "mimeType") {
+        nextAttachment.mimeType =
+          typeof normalized === "string" ? normalized : undefined;
       } else {
-        (nextAttachment as Record<string, unknown>)[key] = normalized;
+        nextAttachment.size =
+          typeof normalized === "number" ? normalized : undefined;
       }
 
       if (!nextAttachment.ref && !nextAttachment.name && !nextAttachment.url) {
@@ -378,7 +730,10 @@ function ParamCollectionField({
             id={`param-field-${field.key}`}
             value={attachmentValue?.ref ?? ""}
             onChange={event => patchAttachmentField("ref", event.target.value)}
-            placeholder={field.placeholder || t(locale, "输入附件引用 ID", "Enter attachment reference")}
+            placeholder={
+              field.placeholder ||
+              t(locale, "输入附件引用 ID", "Enter attachment reference")
+            }
             disabled={disabled}
             aria-invalid={error ? "true" : "false"}
             className="h-10 rounded-[14px] border-[var(--workspace-panel-border)] bg-white/70"
@@ -438,11 +793,13 @@ function OptionCard({
   selected,
   disabled,
   onSelect,
+  locale,
 }: {
   option: MissionDecisionOption;
   selected: boolean;
   disabled: boolean;
   onSelect: (id: string) => void;
+  locale: string;
 }) {
   return (
     <button
@@ -466,6 +823,11 @@ function OptionCard({
           {option.description}
         </div>
       )}
+      {option.requiresComment ? (
+        <div className="mt-2 text-[11px] font-medium opacity-75">
+          {t(locale, "需要评论", "Comment required")}
+        </div>
+      ) : null}
     </button>
   );
 }
@@ -653,6 +1015,7 @@ function MultiChoiceLayout({
               selected={selectedId === option.id}
               disabled={submitting}
               onSelect={setSelectedId}
+              locale={locale}
             />
             {option.requiresComment && selectedId === option.id ? (
               <Textarea
@@ -925,9 +1288,24 @@ export function DecisionPanel({
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [commentTexts, setCommentTexts] = useState<Record<string, string>>({});
-  const paramCollectionFields = readWebAigcHitlFieldDefinitions(decision.payload);
+  const decisionInteractionKey = useMemo(
+    () => buildDecisionInteractionKey(decision),
+    [decision]
+  );
+  const paramCollectionFields = useMemo(
+    () => readWebAigcHitlFieldDefinitions(decision.payload),
+    [decisionInteractionKey]
+  );
+  const initialParamCollectionDraft = useMemo(
+    () => buildInitialParamCollectionDraft(paramCollectionFields),
+    [paramCollectionFields]
+  );
+  const decisionContextNotices = useMemo(
+    () => buildDecisionContextNotices(decision, paramCollectionFields, locale),
+    [decisionInteractionKey, locale, paramCollectionFields]
+  );
   const [paramCollectionDraft, setParamCollectionDraft] = useState<ParamCollectionDraft>(
-    () => buildInitialParamCollectionDraft(paramCollectionFields)
+    () => initialParamCollectionDraft
   );
   const [paramCollectionErrors, setParamCollectionErrors] = useState<
     Record<string, string>
@@ -942,9 +1320,11 @@ export function DecisionPanel({
   const primaryOptionId = options[0]?.id;
 
   useEffect(() => {
-    setParamCollectionDraft(buildInitialParamCollectionDraft(paramCollectionFields));
+    setError(null);
+    setCommentTexts({});
+    setParamCollectionDraft(initialParamCollectionDraft);
     setParamCollectionErrors({});
-  }, [paramCollectionFields]);
+  }, [decisionInteractionKey, initialParamCollectionDraft]);
 
   const handleCommentChange = useCallback((optionId: string, text: string) => {
     setCommentTexts(previous => ({ ...previous, [optionId]: text }));
@@ -982,9 +1362,10 @@ export function DecisionPanel({
         return;
       }
 
-      let metadata:
-        | ParamCollectionSubmissionMetadata
-        | undefined;
+      let submissionRequest: MissionDecisionSubmission = {
+        optionId: optionId.trim(),
+        freeText: freeText?.trim() || undefined,
+      };
       if (isParamCollection) {
         const submission = buildParamCollectionSubmission(
           decision,
@@ -995,18 +1376,31 @@ export function DecisionPanel({
           setError(submission.error);
           return;
         }
-        metadata = submission.metadata;
+        const paramCollectionRequest = buildParamCollectionDecisionSubmission(
+          decision,
+          optionId,
+          paramCollectionDraft
+        );
+        if (!paramCollectionRequest.submission) {
+          setParamCollectionErrors(paramCollectionRequest.fieldErrors);
+          setError(
+            paramCollectionRequest.error ??
+              t(
+                locale,
+                "当前步骤无法提交结构化参数",
+                "This step could not submit the structured parameters"
+              )
+          );
+          return;
+        }
+        submissionRequest = paramCollectionRequest.submission;
       }
 
       setSubmitting(true);
       setError(null);
 
       try {
-        await submitMissionDecision(missionId, {
-          optionId,
-          freeText: freeText?.trim() || undefined,
-          ...(metadata ? { metadata } : {}),
-        });
+        await submitMissionDecision(missionId, submissionRequest);
         onDecisionSubmitted?.();
       } catch (error) {
         setError(
@@ -1019,26 +1413,36 @@ export function DecisionPanel({
       }
     },
     [
-      decision.payload,
+      decision,
       isParamCollection,
       locale,
       missionId,
       onDecisionSubmitted,
       options,
       paramCollectionDraft,
-      paramCollectionFields,
     ]
   );
 
   const handleSubmitFreeText = useCallback(
     async (freeText: string) => {
+      const request = buildRequestInfoSubmission(decision, freeText);
+      if (!request.submission) {
+        setError(
+          request.error ??
+            t(
+              locale,
+              "当前澄清步骤不支持自由文本提交",
+              "This clarification step does not accept free-text submissions"
+            )
+        );
+        return;
+      }
+
       setSubmitting(true);
       setError(null);
 
       try {
-        await submitMissionDecision(missionId, {
-          freeText: freeText.trim(),
-        });
+        await submitMissionDecision(missionId, request.submission);
         onDecisionSubmitted?.();
       } catch (error) {
         setError(
@@ -1050,7 +1454,7 @@ export function DecisionPanel({
         setSubmitting(false);
       }
     },
-    [locale, missionId, onDecisionSubmitted]
+    [decision, locale, missionId, onDecisionSubmitted]
   );
 
   return (
@@ -1078,8 +1482,28 @@ export function DecisionPanel({
       </CardHeader>
 
       <CardContent className="space-y-3 pt-0">
+        {decisionContextNotices.length > 0 ? (
+          <div
+            data-testid="decision-panel-context"
+            className={workspaceCalloutClass(
+              "info",
+              "space-y-2 px-3.5 py-3 text-sm text-stone-700"
+            )}
+          >
+            {decisionContextNotices.map(notice => (
+              <div key={`${notice.label}:${notice.detail}`} className="leading-6">
+                <span className="font-semibold text-stone-900">
+                  {notice.label}:
+                </span>{" "}
+                <span>{notice.detail}</span>
+              </div>
+            ))}
+          </div>
+        ) : null}
+
         {type === "approve" || type === "reject" ? (
           <ApproveRejectLayout
+            key={`approve-reject-${decisionInteractionKey}`}
             options={options}
             submitting={submitting}
             onSubmit={handleSubmit}
@@ -1089,6 +1513,7 @@ export function DecisionPanel({
           />
         ) : type === "multi-choice" ? (
           <MultiChoiceLayout
+            key={`multi-choice-${decisionInteractionKey}`}
             options={options}
             submitting={submitting}
             onSubmit={handleSubmit}
@@ -1098,7 +1523,10 @@ export function DecisionPanel({
           />
         ) : type === "request-info" ? (
           isParamCollection ? (
-            <div className="space-y-4">
+            <div
+              key={`param-collection-${decisionInteractionKey}`}
+              className="space-y-4"
+            >
               <div className="grid gap-3">
                 {paramCollectionFields.map(field => (
                   <ParamCollectionField
@@ -1130,6 +1558,7 @@ export function DecisionPanel({
             </div>
           ) : (
             <RequestInfoLayout
+              key={`request-info-${decisionInteractionKey}`}
               decision={decision}
               submitting={submitting}
               onSubmitFreeText={handleSubmitFreeText}
@@ -1138,6 +1567,7 @@ export function DecisionPanel({
           )
         ) : type === "escalate" ? (
           <EscalateLayout
+            key={`escalate-${decisionInteractionKey}`}
             options={options}
             submitting={submitting}
             onSubmit={handleSubmit}
@@ -1147,6 +1577,7 @@ export function DecisionPanel({
           />
         ) : (
           <CustomActionLayout
+            key={`custom-action-${decisionInteractionKey}`}
             options={options}
             decision={decision}
             submitting={submitting}
@@ -1172,3 +1603,4 @@ export function DecisionPanel({
     </Card>
   );
 }
+
