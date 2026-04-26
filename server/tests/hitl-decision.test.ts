@@ -127,6 +127,72 @@ describe('submitMissionDecision — requiresComment validation', () => {
       expect(result.decision.freeText).toBe('Needs more detail on step 3');
     }
   });
+
+  it('accepts request-info clarification when free text is bound to a comment option', () => {
+    const decision: MissionDecision = {
+      prompt: 'Clarify the delivery scope',
+      type: 'request-info',
+      allowFreeText: false,
+      options: [
+        { id: 'skip', label: 'Skip for now' },
+        {
+          id: 'request-details',
+          label: 'Request details',
+          requiresComment: true,
+        },
+      ],
+      decisionId: 'dec_request_info_comment_1',
+    };
+    const task = makeWaitingTask('task_request_info_comment_1', decision);
+    const runtime = createMockRuntime([task]);
+
+    const result = submitMissionDecision(runtime, 'task_request_info_comment_1', {
+      optionId: 'request-details',
+      freeText: 'Only the CN launch scope is in scope for this run.',
+      submittedBy: 'operator-clarify',
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.decision).toMatchObject({
+        optionId: 'request-details',
+        optionLabel: 'Request details',
+        freeText: 'Only the CN launch scope is in scope for this run.',
+      });
+      expect(result.task.decisionHistory?.at(-1)).toMatchObject({
+        decisionId: 'dec_request_info_comment_1',
+        type: 'request-info',
+        submittedBy: 'operator-clarify',
+        reason: 'Only the CN launch scope is in scope for this run.',
+        resolved: {
+          optionId: 'request-details',
+          optionLabel: 'Request details',
+          freeText: 'Only the CN launch scope is in scope for this run.',
+        },
+      });
+    }
+  });
+
+  it('rejects request-info free-text only submission when allowFreeText is disabled', () => {
+    const decision: MissionDecision = {
+      prompt: 'Clarify the missing data',
+      type: 'request-info',
+      allowFreeText: false,
+      options: [{ id: 'submit', label: 'Submit clarification' }],
+    };
+    const task = makeWaitingTask('task_request_info_no_freetext_1', decision);
+    const runtime = createMockRuntime([task]);
+
+    const result = submitMissionDecision(runtime, 'task_request_info_no_freetext_1', {
+      freeText: 'Need more detail on the target region.',
+    });
+
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.statusCode).toBe(400);
+      expect(result.error).toContain('free text only');
+    }
+  });
 });
 
 describe('submitMissionDecision — decision history append', () => {
@@ -193,6 +259,58 @@ describe('submitMissionDecision — decision history append', () => {
       expect(history).toHaveLength(2);
       expect(history[0].decisionId).toBe('dec_1');
       expect(history[1].decisionId).toBe('dec_2');
+    }
+  });
+
+  it('returns alreadyResolved when idempotentIfNotWaiting is enabled for an already resumed task', () => {
+    const decision: MissionDecision = {
+      prompt: 'Choose direction',
+      options: [
+        { id: 'left', label: 'Go Left' },
+        { id: 'right', label: 'Go Right' },
+      ],
+      type: 'multi-choice',
+      decisionId: 'dec_idempotent_resume_1',
+    };
+    const task = makeWaitingTask('task_idempotent_resume_1', decision);
+    const runtime = createMockRuntime([task]);
+
+    const firstResult = submitMissionDecision(runtime, 'task_idempotent_resume_1', {
+      optionId: 'left',
+      submittedBy: 'operator-idempotent',
+    });
+
+    expect(firstResult.ok).toBe(true);
+    if (!firstResult.ok) {
+      return;
+    }
+
+    const secondResult = submitMissionDecision(
+      runtime,
+      'task_idempotent_resume_1',
+      {
+        optionId: 'left',
+        submittedBy: 'operator-idempotent',
+      },
+      {
+        idempotentIfNotWaiting: true,
+      },
+    );
+
+    expect(secondResult.ok).toBe(true);
+    if (secondResult.ok) {
+      expect(secondResult.alreadyResolved).toBe(true);
+      expect(secondResult.task.status).toBe('running');
+      expect(secondResult.detail).toContain('already processed');
+      expect(secondResult.task.decisionHistory).toHaveLength(1);
+      expect(secondResult.task.decisionHistory?.at(-1)).toMatchObject({
+        decisionId: 'dec_idempotent_resume_1',
+        submittedBy: 'operator-idempotent',
+        resolved: {
+          optionId: 'left',
+          optionLabel: 'Go Left',
+        },
+      });
     }
   });
 
@@ -268,6 +386,107 @@ describe('submitMissionDecision — decision history append', () => {
       const history = result.task.decisionHistory ?? [];
       expect(history).toHaveLength(1);
       expect(history[0].submittedBy).toBe('operator-alice');
+    }
+  });
+
+  it('preserves route-selection semantics in resolved decision metadata and history', () => {
+    const decision: MissionDecision = {
+      prompt: 'Choose the route to continue',
+      options: [
+        { id: 'fast', label: 'Fast route' },
+        { id: 'safe', label: 'Safe route', requiresComment: true },
+      ],
+      type: 'multi-choice',
+      decisionId: 'dec_route_selection_history_1',
+      payload: {
+        candidateRoutes: [
+          {
+            optionId: 'fast',
+            routeId: 'wf-route:fast',
+            label: 'Fast route',
+          },
+          {
+            optionId: 'safe',
+            routeId: 'wf-route:safe',
+            label: 'Safe route',
+          },
+        ],
+        recommendedRouteId: 'wf-route:fast',
+      },
+    };
+    const task = makeWaitingTask('task_route_selection_history_1', decision, {
+      waitingFor: 'route selection',
+    });
+    const runtime = createMockRuntime([task]);
+
+    const result = submitMissionDecision(runtime, 'task_route_selection_history_1', {
+      optionId: 'safe',
+      freeText: 'Need lower risk due to budget approval delay',
+      submittedBy: 'operator-route',
+      metadata: {
+        nodeType: 'selection',
+        nodeId: 'node-route-selection-1',
+        sessionId: 'session-route-selection-1',
+        interactionId: 'interaction-route-selection-1',
+        branchKey: 'branch-route-selection-1',
+      },
+    });
+
+    expect(result.ok).toBe(true);
+    if (result.ok) {
+      expect(result.decision).toMatchObject({
+        optionId: 'safe',
+        optionLabel: 'Safe route',
+        freeText: 'Need lower risk due to budget approval delay',
+        metadata: {
+          nodeType: 'selection',
+          nodeId: 'node-route-selection-1',
+          sessionId: 'session-route-selection-1',
+          interactionId: 'interaction-route-selection-1',
+          branchKey: 'branch-route-selection-1',
+          formData: {
+            selectedRouteOptionId: 'safe',
+            selectedRouteLabel: 'Safe route',
+            selectedRouteId: 'wf-route:safe',
+            recommendedRouteId: 'wf-route:fast',
+            replanRequested: true,
+            changedReason: 'Need lower risk due to budget approval delay',
+          },
+        },
+      });
+
+      expect(result.task.decisionHistory?.at(-1)).toMatchObject({
+        decisionId: 'dec_route_selection_history_1',
+        type: 'multi-choice',
+        submittedBy: 'operator-route',
+        nodeType: 'selection',
+        nodeId: 'node-route-selection-1',
+        sessionId: 'session-route-selection-1',
+        interactionId: 'interaction-route-selection-1',
+        branchKey: 'branch-route-selection-1',
+        reason: 'Need lower risk due to budget approval delay',
+        resolved: {
+          optionId: 'safe',
+          optionLabel: 'Safe route',
+          freeText: 'Need lower risk due to budget approval delay',
+          metadata: {
+            formData: {
+              selectedRouteOptionId: 'safe',
+              selectedRouteLabel: 'Safe route',
+              selectedRouteId: 'wf-route:safe',
+              recommendedRouteId: 'wf-route:fast',
+              replanRequested: true,
+              changedReason: 'Need lower risk due to budget approval delay',
+            },
+          },
+        },
+      });
+      expect(result.task.decisionHistory?.at(-1)?.resolved.metadata?.formData).toMatchObject({
+        selectedRouteId: 'wf-route:safe',
+        recommendedRouteId: 'wf-route:fast',
+        replanRequested: true,
+        changedReason: 'Need lower risk due to budget approval delay',
+      });
     }
   });
 
@@ -598,6 +817,153 @@ describe('API endpoints', () => {
     expect(body.task.decisionHistory.at(-1).branchKey).toBe('branch-a');
   });
 
+  it('POST /api/tasks/:id/decision returns alreadyResolved for duplicate submits after resume', async () => {
+    const task = runtime.createChatTask('Idempotent resume api test');
+    runtime.markMissionRunning(task.id, 'execute', 'Running', 50);
+    runtime.waitOnMission(task.id, 'approval', 'Approve the recovery plan', 50, {
+      prompt: 'Approve the recovery plan?',
+      options: [
+        { id: 'approve', label: 'Approve' },
+        { id: 'revise', label: 'Revise' },
+      ],
+      decisionId: 'dec_api_idempotent_resume_1',
+    });
+
+    const firstResponse = await fetch(`${baseUrl}/api/tasks/${task.id}/decision`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        optionId: 'approve',
+        submittedBy: 'operator-api-idempotent',
+      }),
+    });
+    const firstBody = await firstResponse.json();
+
+    expect(firstResponse.status).toBe(200);
+    expect(firstBody.ok).toBe(true);
+    expect(firstBody.alreadyResolved).toBe(false);
+    expect(firstBody.task.status).toBe('running');
+    expect(firstBody.task.decisionHistory).toHaveLength(1);
+
+    const secondResponse = await fetch(`${baseUrl}/api/tasks/${task.id}/decision`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        optionId: 'approve',
+        submittedBy: 'operator-api-idempotent',
+      }),
+    });
+    const secondBody = await secondResponse.json();
+
+    expect(secondResponse.status).toBe(200);
+    expect(secondBody.ok).toBe(true);
+    expect(secondBody.alreadyResolved).toBe(true);
+    expect(secondBody.detail).toContain('already processed');
+    expect(secondBody.task.status).toBe('running');
+    expect(secondBody.task.decisionHistory).toHaveLength(1);
+    expect(secondBody.task.decisionHistory.at(-1)).toMatchObject({
+      decisionId: 'dec_api_idempotent_resume_1',
+      submittedBy: 'operator-api-idempotent',
+      resolved: {
+        optionId: 'approve',
+        optionLabel: 'Approve',
+      },
+    });
+  });
+
+  it('POST /api/tasks/:id/decision accepts request-info free-text clarification when allowFreeText is enabled', async () => {
+    const task = runtime.createChatTask('Free-text clarification test');
+    runtime.markMissionRunning(task.id, 'execute', 'Running', 50);
+    runtime.waitOnMission(task.id, 'clarify scope', 'Need more detail', 50, {
+      prompt: 'Please clarify the delivery scope',
+      type: 'request-info',
+      allowFreeText: true,
+      placeholder: 'Describe the missing detail',
+      options: [{ id: 'submit', label: 'Submit clarification' }],
+      decisionId: 'dec_request_info_api_1',
+    });
+
+    const response = await fetch(`${baseUrl}/api/tasks/${task.id}/decision`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        freeText: 'Please focus on the CN launch plan and exclude the global rollout.',
+        submittedBy: 'operator-clarify',
+      }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.decision.freeText).toBe(
+      'Please focus on the CN launch plan and exclude the global rollout.',
+    );
+    expect(body.decision.optionId).toBeUndefined();
+    expect(body.decision.optionLabel).toBeUndefined();
+    expect(body.task.status).toBe('running');
+    expect(body.task.decisionHistory).toBeInstanceOf(Array);
+    expect(body.task.decisionHistory.at(-1)).toMatchObject({
+      decisionId: 'dec_request_info_api_1',
+      type: 'request-info',
+      submittedBy: 'operator-clarify',
+      reason: 'Please focus on the CN launch plan and exclude the global rollout.',
+      resolved: {
+        freeText: 'Please focus on the CN launch plan and exclude the global rollout.',
+      },
+    });
+    expect(body.task.decisionHistory.at(-1).resolved.optionId).toBeUndefined();
+  });
+
+  it('POST /api/tasks/:id/decision accepts request-info clarification bound to a comment option', async () => {
+    const task = runtime.createChatTask('Comment-bound clarification test');
+    runtime.markMissionRunning(task.id, 'execute', 'Running', 50);
+    runtime.waitOnMission(task.id, 'clarify scope', 'Need more detail', 50, {
+      prompt: 'Please clarify the delivery scope',
+      type: 'request-info',
+      allowFreeText: false,
+      options: [
+        { id: 'skip', label: 'Skip for now' },
+        {
+          id: 'request-details',
+          label: 'Request details',
+          requiresComment: true,
+        },
+      ],
+      decisionId: 'dec_request_info_api_comment_1',
+    });
+
+    const response = await fetch(`${baseUrl}/api/tasks/${task.id}/decision`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        optionId: 'request-details',
+        freeText: 'Only the CN launch plan is in scope; defer the global rollout.',
+        submittedBy: 'operator-clarify',
+      }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.decision).toMatchObject({
+      optionId: 'request-details',
+      optionLabel: 'Request details',
+      freeText: 'Only the CN launch plan is in scope; defer the global rollout.',
+    });
+    expect(body.task.status).toBe('running');
+    expect(body.task.decisionHistory.at(-1)).toMatchObject({
+      decisionId: 'dec_request_info_api_comment_1',
+      type: 'request-info',
+      submittedBy: 'operator-clarify',
+      reason: 'Only the CN launch plan is in scope; defer the global rollout.',
+      resolved: {
+        optionId: 'request-details',
+        optionLabel: 'Request details',
+        freeText: 'Only the CN launch plan is in scope; defer the global rollout.',
+      },
+    });
+  });
+
   it('POST /api/tasks/:id/decision persists submittedBy to decision history', async () => {
     const task = runtime.createChatTask('Submitted by propagation test');
     runtime.markMissionRunning(task.id, 'execute', 'Running', 50);
@@ -853,6 +1219,116 @@ describe('API endpoints', () => {
         ref: 'artifact-api-1',
         name: 'brief.docx',
         source: 'manual',
+      },
+    });
+  });
+
+  it('POST /api/tasks/:id/decision accepts request-info param_collection submissions and persists history metadata', async () => {
+    const task = runtime.createChatTask('Request-info param collection api test');
+    runtime.markMissionRunning(task.id, 'execute', 'Running', 50);
+    runtime.waitOnMission(task.id, 'clarify inputs', 'Need structured parameters', 50, {
+      prompt: 'Please provide the missing launch parameters',
+      options: [{ id: 'submit', label: 'Submit parameters' }],
+      decisionId: 'dec_request_info_param_api_1',
+      type: 'request-info',
+      payload: {
+        nodeType: 'param_collection',
+        nodeId: 'node-request-param-1',
+        sessionId: 'session-request-param-1',
+        interactionId: 'interaction-request-param-1',
+        branchKey: 'branch-request-param-1',
+        fieldDefinitions: [
+          {
+            key: 'region',
+            label: 'Region',
+            type: 'selection',
+            required: true,
+            options: [
+              { value: 'cn', label: 'CN' },
+              { value: 'global', label: 'Global' },
+            ],
+          },
+          {
+            key: 'priority',
+            label: 'Priority',
+            type: 'number',
+            required: true,
+          },
+          {
+            key: 'attachment',
+            label: 'Attachment',
+            type: 'attachment',
+          },
+        ],
+      },
+    });
+
+    const response = await fetch(`${baseUrl}/api/tasks/${task.id}/decision`, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        optionId: 'submit',
+        submittedBy: 'operator-param-request',
+        metadata: {
+          nodeType: 'param_collection',
+          nodeId: 'node-request-param-1',
+          sessionId: 'session-request-param-1',
+          interactionId: 'interaction-request-param-1',
+          branchKey: 'branch-request-param-1',
+          formData: {
+            region: 'cn',
+            priority: '4',
+            attachment: 'artifact-request-param-1',
+          },
+        },
+      }),
+    });
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(body.task.status).toBe('running');
+    expect(body.decision).toMatchObject({
+      optionId: 'submit',
+      optionLabel: 'Submit parameters',
+      metadata: {
+        nodeType: 'param_collection',
+        nodeId: 'node-request-param-1',
+        sessionId: 'session-request-param-1',
+        interactionId: 'interaction-request-param-1',
+        branchKey: 'branch-request-param-1',
+        formData: {
+          region: 'cn',
+          priority: 4,
+          attachment: {
+            kind: 'attachment',
+            ref: 'artifact-request-param-1',
+          },
+        },
+      },
+    });
+    expect(body.task.decisionHistory.at(-1)).toMatchObject({
+      decisionId: 'dec_request_info_param_api_1',
+      type: 'request-info',
+      submittedBy: 'operator-param-request',
+      nodeId: 'node-request-param-1',
+      sessionId: 'session-request-param-1',
+      nodeType: 'param_collection',
+      interactionId: 'interaction-request-param-1',
+      branchKey: 'branch-request-param-1',
+      resolved: {
+        optionId: 'submit',
+        optionLabel: 'Submit parameters',
+        metadata: {
+          formData: {
+            region: 'cn',
+            priority: 4,
+            attachment: {
+              kind: 'attachment',
+              ref: 'artifact-request-param-1',
+            },
+          },
+        },
       },
     });
   });

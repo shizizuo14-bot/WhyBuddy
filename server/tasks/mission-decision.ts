@@ -101,6 +101,189 @@ export function describeMissionDecisionTimedOut(task: MissionRecord): string {
   return 'Decision window timed out';
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function includesRouteSelectionHint(value: string | undefined): boolean {
+  const raw = value?.trim() || '';
+  if (!raw) return false;
+
+  const normalized = raw.toLowerCase();
+  return (
+    normalized.includes('route') ||
+    normalized.includes('path') ||
+    raw.includes('路线') ||
+    raw.includes('路径') ||
+    raw.includes('路由') ||
+    raw.includes('改线')
+  );
+}
+
+function isRouteSelectionDecision(task: MissionRecord): boolean {
+  const payload = task.decision?.payload;
+  if (isRecord(payload)) {
+    if (Array.isArray(payload.candidateRoutes) || Array.isArray(payload.routeIds)) {
+      return true;
+    }
+    if (
+      typeof payload.recommendedRouteId === 'string' ||
+      typeof payload.selectedRouteId === 'string' ||
+      isRecord(payload.routeMap)
+    ) {
+      return true;
+    }
+  }
+
+  return (
+    includesRouteSelectionHint(task.decision?.prompt) ||
+    includesRouteSelectionHint(task.waitingFor)
+  );
+}
+
+function resolveRouteSelectionId(
+  payload: Record<string, unknown> | undefined,
+  optionId: string,
+  optionLabel: string | undefined,
+): string | undefined {
+  if (!payload) return undefined;
+
+  const routeMap = payload.routeMap;
+  if (isRecord(routeMap)) {
+    const mappedRouteId = routeMap[optionId];
+    if (typeof mappedRouteId === 'string' && mappedRouteId.trim()) {
+      return mappedRouteId.trim();
+    }
+  }
+
+  const candidateRoutes = Array.isArray(payload.candidateRoutes)
+    ? payload.candidateRoutes
+    : [];
+
+  for (const candidate of candidateRoutes) {
+    if (!isRecord(candidate)) continue;
+
+    const candidateOptionId =
+      typeof candidate.optionId === 'string'
+        ? candidate.optionId.trim()
+        : typeof candidate.optionValue === 'string'
+          ? candidate.optionValue.trim()
+          : undefined;
+    const candidateLabel =
+      typeof candidate.optionLabel === 'string'
+        ? candidate.optionLabel.trim()
+        : typeof candidate.label === 'string'
+          ? candidate.label.trim()
+          : undefined;
+    const candidateRouteId =
+      typeof candidate.routeId === 'string'
+        ? candidate.routeId.trim()
+        : typeof candidate.id === 'string'
+          ? candidate.id.trim()
+          : typeof candidate.value === 'string'
+            ? candidate.value.trim()
+            : undefined;
+
+    if (!candidateRouteId) continue;
+    if (candidateOptionId && candidateOptionId === optionId) {
+      return candidateRouteId;
+    }
+    if (optionLabel && candidateLabel && candidateLabel === optionLabel) {
+      return candidateRouteId;
+    }
+  }
+
+  return undefined;
+}
+
+function resolveRecommendedRouteId(
+  payload: Record<string, unknown> | undefined,
+): string | undefined {
+  if (!payload) return undefined;
+
+  if (typeof payload.recommendedRouteId === 'string' && payload.recommendedRouteId.trim()) {
+    return payload.recommendedRouteId.trim();
+  }
+
+  const candidateRoutes = Array.isArray(payload.candidateRoutes)
+    ? payload.candidateRoutes
+    : [];
+
+  for (const candidate of candidateRoutes) {
+    if (!isRecord(candidate) || candidate.recommended !== true) continue;
+
+    const candidateRouteId =
+      typeof candidate.routeId === 'string'
+        ? candidate.routeId.trim()
+        : typeof candidate.id === 'string'
+          ? candidate.id.trim()
+          : typeof candidate.value === 'string'
+            ? candidate.value.trim()
+            : undefined;
+
+    if (candidateRouteId) {
+      return candidateRouteId;
+    }
+  }
+
+  return undefined;
+}
+
+function enrichRouteSelectionMetadata(
+  task: MissionRecord,
+  metadata: MissionDecisionSubmission['metadata'] | undefined,
+  optionId: string | undefined,
+  optionLabel: string | undefined,
+  freeText: string | undefined,
+): MissionDecisionSubmission['metadata'] | undefined {
+  if (!optionId || !isRouteSelectionDecision(task)) {
+    return metadata;
+  }
+
+  // Keep route-choice semantics inside formData so we can preserve them in
+  // resolved/history without widening the shared submission metadata contract.
+  const formData: Record<string, WebAigcHitlFieldValue> = {
+    ...(metadata?.formData ?? {}),
+    selectedRouteOptionId: optionId,
+  };
+
+  if (optionLabel) {
+    formData.selectedRouteLabel = optionLabel;
+  }
+
+  const payload = isRecord(task.decision?.payload) ? task.decision.payload : undefined;
+  const selectedRouteId = resolveRouteSelectionId(
+    payload,
+    optionId,
+    optionLabel,
+  );
+  if (selectedRouteId) {
+    formData.selectedRouteId = selectedRouteId;
+  }
+
+  const recommendedRouteId = resolveRecommendedRouteId(payload);
+  if (recommendedRouteId) {
+    formData.recommendedRouteId = recommendedRouteId;
+  }
+
+  if (freeText) {
+    formData.changedReason = freeText;
+  }
+
+  if (
+    selectedRouteId &&
+    recommendedRouteId &&
+    selectedRouteId !== recommendedRouteId
+  ) {
+    formData.replanRequested = true;
+  }
+
+  return {
+    ...metadata,
+    formData,
+  };
+}
+
 export function submitMissionDecision(
   runtime: MissionDecisionRuntime,
   taskId: string,
@@ -142,23 +325,6 @@ export function submitMissionDecision(
           formData: normalizedFormData.value,
         }
       : metadata;
-
-  const normalizedFormDataSummary = Object.fromEntries(
-    Object.entries(normalizedMetadata?.formData ?? {}).map(([key, value]) => [
-      key,
-      typeof value === 'object' && value !== null && 'kind' in value
-        ? {
-            kind: (value as WebAigcHitlAttachmentValue).kind,
-            ref: (value as WebAigcHitlAttachmentValue).ref,
-            name: (value as WebAigcHitlAttachmentValue).name,
-            url: (value as WebAigcHitlAttachmentValue).url,
-            mimeType: (value as WebAigcHitlAttachmentValue).mimeType,
-            size: (value as WebAigcHitlAttachmentValue).size,
-            source: (value as WebAigcHitlAttachmentValue).source,
-          }
-        : (value as WebAigcHitlFieldValue),
-    ]),
-  );
 
   const decision: MissionDecisionResolved = {
     optionId,
@@ -247,8 +413,31 @@ export function submitMissionDecision(
     optionId: selectedOption?.id,
     optionLabel: selectedOption?.label,
     freeText,
-    metadata: normalizedMetadata,
+    metadata: enrichRouteSelectionMetadata(
+      task,
+      normalizedMetadata,
+      selectedOption?.id,
+      selectedOption?.label,
+      freeText,
+    ),
   };
+
+  const normalizedFormDataSummary = Object.fromEntries(
+    Object.entries(resolvedDecision.metadata?.formData ?? {}).map(([key, value]) => [
+      key,
+      typeof value === 'object' && value !== null && 'kind' in value
+        ? {
+            kind: (value as WebAigcHitlAttachmentValue).kind,
+            ref: (value as WebAigcHitlAttachmentValue).ref,
+            name: (value as WebAigcHitlAttachmentValue).name,
+            url: (value as WebAigcHitlAttachmentValue).url,
+            mimeType: (value as WebAigcHitlAttachmentValue).mimeType,
+            size: (value as WebAigcHitlAttachmentValue).size,
+            source: (value as WebAigcHitlAttachmentValue).source,
+          }
+        : (value as WebAigcHitlFieldValue),
+    ]),
+  );
 
   const detail =
     request.detail?.trim() ||
