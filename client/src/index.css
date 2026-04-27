@@ -47,109 +47,98 @@
   --primary-foreground: oklch(0.98 0 0);
   --sidebar-primary: oklch(0.45 0.08 160);
   --sidebar-primary-foreground: oklch(0.98 0 0);
-  --chart-1: oklch(0.7 0.1 60);
+  --chart-1: oklch(0.65 0.15 250);
   --chart-2: oklch(0.6 0.08 160);
   --chart-3: oklch(0.65 0.12 30);
-  --chart-4: oklch(0.55 0.06 80);
-  --chart-5: oklch(0.5 0.1 40);
-  --radius: 0.75rem;
-  --background: oklch(0.97 0.01 80);
-  --foreground: oklch(0.25 0.03 60);
-  --card: oklch(0.99 0.005 80);
-  --card-foreground: oklch(0.25 0.03 60);
-  --popover: oklch(0.99 0.005 80);
-  --popover-foreground: oklch(0.25 0.03 60);
-  --secondary: oklch(0.95 0.01 80);
-  --secondary-foreground: oklch(0.4 0.03 60);
-  --muted: oklch(0.94 0.01 80);
-  --muted-foreground: oklch(0.55 0.02 60);
-  --accent: oklch(0.94 0.01 80);
-  --accent-foreground: oklch(0.2 0.03 60);
+  --chart-4: oklch(0.55 0.08 290);
+  --chart-5: oklch(0.6 0.1 200);
+  --radius: 0.625rem;
+  --background: oklch(0.98 0 0);
+  --foreground: oklch(0.25 0.02 250);
+  --card: oklch(0.99 0 0);
+  --card-foreground: oklch(0.25 0.02 250);
+  --popover: oklch(0.99 0 0);
+  --popover-foreground: oklch(0.25 0.02 250);
+  --secondary: oklch(0.95 0.003 250);
+  --secondary-foreground: oklch(0.4 0.02 250);
+  --muted: oklch(0.94 0.003 250);
+  --muted-foreground: oklch(0.55 0.01 250);
+  --accent: oklch(0.94 0.003 250);
+  --accent-foreground: oklch(0.2 0.02 250);
   --destructive: oklch(0.58 0.24 27);
   --destructive-foreground: oklch(0.98 0 0);
-  --border: oklch(0.9 0.01 80);
-  --input: oklch(0.9 0.01 80);
+  --border: oklch(0.9 0.003 250);
+  --input: oklch(0.9 0.003 250);
   --ring: oklch(0.45 0.08 160);
-  --sidebar: oklch(0.98 0.005 80);
-  --sidebar-foreground: oklch(0.25 0.03 60);
-  --sidebar-accent: oklch(0.94 0.01 80);
-  --sidebar-accent-foreground: oklch(0.2 0.03 60);
-  --sidebar-border: oklch(0.9 0.01 80);
+  --sidebar: oklch(0.98 0 0);
+  --sidebar-foreground: oklch(0.25 0.02 250);
+  --sidebar-accent: oklch(0.94 0.003 250);
+  --sidebar-accent-foreground: oklch(0.2 0.02 250);
+  --sidebar-border: oklch(0.9 0.003 250);
   --sidebar-ring: oklch(0.45 0.08 160);
 
   /* 毛玻璃背景 */
-  --glass-bg: rgba(255, 255, 255, 0.85);
-  --glass-bg-hover: rgba(255, 255, 255, 0.9);
-  --glass-bg-active: rgba(255, 255, 255, 0.95);
-  --glass-border: rgba(255, 255, 255, 0.5);
-  --glass-border-hover: rgba(255, 255, 255, 0.6);
+  --glass-bg: rgba(248, 250, 252, 0.85);
+  --glass-bg-hover: rgba(248, 250, 252, 0.92);
+  --glass-bg-active: rgba(248, 250, 252, 0.96);
+  --glass-border: rgba(226, 232, 240, 0.5);
+  --glass-border-hover: rgba(226, 232, 240, 0.65);
   --studio-shell-bg: linear-gradient(
     180deg,
-    rgba(255, 248, 241, 0.9),
-    rgba(241, 232, 220, 0.84)
+    rgba(248, 250, 252, 0.92),
+    rgba(241, 245, 249, 0.86)
   );
-  --studio-shell-border: rgba(151, 120, 90, 0.18);
-  --studio-surface-bg: rgba(255, 255, 255, 0.42);
-  --studio-surface-strong: rgba(255, 255, 255, 0.58);
-  --studio-surface-border: rgba(255, 255, 255, 0.48);
-  --studio-ink: #4a3727;
-  --studio-ink-soft: #7d6856;
-  --studio-accent: #c98257;
-  --studio-accent-strong: #b86f45;
+  --studio-shell-border: rgba(148, 163, 184, 0.18);
+  --studio-surface-bg: rgba(248, 250, 252, 0.42);
+  --studio-surface-strong: rgba(248, 250, 252, 0.58);
+  --studio-surface-border: rgba(226, 232, 240, 0.48);
+  --studio-ink: #1e293b;
+  --studio-ink-soft: #64748b;
+  --studio-accent: #3b82f6;
+  --studio-accent-strong: #2563eb;
   --studio-sage: #5e8b72;
   --studio-sage-strong: #456b58;
   --studio-plum: #836a88;
   --studio-sky: #87afc7;
-  --workspace-page-bg:
-    radial-gradient(
-      circle at top left,
-      rgba(94, 139, 114, 0.16),
-      transparent 26%
-    ),
-    radial-gradient(
-      circle at bottom right,
-      rgba(201, 130, 87, 0.18),
-      transparent 28%
-    ),
-    linear-gradient(180deg, #fffdf8 0%, #f3ebdf 52%, #efe4d6 100%);
+  --workspace-page-bg: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 52%, #e2e8f0 100%);
   --workspace-shell-bg: linear-gradient(
     180deg,
-    rgba(255, 250, 244, 0.94),
-    rgba(243, 234, 222, 0.9)
+    rgba(248, 250, 252, 0.94),
+    rgba(241, 245, 249, 0.9)
   );
-  --workspace-shell-border: rgba(156, 123, 94, 0.18);
+  --workspace-shell-border: rgba(148, 163, 184, 0.18);
   --workspace-panel-bg: linear-gradient(
     180deg,
-    rgba(255, 252, 248, 0.4),
-    rgba(246, 238, 229, 0.3)
+    rgba(248, 250, 252, 0.4),
+    rgba(241, 245, 249, 0.3)
   );
   --workspace-panel-strong-bg: linear-gradient(
     180deg,
-    rgba(255, 253, 250, 0.5),
-    rgba(245, 236, 226, 0.4)
+    rgba(248, 250, 252, 0.5),
+    rgba(241, 245, 249, 0.4)
   );
-  --workspace-panel-inset-bg: rgba(255, 255, 255, 0.52);
-  --workspace-panel-border: rgba(174, 146, 120, 0.22);
+  --workspace-panel-inset-bg: rgba(248, 250, 252, 0.52);
+  --workspace-panel-border: rgba(148, 163, 184, 0.22);
   --workspace-panel-shadow:
-    0 22px 56px rgba(88, 61, 39, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.48);
+    0 22px 56px rgba(15, 23, 42, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.48);
   --workspace-panel-shadow-soft:
-    0 14px 34px rgba(88, 61, 39, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.42);
-  --workspace-control-bg: rgba(255, 255, 255, 0.72);
-  --workspace-control-bg-hover: rgba(255, 255, 255, 0.9);
-  --workspace-control-border: rgba(171, 141, 111, 0.22);
-  --workspace-control-text: #4a3727;
-  --workspace-text-strong: #3a2a1a;
-  --workspace-text: #4a3727;
-  --workspace-text-muted: #7d6856;
-  --workspace-text-subtle: #a08972;
-  --workspace-info: #5b89a5;
-  --workspace-info-soft: rgba(91, 137, 165, 0.14);
-  --workspace-success: #5e8b72;
-  --workspace-success-soft: rgba(94, 139, 114, 0.14);
-  --workspace-warning: #c98257;
-  --workspace-warning-soft: rgba(201, 130, 87, 0.16);
-  --workspace-danger: #b45d4d;
-  --workspace-danger-soft: rgba(180, 93, 77, 0.14);
+    0 14px 34px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.42);
+  --workspace-control-bg: rgba(248, 250, 252, 0.72);
+  --workspace-control-bg-hover: rgba(248, 250, 252, 0.92);
+  --workspace-control-border: rgba(148, 163, 184, 0.22);
+  --workspace-control-text: #1e293b;
+  --workspace-text-strong: #0f172a;
+  --workspace-text: #1e293b;
+  --workspace-text-muted: #64748b;
+  --workspace-text-subtle: #94a3b8;
+  --workspace-info: #0284c7;
+  --workspace-info-soft: rgba(2, 132, 199, 0.1);
+  --workspace-success: #16a34a;
+  --workspace-success-soft: rgba(22, 163, 74, 0.1);
+  --workspace-warning: #d97706;
+  --workspace-warning-soft: rgba(217, 119, 6, 0.1);
+  --workspace-danger: #dc2626;
+  --workspace-danger-soft: rgba(220, 38, 38, 0.1);
 
   /* 发光色 */
   --glow-cyan: rgba(6, 182, 212, 0.5);
@@ -169,6 +158,29 @@
   --font-display: "Space Grotesk", system-ui, sans-serif;
   --font-mono: "JetBrains Mono", "Fira Code", monospace;
   --font-body: "DM Sans", system-ui, sans-serif;
+}
+
+.dark {
+  /* 暗色模式令牌占位 — 当前不主动使用，仅保留结构 */
+  --background: oklch(0.15 0 0);
+  --foreground: oklch(0.93 0 0);
+  --card: oklch(0.18 0 0);
+  --card-foreground: oklch(0.93 0 0);
+  --popover: oklch(0.18 0 0);
+  --popover-foreground: oklch(0.93 0 0);
+  --primary: oklch(0.55 0.08 160);
+  --primary-foreground: oklch(0.15 0 0);
+  --secondary: oklch(0.22 0.003 250);
+  --secondary-foreground: oklch(0.85 0 0);
+  --muted: oklch(0.22 0.003 250);
+  --muted-foreground: oklch(0.6 0.01 250);
+  --accent: oklch(0.22 0.003 250);
+  --accent-foreground: oklch(0.93 0 0);
+  --destructive: oklch(0.55 0.22 27);
+  --destructive-foreground: oklch(0.98 0 0);
+  --border: oklch(0.28 0.003 250);
+  --input: oklch(0.28 0.003 250);
+  --ring: oklch(0.55 0.08 160);
 }
 
 @layer base {
@@ -248,14 +260,14 @@
 .glass-panel {
   background: linear-gradient(
     180deg,
-    rgba(255, 250, 245, 0.54),
-    rgba(244, 235, 224, 0.46)
+    rgba(248, 250, 252, 0.54),
+    rgba(241, 245, 249, 0.46)
   );
   backdrop-filter: blur(24px) saturate(1.18);
   -webkit-backdrop-filter: blur(24px) saturate(1.18);
   border: 1px solid rgba(255, 255, 255, 0.42);
   box-shadow:
-    0 12px 36px rgba(84, 59, 37, 0.12),
+    0 12px 36px rgba(15, 23, 42, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.42);
   color: var(--studio-ink);
 }
@@ -263,14 +275,14 @@
 .glass-panel-strong {
   background: linear-gradient(
     180deg,
-    rgba(255, 250, 244, 0.94),
-    rgba(244, 236, 226, 0.88)
+    rgba(248, 250, 252, 0.94),
+    rgba(241, 245, 249, 0.88)
   );
   backdrop-filter: blur(40px) saturate(1.35);
   -webkit-backdrop-filter: blur(40px) saturate(1.35);
   border: 1px solid rgba(255, 255, 255, 0.56);
   box-shadow:
-    0 18px 48px rgba(84, 59, 37, 0.14),
+    0 18px 48px rgba(15, 23, 42, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.56);
   color: var(--studio-ink);
 }
@@ -358,7 +370,7 @@
   background: var(--studio-shell-bg);
   border: 1px solid var(--studio-shell-border);
   box-shadow:
-    0 20px 56px rgba(88, 61, 39, 0.16),
+    0 20px 56px rgba(15, 23, 42, 0.12),
     inset 0 1px 0 rgba(255, 255, 255, 0.42);
   backdrop-filter: blur(26px) saturate(1.08);
   -webkit-backdrop-filter: blur(26px) saturate(1.08);
@@ -369,7 +381,7 @@
   background: var(--studio-surface-bg);
   border: 1px solid var(--studio-surface-border);
   box-shadow:
-    0 10px 28px rgba(88, 61, 39, 0.08),
+    0 10px 28px rgba(15, 23, 42, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.36);
   backdrop-filter: blur(16px) saturate(1.02);
   -webkit-backdrop-filter: blur(16px) saturate(1.02);
@@ -380,7 +392,7 @@
   background: var(--studio-surface-strong);
   border: 1px solid rgba(255, 255, 255, 0.58);
   box-shadow:
-    0 14px 34px rgba(88, 61, 39, 0.1),
+    0 14px 34px rgba(15, 23, 42, 0.07),
     inset 0 1px 0 rgba(255, 255, 255, 0.42);
   backdrop-filter: blur(18px) saturate(1.04);
   -webkit-backdrop-filter: blur(18px) saturate(1.04);
@@ -389,13 +401,13 @@
 
 .studio-input {
   background: rgba(255, 255, 255, 0.56);
-  border: 1px solid rgba(168, 139, 113, 0.2);
+  border: 1px solid rgba(148, 163, 184, 0.2);
   color: var(--studio-ink);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35);
 }
 
 .studio-input::placeholder {
-  color: rgba(125, 104, 86, 0.62);
+  color: rgba(100, 116, 139, 0.62);
 }
 
 .studio-input:focus {
@@ -408,7 +420,7 @@
 
 .studio-badge {
   background: rgba(255, 255, 255, 0.52);
-  border: 1px solid rgba(170, 142, 115, 0.2);
+  border: 1px solid rgba(148, 163, 184, 0.2);
   color: var(--studio-ink-soft);
 }
 
@@ -421,7 +433,7 @@
   background: var(--workspace-shell-bg);
   border: 1px solid var(--workspace-shell-border);
   box-shadow:
-    0 24px 64px rgba(88, 61, 39, 0.14),
+    0 24px 64px rgba(15, 23, 42, 0.1),
     inset 0 1px 0 rgba(255, 255, 255, 0.52);
   backdrop-filter: blur(28px) saturate(1.08);
   -webkit-backdrop-filter: blur(28px) saturate(1.08);
@@ -479,7 +491,7 @@
 
 .workspace-control:hover {
   background: var(--workspace-control-bg-hover);
-  border-color: rgba(151, 120, 90, 0.32);
+  border-color: rgba(148, 163, 184, 0.32);
 }
 
 .workspace-control:focus-visible {
@@ -518,15 +530,15 @@
 .workspace-tone-neutral {
   border-style: solid;
   border-width: 1px;
-  border-color: rgba(171, 141, 111, 0.2);
-  background: rgba(255, 255, 255, 0.68);
+  border-color: rgba(148, 163, 184, 0.2);
+  background: rgba(248, 250, 252, 0.68);
   color: var(--workspace-text-muted);
 }
 
 .workspace-tone-info {
   border-style: solid;
   border-width: 1px;
-  border-color: rgba(91, 137, 165, 0.24);
+  border-color: rgba(2, 132, 199, 0.24);
   background: var(--workspace-info-soft);
   color: var(--workspace-info);
 }
@@ -534,7 +546,7 @@
 .workspace-tone-success {
   border-style: solid;
   border-width: 1px;
-  border-color: rgba(94, 139, 114, 0.24);
+  border-color: rgba(22, 163, 74, 0.24);
   background: var(--workspace-success-soft);
   color: var(--workspace-success);
 }
@@ -542,7 +554,7 @@
 .workspace-tone-warning {
   border-style: solid;
   border-width: 1px;
-  border-color: rgba(201, 130, 87, 0.24);
+  border-color: rgba(217, 119, 6, 0.24);
   background: var(--workspace-warning-soft);
   color: var(--workspace-warning);
 }
@@ -550,14 +562,14 @@
 .workspace-tone-danger {
   border-style: solid;
   border-width: 1px;
-  border-color: rgba(180, 93, 77, 0.24);
+  border-color: rgba(220, 38, 38, 0.24);
   background: var(--workspace-danger-soft);
   color: var(--workspace-danger);
 }
 
 .workspace-pill {
-  background: rgba(255, 255, 255, 0.56);
-  border: 1px solid rgba(171, 141, 111, 0.18);
+  background: rgba(248, 250, 252, 0.56);
+  border: 1px solid rgba(148, 163, 184, 0.18);
   color: var(--workspace-text-muted);
   transition:
     background 180ms ease,
@@ -567,7 +579,7 @@
 }
 
 .workspace-pill:hover {
-  background: rgba(255, 255, 255, 0.76);
+  background: rgba(248, 250, 252, 0.76);
   color: var(--workspace-text-strong);
 }
 
@@ -579,7 +591,7 @@
   );
   border-color: rgba(69, 107, 88, 0.3);
   box-shadow: 0 10px 24px rgba(94, 139, 114, 0.24);
-  color: #fff9f4;
+  color: #ffffff;
 }
 
 .workspace-badge {
@@ -588,32 +600,32 @@
   gap: 0.4rem;
   border-radius: 999px;
   border: 1px solid var(--workspace-panel-border);
-  background: rgba(255, 255, 255, 0.54);
+  background: rgba(248, 250, 252, 0.54);
   padding: 0.35rem 0.75rem;
   color: var(--workspace-text-muted);
 }
 
 .workspace-badge[data-tone="info"] {
   background: var(--workspace-info-soft);
-  border-color: rgba(91, 137, 165, 0.24);
+  border-color: rgba(2, 132, 199, 0.24);
   color: var(--workspace-info);
 }
 
 .workspace-badge[data-tone="success"] {
   background: var(--workspace-success-soft);
-  border-color: rgba(94, 139, 114, 0.24);
+  border-color: rgba(22, 163, 74, 0.24);
   color: var(--workspace-success);
 }
 
 .workspace-badge[data-tone="warning"] {
   background: var(--workspace-warning-soft);
-  border-color: rgba(201, 130, 87, 0.24);
+  border-color: rgba(217, 119, 6, 0.24);
   color: var(--workspace-warning);
 }
 
 .workspace-badge[data-tone="danger"] {
   background: var(--workspace-danger-soft);
-  border-color: rgba(180, 93, 77, 0.24);
+  border-color: rgba(220, 38, 38, 0.24);
   color: var(--workspace-danger);
 }
 
@@ -638,12 +650,12 @@
 .workflow-studio .glass-panel {
   background: linear-gradient(
     180deg,
-    rgba(255, 250, 245, 0.74),
-    rgba(243, 234, 223, 0.68)
+    rgba(248, 250, 252, 0.74),
+    rgba(241, 245, 249, 0.68)
   );
-  border: 1px solid rgba(171, 141, 111, 0.18);
+  border: 1px solid rgba(148, 163, 184, 0.18);
   box-shadow:
-    0 12px 30px rgba(88, 61, 39, 0.08),
+    0 12px 30px rgba(15, 23, 42, 0.06),
     inset 0 1px 0 rgba(255, 255, 255, 0.42);
   color: var(--studio-ink);
 }
@@ -651,13 +663,13 @@
 .workflow-studio .text-white,
 .workflow-studio .text-white\/90,
 .workflow-studio .text-white\/80 {
-  color: #4a3727;
+  color: #1e293b;
 }
 
 .workflow-studio .text-white\/60,
 .workflow-studio .text-white\/50,
 .workflow-studio .text-white\/40 {
-  color: #7d6856;
+  color: #64748b;
 }
 
 .workflow-studio .bg-white\/5,
@@ -668,20 +680,20 @@
 }
 
 .workflow-studio .border-white\/10 {
-  border-color: rgba(171, 141, 111, 0.16);
+  border-color: rgba(148, 163, 184, 0.16);
 }
 
 .workflow-studio input,
 .workflow-studio textarea,
 .workflow-studio select {
   background: rgba(255, 255, 255, 0.58);
-  border-color: rgba(171, 141, 111, 0.2);
+  border-color: rgba(148, 163, 184, 0.2);
   color: var(--studio-ink);
 }
 
 .workflow-studio input::placeholder,
 .workflow-studio textarea::placeholder {
-  color: rgba(125, 104, 86, 0.62);
+  color: rgba(100, 116, 139, 0.62);
 }
 
 .workflow-studio input:focus,
@@ -703,7 +715,7 @@
 .workflow-studio .hover\:text-white\/60:hover,
 .workflow-studio .hover\:text-white\/80:hover,
 .workflow-studio .hover\:text-white:hover {
-  color: #4a3727;
+  color: #1e293b;
 }
 
 .office-cockpit-splitter {
@@ -743,10 +755,10 @@
   height: 34px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.86);
-  color: #9c6b47;
+  color: #64748b;
   box-shadow:
-    0 0 0 1px rgba(201, 130, 87, 0.18),
-    0 10px 24px rgba(88, 61, 39, 0.14);
+    0 0 0 1px rgba(148, 163, 184, 0.18),
+    0 10px 24px rgba(15, 23, 42, 0.1);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -757,7 +769,7 @@
 .office-cockpit-splitter.ant-splitter
   > .ant-splitter-bar
   .ant-splitter-bar-collapse-bar:active {
-  background: rgba(255, 248, 241, 0.96);
+  background: rgba(248, 250, 252, 0.96);
   color: #5e8b72;
 }
 
@@ -810,10 +822,10 @@
   height: 18px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.94);
-  color: #9c6b47;
+  color: #64748b;
   box-shadow:
-    0 0 0 1px rgba(201, 130, 87, 0.18),
-    0 10px 24px rgba(88, 61, 39, 0.14);
+    0 0 0 1px rgba(148, 163, 184, 0.18),
+    0 10px 24px rgba(15, 23, 42, 0.1);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
 }
@@ -824,7 +836,7 @@
 .launch-clarification-splitter.ant-splitter
   > .ant-splitter-bar
   .ant-splitter-bar-collapse-bar:active {
-  background: rgba(255, 248, 241, 0.98);
+  background: rgba(248, 250, 252, 0.98);
   color: #5e8b72;
 }
 
