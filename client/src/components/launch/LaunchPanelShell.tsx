@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { AnimatePresence, motion } from "framer-motion";
-import { X } from "lucide-react";
+import { RefreshCw, MoreHorizontal, X } from "lucide-react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 
@@ -293,8 +293,8 @@ export function LaunchPanelShell({
               transition={{ duration: 0.25, ease: "easeOut" }}
               className={cn(
                 "flex w-full flex-col overflow-hidden border shadow-lg",
-                // Desktop: centered, max 720px
-                "md:max-w-[720px] md:max-h-[85vh] md:rounded-xl",
+                // Desktop: centered, max 760px
+                "md:max-w-[760px] md:max-h-[calc(100vh-120px)] md:rounded-xl",
                 // Tablet: centered, max 90vw
                 "max-md:max-w-[90vw]",
                 // Mobile: bottom sheet
@@ -321,28 +321,59 @@ export function LaunchPanelShell({
                     className="text-sm font-semibold"
                     style={{ color: "var(--card-foreground, #0f172a)" }}
                   >
-                    {t(locale, "任务自动驾驶", "Task Autopilot Control")}
+                    {t(locale, "任务自动驾驶", "Task Autopilot")}
+                    <span
+                      className="ml-2 text-xs font-normal"
+                      style={{ color: "var(--muted-foreground, #64748b)" }}
+                    >
+                      Autopilot Control
+                    </span>
                   </h2>
                   <p
-                    className="text-xs"
+                    className="mt-0.5 text-xs"
                     style={{ color: "var(--muted-foreground, #64748b)" }}
                   >
                     {t(
                       locale,
-                      "输入目标，选择模式，启动任务",
-                      "Enter your goal, choose a mode, and launch"
+                      "让系统帮你自主规划、执行与验证，完成复杂任务",
+                      "Let the system autonomously plan, execute and verify complex tasks"
                     )}
                   </p>
                 </div>
-                <button
-                  type="button"
-                  onClick={onClose}
-                  className="rounded-md p-1 transition-colors hover:bg-black/5"
-                  aria-label={t(locale, "关闭面板", "Close panel")}
-                  data-testid="launch-panel-close"
-                >
-                  <X size={18} style={{ color: "var(--muted-foreground, #64748b)" }} />
-                </button>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    className="flex items-center gap-1 rounded-md border px-2 py-1 text-xs transition-colors hover:bg-black/5"
+                    style={{
+                      borderColor: "var(--border, #e2e8f0)",
+                      color: "var(--muted-foreground, #64748b)",
+                    }}
+                    data-testid="launch-panel-refresh"
+                  >
+                    <RefreshCw size={12} />
+                    {t(locale, "刷新", "Refresh")}
+                  </button>
+                  <button
+                    type="button"
+                    className="flex items-center justify-center rounded-md border p-1 transition-colors hover:bg-black/5"
+                    style={{
+                      borderColor: "var(--border, #e2e8f0)",
+                      color: "var(--muted-foreground, #64748b)",
+                    }}
+                    data-testid="launch-panel-more"
+                  >
+                    <MoreHorizontal size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={onClose}
+                    className="rounded-md p-1 transition-colors hover:bg-black/5"
+                    aria-label={t(locale, "关闭面板", "Close panel")}
+                    data-testid="launch-panel-close"
+                  >
+                    <X size={18} style={{ color: "var(--muted-foreground, #64748b)" }} />
+                  </button>
+                </div>
               </div>
 
               {/* Mode Tab Bar */}

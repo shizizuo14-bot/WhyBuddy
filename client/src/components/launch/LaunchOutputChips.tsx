@@ -33,11 +33,17 @@ export function LaunchOutputChips({
   return (
     <div data-testid="launch-output-chips">
       <h3
-        className="mb-2 text-xs font-semibold uppercase tracking-wider"
+        className="mb-1 text-xs font-semibold uppercase tracking-wider"
         style={{ color: "var(--muted-foreground, #64748b)" }}
       >
-        {t(locale, "输出与交付", "Output & Delivery")}
+        📦 {t(locale, "输出与交付", "Output & Delivery")}
       </h3>
+      <p
+        className="mb-3 text-[11px]"
+        style={{ color: "var(--muted-foreground, #64748b)" }}
+      >
+        {t(locale, "任务完成后，系统将按照勾选的格式来归档和呈现验证过的证据。", "After completion, the system archives and presents verified evidence in selected formats.")}
+      </p>
       <div className="flex flex-wrap gap-2">
         {OUTPUT_TYPES.map(outputType => {
           const isSelected = selectedTypes.has(outputType.id);
