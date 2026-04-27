@@ -178,6 +178,21 @@
 
 ## 左侧“目标与路线栏”定义
 
+### 0. Route Planning Overlay 挂载边界（2026-04-26）
+
+`RoutePlanningOverlay` 属于“进入驾驶舱前后的路线确认层”，不是三栏 cockpit 内长期常驻的第四栏。
+
+挂载关系应按生命周期区分：
+
+| 阶段 | 挂载位置 | 与三栏 cockpit 的关系 | 关闭/转交条件 |
+| ---- | ---- | ---- | ---- |
+| Launch 规划期 | launch composer 之上的 modal / overlay | 暂时覆盖 cockpit shell，用于比较候选路线、选择路线、恢复推荐和确认执行 | 用户取消、提交失败、或确认路线并创建/启动任务 |
+| 任务已创建但未锁定路线 | cockpit shell 内可短暂打开 overlay | 左栏 Route Card 仍展示当前摘要，overlay 负责完整候选比较和确认 | route selection 写入 projection 后回落到左栏 Route Card |
+| 执行期重规划 | 从左栏 Route Card 或右栏 Takeover Panel 触发 overlay / sheet | 不允许静默改写中栏执行态；必须展示接管原因和 evidence 影响 | 产生 `route.replanned` / `route.selected` 等事件后回落三栏 |
+| 移动端 | bottom sheet / segmented route sheet | 不新增独立页面心智，仍服务于 Destination / Route 对象 | 确认或取消后回到分段 cockpit |
+
+因此，三栏 cockpit 的常驻信息结构保持不变：左栏承载 Route Card / Route Progress / Risk & Deviation Summary，overlay 只在需要“完整候选比较或改线确认”时临时挂载。overlay 关闭后，权威显示必须回到 `autopilotSummary.route.*`，而不是继续依赖 overlay 的局部选择状态。
+
 ### 1. Destination Card
 
 `Destination Card` 统一承载：
