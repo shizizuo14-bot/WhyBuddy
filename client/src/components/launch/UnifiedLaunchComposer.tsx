@@ -114,7 +114,9 @@ export interface UnifiedWorkflowResolution extends WorkflowLaunchResult {
   requestedAt: number;
 }
 
-function getPreviewConfidenceClass(confidence: LaunchDestinationPreview["confidence"]) {
+function getPreviewConfidenceClass(
+  confidence: LaunchDestinationPreview["confidence"]
+) {
   if (confidence === "high") {
     return "border-emerald-200 bg-emerald-50 text-emerald-700";
   }
@@ -163,13 +165,7 @@ function getMissingFieldLabel(
   }
 }
 
-function PreviewValue({
-  label,
-  value,
-}: {
-  label: string;
-  value: string;
-}) {
+function PreviewValue({ label, value }: { label: string; value: string }) {
   return (
     <div className="rounded-[12px] border border-white/80 bg-white/64 px-2 py-1.5">
       <div className="text-[8px] font-bold uppercase tracking-[0.16em] text-stone-400">
@@ -687,6 +683,7 @@ export function UnifiedLaunchComposer({
         submitLabel={submitLabel}
         sendingLabel={submitLabel}
         hideSubmitButton
+        clearOnSubmit={false}
       />
 
       {!hasDraftDestination ? (

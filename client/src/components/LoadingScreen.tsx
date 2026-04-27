@@ -1,158 +1,272 @@
-import { useI18n } from '@/i18n';
-import { useAppStore } from '@/lib/store';
+import type { CSSProperties } from "react";
 
-const PIXEL_SIZE = 8;
-const PIXEL_PET_CELLS = [
-  { x: 3, y: 0, color: '#D6A16F' },
-  { x: 6, y: 0, color: '#D6A16F' },
-  { x: 2, y: 1, color: '#D6A16F' },
-  { x: 3, y: 1, color: '#D6A16F' },
-  { x: 4, y: 1, color: '#D6A16F' },
-  { x: 5, y: 1, color: '#D6A16F' },
-  { x: 6, y: 1, color: '#D6A16F' },
-  { x: 7, y: 1, color: '#D6A16F' },
-  { x: 2, y: 2, color: '#D6A16F' },
-  { x: 3, y: 2, color: '#E4B788' },
-  { x: 4, y: 2, color: '#E4B788' },
-  { x: 5, y: 2, color: '#E4B788' },
-  { x: 6, y: 2, color: '#E4B788' },
-  { x: 7, y: 2, color: '#D6A16F' },
-  { x: 1, y: 3, color: '#D6A16F' },
-  { x: 2, y: 3, color: '#E4B788' },
-  { x: 3, y: 3, color: '#EBC49B' },
-  { x: 4, y: 3, color: '#EBC49B' },
-  { x: 5, y: 3, color: '#EBC49B' },
-  { x: 6, y: 3, color: '#EBC49B' },
-  { x: 7, y: 3, color: '#E4B788' },
-  { x: 8, y: 3, color: '#D6A16F' },
-  { x: 1, y: 4, color: '#D6A16F' },
-  { x: 2, y: 4, color: '#E4B788' },
-  { x: 3, y: 4, color: '#EBC49B' },
-  { x: 4, y: 4, color: '#FFFFFF' },
-  { x: 5, y: 4, color: '#EBC49B' },
-  { x: 6, y: 4, color: '#FFFFFF' },
-  { x: 7, y: 4, color: '#EBC49B' },
-  { x: 8, y: 4, color: '#D6A16F' },
-  { x: 1, y: 5, color: '#D6A16F' },
-  { x: 2, y: 5, color: '#E4B788' },
-  { x: 3, y: 5, color: '#EBC49B' },
-  { x: 4, y: 5, color: '#3E2B1D' },
-  { x: 5, y: 5, color: '#EBC49B' },
-  { x: 6, y: 5, color: '#3E2B1D' },
-  { x: 7, y: 5, color: '#EBC49B' },
-  { x: 8, y: 5, color: '#D6A16F' },
-  { x: 1, y: 6, color: '#D6A16F' },
-  { x: 2, y: 6, color: '#E4B788' },
-  { x: 3, y: 6, color: '#EBC49B' },
-  { x: 4, y: 6, color: '#EBC49B' },
-  { x: 5, y: 6, color: '#EBC49B' },
-  { x: 6, y: 6, color: '#EBC49B' },
-  { x: 7, y: 6, color: '#EBC49B' },
-  { x: 8, y: 6, color: '#D6A16F' },
-  { x: 2, y: 7, color: '#D6A16F' },
-  { x: 3, y: 7, color: '#E4B788' },
-  { x: 4, y: 7, color: '#EBC49B' },
-  { x: 5, y: 7, color: '#EBC49B' },
-  { x: 6, y: 7, color: '#E4B788' },
-  { x: 7, y: 7, color: '#D6A16F' },
-  { x: 3, y: 8, color: '#D6A16F' },
-  { x: 4, y: 8, color: '#6D4B32' },
-  { x: 5, y: 8, color: '#6D4B32' },
-  { x: 6, y: 8, color: '#D6A16F' },
-];
+import { useI18n } from "@/i18n";
+import { useAppStore } from "@/lib/store";
+
+const RAIL_STEPS = ["INIT", "SYNC", "CONFIG", "FINALIZE"] as const;
+
+const BACKDROP_BLOCKS = [
+  "left-[6%] top-[18%] h-3 w-3 bg-[#ef3340]",
+  "left-[14%] top-[58%] h-5 w-5 bg-white/80",
+  "left-[22%] top-[30%] h-2 w-2 bg-[#8f9baa]",
+  "left-[27%] top-[76%] h-4 w-4 bg-[#d7a36a]",
+  "right-[10%] top-[24%] h-3 w-3 bg-[#8f9baa]",
+  "right-[19%] top-[44%] h-2.5 w-2.5 bg-[#ef3340]",
+  "right-[25%] top-[70%] h-5 w-5 bg-white/70",
+  "right-[7%] top-[64%] h-3 w-3 bg-[#d7a36a]",
+] as const;
+
+/* Geometric logo removed – using inline SVG instead */
+
+const CHINESE_COPY = {
+  title: "\u6b63\u5728\u914d\u7f6e\u4e66\u623f",
+  subtitle:
+    "\u5c0f\u5ba0\u7269\u4eec\u6b63\u5728\u642c\u5bb6\u5177\uff0c\u9a6c\u4e0a\u5c31\u7eea",
+  progress:
+    "\u6b63\u5728\u540c\u6b65\u4e66\u623f\u5e03\u5c40\u4e0e\u88c5\u9970\u6570\u636e...",
+};
+
+const ENGLISH_COPY = {
+  title: "Configuring the study",
+  subtitle: "The cube pets are moving furniture. Almost ready",
+  progress: "Syncing study layout and decoration data...",
+};
+
+function clampProgress(progress: number): number {
+  if (!Number.isFinite(progress)) return 0;
+  return Math.max(0, Math.min(100, Math.round(progress)));
+}
+
+function PixelField() {
+  return (
+    <div
+      className="pointer-events-none absolute inset-0 overflow-hidden"
+      data-testid="loading-pixel-field"
+    >
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(28,42,62,0.075)_1px,transparent_1px),linear-gradient(90deg,rgba(28,42,62,0.075)_1px,transparent_1px)] bg-[size:28px_28px]" />
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(255,255,255,0.6)_0%,rgba(255,255,255,0.2)_45%,rgba(211,218,226,0.4)_100%)]" />
+      <div className="absolute left-[9%] top-[34%] h-36 w-36 opacity-[0.45]">
+        {Array.from({ length: 24 }).map((_, index) => (
+          <span
+            key={index}
+            className="absolute border border-white/80 bg-white/[0.55] shadow-[0_8px_20px_rgba(35,48,66,0.08)]"
+            style={{
+              left: (index % 6) * 18 + Math.abs(3 - (index % 6)) * 2,
+              top: Math.floor(index / 6) * 18 + (index % 2) * 3,
+              width: 15,
+              height: 15,
+            }}
+          />
+        ))}
+      </div>
+      <div className="absolute right-[11%] top-[38%] h-40 w-40 opacity-[0.4]">
+        {Array.from({ length: 28 }).map((_, index) => (
+          <span
+            key={index}
+            className="absolute border border-white/80 bg-white/[0.5] shadow-[0_8px_20px_rgba(35,48,66,0.08)]"
+            style={{
+              left: (index % 7) * 18,
+              top: Math.floor(index / 7) * 18 + Math.abs(3 - (index % 7)) * 2,
+              width: 15,
+              height: 15,
+            }}
+          />
+        ))}
+      </div>
+      {BACKDROP_BLOCKS.map(className => (
+        <span
+          key={className}
+          className={`absolute rounded-[2px] shadow-[0_8px_18px_rgba(35,48,66,0.12)] ${className}`}
+        />
+      ))}
+      <span className="absolute left-[17%] top-[24%] h-7 w-7 rounded-full border-[6px] border-[#d7a36a]/80" />
+      <span className="absolute right-[16%] top-[22%] h-7 w-7 rounded-full border-[6px] border-[#ef3340]/80" />
+      <span className="absolute bottom-[16%] left-[19%] h-2 w-8 rotate-45 rounded-full bg-[#8f9baa]/70" />
+      <span className="absolute bottom-[19%] right-[22%] h-2 w-8 -rotate-45 rounded-full bg-[#ef3340]/55" />
+    </div>
+  );
+}
+
+function LoadingStatusRail() {
+  return (
+    <aside
+      className="relative flex min-h-[360px] flex-col justify-between overflow-hidden rounded-[30px] border border-white/70 bg-[#eef2f6]/[0.78] px-5 py-6 text-left shadow-[inset_0_1px_0_rgba(255,255,255,0.82)] lg:min-h-[510px] lg:rounded-l-[38px] lg:rounded-r-[24px]"
+      data-testid="loading-status-rail"
+    >
+      <div>
+        <p className="font-data text-[11px] font-black uppercase tracking-[0.32em] text-[#26364a]">
+          SYSTEM
+        </p>
+        <div className="mt-3 inline-flex items-center gap-2 rounded-full border border-[#d9dfe6] bg-white/75 px-3 py-1.5 font-data text-[10px] font-black uppercase tracking-[0.24em] text-[#ef3340]">
+          <span className="h-2 w-2 rounded-full bg-[#ef3340] shadow-[0_0_0_4px_rgba(239,51,64,0.12)]" />
+          ONLINE
+        </div>
+      </div>
+
+      <div className="relative my-8 pl-4">
+        <span className="absolute left-[21px] top-3 h-[calc(100%-24px)] w-px bg-[#cfd6de]" />
+        <div className="flex flex-col gap-7">
+          {RAIL_STEPS.map((step, index) => (
+            <div key={step} className="relative flex items-center gap-4">
+              <span
+                className={`relative z-10 h-3.5 w-3.5 rounded-sm border-2 ${
+                  index < 3
+                    ? "border-[#ef3340] bg-[#ef3340]"
+                    : "border-[#9da8b5] bg-white"
+                }`}
+              />
+              <span
+                className={`font-data text-[11px] font-black uppercase tracking-[0.26em] ${
+                  index < 3 ? "text-[#26364a]" : "text-[#8f9baa]"
+                }`}
+              >
+                {step}
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      <p className="font-data text-[10px] font-black uppercase tracking-[0.28em] text-[#7a8695]">
+        VER. 1.0.0
+      </p>
+    </aside>
+  );
+}
+
+/**
+ * Geometric logo — three isometric cubes stacked in an L-shape.
+ * Pure SVG, cool blue-grey palette with warm accent.
+ */
+function SimpleLoadingLogo() {
+  return (
+    <div
+      aria-label="CUBE PETS OFFICE"
+      className="relative mx-auto flex h-[170px] w-full max-w-[340px] items-center justify-center sm:h-[200px]"
+      data-testid="loading-simple-logo"
+    >
+      <svg
+        viewBox="0 0 120 120"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        className="h-[130px] w-[130px] drop-shadow-[0_16px_40px_rgba(35,48,66,0.18)] sm:h-[150px] sm:w-[150px]"
+      >
+        {/* ── bottom-left cube ── */}
+        <g>
+          <path d="M20 58 L40 46 L60 58 L40 70Z" fill="#dfe5eb" />
+          <path d="M20 58 L40 70 L40 94 L20 82Z" fill="#8f9baa" />
+          <path d="M60 58 L40 70 L40 94 L60 82Z" fill="#b0bac5" />
+        </g>
+
+        {/* ── bottom-right cube ── */}
+        <g>
+          <path d="M60 58 L80 46 L100 58 L80 70Z" fill="#cbd3dc" />
+          <path d="M60 58 L80 70 L80 94 L60 82Z" fill="#8f9baa" />
+          <path d="M100 58 L80 70 L80 94 L100 82Z" fill="#a3adb8" />
+        </g>
+
+        {/* ── top cube (stacked, warm accent) ── */}
+        <g>
+          <path d="M40 34 L60 22 L80 34 L60 46Z" fill="#ef3340" />
+          <path d="M40 34 L60 46 L60 70 L40 58Z" fill="#c42a34" />
+          <path d="M80 34 L60 46 L60 70 L80 58Z" fill="#d93040" />
+        </g>
+      </svg>
+    </div>
+  );
+}
+
+function CubeMark({ size = 16 }: { size?: number }) {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 20 20"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      width={size}
+      height={size}
+      className="shrink-0"
+    >
+      <path d="M10 2 L18 10 L10 18 L2 10Z" fill="#8f9baa" />
+      <path d="M10 2 L18 10 L10 10Z" fill="#ef3340" />
+      <path d="M10 10 L18 10 L10 18Z" fill="#b0bac5" />
+    </svg>
+  );
+}
 
 export function LoadingScreen() {
   const loadingProgress = useAppStore(state => state.loadingProgress);
-  const { copy } = useI18n();
+  const { locale } = useI18n();
+  const progress = clampProgress(loadingProgress);
+  const copy = locale === "zh-CN" ? CHINESE_COPY : ENGLISH_COPY;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center overflow-hidden bg-[radial-gradient(circle_at_top,#0a1628_0%,#0d1f3c_38%,#060e1a_100%)] px-6 text-center">
-      <div className="pointer-events-none absolute inset-0 opacity-60">
-        <div className="absolute inset-0 bg-[linear-gradient(rgba(6,182,212,0.06)_1px,transparent_1px),linear-gradient(90deg,rgba(6,182,212,0.06)_1px,transparent_1px)] bg-[size:22px_22px]" />
-        <div className="absolute left-[16%] top-[18%] h-28 w-28 rounded-full bg-cyan-500/20 blur-3xl" />
-        <div className="absolute right-[18%] top-[26%] h-36 w-36 rounded-full bg-blue-500/15 blur-3xl" />
-        <div className="absolute bottom-[18%] left-[22%] h-32 w-32 rounded-full bg-purple-500/12 blur-3xl" />
-        <div className="absolute bottom-[16%] right-[24%] h-24 w-24 rounded-full bg-cyan-400/16 blur-3xl" />
-      </div>
+    <div
+      className="fixed inset-0 z-[100] flex min-h-[100svh] items-center justify-center overflow-hidden bg-[#eef2f5] px-4 py-6 text-center text-[#132238] sm:px-6 lg:py-8"
+      data-testid="loading-screen"
+    >
+      <PixelField />
 
-      <div className="glass-panel relative w-full max-w-[420px] rounded-[36px] px-7 py-8">
-        <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/30 to-transparent" />
-
-        <div className="relative mx-auto mb-7 flex h-32 w-32 items-center justify-center">
-          <div className="absolute inset-4 rounded-[28px] bg-cyan-500/10 blur-2xl" />
-          <div
-            className="glass-panel relative h-[92px] w-[92px] rounded-[24px]"
-            style={{ animation: 'petFloat 1.8s ease-in-out infinite' }}
-          >
-            <div
-              className="absolute left-1/2 top-1/2 h-[72px] w-[72px] -translate-x-1/2 -translate-y-1/2"
-              style={{ imageRendering: 'pixelated' }}
-            >
-              {PIXEL_PET_CELLS.map((cell, index) => (
-                <span
-                  key={`${cell.x}-${cell.y}-${index}`}
-                  className="absolute"
-                  style={{
-                    left: `${cell.x * PIXEL_SIZE}px`,
-                    top: `${cell.y * PIXEL_SIZE}px`,
-                    width: `${PIXEL_SIZE}px`,
-                    height: `${PIXEL_SIZE}px`,
-                    backgroundColor: cell.color,
-                    boxShadow: 'inset 0 1px 0 rgba(255,255,255,0.18)',
-                  }}
-                />
-              ))}
-            </div>
-          </div>
-
-          <div
-            className="absolute bottom-1 left-1/2 h-4 w-20 -translate-x-1/2 rounded-full bg-cyan-500/20 blur-md"
-            style={{ animation: 'shadowPulse 1.8s ease-in-out infinite' }}
-          />
-        </div>
-
-        <div className="glass-panel mx-auto mb-2 inline-flex items-center gap-2 rounded-full px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.28em] text-cyan-300/80">
-          <span className="h-2 w-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(6,182,212,0.6)]" />
-          Loading Pod
-        </div>
-
-        <h2
-          className="mb-2 text-[28px] font-bold text-white/90"
-          style={{ fontFamily: 'var(--font-display)' }}
+      <main className="relative z-10 flex w-full max-w-[1120px] flex-col items-center">
+        <section
+          className="grid w-full gap-4 overflow-hidden rounded-[34px] border border-white/90 bg-[linear-gradient(145deg,rgba(255,255,255,0.92),rgba(242,246,249,0.78))] p-4 shadow-[0_30px_90px_rgba(35,48,66,0.16),inset_0_1px_0_rgba(255,255,255,0.95)] backdrop-blur-xl lg:grid-cols-[152px_minmax(0,1fr)] lg:gap-5 lg:rounded-[44px] lg:p-5"
+          data-testid="loading-wide-card"
         >
-          {copy.loading.title}
-        </h2>
-        <p className="mb-6 text-sm leading-6 text-white/50">
-          {copy.loading.description(Math.round(loadingProgress))}
-        </p>
+          <LoadingStatusRail />
 
-        <div className="glass-panel rounded-[24px] p-3">
-          <div className="mb-2 flex items-center justify-between text-[11px] font-semibold text-cyan-300/70 font-data">
-            <span>PIXEL SYNC</span>
-            <span>{Math.round(loadingProgress)}%</span>
-          </div>
-          <div className="relative h-3 overflow-hidden rounded-full bg-white/10">
-            <div className="absolute inset-y-0 left-0 w-full bg-[linear-gradient(90deg,rgba(255,255,255,0.06)_25%,transparent_25%,transparent_50%,rgba(255,255,255,0.06)_50%,rgba(255,255,255,0.06)_75%,transparent_75%,transparent)] bg-[length:18px_18px] opacity-50" />
-            <div
-              className="relative h-full rounded-full bg-[linear-gradient(90deg,#06b6d4_0%,#3b82f6_55%,#8b5cf6_100%)] transition-all duration-300 ease-out"
-              style={{ width: `${loadingProgress}%` }}
-            >
-              <div className="absolute inset-0 bg-[linear-gradient(90deg,transparent,rgba(255,255,255,0.25),transparent)] opacity-70" />
+          <div className="relative overflow-hidden rounded-[28px] border border-white/70 bg-white/[0.58] px-5 pb-6 pt-6 shadow-[inset_0_1px_0_rgba(255,255,255,0.86)] sm:px-8 sm:pb-8 lg:min-h-[510px] lg:px-10 lg:pb-9 lg:pt-8">
+            <span className="absolute left-6 top-6 h-2 w-2 rounded-sm bg-[#ef3340]" />
+            <span className="absolute right-10 top-10 h-3 w-3 rounded-sm bg-[#d7a36a]" />
+            <span className="absolute right-[18%] top-[19%] h-2 w-2 rounded-sm bg-[#8f9baa]" />
+
+            <SimpleLoadingLogo />
+
+            <div className="mx-auto mt-1 max-w-[760px]">
+              <h1 className="text-[clamp(2.4rem,7vw,5.55rem)] font-black leading-[0.95] tracking-[0.01em] text-[#132238]">
+                {copy.title}
+              </h1>
+              <p className="mt-4 text-[clamp(1rem,2vw,1.5rem)] font-medium leading-8 text-[#7a8695]">
+                {copy.subtitle}
+              </p>
+
+              <div className="mt-6 flex justify-center gap-3">
+                <span className="h-2.5 w-2.5 rounded-full bg-[#6f7d8b]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#ef3340]" />
+                <span className="h-2.5 w-2.5 rounded-full bg-[#d3dae2]" />
+              </div>
+
+              <div
+                className="mx-auto mt-7 max-w-[690px] rounded-[24px] border border-[#d9dfe6] bg-white/[0.78] p-4 text-left shadow-[0_18px_44px_rgba(35,48,66,0.1),inset_0_1px_0_rgba(255,255,255,0.88)] sm:p-5"
+                style={
+                  { "--loading-progress": `${progress}%` } as CSSProperties
+                }
+              >
+                <div className="mb-4 flex items-center justify-between gap-4 font-data text-[12px] font-black uppercase tracking-[0.3em] text-[#4f5d6d] sm:text-sm">
+                  <span>PIXEL SYNC</span>
+                  <span className="tracking-normal text-[#ef3340]">
+                    {progress}%
+                  </span>
+                </div>
+                <div className="relative h-5 overflow-hidden rounded-full bg-[#d9dfe6] shadow-[inset_0_2px_5px_rgba(31,48,70,0.14)]">
+                  <div
+                    className="h-full rounded-full bg-[linear-gradient(90deg,#ef3340_0%,#f0522f_55%,#f5a524_100%)] shadow-[0_9px_18px_rgba(239,51,64,0.3),inset_0_1px_0_rgba(255,255,255,0.26)] transition-[width] duration-300 ease-out"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                <p className="mt-3 text-center text-sm font-semibold leading-6 text-[#7a8695]">
+                  {copy.progress}
+                </p>
+              </div>
             </div>
           </div>
-        </div>
-      </div>
+        </section>
 
-      <style>{`
-        @keyframes petFloat {
-          0%, 100% { transform: translateY(0); }
-          50% { transform: translateY(-8px); }
-        }
-        @keyframes shadowPulse {
-          0%, 100% { transform: translateX(-50%) scaleX(1); opacity: 0.24; }
-          50% { transform: translateX(-50%) scaleX(0.78); opacity: 0.12; }
-        }
-      `}</style>
+        <footer className="mt-7 flex max-w-full items-center justify-center gap-4 font-data text-[11px] font-black uppercase tracking-[0.44em] text-[#4c5a69] sm:text-sm sm:tracking-[0.58em]">
+          <CubeMark />
+          <span>CUBE PETS OFFICE</span>
+          <CubeMark />
+        </footer>
+      </main>
     </div>
   );
 }

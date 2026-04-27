@@ -242,7 +242,9 @@ function findCandidate(
   candidateId: LaunchRouteCandidateId | null | undefined
 ): LaunchRouteCandidate | null {
   if (!candidateId) return null;
-  return routePlan.candidates.find(candidate => candidate.id === candidateId) ?? null;
+  return (
+    routePlan.candidates.find(candidate => candidate.id === candidateId) ?? null
+  );
 }
 
 function RouteCandidateCard({
@@ -391,6 +393,165 @@ function RouteComparisonView({
   );
 }
 
+type LaunchFleetRoleId = "planner" | "coordinator" | "operator" | "reviewer";
+
+function buildFleetPreviewRoles(candidate: LaunchRouteCandidate | null): Array<{
+  id: LaunchFleetRoleId;
+  title: string;
+  detail: string;
+  state: string;
+}> {
+  const hasRoute = Boolean(candidate?.stages.includes("route"));
+  const hasFleet = Boolean(candidate?.stages.includes("fleet"));
+  const hasExecution = Boolean(candidate?.stages.includes("execution"));
+  const hasReview = Boolean(candidate?.stages.includes("review"));
+  const hasRouteTakeover = Boolean(
+    candidate?.takeoverPoints.includes("route-selection")
+  );
+  const hasFinalReview = Boolean(
+    candidate?.takeoverPoints.includes("final-review")
+  );
+
+  return [
+    {
+      id: "planner",
+      title: "Planner",
+      detail: hasRoute
+        ? "Turns the destination into a route and stage sequence."
+        : "Waits for enough destination detail before routing.",
+      state: hasRouteTakeover ? "Route handoff" : "Planning",
+    },
+    {
+      id: "coordinator",
+      title: "Coordinator",
+      detail: hasFleet
+        ? "Forms the fleet and assigns work lanes before execution."
+        : "Keeps the route lightweight for direct execution.",
+      state: hasFleet ? "Fleet forming" : "Lightweight",
+    },
+    {
+      id: "operator",
+      title: "Operator",
+      detail: hasExecution
+        ? "Runs the selected route and keeps progress visible."
+        : "Waits until route details are ready.",
+      state: hasExecution ? "Execution ready" : "Waiting",
+    },
+    {
+      id: "reviewer",
+      title: "Reviewer",
+      detail: hasReview
+        ? "Reviews outputs, evidence, and final acceptance."
+        : "Keeps evidence checkpoints for the final handoff.",
+      state: hasFinalReview ? "Final review" : "Evidence watch",
+    },
+  ];
+}
+
+function localizeFleetRole(
+  locale: string,
+  role: ReturnType<typeof buildFleetPreviewRoles>[number]
+) {
+  if (locale !== "zh-CN") {
+    return role;
+  }
+
+  const titles: Record<LaunchFleetRoleId, string> = {
+    planner: "规划员",
+    coordinator: "协调员",
+    operator: "执行员",
+    reviewer: "审阅员",
+  };
+  const details: Record<LaunchFleetRoleId, string> = {
+    planner: "把目的地转换成路线和阶段顺序。",
+    coordinator: "组织编队并分配执行泳道。",
+    operator: "按已选路线推进并保持进度可见。",
+    reviewer: "审阅输出、证据和最终验收。",
+  };
+  const states: Partial<Record<string, string>> = {
+    "Route handoff": "路线交接",
+    Planning: "规划中",
+    "Fleet forming": "编队成形",
+    Lightweight: "轻量执行",
+    "Execution ready": "可执行",
+    Waiting: "等待中",
+    "Final review": "最终审阅",
+    "Evidence watch": "证据观察",
+  };
+
+  return {
+    ...role,
+    title: titles[role.id],
+    detail: details[role.id],
+    state: states[role.state] ?? role.state,
+  };
+}
+
+function LaunchFleetPreview({
+  candidate,
+  locale,
+}: {
+  candidate: LaunchRouteCandidate | null;
+  locale: string;
+}) {
+  const roles = buildFleetPreviewRoles(candidate).map(role =>
+    localizeFleetRole(locale, role)
+  );
+  const stageCount = candidate?.stages.length ?? 0;
+  const takeoverCount = candidate?.takeoverPoints.length ?? 0;
+
+  return (
+    <div
+      className="mt-2 rounded-[14px] border border-[#d8e6dd]/80 bg-[linear-gradient(135deg,rgba(247,253,249,0.86),rgba(255,250,244,0.76))] px-2 py-2"
+      data-testid="launch-fleet-preview"
+    >
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div>
+          <div className="text-[10px] font-bold uppercase tracking-[0.18em] text-[#267064]">
+            {t(locale, "编队执行", "Fleet execution")}
+          </div>
+          <div className="mt-0.5 text-[9px] leading-4 text-stone-600">
+            {t(
+              locale,
+              "路线确认前先看编队会怎样分工，避免输入后只停留在引导态。",
+              "Preview how the fleet will split work before route confirmation."
+            )}
+          </div>
+        </div>
+        <span className="rounded-full border border-[#d8e6dd] bg-white/78 px-2 py-0.5 text-[9px] font-semibold text-[#267064]">
+          {t(
+            locale,
+            `阶段 ${stageCount} / 接管 ${takeoverCount}`,
+            `${stageCount} stages / ${takeoverCount} takeover`
+          )}
+        </span>
+      </div>
+
+      <div className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-2 xl:grid-cols-4">
+        {roles.map(role => (
+          <div
+            key={role.id}
+            className="rounded-[12px] border border-white/80 bg-white/70 px-2 py-1.5"
+            data-testid={`launch-fleet-role-${role.id}`}
+          >
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-[10px] font-bold text-stone-800">
+                {role.title}
+              </span>
+              <span className="rounded-full bg-[#f7fdf9] px-1.5 py-0.5 text-[8px] font-semibold text-[#267064]">
+                {role.state}
+              </span>
+            </div>
+            <div className="mt-1 text-[9px] leading-3 text-stone-500">
+              {role.detail}
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export interface RoutePlanningOverlayProps {
   routePlan: LaunchRoutePlan;
   selectedRouteId: LaunchRouteCandidateId | null;
@@ -439,7 +600,9 @@ export function RoutePlanningOverlay({
       )}
       data-bottom-dock-safe="true"
       data-bottom-dock-clearance={
-        isBottomSheet ? "var(--autopilot-bottom-dock-clearance,180px)" : "panel-contained"
+        isBottomSheet
+          ? "var(--autopilot-bottom-dock-clearance,180px)"
+          : "panel-contained"
       }
       data-motion="route-plan-stagger-reveal"
       data-reduced-motion="route-plan-static"
@@ -496,6 +659,11 @@ export function RoutePlanningOverlay({
           />
         ))}
       </div>
+
+      <LaunchFleetPreview
+        candidate={selectedCandidate ?? null}
+        locale={locale}
+      />
 
       <RouteComparisonView
         routePlan={routePlan}

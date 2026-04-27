@@ -47,7 +47,14 @@ function makeRoutePlan(): LaunchRoutePlan {
     makeCandidate("standard-route", {
       mode: "standard",
       recommended: true,
-      stages: ["destination", "route", "fleet", "execution", "review", "evidence"],
+      stages: [
+        "destination",
+        "route",
+        "fleet",
+        "execution",
+        "review",
+        "evidence",
+      ],
       takeoverPoints: ["route-selection", "final-review"],
     }),
     makeCandidate("deep-route", {
@@ -56,7 +63,14 @@ function makeRoutePlan(): LaunchRoutePlan {
       routeOverride: "workflow",
       available: false,
       disabledReason: "requires_runtime_upgrade",
-      stages: ["destination", "route", "fleet", "execution", "review", "evidence"],
+      stages: [
+        "destination",
+        "route",
+        "fleet",
+        "execution",
+        "review",
+        "evidence",
+      ],
       takeoverPoints: ["route-selection", "runtime-upgrade", "final-review"],
     }),
   ];
@@ -165,6 +179,24 @@ describe("RoutePlanningOverlay", () => {
     expect(markup).toContain("Selected route: Fastest route");
     expect(markup).toContain("Takeover points 1");
     expect(markup).toContain("Stages 4");
+  });
+
+  it("renders a fleet execution preview for the selected route", () => {
+    const markup = renderToStaticMarkup(
+      <RoutePlanningOverlay
+        routePlan={makeRoutePlan()}
+        selectedRouteId="standard-route"
+        locale="en-US"
+        onSelect={() => {}}
+      />
+    );
+
+    expect(markup).toContain('data-testid="launch-fleet-preview"');
+    expect(markup).toContain("Fleet execution");
+    expect(markup).toContain('data-testid="launch-fleet-role-planner"');
+    expect(markup).toContain('data-testid="launch-fleet-role-coordinator"');
+    expect(markup).toContain('data-testid="launch-fleet-role-operator"');
+    expect(markup).toContain('data-testid="launch-fleet-role-reviewer"');
   });
 
   it("renders horizontal comparison metrics for route candidates", () => {
@@ -283,7 +315,9 @@ describe("RoutePlanningOverlay", () => {
     );
     expect(markup).toContain("env(safe-area-inset-bottom)");
     expect(markup).toContain("overscroll-contain");
-    expect(markup).toContain('data-testid="route-planning-bottom-sheet-handle"');
+    expect(markup).toContain(
+      'data-testid="route-planning-bottom-sheet-handle"'
+    );
     expect(markup).toContain('data-bottom-sheet-actions="sticky"');
     expect(markup).toContain("Confirm route and execute");
   });

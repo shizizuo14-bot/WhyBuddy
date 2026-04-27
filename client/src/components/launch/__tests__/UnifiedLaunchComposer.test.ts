@@ -1,4 +1,42 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { renderToStaticMarkup } from "react-dom/server";
+import { createElement } from "react";
+
+const { appState, nlCommandState } = vi.hoisted(() => ({
+  appState: {
+    locale: "zh-CN",
+    runtimeMode: "frontend",
+    setRuntimeMode: async () => {},
+  },
+  nlCommandState: {
+    commands: [] as Array<{ commandText: string }>,
+    draftText: "",
+    currentCommand: null,
+    currentAnalysis: null,
+    currentDialog: null,
+    currentPlan: null,
+    lastSubmission: null,
+    loading: false,
+    error: null,
+    setDraftText: (value: string) => {
+      nlCommandState.draftText = value;
+    },
+    clearError: () => {
+      nlCommandState.error = null;
+    },
+  },
+}));
+
+vi.mock("@/lib/store", () => ({
+  useAppStore: (selector: (state: typeof appState) => unknown) =>
+    selector(appState),
+}));
+
+vi.mock("@/lib/nl-command-store", () => ({
+  selectTaskHubLaunchSession: (state: typeof nlCommandState) => state,
+  useNLCommandStore: (selector: (state: typeof nlCommandState) => unknown) =>
+    selector(nlCommandState),
+}));
 
 import { formatLaunchAttachmentSize } from "../LaunchAttachmentSection";
 import { getLaunchRouteBannerTitle } from "../LaunchRouteBanner";
@@ -8,13 +46,32 @@ import {
 } from "../LaunchRuntimeMeta";
 import {
   UNIFIED_LAUNCH_EXPLANATION_LAYER_MARKERS,
+  UnifiedLaunchComposer,
   getUnifiedLaunchRouteHint,
   getUnifiedLaunchSubmitLabel,
 } from "../UnifiedLaunchComposer";
 
+function resetComposerStores() {
+  appState.locale = "en-US";
+  appState.runtimeMode = "advanced";
+  appState.setRuntimeMode = async () => {};
+  nlCommandState.commands = [];
+  nlCommandState.currentCommand = null;
+  nlCommandState.currentAnalysis = null;
+  nlCommandState.currentDialog = null;
+  nlCommandState.currentPlan = null;
+  nlCommandState.draftText =
+    "Ship the office homepage update by Friday with rollback, tests, and acceptance criteria.";
+  nlCommandState.lastSubmission = null;
+  nlCommandState.loading = false;
+  nlCommandState.error = null;
+}
+
 describe("UnifiedLaunchComposer helper logic", () => {
   it("uses mission copy for direct mission launches", () => {
-    expect(getLaunchRouteBannerTitle("zh-CN", "mission")).toBe("系统判断：快速任务");
+    expect(getLaunchRouteBannerTitle("zh-CN", "mission")).toBe(
+      "系统判断：快速任务"
+    );
     expect(getUnifiedLaunchRouteHint("zh-CN", "mission")).toContain("快速路线");
     expect(
       getUnifiedLaunchSubmitLabel("zh-CN", {
@@ -25,8 +82,12 @@ describe("UnifiedLaunchComposer helper logic", () => {
   });
 
   it("uses clarification copy for underspecified requests", () => {
-    expect(getLaunchRouteBannerTitle("zh-CN", "clarify")).toBe("系统判断：先补问");
-    expect(getUnifiedLaunchRouteHint("zh-CN", "clarify")).toContain("补问关键路标");
+    expect(getLaunchRouteBannerTitle("zh-CN", "clarify")).toBe(
+      "系统判断：先补问"
+    );
+    expect(getUnifiedLaunchRouteHint("zh-CN", "clarify")).toContain(
+      "补问关键路标"
+    );
     expect(
       getUnifiedLaunchSubmitLabel("zh-CN", {
         kind: "clarify",
@@ -36,8 +97,12 @@ describe("UnifiedLaunchComposer helper logic", () => {
   });
 
   it("uses workflow copy when attachment context is required", () => {
-    expect(getLaunchRouteBannerTitle("zh-CN", "workflow")).toBe("系统判断：高级编排");
-    expect(getUnifiedLaunchRouteHint("zh-CN", "workflow")).toContain("深度路线");
+    expect(getLaunchRouteBannerTitle("zh-CN", "workflow")).toBe(
+      "系统判断：高级编排"
+    );
+    expect(getUnifiedLaunchRouteHint("zh-CN", "workflow")).toContain(
+      "深度路线"
+    );
     expect(
       getUnifiedLaunchSubmitLabel("zh-CN", {
         kind: "workflow",
@@ -90,5 +155,21 @@ describe("UnifiedLaunchComposer helper logic", () => {
       "waypoints-complete",
     ]);
   });
-});
 
+  it("shows route planning and fleet execution previews when a destination is typed", () => {
+    resetComposerStores();
+
+    const markup = renderToStaticMarkup(
+      createElement(UnifiedLaunchComposer, { createMission: async () => null })
+    );
+
+    expect(markup).not.toContain('data-testid="autopilot-launch-empty-state"');
+    expect(markup).toContain(
+      'data-testid="autopilot-destination-preview-card"'
+    );
+    expect(markup).toContain('data-testid="route-planning-overlay"');
+    expect(markup).toContain('data-testid="launch-fleet-preview"');
+    expect(markup).toContain("Autopilot route plan");
+    expect(markup).toContain("Fleet execution");
+  });
+});

@@ -36,6 +36,7 @@ export interface CommandInputProps {
   rows?: number;
   className?: string;
   hideSubmitButton?: boolean;
+  clearOnSubmit?: boolean;
 }
 
 export function CommandInput({
@@ -53,6 +54,7 @@ export function CommandInput({
   rows,
   className,
   hideSubmitButton = false,
+  clearOnSubmit = true,
 }: CommandInputProps) {
   const { locale } = useI18n();
   const isZh = locale === "zh-CN";
@@ -95,10 +97,12 @@ export function CommandInput({
     const trimmed = text.trim();
     if (!trimmed || loading) return;
     await onSubmit(trimmed);
-    setText("");
+    if (clearOnSubmit) {
+      setText("");
+    }
     setShowSuggestions(false);
     setSelectedIndex(-1);
-  }, [text, loading, onSubmit, setText]);
+  }, [clearOnSubmit, text, loading, onSubmit, setText]);
 
   const handleKeyDown = useCallback(
     (e: KeyboardEvent<HTMLTextAreaElement>) => {
@@ -149,12 +153,15 @@ export function CommandInput({
     [setText]
   );
 
-  const selectSuggestion = useCallback((suggestion: string) => {
-    setText(suggestion);
-    setShowSuggestions(false);
-    setSelectedIndex(-1);
-    inputRef.current?.focus();
-  }, [setText]);
+  const selectSuggestion = useCallback(
+    (suggestion: string) => {
+      setText(suggestion);
+      setShowSuggestions(false);
+      setSelectedIndex(-1);
+      inputRef.current?.focus();
+    },
+    [setText]
+  );
 
   return (
     <div className={cn("relative", className)}>
