@@ -21,12 +21,12 @@ import { cn } from "@/lib/utils";
 
 function SidebarHeader({ collapsed }: { collapsed: boolean }) {
   return (
-    <div className="flex h-14 shrink-0 items-center gap-2 border-b px-4" style={{ borderColor: "var(--sidebar-border)" }}>
-      <span className="text-lg font-bold" style={{ color: "var(--sidebar-primary)" }}>
+    <div className="flex h-14 shrink-0 items-center gap-2 border-b px-4" style={{ borderColor: "rgba(255,255,255,0.08)" }}>
+      <span className="text-lg font-bold text-white/90">
         ◆
       </span>
       {!collapsed && (
-        <span className="truncate text-sm font-semibold" style={{ color: "var(--sidebar-foreground)" }}>
+        <span className="truncate text-sm font-semibold text-white/90">
           Cube Pets
         </span>
       )}
@@ -65,17 +65,15 @@ function SidebarNavItem({
       className={cn(
         "relative flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
         collapsed && "justify-center px-0",
-        active && "text-[var(--sidebar-primary-foreground)]",
-        !active && !isDisabled && "hover:bg-[var(--sidebar-accent)] hover:text-[var(--sidebar-accent-foreground)]",
-        isDisabled && "cursor-not-allowed opacity-50",
+        active && "bg-white/15 text-white",
+        !active && !isDisabled && "text-white/70 hover:bg-white/10 hover:text-white/90",
+        isDisabled && "cursor-not-allowed opacity-40 text-white/40",
       )}
-      style={active ? { backgroundColor: "var(--sidebar-primary)", color: "var(--sidebar-primary-foreground)" } : { color: "var(--sidebar-foreground)" }}
     >
       {/* Active indicator bar */}
       {active && (
         <span
-          className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r"
-          style={{ backgroundColor: "var(--sidebar-primary-foreground)" }}
+          className="absolute left-0 top-1 bottom-1 w-[3px] rounded-r bg-white"
         />
       )}
       <Icon className="size-5 shrink-0" />
@@ -104,16 +102,15 @@ function SidebarUserBlock({ collapsed }: { collapsed: boolean }) {
   return (
     <div
       className="flex shrink-0 items-center gap-2 border-t px-4 py-3"
-      style={{ borderColor: "var(--sidebar-border)" }}
+      style={{ borderColor: "rgba(255,255,255,0.08)" }}
     >
       <div
-        className="flex size-8 shrink-0 items-center justify-center rounded-full text-xs font-bold"
-        style={{ backgroundColor: "var(--sidebar-accent)", color: "var(--sidebar-accent-foreground)" }}
+        className="flex size-8 shrink-0 items-center justify-center rounded-full bg-white/15 text-xs font-bold text-white/80"
       >
         U
       </div>
       {!collapsed && (
-        <span className="truncate text-sm" style={{ color: "var(--sidebar-foreground)" }}>
+        <span className="truncate text-sm text-white/70">
           User
         </span>
       )}
@@ -124,8 +121,8 @@ function SidebarUserBlock({ collapsed }: { collapsed: boolean }) {
 function SidebarTaskStats() {
   return (
     <div
-      className="flex shrink-0 items-center justify-around border-t px-4 py-2 text-xs"
-      style={{ borderColor: "var(--sidebar-border)", color: "var(--sidebar-foreground)" }}
+      className="flex shrink-0 items-center justify-around border-t px-4 py-2 text-xs text-white/50"
+      style={{ borderColor: "rgba(255,255,255,0.08)" }}
     >
       <span>✓ 0</span>
       <span>▶ 0</span>
@@ -163,12 +160,12 @@ export function AppSidebar({ collapsed, onToggleCollapse }: AppSidebarProps) {
 
   return (
     <aside
-      className="fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r transition-[width] duration-[250ms] ease-in-out"
+      className="fixed left-0 top-0 bottom-0 z-40 flex flex-col border-r transition-[width] duration-[250ms] ease-in-out backdrop-blur-xl"
       style={{
         width: collapsed ? 64 : 240,
-        backgroundColor: "var(--sidebar)",
-        borderColor: "var(--sidebar-border)",
-        color: "var(--sidebar-foreground)",
+        backgroundColor: "rgba(22, 35, 63, 0.88)",
+        borderColor: "rgba(255, 255, 255, 0.08)",
+        color: "rgba(255, 255, 255, 0.9)",
       }}
     >
       {/* Logo / Brand */}
@@ -198,8 +195,8 @@ export function AppSidebar({ collapsed, onToggleCollapse }: AppSidebarProps) {
           onClick={onToggleCollapse}
           aria-expanded={!collapsed}
           aria-label={collapsed ? sidebarCopy.expand : sidebarCopy.collapse}
-          className="rounded-md p-1.5 transition-colors hover:bg-[var(--sidebar-accent)]"
-          style={{ color: "var(--sidebar-foreground)" }}
+          className="rounded-md p-1.5 transition-colors hover:bg-white/10"
+          style={{ color: "rgba(255,255,255,0.6)" }}
         >
           <ChevronsLeft
             className={cn("size-4 transition-transform duration-200", collapsed && "rotate-180")}

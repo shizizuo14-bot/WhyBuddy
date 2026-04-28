@@ -151,13 +151,11 @@ function App() {
               />
             )}
 
-            {/* Content Area */}
+            {/* Content Area — full width, scene underneath */}
             <div
               style={
                 {
-                  marginLeft: `${sidebarWidth}px`,
                   "--sidebar-width": `${sidebarWidth}px`,
-                  transition: "margin-left 250ms ease-in-out",
                 } as React.CSSProperties
               }
             >
