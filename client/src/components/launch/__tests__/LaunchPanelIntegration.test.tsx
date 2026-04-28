@@ -128,7 +128,8 @@ describe("LaunchPanel Integration", () => {
     expect(markup).toContain('role="dialog"');
 
     // Header
-    expect(markup).toContain("Task Autopilot Control");
+    expect(markup).toContain("Task Autopilot");
+    expect(markup).toContain("Autopilot Control");
 
     // Tab bar
     expect(markup).toContain('data-testid="launch-mode-tabbar"');

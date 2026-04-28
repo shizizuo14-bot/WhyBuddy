@@ -3,8 +3,21 @@ import { renderToStaticMarkup } from "react-dom/server";
 
 const { useNLCommandStoreMock } = vi.hoisted(() => {
   const state = {
+    commands: [] as any[],
     currentDialog: null as any,
     currentCommand: null as any,
+    currentAnalysis: null as any,
+    currentPlan: null as any,
+    draftText: "",
+    lastSubmission: null as any,
+    loading: false,
+    error: null as string | null,
+    setDraftText: (value: string) => {
+      state.draftText = value;
+    },
+    clearError: () => {
+      state.error = null;
+    },
   };
 
   const hook = ((selector: (value: typeof state) => unknown) =>
@@ -47,6 +60,7 @@ vi.mock("antd", () => {
 });
 
 vi.mock("@/lib/nl-command-store", () => ({
+  selectTaskHubLaunchSession: (state: unknown) => state,
   useNLCommandStore: useNLCommandStoreMock,
 }));
 
@@ -184,15 +198,14 @@ beforeEach(() => {
 });
 
 describe("OfficeTaskCockpit", () => {
-  it("renders a single central launch composer and keeps launch guidance informational", () => {
+  it("renders a single central launch trigger and keeps launch guidance informational", () => {
     const markup = renderToStaticMarkup(<OfficeTaskCockpit />);
 
-    expect(markup).toContain('data-testid="unified-launch-composer"');
+    expect(markup).toContain('data-testid="launch-panel-trigger"');
     expect(
-      markup.match(/data-testid="unified-launch-composer"/g)?.length
+      markup.match(/data-testid="launch-panel-trigger"/g)?.length
     ).toBe(1);
-    expect(markup).toContain('data-bare="true"');
-    expect(markup).toContain('data-hide-header="true"');
+    expect(markup).not.toContain('data-testid="unified-launch-composer"');
     expect(markup).not.toContain('data-testid="office-clarification-panel"');
     expect(markup).toContain("独立弹层");
   });

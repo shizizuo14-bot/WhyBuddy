@@ -135,7 +135,8 @@ describe("LaunchPanelShell", () => {
       })
     );
 
-    expect(markup).toContain("Task Autopilot Control");
+    expect(markup).toContain("Task Autopilot");
+    expect(markup).toContain("Autopilot Control");
     expect(markup).toContain('id="launch-panel-title"');
   });
 
