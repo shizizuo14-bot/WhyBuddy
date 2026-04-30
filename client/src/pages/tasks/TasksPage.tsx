@@ -19,7 +19,10 @@ import {
   OfficeWorkflowHistoryPanel,
 } from "@/components/office/OfficeWorkflowContextPanels";
 import { TasksCockpitDetail } from "@/components/tasks/TasksCockpitDetail";
-import { TasksQueueRail } from "@/components/tasks/TasksQueueRail";
+import {
+  TasksQueueRail,
+  type TasksQueueProjectMeta,
+} from "@/components/tasks/TasksQueueRail";
 import {
   compactText,
   missionOperatorStateTone,
@@ -29,7 +32,22 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useViewportTier, useViewportWidth } from "@/hooks/useViewportTier";
 import { useI18n } from "@/i18n";
 import {
+  selectCurrentProject,
+  useProjectStore,
+  type AddProjectArtifactInput,
+  type AddProjectEvidenceInput,
+  type AddProjectMessageInput,
+  type LinkProjectMissionInput,
+  type ProjectArtifact,
+  type ProjectClarificationQuestion,
+  type ProjectEvidence,
+  type ProjectMission,
+  type ProjectMissionStatus,
+  type ProjectRoute,
+} from "@/lib/project-store";
+import {
   useTasksStore,
+  type MissionTaskDetail,
   type MissionTaskStatus,
 } from "@/lib/tasks-store";
 import { cn } from "@/lib/utils";
@@ -77,6 +95,352 @@ function operatorStateLabel(state: MissionOperatorState, locale: string) {
     terminating: "Terminating",
   };
   return locale === "zh-CN" ? zh[state] : en[state];
+}
+
+export function buildProjectOperatorActionRecord(params: {
+  action: MissionOperatorActionType;
+  reason?: string;
+}) {
+  const detail =
+    params.reason?.trim() ||
+    "Operator action submitted from project execution center.";
+  const title = `Operator action: ${params.action}`;
+  const content = `${title}\n${detail}`;
+
+  return {
+    message: {
+      role: "operator",
+      kind: "decision",
+      content,
+    } satisfies Omit<AddProjectMessageInput, "projectId" | "sourceMissionId">,
+    evidence: {
+      type: "decision",
+      title,
+      detail,
+    } satisfies Omit<AddProjectEvidenceInput, "projectId" | "sourceMissionId">,
+  };
+}
+
+export function recordProjectOperatorAction(params: {
+  projectId?: string | null;
+  missionId?: string | null;
+  action: MissionOperatorActionType;
+  reason?: string;
+  addProjectMessage: (input: AddProjectMessageInput) => unknown;
+  addProjectEvidence: (input: AddProjectEvidenceInput) => unknown;
+}) {
+  if (!params.projectId || !params.missionId) return;
+  const record = buildProjectOperatorActionRecord({
+    action: params.action,
+    reason: params.reason,
+  });
+
+  params.addProjectMessage({
+    projectId: params.projectId,
+    sourceMissionId: params.missionId,
+    ...record.message,
+  });
+  params.addProjectEvidence({
+    projectId: params.projectId,
+    sourceMissionId: params.missionId,
+    ...record.evidence,
+  });
+}
+
+function mapTaskArtifactKindToProjectType(
+  kind: MissionTaskDetail["artifacts"][number]["kind"]
+): AddProjectArtifactInput["type"] {
+  switch (kind) {
+    case "report":
+    case "department_report":
+      return "report";
+    case "attachment":
+    case "file":
+    case "url":
+      return "doc";
+    case "log":
+      return "report";
+    default:
+      return "other";
+  }
+}
+
+export function buildProjectTaskArchiveRecords(params: {
+  projectId?: string | null;
+  missionId?: string | null;
+  detail?: MissionTaskDetail | null;
+  existingArtifacts?: ProjectArtifact[];
+  existingEvidence?: ProjectEvidence[];
+}): {
+  artifacts: Array<Omit<AddProjectArtifactInput, "projectId" | "sourceMissionId">>;
+  evidence: Array<Omit<AddProjectEvidenceInput, "projectId" | "sourceMissionId">>;
+} {
+  if (!params.projectId || !params.missionId || !params.detail) {
+    return { artifacts: [], evidence: [] };
+  }
+
+  const existingArtifactKeys = new Set(
+    (params.existingArtifacts ?? [])
+      .filter(
+        item =>
+          item.projectId === params.projectId &&
+          item.sourceMissionId === params.missionId
+      )
+      .map(item => item.title.trim().toLowerCase())
+  );
+  const existingEvidenceKeys = new Set(
+    (params.existingEvidence ?? [])
+      .filter(
+        item =>
+          item.projectId === params.projectId &&
+          item.sourceMissionId === params.missionId
+      )
+      .map(item => `${item.type}:${item.title.trim().toLowerCase()}`)
+  );
+
+  const artifacts = params.detail.artifacts
+    .map(artifact => {
+      const title = artifact.title?.trim();
+      if (!title) return null;
+      const contentPreview =
+        artifact.description?.trim() ||
+        artifact.content?.trim() ||
+        artifact.filename?.trim() ||
+        artifact.href?.trim() ||
+        undefined;
+      const path =
+        artifact.downloadUrl ||
+        artifact.previewUrl ||
+        artifact.href ||
+        artifact.filename ||
+        undefined;
+
+      return {
+        type: mapTaskArtifactKindToProjectType(artifact.kind),
+        title,
+        path,
+        contentPreview,
+      } satisfies Omit<
+        AddProjectArtifactInput,
+        "projectId" | "sourceMissionId"
+      >;
+    })
+    .filter(
+      (
+        artifact
+      ): artifact is Omit<
+        AddProjectArtifactInput,
+        "projectId" | "sourceMissionId"
+      > => Boolean(artifact)
+    )
+    .filter(
+      artifact => !existingArtifactKeys.has(artifact.title.trim().toLowerCase())
+    );
+
+  const evidence = params.detail.logSummary
+    .map(entry => {
+      const title = entry.label?.trim();
+      const detail = entry.value?.trim();
+      if (!title || !detail) return null;
+      return {
+        type: "log",
+        title: `Task log: ${title}`,
+        detail,
+      } satisfies Omit<AddProjectEvidenceInput, "projectId" | "sourceMissionId">;
+    })
+    .filter(
+      (
+        item
+      ): item is Omit<
+        AddProjectEvidenceInput,
+        "projectId" | "sourceMissionId"
+      > => Boolean(item)
+    )
+    .filter(
+      item =>
+        !existingEvidenceKeys.has(
+          `${item.type}:${item.title.trim().toLowerCase()}`
+        )
+    );
+
+  return { artifacts, evidence };
+}
+
+export function mapTaskStatusToProjectMissionStatus(
+  status: MissionTaskStatus
+): ProjectMissionStatus {
+  switch (status) {
+    case "done":
+      return "completed";
+    case "cancelled":
+      return "cancelled";
+    case "failed":
+      return "failed";
+    case "running":
+      return "running";
+    case "waiting":
+      return "waiting";
+    default:
+      return "queued";
+  }
+}
+
+export function linkTaskToCurrentProject(params: {
+  projectId?: string | null;
+  missionId?: string | null;
+  taskStatus: MissionTaskStatus;
+  linkMissionToProject: (input: LinkProjectMissionInput) => unknown;
+}) {
+  if (!params.projectId || !params.missionId) return null;
+  return params.linkMissionToProject({
+    projectId: params.projectId,
+    missionId: params.missionId,
+    status: mapTaskStatusToProjectMissionStatus(params.taskStatus),
+  });
+}
+
+export interface TaskProjectRelationshipSummary {
+  routeLabel: string;
+  roleLabel: string;
+  runtimeLabel: string;
+  evidenceLabel: string;
+}
+
+export interface TaskClarificationTakeoverSummary {
+  resolvedCount: number;
+  openCount: number;
+  requiredOpenCount: number;
+  skippableOpenCount: number;
+  headline: string;
+  detail: string;
+}
+
+function firstNonEmpty(values: Array<string | null | undefined>) {
+  return values.find(value => value && value.trim())?.trim() ?? null;
+}
+
+export function buildTaskProjectRelationshipSummary(params: {
+  detail: MissionTaskDetail | null;
+  projectMission: ProjectMission | null;
+  projectRoutes: ProjectRoute[];
+  projectEvidence: ProjectEvidence[];
+  projectArtifacts: ProjectArtifact[];
+  workflowStatus?: string | null;
+}): TaskProjectRelationshipSummary {
+  const route = params.projectMission?.routeId
+    ? params.projectRoutes.find(item => item.id === params.projectMission?.routeId)
+    : null;
+  const fallbackRoute = params.projectMission
+    ? params.projectRoutes.find(item => item.projectId === params.projectMission?.projectId)
+    : null;
+  const resolvedRoute = route ?? fallbackRoute ?? null;
+  const routeLabel =
+    resolvedRoute?.title ??
+    params.detail?.currentStageLabel ??
+    params.projectMission?.status ??
+    "No route linked";
+
+  const routeRole = firstNonEmpty(
+    resolvedRoute?.steps?.map(step => step.role) ?? []
+  );
+  const detailRole = firstNonEmpty([
+    params.detail?.agents[0]?.role,
+    params.detail?.agents[0]?.department,
+    params.detail?.departmentLabels[0],
+  ]);
+  const roleLabel = routeRole ?? detailRole ?? "No role assigned";
+
+  const runtimeParts = [
+    params.workflowStatus ? `workflow:${params.workflowStatus}` : null,
+    params.detail?.runtimeChannels.socket.status
+      ? `socket:${params.detail.runtimeChannels.socket.status}`
+      : null,
+    params.detail?.runtimeChannels.callback.status
+      ? `callback:${params.detail.runtimeChannels.callback.status}`
+      : null,
+  ].filter((item): item is string => Boolean(item));
+  const runtimeLabel =
+    runtimeParts.length > 0 ? runtimeParts.join(" / ") : "No runtime signal";
+
+  const relatedEvidence = params.projectMission
+    ? params.projectEvidence.filter(
+        item =>
+          item.sourceMissionId === params.projectMission?.missionId ||
+          item.projectId === params.projectMission?.projectId
+      )
+    : [];
+  const relatedArtifacts = params.projectMission
+    ? params.projectArtifacts.filter(
+        item =>
+          item.sourceMissionId === params.projectMission?.missionId ||
+          item.projectId === params.projectMission?.projectId
+      )
+    : [];
+  const localArtifactCount = params.detail?.artifacts.length ?? 0;
+  const localLogCount = params.detail?.logSummary.length ?? 0;
+  const evidenceLabel = `${relatedEvidence.length} evidence / ${
+    relatedArtifacts.length + localArtifactCount
+  } artifacts / ${localLogCount} logs`;
+
+  return {
+    routeLabel,
+    roleLabel,
+    runtimeLabel,
+    evidenceLabel,
+  };
+}
+
+export function buildTaskClarificationTakeoverSummary(params: {
+  projectId?: string | null;
+  clarificationQuestions: ProjectClarificationQuestion[];
+  detail?: MissionTaskDetail | null;
+}): TaskClarificationTakeoverSummary | null {
+  if (!params.projectId) return null;
+
+  const projectQuestions = params.clarificationQuestions.filter(
+    question => question.projectId === params.projectId
+  );
+  if (!projectQuestions.length) return null;
+
+  const openQuestions = projectQuestions.filter(
+    question => !question.answeredAt && !question.skippedAt
+  );
+  const answeredQuestions = projectQuestions.filter(
+    question => question.answeredAt
+  );
+  const skippedQuestions = projectQuestions.filter(question => question.skippedAt);
+  const resolvedCount = answeredQuestions.length + skippedQuestions.length;
+  const requiredOpenCount = openQuestions.filter(
+    question => question.required
+  ).length;
+  const skippableOpenCount = openQuestions.filter(
+    question => !question.required || Boolean(question.defaultAssumption)
+  ).length;
+  const firstOpenQuestion = openQuestions[0];
+  const latestResolvedQuestion =
+    [...answeredQuestions, ...skippedQuestions].at(-1) ?? null;
+  const takeoverPrefix =
+    params.detail?.operatorState === "blocked"
+      ? "Blocked takeover"
+      : "Takeover context";
+  const detail =
+    firstOpenQuestion?.text ??
+    (latestResolvedQuestion
+      ? `${latestResolvedQuestion.text}: ${
+          latestResolvedQuestion.answer ??
+          latestResolvedQuestion.defaultAssumption ??
+          "Captured"
+        }`
+      : "Project clarifications are available for operator follow-up.");
+
+  return {
+    resolvedCount,
+    openCount: openQuestions.length,
+    requiredOpenCount,
+    skippableOpenCount,
+    headline: `${takeoverPrefix}: ${resolvedCount} resolved / ${openQuestions.length} open`,
+    detail,
+  };
 }
 
 type TasksWorkbenchTab = "task" | "flow" | "agent" | "memory" | "history";
@@ -131,6 +495,54 @@ function TasksWorkbenchEmptyState({
   );
 }
 
+function TaskProjectRelationshipStrip({
+  locale,
+  summary,
+}: {
+  locale: string;
+  summary: TaskProjectRelationshipSummary;
+}) {
+  const items = [
+    {
+      label: t(locale, "路线", "Route"),
+      value: summary.routeLabel,
+    },
+    {
+      label: t(locale, "角色", "Role"),
+      value: summary.roleLabel,
+    },
+    {
+      label: t(locale, "运行时", "Runtime"),
+      value: summary.runtimeLabel,
+    },
+    {
+      label: t(locale, "证据", "Evidence"),
+      value: summary.evidenceLabel,
+    },
+  ];
+
+  return (
+    <div
+      className="mt-4 grid gap-2 md:grid-cols-4"
+      data-testid="tasks-project-relationship-strip"
+    >
+      {items.map(item => (
+        <div
+          key={item.label}
+          className="min-w-0 rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-2"
+        >
+          <div className="text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-400">
+            {item.label}
+          </div>
+          <div className="mt-1 truncate text-xs font-semibold text-slate-700">
+            {item.value}
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function TasksPage({
   initialTaskId = null,
   className,
@@ -159,6 +571,23 @@ export default function TasksPage({
   const operatorActionLoadingByMissionId = useTasksStore(
     state => state.operatorActionLoadingByMissionId
   );
+  const currentProject = useProjectStore(selectCurrentProject);
+  const ensureProjectsReady = useProjectStore(state => state.ensureReady);
+  const projects = useProjectStore(state => state.projects);
+  const projectSpecs = useProjectStore(state => state.specs);
+  const projectRoutes = useProjectStore(state => state.routes);
+  const projectMissions = useProjectStore(state => state.missions);
+  const projectArtifacts = useProjectStore(state => state.artifacts);
+  const projectEvidence = useProjectStore(state => state.evidence);
+  const projectClarificationQuestions = useProjectStore(
+    state => state.clarificationQuestions
+  );
+  const addProjectMessage = useProjectStore(state => state.addProjectMessage);
+  const addProjectArtifact = useProjectStore(state => state.addProjectArtifact);
+  const addProjectEvidence = useProjectStore(state => state.addProjectEvidence);
+  const linkMissionToProject = useProjectStore(
+    state => state.linkMissionToProject
+  );
   const workflows = useWorkflowStore(state => state.workflows);
   const agents = useWorkflowStore(state => state.agents);
   const currentWorkflow = useWorkflowStore(state => state.currentWorkflow);
@@ -182,6 +611,10 @@ export default function TasksPage({
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
   const isWideDesktop = width >= 1280;
   const isLockedCockpit = width >= 1440 && !isMobile;
+
+  useEffect(() => {
+    ensureProjectsReady();
+  }, [ensureProjectsReady]);
 
   useEffect(() => {
     void ensureReady();
@@ -217,9 +650,71 @@ export default function TasksPage({
     };
   }, [highlightedTaskId]);
 
+  const projectScopedMissionIds = useMemo(() => {
+    if (!currentProject) return null;
+    return new Set(
+      projectMissions
+        .filter(mission => mission.projectId === currentProject.id)
+        .map(mission => mission.missionId)
+    );
+  }, [currentProject, projectMissions]);
+  const linkedMissionIds = useMemo(
+    () => new Set(projectMissions.map(mission => mission.missionId)),
+    [projectMissions]
+  );
+  const projectScopedTasks = useMemo(() => {
+    if (!currentProject || !projectScopedMissionIds) return tasks;
+    return tasks.filter(
+      task => projectScopedMissionIds.has(task.id) || !linkedMissionIds.has(task.id)
+    );
+  }, [currentProject, linkedMissionIds, projectScopedMissionIds, tasks]);
+  const unassignedTaskCount = useMemo(() => {
+    if (!currentProject) return 0;
+    return tasks.filter(task => !linkedMissionIds.has(task.id)).length;
+  }, [currentProject, linkedMissionIds, tasks]);
+  const taskProjectMetaById = useMemo<
+    Record<string, TasksQueueProjectMeta>
+  >(() => {
+    const projectsById = new Map(
+      projects.map(project => [project.id, project])
+    );
+    const specsById = new Map(projectSpecs.map(spec => [spec.id, spec]));
+    const routesById = new Map(projectRoutes.map(route => [route.id, route]));
+    const metaByTaskId: Record<string, TasksQueueProjectMeta> = {};
+
+    tasks.forEach(task => {
+      const projectMission = projectMissions.find(
+        mission => mission.missionId === task.id
+      );
+      const project = projectMission
+        ? projectsById.get(projectMission.projectId) ?? null
+        : null;
+      const route = projectMission?.routeId
+        ? routesById.get(projectMission.routeId) ?? null
+        : project?.currentRouteId
+          ? routesById.get(project.currentRouteId) ?? null
+          : null;
+      const spec = route?.specId
+        ? specsById.get(route.specId) ?? null
+        : project?.currentSpecId
+          ? specsById.get(project.currentSpecId) ?? null
+          : null;
+
+      metaByTaskId[task.id] = {
+        projectName: project?.name ?? null,
+        routeTitle: route?.title ?? null,
+        specTitle: spec?.title ?? null,
+        sourceLabel: projectMission
+          ? t(locale, "项目归档", "Project archive")
+          : t(locale, "未归档任务", "Unassigned task"),
+      };
+    });
+
+    return metaByTaskId;
+  }, [locale, projectMissions, projectRoutes, projectSpecs, projects, tasks]);
   const filteredTasks = useMemo(() => {
-    if (!deferredSearch) return tasks;
-    return tasks.filter(task => {
+    if (!deferredSearch) return projectScopedTasks;
+    return projectScopedTasks.filter(task => {
       const searchable = [
         task.title,
         task.sourceText,
@@ -233,10 +728,16 @@ export default function TasksPage({
         .toLowerCase();
       return searchable.includes(deferredSearch);
     });
-  }, [deferredSearch, tasks]);
+  }, [deferredSearch, projectScopedTasks]);
 
+  const selectedTaskInScope =
+    selectedTaskId && filteredTasks.some(task => task.id === selectedTaskId)
+      ? selectedTaskId
+      : null;
   const activeTaskId =
-    (selectedTaskId && detailsById[selectedTaskId] ? selectedTaskId : null) ||
+    (selectedTaskInScope && detailsById[selectedTaskInScope]
+      ? selectedTaskInScope
+      : null) ||
     filteredTasks[0]?.id ||
     null;
   const selectedDetail = activeTaskId
@@ -244,6 +745,16 @@ export default function TasksPage({
     : null;
   const selectedTaskSummary =
     tasks.find(task => task.id === activeTaskId) || null;
+  const activeTaskIsUnassigned =
+    Boolean(currentProject && activeTaskId) &&
+    !linkedMissionIds.has(activeTaskId!);
+  const activeProjectMission = useMemo(() => {
+    if (!activeTaskId) return null;
+    return (
+      projectMissions.find(mission => mission.missionId === activeTaskId) ??
+      null
+    );
+  }, [activeTaskId, projectMissions]);
   const decisionNote = activeTaskId ? decisionNotes[activeTaskId] || "" : "";
   const activeWorkflow = useMemo(
     () =>
@@ -263,6 +774,51 @@ export default function TasksPage({
         workflows,
       }),
     [activeWorkflow, agents, selectedDetail, workflows]
+  );
+  const relationshipSummary = useMemo(
+    () =>
+      buildTaskProjectRelationshipSummary({
+        detail: selectedDetail,
+        projectMission: activeProjectMission,
+        projectRoutes,
+        projectEvidence,
+        projectArtifacts,
+        workflowStatus: activeWorkflow?.status ?? null,
+      }),
+    [
+      activeProjectMission,
+      activeWorkflow?.status,
+      projectArtifacts,
+      projectEvidence,
+      projectRoutes,
+      selectedDetail,
+    ]
+  );
+  const clarificationTakeoverSummary = useMemo(
+    () =>
+      buildTaskClarificationTakeoverSummary({
+        projectId: currentProject?.id ?? null,
+        clarificationQuestions: projectClarificationQuestions,
+        detail: selectedDetail,
+      }),
+    [currentProject?.id, projectClarificationQuestions, selectedDetail]
+  );
+  const taskArchiveRecords = useMemo(
+    () =>
+      buildProjectTaskArchiveRecords({
+        projectId: currentProject?.id ?? null,
+        missionId: activeTaskId,
+        detail: selectedDetail,
+        existingArtifacts: projectArtifacts,
+        existingEvidence: projectEvidence,
+      }),
+    [
+      activeTaskId,
+      currentProject?.id,
+      projectArtifacts,
+      projectEvidence,
+      selectedDetail,
+    ]
   );
 
   useEffect(() => {
@@ -288,6 +844,32 @@ export default function TasksPage({
     workflows,
   ]);
 
+  useEffect(() => {
+    if (!currentProject?.id || !activeTaskId) return;
+
+    for (const artifact of taskArchiveRecords.artifacts) {
+      addProjectArtifact({
+        projectId: currentProject.id,
+        sourceMissionId: activeTaskId,
+        ...artifact,
+      });
+    }
+
+    for (const evidence of taskArchiveRecords.evidence) {
+      addProjectEvidence({
+        projectId: currentProject.id,
+        sourceMissionId: activeTaskId,
+        ...evidence,
+      });
+    }
+  }, [
+    activeTaskId,
+    addProjectArtifact,
+    addProjectEvidence,
+    currentProject?.id,
+    taskArchiveRecords,
+  ]);
+
   async function handleLaunchDecision(presetId: string) {
     if (!activeTaskId) return;
     setLaunchingPresetId(presetId);
@@ -308,6 +890,14 @@ export default function TasksPage({
         action: payload.action,
         reason: payload.reason,
       });
+      recordProjectOperatorAction({
+        projectId: currentProject?.id,
+        missionId: activeTaskId,
+        action: payload.action,
+        reason: payload.reason,
+        addProjectMessage,
+        addProjectEvidence,
+      });
       toast.success(
         copy.tasks.listPage.actionSuccess(
           copy.tasks.statuses.action[
@@ -323,6 +913,34 @@ export default function TasksPage({
       toast.error(message);
       throw submitError;
     }
+  }
+
+  function handleLinkActiveTaskToCurrentProject() {
+    if (!currentProject || !activeTaskId || !selectedTaskSummary) return;
+    const linked = linkTaskToCurrentProject({
+      projectId: currentProject.id,
+      missionId: activeTaskId,
+      taskStatus: selectedTaskSummary.status,
+      linkMissionToProject,
+    });
+    if (!linked) {
+      toast.error(
+        t(
+          locale,
+          "无法将任务归入当前项目。",
+          "Failed to attach the task to the current project."
+        )
+      );
+      return;
+    }
+    setHighlightedTaskId(activeTaskId);
+    toast.success(
+      t(
+        locale,
+        "已将任务归入当前项目。",
+        "Task attached to the current project."
+      )
+    );
   }
 
   const refreshCurrent = () =>
@@ -393,6 +1011,33 @@ export default function TasksPage({
         </div>
       </div>
 
+      {activeTaskIsUnassigned && currentProject ? (
+        <div
+          className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[16px] border border-dashed border-sky-200 bg-sky-50/70 px-3 py-2"
+          data-testid="tasks-assign-current-project"
+        >
+          <div className="min-w-0 text-xs leading-5 text-slate-600">
+            <span className="font-semibold text-slate-800">
+              {t(locale, "未归档任务", "Unassigned task")}
+            </span>
+            <span className="ml-2">
+              {t(
+                locale,
+                `可归入 ${currentProject.name}`,
+                `Can be attached to ${currentProject.name}`
+              )}
+            </span>
+          </div>
+          <button
+            type="button"
+            className="rounded-full border border-sky-200 bg-white px-3 py-1 text-xs font-semibold text-sky-700 transition hover:border-sky-300 hover:bg-sky-50"
+            onClick={handleLinkActiveTaskToCurrentProject}
+          >
+            {t(locale, "归入当前项目", "Attach to project")}
+          </button>
+        </div>
+      ) : null}
+
       <div className="mt-4 flex flex-wrap gap-2">
         <span
           className={cn(
@@ -429,6 +1074,30 @@ export default function TasksPage({
           )}
         </span>
       </div>
+
+      <TaskProjectRelationshipStrip
+        locale={locale}
+        summary={relationshipSummary}
+      />
+      {clarificationTakeoverSummary ? (
+        <div
+          className="mt-2 rounded-[14px] border border-emerald-100 bg-emerald-50/70 px-3 py-2 text-xs text-emerald-950"
+          data-testid="tasks-clarification-takeover-summary"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <span className="font-semibold">
+              {clarificationTakeoverSummary.headline}
+            </span>
+            <span className="rounded-full bg-white/80 px-2 py-0.5 text-[10px] font-semibold text-emerald-700">
+              {clarificationTakeoverSummary.requiredOpenCount} required /{" "}
+              {clarificationTakeoverSummary.skippableOpenCount} skippable
+            </span>
+          </div>
+          <p className="mt-1 line-clamp-1 text-emerald-800">
+            {clarificationTakeoverSummary.detail}
+          </p>
+        </div>
+      ) : null}
     </section>
   );
   const taskDetailPanel = (
@@ -611,6 +1280,37 @@ export default function TasksPage({
         )}
         data-testid="tasks-page-dashboard"
       >
+        {currentProject ? (
+          <div
+            className="mb-4 flex flex-wrap items-center justify-between gap-3 rounded-[18px] border border-sky-100 bg-white/78 px-4 py-3 text-sm shadow-[0_12px_28px_rgba(14,165,233,0.08)]"
+            data-testid="tasks-project-scope-banner"
+          >
+            <div className="min-w-0">
+              <div className="text-[11px] font-semibold uppercase tracking-[0.16em] text-sky-700">
+                {t(locale, "项目执行中心", "Project execution center")}
+              </div>
+              <div className="mt-1 truncate font-semibold text-slate-900">
+                {currentProject.name}
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 text-[11px] font-semibold text-slate-500">
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+                {t(
+                  locale,
+                  `当前项目任务 ${projectScopedTasks.length}`,
+                  `Project tasks ${projectScopedTasks.length}`
+                )}
+              </span>
+              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+                {t(
+                  locale,
+                  `未归档 ${unassignedTaskCount}`,
+                  `Unassigned ${unassignedTaskCount}`
+                )}
+              </span>
+            </div>
+          </div>
+        ) : null}
         {isWideDesktop ? (
           <div
             className={cn(
@@ -634,6 +1334,7 @@ export default function TasksPage({
                 });
               }}
               onRefresh={refreshCurrent}
+              projectMetaByTaskId={taskProjectMetaById}
               className={cn(
                 isLockedCockpit ? "h-full min-h-0" : "min-h-[640px]"
               )}
@@ -667,6 +1368,7 @@ export default function TasksPage({
                 });
               }}
               onRefresh={refreshCurrent}
+              projectMetaByTaskId={taskProjectMetaById}
               className="min-h-[320px] max-h-[460px]"
             />
 

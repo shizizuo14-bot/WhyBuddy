@@ -1,0 +1,185 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1120" viewBox="0 0 1600 1120" role="img" aria-labelledby="title desc">
+  <title id="title">Cube Pets Office 当前入口与执行链路架构图</title>
+  <desc id="desc">说明首页、任务中心、统一发起器、FSD 角色编排、角色内 AIGC 能力、Mission、Workflow、运行证据与反馈展示之间的关系。</desc>
+  <defs>
+    <style>
+      .bg { fill: #f5f8fb; }
+      .panel { fill: #ffffff; stroke: #d9e5ee; stroke-width: 1.5; filter: url(#softShadow); }
+      .panelBlue { fill: #eef8ff; stroke: #bae6fd; stroke-width: 1.5; filter: url(#softShadow); }
+      .panelGreen { fill: #ecfdf5; stroke: #99f6e4; stroke-width: 1.5; filter: url(#softShadow); }
+      .panelAmber { fill: #fff7ed; stroke: #fed7aa; stroke-width: 1.5; filter: url(#softShadow); }
+      .panelRose { fill: #fff1f2; stroke: #fecdd3; stroke-width: 1.5; filter: url(#softShadow); }
+      .panelSlate { fill: #f8fafc; stroke: #cbd5e1; stroke-width: 1.5; filter: url(#softShadow); }
+      .title { font: 800 34px "Inter", "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #0f172a; }
+      .subtitle { font: 500 15px "Inter", "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #64748b; }
+      .section { font: 800 18px "Inter", "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #0f172a; }
+      .nodeTitle { font: 800 16px "Inter", "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #0f172a; }
+      .nodeText { font: 500 13px "Inter", "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #475569; }
+      .tiny { font: 600 11px "Inter", "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #64748b; }
+      .tag { font: 800 11px "Inter", "Noto Sans SC", "Microsoft YaHei", sans-serif; fill: #0f766e; }
+      .warn { fill: #b45309; }
+      .muted { fill: #94a3b8; }
+      .arrow { stroke: #0f766e; stroke-width: 2.4; fill: none; marker-end: url(#arrowHead); }
+      .arrowBlue { stroke: #0284c7; stroke-width: 2.4; fill: none; marker-end: url(#arrowBlueHead); }
+      .arrowAmber { stroke: #d97706; stroke-width: 2.4; fill: none; marker-end: url(#arrowAmberHead); }
+      .arrowSlate { stroke: #64748b; stroke-width: 2; stroke-dasharray: 6 6; fill: none; marker-end: url(#arrowSlateHead); }
+      .line { stroke: #cbd5e1; stroke-width: 1.4; stroke-dasharray: 5 6; fill: none; }
+      .laneLabel { font: 900 12px "Inter", "Noto Sans SC", "Microsoft YaHei", sans-serif; letter-spacing: .08em; fill: #64748b; }
+    </style>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="14" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+    <marker id="arrowHead" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0f766e"/>
+    </marker>
+    <marker id="arrowBlueHead" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#0284c7"/>
+    </marker>
+    <marker id="arrowAmberHead" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#d97706"/>
+    </marker>
+    <marker id="arrowSlateHead" markerWidth="10" markerHeight="10" refX="8" refY="5" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1600" height="1120"/>
+
+  <text x="60" y="72" class="title">当前入口与执行过程架构图</text>
+  <text x="60" y="102" class="subtitle">结论：屏幕上入口很多，但真正“发起执行”的主链路集中在首页底部 UnifiedLaunchComposer；任务中心主要是查看、接管、决策与证据。</text>
+
+  <rect x="60" y="138" width="1480" height="74" rx="20" class="panelAmber"/>
+  <text x="86" y="168" class="section">为什么会感觉入口很多</text>
+  <text x="86" y="192" class="nodeText">同一屏同时出现 5 类入口：导航入口、顶部快捷入口、底部发起入口、展开后的证据入口、任务中心详情入口。它们职责不同，但视觉层级现在接近，所以会让人误以为都有“发起任务”的能力。</text>
+
+  <text x="60" y="258" class="laneLabel">UI ENTRANCE LAYER / 入口层</text>
+  <rect x="60" y="278" width="280" height="178" rx="22" class="panel"/>
+  <text x="86" y="314" class="nodeTitle">左侧导航 AppSidebar</text>
+  <text x="86" y="342" class="nodeText">自动驾驶 / 任务中心 / 设置</text>
+  <text x="86" y="368" class="nodeText">项目、知识库、数据源等多为占位禁用</text>
+  <text x="86" y="398" class="tag">职责：页面导航，不创建执行</text>
+  <text x="86" y="426" class="tiny">来源：navigation-config + AppSidebar</text>
+
+  <rect x="380" y="278" width="280" height="178" rx="22" class="panel"/>
+  <text x="406" y="314" class="nodeTitle">首页顶部快捷区</text>
+  <text x="406" y="342" class="nodeText">前端/高级模式、办公室/更多</text>
+  <text x="406" y="368" class="nodeText">任务工作台、打开工作流、加载演示、配置</text>
+  <text x="406" y="398" class="tag">职责：切换视图/模式/面板</text>
+  <text x="406" y="426" class="tiny">注意：不是主要发起入口</text>
+
+  <rect x="700" y="278" width="280" height="178" rx="22" class="panelBlue"/>
+  <text x="726" y="314" class="nodeTitle">首页底部统一发起器</text>
+  <text x="726" y="342" class="nodeText">UnifiedLaunchComposer</text>
+  <text x="726" y="368" class="nodeText">输入目的地、附件、路线选择、提交</text>
+  <text x="726" y="398" class="tag">职责：唯一主发起入口</text>
+  <text x="726" y="426" class="tiny">这里才进入 submitUnifiedLaunch</text>
+
+  <rect x="1020" y="278" width="240" height="178" rx="22" class="panelSlate"/>
+  <text x="1046" y="314" class="nodeTitle">首页展开辅助区</text>
+  <text x="1046" y="342" class="nodeText">Support / Logs / Artifacts / Runtime</text>
+  <text x="1046" y="368" class="nodeText">目的地预览、路线、运行证据</text>
+  <text x="1046" y="398" class="tag">职责：解释和证据，不另开任务</text>
+  <text x="1046" y="426" class="tiny">刚已合入中央控制台</text>
+
+  <rect x="1300" y="278" width="240" height="178" rx="22" class="panel"/>
+  <text x="1326" y="314" class="nodeTitle">任务中心 /tasks</text>
+  <text x="1326" y="342" class="nodeText">队列、详情、Flow、Agent、Memory、History</text>
+  <text x="1326" y="368" class="nodeText">决策、终止、重试等接管动作</text>
+  <text x="1326" y="398" class="tag">职责：查看/接管/决策</text>
+  <text x="1326" y="426" class="tiny">发起与补问已回到首页</text>
+
+  <path class="arrowBlue" d="M840 456 C840 492, 840 500, 840 532"/>
+  <path class="arrowSlate" d="M1140 456 C1140 492, 1015 496, 905 532"/>
+  <path class="arrowSlate" d="M1420 456 C1420 820, 1210 826, 1040 862"/>
+  <path class="arrowSlate" d="M520 456 C520 496, 705 496, 795 532"/>
+  <path class="arrowSlate" d="M200 456 C200 825, 280 835, 420 862"/>
+
+  <text x="60" y="520" class="laneLabel">UNIFIED LAUNCH CORE / 统一发起核心</text>
+
+  <rect x="420" y="542" width="320" height="168" rx="22" class="panelBlue"/>
+  <text x="448" y="578" class="nodeTitle">1. 采集输入</text>
+  <text x="448" y="606" class="nodeText">draftText + attachments + runtimeMode</text>
+  <text x="448" y="632" class="nodeText">示例按钮只是在填充输入，不是新链路</text>
+  <text x="448" y="662" class="tiny">UnifiedLaunchComposer → useNLCommandStore</text>
+
+  <rect x="800" y="542" width="320" height="168" rx="22" class="panelGreen"/>
+  <text x="828" y="578" class="nodeTitle">2. 路由判断</text>
+  <text x="828" y="606" class="nodeText">buildLaunchRoutePlan / evaluateLaunchRoute</text>
+  <text x="828" y="632" class="nodeText">判断：补问、快速 Mission、FSD 角色路线、升级运行时</text>
+  <text x="828" y="662" class="tiny">核心依据：完整度、附件、团队意图、运行时要求</text>
+
+  <rect x="1180" y="542" width="260" height="168" rx="22" class="panelAmber"/>
+  <text x="1208" y="578" class="nodeTitle">3. 统一提交</text>
+  <text x="1208" y="606" class="nodeText">submitUnifiedLaunch</text>
+  <text x="1208" y="632" class="nodeText">根据判断分流，但调用入口仍是一个</text>
+  <text x="1208" y="662" class="tiny">unified-launch-coordinator.ts</text>
+
+  <path class="arrowBlue" d="M740 626 L790 626"/>
+  <path class="arrow" d="M1120 626 L1170 626"/>
+
+  <text x="60" y="760" class="laneLabel">ROUTE DECISION / 执行分流</text>
+
+  <rect x="60" y="782" width="310" height="174" rx="22" class="panelAmber"/>
+  <text x="88" y="818" class="nodeTitle">A. 信息不足 → Clarification</text>
+  <text x="88" y="846" class="nodeText">创建 currentDialog，不立即创建 Mission</text>
+  <text x="88" y="872" class="nodeText">补问面板答完后 submitUnifiedClarification</text>
+  <text x="88" y="902" class="nodeText">最终仍回到 Mission 创建</text>
+
+  <rect x="430" y="782" width="310" height="174" rx="22" class="panelGreen"/>
+  <text x="458" y="818" class="nodeTitle">B. 普通目标 → Mission</text>
+  <text x="458" y="846" class="nodeText">submitTaskHubCommand</text>
+  <text x="458" y="872" class="nodeText">NL 分析 / 生成 brief / createMission</text>
+  <text x="458" y="902" class="nodeText">刷新任务队列并 selectTask</text>
+
+  <rect x="800" y="782" width="310" height="174" rx="22" class="panelBlue"/>
+  <text x="828" y="816" class="nodeTitle">C. 附件/团队/深度 → FSD 角色执行</text>
+  <text x="828" y="842" class="nodeText">FSD Planner 选择角色与路线</text>
+  <rect x="826" y="858" width="258" height="54" rx="14" fill="#ffffff" stroke="#7dd3fc" stroke-width="1.2"/>
+  <text x="844" y="880" class="tag">角色内部能力库</text>
+  <text x="844" y="902" class="tiny">50+ AIGC 节点内嵌在角色中，由角色调用</text>
+  <text x="828" y="932" class="nodeText">Workflow / Docker = 运行承载，不是独立入口层</text>
+
+  <rect x="1170" y="782" width="310" height="174" rx="22" class="panelRose"/>
+  <text x="1198" y="818" class="nodeTitle">D. 需要真实执行 → Runtime Upgrade</text>
+  <text x="1198" y="846" class="nodeText">前端模式遇到 shell/browser/docker 等意图</text>
+  <text x="1198" y="872" class="nodeText">先 setRuntimeMode('advanced')</text>
+  <text x="1198" y="902" class="nodeText">再由用户重新提交进入 Mission/FSD Route</text>
+
+  <path class="arrowAmber" d="M1265 710 C1160 752, 240 742, 210 772"/>
+  <path class="arrow" d="M1295 710 C1195 752, 625 742, 585 772"/>
+  <path class="arrowBlue" d="M1325 710 C1255 752, 990 742, 955 772"/>
+  <path class="arrowAmber" d="M1355 710 C1385 748, 1350 752, 1325 772"/>
+
+  <text x="60" y="1002" class="laneLabel">STATE + FEEDBACK / 状态与反馈</text>
+
+  <rect x="60" y="1022" width="430" height="62" rx="18" class="panelSlate"/>
+  <text x="86" y="1052" class="nodeTitle">Tasks Store</text>
+  <text x="210" y="1052" class="nodeText">ensureReady / refresh / selectTask / operatorAction / decision</text>
+  <text x="86" y="1074" class="tiny">Mission socket + executor callback 会持续补齐运行证据</text>
+
+  <rect x="530" y="1022" width="360" height="62" rx="18" class="panelSlate"/>
+  <text x="556" y="1052" class="nodeTitle">FSD Role State</text>
+  <text x="690" y="1052" class="nodeText">roles / embedded AIGC skills / socket events</text>
+  <text x="556" y="1074" class="tiny">50+ AIGC 节点是角色的内置技能，不作为外部节点层展示</text>
+
+  <rect x="930" y="1022" width="250" height="62" rx="18" class="panelSlate"/>
+  <text x="956" y="1052" class="nodeTitle">首页 3D + HUD</text>
+  <text x="956" y="1074" class="tiny">可视化当前任务与团队状态</text>
+
+  <rect x="1220" y="1022" width="260" height="62" rx="18" class="panelSlate"/>
+  <text x="1246" y="1052" class="nodeTitle">任务中心 /tasks</text>
+  <text x="1246" y="1074" class="tiny">队列、详情、接管、运行历史</text>
+
+  <path class="arrowSlate" d="M585 956 C585 995, 300 990, 275 1012"/>
+  <path class="arrowSlate" d="M955 956 C955 995, 730 990, 710 1012"/>
+  <path class="arrowSlate" d="M585 956 C680 990, 985 982, 1045 1012"/>
+  <path class="arrowSlate" d="M955 956 C1050 990, 1290 982, 1350 1012"/>
+
+  <rect x="60" y="480" width="270" height="222" rx="22" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+  <text x="86" y="516" class="section">建议的心智模型</text>
+  <text x="86" y="548" class="nodeText">1. 自动驾驶首页 = 发起 + 总览</text>
+  <text x="86" y="576" class="nodeText">2. 任务中心 = 队列 + 详情 + 接管</text>
+  <text x="86" y="604" class="nodeText">3. FSD 角色 = 深度执行主体</text>
+  <text x="86" y="632" class="nodeText">4. 设置/更多 = 系统配置</text>
+  <text x="86" y="668" class="warn tiny">优化方向：把“可执行入口”视觉上只留一个主按钮/主输入。</text>
+</svg>

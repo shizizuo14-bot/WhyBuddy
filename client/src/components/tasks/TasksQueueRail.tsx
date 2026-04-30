@@ -15,6 +15,13 @@ import {
   missionStatusTone,
 } from "./task-helpers";
 
+export interface TasksQueueProjectMeta {
+  projectName: string | null;
+  routeTitle: string | null;
+  specTitle: string | null;
+  sourceLabel: string;
+}
+
 function t(locale: string, zh: string, en: string) {
   return locale === "zh-CN" ? zh : en;
 }
@@ -55,6 +62,7 @@ export function TasksQueueRail({
   onSelectTask,
   onRefresh,
   density = "regular",
+  projectMetaByTaskId,
   className,
 }: {
   tasks: MissionTaskSummary[];
@@ -69,6 +77,7 @@ export function TasksQueueRail({
   onSelectTask: (taskId: string) => void;
   onRefresh: () => void;
   density?: "regular" | "compact";
+  projectMetaByTaskId?: Record<string, TasksQueueProjectMeta>;
   className?: string;
 }) {
   const { locale } = useI18n();
@@ -215,6 +224,33 @@ export function TasksQueueRail({
                 task.summary || task.sourceText,
                 locale
               );
+              const projectMeta = projectMetaByTaskId?.[task.id] ?? null;
+              const projectMetaItems = projectMeta
+                ? [
+                    projectMeta.projectName
+                      ? t(
+                          locale,
+                          `项目 ${projectMeta.projectName}`,
+                          `Project ${projectMeta.projectName}`
+                        )
+                      : t(locale, "未归档", "Unassigned"),
+                    projectMeta.routeTitle
+                      ? t(
+                          locale,
+                          `路线 ${projectMeta.routeTitle}`,
+                          `Route ${projectMeta.routeTitle}`
+                        )
+                      : null,
+                    projectMeta.specTitle
+                      ? t(
+                          locale,
+                          `Spec ${projectMeta.specTitle}`,
+                          `Spec ${projectMeta.specTitle}`
+                        )
+                      : null,
+                    projectMeta.sourceLabel,
+                  ].filter((item): item is string => Boolean(item))
+                : [];
 
               return (
                 <button
@@ -299,6 +335,26 @@ export function TasksQueueRail({
                         {summary}
                       </TooltipContent>
                     </Tooltip>
+                  ) : null}
+
+                  {projectMetaItems.length > 0 ? (
+                    <div
+                      className={cn(
+                        "flex w-full min-w-0 flex-wrap gap-1",
+                        isCompact && "hidden"
+                      )}
+                      data-testid={`task-project-meta-${task.id}`}
+                    >
+                      {projectMetaItems.slice(0, 4).map(item => (
+                        <span
+                          key={item}
+                          className="max-w-full truncate rounded-full border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-[9px] font-semibold text-slate-500"
+                          title={item}
+                        >
+                          {item}
+                        </span>
+                      ))}
+                    </div>
                   ) : null}
 
                   {isCompact ? (

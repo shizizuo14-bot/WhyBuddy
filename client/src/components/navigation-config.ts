@@ -192,9 +192,9 @@ export interface SidebarNavigationItem {
 }
 
 export const SIDEBAR_NAV_ITEMS: SidebarNavigationItem[] = [
-  { id: "autopilot",     icon: Navigation,    href: "/",      mobileVisible: true },
+  { id: "projects",      icon: FolderKanban,  href: "/",      mobileVisible: true },
   { id: "tasks",         icon: ListTodo,      href: "/tasks", mobileVisible: true },
-  { id: "projects",      icon: FolderKanban,                  mobileVisible: false, disabled: true },
+  { id: "autopilot",     icon: Navigation,    href: "/",      mobileVisible: false },
   { id: "knowledge",     icon: BookOpen,                      mobileVisible: true,  disabled: true },
   { id: "datasource",    icon: Database,                      mobileVisible: false, disabled: true },
   { id: "dashboard",     icon: BarChart3,                     mobileVisible: false, disabled: true },
@@ -209,7 +209,7 @@ export function getMobileTabItems(): SidebarNavigationItem[] {
 
 export function getActiveSidebarId(path: string): SidebarNavigationId {
   const pathname = normalizeNavigationPath(path);
-  if (pathname === "/" || pathname === "") return "autopilot";
+  if (pathname === "/" || pathname === "") return "projects";
   if (matchesPathPrefix(pathname, "/tasks")) return "tasks";
   if (matchesPathPrefix(pathname, "/debug")) return "settings";
   return "autopilot";

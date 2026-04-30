@@ -311,7 +311,7 @@ function MissionWallTaskPanelInner({
                     color: "rgba(148,163,184,0.88)",
                   }}
                 >
-                  Autopilot Control
+                  {t(locale, "执行监控", "Execution Monitor")}
                 </div>
                 <div
                   style={{

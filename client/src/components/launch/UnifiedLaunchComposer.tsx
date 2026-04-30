@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, type ChangeEvent } from "react";
 import { Collapse, Splitter } from "antd";
-import { ArrowUp, RefreshCw, Sparkles } from "lucide-react";
+import { ArrowUp, FolderKanban, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useShallow } from "zustand/react/shallow";
 
@@ -28,6 +28,7 @@ import {
   type TaskHubCreateMission,
 } from "@/lib/nl-command-store";
 import { useAppStore } from "@/lib/store";
+import { useProjectStore, type ProjectArtifactType } from "@/lib/project-store";
 import { prepareWorkflowAttachments } from "@/lib/workflow-attachments";
 import type { WorkflowLaunchResult } from "@/lib/workflow-store";
 import { useWorkflowStore } from "@/lib/workflow-store";
@@ -48,6 +49,32 @@ import type {
 
 function t(locale: string, zh: string, en: string) {
   return locale === "zh-CN" ? zh : en;
+}
+
+function classifyLaunchAttachmentArtifact(
+  name: string,
+  mimeType: string
+): ProjectArtifactType {
+  const normalizedName = name.toLowerCase();
+  if (normalizedName.endsWith(".svg")) return "svg";
+  if (mimeType.startsWith("image/")) return "screenshot";
+  if (
+    mimeType.includes("json") ||
+    normalizedName.endsWith(".csv") ||
+    normalizedName.endsWith(".json")
+  ) {
+    return "dataset";
+  }
+  if (
+    normalizedName.endsWith(".ts") ||
+    normalizedName.endsWith(".tsx") ||
+    normalizedName.endsWith(".js") ||
+    normalizedName.endsWith(".jsx") ||
+    normalizedName.endsWith(".py")
+  ) {
+    return "code";
+  }
+  return "doc";
 }
 
 export function getUnifiedLaunchRouteHint(
@@ -167,6 +194,8 @@ export function UnifiedLaunchComposer({
   hideInputLabel = false,
   hideClarificationPanel = false,
   hideOperatorActions = false,
+  projectId = null,
+  projectName = null,
   className,
 }: {
   createMission: TaskHubCreateMission;
@@ -189,6 +218,8 @@ export function UnifiedLaunchComposer({
   hideInputLabel?: boolean;
   hideClarificationPanel?: boolean;
   hideOperatorActions?: boolean;
+  projectId?: string | null;
+  projectName?: string | null;
   className?: string;
 }) {
   const { locale } = useI18n();
@@ -199,6 +230,59 @@ export function UnifiedLaunchComposer({
   );
   const setDraftText = useNLCommandStore(state => state.setDraftText);
   const clearError = useNLCommandStore(state => state.clearError);
+  const createProject = useProjectStore(state => state.createProject);
+  const addProjectArtifact = useProjectStore(state => state.addProjectArtifact);
+  const projectStatus = useProjectStore(
+    state =>
+      state.projects.find(project => project.id === projectId)?.status ?? null
+  );
+  const currentSpecTitle = useProjectStore(state => {
+    const project = state.projects.find(item => item.id === projectId);
+    const spec = project?.currentSpecId
+      ? state.specs.find(item => item.id === project.currentSpecId)
+      : state.specs
+          .filter(item => item.projectId === projectId)
+          .slice()
+          .sort((a, b) => b.version - a.version)[0];
+    return spec?.title ?? null;
+  });
+  const currentRouteTitle = useProjectStore(state => {
+    const project = state.projects.find(item => item.id === projectId);
+    const route = project?.currentRouteId
+      ? state.routes.find(item => item.id === project.currentRouteId)
+      : state.routes
+          .filter(item => item.projectId === projectId)
+          .slice()
+          .sort(
+            (a, b) =>
+              new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+          )[0];
+    return route?.title ?? null;
+  });
+  const projectMessages = useProjectStore(state => state.messages);
+  const projectMissions = useProjectStore(state => state.missions);
+  const recentProjectMessages = useMemo(
+    () =>
+      projectMessages
+        .filter(message => message.projectId === projectId)
+        .slice(-4)
+        .map(message => ({
+          content: message.content,
+          kind: message.kind,
+        })),
+    [projectId, projectMessages]
+  );
+  const activeProjectMissionCount = useMemo(
+    () =>
+      projectMissions.filter(
+        mission =>
+          mission.projectId === projectId &&
+          (mission.status === "queued" ||
+            mission.status === "running" ||
+            mission.status === "waiting")
+      ).length,
+    [projectId, projectMissions]
+  );
   const {
     draftText,
     currentDialog,
@@ -224,8 +308,30 @@ export function UnifiedLaunchComposer({
         text: draftText,
         attachments,
         runtimeMode,
+        projectId,
+        projectName,
+        projectContext: projectId
+          ? {
+              status: projectStatus,
+              currentSpecTitle,
+              currentRouteTitle,
+              recentMessages: recentProjectMessages,
+              activeMissionCount: activeProjectMissionCount,
+            }
+          : null,
       }),
-    [attachments, draftText, runtimeMode]
+    [
+      activeProjectMissionCount,
+      attachments,
+      currentRouteTitle,
+      currentSpecTitle,
+      draftText,
+      projectId,
+      projectName,
+      projectStatus,
+      recentProjectMessages,
+      runtimeMode,
+    ]
   );
   const decision = routePlan.decision;
   const selectedCandidate =
@@ -292,10 +398,56 @@ export function UnifiedLaunchComposer({
     }
 
     try {
+      const launchProject =
+        projectId || commandText.trim().length === 0
+          ? { id: projectId, name: projectName }
+          : (() => {
+              const project = createProject({
+                goal: commandText,
+                status: "clarifying",
+              });
+              toast.success(
+                t(
+                  locale,
+                  `已创建项目「${project.name}」，后续问答会沉淀到这个项目。`,
+                  `Created project "${project.name}". Future turns will be saved there.`
+                )
+              );
+              return { id: project.id, name: project.name };
+            })();
+      if (launchProject.id && attachments.length > 0) {
+        attachments.forEach(attachment => {
+          addProjectArtifact({
+            projectId: launchProject.id ?? undefined,
+            type: classifyLaunchAttachmentArtifact(
+              attachment.name,
+              attachment.mimeType
+            ),
+            title: attachment.name,
+            contentPreview:
+              attachment.excerpt ||
+              `${attachment.mimeType || "unknown type"} · ${attachment.size} bytes`,
+          });
+        });
+      }
       const result = await submitUnifiedLaunch({
         text: commandText,
         attachments,
         runtimeMode,
+        projectId: launchProject.id,
+        projectName: launchProject.name,
+        projectContext: launchProject.id
+          ? {
+              status: projectStatus,
+              currentSpecTitle,
+              currentRouteTitle,
+              recentMessages: recentProjectMessages,
+              activeMissionCount: activeProjectMissionCount,
+            }
+          : null,
+        attachmentsAlreadyRecorded: Boolean(
+          launchProject.id && attachments.length > 0
+        ),
         selectedRouteId: submissionCandidate?.id,
         userId: "current-user",
         priority: "medium",
@@ -381,6 +533,8 @@ export function UnifiedLaunchComposer({
     try {
       const result = await submitUnifiedClarification({
         commandId: currentCommand.commandId,
+        projectId,
+        projectName,
         answer: {
           questionId,
           text,
@@ -495,6 +649,20 @@ export function UnifiedLaunchComposer({
       )}
       data-testid="unified-launch-compact-composer"
     >
+      <div
+        className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-[18px] border border-slate-200/70 bg-white/64 px-3 py-2 text-[11px] font-semibold text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
+        data-testid="launch-project-context-strip"
+      >
+        <span className="inline-flex min-w-0 items-center gap-2">
+          <FolderKanban className="size-4 shrink-0 text-[#0f766e]" />
+          <span className="truncate text-slate-800">
+            {projectName ? projectName : "New project"}
+          </span>
+        </span>
+        <span className="shrink-0 rounded-full bg-[#0f766e]/10 px-2 py-0.5 text-[10px] font-bold text-[#0f766e]">
+          {projectName ? "Project-scoped" : "First input creates project"}
+        </span>
+      </div>
       <div className={inputRowClassName}>
         <div className="flex items-start gap-2">
           <div className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-full border border-slate-200/80 bg-white text-[#0f766e] shadow-[0_12px_28px_rgba(15,118,110,0.12),inset_0_1px_0_rgba(255,255,255,0.9)]">
@@ -511,8 +679,12 @@ export function UnifiedLaunchComposer({
             rows={isCompact ? 1 : 2}
             placeholder={t(
               locale,
-              "输入目的地：目标、约束、交付物、截止时间...",
-              "Enter a destination: goal, constraints, deliverable, deadline..."
+              projectName
+                ? `Continue "${projectName}": add goals, constraints, deliverables...`
+                : "Describe a project goal first; the system will create a project and continue...",
+              projectName
+                ? `Continue "${projectName}": add goals, constraints, deliverables...`
+                : "Describe a project goal first; the system will create a project and continue..."
             )}
             submitLabel={submitLabel}
             sendingLabel={submitLabel}

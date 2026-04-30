@@ -5,6 +5,21 @@ const createMission = vi.fn();
 const submitTaskHubCommand = vi.fn();
 const submitTaskHubClarification = vi.fn();
 const submitDirective = vi.fn();
+const addProjectMessage = vi.fn();
+const addProjectEvidence = vi.fn();
+const addProjectArtifact = vi.fn();
+const addProjectRoute = vi.fn();
+const addProjectClarificationQuestion = vi.fn();
+const answerProjectClarificationQuestion = vi.fn();
+const addProjectSpec = vi.fn();
+const linkMissionToProject = vi.fn();
+let nlCommandSnapshot: {
+  currentDialog: any;
+  commandProjectContextById: Record<
+    string,
+    { projectId: string | null; projectName?: string | null }
+  >;
+};
 
 vi.mock("./tasks-store", () => ({
   useTasksStore: {
@@ -20,6 +35,7 @@ vi.mock("./nl-command-store", () => ({
     getState: () => ({
       submitTaskHubCommand,
       submitTaskHubClarification,
+      ...nlCommandSnapshot,
     }),
   },
 }));
@@ -32,9 +48,40 @@ vi.mock("./workflow-store", () => ({
   },
 }));
 
+vi.mock("./project-store", () => ({
+  useProjectStore: {
+    getState: () => ({
+      addProjectMessage,
+      addProjectEvidence,
+      addProjectArtifact,
+      addProjectRoute,
+      addProjectClarificationQuestion,
+      answerProjectClarificationQuestion,
+      addProjectSpec,
+      linkMissionToProject,
+    }),
+  },
+}));
+
 describe("unified-launch-coordinator", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    nlCommandSnapshot = {
+      currentDialog: null,
+      commandProjectContextById: {},
+    };
+    addProjectRoute.mockReturnValue({
+      id: "route-1",
+      summary: "route summary",
+    });
+    addProjectMessage.mockImplementation(input => ({
+      id: `${input.role}-message-1`,
+      ...input,
+    }));
+    addProjectEvidence.mockImplementation(input => ({
+      id: `${input.type}-evidence-1`,
+      ...input,
+    }));
   });
 
   it("focuses the mission after a mission-path launch succeeds", async () => {
@@ -62,6 +109,109 @@ describe("unified-launch-coordinator", () => {
     });
     expect(selectTask).toHaveBeenCalledWith("mission-1");
     expect(submitTaskHubCommand).toHaveBeenCalledTimes(1);
+  });
+
+  it("records project message, evidence and mission link for project-scoped launches", async () => {
+    submitTaskHubCommand.mockResolvedValue({
+      commandId: "cmd-project",
+      commandText: "整理权限系统任务",
+      missionId: "mission-project",
+      relatedMissionIds: ["mission-project"],
+      autoSelectedMissionId: "mission-project",
+      status: "created",
+      createdAt: Date.now(),
+      projectId: "project-1",
+    });
+
+    const { submitUnifiedLaunch } = await import("./unified-launch-coordinator");
+    await submitUnifiedLaunch({
+      text: "本周内整理权限管理系统 spec，要求包含 RBAC、审计、验收标准和交付结果。",
+      runtimeMode: "advanced",
+      attachments: [],
+      projectId: "project-1",
+      projectName: "权限管理系统",
+    });
+
+    expect(submitTaskHubCommand).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        projectName: "权限管理系统",
+      })
+    );
+    expect(addProjectMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        role: "user",
+        kind: "chat",
+      })
+    );
+    expect(addProjectRoute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        kind: "recommended",
+      })
+    );
+    expect(linkMissionToProject).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        missionId: "mission-project",
+      })
+    );
+    expect(addProjectEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        sourceMissionId: "mission-project",
+      })
+    );
+    expect(addProjectEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        type: "route",
+        title: "Launch route evaluated",
+      })
+    );
+  });
+
+  it("records project artifacts for project-scoped attachment launches", async () => {
+    submitDirective.mockResolvedValue({
+      workflowId: "wf-project-attachments",
+      missionId: "mission-project-attachments",
+      deduped: false,
+    });
+
+    const { submitUnifiedLaunch } = await import("./unified-launch-coordinator");
+    await submitUnifiedLaunch({
+      text: "根据附件里的需求文档和表格，先整理 brief，再拆出工作包和角色分工，最后输出交付结果和时间安排。",
+      runtimeMode: "advanced",
+      projectId: "project-1",
+      projectName: "Permission System",
+      attachments: [
+        {
+          id: "attachment-1",
+          name: "brief.md",
+          mimeType: "text/markdown",
+          size: 128,
+          content: "# brief",
+          excerpt: "# brief",
+          excerptStatus: "parsed",
+        },
+      ],
+    });
+
+    expect(addProjectArtifact).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        type: "doc",
+        title: "brief.md",
+        contentPreview: "# brief",
+      })
+    );
+    expect(addProjectRoute).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        kind: "deep",
+      })
+    );
   });
 
   it("uses the selected fast or standard route to submit through the mission path", async () => {
@@ -199,7 +349,52 @@ describe("unified-launch-coordinator", () => {
     expect(selectTask).not.toHaveBeenCalled();
   });
 
+  it("records project failure evidence when mission launch throws", async () => {
+    submitTaskHubCommand.mockRejectedValue(new Error("mission failed"));
+
+    const { submitUnifiedLaunch } = await import("./unified-launch-coordinator");
+
+    await expect(
+      submitUnifiedLaunch({
+        text: "本周内整理权限系统，要求验收标准、回滚方案和交付结果。",
+        runtimeMode: "advanced",
+        attachments: [],
+        projectId: "project-1",
+      })
+    ).rejects.toThrow("mission failed");
+
+    expect(addProjectEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+        type: "failure",
+        title: "Mission launch failed",
+        detail: "mission failed",
+      })
+    );
+  });
+
   it("does not allow unavailable route selections to bypass clarification", async () => {
+    nlCommandSnapshot = {
+      currentDialog: {
+        commandId: "cmd-clarify",
+        questions: [
+          {
+            questionId: "goal",
+            text: "请补充交付目标？",
+            type: "single_choice",
+            options: ["Spec first", "Execute now"],
+            context: "Route selection depends on the project goal.",
+          },
+        ],
+        answers: [],
+      },
+      commandProjectContextById: {
+        "cmd-clarify": {
+          projectId: "project-clarify",
+          projectName: "Clarify Project",
+        },
+      },
+    };
     submitTaskHubCommand.mockResolvedValue({
       commandId: "cmd-clarify",
       commandText: "帮我推进这个任务",
@@ -208,6 +403,7 @@ describe("unified-launch-coordinator", () => {
       autoSelectedMissionId: null,
       status: "needs_clarification",
       createdAt: Date.now(),
+      projectId: "project-clarify",
     });
 
     const { submitUnifiedLaunch } = await import("./unified-launch-coordinator");
@@ -215,6 +411,7 @@ describe("unified-launch-coordinator", () => {
       text: "帮我推进这个任务",
       runtimeMode: "advanced",
       attachments: [],
+      projectId: "project-clarify",
       selectedRouteId: "deep-route",
     });
 
@@ -225,9 +422,40 @@ describe("unified-launch-coordinator", () => {
     });
     expect(submitTaskHubCommand).toHaveBeenCalledTimes(1);
     expect(submitDirective).not.toHaveBeenCalled();
+    expect(addProjectClarificationQuestion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-clarify",
+        reason: "Route selection depends on the project goal.",
+        answerType: "single",
+        options: ["Spec first", "Execute now"],
+        required: true,
+        sourceCommandId: "cmd-clarify",
+        sourceQuestionId: "goal",
+      })
+    );
+    expect(addProjectClarificationQuestion.mock.calls[0]?.[0]).toHaveProperty(
+      "sourceMessageId"
+    );
+    expect(addProjectMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-clarify",
+        role: "assistant",
+        kind: "clarification",
+        content: "请补充交付目标？",
+      })
+    );
   });
 
-  it("focuses the mission after clarification submission resolves creation", async () => {
+  it("records the project clarification answer and evidence before resolving creation", async () => {
+    nlCommandSnapshot = {
+      currentDialog: null,
+      commandProjectContextById: {
+        "cmd-clarify-1": {
+          projectId: "project-clarified",
+          projectName: "Clarified Project",
+        },
+      },
+    };
     submitTaskHubClarification.mockResolvedValue({
       commandId: "cmd-clarify-1",
       commandText: "整理支付模块任务",
@@ -255,6 +483,38 @@ describe("unified-launch-coordinator", () => {
       missionId: "mission-clarified",
       status: "created",
     });
+    expect(addProjectMessage).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-clarified",
+        role: "user",
+        kind: "clarification",
+      })
+    );
+    expect(answerProjectClarificationQuestion).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-clarified",
+        questionId: "timeline",
+        answer: expect.any(String),
+      })
+    );
+    expect(addProjectEvidence).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-clarified",
+        type: "clarification",
+        title: "Project clarification answered",
+        detail: expect.stringContaining("Question: timeline"),
+      })
+    );
+    expect(addProjectSpec).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-clarified",
+        title: "Clarification draft",
+        status: "draft",
+        sourceMessageIds: ["user-message-1"],
+        sourceEvidenceIds: ["clarification-evidence-1"],
+        content: expect.stringContaining("Question: timeline"),
+      })
+    );
     expect(submitTaskHubClarification).toHaveBeenCalledTimes(1);
     expect(selectTask).toHaveBeenCalledWith("mission-clarified");
   });

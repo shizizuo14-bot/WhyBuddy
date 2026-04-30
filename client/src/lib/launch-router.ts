@@ -37,6 +37,18 @@ export interface UnifiedLaunchInput {
   text: string;
   attachments?: WorkflowInputAttachment[];
   runtimeMode: LaunchRuntimeMode;
+  projectId?: string | null;
+  projectName?: string | null;
+  projectContext?: {
+    status?: string | null;
+    currentSpecTitle?: string | null;
+    currentRouteTitle?: string | null;
+    recentMessages?: Array<{
+      content: string;
+      kind?: string;
+    }>;
+    activeMissionCount?: number;
+  } | null;
 }
 
 export interface LaunchRouteDecision {
@@ -120,28 +132,64 @@ function requiresAdvancedRuntime(text: string): boolean {
   );
 }
 
+function requestsProjectCarryover(text: string): boolean {
+  return /继续|推进|下一步|按这个|基于这个|照这个|继续做|continue|next|proceed|carry on/i.test(
+    text
+  );
+}
+
 export function evaluateLaunchRoute(
   input: UnifiedLaunchInput
 ): LaunchRouteDecision {
   const text = normalizeLaunchText(input.text);
   const attachments = input.attachments ?? [];
+  const projectContextText = normalizeLaunchText(
+    [
+      input.projectName,
+      input.projectContext?.currentSpecTitle,
+      input.projectContext?.currentRouteTitle,
+      ...(input.projectContext?.recentMessages ?? []).map(
+        message => message.content
+      ),
+    ]
+      .filter(Boolean)
+      .join(" ")
+  );
+  const hasProjectCarryover =
+    Boolean(input.projectId) &&
+    (Boolean(input.projectContext?.currentSpecTitle) ||
+      Boolean(input.projectContext?.currentRouteTitle) ||
+      (input.projectContext?.recentMessages?.length ?? 0) > 0);
   const reasons: LaunchReason[] = [];
 
-  const missingOutcome = !hasOutcomeSignal(text);
-  const missingTimeline = !hasTimelineSignal(text);
-  const missingConstraints = !hasConstraintSignal(text);
+  const missingOutcome =
+    !hasOutcomeSignal(text) && !hasOutcomeSignal(projectContextText);
+  const missingTimeline =
+    !hasTimelineSignal(text) && !hasTimelineSignal(projectContextText);
+  const missingConstraints =
+    !hasConstraintSignal(text) && !hasConstraintSignal(projectContextText);
   const missingTopicsCount = [
     missingOutcome,
     missingTimeline,
     missingConstraints,
   ].filter(Boolean).length;
-  const needsClarification =
+  const wouldNeedClarification =
     text.length < 20 ||
     missingTopicsCount >= 2 ||
     (text.length < 36 && missingTopicsCount >= 1);
   const wantsAttachmentContext = requestsAttachmentContext(text);
   const wantsWorkflowOrTeamSetup = requestsWorkflowOrTeamSetup(text);
   const wantsAdvancedRuntime = requiresAdvancedRuntime(text);
+  const wantsProjectCarryover = requestsProjectCarryover(text);
+  const projectContextCanCarry =
+    hasProjectCarryover &&
+    (text.length >= 12 || wantsProjectCarryover) &&
+    (input.projectContext?.status === "spec_ready" ||
+      input.projectContext?.status === "planning" ||
+      input.projectContext?.status === "executing" ||
+      Boolean(input.projectContext?.currentSpecTitle));
+  const needsClarification =
+    wouldNeedClarification && !projectContextCanCarry;
 
   if (text.length < 36) {
     reasons.push("command_too_short");

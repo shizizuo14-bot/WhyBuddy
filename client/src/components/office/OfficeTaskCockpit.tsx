@@ -61,6 +61,7 @@ import {
 } from "@/lib/launch-router";
 import { useNLCommandStore } from "@/lib/nl-command-store";
 import type { TaskHubCommandSubmissionResult } from "@/lib/nl-command-store";
+import { selectCurrentProject, useProjectStore } from "@/lib/project-store";
 import { useAppStore } from "@/lib/store";
 import { useTelemetryStore } from "@/lib/telemetry-store";
 import { useTasksStore, type TaskArtifact } from "@/lib/tasks-store";
@@ -154,6 +155,11 @@ export function OfficeTaskCockpit({
   const currentDialog = useNLCommandStore(state => state.currentDialog);
   const currentCommand = useNLCommandStore(state => state.currentCommand);
   const launchDraftText = useNLCommandStore(state => state.draftText || "");
+  const currentProject = useProjectStore(selectCurrentProject);
+  const linkMissionToProject = useProjectStore(
+    state => state.linkMissionToProject
+  );
+  const addProjectEvidence = useProjectStore(state => state.addProjectEvidence);
   const hasActiveClarification = currentDialog?.status === "active";
   const [search, setSearch] = useState("");
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
@@ -313,6 +319,23 @@ export function OfficeTaskCockpit({
     try {
       const missionId = await createMission(input);
       if (missionId) {
+        if (currentProject) {
+          linkMissionToProject({
+            projectId: currentProject.id,
+            missionId,
+            status: "queued",
+          });
+          addProjectEvidence({
+            projectId: currentProject.id,
+            type: "message",
+            title: "Manual mission created in project cockpit",
+            detail:
+              input.sourceText ||
+              input.title ||
+              "Manual mission created from the project cockpit.",
+            sourceMissionId: missionId,
+          });
+        }
         toast.success(
           t(
             locale,
@@ -371,6 +394,8 @@ export function OfficeTaskCockpit({
     try {
       const result = await submitUnifiedClarification({
         commandId: currentCommand.commandId,
+        projectId: currentProject?.id ?? null,
+        projectName: currentProject?.name ?? null,
         answer: {
           questionId,
           text,
@@ -723,14 +748,14 @@ export function OfficeTaskCockpit({
 
   const launchAutopilotGuidance = (
     <div
-      className="rounded-[18px] border border-slate-200/75 bg-white/76 p-3 shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
+      className="shrink-0 rounded-[18px] border border-slate-200/75 bg-white/76 p-3 shadow-[0_10px_24px_rgba(15,23,42,0.06)]"
       data-testid="office-launch-guidance"
     >
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex flex-wrap items-center gap-1.5">
           <div className="flex rounded-[10px] border border-slate-200/70 bg-white/78 p-0.5 shadow-[inset_0_1px_0_rgba(255,255,255,0.55)]">
             <span className="inline-flex items-center gap-1 rounded-[8px] bg-sky-600 px-1.5 py-0.5 text-[8px] font-semibold text-white shadow-[0_10px_24px_rgba(2,132,199,0.16)]">
-              {t(locale, "任务自动驾驶", "Task Autopilot")}
+              {t(locale, "项目驾驶舱", "Project Cockpit")}
             </span>
             <button
               type="button"
@@ -756,6 +781,21 @@ export function OfficeTaskCockpit({
               )}
             </span>
           ) : null}
+          <span
+            className={cn(
+              "workspace-status px-1 py-0.5 text-[8px] font-semibold",
+              currentProject ? "workspace-tone-info" : "workspace-tone-neutral"
+            )}
+            data-testid="office-current-project-chip"
+          >
+            {currentProject
+              ? t(
+                  locale,
+                  `项目：${currentProject.name}`,
+                  `Project: ${currentProject.name}`
+                )
+              : t(locale, "先创建项目", "First input creates a project")}
+          </span>
         </div>
 
         <div className="flex flex-wrap items-center gap-1.5">
@@ -950,6 +990,8 @@ export function OfficeTaskCockpit({
   const launcherDock = (
     <UnifiedLaunchComposer
       createMission={createMission}
+      projectId={currentProject?.id ?? null}
+      projectName={currentProject?.name ?? null}
       activeTaskTitle={selectedDetail?.title || selectedTaskSummary?.title}
       activeTaskDetail={selectedDetail}
       operatorActionLoading={
@@ -1034,7 +1076,7 @@ export function OfficeTaskCockpit({
 
   const launcherContextDock = (
     <div
-      className="pointer-events-auto w-full overflow-hidden rounded-[16px] border border-white/45 bg-white/64 shadow-[0_16px_36px_rgba(15,23,42,0.1)] backdrop-blur-md"
+      className="pointer-events-auto flex min-h-0 w-full flex-1 flex-col overflow-hidden rounded-[16px] border border-white/45 bg-white/64 shadow-[0_16px_36px_rgba(15,23,42,0.1)] backdrop-blur-md"
       data-testid="office-center-context-dock"
     >
       <Tabs
@@ -1046,7 +1088,7 @@ export function OfficeTaskCockpit({
         }
         className="flex h-full min-h-0 flex-col"
       >
-        <div className="border-b border-stone-200/55 px-3 py-2">
+        <div className="shrink-0 border-b border-stone-200/55 px-3 py-2">
           <div className="flex items-center justify-between gap-3">
             <div>
               <div className="text-[8px] font-semibold uppercase tracking-[0.16em] text-stone-500">
@@ -1106,10 +1148,10 @@ export function OfficeTaskCockpit({
 
         <TabsContent
           value="support"
-          className="mt-0 min-h-0 flex-1 overflow-hidden p-3 data-[state=active]:block"
+          className="mt-0 min-h-0 flex-1 overflow-hidden p-3 data-[state=active]:flex data-[state=active]:flex-col"
         >
           {supportTabHasContext ? (
-            <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+            <div className="grid min-h-0 flex-1 gap-2 overflow-y-auto pr-1 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               {launchDestinationPreview ? (
                 <div
                   className="min-h-0 lg:col-span-2"
@@ -1288,7 +1330,7 @@ export function OfficeTaskCockpit({
               ) : null}
             </div>
           ) : (
-            <div className="rounded-[14px] border border-dashed border-stone-300/80 bg-white/70 px-3 py-4 text-[10px] leading-5 text-stone-500">
+            <div className="flex min-h-0 flex-1 items-center rounded-[14px] border border-dashed border-stone-300/80 bg-white/70 px-3 py-4 text-[10px] leading-5 text-stone-500">
               {t(
                 locale,
                 "当前没有需要人工介入的辅助判断信息。任务执行证据统一留在 Logs / Artifacts / Runtime。",
@@ -1303,10 +1345,7 @@ export function OfficeTaskCockpit({
           className="mt-0 min-h-0 flex-1 overflow-hidden p-3 data-[state=active]:flex data-[state=active]:flex-col"
         >
           {selectedDetail ? (
-            <div
-              className="min-h-0 flex-1 overflow-hidden rounded-[16px] bg-[rgba(255,255,255,0.38)] p-1.5"
-              style={{ maxHeight: "clamp(170px, 22vh, 220px)" }}
-            >
+            <div className="min-h-0 flex-1 overflow-hidden rounded-[16px] bg-[rgba(255,255,255,0.38)] p-1.5">
               <ExecutorTerminalPanel
                 missionId={selectedDetail.id}
                 missionStatus={selectedDetail.status}
@@ -1318,13 +1357,10 @@ export function OfficeTaskCockpit({
 
         <TabsContent
           value="artifacts"
-          className="mt-0 min-h-0 flex-1 overflow-hidden p-3 data-[state=active]:block"
+          className="mt-0 min-h-0 flex-1 overflow-hidden p-3 data-[state=active]:flex data-[state=active]:flex-col"
         >
           {selectedDetail ? (
-            <div
-              className="min-h-0 overflow-y-auto rounded-[16px] bg-[rgba(255,255,255,0.38)] p-1.5"
-              style={{ maxHeight: "clamp(170px, 22vh, 220px)" }}
-            >
+            <div className="min-h-0 flex-1 overflow-y-auto rounded-[16px] bg-[rgba(255,255,255,0.38)] p-1.5">
               {artifactError ? (
                 <div className="mb-2 rounded-[12px] border border-rose-200/70 bg-rose-50/78 px-3 py-2 text-[10px] leading-4 text-rose-700">
                   {artifactError.message}
@@ -1346,13 +1382,10 @@ export function OfficeTaskCockpit({
 
         <TabsContent
           value="runtime"
-          className="mt-0 min-h-0 flex-1 overflow-hidden p-3 data-[state=active]:block"
+          className="mt-0 min-h-0 flex-1 overflow-hidden p-3 data-[state=active]:flex data-[state=active]:flex-col"
         >
           {selectedDetail ? (
-            <div
-              className="min-h-0 overflow-y-auto rounded-[16px] border border-white/50 bg-[rgba(255,255,255,0.48)] p-2"
-              style={{ maxHeight: "clamp(170px, 22vh, 220px)" }}
-            >
+            <div className="min-h-0 flex-1 overflow-y-auto rounded-[16px] border border-white/50 bg-[rgba(255,255,255,0.48)] p-2">
               <div className="mb-2 rounded-[12px] border border-white/60 bg-white/72 px-3 py-2 text-[10px] leading-4 text-stone-600">
                 {t(
                   locale,
@@ -1448,7 +1481,7 @@ export function OfficeTaskCockpit({
 
   const centerControlPanel = (
     <div
-      className="h-full min-h-0 space-y-2.5 overflow-y-auto p-2.5"
+      className="flex h-full min-h-0 flex-col gap-2.5 overflow-hidden p-2.5"
       data-testid="office-center-control-panel"
     >
       {launchAutopilotGuidance}
@@ -1474,7 +1507,7 @@ export function OfficeTaskCockpit({
       {!centerControlsCollapsed && !showClarificationDock ? (
         <div
           className={cn(
-            "pointer-events-auto h-[min(52vh,520px)] min-h-0 overflow-y-auto rounded-[20px] border",
+            "pointer-events-auto h-[min(52vh,520px)] min-h-0 overflow-hidden rounded-[20px] border",
             floatingGlassClass
           )}
           data-testid="office-center-workbench-shell"

@@ -9,7 +9,10 @@ vi.mock("lucide-react", () => {
 
   return {
     ArrowRight: Icon,
+    FolderKanban: Icon,
+    Plus: Icon,
     Settings2: Icon,
+    Upload: Icon,
     Waves: Icon,
   };
 });
@@ -35,6 +38,7 @@ const taskState = {
   detailsById: {},
   selectedTaskId: null,
   ensureReady: vi.fn(async () => {}),
+  createMission: vi.fn(async () => null),
   selectTask: vi.fn(),
 };
 
@@ -79,6 +83,50 @@ vi.mock("@/lib/telemetry-store", () => ({
     selectFrom(telemetryState, selector),
 }));
 
+const projectState = {
+  ready: true,
+  ensureReady: vi.fn(),
+  currentProjectId: null as string | null,
+  projects: [] as any[],
+  messages: [] as any[],
+  clarificationQuestions: [] as any[],
+  specs: [] as any[],
+  routes: [] as any[],
+  missions: [] as any[],
+  artifacts: [] as any[],
+  evidence: [] as any[],
+  createProject: vi.fn(),
+  selectProject: vi.fn(),
+  addProjectArtifact: vi.fn(),
+};
+
+vi.mock("@/lib/project-store", () => ({
+  selectCurrentProject: (state: typeof projectState) =>
+    state.projects.find(project => project.id === state.currentProjectId) ??
+    null,
+  selectProjectBundle: (state: typeof projectState, projectId: string | null) =>
+    projectId
+      ? {
+          project: state.projects.find(project => project.id === projectId),
+          messages: state.messages.filter(item => item.projectId === projectId),
+          clarificationQuestions: state.clarificationQuestions.filter(
+            item => item.projectId === projectId
+          ),
+          specs: state.specs.filter(item => item.projectId === projectId),
+          routes: state.routes.filter(item => item.projectId === projectId),
+          missions: state.missions.filter(item => item.projectId === projectId),
+          artifacts: state.artifacts.filter(
+            item => item.projectId === projectId
+          ),
+          evidence: state.evidence.filter(
+            item => item.projectId === projectId
+          ),
+        }
+      : null,
+  useProjectStore: (selector: (state: typeof projectState) => unknown) =>
+    selectFrom(projectState, selector),
+}));
+
 vi.mock("@/hooks/useDemoMode", () => ({
   useDemoMode: () => ({ startDemo: vi.fn(async () => {}) }),
 }));
@@ -118,7 +166,7 @@ vi.mock("@/i18n", () => ({
       home: {
         desktopOfficeLabel: "Cube Pets Office / Office",
         officeTitle: "Office is now the default desktop execution shell.",
-        enterTasks: "Task Workbench",
+        enterTasks: "Execution details",
         openWorkflow: "Open Workflow",
         liveDemo: "Load Demo",
         openConfig: "Runtime Config",
@@ -167,6 +215,10 @@ vi.mock("@/components/Scene3D", () => ({
       data-sidebar-width={sidebarWidth}
     />
   ),
+}));
+
+vi.mock("@/components/launch/UnifiedLaunchComposer", () => ({
+  UnifiedLaunchComposer: () => <div data-testid="unified-launch-composer" />,
 }));
 
 vi.mock("@/components/office/OfficeTaskCockpit", () => ({
@@ -243,6 +295,65 @@ describe("Home desktop first-screen layout smoke", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     currentViewportWidth = 1440;
+    projectState.currentProjectId = "project-1";
+    projectState.projects = [
+      {
+        id: "project-1",
+        name: "Spec Center",
+        goal: "Keep spec state visible on the cockpit.",
+        status: "spec_ready",
+        currentSpecId: "spec-1",
+        createdAt: "2026-04-30T00:00:00.000Z",
+        updatedAt: "2026-04-30T00:00:00.000Z",
+      },
+    ];
+    projectState.specs = [
+      {
+        id: "spec-1",
+        projectId: "project-1",
+        version: 1,
+        title: "Cockpit Spec",
+        content: "Show the current spec summary and completeness.",
+        status: "accepted",
+        sourceMessageIds: ["message-1"],
+        sourceEvidenceIds: [],
+        sourceArtifactIds: [],
+        completeness: 0.7,
+      },
+    ];
+    projectState.routes = [
+      {
+        id: "route-1",
+        projectId: "project-1",
+        specId: "spec-1",
+        kind: "recommended",
+        title: "Recommended FSD Route",
+        summary: "Move the accepted spec into coordinated execution.",
+        riskLevel: "medium",
+        steps: [
+          {
+            id: "route-step-1",
+            title: "Align on spec intent",
+            role: "Planner",
+            status: "pending",
+          },
+        ],
+        selectedAt: "2026-04-30T00:20:00.000Z",
+        createdAt: "2026-04-30T00:20:00.000Z",
+      },
+    ];
+    projectState.missions = [];
+    projectState.artifacts = [];
+    projectState.evidence = [];
+    projectState.clarificationQuestions = [
+      {
+        id: "clarification-open",
+        projectId: "project-1",
+        text: "Which evidence should appear first?",
+        required: false,
+        defaultAssumption: "Show spec evidence first.",
+      },
+    ];
   });
 
   it.each([1280, 1440, 1728])(
@@ -256,9 +367,16 @@ describe("Home desktop first-screen layout smoke", () => {
       expect(markup).toContain('data-embedded="true"');
       expect(markup).toContain('data-testid="scene-3d"');
       expect(markup).toContain('data-testid="office-task-cockpit"');
-      expect(markup).toContain("Task Workbench");
+      expect(markup).toContain("Execution details");
       expect(markup).toContain("Open Workflow");
       expect(markup).toContain("Runtime Config");
+      expect(markup).toContain('data-testid="home-current-spec-summary"');
+      expect(markup).toContain('data-testid="home-clarification-progress"');
+      expect(markup).toContain('data-testid="home-route-cards"');
+      expect(markup).toContain("1 open");
+      expect(markup).toContain("Cockpit Spec");
+      expect(markup).toContain("Recommended FSD Route");
+      expect(markup).toContain("medium risk");
       expect(markup).not.toContain("task-detail-full-screen");
     },
   );

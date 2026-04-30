@@ -359,6 +359,7 @@ interface TasksStoreState {
     kind?: string;
     topicId?: string;
     autoDispatch?: boolean;
+    projectId?: string | null;
   }) => Promise<string | null>;
   cancelMission: (
     taskId: string,
@@ -5322,7 +5323,8 @@ export const useTasksStore = create<TasksStoreState>((set, get) => ({
       return null;
     }
 
-    const response = await createMissionRequest(input);
+    const { projectId: _projectId, ...missionInput } = input;
+    const response = await createMissionRequest(missionInput);
     await get().refresh({
       preferredTaskId: response.task.id,
     });

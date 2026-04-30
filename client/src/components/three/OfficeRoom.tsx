@@ -2,7 +2,6 @@ import { Html, useGLTF } from "@react-three/drei";
 import { useEffect, useMemo } from "react";
 import * as THREE from "three";
 
-import { useI18n } from "@/i18n";
 import { FURNITURE_MODELS } from "@/lib/assets";
 import { SCENE_FLOW_ZONES } from "@/lib/scene-stage-flow";
 import {
@@ -406,32 +405,6 @@ function CorkBoard() {
           <meshStandardMaterial color={note.color} roughness={0.9} />
         </mesh>
       ))}
-    </group>
-  );
-}
-
-function WallBrandPlaque() {
-  const { copy } = useI18n();
-
-  return (
-    <group position={[0, 3.42, -4.2]}>
-      <Html
-        center
-        transform
-        position={[0, 0, 0]}
-        distanceFactor={8.4}
-        style={{ pointerEvents: "none" }}
-      >
-        <div
-          className="whitespace-nowrap text-center text-[26px] font-bold leading-none text-slate-700"
-          style={{
-            fontFamily: "'Space Grotesk', 'Noto Sans SC', sans-serif",
-            textShadow: "0 0 18px rgba(56,189,248,0.32)",
-          }}
-        >
-          {copy.scene.brand}
-        </div>
-      </Html>
     </group>
   );
 }
@@ -1161,7 +1134,6 @@ export function OfficeRoom({
       <Floor />
       <Walls />
       {showSecondaryDecor ? <ArchitecturalAccents /> : null}
-      {showSecondaryDecor && !reducedEffects ? <WallBrandPlaque /> : null}
       <CorkBoard />
       {showSecondaryDecor ? (
         <DepartmentDecor departments={sceneDepartments} />

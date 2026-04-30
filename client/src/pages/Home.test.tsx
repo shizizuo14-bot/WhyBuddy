@@ -1,7 +1,14 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { appState, tasksState, telemetryState, workflowState, locationState } =
+const {
+  appState,
+  projectState,
+  tasksState,
+  telemetryState,
+  workflowState,
+  locationState,
+} =
   vi.hoisted(() => {
     const appState = {
       isSceneReady: true,
@@ -16,10 +23,27 @@ const { appState, tasksState, telemetryState, workflowState, locationState } =
     };
     const tasksState = {
       ensureReady: async () => {},
+      createMission: async () => null,
       tasks: [],
       detailsById: {},
       selectedTaskId: null as string | null,
       selectTask: () => {},
+    };
+    const projectState = {
+      ready: true,
+      ensureReady: () => {},
+      currentProjectId: null as string | null,
+      projects: [] as any[],
+      messages: [] as any[],
+      clarificationQuestions: [] as any[],
+      specs: [] as any[],
+      routes: [] as any[],
+      missions: [] as any[],
+      artifacts: [] as any[],
+      evidence: [] as any[],
+      createProject: vi.fn(),
+      selectProject: vi.fn(),
+      addProjectArtifact: vi.fn(),
     };
     const telemetryState = {
       fetchInitial: async () => {},
@@ -40,6 +64,7 @@ const { appState, tasksState, telemetryState, workflowState, locationState } =
 
     return {
       appState,
+      projectState,
       tasksState,
       telemetryState,
       workflowState,
@@ -75,6 +100,31 @@ vi.mock("@/components/ChatPanel", () => ({
 
 vi.mock("@/components/GitHubRepoBadge", () => ({
   GitHubRepoBadge: () => <div data-testid="github-repo-badge" />,
+}));
+
+vi.mock("@/components/launch/UnifiedLaunchComposer", () => ({
+  UnifiedLaunchComposer: ({
+    projectId,
+    projectName,
+    compact,
+    bare,
+    dense,
+  }: {
+    projectId?: string | null;
+    projectName?: string | null;
+    compact?: boolean;
+    bare?: boolean;
+    dense?: boolean;
+  }) => (
+    <div
+      data-testid="unified-launch-composer"
+      data-project-id={projectId || ""}
+      data-project-name={projectName || ""}
+      data-compact={compact ? "true" : "false"}
+      data-bare={bare ? "true" : "false"}
+      data-dense={dense ? "true" : "false"}
+    />
+  ),
 }));
 
 vi.mock("@/components/LoadingScreen", () => ({
@@ -225,6 +275,33 @@ vi.mock("@/lib/tasks-store", () => ({
     selector(tasksState),
 }));
 
+vi.mock("@/lib/project-store", () => ({
+  selectCurrentProject: (state: typeof projectState) =>
+    state.projects.find(project => project.id === state.currentProjectId) ??
+    null,
+  selectProjectBundle: (state: typeof projectState, projectId: string | null) =>
+    projectId
+      ? {
+          project: state.projects.find(project => project.id === projectId),
+          messages: state.messages.filter(item => item.projectId === projectId),
+          clarificationQuestions: state.clarificationQuestions.filter(
+            item => item.projectId === projectId
+          ),
+          specs: state.specs.filter(item => item.projectId === projectId),
+          routes: state.routes.filter(item => item.projectId === projectId),
+          missions: state.missions.filter(item => item.projectId === projectId),
+          artifacts: state.artifacts.filter(
+            item => item.projectId === projectId
+          ),
+          evidence: state.evidence.filter(
+            item => item.projectId === projectId
+          ),
+        }
+      : null,
+  useProjectStore: (selector: (state: typeof projectState) => unknown) =>
+    selector(projectState),
+}));
+
 vi.mock("@/lib/telemetry-store", () => ({
   useTelemetryStore: (selector: (state: typeof telemetryState) => unknown) =>
     selector(telemetryState),
@@ -239,6 +316,18 @@ describe("Home desktop shell", () => {
   beforeEach(() => {
     locationState.current = "/";
     locationState.setLocation.mockClear();
+    projectState.currentProjectId = null;
+    projectState.projects = [];
+    projectState.messages = [];
+    projectState.clarificationQuestions = [];
+    projectState.specs = [];
+    projectState.routes = [];
+    projectState.missions = [];
+    projectState.artifacts = [];
+    projectState.evidence = [];
+    projectState.createProject.mockClear();
+    projectState.selectProject.mockClear();
+    projectState.addProjectArtifact.mockClear();
   });
 
   it("keeps the scene and toolbar aligned to the desktop sidebar shell", () => {
@@ -301,5 +390,170 @@ describe("Home desktop shell", () => {
     expect(markup).not.toContain(
       ".home-first-screen-cockpit .office-cockpit-splitter {\n  opacity: 0"
     );
+  });
+
+  it("surfaces the project-first empty state on the desktop home hero", () => {
+    const markup = renderToStaticMarkup(<Home />);
+
+    expect(markup).toContain("Project Cockpit");
+    expect(markup).toContain("Create your first project");
+    expect(markup).toContain("No project");
+    expect(markup).toContain("Permission system");
+    expect(markup).toContain("Research brief");
+    expect(markup).toContain("Product spec");
+    expect(markup).toContain("Import materials");
+    expect(markup).toContain("Specs 0");
+    expect(markup).toContain('data-testid="home-project-stage-panel"');
+    expect(markup).toContain("Create / import / describe");
+  });
+
+  it("shows the current project and project bundle counters on the home hero", () => {
+    projectState.currentProjectId = "project-1";
+    projectState.projects = [
+      {
+        id: "project-1",
+        name: "Permission System",
+        goal: "Build a permission management system",
+        status: "clarifying",
+        currentSpecId: "spec-1",
+        createdAt: "2026-04-30T00:00:00.000Z",
+        updatedAt: "2026-04-30T00:00:00.000Z",
+      },
+    ];
+    projectState.specs = [
+      {
+        id: "spec-1",
+        projectId: "project-1",
+        version: 2,
+        title: "Permission Spec",
+        content:
+          "Define roles, resources, permission checks, audit evidence, and rollback expectations.",
+        status: "accepted",
+        sourceMessageIds: ["message-1"],
+        sourceEvidenceIds: ["evidence-source-1", "evidence-source-2"],
+        sourceArtifactIds: ["artifact-1"],
+        completenessDetail: { score: 0.84 },
+      },
+    ];
+    projectState.routes = [
+      {
+        id: "route-1",
+        projectId: "project-1",
+        specId: "spec-1",
+        kind: "conservative",
+        title: "Conservative Control Route",
+        summary: "Confirm approvals before execution.",
+        riskLevel: "low",
+        steps: [
+          {
+            id: "route-step-1",
+            title: "Confirm assumptions",
+            role: "Reviewer",
+            status: "pending",
+          },
+          {
+            id: "route-step-2",
+            title: "Prepare rollback-safe work",
+            role: "Planner",
+            status: "pending",
+          },
+        ],
+        selectedAt: "2026-04-30T00:20:00.000Z",
+        createdAt: "2026-04-30T00:20:00.000Z",
+      },
+    ];
+    projectState.missions = [{ id: "mission-1", projectId: "project-1" }];
+    projectState.evidence = [{ id: "evidence-1", projectId: "project-1" }];
+    projectState.clarificationQuestions = [
+      {
+        id: "clarification-answered",
+        projectId: "project-1",
+        text: "Who approves permission changes?",
+        required: true,
+        answeredAt: "2026-04-30T00:10:00.000Z",
+      },
+      {
+        id: "clarification-skipped",
+        projectId: "project-1",
+        text: "Which frontend framework should be used?",
+        required: false,
+        defaultAssumption: "Use React.",
+        skippedAt: "2026-04-30T00:11:00.000Z",
+      },
+      {
+        id: "clarification-open",
+        projectId: "project-1",
+        text: "What is the audit retention window?",
+        required: true,
+      },
+      {
+        id: "clarification-other-project",
+        projectId: "project-2",
+        text: "Should not be counted here.",
+        required: true,
+      },
+    ];
+
+    const markup = renderToStaticMarkup(<Home />);
+
+    expect(markup).toContain("Permission System");
+    expect(markup).toContain("Clarifying");
+    expect(markup).toContain("Specs 1");
+    expect(markup).toContain("Routes 1");
+    expect(markup).toContain("Missions 1");
+    expect(markup).toContain("Evidence 1");
+    expect(markup).toContain("Continue Q&amp;A");
+    expect(markup).toContain('data-testid="home-clarification-progress"');
+    expect(markup).toContain("Clarification");
+    expect(markup).toContain("1 open");
+    expect(markup).toContain("2 resolved");
+    expect(markup).toContain("1 required");
+    expect(markup).toContain("What is the audit retention window?");
+    expect(markup).toContain("1 answered / 1 skipped / 0 skippable");
+    expect(markup).toContain('data-testid="home-current-spec-summary"');
+    expect(markup).toContain("Current spec");
+    expect(markup).toContain("v2");
+    expect(markup).toContain("Permission Spec");
+    expect(markup).toContain("84% complete");
+    expect(markup).toContain("1 messages / 2 evidence / 1 artifacts");
+    expect(markup).toContain('data-testid="home-open-spec-center"');
+    expect(markup).toContain("Spec Center");
+    expect(markup).toContain('data-testid="home-route-cards"');
+    expect(markup).toContain('data-testid="home-route-card"');
+    expect(markup).toContain("Conservative / Current");
+    expect(markup).toContain("Conservative Control Route");
+    expect(markup).toContain("low risk");
+    expect(markup).toContain("Confirm assumptions / Prepare rollback-safe work");
+  });
+
+  it("shows a compact project switcher when multiple projects exist", () => {
+    projectState.currentProjectId = "project-2";
+    projectState.projects = [
+      {
+        id: "project-1",
+        name: "Permission System",
+        goal: "Build a permission management system",
+        status: "clarifying",
+        createdAt: "2026-04-29T00:00:00.000Z",
+        updatedAt: "2026-04-29T00:00:00.000Z",
+      },
+      {
+        id: "project-2",
+        name: "Spec Evolution",
+        goal: "Evolve a product spec",
+        status: "planning",
+        createdAt: "2026-04-30T00:00:00.000Z",
+        updatedAt: "2026-04-30T00:00:00.000Z",
+      },
+    ];
+
+    const markup = renderToStaticMarkup(<Home />);
+
+    expect(markup).toContain('data-testid="home-project-switcher"');
+    expect(markup).toContain("Switch project");
+    expect(markup).toContain("Permission System");
+    expect(markup).toContain("Spec Evolution");
+    expect(markup).toContain("Planning");
+    expect(markup).toContain("Confirm route");
   });
 });

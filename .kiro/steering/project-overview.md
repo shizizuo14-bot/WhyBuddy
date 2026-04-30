@@ -10,6 +10,25 @@
 
 ## inclusion: auto
 
+## 2026-04-30 Project-first next phase
+
+This project overview now treats Project-first as the next product mainline above the closed Task Autopilot Phase 1 baseline.
+
+The user-facing chain is:
+
+```text
+Project -> Clarification -> Spec -> Route -> Execution -> Evidence
+```
+
+- `Project` is the first durable product object and the user's return point for intent, messages, specs, routes, missions, artifacts, and evidence.
+- `Clarification` is project-scoped and resolves missing context, constraints, permissions, acceptance criteria, and risk boundaries.
+- `Spec` turns clarified project intent into an inspectable, versioned contract for scope, deliverables, acceptance criteria, and evidence expectations.
+- `Route` is planned through FSD role packages, including main, conservative, fallback, and takeover paths.
+- `Execution` continues to run through the existing Mission / Workflow / Runtime / Executor stack; Project-first does not introduce a parallel runtime.
+- `Evidence` writes artifacts, logs, decisions, replay records, audit facts, and delivery review back to the project context.
+
+The 50+ AIGC nodes are internal capabilities inside FSD roles such as Planner, Clarifier, Researcher, Generator, Operator, Reviewer, and Auditor. They are not the primary user entrypoint. Tasks, workflows, Docker, browser runtime, and native runtime remain execution carriers below the Project-first product line.
+
 ## 2026-04-26 增补：Task Autopilot Phase 1 闭环
 
 本页已经同步到 2026-04-26 的主线口径，旧阶段性文档继续保留用于历史追溯。当前需要优先记住以下事实：

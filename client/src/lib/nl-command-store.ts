@@ -70,6 +70,7 @@ export interface TaskHubCreateMissionInput {
   sourceText?: string;
   topicId?: string;
   autoDispatch?: boolean;
+  projectId?: string | null;
 }
 
 export type TaskHubCreateMission = (
@@ -84,6 +85,7 @@ export interface TaskHubCommandSubmissionResult {
   autoSelectedMissionId: string | null;
   status: "needs_clarification" | "created";
   createdAt: number;
+  projectId?: string | null;
 }
 
 export interface TaskHubLaunchSession {
@@ -94,16 +96,24 @@ export interface TaskHubLaunchSession {
   currentDialog: ClarificationDialog | null;
   currentPlan: NLExecutionPlan | null;
   lastSubmission: TaskHubCommandSubmissionResult | null;
+  commandProjectContextById: Record<
+    string,
+    { projectId: string | null; projectName?: string | null }
+  >;
   loading: boolean;
   error: string | null;
 }
 
 export interface SubmitTaskHubCommandRequest extends SubmitCommandRequest {
   createMission: TaskHubCreateMission;
+  projectId?: string | null;
+  projectName?: string | null;
 }
 
 interface SubmitTaskHubClarificationOptions {
   createMission: TaskHubCreateMission;
+  projectId?: string | null;
+  projectName?: string | null;
 }
 
 function normalizeCommandText(value: string): string {
@@ -486,7 +496,8 @@ function applyClarificationToAnalysis(
 function buildTaskHubMissionInput(
   command: StrategicCommand,
   analysis: CommandAnalysis,
-  answers: ClarificationAnswer[]
+  answers: ClarificationAnswer[],
+  projectContext?: { projectId?: string | null }
 ): TaskHubCreateMissionInput {
   const copy = getTaskHubCopy(getCurrentTaskHubLocale());
   const sections = [
@@ -511,6 +522,7 @@ function buildTaskHubMissionInput(
     title: deriveMissionTitle(command.commandText),
     sourceText: sections.join("\n\n"),
     autoDispatch: true,
+    projectId: projectContext?.projectId ?? null,
   };
 }
 
@@ -749,6 +761,7 @@ export function selectTaskHubLaunchSession(
     | "currentDialog"
     | "currentPlan"
     | "lastSubmission"
+    | "commandProjectContextById"
     | "loading"
     | "error"
   >
@@ -761,6 +774,7 @@ export function selectTaskHubLaunchSession(
     currentDialog: state.currentDialog,
     currentPlan: state.currentPlan,
     lastSubmission: state.lastSubmission,
+    commandProjectContextById: state.commandProjectContextById,
     loading: state.loading,
     error: state.error,
   };
@@ -786,6 +800,7 @@ export const useNLCommandStore = create<NLCommandState>((set, get) => ({
   dashboard: null,
   draftText: "",
   lastSubmission: null,
+  commandProjectContextById: {},
   loading: false,
   error: null,
 
@@ -796,7 +811,7 @@ export const useNLCommandStore = create<NLCommandState>((set, get) => ({
   submitTaskHubCommand: async req => {
     set({ loading: true, error: null, lastSubmission: null });
 
-    const { createMission, ...commandRequest } = req;
+    const { createMission, projectId = null, projectName = null, ...commandRequest } = req;
     const normalizedText = normalizeCommandText(commandRequest.commandText);
     const commandId = `task-hub-${nanoid(10)}`;
     const { analysis, questions } = await resolveTaskHubAnalysis(commandRequest);
@@ -842,6 +857,13 @@ export const useNLCommandStore = create<NLCommandState>((set, get) => ({
       currentPlan: previewPlan,
       draftText: "",
       lastSubmission: null,
+      commandProjectContextById: {
+        ...state.commandProjectContextById,
+        [commandId]: {
+          projectId,
+          projectName,
+        },
+      },
       commands: [
         command,
         ...state.commands.filter(item => item.commandId !== command.commandId),
@@ -857,6 +879,7 @@ export const useNLCommandStore = create<NLCommandState>((set, get) => ({
         autoSelectedMissionId: null,
         status: "needs_clarification",
         createdAt: Date.now(),
+        projectId,
       };
 
       set({ loading: false, lastSubmission: result });
@@ -865,7 +888,7 @@ export const useNLCommandStore = create<NLCommandState>((set, get) => ({
 
     try {
       const missionId = await createMission(
-        buildTaskHubMissionInput(command, analysis, [])
+        buildTaskHubMissionInput(command, analysis, [], { projectId })
       );
       const result: TaskHubCommandSubmissionResult = {
         commandId,
@@ -875,6 +898,7 @@ export const useNLCommandStore = create<NLCommandState>((set, get) => ({
         autoSelectedMissionId: missionId,
         status: "created",
         createdAt: Date.now(),
+        projectId,
       };
 
       set(state => ({
@@ -916,6 +940,10 @@ export const useNLCommandStore = create<NLCommandState>((set, get) => ({
     const currentCommand = get().currentCommand;
     const currentDialog = get().currentDialog;
     const currentAnalysis = get().currentAnalysis;
+    const projectContext = get().commandProjectContextById[commandId] ?? {
+      projectId: options.projectId ?? null,
+      projectName: options.projectName ?? null,
+    };
 
     if (
       !currentCommand ||
@@ -986,6 +1014,7 @@ export const useNLCommandStore = create<NLCommandState>((set, get) => ({
               autoSelectedMissionId: null,
               status: "needs_clarification",
               createdAt: Date.now(),
+              projectId: projectContext.projectId,
             }
           : get().lastSubmission,
     });
@@ -1000,12 +1029,15 @@ export const useNLCommandStore = create<NLCommandState>((set, get) => ({
         autoSelectedMissionId: null,
         status: "needs_clarification",
         createdAt: Date.now(),
+        projectId: projectContext.projectId,
       };
     }
 
     try {
       const missionId = await options.createMission(
-        buildTaskHubMissionInput(currentCommand, finalizedAnalysis, nextAnswers)
+        buildTaskHubMissionInput(currentCommand, finalizedAnalysis, nextAnswers, {
+          projectId: projectContext.projectId,
+        })
       );
       const result: TaskHubCommandSubmissionResult = {
         commandId,
@@ -1015,6 +1047,7 @@ export const useNLCommandStore = create<NLCommandState>((set, get) => ({
         autoSelectedMissionId: missionId,
         status: "created",
         createdAt: Date.now(),
+        projectId: projectContext.projectId,
       };
 
       set(state => ({
@@ -1068,6 +1101,7 @@ export const useNLCommandStore = create<NLCommandState>((set, get) => ({
       currentDecomposition: null,
       currentPlan: null,
       lastSubmission: null,
+      commandProjectContextById: {},
       error: null,
       loading: false,
     });

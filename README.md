@@ -32,7 +32,7 @@
 
 ## What It Is
 
-Cube Pets Office is evolving from a mission-first task operating system into a Task Autopilot platform.
+Cube Pets Office is evolving from a mission-first task operating system into a Project-first Task Autopilot platform.
 
 It is not a chat playground where the main artifact is an answer. It is not only a workflow builder where users must manually draw every node. It is also not an agent platform whose main value is browsing agent, tool, or plugin catalogs. The product direction is to let a user state a goal, then make the task lifecycle visible and controllable:
 
@@ -44,7 +44,7 @@ It is not a chat playground where the main artifact is an answer. It is not only
 - pause for clarification, approval, risk acceptance, budget, permission, or delivery review when needed
 - replan when the current route is no longer safe, complete, or useful
 
-The current engineering foundation remains mission-first. Task Autopilot is the next product layer above it: `mission / workflow / runtime / task` continue to be the implementation vocabulary, while `Destination / Route / Drive State / Fleet / Takeover` become the user-facing vocabulary.
+The current engineering foundation remains mission-first, but the next product entrypoint is Project-first. A `Project` becomes the user's durable workspace for intent, clarification, specs, routes, execution, artifacts, and evidence. `mission / workflow / runtime / task` continue to be the implementation vocabulary, while `Project / Clarification / Spec / Route / Execution / Evidence` become the next user-facing mainline.
 
 ---
 
@@ -62,6 +62,7 @@ What is already present as foundation:
 - A Web-AIGC mainline baseline where `58 / 58` specs have been closed and multiple node/route families have been integrated into the server mainline.
 - A closed first-phase Task Autopilot baseline: `18` specs, `54` markdown files, `345 / 345` top-level task items, and `602 / 602` raw task checklist items.
 - A first implementation slice for Task Autopilot projections: shared Destination parsing contracts, server projection/orchestration fields, client store normalization, and a cockpit-facing `TaskAutopilotPanel`.
+- A Project-first architecture track that defines `Project` as the first product object above missions, with clarification, spec, route, execution, and evidence attached to the project context.
 
 What is not being claimed:
 
@@ -73,7 +74,7 @@ What is not being claimed:
 
 ---
 
-## From Mission-First To Task Autopilot
+## From Mission-First To Project-First Autopilot
 
 The previous product center was mission-first:
 
@@ -82,7 +83,22 @@ The previous product center was mission-first:
 - Replay and audit preserve enough evidence to inspect what happened.
 - `/` and `/tasks` are the high-frequency execution surfaces.
 
-Task Autopilot keeps that foundation and adds a clearer product model:
+Task Autopilot keeps that foundation and adds a clearer product model. The first phase used Destination, Route, Drive State, Fleet, and Takeover to explain task execution. The next phase lifts that model into a Project-first workspace:
+
+```text
+Project -> Clarification -> Spec -> Route -> Execution -> Evidence
+```
+
+That chain means:
+
+- `Project` is the durable product object the user returns to, not a transient launch form.
+- `Clarification` captures missing intent, constraints, permissions, acceptance criteria, and risk boundaries before execution is treated as safe.
+- `Spec` turns the clarified project goal into an inspectable contract for scope, deliverables, route constraints, and evidence expectations.
+- `Route` is the selected execution plan, including fallback and conservative paths.
+- `Execution` still runs through the existing mission, workflow, runtime, and executor stack.
+- `Evidence` closes the loop with artifacts, logs, decisions, replay records, and delivery review.
+
+The compatibility mapping remains:
 
 | Mission-first foundation            | Task Autopilot product layer | Meaning                                                   |
 | ----------------------------------- | ---------------------------- | --------------------------------------------------------- |
@@ -204,7 +220,7 @@ The corresponding first implementation slice is intentionally compatibility-firs
 - `autopilot-evidence-replay-and-trust-chain`: defines the driving timeline, evidence chain, replay chain, and trust chain.
 - `task-autopilot-success-metrics`: defines delivery rate, takeover rate, replan rate, deviation rate, completion time, review pass rate, and drill-down evidence.
 
-The next implementation direction is no longer to create more phase-1 specs. It is to deepen the runtime slices behind the closed baseline: parser versioning and clarification merge, route planner automation, fleet organization, replay/evidence trust chains, and success metrics that can be measured from live mission facts.
+The next implementation direction is no longer to create more phase-1 Task Autopilot specs. It is to execute the Project-first mainline: project domain state, project-scoped clarification, spec generation/versioning, FSD route planning, project-scoped execution, and evidence/artifact replay that can be reviewed from the project context.
 
 ---
 
@@ -265,7 +281,7 @@ This matters for Task Autopilot because the Web-AIGC work supplies much of the l
 - The main server entry mounts multiple Web-AIGC route families, including MCP, Office/content nodes, search and QA, `transaction_flow`, `orchestration_recognition_jump`, and vector update/delete endpoints.
 - Runtime coverage includes search/QA adapters, Office/content production nodes such as `ai_ppt`, `excel_read`, `dynamic_chart`, `file_slicing`, `file_generation`, and `file_translation`, plus governed execution paths such as `transaction_flow` and `orchestration_recognition_jump`.
 
-Task Autopilot should not expose all of those nodes as the primary product mental model. It should package them into route stages, fleet roles, takeover points, and evidence trails.
+Project-first Autopilot should not expose all of those nodes as the primary product mental model. The 50+ AIGC nodes are internal capabilities inside FSD role packages such as Planner, Clarifier, Researcher, Generator, Operator, Reviewer, and Auditor. Users should choose projects, clarify specs, inspect routes, approve execution, and review evidence; they should not be asked to manage the node catalog as the main flow.
 
 For dated status snapshots and integration planning, see the steering docs linked in the documentation section below.
 
@@ -293,20 +309,23 @@ For executor details, see [docs/executor/lobster-executor.md](./docs/executor/lo
 
 ## Implementation Direction
 
-The next Task Autopilot implementation work should stay incremental and compatibility-first.
+The next implementation work should stay incremental and compatibility-first, but the product mainline is now Project-first rather than task-launch-first.
 
 Recommended sequence:
 
-1. Add stable projection objects for `Destination`, `Route`, `Drive State`, `Fleet`, and `Takeover` without renaming the existing runtime foundation.
-2. Use those projections to upgrade the office cockpit, `/tasks`, and task detail surfaces into a clearer autopilot cockpit.
-3. Connect route recommendation, route selection, takeover, downgrade, and replan actions to existing mission/workflow/runtime control paths.
-4. Normalize runtime, decision, audit, replay, artifact, and lineage events into an evidence chain that can explain why the task moved the way it did.
-5. Add success metrics only where the required source-of-truth data exists, and mark partial or conflicted samples explicitly.
+1. Make `Project` the first product object and attach launches, messages, specs, routes, missions, artifacts, and evidence to a project context.
+2. Turn clarification into a project-scoped step that resolves missing intent before route selection or execution is treated as committed.
+3. Generate and version inspectable `Spec` records from clarified project intent, including scope, constraints, deliverables, acceptance criteria, and evidence expectations.
+4. Plan `Route` through FSD role packages, with conservative and fallback paths, while keeping 50+ AIGC nodes internal to those roles instead of exposing them as the user entrypoint.
+5. Run `Execution` through the existing mission/workflow/runtime/executor stack and write back project-scoped state rather than creating a parallel runtime.
+6. Normalize runtime, decision, audit, replay, artifact, and lineage events into project-scoped `Evidence` that can explain why the route moved the way it did.
+7. Add success metrics only where the required source-of-truth data exists, and mark partial or conflicted samples explicitly.
 
 Guardrails:
 
 - Do not turn Task Autopilot into a UI-only rebrand; every visible state should point back to runtime facts or clearly marked inference.
-- Do not force users to manage 50+ nodes as the main flow; package capabilities into route stages and fleet roles.
+- Do not make tasks, workflows, Docker, browser runtime, native runtime, or node catalogs the first user entrypoint; they are execution carriers below the project mainline.
+- Do not force users to manage 50+ nodes as the main flow; package capabilities into FSD roles, route stages, takeover points, and evidence trails.
 - Do not hide governance behind "automation"; high-risk actions must remain auditable and interruptible.
 - Do not treat replay as the source of truth when mission/runtime/audit facts disagree; replay is primarily a reconstruction and review surface.
 

@@ -31,12 +31,12 @@ export const messages = {
     },
     home: {
       mobileHint:
-        "这里是办公室首页。移动端继续保留当前结构，你可以从这里打开任务工作台、工作流或运行时配置。",
+        "这里是项目驾驶舱首页。移动端优先显示当前项目、下一步推进入口和执行明细。",
       officeEyebrow: "办公室",
       officeTitle: "办公室已成为桌面端默认执行壳。",
       officeDescription:
         "桌面端会在办公室里内嵌任务队列、Scene3D、详情与统一发起；移动端暂时继续通过任务页和抽屉协同。",
-      enterTasks: "任务工作台",
+      enterTasks: "执行明细 / 接管任务",
       openWorkflow: "打开工作流",
       openConfig: "运行时配置",
       runtimeChip: (label: string) => `当前模式：${label}`,
@@ -846,12 +846,12 @@ export const messages = {
     },
     home: {
       mobileHint:
-        "This is the Office home. Mobile keeps the current structure, so you can still open the task workbench, workflow, or runtime settings from here.",
+        "This is the project cockpit home. Mobile prioritizes the current project, the next action, and execution details.",
       officeEyebrow: "Office",
       officeTitle: "Office is now the default desktop execution shell.",
       officeDescription:
         "On desktop, the Office now embeds the task queue, Scene3D, detail tabs, and unified launch. Mobile stays conservative for now.",
-      enterTasks: "Task Workbench",
+      enterTasks: "Execution details",
       openWorkflow: "Open Workflow",
       openConfig: "Runtime Config",
       runtimeChip: (label: string) => `Mode: ${label}`,

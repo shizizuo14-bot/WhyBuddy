@@ -26,6 +26,7 @@ function resetStore() {
     dashboard: null,
     draftText: "",
     lastSubmission: null,
+    commandProjectContextById: {},
     loading: false,
     error: null,
   });
@@ -54,6 +55,51 @@ describe("nl-command-store clarification resolution", () => {
     expect(result.missionId).toBe("mission-1");
     expect(createMission).toHaveBeenCalledTimes(1);
     expect(useNLCommandStore.getState().currentDialog).toBeNull();
+  });
+
+  it("keeps project context through clarification before creating a mission", async () => {
+    previewClarificationQuestions.mockResolvedValue({
+      needsClarification: true,
+      questions: [
+        {
+          questionId: "timeline",
+          text: "什么时候交付？",
+          type: "text",
+        },
+      ],
+    });
+    const createMission = vi.fn().mockResolvedValue("mission-1");
+
+    const initial = await useNLCommandStore.getState().submitTaskHubCommand({
+      commandText: "build a permission system",
+      userId: "user-1",
+      projectId: "project-1",
+      projectName: "Permission System",
+      createMission,
+    });
+    expect(initial.status).toBe("needs_clarification");
+
+    const result = await useNLCommandStore
+      .getState()
+      .submitTaskHubClarification(
+        initial.commandId,
+        {
+          answer: {
+            questionId: "timeline",
+            text: "本周内交付第一版。",
+            timestamp: Date.now(),
+          },
+        },
+        { createMission }
+      );
+
+    expect(result?.status).toBe("created");
+    expect(result?.projectId).toBe("project-1");
+    expect(createMission).toHaveBeenCalledWith(
+      expect.objectContaining({
+        projectId: "project-1",
+      })
+    );
   });
 
   it("still falls back to local clarification when the preview request fails", async () => {

@@ -66,4 +66,36 @@ describe("TasksQueueRail", () => {
     expect(markup).not.toContain("bg-accent");
     expect(markup).not.toContain("shadow-[0_16px_40px_rgba(15,23,42,0.14)]");
   });
+
+  it("renders project, route, spec and source chips on regular task cards", () => {
+    const markup = renderToStaticMarkup(
+      <TasksQueueRail
+        tasks={[makeTask()]}
+        totalCount={1}
+        activeTaskId="mission-1"
+        highlightedTaskId={null}
+        loading={false}
+        ready
+        error={null}
+        search=""
+        onSearchChange={() => {}}
+        onSelectTask={vi.fn()}
+        onRefresh={vi.fn()}
+        projectMetaByTaskId={{
+          "mission-1": {
+            projectName: "Permission System",
+            routeTitle: "Spec-first route",
+            specTitle: "Permission Spec",
+            sourceLabel: "Project archive",
+          },
+        }}
+      />
+    );
+
+    expect(markup).toContain('data-testid="task-project-meta-mission-1"');
+    expect(markup).toContain("项目 Permission System");
+    expect(markup).toContain("路线 Spec-first route");
+    expect(markup).toContain("Spec Permission Spec");
+    expect(markup).toContain("Project archive");
+  });
 });

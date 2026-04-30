@@ -118,6 +118,30 @@ describe("launch-router", () => {
     });
   });
 
+  it("uses existing project spec context to avoid repeating clarification", () => {
+    const decision = evaluateLaunchRoute({
+      text: "继续推进第一版",
+      runtimeMode: "advanced",
+      attachments: [],
+      projectId: "project-1",
+      projectName: "Permission System",
+      projectContext: {
+        status: "spec_ready",
+        currentSpecTitle:
+          "权限系统第一版 spec，包含 RBAC、审计、验收标准、本周时间安排和回滚约束。",
+        recentMessages: [
+          {
+            kind: "clarification",
+            content: "本周内交付第一版，要求包含验收标准和回滚方案。",
+          },
+        ],
+      },
+    });
+
+    expect(decision.kind).toBe("mission");
+    expect(decision.needsClarification).toBe(false);
+  });
+
   it("recommends the deep route when attachments or workflow context are present", () => {
     const plan = buildLaunchRoutePlan({
       text: "根据附件里的需求文档和表格，先整理 brief，再拆出工作包和角色分工，最后输出交付结果和时间安排。",

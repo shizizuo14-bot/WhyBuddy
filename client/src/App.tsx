@@ -20,6 +20,7 @@ import { useRecoveryDetection } from "./hooks/useRecoveryDetection";
 import { useViewportTier } from "./hooks/useViewportTier";
 import { useAppStore } from "./lib/store";
 import Home from "./pages/Home";
+import SpecCenterPage from "./pages/specs/SpecCenterPage";
 import { TaskDetailPage, TasksPage } from "./pages/tasks";
 
 const routerBase =
@@ -32,6 +33,7 @@ function Router() {
     <Switch>
       <Route path={"/"} component={Home} />
       <Route path={"/tasks"}>{() => <TasksPage />}</Route>
+      <Route path={"/specs"} component={SpecCenterPage} />
       <Route path={"/tasks/:taskId"}>
         {params => <TaskDetailRoute taskId={params.taskId} />}
       </Route>

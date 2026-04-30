@@ -444,6 +444,25 @@ pnpm run test:release
 
 ---
 
+## Project-first next phase
+
+Task Autopilot Phase 1 stabilized Destination, Route, Drive State, Fleet, and Takeover as the product language for mission execution. The next phase moves the primary product line from task-launch-first to Project-first:
+
+```text
+Project -> Clarification -> Spec -> Route -> Execution -> Evidence
+```
+
+- `Project` is the first durable product object. It owns intent, messages, specs, routes, missions, artifacts, and evidence.
+- `Clarification` is project-scoped. It resolves missing context, constraints, permissions, acceptance criteria, and risk boundaries before execution is treated as committed.
+- `Spec` turns clarified project intent into an inspectable and versioned contract for scope, deliverables, acceptance criteria, and evidence expectations.
+- `Route` is planned through FSD role packages, including the main route, conservative route, fallback route, and takeover points.
+- `Execution` continues to run through the existing Mission / Workflow / Runtime / Executor stack. Project-first is not a parallel runtime.
+- `Evidence` writes artifacts, logs, decisions, replay records, audit facts, and delivery review back to the project context.
+
+The 50+ AIGC nodes are internal capabilities inside FSD roles such as Planner, Clarifier, Researcher, Generator, Operator, Reviewer, and Auditor. They should not become the user's primary entrypoint. Users should work through Project, Clarification, Spec, Route, Execution, and Evidence instead of managing a node catalog directly.
+
+---
+
 ## License
 
 MIT
