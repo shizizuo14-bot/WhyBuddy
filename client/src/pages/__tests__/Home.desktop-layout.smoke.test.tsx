@@ -8,19 +8,38 @@ vi.mock("lucide-react", () => {
   );
 
   return {
+    AlertTriangle: Icon,
     ArrowLeft: Icon,
     ArrowRight: Icon,
+    BarChart3: Icon,
+    Bell: Icon,
+    BookOpen: Icon,
+    BriefcaseBusiness: Icon,
     CheckCircle2: Icon,
     Clock3: Icon,
+    Database: Icon,
+    FileSearch: Icon,
     FileText: Icon,
+    Filter: Icon,
     FolderKanban: Icon,
+    Grid2X2: Icon,
+    HelpCircle: Icon,
+    LayoutGrid: Icon,
+    List: Icon,
+    ListTodo: Icon,
+    MoreHorizontal: Icon,
+    Navigation: Icon,
     Pencil: Icon,
     Plus: Icon,
     Search: Icon,
+    Settings: Icon,
     Settings2: Icon,
+    Shield: Icon,
     Sparkles: Icon,
+    Store: Icon,
     Trash2: Icon,
     Upload: Icon,
+    UsersRound: Icon,
     Waves: Icon,
     X: Icon,
   };
@@ -305,7 +324,9 @@ async function renderDesktopHome(width: number, projectId?: string) {
   currentViewportWidth = width;
   const { default: Home } = await import("../Home");
 
-  return renderToStaticMarkup(<Home projectId={projectId} />);
+  return renderToStaticMarkup(
+    <Home mode={projectId ? "autopilot" : "project-space"} />
+  );
 }
 
 describe("Home desktop first-screen layout smoke", () => {
@@ -407,17 +428,20 @@ describe("Home desktop first-screen layout smoke", () => {
       expect(markup).toContain('data-testid="office-task-cockpit"');
       expect(markup).toContain('data-testid="home-back-to-project-space"');
       expect(markup).toContain("Autopilot");
-      expect(markup).toContain("Back to Project Space");
-      expect(markup).toContain("Execution details");
-      expect(markup).toContain("Open Workflow");
-      expect(markup).toContain("Runtime Config");
-      expect(markup).toContain('data-testid="home-current-spec-summary"');
-      expect(markup).toContain('data-testid="home-clarification-progress"');
-      expect(markup).toContain('data-testid="home-route-cards"');
-      expect(markup).toContain("1 open");
-      expect(markup).toContain("Cockpit Spec");
+      expect(markup).toContain('data-testid="home-autopilot-breadcrumb"');
+      expect(markup).toContain('data-testid="home-autopilot-status-strip"');
+      expect(markup).toContain('data-testid="home-autopilot-detail-drawer"');
+      expect(markup).toContain('data-drawer-state="closed"');
+      expect(markup).toContain('data-testid="home-autopilot-focus-panel"');
+      expect(markup).toContain('data-testid="home-autopilot-control-strip"');
+      expect(markup).toContain("Take over");
+      expect(markup).toContain("View logs");
+      expect(markup).toContain("Runtime config");
       expect(markup).toContain("Recommended FSD Route");
-      expect(markup).toContain("medium risk");
+      expect(markup).toContain("Medium");
+      expect(markup).not.toContain('data-testid="home-current-spec-summary"');
+      expect(markup).not.toContain('data-testid="home-clarification-progress"');
+      expect(markup).not.toContain('data-testid="home-route-cards"');
       expect(markup).not.toContain("task-detail-full-screen");
     }
   );

@@ -34,6 +34,13 @@ vi.mock("wouter", () => ({
     const matches =
       path === current ||
       (path === "/projects" && current === "/") ||
+      (path === "/autopilot" && current === "/autopilot") ||
+      (path === "/projects/:projectId/tasks/:taskId" &&
+        current.startsWith("/projects/") &&
+        current.includes("/tasks/")) ||
+      (path === "/projects/:projectId/tasks" &&
+        current.startsWith("/projects/") &&
+        current.endsWith("/tasks")) ||
       (path === "/projects/:projectId" && current.startsWith("/projects/")) ||
       (path === "/tasks/:taskId" && current.startsWith("/tasks/")) ||
       (path === "/debug/:section" && current.startsWith("/debug/")) ||

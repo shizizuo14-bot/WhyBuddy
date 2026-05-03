@@ -172,8 +172,12 @@ export function buildProjectTaskArchiveRecords(params: {
   existingArtifacts?: ProjectArtifact[];
   existingEvidence?: ProjectEvidence[];
 }): {
-  artifacts: Array<Omit<AddProjectArtifactInput, "projectId" | "sourceMissionId">>;
-  evidence: Array<Omit<AddProjectEvidenceInput, "projectId" | "sourceMissionId">>;
+  artifacts: Array<
+    Omit<AddProjectArtifactInput, "projectId" | "sourceMissionId">
+  >;
+  evidence: Array<
+    Omit<AddProjectEvidenceInput, "projectId" | "sourceMissionId">
+  >;
 } {
   if (!params.projectId || !params.missionId || !params.detail) {
     return { artifacts: [], evidence: [] };
@@ -246,7 +250,10 @@ export function buildProjectTaskArchiveRecords(params: {
         type: "log",
         title: `Task log: ${title}`,
         detail,
-      } satisfies Omit<AddProjectEvidenceInput, "projectId" | "sourceMissionId">;
+      } satisfies Omit<
+        AddProjectEvidenceInput,
+        "projectId" | "sourceMissionId"
+      >;
     })
     .filter(
       (
@@ -328,10 +335,14 @@ export function buildTaskProjectRelationshipSummary(params: {
   workflowStatus?: string | null;
 }): TaskProjectRelationshipSummary {
   const route = params.projectMission?.routeId
-    ? params.projectRoutes.find(item => item.id === params.projectMission?.routeId)
+    ? params.projectRoutes.find(
+        item => item.id === params.projectMission?.routeId
+      )
     : null;
   const fallbackRoute = params.projectMission
-    ? params.projectRoutes.find(item => item.projectId === params.projectMission?.projectId)
+    ? params.projectRoutes.find(
+        item => item.projectId === params.projectMission?.projectId
+      )
     : null;
   const resolvedRoute = route ?? fallbackRoute ?? null;
   const routeLabel =
@@ -408,7 +419,9 @@ export function buildTaskClarificationTakeoverSummary(params: {
   const answeredQuestions = projectQuestions.filter(
     question => question.answeredAt
   );
-  const skippedQuestions = projectQuestions.filter(question => question.skippedAt);
+  const skippedQuestions = projectQuestions.filter(
+    question => question.skippedAt
+  );
   const resolvedCount = answeredQuestions.length + skippedQuestions.length;
   const requiredOpenCount = openQuestions.filter(
     question => question.required
@@ -543,13 +556,17 @@ function TaskProjectRelationshipStrip({
   );
 }
 
+interface TasksPageProps {
+  initialTaskId?: string | null;
+  projectId?: string | null;
+  className?: string;
+}
+
 export default function TasksPage({
   initialTaskId = null,
+  projectId = null,
   className,
-}: {
-  initialTaskId?: string | null;
-  className?: string;
-}) {
+}: TasksPageProps = {}) {
   const { locale, copy } = useI18n();
   const { isMobile } = useViewportTier();
   const width = useViewportWidth();
@@ -571,9 +588,10 @@ export default function TasksPage({
   const operatorActionLoadingByMissionId = useTasksStore(
     state => state.operatorActionLoadingByMissionId
   );
-  const currentProject = useProjectStore(selectCurrentProject);
+  const storeCurrentProject = useProjectStore(selectCurrentProject);
   const ensureProjectsReady = useProjectStore(state => state.ensureReady);
   const projects = useProjectStore(state => state.projects);
+  const selectProject = useProjectStore(state => state.selectProject);
   const projectSpecs = useProjectStore(state => state.specs);
   const projectRoutes = useProjectStore(state => state.routes);
   const projectMissions = useProjectStore(state => state.missions);
@@ -611,10 +629,28 @@ export default function TasksPage({
   const deferredSearch = useDeferredValue(search.trim().toLowerCase());
   const isWideDesktop = width >= 1280;
   const isLockedCockpit = width >= 1440 && !isMobile;
+  const isProjectScopedRoute = Boolean(projectId);
+  const routeProject = useMemo(
+    () =>
+      projectId
+        ? (projects.find(
+            project => project.id === projectId && project.status !== "archived"
+          ) ?? null)
+        : null,
+    [projectId, projects]
+  );
+  const currentProject =
+    routeProject ?? (isProjectScopedRoute ? null : storeCurrentProject);
 
   useEffect(() => {
     ensureProjectsReady();
   }, [ensureProjectsReady]);
+
+  useEffect(() => {
+    if (routeProject && storeCurrentProject?.id !== routeProject.id) {
+      selectProject(routeProject.id);
+    }
+  }, [routeProject, selectProject, storeCurrentProject?.id]);
 
   useEffect(() => {
     void ensureReady();
@@ -663,15 +699,19 @@ export default function TasksPage({
     [projectMissions]
   );
   const projectScopedTasks = useMemo(() => {
+    if (isProjectScopedRoute && !currentProject) return [];
     if (!currentProject || !projectScopedMissionIds) return tasks;
-    return tasks.filter(
-      task => projectScopedMissionIds.has(task.id) || !linkedMissionIds.has(task.id)
-    );
-  }, [currentProject, linkedMissionIds, projectScopedMissionIds, tasks]);
+    return tasks.filter(task => projectScopedMissionIds.has(task.id));
+  }, [currentProject, isProjectScopedRoute, projectScopedMissionIds, tasks]);
   const unassignedTaskCount = useMemo(() => {
     if (!currentProject) return 0;
     return tasks.filter(task => !linkedMissionIds.has(task.id)).length;
   }, [currentProject, linkedMissionIds, tasks]);
+  const outsideProjectTaskCount = useMemo(() => {
+    if (!currentProject || !projectScopedMissionIds) return 0;
+    return tasks.filter(task => !projectScopedMissionIds.has(task.id)).length;
+  }, [currentProject, projectScopedMissionIds, tasks]);
+  const taskScopeTotalCount = projectScopedTasks.length;
   const taskProjectMetaById = useMemo<
     Record<string, TasksQueueProjectMeta>
   >(() => {
@@ -687,17 +727,17 @@ export default function TasksPage({
         mission => mission.missionId === task.id
       );
       const project = projectMission
-        ? projectsById.get(projectMission.projectId) ?? null
+        ? (projectsById.get(projectMission.projectId) ?? null)
         : null;
       const route = projectMission?.routeId
-        ? routesById.get(projectMission.routeId) ?? null
+        ? (routesById.get(projectMission.routeId) ?? null)
         : project?.currentRouteId
-          ? routesById.get(project.currentRouteId) ?? null
+          ? (routesById.get(project.currentRouteId) ?? null)
           : null;
       const spec = route?.specId
-        ? specsById.get(route.specId) ?? null
+        ? (specsById.get(route.specId) ?? null)
         : project?.currentSpecId
-          ? specsById.get(project.currentSpecId) ?? null
+          ? (specsById.get(project.currentSpecId) ?? null)
           : null;
 
       metaByTaskId[task.id] = {
@@ -745,16 +785,17 @@ export default function TasksPage({
     : null;
   const selectedTaskSummary =
     tasks.find(task => task.id === activeTaskId) || null;
-  const activeTaskIsUnassigned =
-    Boolean(currentProject && activeTaskId) &&
-    !linkedMissionIds.has(activeTaskId!);
+  const activeTaskIsUnassigned = false;
   const activeProjectMission = useMemo(() => {
     if (!activeTaskId) return null;
     return (
-      projectMissions.find(mission => mission.missionId === activeTaskId) ??
-      null
+      projectMissions.find(
+        mission =>
+          mission.missionId === activeTaskId &&
+          (!currentProject || mission.projectId === currentProject.id)
+      ) ?? null
     );
-  }, [activeTaskId, projectMissions]);
+  }, [activeTaskId, currentProject, projectMissions]);
   const decisionNote = activeTaskId ? decisionNotes[activeTaskId] || "" : "";
   const activeWorkflow = useMemo(
     () =>
@@ -1005,7 +1046,7 @@ export default function TasksPage({
           <span className="font-data text-2xl font-semibold text-slate-950">
             {filteredTasks.length}
             <span className="ml-1 text-sm font-medium text-slate-400">
-              / {tasks.length}
+              / {taskScopeTotalCount}
             </span>
           </span>
         </div>
@@ -1297,17 +1338,27 @@ export default function TasksPage({
               <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
                 {t(
                   locale,
-                  `当前项目任务 ${projectScopedTasks.length}`,
-                  `Project tasks ${projectScopedTasks.length}`
+                  `当前项目任务 ${taskScopeTotalCount}`,
+                  `Project tasks ${taskScopeTotalCount}`
                 )}
               </span>
-              <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
-                {t(
-                  locale,
-                  `未归档 ${unassignedTaskCount}`,
-                  `Unassigned ${unassignedTaskCount}`
-                )}
-              </span>
+              {isProjectScopedRoute ? (
+                <span className="rounded-full border border-emerald-100 bg-emerald-50 px-2.5 py-1 text-emerald-700">
+                  {t(
+                    locale,
+                    `已隐藏项目外任务 ${outsideProjectTaskCount}`,
+                    `Hidden outside project ${outsideProjectTaskCount}`
+                  )}
+                </span>
+              ) : (
+                <span className="rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1">
+                  {t(
+                    locale,
+                    `未归档 ${unassignedTaskCount}`,
+                    `Unassigned ${unassignedTaskCount}`
+                  )}
+                </span>
+              )}
             </div>
           </div>
         ) : null}
@@ -1320,7 +1371,7 @@ export default function TasksPage({
           >
             <TasksQueueRail
               tasks={filteredTasks}
-              totalCount={tasks.length}
+              totalCount={taskScopeTotalCount}
               activeTaskId={activeTaskId}
               highlightedTaskId={highlightedTaskId}
               loading={loading}
@@ -1354,7 +1405,7 @@ export default function TasksPage({
 
             <TasksQueueRail
               tasks={filteredTasks}
-              totalCount={tasks.length}
+              totalCount={taskScopeTotalCount}
               activeTaskId={activeTaskId}
               highlightedTaskId={highlightedTaskId}
               loading={loading}

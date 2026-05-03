@@ -194,6 +194,8 @@ export function UnifiedLaunchComposer({
   hideInputLabel = false,
   hideClarificationPanel = false,
   hideOperatorActions = false,
+  hideProjectContext = false,
+  hideExamples = false,
   projectId = null,
   projectName = null,
   className,
@@ -218,6 +220,8 @@ export function UnifiedLaunchComposer({
   hideInputLabel?: boolean;
   hideClarificationPanel?: boolean;
   hideOperatorActions?: boolean;
+  hideProjectContext?: boolean;
+  hideExamples?: boolean;
   projectId?: string | null;
   projectName?: string | null;
   className?: string;
@@ -649,20 +653,22 @@ export function UnifiedLaunchComposer({
       )}
       data-testid="unified-launch-compact-composer"
     >
-      <div
-        className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-[18px] border border-slate-200/70 bg-white/64 px-3 py-2 text-[11px] font-semibold text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
-        data-testid="launch-project-context-strip"
-      >
-        <span className="inline-flex min-w-0 items-center gap-2">
-          <FolderKanban className="size-4 shrink-0 text-[#0f766e]" />
-          <span className="truncate text-slate-800">
-            {projectName ? projectName : "New project"}
+      {!hideProjectContext ? (
+        <div
+          className="mb-2 flex flex-wrap items-center justify-between gap-2 rounded-[18px] border border-slate-200/70 bg-white/64 px-3 py-2 text-[11px] font-semibold text-slate-600 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]"
+          data-testid="launch-project-context-strip"
+        >
+          <span className="inline-flex min-w-0 items-center gap-2">
+            <FolderKanban className="size-4 shrink-0 text-[#0f766e]" />
+            <span className="truncate text-slate-800">
+              {projectName ? projectName : "New project"}
+            </span>
           </span>
-        </span>
-        <span className="shrink-0 rounded-full bg-[#0f766e]/10 px-2 py-0.5 text-[10px] font-bold text-[#0f766e]">
-          {projectName ? "Project-scoped" : "First input creates project"}
-        </span>
-      </div>
+          <span className="shrink-0 rounded-full bg-[#0f766e]/10 px-2 py-0.5 text-[10px] font-bold text-[#0f766e]">
+            {projectName ? "Project-scoped" : "First input creates project"}
+          </span>
+        </div>
+      ) : null}
       <div className={inputRowClassName}>
         <div className="flex items-start gap-2">
           <div className="mt-0.5 flex size-11 shrink-0 items-center justify-center rounded-full border border-slate-200/80 bg-white text-[#0f766e] shadow-[0_12px_28px_rgba(15,118,110,0.12),inset_0_1px_0_rgba(255,255,255,0.9)]">
@@ -708,13 +714,15 @@ export function UnifiedLaunchComposer({
         </div>
       </div>
 
-      <LaunchDestinationExamples
-        locale={locale}
-        active={hasDraftDestination}
-        onSelect={example => {
-          void handleExampleSelected(example);
-        }}
-      />
+      {!hideExamples ? (
+        <LaunchDestinationExamples
+          locale={locale}
+          active={hasDraftDestination}
+          onSelect={example => {
+            void handleExampleSelected(example);
+          }}
+        />
+      ) : null}
 
       <LaunchRuntimeMeta
         locale={locale}

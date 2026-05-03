@@ -395,7 +395,7 @@ describe("Home desktop shell", () => {
       },
     ];
 
-    const markup = renderToStaticMarkup(<Home projectId="project-1" />);
+    const markup = renderToStaticMarkup(<Home mode="autopilot" />);
 
     expect(markup).toContain('data-testid="office-task-cockpit"');
     expect(markup).toContain("home-first-screen-cockpit");
@@ -414,10 +414,9 @@ describe("Home desktop shell", () => {
     expect(markup).toContain('data-testid="home-project-hub"');
     expect(markup).toContain("Project Space");
     expect(markup).toContain("No projects yet");
-    expect(markup).toContain("Permission system");
-    expect(markup).toContain("Research brief");
-    expect(markup).toContain("Product spec");
-    expect(markup).toContain("Import materials");
+    expect(markup).toContain("New Project");
+    expect(markup).not.toContain('data-testid="home-project-create-card"');
+    expect(markup).toContain('aria-label="Import project materials"');
     expect(markup).toContain('data-testid="home-project-search"');
     expect(markup).not.toContain('data-testid="office-task-cockpit"');
   });
@@ -446,7 +445,7 @@ describe("Home desktop shell", () => {
     expect(markup).toContain("Open Autopilot");
   });
 
-  it("shows the current project and project bundle counters on the home hero", () => {
+  it("shows the selected project as an execution-focused autopilot cockpit", () => {
     projectState.currentProjectId = "project-1";
     projectState.projects = [
       {
@@ -533,44 +532,39 @@ describe("Home desktop shell", () => {
       },
     ];
 
-    const markup = renderToStaticMarkup(<Home projectId="project-1" />);
+    const markup = renderToStaticMarkup(<Home mode="autopilot" />);
 
     expect(markup).toContain("Permission System");
     expect(markup).toContain("Autopilot");
-    expect(markup).toContain("Back to Project Space");
     expect(markup).toContain('data-testid="home-back-to-project-space"');
-    expect(markup).toContain("Clarifying");
-    expect(markup).toContain("Specs 1");
-    expect(markup).toContain("Routes 1");
-    expect(markup).toContain("Missions 1");
-    expect(markup).toContain("Evidence 1");
-    expect(markup).toContain("Continue Q&amp;A");
-    expect(markup).toContain('data-testid="home-clarification-progress"');
-    expect(markup).toContain("Clarification");
-    expect(markup).toContain("1 open");
-    expect(markup).toContain("2 resolved");
-    expect(markup).toContain("1 required");
-    expect(markup).toContain("What is the audit retention window?");
-    expect(markup).toContain("1 answered / 1 skipped / 0 skippable");
-    expect(markup).toContain('data-testid="home-current-spec-summary"');
-    expect(markup).toContain("Current spec");
-    expect(markup).toContain("v2");
-    expect(markup).toContain("Permission Spec");
-    expect(markup).toContain("84% complete");
-    expect(markup).toContain("1 messages / 2 evidence / 1 artifacts");
-    expect(markup).toContain('data-testid="home-open-spec-center"');
-    expect(markup).toContain("Spec Center");
-    expect(markup).toContain('data-testid="home-route-cards"');
-    expect(markup).toContain('data-testid="home-route-card"');
-    expect(markup).toContain("Conservative / Current");
+    expect(markup).toContain('data-testid="home-autopilot-breadcrumb"');
+    expect(markup).toContain('data-testid="home-autopilot-status-strip"');
+    expect(markup).toContain('data-testid="home-autopilot-detail-drawer"');
+    expect(markup).toContain('data-drawer-state="closed"');
+    expect(markup).toContain('data-testid="home-autopilot-focus-panel"');
+    expect(markup).toContain('data-testid="home-autopilot-control-strip"');
     expect(markup).toContain("Conservative Control Route");
-    expect(markup).toContain("low risk");
-    expect(markup).toContain(
-      "Confirm assumptions / Prepare rollback-safe work"
-    );
+    expect(markup).toContain("Agent");
+    expect(markup).toContain("Elapsed");
+    expect(markup).toContain("Token");
+    expect(markup).toContain("Risk");
+    expect(markup).toContain("Needs Your Decision");
+    expect(markup).toContain("What is the audit retention window?");
+    expect(markup).toContain("AI Understands");
+    expect(markup).toContain("Next Step");
+    expect(markup).toContain("Take over");
+    expect(markup).toContain("View logs");
+    expect(markup).toContain("Runtime config");
+    expect(markup).not.toContain("Specs 1");
+    expect(markup).not.toContain("Routes 1");
+    expect(markup).not.toContain("Missions 1");
+    expect(markup).not.toContain("Evidence 1");
+    expect(markup).not.toContain('data-testid="home-current-spec-summary"');
+    expect(markup).not.toContain('data-testid="home-clarification-progress"');
+    expect(markup).not.toContain('data-testid="home-route-cards"');
   });
 
-  it("shows a compact project switcher when multiple projects exist", () => {
+  it("keeps project switching out of the selected project autopilot page", () => {
     projectState.currentProjectId = "project-2";
     projectState.projects = [
       {
@@ -591,13 +585,14 @@ describe("Home desktop shell", () => {
       },
     ];
 
-    const markup = renderToStaticMarkup(<Home projectId="project-2" />);
+    const markup = renderToStaticMarkup(<Home mode="autopilot" />);
 
-    expect(markup).toContain('data-testid="home-project-switcher"');
-    expect(markup).toContain("Switch project");
-    expect(markup).toContain("Permission System");
+    expect(markup).toContain('data-testid="home-autopilot-breadcrumb"');
+    expect(markup).toContain('data-testid="home-autopilot-status-strip"');
     expect(markup).toContain("Spec Evolution");
-    expect(markup).toContain("Planning");
-    expect(markup).toContain("Confirm route");
+    expect(markup).toContain("Select the FSD route");
+    expect(markup).not.toContain('data-testid="home-project-switcher"');
+    expect(markup).not.toContain("Switch project");
+    expect(markup).not.toContain("Permission System");
   });
 });

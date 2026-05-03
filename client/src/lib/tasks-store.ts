@@ -50,6 +50,11 @@ import {
   submitMissionOperatorAction as submitMissionOperatorActionRequest,
   submitMissionDecision as submitMissionDecisionRequest,
 } from "./mission-client";
+import { IS_GITHUB_PAGES } from "./deploy-target";
+import {
+  GITHUB_PAGES_DEMO_MISSION_IDS,
+  GITHUB_PAGES_DEMO_PROJECT_IDS,
+} from "./github-pages-demo-data";
 import { useSandboxStore } from "./sandbox-store";
 import { useAppStore } from "./store";
 
@@ -159,7 +164,9 @@ function readStringArrayOfRecords(
 
   const normalized = value
     .map(item => (isRecord(item) ? extractor(item) : null))
-    .filter((item): item is string => typeof item === "string" && item.length > 0);
+    .filter(
+      (item): item is string => typeof item === "string" && item.length > 0
+    );
 
   return normalized;
 }
@@ -929,7 +936,10 @@ function readStringArray(value: unknown, fallback: string[]): string[] {
   return fallback;
 }
 
-function readStringArrayAllowEmpty(value: unknown, fallback: string[]): string[] {
+function readStringArrayAllowEmpty(
+  value: unknown,
+  fallback: string[]
+): string[] {
   if (Array.isArray(value)) {
     return value
       .map(item => (typeof item === "string" ? trimText(item, 180) : ""))
@@ -991,9 +1001,7 @@ function readValuesFromRecordAliases(
   value: Record<string, unknown>,
   aliases: string[]
 ): unknown[] {
-  return aliases
-    .filter(alias => alias in value)
-    .map(alias => value[alias]);
+  return aliases.filter(alias => alias in value).map(alias => value[alias]);
 }
 
 function readStringArrayFromRecordAliases(
@@ -1039,17 +1047,20 @@ function normalizeAutopilotDestinationSubGoals(
     const source =
       item.source === "work-package" || item.source === "mission-stage"
         ? item.source
-        : fallbackItem?.source ?? "mission-text";
+        : (fallbackItem?.source ?? "mission-text");
     const status =
       item.status === "pending" ||
       item.status === "running" ||
       item.status === "done" ||
       item.status === "failed"
         ? item.status
-        : fallbackItem?.status ?? null;
+        : (fallbackItem?.status ?? null);
 
     return {
-      id: readText(item.id, fallbackItem?.id ?? `destination-sub-goal:${index + 1}`),
+      id: readText(
+        item.id,
+        fallbackItem?.id ?? `destination-sub-goal:${index + 1}`
+      ),
       title,
       source,
       status,
@@ -1059,7 +1070,9 @@ function normalizeAutopilotDestinationSubGoals(
   const normalized = Array.isArray(value)
     ? value
         .map(normalizeSubGoal)
-        .filter((item): item is TaskAutopilotDestinationSubGoal => item !== null)
+        .filter(
+          (item): item is TaskAutopilotDestinationSubGoal => item !== null
+        )
     : typeof value === "string" && value.trim()
       ? [normalizeSubGoal(value, 0)].filter(
           (item): item is TaskAutopilotDestinationSubGoal => item !== null
@@ -1170,7 +1183,10 @@ function readAutopilotDestinationLockState(
 ): TaskAutopilotDestinationLockState | null {
   const normalized =
     typeof value === "string"
-      ? value.toLowerCase().replace(/[\s_]+/g, "-").trim()
+      ? value
+          .toLowerCase()
+          .replace(/[\s_]+/g, "-")
+          .trim()
       : "";
 
   if (
@@ -1554,10 +1570,7 @@ function normalizeAutopilotExplanationSources(
 
   const sources = value
     .map(item =>
-      readAutopilotExplanationSource(
-        item,
-        fallback[0] ?? "combined-inference"
-      )
+      readAutopilotExplanationSource(item, fallback[0] ?? "combined-inference")
     )
     .filter(Boolean);
 
@@ -1679,7 +1692,9 @@ function normalizeAutopilotRemainingStepsItems(
   fallback: NonNullable<
     TaskAutopilotExplanationSummary["remainingSteps"]
   >["pendingSteps"]
-): NonNullable<TaskAutopilotExplanationSummary["remainingSteps"]>["pendingSteps"] {
+): NonNullable<
+  TaskAutopilotExplanationSummary["remainingSteps"]
+>["pendingSteps"] {
   if (!Array.isArray(value)) return fallback;
 
   const items = value
@@ -1704,7 +1719,10 @@ function normalizeAutopilotRemainingStepsItems(
           item.status,
           fallbackItem?.status ?? "pending"
         ),
-        isCurrent: readBoolean(item.isCurrent, fallbackItem?.isCurrent ?? false),
+        isCurrent: readBoolean(
+          item.isCurrent,
+          fallbackItem?.isCurrent ?? false
+        ),
       };
     })
     .filter(
@@ -1722,7 +1740,9 @@ function deriveAutopilotPendingSteps(
   mainlineSteps: NonNullable<
     TaskAutopilotExplanationSummary["remainingSteps"]
   >["mainlineSteps"]
-): NonNullable<TaskAutopilotExplanationSummary["remainingSteps"]>["pendingSteps"] {
+): NonNullable<
+  TaskAutopilotExplanationSummary["remainingSteps"]
+>["pendingSteps"] {
   return mainlineSteps.filter(
     step => step.status === "pending" || step.status === "running"
   );
@@ -1811,15 +1831,17 @@ function normalizeAutopilotExplanationRemainingSteps(
     ),
     mainlineSteps: normalizeAutopilotRemainingStepsItems(
       value.mainlineSteps,
-      fallback?.mainlineSteps ?? ([] as TaskAutopilotRemainingSteps["mainlineSteps"])
+      fallback?.mainlineSteps ??
+        ([] as TaskAutopilotRemainingSteps["mainlineSteps"])
     ),
     pendingSteps: normalizeAutopilotRemainingStepsItems(
       value.pendingSteps,
-      fallback?.pendingSteps ?? ([] as TaskAutopilotRemainingSteps["pendingSteps"])
+      fallback?.pendingSteps ??
+        ([] as TaskAutopilotRemainingSteps["pendingSteps"])
     ),
     parallelBranchCount: Number.isFinite(value.parallelBranchCount)
       ? Number(value.parallelBranchCount)
-      : fallback?.parallelBranchCount ?? 0,
+      : (fallback?.parallelBranchCount ?? 0),
     replanChangeSummary: readNullableText(
       value.replanChangeSummary,
       fallback?.replanChangeSummary ?? null
@@ -1966,7 +1988,9 @@ function normalizeAutopilotCandidateRoutes(
       };
     })
     .filter(
-      (item): item is TaskAutopilotSummary["route"]["candidateRoutes"][number] =>
+      (
+        item
+      ): item is TaskAutopilotSummary["route"]["candidateRoutes"][number] =>
         item !== null
     );
 
@@ -2153,9 +2177,9 @@ function normalizeAutopilotRouteEvidenceEvents(
     const at = readText(item.at, "");
     if (!at) continue;
     const eventType =
-      readAutopilotRouteEvidenceEventType(item.eventType, null) ?? "route.selected";
-    const actor =
-      readAutopilotRouteChangeActor(item.actor, null) ?? "planner";
+      readAutopilotRouteEvidenceEventType(item.eventType, null) ??
+      "route.selected";
+    const actor = readAutopilotRouteChangeActor(item.actor, null) ?? "planner";
 
     events.push({
       eventType,
@@ -2330,7 +2354,9 @@ function normalizeAutopilotSummary(
       fallback.route.selectedRouteId
     ) ?? null;
   const selectedRouteFallback =
-    normalizedCandidateRoutes.find(candidate => candidate.id === selectedRouteId) ??
+    normalizedCandidateRoutes.find(
+      candidate => candidate.id === selectedRouteId
+    ) ??
     normalizedCandidateRoutes.find(candidate => candidate.selected) ??
     fallback.route.selectedRoute ??
     fallback.route.selected;
@@ -2528,10 +2554,11 @@ function normalizeAutopilotSummary(
       ],
       fallback.evidence.correlation.timelineId
     ) ?? fallback.evidence.correlation.timelineId;
-  const normalizedEvidenceCorrelationBase = normalizeAutopilotEvidenceCorrelation(
-    evidenceCorrelation,
-    fallback.evidence.correlation
-  );
+  const normalizedEvidenceCorrelationBase =
+    normalizeAutopilotEvidenceCorrelation(
+      evidenceCorrelation,
+      fallback.evidence.correlation
+    );
   const normalizedEvidenceCorrelation = {
     ...normalizedEvidenceCorrelationBase,
     timelineId: normalizedCorrelationTimelineId,
@@ -2578,7 +2605,7 @@ function normalizeAutopilotSummary(
         explanationRemainingSteps.mainlineSteps,
         fallback.explanation.remainingSteps?.mainlineSteps ?? []
       )
-    : normalizedRemainingStepsBase?.mainlineSteps ?? [];
+    : (normalizedRemainingStepsBase?.mainlineSteps ?? []);
   const normalizedPendingSteps = Array.isArray(
     explanationRemainingSteps?.pendingSteps
   )
@@ -2588,7 +2615,7 @@ function normalizeAutopilotSummary(
       )
     : deriveAutopilotPendingSteps(normalizedMainlineSteps).length > 0
       ? deriveAutopilotPendingSteps(normalizedMainlineSteps)
-      : normalizedRemainingStepsBase?.pendingSteps ?? [];
+      : (normalizedRemainingStepsBase?.pendingSteps ?? []);
   const normalizedCurrentStepKey =
     readNullableText(
       explanationRemainingSteps?.currentStepKey,
@@ -2639,14 +2666,12 @@ function normalizeAutopilotSummary(
       readNullableText(
         explanationCurrentState?.currentStageKey,
         normalizedExplanationCurrentStateBaseSafe.currentStageKey
-      ) ??
-      normalizedCurrentStepKey,
+      ) ?? normalizedCurrentStepKey,
     currentStageLabel:
       readNullableText(
         explanationCurrentState?.currentStageLabel,
         normalizedExplanationCurrentStateBaseSafe.currentStageLabel
-      ) ??
-      normalizedCurrentStepLabel,
+      ) ?? normalizedCurrentStepLabel,
     workflowStatus:
       readNullableText(
         explanationCurrentState?.workflowStatus,
@@ -2656,8 +2681,7 @@ function normalizeAutopilotSummary(
       readNullableText(
         explanationCurrentState?.workflowStage,
         normalizedExplanationCurrentStateBaseSafe.workflowStage
-      ) ??
-      normalizedRoute.currentStageKey,
+      ) ?? normalizedRoute.currentStageKey,
     missionStatus: readMissionTaskStatus(
       explanationCurrentState?.missionStatus,
       normalizedExplanationCurrentStateBaseSafe.missionStatus
@@ -2698,10 +2722,12 @@ function normalizeAutopilotSummary(
     currentStepLabel: normalizedCurrentStepLabel,
     mainlineSteps: normalizedMainlineSteps,
     pendingSteps: normalizedPendingSteps,
-    parallelBranchCount: Number.isFinite(explanationRemainingSteps?.parallelBranchCount)
+    parallelBranchCount: Number.isFinite(
+      explanationRemainingSteps?.parallelBranchCount
+    )
       ? Number(explanationRemainingSteps?.parallelBranchCount)
-      : normalizedRemainingStepsBase?.parallelBranchCount ??
-        normalizedExecution.parallelBranchCount,
+      : (normalizedRemainingStepsBase?.parallelBranchCount ??
+        normalizedExecution.parallelBranchCount),
     replanChangeSummary: readNullableText(
       explanationRemainingSteps?.replanChangeSummary,
       normalizedRemainingStepsBase?.replanChangeSummary ??
@@ -2729,15 +2755,18 @@ function normalizeAutopilotSummary(
     "clarificationDetails",
     "clarification_details",
   ]);
-  const destinationMissingInfoValues = readValuesFromRecordAliases(destination, [
-    "missingInfo",
-    "missing_info",
-    "missingInformation",
-    "missing_information",
-    "openQuestions",
-    "open_questions",
-    "questions",
-  ]);
+  const destinationMissingInfoValues = readValuesFromRecordAliases(
+    destination,
+    [
+      "missingInfo",
+      "missing_info",
+      "missingInformation",
+      "missing_information",
+      "openQuestions",
+      "open_questions",
+      "questions",
+    ]
+  );
   const destinationSuggestedClarificationValues = readValuesFromRecordAliases(
     destination,
     [
@@ -2752,7 +2781,11 @@ function normalizeAutopilotSummary(
   const normalizedDestinationImpact = readNullableText(
     isRecord(destinationMissingInfoDetailsValue)
       ? null
-      : readRecordValue(destination, ["impact", "impactSummary", "impact_summary"]),
+      : readRecordValue(destination, [
+          "impact",
+          "impactSummary",
+          "impact_summary",
+        ]),
     readStringArrayOfRecords(
       destinationMissingInfoDetailsValue,
       item =>
@@ -2761,7 +2794,9 @@ function normalizeAutopilotSummary(
           null
         ),
       []
-    )[0] ?? fallback.destination.impact ?? null
+    )[0] ??
+      fallback.destination.impact ??
+      null
   );
   const normalizedDestinationBlockingReason = readNullableText(
     isRecord(destinationMissingInfoDetailsValue)
@@ -2789,58 +2824,74 @@ function normalizeAutopilotSummary(
             )
           : null,
       []
-    )[0] ?? fallback.destination.blockingReason ?? null
+    )[0] ??
+      fallback.destination.blockingReason ??
+      null
   );
 
   const normalizedMissingInfoDetails:
     | TaskAutopilotSummary["destination"]["missingInfoDetails"]
     | undefined = Array.isArray(destinationMissingInfoDetailsValue)
     ? destinationMissingInfoDetailsValue
-        .map((item, index): NonNullable<
-          TaskAutopilotSummary["destination"]["missingInfoDetails"]
-        >[number] | null => {
-          if (!isRecord(item)) return null;
-          const fallbackItem = fallback.destination.missingInfoDetails?.[index];
-          const itemLabel = readText(
-            readRecordValue(item, [
-              "item",
-              "label",
-              "question",
-              "prompt",
-              "missingInfo",
-              "missing_info",
-            ]),
-            fallbackItem?.item ??
-              readStringArrayFromCandidates(destinationMissingInfoValues, [])[index] ??
-              fallback.destination.missingInfo[index] ??
-              ""
-          );
-          const impact = readText(
-            readRecordValue(item, ["impact", "impactSummary", "impact_summary"]),
-            fallbackItem?.impact ?? normalizedDestinationImpact ?? ""
-          );
-          if (!itemLabel || !impact) return null;
-          const clarification = readNullableTextFromCandidates(
-            [
-              item.clarification,
-              item.suggestedClarification,
-              item.suggested_clarification,
-              item.question,
-              item.prompt,
-            ],
-            fallbackItem?.clarification ?? null
-          );
-          return {
-            item: itemLabel,
-            impact,
-            blocking: readBoolean(
-              item.blocking,
-              fallbackItem?.blocking ??
-                impact === normalizedDestinationBlockingReason
-            ),
-            ...(clarification ? { clarification } : {}),
-          };
-        })
+        .map(
+          (
+            item,
+            index
+          ):
+            | NonNullable<
+                TaskAutopilotSummary["destination"]["missingInfoDetails"]
+              >[number]
+            | null => {
+            if (!isRecord(item)) return null;
+            const fallbackItem =
+              fallback.destination.missingInfoDetails?.[index];
+            const itemLabel = readText(
+              readRecordValue(item, [
+                "item",
+                "label",
+                "question",
+                "prompt",
+                "missingInfo",
+                "missing_info",
+              ]),
+              fallbackItem?.item ??
+                readStringArrayFromCandidates(destinationMissingInfoValues, [])[
+                  index
+                ] ??
+                fallback.destination.missingInfo[index] ??
+                ""
+            );
+            const impact = readText(
+              readRecordValue(item, [
+                "impact",
+                "impactSummary",
+                "impact_summary",
+              ]),
+              fallbackItem?.impact ?? normalizedDestinationImpact ?? ""
+            );
+            if (!itemLabel || !impact) return null;
+            const clarification = readNullableTextFromCandidates(
+              [
+                item.clarification,
+                item.suggestedClarification,
+                item.suggested_clarification,
+                item.question,
+                item.prompt,
+              ],
+              fallbackItem?.clarification ?? null
+            );
+            return {
+              item: itemLabel,
+              impact,
+              blocking: readBoolean(
+                item.blocking,
+                fallbackItem?.blocking ??
+                  impact === normalizedDestinationBlockingReason
+              ),
+              ...(clarification ? { clarification } : {}),
+            };
+          }
+        )
         .filter(
           (
             item
@@ -2934,9 +2985,7 @@ function normalizeAutopilotSummary(
           "secondary_task_types",
         ]),
         fallback.destination.auxiliaryTaskTypes ?? []
-      ).map(taskType =>
-        readAutopilotDestinationTaskType(taskType, "unknown")
-      ),
+      ).map(taskType => readAutopilotDestinationTaskType(taskType, "unknown")),
       confidence:
         destination.confidence === null
           ? undefined
@@ -3336,7 +3385,8 @@ function buildAutopilotSummaryFallback(
       ? mission.decision?.prompt || "Awaiting decision"
       : null);
   const summaryText =
-    options?.summaryText ?? missionSummaryText(mission, mission.events, waitingFor);
+    options?.summaryText ??
+    missionSummaryText(mission, mission.events, waitingFor);
   const failureReasons =
     options?.failureReasons ?? missionFailureReasons(mission, mission.events);
   const driveState = inferAutopilotDriveState(
@@ -3458,8 +3508,8 @@ function buildAutopilotSummaryFallback(
       : waitingForRouteSelection
         ? "alternatives-available"
         : routeLocked
-        ? "locked"
-        : "recommended";
+          ? "locked"
+          : "recommended";
   const selectionMode: TaskAutopilotSummary["route"]["selection"]["mode"] =
     (mission.attempt ?? 1) > 1 ? "runtime_replanned" : "planner_default";
   const routeEvidenceEvents: TaskAutopilotSummary["route"]["evidence"]["events"] =
@@ -3581,11 +3631,14 @@ function buildAutopilotSummaryFallback(
   >["sources"] = Array.from(
     new Set([
       "mission-runtime",
-      ...(mission.projection?.workflowId ? (["workflow-runtime"] as const) : []),
+      ...(mission.projection?.workflowId
+        ? (["workflow-runtime"] as const)
+        : []),
       ...(selectedRoute ? (["route-planner"] as const) : []),
       ...(takeoverRequired ? (["takeover-state"] as const) : []),
-      ...((selectionStatus === "replanned" ||
-      routeChangeActor === "runtime") ? (["recovery-engine"] as const) : []),
+      ...(selectionStatus === "replanned" || routeChangeActor === "runtime"
+        ? (["recovery-engine"] as const)
+        : []),
     ])
   );
 
@@ -3598,18 +3651,19 @@ function buildAutopilotSummaryFallback(
         : fallback.destination.missingInfo,
       confidence: {
         level: confidence,
-        reason:
-          waitingFor
-            ? `Pending clarification: ${waitingFor}`
-            : mission.summary
-              ? "Mission summary and runtime state provide destination context."
-              : mission.sourceText
-                ? "Source text provides the current destination intent."
-                : "Destination intent is inferred from the live mission record.",
+        reason: waitingFor
+          ? `Pending clarification: ${waitingFor}`
+          : mission.summary
+            ? "Mission summary and runtime state provide destination context."
+            : mission.sourceText
+              ? "Source text provides the current destination intent."
+              : "Destination intent is inferred from the live mission record.",
         signals: Array.from(
           new Set([
             ...(mission.summary ? ["mission-summary"] : []),
-            ...((mission.artifacts?.length ?? 0) > 0 ? ["artifacts-present"] : []),
+            ...((mission.artifacts?.length ?? 0) > 0
+              ? ["artifacts-present"]
+              : []),
             ...(mission.events.length > 0 ? ["runtime-events-present"] : []),
             ...(waitingFor ? ["waiting-for-input"] : []),
             ...(mission.blocker?.reason ? ["blocked-by-runtime"] : []),
@@ -3639,7 +3693,8 @@ function buildAutopilotSummaryFallback(
           ? [
               {
                 item: mission.blocker.reason,
-                impact: "Runtime recovery and execution handoff remain blocked.",
+                impact:
+                  "Runtime recovery and execution handoff remain blocked.",
                 blocking: true,
               },
             ]
@@ -3691,8 +3746,7 @@ function buildAutopilotSummaryFallback(
             ? recommendedRouteId
             : null,
         toRouteId: selectionStatus === "replanned" ? selectedRouteId : null,
-        triggeredBy:
-          selectionStatus === "replanned" ? routeChangeActor : null,
+        triggeredBy: selectionStatus === "replanned" ? routeChangeActor : null,
       },
     },
     driveState: {
@@ -3718,9 +3772,9 @@ function buildAutopilotSummaryFallback(
         driveState === "takeover-required" || operatorState === "blocked",
       type: inferAutopilotTakeoverType(mission, operatorState),
       reason: waitingFor ?? fallback.takeover.reason,
-      prompt: mission.decision?.prompt || waitingFor || fallback.takeover.prompt,
-      decisionId:
-        mission.decision?.decisionId || fallback.takeover.decisionId,
+      prompt:
+        mission.decision?.prompt || waitingFor || fallback.takeover.prompt,
+      decisionId: mission.decision?.decisionId || fallback.takeover.decisionId,
       options: (mission.decision?.options ?? []).map(option => ({
         id: option.id,
         label: option.label,
@@ -3834,7 +3888,9 @@ function buildAutopilotSummaryFallback(
                     ? "quality-deviation"
                     : "none",
       reason: mission.blocker?.reason || waitingFor || null,
-      attemptedActions: (mission.operatorActions ?? []).map(action => action.action),
+      attemptedActions: (mission.operatorActions ?? []).map(
+        action => action.action
+      ),
       suggestedActions:
         operatorState === "blocked"
           ? ["resume", "retry", "escalate"]
@@ -3866,7 +3922,9 @@ function buildAutopilotSummaryFallback(
       gaps: Array.from(
         new Set([
           ...(mission.artifacts?.length ? [] : ["No artifacts captured yet"]),
-          ...(mission.events.length > 0 ? [] : ["No runtime events captured yet"]),
+          ...(mission.events.length > 0
+            ? []
+            : ["No runtime events captured yet"]),
           ...(mission.status === "waiting" &&
           (mission.decisionHistory?.length ?? 0) === 0
             ? ["Waiting mission has no resolved decision history yet"]
@@ -3874,43 +3932,49 @@ function buildAutopilotSummaryFallback(
         ])
       ),
       timeline: [
-        ...mission.events.slice(-6).map(event => ({
-          id: `${mission.id}:event:${event.time}:${event.type}`,
-          type:
-            event.type === "waiting"
-              ? "takeover"
-              : event.type === "done"
-                ? "result"
-                : event.type === "progress"
-                  ? "drive_state_change"
-                  : "system",
-          label: event.type,
-          detail: event.message || null,
-          status:
-            event.level === "error"
-              ? "failed"
-              : event.type === "waiting"
-                ? "waiting"
-                : event.type === "done"
-                  ? "done"
-                  : "running",
-          source: event.source || null,
-          time: new Date(event.time).toISOString(),
-        }) satisfies TaskAutopilotEvidenceTimelineItem),
-        ...(mission.operatorActions ?? []).slice(-3).map(action => ({
-          id: action.id,
-          type: "operator_action" as const,
-          label: action.action,
-          detail: action.detail || action.reason || null,
-          status:
-            action.result === "rejected"
-              ? "failed"
-              : action.result === "completed"
-                ? "done"
-                : "running",
-          source: action.requestedBy || "operator",
-          time: new Date(action.createdAt).toISOString(),
-        }) satisfies TaskAutopilotEvidenceTimelineItem),
+        ...mission.events.slice(-6).map(
+          event =>
+            ({
+              id: `${mission.id}:event:${event.time}:${event.type}`,
+              type:
+                event.type === "waiting"
+                  ? "takeover"
+                  : event.type === "done"
+                    ? "result"
+                    : event.type === "progress"
+                      ? "drive_state_change"
+                      : "system",
+              label: event.type,
+              detail: event.message || null,
+              status:
+                event.level === "error"
+                  ? "failed"
+                  : event.type === "waiting"
+                    ? "waiting"
+                    : event.type === "done"
+                      ? "done"
+                      : "running",
+              source: event.source || null,
+              time: new Date(event.time).toISOString(),
+            }) satisfies TaskAutopilotEvidenceTimelineItem
+        ),
+        ...(mission.operatorActions ?? []).slice(-3).map(
+          action =>
+            ({
+              id: action.id,
+              type: "operator_action" as const,
+              label: action.action,
+              detail: action.detail || action.reason || null,
+              status:
+                action.result === "rejected"
+                  ? "failed"
+                  : action.result === "completed"
+                    ? "done"
+                    : "running",
+              source: action.requestedBy || "operator",
+              time: new Date(action.createdAt).toISOString(),
+            }) satisfies TaskAutopilotEvidenceTimelineItem
+        ),
       ].slice(-8),
       correlation: {
         ...fallback.evidence.correlation,
@@ -3926,12 +3990,16 @@ function buildAutopilotSummaryFallback(
           event => `${mission.id}:event:${event.time}:${event.type}`
         ),
         decisionIds: Array.from(
-          new Set([
-            mission.decision?.decisionId,
-            ...(mission.decisionHistory ?? []).map(entry => entry.decisionId),
-          ].filter((value): value is string => Boolean(value)))
+          new Set(
+            [
+              mission.decision?.decisionId,
+              ...(mission.decisionHistory ?? []).map(entry => entry.decisionId),
+            ].filter((value): value is string => Boolean(value))
+          )
         ),
-        operatorActionIds: (mission.operatorActions ?? []).map(action => action.id),
+        operatorActionIds: (mission.operatorActions ?? []).map(
+          action => action.id
+        ),
         auditEventIds: fallback.evidence.correlation.auditEventIds,
         lineageIds: fallback.evidence.correlation.lineageIds,
       },
@@ -3985,8 +4053,12 @@ function buildAutopilotSummaryFallback(
       ),
       evidenceHints: Array.from(
         new Set([
-          ...(mission.artifacts?.length ? ["Artifacts are available for review."] : []),
-          ...(mission.events.length > 0 ? ["Runtime events are available."] : []),
+          ...(mission.artifacts?.length
+            ? ["Artifacts are available for review."]
+            : []),
+          ...(mission.events.length > 0
+            ? ["Runtime events are available."]
+            : []),
           ...((mission.decisionHistory?.length ?? 0) > 0
             ? ["Decision history is available."]
             : []),
@@ -4686,7 +4758,499 @@ function buildDetailRecord(
     instance: mission.instance,
     missionArtifacts: mission.artifacts,
   };
-} /**
+}
+
+function buildDemoMissionStages(
+  activeStageKey: string,
+  statuses?: Partial<
+    Record<
+      (typeof MISSION_CORE_STAGE_BLUEPRINT)[number]["key"],
+      InteriorStageStatus
+    >
+  >
+): MissionStage[] {
+  return MISSION_CORE_STAGE_BLUEPRINT.map(stage => {
+    const status =
+      statuses?.[stage.key] ??
+      (stage.key === activeStageKey
+        ? "running"
+        : MISSION_CORE_STAGE_BLUEPRINT.findIndex(
+              item => item.key === stage.key
+            ) <
+            MISSION_CORE_STAGE_BLUEPRINT.findIndex(
+              item => item.key === activeStageKey
+            )
+          ? "done"
+          : "pending");
+
+    return {
+      key: stage.key,
+      label: stage.label,
+      status,
+      detail:
+        status === "done"
+          ? "Demo stage completed."
+          : status === "running"
+            ? "Demo stage is currently active."
+            : "Queued for the demo route.",
+    };
+  });
+}
+
+function createGitHubPagesDemoMissions(): MissionRecord[] {
+  const base = Date.parse("2026-05-04T01:00:00.000Z");
+
+  return [
+    {
+      id: GITHUB_PAGES_DEMO_MISSION_IDS.aigcClarify,
+      kind: "project-autopilot",
+      title: "澄清 AI漫剧生成平台目标与交付物",
+      sourceText:
+        "围绕 AI 漫剧生成平台，确认目标用户、输入输出、MVP 范围、可接管节点和首版交付物。",
+      topicId: GITHUB_PAGES_DEMO_PROJECT_IDS.aigcComic,
+      projection: {
+        projectId: GITHUB_PAGES_DEMO_PROJECT_IDS.aigcComic,
+        workflowId: "demo-workflow-aigc-clarify",
+        instanceId: "demo-instance-aigc-clarify",
+        sourceApp: "github-pages-demo",
+      },
+      status: "running",
+      progress: 62,
+      currentStageKey: "plan",
+      stages: buildDemoMissionStages("plan"),
+      summary:
+        "AI 已理解项目空间、自动驾驶页和任务中心需要围绕同一个项目工作，正在整理 Spec 和演示执行路线。",
+      artifacts: [
+        {
+          kind: "report",
+          name: "aigc-comic-demo-scope.md",
+          path: "docs/demo/aigc-comic-demo-scope.md",
+          description: "演示范围、关键页面和首版交付物清单。",
+        },
+      ],
+      organization: {
+        departments: [
+          { key: "planning", label: "Planning", managerName: "Spec Agent" },
+          { key: "runtime", label: "Runtime", managerName: "Mission Core" },
+          { key: "archive", label: "Archive", managerName: "Evidence Agent" },
+        ],
+        agentCount: 5,
+      },
+      workPackages: [
+        {
+          id: "demo-wp-aigc-1",
+          title: "整理项目目标",
+          description: "把用户目标转成项目上下文和 Spec 草案。",
+          stageKey: "understand",
+          status: "verified",
+          score: 92,
+          deliverable: "项目目标摘要",
+        },
+        {
+          id: "demo-wp-aigc-2",
+          title: "规划演示路径",
+          description: "确认自动驾驶页、任务中心和产物归档的演示顺序。",
+          stageKey: "plan",
+          status: "running",
+          deliverable: "演示路线",
+        },
+      ],
+      messageLog: [
+        {
+          sender: "User",
+          content: "需要展示用的默认数据，GitHub Pages 不要登录。",
+          time: base + 12 * 60_000,
+          stageKey: "receive",
+        },
+        {
+          sender: "Mission Core",
+          content: "已切换为 Pages 展示模式，准备注入项目和任务演示数据。",
+          time: base + 24 * 60_000,
+          stageKey: "understand",
+        },
+      ],
+      agentCrew: [
+        {
+          id: "demo-agent-planner",
+          name: "Planner",
+          role: "manager",
+          department: "Planning",
+          status: "thinking",
+        },
+        {
+          id: "demo-agent-runtime",
+          name: "Runtime Scout",
+          role: "worker",
+          department: "Runtime",
+          status: "working",
+        },
+      ],
+      executor: {
+        name: "GitHub Pages Demo",
+        status: "running",
+        jobId: "demo-job-aigc-clarify",
+        lastEventType: "job.progress",
+        lastEventAt: base + 86 * 60_000,
+      },
+      instance: {
+        id: "demo-instance-aigc-clarify",
+        workspaceRoot: "/demo/github-pages/aigc-comic",
+        startedAt: base + 30 * 60_000,
+      },
+      operatorState: "active",
+      operatorActions: [],
+      attempt: 1,
+      createdAt: base + 30 * 60_000,
+      updatedAt: base + 150 * 60_000,
+      events: [
+        {
+          type: "created",
+          message: "Demo mission created for AI comic platform.",
+          level: "info",
+          time: base + 30 * 60_000,
+          stageKey: "receive",
+          source: "mission-core",
+        },
+        {
+          type: "progress",
+          message: "Spec skeleton and route outline are ready for review.",
+          progress: 62,
+          level: "info",
+          time: base + 148 * 60_000,
+          stageKey: "plan",
+          source: "brain",
+        },
+      ],
+    },
+    {
+      id: GITHUB_PAGES_DEMO_MISSION_IDS.aigcRender,
+      kind: "project-autopilot",
+      title: "规划首版漫剧生成链路",
+      sourceText:
+        "规划从脚本输入到分镜、角色设定、素材生成和审核归档的演示执行链路。",
+      topicId: GITHUB_PAGES_DEMO_PROJECT_IDS.aigcComic,
+      projection: {
+        projectId: GITHUB_PAGES_DEMO_PROJECT_IDS.aigcComic,
+        workflowId: "demo-workflow-aigc-render",
+        instanceId: "demo-instance-aigc-render",
+        sourceApp: "github-pages-demo",
+      },
+      status: "waiting",
+      progress: 38,
+      currentStageKey: "understand",
+      stages: buildDemoMissionStages("understand"),
+      summary: "正在等待用户确认首版更偏可演示原型，还是接入真实生成链路。",
+      waitingFor: "确认首版交付物定位",
+      decision: {
+        decisionId: "demo-decision-aigc-output",
+        type: "multi-choice",
+        prompt: "首版交付物更偏向可演示原型，还是端到端真实生成链路？",
+        options: [
+          {
+            id: "prototype",
+            label: "可演示原型",
+            description: "优先保证 GitHub Pages 上看得懂、点得通。",
+          },
+          {
+            id: "real-pipeline",
+            label: "真实生成链路",
+            description: "优先接入真实模型和素材生成服务。",
+          },
+          {
+            id: "hybrid",
+            label: "两者都要",
+            description: "演示原型先跑通，同时保留真实服务接入点。",
+          },
+        ],
+      },
+      artifacts: [
+        {
+          kind: "file",
+          name: "storyboard-flow.json",
+          path: "docs/demo/storyboard-flow.json",
+          description: "脚本到分镜的演示流程结构。",
+        },
+      ],
+      organization: {
+        departments: [
+          { key: "story", label: "Story", managerName: "Story Agent" },
+          { key: "visual", label: "Visual", managerName: "Visual Agent" },
+        ],
+        agentCount: 4,
+      },
+      workPackages: [
+        {
+          id: "demo-wp-render-1",
+          title: "梳理生成链路",
+          stageKey: "understand",
+          status: "running",
+          deliverable: "生成链路草图",
+        },
+      ],
+      messageLog: [
+        {
+          sender: "Mission Core",
+          content: "等待用户确认交付物定位后继续拆分生成任务。",
+          time: base + 142 * 60_000,
+          stageKey: "understand",
+        },
+      ],
+      agentCrew: [
+        {
+          id: "demo-agent-story",
+          name: "Story Agent",
+          role: "manager",
+          department: "Story",
+          status: "thinking",
+        },
+      ],
+      executor: {
+        name: "GitHub Pages Demo",
+        status: "waiting",
+        jobId: "demo-job-aigc-render",
+        lastEventType: "job.waiting",
+        lastEventAt: base + 144 * 60_000,
+      },
+      operatorState: "active",
+      operatorActions: [],
+      attempt: 1,
+      createdAt: base + 60 * 60_000,
+      updatedAt: base + 140 * 60_000,
+      events: [
+        {
+          type: "waiting",
+          message: "Waiting for output positioning decision.",
+          level: "warn",
+          time: base + 140 * 60_000,
+          stageKey: "understand",
+          source: "mission-core",
+        },
+      ],
+    },
+    {
+      id: GITHUB_PAGES_DEMO_MISSION_IDS.authSpec,
+      kind: "project-autopilot",
+      title: "补齐权限管理系统认证合同",
+      sourceText:
+        "确认邮箱验证码登录、共享认证合同、RBAC、项目数据隔离和审计日志的实现边界。",
+      topicId: GITHUB_PAGES_DEMO_PROJECT_IDS.authAdmin,
+      projection: {
+        projectId: GITHUB_PAGES_DEMO_PROJECT_IDS.authAdmin,
+        workflowId: "demo-workflow-auth-spec",
+        sourceApp: "github-pages-demo",
+      },
+      status: "waiting",
+      progress: 45,
+      currentStageKey: "plan",
+      stages: buildDemoMissionStages("plan"),
+      summary:
+        "邮箱登录和验证码方向已明确，仍需确认权限模型是否支持部门继承与跨项目授权。",
+      waitingFor: "确认权限模型范围",
+      decision: {
+        decisionId: "demo-decision-auth-scope",
+        type: "multi-choice",
+        prompt: "权限模型是否需要支持部门继承和跨项目授权？",
+        options: [
+          { id: "simple-rbac", label: "仅简单 RBAC" },
+          { id: "department", label: "支持部门继承" },
+          { id: "cross-project", label: "支持跨项目授权" },
+        ],
+      },
+      artifacts: [
+        {
+          kind: "report",
+          name: "auth-contract-notes.md",
+          path: "docs/demo/auth-contract-notes.md",
+          description: "共享认证合同和验证码登录边界。",
+        },
+      ],
+      organization: {
+        departments: [
+          { key: "auth", label: "Auth", managerName: "Auth Agent" },
+          { key: "security", label: "Security", managerName: "Policy Agent" },
+        ],
+        agentCount: 3,
+      },
+      workPackages: [
+        {
+          id: "demo-wp-auth-1",
+          title: "整理认证合同",
+          stageKey: "plan",
+          status: "running",
+          deliverable: "认证合同说明",
+        },
+      ],
+      messageLog: [
+        {
+          sender: "Auth Agent",
+          content: "验证码登录、会话恢复和项目 owner 绑定需要统一契约。",
+          time: base + 120 * 60_000,
+          stageKey: "plan",
+        },
+      ],
+      agentCrew: [
+        {
+          id: "demo-agent-auth",
+          name: "Auth Agent",
+          role: "manager",
+          department: "Auth",
+          status: "thinking",
+        },
+      ],
+      executor: {
+        name: "GitHub Pages Demo",
+        status: "waiting",
+        jobId: "demo-job-auth-spec",
+        lastEventType: "job.waiting",
+        lastEventAt: base + 122 * 60_000,
+      },
+      operatorState: "active",
+      operatorActions: [],
+      attempt: 1,
+      createdAt: base + 78 * 60_000,
+      updatedAt: base + 122 * 60_000,
+      events: [
+        {
+          type: "waiting",
+          message: "Waiting for permission model scope.",
+          level: "warn",
+          time: base + 122 * 60_000,
+          stageKey: "plan",
+          source: "mission-core",
+        },
+      ],
+    },
+    {
+      id: GITHUB_PAGES_DEMO_MISSION_IDS.dataDashboard,
+      kind: "project-autopilot",
+      title: "完成数据运营驾驶舱演示闭环",
+      sourceText:
+        "整理增长、留存、成本和异常告警指标，形成可展示的运营驾驶舱原型。",
+      topicId: GITHUB_PAGES_DEMO_PROJECT_IDS.dataOps,
+      projection: {
+        projectId: GITHUB_PAGES_DEMO_PROJECT_IDS.dataOps,
+        workflowId: "demo-workflow-data-dashboard",
+        sourceApp: "github-pages-demo",
+      },
+      status: "done",
+      progress: 100,
+      currentStageKey: "finalize",
+      stages: buildDemoMissionStages("finalize", {
+        receive: "done",
+        understand: "done",
+        plan: "done",
+        provision: "done",
+        execute: "done",
+        finalize: "done",
+      }),
+      summary: "运营驾驶舱演示原型已经完成，可查看指标分组、筛选和导出入口。",
+      completedAt: base + 125 * 60_000,
+      artifacts: [
+        {
+          kind: "url",
+          name: "数据运营驾驶舱原型",
+          url: "https://example.com/demo/data-ops-dashboard",
+          description: "GitHub Pages 展示用的看板原型入口。",
+        },
+      ],
+      organization: {
+        departments: [
+          { key: "analytics", label: "Analytics", managerName: "Data Agent" },
+        ],
+        agentCount: 2,
+      },
+      workPackages: [
+        {
+          id: "demo-wp-data-1",
+          title: "完成指标看板",
+          stageKey: "execute",
+          status: "verified",
+          score: 96,
+          deliverable: "运营看板原型",
+        },
+      ],
+      messageLog: [
+        {
+          sender: "Data Agent",
+          content: "指标分组、筛选视图和导出入口已经形成闭环。",
+          time: base + 123 * 60_000,
+          stageKey: "finalize",
+        },
+      ],
+      agentCrew: [
+        {
+          id: "demo-agent-data",
+          name: "Data Agent",
+          role: "manager",
+          department: "Analytics",
+          status: "done",
+        },
+      ],
+      executor: {
+        name: "GitHub Pages Demo",
+        status: "completed",
+        jobId: "demo-job-data-dashboard",
+        lastEventType: "job.completed",
+        lastEventAt: base + 125 * 60_000,
+      },
+      operatorState: "active",
+      operatorActions: [],
+      attempt: 1,
+      createdAt: base + 82 * 60_000,
+      updatedAt: base + 125 * 60_000,
+      events: [
+        {
+          type: "done",
+          message: "Data operations dashboard demo has been delivered.",
+          progress: 100,
+          level: "info",
+          time: base + 125 * 60_000,
+          stageKey: "finalize",
+          source: "mission-core",
+        },
+      ],
+    },
+  ];
+}
+
+function hydrateGitHubPagesDemoTaskData(
+  set: (
+    partial:
+      | Partial<TasksStoreState>
+      | ((state: TasksStoreState) => Partial<TasksStoreState>)
+  ) => void,
+  get: () => TasksStoreState,
+  options?: { preferredTaskId?: string | null }
+) {
+  const missions = createGitHubPagesDemoMissions().sort(
+    (left, right) => right.updatedAt - left.updatedAt
+  );
+  const summaries = missions.map(mission => buildSummaryRecord(mission));
+  const selectedTaskId = resolveSelectedTaskId(
+    summaries,
+    get().selectedTaskId,
+    options?.preferredTaskId
+  );
+  persistSelectedTaskId(selectedTaskId);
+
+  const detailsById = Object.fromEntries(
+    missions.map(mission => [
+      mission.id,
+      buildDetailRecord(mission, get().missionSocketConnected),
+    ])
+  ) as Record<string, MissionTaskDetail>;
+
+  set({
+    ready: true,
+    loading: false,
+    error: null,
+    tasks: summaries,
+    detailsById,
+    selectedTaskId,
+  });
+}
+
+/**
  * Build a MissionTaskDetail from the /api/planets/:id/interior response.
  * This is the planet-native counterpart of buildMissionDetailRecord —
  * it derives every field from MissionPlanetInteriorData + MissionRecord,
@@ -5074,6 +5638,11 @@ async function hydrateTaskData(
   options?: { preferredTaskId?: string | null }
 ): Promise<void> {
   startTaskStoreWatchers();
+
+  if (IS_GITHUB_PAGES) {
+    hydrateGitHubPagesDemoTaskData(set, get, options);
+    return;
+  }
 
   if (useAppStore.getState().runtimeMode === "advanced") {
     try {

@@ -14,8 +14,10 @@ import {
   TooltipTrigger,
 } from "@/components/ui/tooltip";
 import { useI18n } from "@/i18n";
+import { useAuthStore } from "@/lib/auth-store";
 import { useProjectStore } from "@/lib/project-store";
 import { cn } from "@/lib/utils";
+import type { CurrentUser } from "@shared/auth";
 
 type SidebarTone = "light" | "glass";
 
@@ -163,73 +165,123 @@ function SidebarNavItem({
   return <li>{content}</li>;
 }
 
+function getUserInitials(user: CurrentUser | null) {
+  const source =
+    user?.displayName?.trim() || user?.email.split("@")[0] || "Guest";
+  const parts = source.split(/[\s._-]+/).filter(Boolean);
+  const initials =
+    parts.length >= 2
+      ? `${parts[0]?.[0] ?? ""}${parts[1]?.[0] ?? ""}`
+      : source.slice(0, 2);
+
+  return initials.toUpperCase();
+}
+
+function getUserRoleLabel(
+  role: CurrentUser["role"] | undefined,
+  isZh: boolean
+) {
+  if (!role) return isZh ? "访客" : "Guest";
+  if (role === "super_admin") return isZh ? "超级管理员" : "Super Admin";
+  if (role === "admin") return isZh ? "管理员" : "Admin";
+  return isZh ? "普通用户" : "User";
+}
+
+function getUserStatusLabel(user: CurrentUser | null, isZh: boolean) {
+  if (!user) return isZh ? "未登录" : "Signed out";
+  if (user.status === "disabled") return isZh ? "已停用" : "Disabled";
+  if (!user.emailVerified) return isZh ? "邮箱未验证" : "Email unverified";
+  return isZh ? "已登录" : "Signed in";
+}
+
 function SidebarUserBlock({
   collapsed,
   tone,
   locale,
+  currentUser,
 }: {
   collapsed: boolean;
   tone: SidebarTone;
   locale: string;
+  currentUser: CurrentUser | null;
 }) {
   const glass = tone === "glass";
-  const modeLabel = locale === "zh-CN" ? "高级模式" : "Advanced mode";
+  const isZh = locale === "zh-CN";
+  const displayName =
+    currentUser?.displayName?.trim() ||
+    currentUser?.email ||
+    (isZh ? "未登录用户" : "Guest user");
+  const email = currentUser?.email ?? (isZh ? "请先登录" : "Sign in required");
+  const initials = getUserInitials(currentUser);
+  const roleLabel = getUserRoleLabel(currentUser?.role, isZh);
+  const statusLabel = getUserStatusLabel(currentUser, isZh);
+  const avatar = (
+    <span
+      className={cn(
+        "flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-[14px] border text-xs font-black text-sky-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]",
+        glass ? "border-white/72 bg-white/56" : "border-sky-100 bg-sky-50"
+      )}
+    >
+      {currentUser?.avatarUrl ? (
+        <img
+          src={currentUser.avatarUrl}
+          alt=""
+          className="h-full w-full object-cover"
+        />
+      ) : (
+        initials
+      )}
+    </span>
+  );
+
+  if (collapsed) {
+    return (
+      <div
+        className="mx-auto mb-3 flex justify-center"
+        data-sidebar-user-card={tone}
+      >
+        <Tooltip>
+          <TooltipTrigger asChild>{avatar}</TooltipTrigger>
+          <TooltipContent side="right" sideOffset={8}>
+            <span className="font-semibold">{displayName}</span>
+            <br />
+            <span className="text-xs opacity-80">{email}</span>
+          </TooltipContent>
+        </Tooltip>
+      </div>
+    );
+  }
 
   return (
     <div
       className={cn(
-        "mx-3 mb-3 flex shrink-0 items-center gap-3 rounded-[18px] border bg-white/62 px-3 py-3 shadow-[0_12px_28px_rgba(14,165,233,0.08),inset_0_1px_0_rgba(255,255,255,0.82)]",
-        glass && "bg-white/44",
-        collapsed && "justify-center px-2"
+        "mx-3 mb-3 flex shrink-0 items-center gap-3 rounded-[18px] border bg-white/58 px-3 py-3 shadow-[0_12px_28px_rgba(14,165,233,0.08),inset_0_1px_0_rgba(255,255,255,0.8)]",
+        glass && "bg-white/42"
       )}
+      data-sidebar-user-card={tone}
       style={{
         borderColor: glass
-          ? "rgba(255, 255, 255, 0.62)"
+          ? "rgba(255, 255, 255, 0.6)"
           : "rgba(186, 230, 253, 0.72)",
       }}
     >
-      <div
-        className={cn(
-          "flex size-10 shrink-0 items-center justify-center rounded-[14px] border text-xs font-black text-sky-700 shadow-[inset_0_1px_0_rgba(255,255,255,0.9)]",
-          glass
-            ? "border-sky-100/80 bg-sky-50/82"
-            : "border-sky-100 bg-sky-50"
-        )}
-      >
-        MC
+      {avatar}
+      <div className="min-w-0 flex-1">
+        <div className="truncate text-sm font-black text-slate-800">
+          {displayName}
+        </div>
+        <div className="mt-0.5 truncate text-[11px] font-semibold text-slate-500">
+          {email}
+        </div>
+        <div className="mt-2 flex min-w-0 items-center gap-1.5">
+          <span className="truncate rounded-full border border-white/70 bg-white/52 px-2 py-0.5 text-[10px] font-black text-slate-600">
+            {roleLabel}
+          </span>
+          <span className="truncate rounded-full bg-emerald-50/82 px-2 py-0.5 text-[10px] font-black text-emerald-600">
+            {statusLabel}
+          </span>
+        </div>
       </div>
-      {!collapsed ? (
-        <span className="min-w-0">
-          <span className="block truncate text-sm font-bold text-slate-800">
-            Mission Control
-          </span>
-          <span className="mt-0.5 block truncate text-[11px] font-medium text-slate-500">
-            {modeLabel}
-          </span>
-        </span>
-      ) : null}
-    </div>
-  );
-}
-
-function SidebarTaskStats({ tone }: { tone: SidebarTone }) {
-  const glass = tone === "glass";
-
-  return (
-    <div
-      className={cn(
-        "mx-3 mb-3 flex shrink-0 items-center justify-around rounded-[18px] border bg-white/50 px-3 py-2 text-[11px] font-bold text-slate-500 shadow-[inset_0_1px_0_rgba(255,255,255,0.7)]",
-        glass && "bg-white/34"
-      )}
-      style={{
-        borderColor: glass
-          ? "rgba(255, 255, 255, 0.54)"
-          : "rgba(186, 230, 253, 0.66)",
-      }}
-    >
-      <span>OK 0</span>
-      <span>Run 0</span>
-      <span>Idle 0</span>
     </div>
   );
 }
@@ -247,6 +299,7 @@ export function AppSidebar({
 }: AppSidebarProps) {
   const [location, setLocation] = useLocation();
   const { locale, copy } = useI18n();
+  const currentUser = useAuthStore(state => state.currentUser);
   const currentProjectId = useProjectStore(state => state.currentProjectId);
   const activeId = getActiveSidebarId(location);
   const sidebarTone: SidebarTone = embedded ? "glass" : "light";
@@ -288,11 +341,7 @@ export function AppSidebar({
         color: "#1e293b",
       }}
     >
-      <SidebarHeader
-        collapsed={collapsed}
-        tone={sidebarTone}
-        locale={locale}
-      />
+      <SidebarHeader collapsed={collapsed} tone={sidebarTone} locale={locale} />
 
       <nav
         className={cn(
@@ -348,9 +397,8 @@ export function AppSidebar({
         collapsed={collapsed}
         tone={sidebarTone}
         locale={locale}
+        currentUser={currentUser}
       />
-
-      {!collapsed ? <SidebarTaskStats tone={sidebarTone} /> : null}
     </aside>
   );
 }

@@ -6,6 +6,11 @@ import {
   buildProjectRoutePlan,
 } from "./project-route-planner";
 import { buildInitialProjectSpecDraft } from "./project-spec-draft";
+import { IS_GITHUB_PAGES } from "./deploy-target";
+import {
+  GITHUB_PAGES_DEMO_MISSION_IDS,
+  GITHUB_PAGES_DEMO_PROJECT_IDS,
+} from "./github-pages-demo-data";
 
 export const PROJECT_STORE_SCHEMA_VERSION = 1;
 export const PROJECT_STORE_STORAGE_KEY = "cube-pets-office.project-store.v1";
@@ -342,7 +347,8 @@ export interface GenerateProjectRoutePlanInput {
   selectKind?: ProjectRouteKind;
 }
 
-export interface ReplanProjectRoutePlanInput extends GenerateProjectRoutePlanInput {
+export interface ReplanProjectRoutePlanInput
+  extends GenerateProjectRoutePlanInput {
   reason?: string;
   action?: "failed" | "replanned";
   sourceMissionId?: string;
@@ -405,7 +411,15 @@ export interface ProjectStoreState extends ProjectStoreSnapshot {
   updateProject: (
     projectId: string,
     patch: Partial<
-      Pick<Project, "name" | "goal" | "status" | "summary" | "currentSpecId" | "currentRouteId">
+      Pick<
+        Project,
+        | "name"
+        | "goal"
+        | "status"
+        | "summary"
+        | "currentSpecId"
+        | "currentRouteId"
+      >
     >
   ) => Project | null;
   archiveProject: (projectId: string) => Project | null;
@@ -445,13 +459,19 @@ export interface ProjectStoreState extends ProjectStoreSnapshot {
     routeId: string,
     evidence?: RecordProjectRouteEvidenceInput
   ) => ProjectRoute | null;
-  linkMissionToProject: (input: LinkProjectMissionInput) => ProjectMission | null;
+  linkMissionToProject: (
+    input: LinkProjectMissionInput
+  ) => ProjectMission | null;
   updateProjectMissionStatus: (
     missionId: string,
     status: ProjectMissionStatus
   ) => ProjectMission | null;
-  addProjectArtifact: (input: AddProjectArtifactInput) => ProjectArtifact | null;
-  addProjectEvidence: (input: AddProjectEvidenceInput) => ProjectEvidence | null;
+  addProjectArtifact: (
+    input: AddProjectArtifactInput
+  ) => ProjectArtifact | null;
+  addProjectEvidence: (
+    input: AddProjectEvidenceInput
+  ) => ProjectEvidence | null;
   getVisibleProjects: () => Project[];
   getCurrentProject: () => Project | null;
   getProjectBundle: (projectId: string) => ProjectBundle | null;
@@ -513,6 +533,428 @@ function nowIso() {
   return new Date().toISOString();
 }
 
+function createGitHubPagesDemoSnapshot(): ProjectStoreSnapshot {
+  const createdAt = "2026-05-04T01:00:00.000Z";
+  const updatedAt = "2026-05-04T03:30:00.000Z";
+  const mainProjectId = GITHUB_PAGES_DEMO_PROJECT_IDS.aigcComic;
+  const authProjectId = GITHUB_PAGES_DEMO_PROJECT_IDS.authAdmin;
+  const dataProjectId = GITHUB_PAGES_DEMO_PROJECT_IDS.dataOps;
+  const mainSpecId = "demo-spec-aigc-comic-v1";
+  const authSpecId = "demo-spec-auth-admin-v1";
+  const dataSpecId = "demo-spec-data-ops-v1";
+  const mainRouteId = "demo-route-aigc-comic-standard";
+  const authRouteId = "demo-route-auth-admin-conservative";
+  const dataRouteId = "demo-route-data-ops-fast";
+  const mainMessageId = "demo-message-aigc-comic-goal";
+  const authMessageId = "demo-message-auth-admin-goal";
+  const dataMessageId = "demo-message-data-ops-goal";
+  const mainEvidenceId = "demo-evidence-aigc-goal";
+  const authEvidenceId = "demo-evidence-auth-goal";
+  const dataEvidenceId = "demo-evidence-data-goal";
+  const mainArtifactId = "demo-artifact-aigc-spec";
+  const authArtifactId = "demo-artifact-auth-architecture";
+  const dataArtifactId = "demo-artifact-data-dashboard";
+
+  const specs: ProjectSpec[] = [
+    {
+      id: mainSpecId,
+      projectId: mainProjectId,
+      version: 1,
+      title: "AI漫剧生成平台 MVP Spec",
+      content:
+        "# AI漫剧生成平台\n\n目标是把脚本理解、分镜规划、角色设定、素材生成、审核和交付串成一条可接管的自动驾驶链路。首版重点展示项目空间、自动驾驶驾驶舱、任务中心和产物归档。",
+      status: "reviewing",
+      sourceMessageIds: [mainMessageId],
+      sourceEvidenceIds: [mainEvidenceId],
+      sourceArtifactIds: [mainArtifactId],
+      completeness: 0.82,
+      completenessDetail: deriveProjectSpecCompleteness({
+        title: "AI漫剧生成平台 MVP Spec",
+        content:
+          "脚本、分镜、角色设定、素材生成、审核、交付和接管流程均已形成首版范围。",
+        sourceMessageIds: [mainMessageId],
+        sourceEvidenceIds: [mainEvidenceId],
+        sourceArtifactIds: [mainArtifactId],
+      }),
+      createdAt,
+    },
+    {
+      id: authSpecId,
+      projectId: authProjectId,
+      version: 1,
+      title: "权限管理系统 Spec",
+      content:
+        "# 权限管理系统\n\n围绕邮箱登录、验证码、RBAC、资源授权、审计日志和项目级数据隔离建立后台管理系统。",
+      status: "draft",
+      sourceMessageIds: [authMessageId],
+      sourceEvidenceIds: [authEvidenceId],
+      sourceArtifactIds: [authArtifactId],
+      completeness: 0.68,
+      completenessDetail: deriveProjectSpecCompleteness({
+        title: "权限管理系统 Spec",
+        content: "邮箱登录、验证码、RBAC、资源授权、审计日志和项目级数据隔离。",
+        sourceMessageIds: [authMessageId],
+        sourceEvidenceIds: [authEvidenceId],
+        sourceArtifactIds: [authArtifactId],
+      }),
+      createdAt,
+    },
+    {
+      id: dataSpecId,
+      projectId: dataProjectId,
+      version: 1,
+      title: "数据运营驾驶舱 Spec",
+      content:
+        "# 数据运营驾驶舱\n\n汇总增长、留存、成本和异常告警，形成可筛选、可追踪、可导出的运营看板。",
+      status: "accepted",
+      sourceMessageIds: [dataMessageId],
+      sourceEvidenceIds: [dataEvidenceId],
+      sourceArtifactIds: [dataArtifactId],
+      completeness: 0.95,
+      completenessDetail: deriveProjectSpecCompleteness({
+        title: "数据运营驾驶舱 Spec",
+        content: "增长、留存、成本和异常告警的运营看板范围已确认。",
+        sourceMessageIds: [dataMessageId],
+        sourceEvidenceIds: [dataEvidenceId],
+        sourceArtifactIds: [dataArtifactId],
+      }),
+      acceptedAt: "2026-05-04T02:40:00.000Z",
+      confirmedBy: "user",
+      createdAt,
+    },
+  ];
+
+  return {
+    schemaVersion: PROJECT_STORE_SCHEMA_VERSION,
+    currentProjectId: mainProjectId,
+    currentProjectIdsByOwner: {
+      [ownerSelectionKey(null)]: mainProjectId,
+    },
+    projects: [
+      {
+        id: mainProjectId,
+        name: "AI漫剧生成平台",
+        goal: "搭建从脚本、分镜、角色设定到短剧成片的自动驾驶生成平台。",
+        status: "executing",
+        summary:
+          "展示项目空间、自动驾驶驾驶舱、任务中心和产物归档如何围绕同一个项目运转。",
+        currentSpecId: mainSpecId,
+        currentRouteId: mainRouteId,
+        createdAt,
+        updatedAt,
+      },
+      {
+        id: authProjectId,
+        name: "权限管理系统",
+        goal: "实现邮箱验证码登录、项目级权限、资源授权和后台审计。",
+        status: "clarifying",
+        summary: "重点确认认证合同、角色模型、资源粒度、审计范围和部署约束。",
+        currentSpecId: authSpecId,
+        currentRouteId: authRouteId,
+        createdAt: "2026-05-04T01:12:00.000Z",
+        updatedAt: "2026-05-04T02:55:00.000Z",
+      },
+      {
+        id: dataProjectId,
+        name: "数据运营驾驶舱",
+        goal: "把增长、留存、成本和异常告警集中到一个可追踪的运营看板。",
+        status: "completed",
+        summary: "已完成指标模型、筛选视图、导出路径和异常告警的首版演示闭环。",
+        currentSpecId: dataSpecId,
+        currentRouteId: dataRouteId,
+        createdAt: "2026-05-04T01:24:00.000Z",
+        updatedAt: "2026-05-04T03:10:00.000Z",
+      },
+    ],
+    messages: [
+      {
+        id: mainMessageId,
+        projectId: mainProjectId,
+        role: "user",
+        kind: "chat",
+        content:
+          "我要做一个 AI 漫剧生成平台，能从一句需求开始自动澄清、规划、生成素材并沉淀产物。",
+        createdAt,
+      },
+      {
+        id: "demo-message-aigc-next-step",
+        projectId: mainProjectId,
+        role: "assistant",
+        kind: "status",
+        content:
+          "已形成演示路径：先确认目标和交付物，再生成 Spec，随后进入自动驾驶执行。",
+        sourceMissionId: GITHUB_PAGES_DEMO_MISSION_IDS.aigcClarify,
+        createdAt: "2026-05-04T01:30:00.000Z",
+      },
+      {
+        id: authMessageId,
+        projectId: authProjectId,
+        role: "user",
+        kind: "chat",
+        content: "权限系统需要真实邮箱登录、验证码、RBAC 和审计日志。",
+        createdAt: "2026-05-04T01:12:00.000Z",
+      },
+      {
+        id: dataMessageId,
+        projectId: dataProjectId,
+        role: "user",
+        kind: "chat",
+        content: "运营团队需要一个可以直接看增长、留存、成本和异常的驾驶舱。",
+        createdAt: "2026-05-04T01:24:00.000Z",
+      },
+    ],
+    clarificationQuestions: [
+      {
+        id: "demo-question-aigc-output",
+        projectId: mainProjectId,
+        text: "首版交付物更偏向可演示原型，还是端到端真实生成链路？",
+        reason: "交付物定位会影响自动驾驶任务的执行深度和验证方式。",
+        scope: "delivery",
+        answerType: "single",
+        options: ["可演示原型", "真实生成链路", "两者都要"],
+        required: true,
+        defaultAssumption: "先以可演示原型为主，保留真实链路接入点。",
+        sourceMessageId: mainMessageId,
+        createdAt: "2026-05-04T01:08:00.000Z",
+      },
+      {
+        id: "demo-question-auth-scope",
+        projectId: authProjectId,
+        text: "权限模型是否需要支持部门继承和跨项目授权？",
+        reason: "这会决定 RBAC 是否需要扩展到策略模型。",
+        scope: "domain",
+        answerType: "multi",
+        options: ["部门继承", "跨项目授权", "仅简单 RBAC"],
+        required: true,
+        defaultAssumption: "先支持简单 RBAC，预留策略扩展。",
+        sourceMessageId: authMessageId,
+        createdAt: "2026-05-04T01:18:00.000Z",
+      },
+    ],
+    specs,
+    routes: [
+      {
+        id: mainRouteId,
+        projectId: mainProjectId,
+        specId: mainSpecId,
+        kind: "recommended",
+        title: "演示优先自动驾驶路线",
+        summary:
+          "先跑通项目空间、自动驾驶页和任务中心，再补充真实生成链路接入。",
+        steps: [
+          {
+            id: "demo-route-aigc-step-1",
+            title: "澄清目标与交付物",
+            description: "确认首版演示边界、输入输出和需要用户接管的节点。",
+            role: "Planner",
+            status: "done",
+          },
+          {
+            id: "demo-route-aigc-step-2",
+            title: "生成 Spec 与任务路径",
+            description: "把项目目标转为可执行任务和产物清单。",
+            role: "Spec Agent",
+            status: "running",
+          },
+          {
+            id: "demo-route-aigc-step-3",
+            title: "归档演示产物",
+            description: "沉淀 SVG、报告和运行证据，供项目空间回看。",
+            role: "Archive Agent",
+            status: "pending",
+          },
+        ],
+        riskLevel: "medium",
+        estimate: "1-2 days",
+        selectedAt: "2026-05-04T01:28:00.000Z",
+        createdAt: "2026-05-04T01:26:00.000Z",
+      },
+      {
+        id: authRouteId,
+        projectId: authProjectId,
+        specId: authSpecId,
+        kind: "conservative",
+        title: "认证合同优先路线",
+        summary: "先稳定共享认证合同和邮件验证码，再推进权限管理与审计。",
+        steps: [
+          {
+            id: "demo-route-auth-step-1",
+            title: "确认共享认证合同",
+            status: "running",
+          },
+          {
+            id: "demo-route-auth-step-2",
+            title: "接入真实邮件验证码",
+            status: "pending",
+          },
+        ],
+        riskLevel: "medium",
+        estimate: "2-3 days",
+        selectedAt: "2026-05-04T02:15:00.000Z",
+        createdAt: "2026-05-04T02:12:00.000Z",
+      },
+      {
+        id: dataRouteId,
+        projectId: dataProjectId,
+        specId: dataSpecId,
+        kind: "fast",
+        title: "指标看板快速路线",
+        summary: "用静态指标和筛选交互完成首版展示，再接入实时数据。",
+        steps: [
+          {
+            id: "demo-route-data-step-1",
+            title: "整理指标分组",
+            status: "done",
+          },
+          {
+            id: "demo-route-data-step-2",
+            title: "完成看板原型",
+            status: "done",
+          },
+        ],
+        riskLevel: "low",
+        estimate: "done",
+        selectedAt: "2026-05-04T02:45:00.000Z",
+        createdAt: "2026-05-04T02:20:00.000Z",
+      },
+    ],
+    missions: [
+      {
+        id: "demo-project-mission-aigc-clarify",
+        projectId: mainProjectId,
+        missionId: GITHUB_PAGES_DEMO_MISSION_IDS.aigcClarify,
+        specId: mainSpecId,
+        routeId: mainRouteId,
+        status: "running",
+        createdAt: "2026-05-04T01:30:00.000Z",
+        updatedAt,
+      },
+      {
+        id: "demo-project-mission-aigc-render",
+        projectId: mainProjectId,
+        missionId: GITHUB_PAGES_DEMO_MISSION_IDS.aigcRender,
+        specId: mainSpecId,
+        routeId: mainRouteId,
+        status: "waiting",
+        createdAt: "2026-05-04T02:00:00.000Z",
+        updatedAt: "2026-05-04T03:20:00.000Z",
+      },
+      {
+        id: "demo-project-mission-auth-spec",
+        projectId: authProjectId,
+        missionId: GITHUB_PAGES_DEMO_MISSION_IDS.authSpec,
+        specId: authSpecId,
+        routeId: authRouteId,
+        status: "waiting",
+        createdAt: "2026-05-04T02:18:00.000Z",
+        updatedAt: "2026-05-04T03:00:00.000Z",
+      },
+      {
+        id: "demo-project-mission-data-dashboard",
+        projectId: dataProjectId,
+        missionId: GITHUB_PAGES_DEMO_MISSION_IDS.dataDashboard,
+        specId: dataSpecId,
+        routeId: dataRouteId,
+        status: "completed",
+        createdAt: "2026-05-04T02:25:00.000Z",
+        updatedAt: "2026-05-04T03:05:00.000Z",
+      },
+    ],
+    artifacts: [
+      {
+        id: mainArtifactId,
+        projectId: mainProjectId,
+        type: "doc",
+        title: "MVP Spec 草案",
+        path: "docs/demo/aigc-comic-mvp-spec.md",
+        contentPreview: "项目空间、自动驾驶、任务中心、产物归档的演示范围。",
+        sourceMissionId: GITHUB_PAGES_DEMO_MISSION_IDS.aigcClarify,
+        sourceSpecId: mainSpecId,
+        createdAt: "2026-05-04T02:05:00.000Z",
+      },
+      {
+        id: authArtifactId,
+        projectId: authProjectId,
+        type: "svg",
+        title: "登录与权限架构图",
+        path: "docs/demo/auth-admin-architecture.svg",
+        contentPreview: "邮箱验证码、会话、项目权限和审计链路。",
+        sourceMissionId: GITHUB_PAGES_DEMO_MISSION_IDS.authSpec,
+        sourceSpecId: authSpecId,
+        createdAt: "2026-05-04T02:44:00.000Z",
+      },
+      {
+        id: dataArtifactId,
+        projectId: dataProjectId,
+        type: "prototype",
+        title: "运营看板演示原型",
+        path: "docs/demo/data-ops-dashboard.html",
+        contentPreview: "增长、留存、成本和异常告警的首版看板。",
+        sourceMissionId: GITHUB_PAGES_DEMO_MISSION_IDS.dataDashboard,
+        sourceSpecId: dataSpecId,
+        createdAt: "2026-05-04T03:02:00.000Z",
+      },
+    ],
+    evidence: [
+      {
+        id: mainEvidenceId,
+        projectId: mainProjectId,
+        type: "message",
+        title: "目标输入",
+        detail: "用户希望从一句需求开始驱动 AI 漫剧生成平台的自动驾驶流程。",
+        sourceMissionId: GITHUB_PAGES_DEMO_MISSION_IDS.aigcClarify,
+        sourceSpecId: mainSpecId,
+        createdAt,
+      },
+      {
+        id: "demo-evidence-aigc-route",
+        projectId: mainProjectId,
+        type: "route",
+        title: "路线已选择",
+        detail: "选择演示优先自动驾驶路线，先突出项目级执行体验。",
+        sourceMissionId: GITHUB_PAGES_DEMO_MISSION_IDS.aigcClarify,
+        sourceSpecId: mainSpecId,
+        sourceRouteId: mainRouteId,
+        createdAt: "2026-05-04T01:28:00.000Z",
+      },
+      {
+        id: authEvidenceId,
+        projectId: authProjectId,
+        type: "decision",
+        title: "认证范围确认中",
+        detail: "邮箱验证码登录已经进入真实服务接入阶段，权限模型仍需确认。",
+        sourceMissionId: GITHUB_PAGES_DEMO_MISSION_IDS.authSpec,
+        sourceSpecId: authSpecId,
+        sourceRouteId: authRouteId,
+        createdAt: "2026-05-04T02:20:00.000Z",
+      },
+      {
+        id: dataEvidenceId,
+        projectId: dataProjectId,
+        type: "artifact-link",
+        title: "看板演示完成",
+        detail: "指标分组、筛选和导出入口已形成展示闭环。",
+        sourceMissionId: GITHUB_PAGES_DEMO_MISSION_IDS.dataDashboard,
+        sourceSpecId: dataSpecId,
+        sourceRouteId: dataRouteId,
+        createdAt: "2026-05-04T03:05:00.000Z",
+      },
+    ],
+  };
+}
+
+function maybeSeedGitHubPagesDemoSnapshot(
+  snapshot: ProjectStoreSnapshot
+): ProjectStoreSnapshot {
+  if (!IS_GITHUB_PAGES || snapshot.projects.length > 0) {
+    return snapshot;
+  }
+
+  const demoSnapshot = createGitHubPagesDemoSnapshot();
+  persistSnapshot(demoSnapshot);
+  return demoSnapshot;
+}
+
 function createId(prefix: string) {
   return `${prefix}-${nanoid(10)}`;
 }
@@ -535,7 +977,9 @@ function asArray<T>(value: unknown): T[] {
   return Array.isArray(value) ? (value as T[]) : [];
 }
 
-function normalizeOwnerSelections(value: unknown): Record<string, string | null> {
+function normalizeOwnerSelections(
+  value: unknown
+): Record<string, string | null> {
   if (!isRecord(value)) return {};
   return Object.fromEntries(
     Object.entries(value).filter(
@@ -674,7 +1118,9 @@ function resolveProjectId(
   const resolved = projectId ?? state.currentProjectId;
   if (!resolved) return null;
   return state.projects.some(
-    project => project.id === resolved && canAccessProject(project, state.activeOwnerUserId)
+    project =>
+      project.id === resolved &&
+      canAccessProject(project, state.activeOwnerUserId)
   )
     ? resolved
     : null;
@@ -684,7 +1130,10 @@ function ownerSelectionKey(userId: string | null): string {
   return userId ?? "__legacy__";
 }
 
-function canAccessProject(project: Project, ownerUserId: string | null): boolean {
+function canAccessProject(
+  project: Project,
+  ownerUserId: string | null
+): boolean {
   if (!ownerUserId) return true;
   return project.ownerUserId === ownerUserId;
 }
@@ -706,7 +1155,8 @@ function findVisibleProject(
   if (!projectId) return null;
   return (
     projects.find(
-      project => project.id === projectId && canAccessProject(project, ownerUserId)
+      project =>
+        project.id === projectId && canAccessProject(project, ownerUserId)
     ) ?? null
   );
 }
@@ -714,7 +1164,10 @@ function findVisibleProject(
 function resolveCurrentProjectIdForOwner(
   state: Pick<
     ProjectStoreState,
-    "activeOwnerUserId" | "currentProjectId" | "currentProjectIdsByOwner" | "projects"
+    | "activeOwnerUserId"
+    | "currentProjectId"
+    | "currentProjectIdsByOwner"
+    | "projects"
   >
 ): string | null {
   const ownerKey = ownerSelectionKey(state.activeOwnerUserId);
@@ -724,8 +1177,8 @@ function resolveCurrentProjectIdForOwner(
     return preferred;
   }
   return (
-    getVisibleProjectsForOwner(state.projects, state.activeOwnerUserId)[0]?.id ??
-    null
+    getVisibleProjectsForOwner(state.projects, state.activeOwnerUserId)[0]
+      ?.id ?? null
   );
 }
 
@@ -826,7 +1279,9 @@ function commit(
     partial:
       | ProjectStoreState
       | Partial<ProjectStoreState>
-      | ((state: ProjectStoreState) => ProjectStoreState | Partial<ProjectStoreState>),
+      | ((
+          state: ProjectStoreState
+        ) => ProjectStoreState | Partial<ProjectStoreState>),
     replace?: false
   ) => void,
   updater: (state: ProjectStoreState) => Partial<ProjectStoreState>
@@ -846,7 +1301,7 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
 
   ensureReady: () => {
     if (get().ready) return;
-    const snapshot = loadSnapshot();
+    const snapshot = maybeSeedGitHubPagesDemoSnapshot(loadSnapshot());
     set({
       ...snapshot,
       currentProjectId: resolveCurrentProjectIdForOwner({
@@ -932,11 +1387,11 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     get().ensureReady();
     const state = get();
     const resolved = projectId
-      ? state.projects.find(
+      ? (state.projects.find(
           project =>
             project.id === projectId &&
             canAccessProject(project, state.activeOwnerUserId)
-        )?.id ?? null
+        )?.id ?? null)
       : null;
     commit(set, current => ({
       currentProjectId: resolved,
@@ -958,12 +1413,18 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         updatedProject = {
           ...project,
           ...patch,
-          name: patch.name?.trim() || patch.name === "" ? patch.name.trim() : patch.name ?? project.name,
-          goal: patch.goal?.trim() || patch.goal === "" ? patch.goal.trim() : patch.goal ?? project.goal,
+          name:
+            patch.name?.trim() || patch.name === ""
+              ? patch.name.trim()
+              : (patch.name ?? project.name),
+          goal:
+            patch.goal?.trim() || patch.goal === ""
+              ? patch.goal.trim()
+              : (patch.goal ?? project.goal),
           summary:
             patch.summary?.trim() || patch.summary === ""
               ? patch.summary.trim() || undefined
-              : patch.summary ?? project.summary,
+              : (patch.summary ?? project.summary),
           updatedAt: timestamp,
         };
         return updatedProject;
@@ -1140,20 +1601,25 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     if (!projectId) return null;
 
     const timestamp = nowIso();
-    const projectSpecs = state.specs.filter(spec => spec.projectId === projectId);
+    const projectSpecs = state.specs.filter(
+      spec => spec.projectId === projectId
+    );
     const previousCurrentSpec =
       (state.projects.find(project => project.id === projectId)?.currentSpecId
-        ? state.specs.find(
+        ? (state.specs.find(
             spec =>
               spec.id ===
               state.projects.find(project => project.id === projectId)
                 ?.currentSpecId
-          ) ?? null
+          ) ?? null)
         : null) ??
       sortSpecsByVersion(projectSpecs).at(-1) ??
       null;
     const version =
-      projectSpecs.reduce((maxVersion, spec) => Math.max(maxVersion, spec.version), 0) + 1;
+      projectSpecs.reduce(
+        (maxVersion, spec) => Math.max(maxVersion, spec.version),
+        0
+      ) + 1;
     const sourceMessageIds = input.sourceMessageIds ?? [];
     const sourceEvidenceIds = input.sourceEvidenceIds ?? [];
     const sourceArtifactIds = input.sourceArtifactIds ?? [];
@@ -1185,19 +1651,22 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
 
     commit(set, current => ({
       specs: [
-        ...current.specs.map(existingSpec =>
-          existingSpec.id === spec.supersedesSpecId
-            ? {
-                ...existingSpec,
-                status:
-                  existingSpec.status === "accepted"
-                    ? existingSpec.status
-                    : "superseded",
-                supersededBySpecId: spec.id,
-                supersededAt:
-                  existingSpec.status === "accepted" ? existingSpec.supersededAt : timestamp,
-              }
-            : existingSpec
+        ...current.specs.map(
+          (existingSpec): ProjectSpec =>
+            existingSpec.id === spec.supersedesSpecId
+              ? {
+                  ...existingSpec,
+                  status:
+                    existingSpec.status === "accepted"
+                      ? existingSpec.status
+                      : "superseded",
+                  supersededBySpecId: spec.id,
+                  supersededAt:
+                    existingSpec.status === "accepted"
+                      ? existingSpec.supersededAt
+                      : timestamp,
+                }
+              : existingSpec
         ),
         spec,
       ],
@@ -1373,7 +1842,9 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
         project.id === projectId
           ? {
               ...touchProject(project, timestamp),
-              currentRouteId: input.selected ? route.id : project.currentRouteId,
+              currentRouteId: input.selected
+                ? route.id
+                : project.currentRouteId,
               status:
                 project.status === "spec_ready" || project.status === "draft"
                   ? "planning"
@@ -1430,23 +1901,25 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     if (!project) return [];
 
     const sourceMission = input?.sourceMissionId
-      ? state.missions.find(
+      ? (state.missions.find(
           mission =>
             mission.projectId === projectId &&
             mission.missionId === input.sourceMissionId
-        ) ?? null
+        ) ?? null)
       : null;
     const sourceRouteId =
       input?.sourceRouteId ?? sourceMission?.routeId ?? project.currentRouteId;
     const sourceRoute = sourceRouteId
-      ? state.routes.find(
+      ? (state.routes.find(
           route => route.projectId === projectId && route.id === sourceRouteId
-        ) ?? null
+        ) ?? null)
       : null;
     const sourceSpecId =
       input?.sourceSpecId ?? sourceMission?.specId ?? sourceRoute?.specId;
     const selectKind =
-      input?.selectKind ?? sourceRoute?.kind ?? ("recommended" as ProjectRouteKind);
+      input?.selectKind ??
+      sourceRoute?.kind ??
+      ("recommended" as ProjectRouteKind);
 
     const routes = get().generateProjectRoutePlan({
       projectId,
@@ -1461,7 +1934,10 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       get().addProjectEvidence({
         projectId,
         type: "route",
-        title: action === "failed" ? "Route replanned after failure" : "Route replanned",
+        title:
+          action === "failed"
+            ? "Route replanned after failure"
+            : "Route replanned",
         detail:
           reason ||
           `${selectedRoute.title} was generated to replace the previous project route.`,
@@ -1524,7 +2000,8 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
           ? {
               ...touchProject(project, timestamp),
               currentRouteId: routeId,
-              status: project.status === "spec_ready" ? "planning" : project.status,
+              status:
+                project.status === "spec_ready" ? "planning" : project.status,
             }
           : project
       ),
@@ -1690,7 +2167,9 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
       evidence:
         updatedMission &&
         previousStatus !== status &&
-        (status === "completed" || status === "failed" || status === "cancelled")
+        (status === "completed" ||
+          status === "failed" ||
+          status === "cancelled")
           ? [
               ...state.evidence,
               {
@@ -1812,7 +2291,9 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   getProjectClarificationQuestions: projectId => {
     get().ensureReady();
     const state = get();
-    if (!findVisibleProject(state.projects, projectId, state.activeOwnerUserId)) {
+    if (
+      !findVisibleProject(state.projects, projectId, state.activeOwnerUserId)
+    ) {
       return [];
     }
     return get().clarificationQuestions.filter(
@@ -1823,7 +2304,9 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
   getProjectSpecs: projectId => {
     get().ensureReady();
     const state = get();
-    if (!findVisibleProject(state.projects, projectId, state.activeOwnerUserId)) {
+    if (
+      !findVisibleProject(state.projects, projectId, state.activeOwnerUserId)
+    ) {
       return [];
     }
     return sortSpecsByVersion(
@@ -1841,7 +2324,9 @@ export const useProjectStore = create<ProjectStoreState>((set, get) => ({
     );
     if (!project) return null;
     if (project.currentSpecId) {
-      return state.specs.find(spec => spec.id === project.currentSpecId) ?? null;
+      return (
+        state.specs.find(spec => spec.id === project.currentSpecId) ?? null
+      );
     }
     return (
       sortSpecsByVersion(

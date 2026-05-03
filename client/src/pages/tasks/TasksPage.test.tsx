@@ -78,7 +78,10 @@ const { tasksState, workflowState, projectState } = vi.hoisted(() => {
     setDecisionNote: vi.fn(),
     launchDecision: vi.fn(async () => null),
     tasks: [missionSummary, secondMissionSummary],
-    detailsById: { "mission-1": missionDetail, "mission-2": secondMissionDetail },
+    detailsById: {
+      "mission-1": missionDetail,
+      "mission-2": secondMissionDetail,
+    },
     selectedTaskId: "mission-1" as string | null,
     loading: false,
     ready: true,
@@ -149,6 +152,7 @@ const { tasksState, workflowState, projectState } = vi.hoisted(() => {
       title: string;
       sourceMissionId?: string;
     }>,
+    selectProject: vi.fn(),
     addProjectMessage: vi.fn(),
     addProjectArtifact: vi.fn(),
     addProjectEvidence: vi.fn(),
@@ -338,6 +342,7 @@ describe("TasksPage workbench tabs", () => {
     projectState.clarificationQuestions = [];
     projectState.artifacts = [];
     projectState.evidence = [];
+    projectState.selectProject.mockClear();
     projectState.addProjectMessage.mockClear();
     projectState.addProjectArtifact.mockClear();
     projectState.addProjectEvidence.mockClear();
@@ -418,10 +423,9 @@ describe("TasksPage workbench tabs", () => {
 
     expect(markup).toContain('data-testid="tasks-project-scope-banner"');
     expect(markup).toContain("Permission System");
-    expect(markup).toContain('data-task-ids="mission-1,mission-2"');
-    expect(markup).toContain(
-      'data-testid="tasks-project-relationship-strip"'
-    );
+    expect(markup).toContain('data-task-ids="mission-1"');
+    expect(markup).not.toContain('data-task-ids="mission-1,mission-2"');
+    expect(markup).toContain('data-testid="tasks-project-relationship-strip"');
     expect(markup).toContain(
       'data-testid="tasks-clarification-takeover-summary"'
     );
@@ -429,6 +433,42 @@ describe("TasksPage workbench tabs", () => {
     expect(markup).toContain("1 required / 0 skippable");
     expect(markup).toContain("Which rollback window is acceptable?");
     expect(markup).not.toContain("Should not appear.");
+  });
+
+  it("uses a route project id as a hard task scope", () => {
+    tasksState.selectedTaskId = "mission-2";
+    projectState.currentProject = {
+      id: "project-2",
+      name: "Other Project",
+    };
+    projectState.projects = [
+      {
+        id: "project-1",
+        name: "Permission System",
+      },
+      {
+        id: "project-2",
+        name: "Other Project",
+      },
+    ];
+    projectState.missions = [
+      {
+        projectId: "project-1",
+        missionId: "mission-1",
+      },
+      {
+        projectId: "project-2",
+        missionId: "mission-2",
+      },
+    ];
+
+    const markup = renderToStaticMarkup(<TasksPage projectId="project-1" />);
+
+    expect(markup).toContain('data-testid="tasks-project-scope-banner"');
+    expect(markup).toContain("Permission System");
+    expect(markup).toContain('data-task-ids="mission-1"');
+    expect(markup).not.toContain('data-task-ids="mission-1,mission-2"');
+    expect(markup).not.toContain('data-testid="tasks-assign-current-project"');
   });
 
   it("passes project, route, spec and source metadata to task cards", () => {
@@ -482,8 +522,7 @@ describe("TasksPage workbench tabs", () => {
     expect(record.message).toEqual({
       role: "operator",
       kind: "decision",
-      content:
-        "Operator action: mark-blocked\nWaiting for security approval",
+      content: "Operator action: mark-blocked\nWaiting for security approval",
     });
     expect(record.evidence).toEqual({
       type: "decision",
@@ -589,7 +628,7 @@ describe("TasksPage workbench tabs", () => {
     });
   });
 
-  it("shows an attach action when the focused task is unassigned in a project view", () => {
+  it("hides unassigned tasks while a current project is active", () => {
     tasksState.selectedTaskId = "mission-2";
     projectState.currentProject = {
       id: "project-1",
@@ -610,7 +649,9 @@ describe("TasksPage workbench tabs", () => {
 
     const markup = renderToStaticMarkup(<TasksPage />);
 
-    expect(markup).toContain('data-testid="tasks-assign-current-project"');
+    expect(markup).toContain('data-task-ids="mission-1"');
+    expect(markup).not.toContain('data-task-ids="mission-1,mission-2"');
+    expect(markup).not.toContain('data-testid="tasks-assign-current-project"');
     expect(markup).toContain("Permission System");
   });
 

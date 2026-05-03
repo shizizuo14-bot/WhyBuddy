@@ -1,7 +1,19 @@
 import { renderToStaticMarkup } from "react-dom/server";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-const { locationState, projectState } = vi.hoisted(() => ({
+const { authState, locationState, projectState } = vi.hoisted(() => ({
+  authState: {
+    currentUser: null as {
+      id: string;
+      email: string;
+      displayName: string | null;
+      avatarUrl: string | null;
+      role: "user" | "admin" | "super_admin";
+      status: "active" | "disabled";
+      emailVerified: boolean;
+      createdAt: string;
+    } | null,
+  },
   locationState: {
     current: "/projects",
     setLocation: vi.fn(),
@@ -23,6 +35,28 @@ vi.mock("@/lib/project-store", () => ({
   useProjectStore: (selector: (state: typeof projectState) => unknown) =>
     selector(projectState),
 }));
+
+vi.mock("@/lib/auth-store", () => {
+  const useAuthStore = ((selector: (state: typeof authState) => unknown) =>
+    selector(authState)) as typeof import("@/lib/auth-store").useAuthStore;
+
+  useAuthStore.getState = () =>
+    ({
+      ...authState,
+      resetForTest: () => {
+        authState.currentUser = null;
+      },
+    }) as ReturnType<typeof useAuthStore.getState>;
+
+  useAuthStore.setState = partial => {
+    Object.assign(
+      authState,
+      typeof partial === "function" ? partial(authState as never) : partial
+    );
+  };
+
+  return { useAuthStore };
+});
 
 vi.mock("@/i18n", () => ({
   useI18n: () => ({
@@ -143,6 +177,34 @@ describe("AppSidebar overlay embedding", () => {
     expect(markup).toContain('aria-expanded="true"');
   });
 
+  it("shows the signed-in user in the lower sidebar instead of placeholder task counts", () => {
+    useAuthStore.setState({
+      currentUser: {
+        id: "user-1",
+        email: "operator@example.com",
+        displayName: "Operator One",
+        avatarUrl: null,
+        role: "admin",
+        status: "active",
+        emailVerified: true,
+        createdAt: "2026-04-30T00:00:00.000Z",
+      },
+    });
+
+    const markup = renderToStaticMarkup(
+      <AppSidebar collapsed={false} onToggleCollapse={() => {}} embedded />
+    );
+
+    expect(markup).toContain('data-sidebar-user-card="glass"');
+    expect(markup).toContain("Operator One");
+    expect(markup).toContain("operator@example.com");
+    expect(markup).toContain("Admin");
+    expect(markup).toContain("Signed in");
+    expect(markup).not.toContain("OK 0");
+    expect(markup).not.toContain("Run 0");
+    expect(markup).not.toContain("Idle 0");
+  });
+
   it("keeps collapsed sidebar usable and exposes collapsed aria state", () => {
     const markup = renderToStaticMarkup(
       <AppSidebar collapsed onToggleCollapse={() => {}} />
@@ -183,7 +245,7 @@ describe("AppSidebar overlay embedding", () => {
   });
 
   it("switches to project-internal workbench navigation after entering a project", () => {
-    locationState.current = "/projects/project-1";
+    locationState.current = "/autopilot";
 
     useAuthStore.setState({
       currentUser: {

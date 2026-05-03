@@ -13,6 +13,7 @@ import {
   MAIN_PATH_ITEMS,
   MORE_NAV_ITEMS,
   OFFICE_PATH,
+  AUTOPILOT_PATH,
   PRIMARY_NAV_ITEMS,
   PROJECTS_PATH,
   REPLAY_PATH_PREFIX,
@@ -40,6 +41,7 @@ describe("navigation convergence config", () => {
 
   it("maps routes into the converged primary paths", () => {
     expect(getPrimaryNavigationId("/")).toBe("office");
+    expect(getPrimaryNavigationId(AUTOPILOT_PATH)).toBe("office");
     expect(getPrimaryNavigationId("/tasks")).toBe("office");
     expect(getPrimaryNavigationId("/tasks/task-42")).toBe("office");
     expect(getPrimaryNavigationId(getReplayPath("mission-42"))).toBe("office");
@@ -136,7 +138,7 @@ describe("navigation convergence config", () => {
   });
 
   it("switches to project-internal workbench navigation inside a project", () => {
-    const projectPath = `${PROJECTS_PATH}/project-1`;
+    const projectPath = AUTOPILOT_PATH;
     const items = getSidebarNavItems(projectPath);
 
     expect(items.map(item => item.id)).toEqual([
@@ -157,7 +159,9 @@ describe("navigation convergence config", () => {
     ]);
     expect(getActiveSidebarId(projectPath)).toBe("autopilot");
     expect(isProjectDetailPath(projectPath)).toBe(true);
-    expect(resolveSidebarHref(items[0], projectPath)).toBe(projectPath);
+    expect(resolveSidebarHref(items[0], projectPath, "project-1")).toBe(
+      AUTOPILOT_PATH
+    );
     expect(items.some(item => item.id === "projects")).toBe(false);
   });
 

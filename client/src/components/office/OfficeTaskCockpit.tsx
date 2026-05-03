@@ -509,21 +509,21 @@ export function OfficeTaskCockpit({
     showTaskSupportCards &&
     Boolean(
       blockerInsight &&
-      (selectedDetail?.blocker != null ||
-        selectedDetail?.operatorState === "blocked" ||
-        selectedDetail?.operatorState === "paused" ||
-        selectedDetail?.status === "failed")
+        (selectedDetail?.blocker != null ||
+          selectedDetail?.operatorState === "blocked" ||
+          selectedDetail?.operatorState === "paused" ||
+          selectedDetail?.status === "failed")
     );
   const showSupportNextStepCard =
     showTaskSupportCards &&
     Boolean(
       nextStepInsight &&
-      (hasPendingDecision ||
-        selectedDetail?.status === "waiting" ||
-        selectedDetail?.status === "failed" ||
-        selectedDetail?.status === "cancelled" ||
-        selectedDetail?.operatorState === "blocked" ||
-        selectedDetail?.operatorState === "paused")
+        (hasPendingDecision ||
+          selectedDetail?.status === "waiting" ||
+          selectedDetail?.status === "failed" ||
+          selectedDetail?.status === "cancelled" ||
+          selectedDetail?.operatorState === "blocked" ||
+          selectedDetail?.operatorState === "paused")
     );
   const supportOwnerInsight =
     showTaskSupportCards &&
@@ -1020,6 +1020,8 @@ export function OfficeTaskCockpit({
       hideHeader
       hideClarificationPanel
       hideOperatorActions={hasLaunchDraftDestination}
+      hideProjectContext
+      hideExamples
     />
   );
 
@@ -1540,7 +1542,7 @@ export function OfficeTaskCockpit({
           )}
         </Button>
         <div
-          className="pointer-events-auto mx-auto w-full max-w-[980px] overflow-visible"
+          className="pointer-events-auto mx-auto w-full max-w-[860px] overflow-visible"
           data-testid="office-center-composer-shell"
         >
           {launcherDock}
@@ -1569,7 +1571,7 @@ export function OfficeTaskCockpit({
 
   const launchStage = (
     <div
-      className="pointer-events-none fixed bottom-[24px] left-1/2 z-[72] w-[min(1320px,calc(100vw-96px))] -translate-x-1/2 2xl:bottom-[28px]"
+      className="pointer-events-none fixed bottom-[18px] left-1/2 z-[72] w-[min(1120px,calc(100vw-96px))] -translate-x-1/2 2xl:bottom-[22px]"
       data-testid="office-launch-stage"
     >
       {launcherFloatingStack}

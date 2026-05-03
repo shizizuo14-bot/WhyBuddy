@@ -45,6 +45,7 @@ export const DEBUG_HELP_PATH = "/debug/help";
 export const LEGACY_LINEAGE_PATH = "/lineage";
 export const OFFICE_PATH = "/";
 export const PROJECTS_PATH = "/projects";
+export const AUTOPILOT_PATH = "/autopilot";
 export const REPLAY_PATH_PREFIX = "/replay";
 
 export function getReplayPath(missionId: string): string {
@@ -250,7 +251,10 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavigationItem[] = [
 
 export function isProjectDetailPath(path: string): boolean {
   const pathname = normalizeNavigationPath(path);
-  return matchesPathPrefix(pathname, PROJECTS_PATH) && pathname !== PROJECTS_PATH;
+  return (
+    pathname === AUTOPILOT_PATH ||
+    (matchesPathPrefix(pathname, PROJECTS_PATH) && pathname !== PROJECTS_PATH)
+  );
 }
 
 export function getSidebarNavItems(path: string): SidebarNavigationItem[] {
@@ -275,11 +279,11 @@ export function resolveSidebarHref(
   if (item.disabled) return undefined;
 
   if (item.id === "autopilot") {
-    if (isProjectDetailPath(pathname)) {
-      return pathname;
-    }
     if (currentProjectId) {
-      return `${PROJECTS_PATH}/${currentProjectId}`;
+      return AUTOPILOT_PATH;
+    }
+    if (pathname === AUTOPILOT_PATH) {
+      return AUTOPILOT_PATH;
     }
     return PROJECTS_PATH;
   }
@@ -294,6 +298,7 @@ export function resolveSidebarHref(
 export function getActiveSidebarId(path: string): SidebarNavigationId {
   const pathname = normalizeNavigationPath(path);
   if (pathname === "/" || pathname === PROJECTS_PATH) return "projects";
+  if (pathname === AUTOPILOT_PATH) return "autopilot";
   if (matchesPathPrefix(pathname, PROJECTS_PATH)) return "autopilot";
   if (matchesPathPrefix(pathname, "/tasks")) return "tasks";
   if (matchesPathPrefix(pathname, DEBUG_PATH)) return "settings";

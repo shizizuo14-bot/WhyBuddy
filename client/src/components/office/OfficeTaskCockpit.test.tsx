@@ -50,11 +50,15 @@ vi.mock("@/components/launch/UnifiedLaunchComposer", () => ({
     hideHeader,
     hideClarificationPanel,
     hideOperatorActions,
+    hideProjectContext,
+    hideExamples,
   }: {
     bare?: boolean;
     hideHeader?: boolean;
     hideClarificationPanel?: boolean;
     hideOperatorActions?: boolean;
+    hideProjectContext?: boolean;
+    hideExamples?: boolean;
   }) => (
     <div
       data-testid="unified-launch-composer"
@@ -62,6 +66,8 @@ vi.mock("@/components/launch/UnifiedLaunchComposer", () => ({
       data-hide-header={hideHeader ? "true" : "false"}
       data-hide-clarification={hideClarificationPanel ? "true" : "false"}
       data-hide-operator-actions={hideOperatorActions ? "true" : "false"}
+      data-hide-project-context={hideProjectContext ? "true" : "false"}
+      data-hide-examples={hideExamples ? "true" : "false"}
     >
       mocked composer
     </div>
@@ -371,10 +377,13 @@ describe("OfficeTaskCockpit", () => {
     expect(markup).toContain('data-bare="true"');
     expect(markup).toContain('data-hide-header="true"');
     expect(markup).toContain('data-hide-clarification="true"');
+    expect(markup).toContain('data-hide-project-context="true"');
+    expect(markup).toContain('data-hide-examples="true"');
     expect(markup).toContain('data-center-controls-state="collapsed"');
     expect(markup).not.toContain('data-testid="office-launch-guidance"');
     expect(markup).not.toContain('data-testid="office-clarification-panel"');
     expect(markup).not.toContain("office-cockpit-right-drawer");
+    expect(markup).not.toContain('data-testid="office-right-support-drawer"');
   });
 
   it("renders clarification as a separate panel above the launcher", () => {
@@ -495,6 +504,7 @@ describe("OfficeTaskCockpit home hierarchy", () => {
     expect(markup).not.toContain('data-testid="office-center-workbench-shell"');
     expect(markup).not.toContain('data-testid="office-center-context-dock"');
     expect(markup).toContain("max-w-[1320px]");
+    expect(markup).toContain("w-[min(1120px,calc(100vw-96px))]");
     expect(markup).not.toContain("h-[86vh]");
     expect(markup).not.toContain("max-h-[calc(100vh-420px)]");
     expect(markup).not.toContain("h-[72vh]");
@@ -515,7 +525,7 @@ describe("OfficeTaskCockpit home hierarchy", () => {
     );
     expect(markup).toContain('data-testid="office-center-composer-shell"');
     expect(markup).toContain(
-      'class="pointer-events-auto mx-auto w-full max-w-[980px] overflow-visible"'
+      'class="pointer-events-auto mx-auto w-full max-w-[860px] overflow-visible"'
     );
     expect(
       markup.indexOf('data-testid="office-center-control-stack"')
@@ -595,11 +605,12 @@ describe("OfficeTaskCockpit home hierarchy", () => {
   it("centers the launch composer on the viewport centerline", () => {
     const markup = renderToStaticMarkup(<OfficeTaskCockpit />);
 
-    expect(markup).toContain("fixed bottom-[24px] left-1/2");
-    expect(markup).toContain("w-[min(1320px,calc(100vw-96px))]");
+    expect(markup).toContain("fixed bottom-[18px] left-1/2");
+    expect(markup).toContain("w-[min(1120px,calc(100vw-96px))]");
     expect(markup).toContain("-translate-x-1/2");
     expect(markup).not.toContain("right:360px");
     expect(markup).not.toContain("office-cockpit-right-drawer");
+    expect(markup).not.toContain('data-testid="office-right-support-drawer"');
   });
 
   it("keeps selected task detail out of the home center stage", () => {

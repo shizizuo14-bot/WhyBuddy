@@ -5,6 +5,7 @@ import { Route, Router as WouterRouter, Switch, useLocation } from "wouter";
 import { useEffect, useState } from "react";
 
 import {
+  AUTOPILOT_PATH,
   PROJECTS_PATH,
   REPLAY_PATH_PREFIX,
 } from "@/components/navigation-config";
@@ -22,6 +23,7 @@ import { ThemeProvider } from "./contexts/ThemeContext";
 import { useRecoveryDetection } from "./hooks/useRecoveryDetection";
 import { useViewportTier } from "./hooks/useViewportTier";
 import { useAuthStore } from "./lib/auth-store";
+import { IS_GITHUB_PAGES } from "./lib/deploy-target";
 import { useProjectStore } from "./lib/project-store";
 import { useAppStore } from "./lib/store";
 import Home from "./pages/Home";
@@ -48,8 +50,20 @@ function Router() {
     <Switch>
       <Route path={"/"}>{() => <RedirectRoute to={PROJECTS_PATH} />}</Route>
       <Route path={PROJECTS_PATH}>{() => <Home />}</Route>
+      <Route path={AUTOPILOT_PATH}>{() => <Home mode="autopilot" />}</Route>
+      <Route path={`${PROJECTS_PATH}/:projectId/tasks/:taskId`}>
+        {params => (
+          <ProjectTaskRedirect
+            projectId={params.projectId}
+            taskId={params.taskId || null}
+          />
+        )}
+      </Route>
+      <Route path={`${PROJECTS_PATH}/:projectId/tasks`}>
+        {params => <ProjectTaskRedirect projectId={params.projectId} />}
+      </Route>
       <Route path={`${PROJECTS_PATH}/:projectId`}>
-        {params => <Home projectId={params.projectId} />}
+        {params => <ProjectAutopilotRedirect projectId={params.projectId} />}
       </Route>
       <Route path={"/login"} component={AuthPage} />
       <Route path={"/admin"}>
@@ -127,6 +141,44 @@ function RedirectRoute({ to }: { to: string }) {
   return null;
 }
 
+function ProjectAutopilotRedirect({ projectId }: { projectId?: string }) {
+  const [, setLocation] = useLocation();
+  const ensureReady = useProjectStore(state => state.ensureReady);
+  const selectProject = useProjectStore(state => state.selectProject);
+
+  useEffect(() => {
+    ensureReady();
+    if (projectId) {
+      selectProject(projectId);
+    }
+    setLocation(AUTOPILOT_PATH);
+  }, [ensureReady, projectId, selectProject, setLocation]);
+
+  return null;
+}
+
+function ProjectTaskRedirect({
+  projectId,
+  taskId,
+}: {
+  projectId?: string;
+  taskId?: string | null;
+}) {
+  const [, setLocation] = useLocation();
+  const ensureReady = useProjectStore(state => state.ensureReady);
+  const selectProject = useProjectStore(state => state.selectProject);
+
+  useEffect(() => {
+    ensureReady();
+    if (projectId) {
+      selectProject(projectId);
+    }
+    setLocation(taskId ? `/tasks/${taskId}` : "/tasks");
+  }, [ensureReady, projectId, selectProject, setLocation, taskId]);
+
+  return null;
+}
+
 function TaskDetailRoute({ taskId }: { taskId?: string }) {
   const [, setLocation] = useLocation();
 
@@ -177,6 +229,7 @@ function AuthBootstrap() {
   const fetchMe = useAuthStore(state => state.fetchMe);
 
   useEffect(() => {
+    if (IS_GITHUB_PAGES) return;
     void fetchMe();
   }, [fetchMe]);
 
@@ -188,6 +241,7 @@ function AuthProjectOwnerBridge() {
   const setActiveOwner = useProjectStore(state => state.setActiveOwner);
 
   useEffect(() => {
+    if (IS_GITHUB_PAGES) return;
     setActiveOwner(currentUserId);
   }, [currentUserId, setActiveOwner]);
 
@@ -197,7 +251,10 @@ function AuthProjectOwnerBridge() {
 function isHomeLocation(location: string) {
   const [pathname] = location.trim().split(/[?#]/, 1);
   return (
-    pathname === "" || pathname === "/" || pathname.startsWith(PROJECTS_PATH)
+    pathname === "" ||
+    pathname === "/" ||
+    pathname.startsWith(PROJECTS_PATH) ||
+    pathname === AUTOPILOT_PATH
   );
 }
 
@@ -211,6 +268,7 @@ export function isProjectWorkspaceLocation(location: string) {
   if (pathname === "" || pathname === "/") return true;
   return (
     pathname.startsWith(PROJECTS_PATH) ||
+    pathname === AUTOPILOT_PATH ||
     pathname.startsWith("/tasks") ||
     pathname.startsWith("/specs") ||
     pathname.startsWith(REPLAY_PATH_PREFIX)
@@ -224,6 +282,7 @@ function AuthRouteGuard() {
   const sessionChecked = useAuthStore(state => state.sessionChecked);
 
   useEffect(() => {
+    if (IS_GITHUB_PAGES) return;
     if (
       sessionChecked &&
       !loading &&
