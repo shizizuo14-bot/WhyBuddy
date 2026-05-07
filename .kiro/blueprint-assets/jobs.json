@@ -1,0 +1,4111 @@
+{
+  "version": "blueprint-job-store/v1",
+  "updatedAt": "2026-05-07T05:32:18.414Z",
+  "jobs": [
+    {
+      "id": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+      "request": {
+        "projectId": "project-lCQPdgArpM",
+        "version": "blueprint-generation/v1",
+        "mode": "autopilot_route",
+        "githubUrls": [
+          "https://github.com/666ghj/MiroFish"
+        ],
+        "clarifications": []
+      },
+      "status": "reviewing",
+      "stage": "spec_tree",
+      "projectId": "project-lCQPdgArpM",
+      "version": "blueprint-generation/v1",
+      "createdAt": "2026-05-06T16:53:04.063Z",
+      "updatedAt": "2026-05-06T16:53:40.604Z",
+      "completedAt": "2026-05-06T16:53:40.604Z",
+      "artifacts": [
+        {
+          "id": "blueprint-artifact-260cce10-111a-44bd-9d36-51dea82f9f79",
+          "type": "route_set",
+          "title": "Autopilot RouteSet",
+          "summary": "Primary and alternative routes prepared for SPEC tree derivation.",
+          "createdAt": "2026-05-06T16:53:04.063Z",
+          "payload": {
+            "id": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67",
+            "requestId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+            "createdAt": "2026-05-06T16:53:04.063Z",
+            "primaryRouteId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:primary",
+            "routes": [
+              {
+                "id": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:primary",
+                "kind": "primary",
+                "title": "Primary SPEC asset route",
+                "summary": "Clarify GitHub 666ghj/MiroFish, derive the durable SPEC tree, then expand documents, preview, and implementation prompts.",
+                "rationale": "Balances product clarification, architecture analysis, and asset persistence so the selected path can become the long-lived SPEC tree.",
+                "riskLevel": "medium",
+                "costLevel": "medium",
+                "complexity": "balanced",
+                "estimatedEffort": "2-4 analysis passes",
+                "capabilities": [
+                  {
+                    "id": "mcp-github-source",
+                    "label": "GitHub source reader",
+                    "kind": "mcp",
+                    "purpose": "Read repository context before route generation."
+                  },
+                  {
+                    "id": "role-product-strategy",
+                    "label": "Product strategy role",
+                    "kind": "role",
+                    "purpose": "Clarify user intent, boundaries, and acceptance signals."
+                  },
+                  {
+                    "id": "role-system-architecture",
+                    "label": "System architecture role",
+                    "kind": "role",
+                    "purpose": "Shape modules, dependencies, and engineering landing risks."
+                  },
+                  {
+                    "id": "docker-analysis-sandbox",
+                    "label": "Docker analysis sandbox",
+                    "kind": "docker",
+                    "purpose": "Run repository inspection and artifact generation in isolation."
+                  },
+                  {
+                    "id": "skill-svg-architecture",
+                    "label": "SVG architecture skill",
+                    "kind": "skill",
+                    "purpose": "Produce architecture diagrams and route evidence artifacts."
+                  },
+                  {
+                    "id": "aigc-spec-node",
+                    "label": "AIGC SPEC derivation node",
+                    "kind": "aigc_node",
+                    "purpose": "Turn route nodes into SPEC tree candidates."
+                  }
+                ],
+                "steps": [
+                  {
+                    "id": "clarify-intent",
+                    "title": "Clarify execution intent",
+                    "description": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                    "role": "Product strategist",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "scan-github-source",
+                    "title": "Scan GitHub source",
+                    "description": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                    "role": "Source analyst",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "map-capability-pool",
+                    "title": "Map capability pool",
+                    "description": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                    "role": "Orchestrator",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "derive-spec-tree-seed",
+                    "title": "Derive SPEC tree seed",
+                    "description": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                    "role": "SPEC curator",
+                    "status": "pending"
+                  },
+                  {
+                    "id": "plan-preview-and-prompts",
+                    "title": "Plan previews and prompts",
+                    "description": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                    "role": "Preview planner",
+                    "status": "pending"
+                  }
+                ],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ]
+              },
+              {
+                "id": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-docs-first",
+                "kind": "alternative",
+                "title": "Documentation-first conservative route",
+                "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+                "rationale": "Reduces downstream churn when the business boundary is still broad or governance matters more than speed.",
+                "riskLevel": "low",
+                "costLevel": "low",
+                "complexity": "light",
+                "estimatedEffort": "1-2 review passes",
+                "capabilities": [
+                  {
+                    "id": "mcp-github-source",
+                    "label": "GitHub source reader",
+                    "kind": "mcp",
+                    "purpose": "Read repository context before route generation."
+                  },
+                  {
+                    "id": "role-product-strategy",
+                    "label": "Product strategy role",
+                    "kind": "role",
+                    "purpose": "Clarify user intent, boundaries, and acceptance signals."
+                  },
+                  {
+                    "id": "role-system-architecture",
+                    "label": "System architecture role",
+                    "kind": "role",
+                    "purpose": "Shape modules, dependencies, and engineering landing risks."
+                  },
+                  {
+                    "id": "docker-analysis-sandbox",
+                    "label": "Docker analysis sandbox",
+                    "kind": "docker",
+                    "purpose": "Run repository inspection and artifact generation in isolation."
+                  },
+                  {
+                    "id": "skill-svg-architecture",
+                    "label": "SVG architecture skill",
+                    "kind": "skill",
+                    "purpose": "Produce architecture diagrams and route evidence artifacts."
+                  },
+                  {
+                    "id": "aigc-spec-node",
+                    "label": "AIGC SPEC derivation node",
+                    "kind": "aigc_node",
+                    "purpose": "Turn route nodes into SPEC tree candidates."
+                  }
+                ],
+                "steps": [
+                  {
+                    "id": "clarify-intent",
+                    "title": "Clarify execution intent",
+                    "description": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                    "role": "Product strategist",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "scan-github-source",
+                    "title": "Scan GitHub source",
+                    "description": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                    "role": "Source analyst",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "map-capability-pool",
+                    "title": "Map capability pool",
+                    "description": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                    "role": "Orchestrator",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "derive-spec-tree-seed",
+                    "title": "Derive SPEC tree seed",
+                    "description": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                    "role": "SPEC curator",
+                    "status": "pending"
+                  },
+                  {
+                    "id": "plan-preview-and-prompts",
+                    "title": "Plan previews and prompts",
+                    "description": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                    "role": "Preview planner",
+                    "status": "pending"
+                  }
+                ],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ]
+              },
+              {
+                "id": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+                "kind": "alternative",
+                "title": "Preview-first exploratory route",
+                "summary": "Push route analysis toward effect preview early, then backfill SPEC documents from the selected prototype direction.",
+                "rationale": "Useful when the user needs to see the future system effect before locking detailed specifications.",
+                "riskLevel": "high",
+                "costLevel": "high",
+                "complexity": "deep",
+                "estimatedEffort": "3-5 exploration passes",
+                "capabilities": [
+                  {
+                    "id": "mcp-github-source",
+                    "label": "GitHub source reader",
+                    "kind": "mcp",
+                    "purpose": "Read repository context before route generation."
+                  },
+                  {
+                    "id": "role-product-strategy",
+                    "label": "Product strategy role",
+                    "kind": "role",
+                    "purpose": "Clarify user intent, boundaries, and acceptance signals."
+                  },
+                  {
+                    "id": "role-system-architecture",
+                    "label": "System architecture role",
+                    "kind": "role",
+                    "purpose": "Shape modules, dependencies, and engineering landing risks."
+                  },
+                  {
+                    "id": "docker-analysis-sandbox",
+                    "label": "Docker analysis sandbox",
+                    "kind": "docker",
+                    "purpose": "Run repository inspection and artifact generation in isolation."
+                  },
+                  {
+                    "id": "skill-svg-architecture",
+                    "label": "SVG architecture skill",
+                    "kind": "skill",
+                    "purpose": "Produce architecture diagrams and route evidence artifacts."
+                  },
+                  {
+                    "id": "aigc-spec-node",
+                    "label": "AIGC SPEC derivation node",
+                    "kind": "aigc_node",
+                    "purpose": "Turn route nodes into SPEC tree candidates."
+                  }
+                ],
+                "steps": [
+                  {
+                    "id": "clarify-intent",
+                    "title": "Clarify execution intent",
+                    "description": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                    "role": "Product strategist",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "scan-github-source",
+                    "title": "Scan GitHub source",
+                    "description": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                    "role": "Source analyst",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "map-capability-pool",
+                    "title": "Map capability pool",
+                    "description": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                    "role": "Orchestrator",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "derive-spec-tree-seed",
+                    "title": "Derive SPEC tree seed",
+                    "description": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                    "role": "SPEC curator",
+                    "status": "pending"
+                  },
+                  {
+                    "id": "plan-preview-and-prompts",
+                    "title": "Plan previews and prompts",
+                    "description": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                    "role": "Preview planner",
+                    "status": "pending"
+                  }
+                ],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ]
+              }
+            ],
+            "nextAsset": {
+              "type": "spec_tree",
+              "menu": "deduction",
+              "description": "Use the selected RouteSet path as the source asset for the Deduction menu and SPEC tree workbench."
+            },
+            "provenance": {
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/666ghj/MiroFish"
+              ]
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-ed61a1e9-51b2-4d35-8be2-0f33d4d1584b",
+          "type": "route_selection",
+          "title": "Selected route: Preview-first exploratory route",
+          "summary": "User-selected autopilot route that acts as the source of SPEC tree derivation.",
+          "createdAt": "2026-05-06T16:53:40.604Z",
+          "payload": {
+            "id": "blueprint-route-selection-bc52149c-fd5d-4aea-b92a-7761afcdbbbb",
+            "routeSetId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67",
+            "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+            "routeTitle": "Preview-first exploratory route",
+            "selectedAt": "2026-05-06T16:53:40.604Z",
+            "reason": "Selected from the blueprint autopilot RouteSet preview.",
+            "mergedAlternativeRouteIds": [],
+            "status": "selected",
+            "provenance": {
+              "jobId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+              "projectId": "project-lCQPdgArpM"
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-312cba58-034b-406f-bbf1-13b49dacc56d",
+          "type": "spec_tree",
+          "title": "Derived SPEC tree",
+          "summary": "Initial durable SPEC tree generated from the selected primary or alternative route.",
+          "createdAt": "2026-05-06T16:53:40.604Z",
+          "payload": {
+            "id": "blueprint-spec-tree-c9eff552-ce8c-40e7-8fc0-0f8ab870b8c4",
+            "routeSetId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67",
+            "selectionId": "blueprint-route-selection-bc52149c-fd5d-4aea-b92a-7761afcdbbbb",
+            "selectedRouteId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+            "rootNodeId": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+            "version": 1,
+            "status": "draft",
+            "createdAt": "2026-05-06T16:53:40.604Z",
+            "updatedAt": "2026-05-06T16:53:40.604Z",
+            "alternativeRouteIds": [
+              "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:primary",
+              "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-docs-first"
+            ],
+            "nodes": [
+              {
+                "id": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+                "title": "SPEC asset tree: GitHub 666ghj/MiroFish",
+                "summary": "Durable tree asset derived from the selected autopilot route. Downstream menus bind to this tree instead of recomputing the route.",
+                "type": "root",
+                "status": "draft",
+                "priority": 0,
+                "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+                "dependencies": [],
+                "outputs": [
+                  "SPEC tree",
+                  "requirements seed",
+                  "design seed",
+                  "tasks seed"
+                ],
+                "children": [
+                  "blueprint-spec-node-b7c8c138-44fe-43aa-82e3-45dcbd83f162",
+                  "blueprint-spec-node-5493db75-7bff-4d12-9bee-bc107e15f89d",
+                  "blueprint-spec-node-281396b1-80a4-4839-9e59-b343212f29ce",
+                  "blueprint-spec-node-393464e4-4d48-4cca-abe8-29d9d072aa01",
+                  "blueprint-spec-node-26fcbdbb-9ba2-45d0-a0ef-907cbb5c2025",
+                  "blueprint-spec-node-48f6ddb0-c265-4691-a30d-e1a15bcb79de",
+                  "blueprint-spec-node-e59505ec-ed09-4088-9944-86f313153520",
+                  "blueprint-spec-node-c086fc95-419d-4f16-8328-db970fa8f12d",
+                  "blueprint-spec-node-dab7670a-4f82-4b29-b6da-88d15dac9380",
+                  "blueprint-spec-node-e99d1a29-2a51-445b-8523-49b0e634b3a4",
+                  "blueprint-spec-node-d9d430f3-df11-4eba-b613-7cab148504c2"
+                ],
+                "metadata": {
+                  "selectedRouteTitle": "Preview-first exploratory route",
+                  "routeSetId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-b7c8c138-44fe-43aa-82e3-45dcbd83f162",
+                "parentId": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+                "title": "Clarify execution intent",
+                "summary": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                "type": "route_step",
+                "status": "ready",
+                "priority": 1,
+                "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+                "routeStepId": "clarify-intent",
+                "dependencies": [],
+                "outputs": [
+                  "clarification decisions",
+                  "success criteria"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Product strategist",
+                  "routeKind": "alternative"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-5493db75-7bff-4d12-9bee-bc107e15f89d",
+                "parentId": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+                "title": "Scan GitHub source",
+                "summary": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                "type": "route_step",
+                "status": "ready",
+                "priority": 2,
+                "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+                "routeStepId": "scan-github-source",
+                "dependencies": [],
+                "outputs": [
+                  "route evidence"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Source analyst",
+                  "routeKind": "alternative"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-281396b1-80a4-4839-9e59-b343212f29ce",
+                "parentId": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+                "title": "Map capability pool",
+                "summary": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                "type": "route_step",
+                "status": "ready",
+                "priority": 3,
+                "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+                "routeStepId": "map-capability-pool",
+                "dependencies": [],
+                "outputs": [
+                  "route evidence"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Orchestrator",
+                  "routeKind": "alternative"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-393464e4-4d48-4cca-abe8-29d9d072aa01",
+                "parentId": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+                "title": "Derive SPEC tree seed",
+                "summary": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                "type": "route_step",
+                "status": "seed",
+                "priority": 4,
+                "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+                "routeStepId": "derive-spec-tree-seed",
+                "dependencies": [],
+                "outputs": [
+                  "SPEC tree seed",
+                  "node map"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "SPEC curator",
+                  "routeKind": "alternative"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-26fcbdbb-9ba2-45d0-a0ef-907cbb5c2025",
+                "parentId": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+                "title": "Plan previews and prompts",
+                "summary": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                "type": "route_step",
+                "status": "seed",
+                "priority": 5,
+                "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+                "routeStepId": "plan-preview-and-prompts",
+                "dependencies": [],
+                "outputs": [
+                  "route evidence"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Preview planner",
+                  "routeKind": "alternative"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-48f6ddb0-c265-4691-a30d-e1a15bcb79de",
+                "parentId": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+                "title": "Primary SPEC asset route",
+                "summary": "Clarify GitHub 666ghj/MiroFish, derive the durable SPEC tree, then expand documents, preview, and implementation prompts.",
+                "type": "alternative_route",
+                "status": "seed",
+                "priority": 6,
+                "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:primary",
+                "dependencies": [],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ],
+                "children": [],
+                "metadata": {
+                  "riskLevel": "medium",
+                  "costLevel": "medium",
+                  "complexity": "balanced",
+                  "mergedIntoSelection": false
+                }
+              },
+              {
+                "id": "blueprint-spec-node-e59505ec-ed09-4088-9944-86f313153520",
+                "parentId": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+                "title": "Documentation-first conservative route",
+                "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+                "type": "alternative_route",
+                "status": "seed",
+                "priority": 7,
+                "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-docs-first",
+                "dependencies": [],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ],
+                "children": [],
+                "metadata": {
+                  "riskLevel": "low",
+                  "costLevel": "low",
+                  "complexity": "light",
+                  "mergedIntoSelection": false
+                }
+              },
+              {
+                "id": "blueprint-spec-node-c086fc95-419d-4f16-8328-db970fa8f12d",
+                "parentId": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+                "title": "规格文档生成",
+                "summary": "Expand the selected SPEC tree into requirements, design, and tasks for each important node.",
+                "type": "spec_document",
+                "status": "seed",
+                "priority": 8,
+                "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+                "dependencies": [],
+                "outputs": [
+                  "requirements.md",
+                  "design.md",
+                  "tasks.md"
+                ],
+                "children": []
+              },
+              {
+                "id": "blueprint-spec-node-dab7670a-4f82-4b29-b6da-88d15dac9380",
+                "parentId": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+                "title": "效果预演",
+                "summary": "Preview architecture, progress plan, expected UI/prototype direction, and step-by-step implementation effect before coding.",
+                "type": "effect_preview",
+                "status": "seed",
+                "priority": 9,
+                "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+                "dependencies": [
+                  "spec_document"
+                ],
+                "outputs": [
+                  "architecture diagram",
+                  "prototype notes",
+                  "progress plan"
+                ],
+                "children": []
+              },
+              {
+                "id": "blueprint-spec-node-e99d1a29-2a51-445b-8523-49b0e634b3a4",
+                "parentId": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+                "title": "实现提示词",
+                "summary": "Package the selected future implementation into prompts that can be used by Cursor, Kiro, Trae, Windsurf, Codex, Claude, and similar tools.",
+                "type": "prompt_package",
+                "status": "seed",
+                "priority": 10,
+                "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+                "dependencies": [
+                  "effect_preview"
+                ],
+                "outputs": [
+                  "platform prompts",
+                  "acceptance checklist"
+                ],
+                "children": []
+              },
+              {
+                "id": "blueprint-spec-node-d9d430f3-df11-4eba-b613-7cab148504c2",
+                "parentId": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+                "title": "工程落地",
+                "summary": "Reserve the later execution bridge that turns accepted SPEC assets into repository changes and run evidence.",
+                "type": "engineering_plan",
+                "status": "seed",
+                "priority": 11,
+                "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+                "dependencies": [
+                  "prompt_package"
+                ],
+                "outputs": [
+                  "landing plan",
+                  "run evidence"
+                ],
+                "children": []
+              }
+            ],
+            "provenance": {
+              "jobId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/666ghj/MiroFish"
+              ]
+            }
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "blueprint-event-f32eeacd-6427-42ec-a161-b53a1058eb94",
+          "jobId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+          "type": "job.created",
+          "stage": "input",
+          "status": "pending",
+          "message": "Blueprint generation job accepted.",
+          "occurredAt": "2026-05-06T16:53:04.063Z"
+        },
+        {
+          "id": "blueprint-event-ad519ba4-ac76-4d4d-8d1b-5dc610572309",
+          "jobId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+          "type": "job.stage",
+          "stage": "route_generation",
+          "status": "running",
+          "message": "Generating primary and alternative autopilot routes.",
+          "occurredAt": "2026-05-06T16:53:04.063Z"
+        },
+        {
+          "id": "blueprint-event-4169d254-13fd-471e-93de-fe081e169a42",
+          "jobId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+          "type": "job.completed",
+          "stage": "route_generation",
+          "status": "completed",
+          "message": "RouteSet generated and ready for SPEC tree derivation.",
+          "occurredAt": "2026-05-06T16:53:04.063Z",
+          "payload": {
+            "routeSetId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67"
+          }
+        },
+        {
+          "id": "blueprint-event-7cb34f36-2b24-48b6-98f4-fb912f4ee06a",
+          "jobId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+          "type": "job.stage",
+          "stage": "spec_tree",
+          "status": "running",
+          "message": "Selected route Documentation-first conservative route and started SPEC tree derivation.",
+          "occurredAt": "2026-05-06T16:53:30.350Z",
+          "payload": {
+            "routeSetId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67",
+            "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-docs-first",
+            "selectionId": "blueprint-route-selection-bcd35893-4cb9-44c8-acf1-e2c7d3e46082"
+          }
+        },
+        {
+          "id": "blueprint-event-74ecae73-a715-4a75-9f90-50fe87ee4544",
+          "jobId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+          "type": "job.completed",
+          "stage": "spec_tree",
+          "status": "reviewing",
+          "message": "SPEC tree draft generated and ready for the Deduction workbench.",
+          "occurredAt": "2026-05-06T16:53:30.350Z",
+          "payload": {
+            "specTreeId": "blueprint-spec-tree-c01266b5-cb45-48fb-9f56-9ccbc016be88",
+            "rootNodeId": "blueprint-spec-node-72dd2121-1bf0-4ff0-ae1f-52ce433a9fcd",
+            "nodeCount": 12
+          }
+        },
+        {
+          "id": "blueprint-event-9ed2b56a-41e8-443e-80cc-7ca19dc3c7ed",
+          "jobId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+          "type": "job.stage",
+          "stage": "spec_tree",
+          "status": "running",
+          "message": "Selected route Primary SPEC asset route and started SPEC tree derivation.",
+          "occurredAt": "2026-05-06T16:53:35.956Z",
+          "payload": {
+            "routeSetId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67",
+            "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:primary",
+            "selectionId": "blueprint-route-selection-d754230e-0280-4272-968d-2cbf60816b4a"
+          }
+        },
+        {
+          "id": "blueprint-event-936eaa49-2739-4c86-84e1-7549ef27ad0b",
+          "jobId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+          "type": "job.completed",
+          "stage": "spec_tree",
+          "status": "reviewing",
+          "message": "SPEC tree draft generated and ready for the Deduction workbench.",
+          "occurredAt": "2026-05-06T16:53:35.956Z",
+          "payload": {
+            "specTreeId": "blueprint-spec-tree-01da42d6-7877-48d8-b0de-d23e9b853b0d",
+            "rootNodeId": "blueprint-spec-node-e1ae92f9-7e32-4f80-ae91-801923233118",
+            "nodeCount": 12
+          }
+        },
+        {
+          "id": "blueprint-event-a58434bd-7cc0-437c-8bda-7a77e1fe3220",
+          "jobId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+          "type": "job.stage",
+          "stage": "spec_tree",
+          "status": "running",
+          "message": "Selected route Documentation-first conservative route and started SPEC tree derivation.",
+          "occurredAt": "2026-05-06T16:53:38.162Z",
+          "payload": {
+            "routeSetId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67",
+            "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-docs-first",
+            "selectionId": "blueprint-route-selection-59410bf9-0f36-456e-99ee-bd71bee714c9"
+          }
+        },
+        {
+          "id": "blueprint-event-8aca8189-2269-4b78-ac22-697a638e7ee0",
+          "jobId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+          "type": "job.completed",
+          "stage": "spec_tree",
+          "status": "reviewing",
+          "message": "SPEC tree draft generated and ready for the Deduction workbench.",
+          "occurredAt": "2026-05-06T16:53:38.162Z",
+          "payload": {
+            "specTreeId": "blueprint-spec-tree-48dd5924-8d7a-416c-b0e8-80476106fd1d",
+            "rootNodeId": "blueprint-spec-node-51221784-536d-4120-89ba-c439cff1a862",
+            "nodeCount": 12
+          }
+        },
+        {
+          "id": "blueprint-event-5950e2cf-262b-48fb-8ede-f005750a3e98",
+          "jobId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+          "type": "job.stage",
+          "stage": "spec_tree",
+          "status": "running",
+          "message": "Selected route Preview-first exploratory route and started SPEC tree derivation.",
+          "occurredAt": "2026-05-06T16:53:40.604Z",
+          "payload": {
+            "routeSetId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67",
+            "routeId": "blueprint-routeset-114ca8a6-e8cc-46d6-8773-9d76fac11b67:alternative-preview-first",
+            "selectionId": "blueprint-route-selection-bc52149c-fd5d-4aea-b92a-7761afcdbbbb"
+          }
+        },
+        {
+          "id": "blueprint-event-900a5857-eac5-4732-a440-e9312c92b875",
+          "jobId": "blueprint-job-3e6a706c-5fdb-4fb1-8da7-d5c5597aa275",
+          "type": "job.completed",
+          "stage": "spec_tree",
+          "status": "reviewing",
+          "message": "SPEC tree draft generated and ready for the Deduction workbench.",
+          "occurredAt": "2026-05-06T16:53:40.604Z",
+          "payload": {
+            "specTreeId": "blueprint-spec-tree-c9eff552-ce8c-40e7-8fc0-0f8ab870b8c4",
+            "rootNodeId": "blueprint-spec-node-819080fb-90d5-470d-9381-8f2387774622",
+            "nodeCount": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "blueprint-job-3f059954-ad85-4de5-88e0-39b242a4a973",
+      "request": {
+        "projectId": "project-lCQPdgArpM",
+        "version": "blueprint-generation/v1",
+        "mode": "autopilot_route",
+        "intakeId": "blueprint-intake-ad1c4f1c-92a2-464c-adcd-ea91198f1ef6",
+        "clarificationSessionId": "blueprint-clarification-9b2ea652-42c9-47c9-8e15-9c9f76b31e37",
+        "githubUrls": [
+          "https://github.com/opencroc/cube-pets-office"
+        ],
+        "clarifications": [
+          {
+            "questionId": "blueprint-question-goal",
+            "answer": "分析整体项目"
+          },
+          {
+            "questionId": "blueprint-question-audience",
+            "answer": "产品，测试人员，学术人员"
+          },
+          {
+            "questionId": "blueprint-question-constraints",
+            "answer": "规划整体项目架构"
+          },
+          {
+            "questionId": "blueprint-question-github-role",
+            "answer": "主次路径"
+          }
+        ],
+        "domainContext": {
+          "projectId": "project-lCQPdgArpM",
+          "updatedAt": "2026-05-07T03:52:31.063Z",
+          "intakeIds": [
+            "blueprint-intake-ad1c4f1c-92a2-464c-adcd-ea91198f1ef6"
+          ],
+          "sourceIds": [
+            "blueprint-source-opencroc-cube-pets-office"
+          ],
+          "assets": [
+            {
+              "id": "blueprint-asset-github-https-github-com-opencroc-cube-pets-office",
+              "kind": "github_repository",
+              "title": "opencroc/cube-pets-office",
+              "summary": "Repository context placeholder for https://github.com/opencroc/cube-pets-office.",
+              "sourceIds": [
+                "blueprint-source-opencroc-cube-pets-office"
+              ],
+              "evidenceIds": [
+                "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+              ],
+              "tags": [
+                "github",
+                "source"
+              ],
+              "createdAt": "2026-05-07T03:52:31.063Z"
+            }
+          ],
+          "evidence": [
+            {
+              "id": "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office",
+              "kind": "github_url",
+              "label": "opencroc/cube-pets-office",
+              "summary": "GitHub repository URL parsed as opencroc/cube-pets-office.",
+              "value": "https://github.com/opencroc/cube-pets-office",
+              "sourceId": "blueprint-source-opencroc-cube-pets-office",
+              "createdAt": "2026-05-07T03:52:31.063Z"
+            }
+          ]
+        }
+      },
+      "status": "reviewing",
+      "stage": "spec_tree",
+      "projectId": "project-lCQPdgArpM",
+      "version": "blueprint-generation/v1",
+      "createdAt": "2026-05-07T03:53:30.798Z",
+      "updatedAt": "2026-05-07T03:53:40.149Z",
+      "completedAt": "2026-05-07T03:53:40.149Z",
+      "artifacts": [
+        {
+          "id": "blueprint-artifact-898fdb09-641c-4c6d-a3ee-5f499a7b10f8",
+          "type": "intake",
+          "title": "Blueprint Intake",
+          "summary": "Normalized target input and GitHub sources captured before route generation.",
+          "createdAt": "2026-05-07T03:53:30.798Z",
+          "payload": {
+            "id": "blueprint-intake-ad1c4f1c-92a2-464c-adcd-ea91198f1ef6",
+            "projectId": "project-lCQPdgArpM",
+            "githubUrls": [
+              "https://github.com/opencroc/cube-pets-office"
+            ],
+            "sources": [
+              {
+                "id": "blueprint-source-opencroc-cube-pets-office",
+                "kind": "repository",
+                "url": "https://github.com/opencroc/cube-pets-office",
+                "normalizedUrl": "https://github.com/opencroc/cube-pets-office",
+                "owner": "opencroc",
+                "repo": "cube-pets-office",
+                "slug": "opencroc/cube-pets-office",
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ]
+              }
+            ],
+            "duplicateGithubUrls": [],
+            "domainNotes": [],
+            "assets": [
+              {
+                "id": "blueprint-asset-github-https-github-com-opencroc-cube-pets-office",
+                "kind": "github_repository",
+                "title": "opencroc/cube-pets-office",
+                "summary": "Repository context placeholder for https://github.com/opencroc/cube-pets-office.",
+                "sourceIds": [
+                  "blueprint-source-opencroc-cube-pets-office"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ],
+                "tags": [
+                  "github",
+                  "source"
+                ],
+                "createdAt": "2026-05-07T03:52:31.063Z"
+              }
+            ],
+            "evidence": [
+              {
+                "id": "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office",
+                "kind": "github_url",
+                "label": "opencroc/cube-pets-office",
+                "summary": "GitHub repository URL parsed as opencroc/cube-pets-office.",
+                "value": "https://github.com/opencroc/cube-pets-office",
+                "sourceId": "blueprint-source-opencroc-cube-pets-office",
+                "createdAt": "2026-05-07T03:52:31.063Z"
+              }
+            ],
+            "readiness": {
+              "status": "ready",
+              "score": 1,
+              "answeredRequired": 1,
+              "requiredTotal": 1,
+              "missingQuestionIds": []
+            },
+            "createdAt": "2026-05-07T03:52:31.063Z",
+            "updatedAt": "2026-05-07T03:52:31.063Z"
+          }
+        },
+        {
+          "id": "blueprint-artifact-3724c3ef-a2e2-4cd3-85b3-def3d68803bd",
+          "type": "github_source",
+          "title": "GitHub Source: opencroc/cube-pets-office",
+          "summary": "Repository source normalized from https://github.com/opencroc/cube-pets-office.",
+          "createdAt": "2026-05-07T03:53:30.798Z",
+          "payload": {
+            "id": "blueprint-source-opencroc-cube-pets-office",
+            "kind": "repository",
+            "url": "https://github.com/opencroc/cube-pets-office",
+            "normalizedUrl": "https://github.com/opencroc/cube-pets-office",
+            "owner": "opencroc",
+            "repo": "cube-pets-office",
+            "slug": "opencroc/cube-pets-office",
+            "evidenceIds": [
+              "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+            ]
+          }
+        },
+        {
+          "id": "blueprint-artifact-eca13ab5-f8b7-4aed-8d94-8024ff816f67",
+          "type": "clarification_session",
+          "title": "Clarification Session",
+          "summary": "0/4 required clarification answers recorded.",
+          "createdAt": "2026-05-07T03:53:30.798Z",
+          "payload": {
+            "id": "blueprint-clarification-9b2ea652-42c9-47c9-8e15-9c9f76b31e37",
+            "intakeId": "blueprint-intake-ad1c4f1c-92a2-464c-adcd-ea91198f1ef6",
+            "projectId": "project-lCQPdgArpM",
+            "questions": [
+              {
+                "id": "blueprint-question-goal",
+                "kind": "goal",
+                "prompt": "What outcome should the blueprint optimize for first?",
+                "required": true,
+                "sourceIds": [],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ]
+              },
+              {
+                "id": "blueprint-question-audience",
+                "kind": "audience",
+                "prompt": "Who is the primary user or operator for this project?",
+                "required": true,
+                "sourceIds": [],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ]
+              },
+              {
+                "id": "blueprint-question-constraints",
+                "kind": "constraint",
+                "prompt": "What constraints, integrations, or risks must the route preserve?",
+                "required": true,
+                "sourceIds": [
+                  "blueprint-source-opencroc-cube-pets-office"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ]
+              },
+              {
+                "id": "blueprint-question-github-role",
+                "kind": "github",
+                "prompt": "How should the GitHub repository influence the first RouteSet?",
+                "required": true,
+                "sourceIds": [
+                  "blueprint-source-opencroc-cube-pets-office"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ]
+              },
+              {
+                "id": "blueprint-question-domain-assets",
+                "kind": "domain",
+                "prompt": "Which durable domain assets should be carried into later stages?",
+                "required": false,
+                "sourceIds": [
+                  "blueprint-source-opencroc-cube-pets-office"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ]
+              }
+            ],
+            "answers": [],
+            "readiness": {
+              "status": "needs_answers",
+              "score": 0,
+              "answeredRequired": 0,
+              "requiredTotal": 4,
+              "missingQuestionIds": [
+                "blueprint-question-goal",
+                "blueprint-question-audience",
+                "blueprint-question-constraints",
+                "blueprint-question-github-role"
+              ]
+            },
+            "createdAt": "2026-05-07T03:52:36.763Z",
+            "updatedAt": "2026-05-07T03:52:36.763Z"
+          }
+        },
+        {
+          "id": "blueprint-artifact-e5e91df7-93ab-4f23-b119-25b5e80e6787",
+          "type": "project_context",
+          "title": "Project Domain Context",
+          "summary": "1 domain assets and 1 evidence items available for routing.",
+          "createdAt": "2026-05-07T03:53:30.798Z",
+          "payload": {
+            "projectId": "project-lCQPdgArpM",
+            "updatedAt": "2026-05-07T03:52:31.063Z",
+            "intakeIds": [
+              "blueprint-intake-ad1c4f1c-92a2-464c-adcd-ea91198f1ef6"
+            ],
+            "sourceIds": [
+              "blueprint-source-opencroc-cube-pets-office"
+            ],
+            "assets": [
+              {
+                "id": "blueprint-asset-github-https-github-com-opencroc-cube-pets-office",
+                "kind": "github_repository",
+                "title": "opencroc/cube-pets-office",
+                "summary": "Repository context placeholder for https://github.com/opencroc/cube-pets-office.",
+                "sourceIds": [
+                  "blueprint-source-opencroc-cube-pets-office"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ],
+                "tags": [
+                  "github",
+                  "source"
+                ],
+                "createdAt": "2026-05-07T03:52:31.063Z"
+              }
+            ],
+            "evidence": [
+              {
+                "id": "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office",
+                "kind": "github_url",
+                "label": "opencroc/cube-pets-office",
+                "summary": "GitHub repository URL parsed as opencroc/cube-pets-office.",
+                "value": "https://github.com/opencroc/cube-pets-office",
+                "sourceId": "blueprint-source-opencroc-cube-pets-office",
+                "createdAt": "2026-05-07T03:52:31.063Z"
+              }
+            ]
+          }
+        },
+        {
+          "id": "blueprint-artifact-f8adfb03-5c52-4fb3-bfca-deddb172576a",
+          "type": "route_set",
+          "title": "Autopilot RouteSet",
+          "summary": "Primary and alternative routes prepared for SPEC tree derivation.",
+          "createdAt": "2026-05-07T03:53:30.798Z",
+          "payload": {
+            "id": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1",
+            "requestId": "blueprint-job-3f059954-ad85-4de5-88e0-39b242a4a973",
+            "createdAt": "2026-05-07T03:53:30.798Z",
+            "primaryRouteId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+            "routes": [
+              {
+                "id": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+                "kind": "primary",
+                "title": "Primary SPEC asset route",
+                "summary": "Clarify GitHub opencroc/cube-pets-office, derive the durable SPEC tree, then expand documents, preview, and implementation prompts.",
+                "rationale": "Balances product clarification, architecture analysis, and asset persistence so the selected path can become the long-lived SPEC tree.",
+                "riskLevel": "medium",
+                "costLevel": "medium",
+                "complexity": "balanced",
+                "estimatedEffort": "2-4 analysis passes",
+                "capabilities": [
+                  {
+                    "id": "mcp-github-source",
+                    "label": "GitHub source reader",
+                    "kind": "mcp",
+                    "purpose": "Read repository context before route generation."
+                  },
+                  {
+                    "id": "role-product-strategy",
+                    "label": "Product strategy role",
+                    "kind": "role",
+                    "purpose": "Clarify user intent, boundaries, and acceptance signals."
+                  },
+                  {
+                    "id": "role-system-architecture",
+                    "label": "System architecture role",
+                    "kind": "role",
+                    "purpose": "Shape modules, dependencies, and engineering landing risks."
+                  },
+                  {
+                    "id": "docker-analysis-sandbox",
+                    "label": "Docker analysis sandbox",
+                    "kind": "docker",
+                    "purpose": "Run repository inspection and artifact generation in isolation."
+                  },
+                  {
+                    "id": "skill-svg-architecture",
+                    "label": "SVG architecture skill",
+                    "kind": "skill",
+                    "purpose": "Produce architecture diagrams and route evidence artifacts."
+                  },
+                  {
+                    "id": "aigc-spec-node",
+                    "label": "AIGC SPEC derivation node",
+                    "kind": "aigc_node",
+                    "purpose": "Turn route nodes into SPEC tree candidates."
+                  }
+                ],
+                "steps": [
+                  {
+                    "id": "clarify-intent",
+                    "title": "Clarify execution intent",
+                    "description": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                    "role": "Product strategist",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "scan-github-source",
+                    "title": "Scan GitHub source",
+                    "description": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                    "role": "Source analyst",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "map-capability-pool",
+                    "title": "Map capability pool",
+                    "description": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                    "role": "Orchestrator",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "derive-spec-tree-seed",
+                    "title": "Derive SPEC tree seed",
+                    "description": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                    "role": "SPEC curator",
+                    "status": "pending"
+                  },
+                  {
+                    "id": "plan-preview-and-prompts",
+                    "title": "Plan previews and prompts",
+                    "description": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                    "role": "Preview planner",
+                    "status": "pending"
+                  }
+                ],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ]
+              },
+              {
+                "id": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:alternative-docs-first",
+                "kind": "alternative",
+                "title": "Documentation-first conservative route",
+                "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+                "rationale": "Reduces downstream churn when the business boundary is still broad or governance matters more than speed.",
+                "riskLevel": "low",
+                "costLevel": "low",
+                "complexity": "light",
+                "estimatedEffort": "1-2 review passes",
+                "capabilities": [
+                  {
+                    "id": "mcp-github-source",
+                    "label": "GitHub source reader",
+                    "kind": "mcp",
+                    "purpose": "Read repository context before route generation."
+                  },
+                  {
+                    "id": "role-product-strategy",
+                    "label": "Product strategy role",
+                    "kind": "role",
+                    "purpose": "Clarify user intent, boundaries, and acceptance signals."
+                  },
+                  {
+                    "id": "role-system-architecture",
+                    "label": "System architecture role",
+                    "kind": "role",
+                    "purpose": "Shape modules, dependencies, and engineering landing risks."
+                  },
+                  {
+                    "id": "docker-analysis-sandbox",
+                    "label": "Docker analysis sandbox",
+                    "kind": "docker",
+                    "purpose": "Run repository inspection and artifact generation in isolation."
+                  },
+                  {
+                    "id": "skill-svg-architecture",
+                    "label": "SVG architecture skill",
+                    "kind": "skill",
+                    "purpose": "Produce architecture diagrams and route evidence artifacts."
+                  },
+                  {
+                    "id": "aigc-spec-node",
+                    "label": "AIGC SPEC derivation node",
+                    "kind": "aigc_node",
+                    "purpose": "Turn route nodes into SPEC tree candidates."
+                  }
+                ],
+                "steps": [
+                  {
+                    "id": "clarify-intent",
+                    "title": "Clarify execution intent",
+                    "description": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                    "role": "Product strategist",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "scan-github-source",
+                    "title": "Scan GitHub source",
+                    "description": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                    "role": "Source analyst",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "map-capability-pool",
+                    "title": "Map capability pool",
+                    "description": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                    "role": "Orchestrator",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "derive-spec-tree-seed",
+                    "title": "Derive SPEC tree seed",
+                    "description": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                    "role": "SPEC curator",
+                    "status": "pending"
+                  },
+                  {
+                    "id": "plan-preview-and-prompts",
+                    "title": "Plan previews and prompts",
+                    "description": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                    "role": "Preview planner",
+                    "status": "pending"
+                  }
+                ],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ]
+              },
+              {
+                "id": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:alternative-preview-first",
+                "kind": "alternative",
+                "title": "Preview-first exploratory route",
+                "summary": "Push route analysis toward effect preview early, then backfill SPEC documents from the selected prototype direction.",
+                "rationale": "Useful when the user needs to see the future system effect before locking detailed specifications.",
+                "riskLevel": "high",
+                "costLevel": "high",
+                "complexity": "deep",
+                "estimatedEffort": "3-5 exploration passes",
+                "capabilities": [
+                  {
+                    "id": "mcp-github-source",
+                    "label": "GitHub source reader",
+                    "kind": "mcp",
+                    "purpose": "Read repository context before route generation."
+                  },
+                  {
+                    "id": "role-product-strategy",
+                    "label": "Product strategy role",
+                    "kind": "role",
+                    "purpose": "Clarify user intent, boundaries, and acceptance signals."
+                  },
+                  {
+                    "id": "role-system-architecture",
+                    "label": "System architecture role",
+                    "kind": "role",
+                    "purpose": "Shape modules, dependencies, and engineering landing risks."
+                  },
+                  {
+                    "id": "docker-analysis-sandbox",
+                    "label": "Docker analysis sandbox",
+                    "kind": "docker",
+                    "purpose": "Run repository inspection and artifact generation in isolation."
+                  },
+                  {
+                    "id": "skill-svg-architecture",
+                    "label": "SVG architecture skill",
+                    "kind": "skill",
+                    "purpose": "Produce architecture diagrams and route evidence artifacts."
+                  },
+                  {
+                    "id": "aigc-spec-node",
+                    "label": "AIGC SPEC derivation node",
+                    "kind": "aigc_node",
+                    "purpose": "Turn route nodes into SPEC tree candidates."
+                  }
+                ],
+                "steps": [
+                  {
+                    "id": "clarify-intent",
+                    "title": "Clarify execution intent",
+                    "description": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                    "role": "Product strategist",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "scan-github-source",
+                    "title": "Scan GitHub source",
+                    "description": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                    "role": "Source analyst",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "map-capability-pool",
+                    "title": "Map capability pool",
+                    "description": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                    "role": "Orchestrator",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "derive-spec-tree-seed",
+                    "title": "Derive SPEC tree seed",
+                    "description": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                    "role": "SPEC curator",
+                    "status": "pending"
+                  },
+                  {
+                    "id": "plan-preview-and-prompts",
+                    "title": "Plan previews and prompts",
+                    "description": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                    "role": "Preview planner",
+                    "status": "pending"
+                  }
+                ],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ]
+              }
+            ],
+            "nextAsset": {
+              "type": "spec_tree",
+              "menu": "deduction",
+              "description": "Use the selected RouteSet path as the source asset for the Deduction menu and SPEC tree workbench."
+            },
+            "provenance": {
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/opencroc/cube-pets-office"
+              ]
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-566a7d60-687c-4701-ae50-1eef387793b7",
+          "type": "route_selection",
+          "title": "Selected route: Primary SPEC asset route",
+          "summary": "User-selected autopilot route that acts as the source of SPEC tree derivation.",
+          "createdAt": "2026-05-07T03:53:40.149Z",
+          "payload": {
+            "id": "blueprint-route-selection-ce84520e-0e3f-4d45-a6df-1bd6abc3a95b",
+            "routeSetId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1",
+            "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+            "routeTitle": "Primary SPEC asset route",
+            "selectedAt": "2026-05-07T03:53:40.149Z",
+            "selectedBy": "autopilot",
+            "reason": "Selected from the autopilot RouteSet preflight page.",
+            "mergedAlternativeRouteIds": [],
+            "status": "selected",
+            "provenance": {
+              "jobId": "blueprint-job-3f059954-ad85-4de5-88e0-39b242a4a973",
+              "projectId": "project-lCQPdgArpM"
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-38877152-989f-4717-b1a7-adaf4fa6b5fa",
+          "type": "spec_tree",
+          "title": "Derived SPEC tree",
+          "summary": "Initial durable SPEC tree generated from the selected primary or alternative route.",
+          "createdAt": "2026-05-07T03:53:40.149Z",
+          "payload": {
+            "id": "blueprint-spec-tree-137eb7d2-f055-4719-9b9c-37ce6555ee58",
+            "routeSetId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1",
+            "selectionId": "blueprint-route-selection-ce84520e-0e3f-4d45-a6df-1bd6abc3a95b",
+            "selectedRouteId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+            "rootNodeId": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+            "version": 1,
+            "status": "draft",
+            "createdAt": "2026-05-07T03:53:40.149Z",
+            "updatedAt": "2026-05-07T03:53:40.149Z",
+            "alternativeRouteIds": [
+              "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:alternative-docs-first",
+              "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:alternative-preview-first"
+            ],
+            "nodes": [
+              {
+                "id": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+                "title": "SPEC asset tree: GitHub opencroc/cube-pets-office",
+                "summary": "Durable tree asset derived from the selected autopilot route. Downstream menus bind to this tree instead of recomputing the route.",
+                "type": "root",
+                "status": "draft",
+                "priority": 0,
+                "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+                "dependencies": [],
+                "outputs": [
+                  "SPEC tree",
+                  "requirements seed",
+                  "design seed",
+                  "tasks seed"
+                ],
+                "children": [
+                  "blueprint-spec-node-20cb9f75-ce8c-401e-990a-bae0f1d43e78",
+                  "blueprint-spec-node-abc7e7d3-a5fa-4e0e-838b-7292063aa17b",
+                  "blueprint-spec-node-b67b5517-548b-427e-b997-2d16cab2fb02",
+                  "blueprint-spec-node-c86e3df6-3d02-4c48-a119-4dfdcc298f58",
+                  "blueprint-spec-node-125f1cf9-77d2-40e0-8e29-4053a064cd18",
+                  "blueprint-spec-node-ee7ec1b5-2a31-489e-9261-fa9de2bdc0c0",
+                  "blueprint-spec-node-28d0570f-1e86-4d32-af6c-058c9e5a2084",
+                  "blueprint-spec-node-c2743bf2-98e5-4dcb-9038-84508c33cc3f",
+                  "blueprint-spec-node-157b232a-9c93-4821-8964-8ca1dd53c236",
+                  "blueprint-spec-node-37ccec64-947d-43bc-a855-d5af13a3ac39",
+                  "blueprint-spec-node-7ac96aa6-e67e-4511-84e1-8862cb501c44"
+                ],
+                "metadata": {
+                  "selectedRouteTitle": "Primary SPEC asset route",
+                  "routeSetId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-20cb9f75-ce8c-401e-990a-bae0f1d43e78",
+                "parentId": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+                "title": "Clarify execution intent",
+                "summary": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                "type": "route_step",
+                "status": "ready",
+                "priority": 1,
+                "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+                "routeStepId": "clarify-intent",
+                "dependencies": [],
+                "outputs": [
+                  "clarification decisions",
+                  "success criteria"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Product strategist",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-abc7e7d3-a5fa-4e0e-838b-7292063aa17b",
+                "parentId": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+                "title": "Scan GitHub source",
+                "summary": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                "type": "route_step",
+                "status": "ready",
+                "priority": 2,
+                "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+                "routeStepId": "scan-github-source",
+                "dependencies": [],
+                "outputs": [
+                  "route evidence"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Source analyst",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-b67b5517-548b-427e-b997-2d16cab2fb02",
+                "parentId": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+                "title": "Map capability pool",
+                "summary": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                "type": "route_step",
+                "status": "ready",
+                "priority": 3,
+                "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+                "routeStepId": "map-capability-pool",
+                "dependencies": [],
+                "outputs": [
+                  "route evidence"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Orchestrator",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-c86e3df6-3d02-4c48-a119-4dfdcc298f58",
+                "parentId": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+                "title": "Derive SPEC tree seed",
+                "summary": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                "type": "route_step",
+                "status": "seed",
+                "priority": 4,
+                "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+                "routeStepId": "derive-spec-tree-seed",
+                "dependencies": [],
+                "outputs": [
+                  "SPEC tree seed",
+                  "node map"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "SPEC curator",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-125f1cf9-77d2-40e0-8e29-4053a064cd18",
+                "parentId": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+                "title": "Plan previews and prompts",
+                "summary": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                "type": "route_step",
+                "status": "seed",
+                "priority": 5,
+                "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+                "routeStepId": "plan-preview-and-prompts",
+                "dependencies": [],
+                "outputs": [
+                  "route evidence"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Preview planner",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-ee7ec1b5-2a31-489e-9261-fa9de2bdc0c0",
+                "parentId": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+                "title": "Documentation-first conservative route",
+                "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+                "type": "alternative_route",
+                "status": "seed",
+                "priority": 6,
+                "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:alternative-docs-first",
+                "dependencies": [],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ],
+                "children": [],
+                "metadata": {
+                  "riskLevel": "low",
+                  "costLevel": "low",
+                  "complexity": "light",
+                  "mergedIntoSelection": false
+                }
+              },
+              {
+                "id": "blueprint-spec-node-28d0570f-1e86-4d32-af6c-058c9e5a2084",
+                "parentId": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+                "title": "Preview-first exploratory route",
+                "summary": "Push route analysis toward effect preview early, then backfill SPEC documents from the selected prototype direction.",
+                "type": "alternative_route",
+                "status": "seed",
+                "priority": 7,
+                "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:alternative-preview-first",
+                "dependencies": [],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ],
+                "children": [],
+                "metadata": {
+                  "riskLevel": "high",
+                  "costLevel": "high",
+                  "complexity": "deep",
+                  "mergedIntoSelection": false
+                }
+              },
+              {
+                "id": "blueprint-spec-node-c2743bf2-98e5-4dcb-9038-84508c33cc3f",
+                "parentId": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+                "title": "Specification document generation",
+                "summary": "Expand the selected SPEC tree into requirements, design, and tasks for each important node.",
+                "type": "spec_document",
+                "status": "seed",
+                "priority": 8,
+                "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+                "dependencies": [],
+                "outputs": [
+                  "requirements.md",
+                  "design.md",
+                  "tasks.md"
+                ],
+                "children": []
+              },
+              {
+                "id": "blueprint-spec-node-157b232a-9c93-4821-8964-8ca1dd53c236",
+                "parentId": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+                "title": "Effect preview",
+                "summary": "Preview architecture, progress plan, expected UI/prototype direction, and step-by-step implementation effect before coding.",
+                "type": "effect_preview",
+                "status": "seed",
+                "priority": 9,
+                "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+                "dependencies": [
+                  "spec_document"
+                ],
+                "outputs": [
+                  "architecture diagram",
+                  "prototype notes",
+                  "progress plan"
+                ],
+                "children": []
+              },
+              {
+                "id": "blueprint-spec-node-37ccec64-947d-43bc-a855-d5af13a3ac39",
+                "parentId": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+                "title": "Implementation prompt package",
+                "summary": "Package the selected future implementation into prompts that can be used by Cursor, Kiro, Trae, Windsurf, Codex, Claude, and similar tools.",
+                "type": "prompt_package",
+                "status": "seed",
+                "priority": 10,
+                "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+                "dependencies": [
+                  "effect_preview"
+                ],
+                "outputs": [
+                  "platform prompts",
+                  "acceptance checklist"
+                ],
+                "children": []
+              },
+              {
+                "id": "blueprint-spec-node-7ac96aa6-e67e-4511-84e1-8862cb501c44",
+                "parentId": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+                "title": "Engineering landing",
+                "summary": "Reserve the later execution bridge that turns accepted SPEC assets into repository changes and run evidence.",
+                "type": "engineering_plan",
+                "status": "seed",
+                "priority": 11,
+                "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+                "dependencies": [
+                  "prompt_package"
+                ],
+                "outputs": [
+                  "landing plan",
+                  "run evidence"
+                ],
+                "children": []
+              }
+            ],
+            "provenance": {
+              "jobId": "blueprint-job-3f059954-ad85-4de5-88e0-39b242a4a973",
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/opencroc/cube-pets-office"
+              ]
+            }
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "blueprint-event-c8654082-708e-41dd-a448-fd5e13d4f928",
+          "jobId": "blueprint-job-3f059954-ad85-4de5-88e0-39b242a4a973",
+          "type": "job.created",
+          "stage": "input",
+          "status": "pending",
+          "message": "Blueprint generation job accepted.",
+          "occurredAt": "2026-05-07T03:53:30.798Z"
+        },
+        {
+          "id": "blueprint-event-1945f576-d693-40fd-88f5-dc56803a965a",
+          "jobId": "blueprint-job-3f059954-ad85-4de5-88e0-39b242a4a973",
+          "type": "job.stage",
+          "stage": "route_generation",
+          "status": "running",
+          "message": "Generating primary and alternative autopilot routes.",
+          "occurredAt": "2026-05-07T03:53:30.798Z"
+        },
+        {
+          "id": "blueprint-event-bdc8472f-01a0-4247-9a92-57f302daae2a",
+          "jobId": "blueprint-job-3f059954-ad85-4de5-88e0-39b242a4a973",
+          "type": "job.completed",
+          "stage": "route_generation",
+          "status": "completed",
+          "message": "RouteSet generated and ready for SPEC tree derivation.",
+          "occurredAt": "2026-05-07T03:53:30.798Z",
+          "payload": {
+            "routeSetId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1"
+          }
+        },
+        {
+          "id": "blueprint-event-2313c7b7-9739-45d4-a112-7ff7618c459c",
+          "jobId": "blueprint-job-3f059954-ad85-4de5-88e0-39b242a4a973",
+          "type": "job.stage",
+          "stage": "spec_tree",
+          "status": "running",
+          "message": "Selected route Primary SPEC asset route and started SPEC tree derivation.",
+          "occurredAt": "2026-05-07T03:53:40.149Z",
+          "payload": {
+            "routeSetId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1",
+            "routeId": "blueprint-routeset-40a21b92-6b91-4096-958d-8b3fe92375d1:primary",
+            "selectionId": "blueprint-route-selection-ce84520e-0e3f-4d45-a6df-1bd6abc3a95b"
+          }
+        },
+        {
+          "id": "blueprint-event-f9e854bb-c268-4311-8273-b61ed24ebd34",
+          "jobId": "blueprint-job-3f059954-ad85-4de5-88e0-39b242a4a973",
+          "type": "job.completed",
+          "stage": "spec_tree",
+          "status": "reviewing",
+          "message": "SPEC tree draft generated and ready for the Deduction workbench.",
+          "occurredAt": "2026-05-07T03:53:40.149Z",
+          "payload": {
+            "specTreeId": "blueprint-spec-tree-137eb7d2-f055-4719-9b9c-37ce6555ee58",
+            "rootNodeId": "blueprint-spec-node-bd331b88-2203-4f14-8f76-df5aedc6dff7",
+            "nodeCount": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "blueprint-job-41193d56-86f0-415b-92de-631f7b13be70",
+      "request": {
+        "projectId": "project-lCQPdgArpM",
+        "version": "blueprint-generation/v1",
+        "mode": "autopilot_route",
+        "intakeId": "blueprint-intake-3e826e04-71ac-4e27-a6fc-c7e2644f3dc2",
+        "clarificationSessionId": "blueprint-clarification-28322e60-f8c3-40f3-8011-06b3fe2442df",
+        "githubUrls": [
+          "https://github.com/666ghj/mirofish"
+        ],
+        "clarifications": [
+          {
+            "questionId": "blueprint-question-goal",
+            "answer": "项目全貌"
+          },
+          {
+            "questionId": "blueprint-question-audience",
+            "answer": "产品，学者"
+          },
+          {
+            "questionId": "blueprint-question-constraints",
+            "answer": "spec规范，需求，设计，任务"
+          },
+          {
+            "questionId": "blueprint-question-github-role",
+            "answer": "主次执行路线"
+          }
+        ],
+        "domainContext": {
+          "projectId": "project-lCQPdgArpM",
+          "updatedAt": "2026-05-07T04:41:05.185Z",
+          "intakeIds": [
+            "blueprint-intake-6741a14e-f001-4ca3-a3c3-a3707ef546f4",
+            "blueprint-intake-3e826e04-71ac-4e27-a6fc-c7e2644f3dc2"
+          ],
+          "sourceIds": [
+            "blueprint-source-666ghj-mirofish"
+          ],
+          "assets": [
+            {
+              "id": "blueprint-asset-github-https-github-com-666ghj-mirofish",
+              "kind": "github_repository",
+              "title": "666ghj/mirofish",
+              "summary": "Repository context placeholder for https://github.com/666ghj/mirofish.",
+              "sourceIds": [
+                "blueprint-source-666ghj-mirofish"
+              ],
+              "evidenceIds": [
+                "blueprint-evidence-github-url-https-github-com-666ghj-mirofish"
+              ],
+              "tags": [
+                "github",
+                "source"
+              ],
+              "createdAt": "2026-05-07T04:41:05.185Z"
+            }
+          ],
+          "evidence": [
+            {
+              "id": "blueprint-evidence-github-url-https-github-com-666ghj-mirofish",
+              "kind": "github_url",
+              "label": "666ghj/mirofish",
+              "summary": "GitHub repository URL parsed as 666ghj/mirofish.",
+              "value": "https://github.com/666ghj/mirofish",
+              "sourceId": "blueprint-source-666ghj-mirofish",
+              "createdAt": "2026-05-07T04:41:05.185Z"
+            }
+          ]
+        }
+      },
+      "status": "reviewing",
+      "stage": "spec_tree",
+      "projectId": "project-lCQPdgArpM",
+      "version": "blueprint-generation/v1",
+      "createdAt": "2026-05-07T04:42:00.829Z",
+      "updatedAt": "2026-05-07T04:42:06.007Z",
+      "completedAt": "2026-05-07T04:42:06.007Z",
+      "artifacts": [
+        {
+          "id": "blueprint-artifact-f8cc4eee-1e71-4bc8-8f26-a4e7148fa950",
+          "type": "intake",
+          "title": "Blueprint Intake",
+          "summary": "Normalized target input and GitHub sources captured before route generation.",
+          "createdAt": "2026-05-07T04:42:00.829Z",
+          "payload": {
+            "id": "blueprint-intake-3e826e04-71ac-4e27-a6fc-c7e2644f3dc2",
+            "projectId": "project-lCQPdgArpM",
+            "githubUrls": [
+              "https://github.com/666ghj/mirofish"
+            ],
+            "sources": [
+              {
+                "id": "blueprint-source-666ghj-mirofish",
+                "kind": "repository",
+                "url": "https://github.com/666ghj/MiroFish",
+                "normalizedUrl": "https://github.com/666ghj/mirofish",
+                "owner": "666ghj",
+                "repo": "mirofish",
+                "slug": "666ghj/mirofish",
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-666ghj-mirofish"
+                ]
+              }
+            ],
+            "duplicateGithubUrls": [],
+            "domainNotes": [],
+            "assets": [
+              {
+                "id": "blueprint-asset-github-https-github-com-666ghj-mirofish",
+                "kind": "github_repository",
+                "title": "666ghj/mirofish",
+                "summary": "Repository context placeholder for https://github.com/666ghj/mirofish.",
+                "sourceIds": [
+                  "blueprint-source-666ghj-mirofish"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-666ghj-mirofish"
+                ],
+                "tags": [
+                  "github",
+                  "source"
+                ],
+                "createdAt": "2026-05-07T04:41:05.185Z"
+              }
+            ],
+            "evidence": [
+              {
+                "id": "blueprint-evidence-github-url-https-github-com-666ghj-mirofish",
+                "kind": "github_url",
+                "label": "666ghj/mirofish",
+                "summary": "GitHub repository URL parsed as 666ghj/mirofish.",
+                "value": "https://github.com/666ghj/mirofish",
+                "sourceId": "blueprint-source-666ghj-mirofish",
+                "createdAt": "2026-05-07T04:41:05.185Z"
+              }
+            ],
+            "readiness": {
+              "status": "ready",
+              "score": 1,
+              "answeredRequired": 1,
+              "requiredTotal": 1,
+              "missingQuestionIds": []
+            },
+            "createdAt": "2026-05-07T04:41:05.185Z",
+            "updatedAt": "2026-05-07T04:41:05.185Z"
+          }
+        },
+        {
+          "id": "blueprint-artifact-49b66dc0-2b9d-437e-ae6b-ab71dc221bef",
+          "type": "github_source",
+          "title": "GitHub Source: 666ghj/mirofish",
+          "summary": "Repository source normalized from https://github.com/666ghj/mirofish.",
+          "createdAt": "2026-05-07T04:42:00.829Z",
+          "payload": {
+            "id": "blueprint-source-666ghj-mirofish",
+            "kind": "repository",
+            "url": "https://github.com/666ghj/MiroFish",
+            "normalizedUrl": "https://github.com/666ghj/mirofish",
+            "owner": "666ghj",
+            "repo": "mirofish",
+            "slug": "666ghj/mirofish",
+            "evidenceIds": [
+              "blueprint-evidence-github-url-https-github-com-666ghj-mirofish"
+            ]
+          }
+        },
+        {
+          "id": "blueprint-artifact-c993262e-0cf1-446a-97ab-802aa7512ad8",
+          "type": "clarification_session",
+          "title": "Clarification Session",
+          "summary": "0/4 required clarification answers recorded.",
+          "createdAt": "2026-05-07T04:42:00.829Z",
+          "payload": {
+            "id": "blueprint-clarification-28322e60-f8c3-40f3-8011-06b3fe2442df",
+            "intakeId": "blueprint-intake-3e826e04-71ac-4e27-a6fc-c7e2644f3dc2",
+            "projectId": "project-lCQPdgArpM",
+            "questions": [
+              {
+                "id": "blueprint-question-goal",
+                "kind": "goal",
+                "prompt": "What outcome should the blueprint optimize for first?",
+                "required": true,
+                "sourceIds": [],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-666ghj-mirofish"
+                ]
+              },
+              {
+                "id": "blueprint-question-audience",
+                "kind": "audience",
+                "prompt": "Who is the primary user or operator for this project?",
+                "required": true,
+                "sourceIds": [],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-666ghj-mirofish"
+                ]
+              },
+              {
+                "id": "blueprint-question-constraints",
+                "kind": "constraint",
+                "prompt": "What constraints, integrations, or risks must the route preserve?",
+                "required": true,
+                "sourceIds": [
+                  "blueprint-source-666ghj-mirofish"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-666ghj-mirofish"
+                ]
+              },
+              {
+                "id": "blueprint-question-github-role",
+                "kind": "github",
+                "prompt": "How should the GitHub repository influence the first RouteSet?",
+                "required": true,
+                "sourceIds": [
+                  "blueprint-source-666ghj-mirofish"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-666ghj-mirofish"
+                ]
+              },
+              {
+                "id": "blueprint-question-domain-assets",
+                "kind": "domain",
+                "prompt": "Which durable domain assets should be carried into later stages?",
+                "required": false,
+                "sourceIds": [
+                  "blueprint-source-666ghj-mirofish"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-666ghj-mirofish"
+                ]
+              }
+            ],
+            "answers": [],
+            "readiness": {
+              "status": "needs_answers",
+              "score": 0,
+              "answeredRequired": 0,
+              "requiredTotal": 4,
+              "missingQuestionIds": [
+                "blueprint-question-goal",
+                "blueprint-question-audience",
+                "blueprint-question-constraints",
+                "blueprint-question-github-role"
+              ]
+            },
+            "createdAt": "2026-05-07T04:41:07.175Z",
+            "updatedAt": "2026-05-07T04:41:07.175Z"
+          }
+        },
+        {
+          "id": "blueprint-artifact-f4045e9c-72cd-434f-8f0f-d690d6f75c7a",
+          "type": "project_context",
+          "title": "Project Domain Context",
+          "summary": "1 domain assets and 1 evidence items available for routing.",
+          "createdAt": "2026-05-07T04:42:00.829Z",
+          "payload": {
+            "projectId": "project-lCQPdgArpM",
+            "updatedAt": "2026-05-07T04:41:05.185Z",
+            "intakeIds": [
+              "blueprint-intake-6741a14e-f001-4ca3-a3c3-a3707ef546f4",
+              "blueprint-intake-3e826e04-71ac-4e27-a6fc-c7e2644f3dc2"
+            ],
+            "sourceIds": [
+              "blueprint-source-666ghj-mirofish"
+            ],
+            "assets": [
+              {
+                "id": "blueprint-asset-github-https-github-com-666ghj-mirofish",
+                "kind": "github_repository",
+                "title": "666ghj/mirofish",
+                "summary": "Repository context placeholder for https://github.com/666ghj/mirofish.",
+                "sourceIds": [
+                  "blueprint-source-666ghj-mirofish"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-666ghj-mirofish"
+                ],
+                "tags": [
+                  "github",
+                  "source"
+                ],
+                "createdAt": "2026-05-07T04:41:05.185Z"
+              }
+            ],
+            "evidence": [
+              {
+                "id": "blueprint-evidence-github-url-https-github-com-666ghj-mirofish",
+                "kind": "github_url",
+                "label": "666ghj/mirofish",
+                "summary": "GitHub repository URL parsed as 666ghj/mirofish.",
+                "value": "https://github.com/666ghj/mirofish",
+                "sourceId": "blueprint-source-666ghj-mirofish",
+                "createdAt": "2026-05-07T04:41:05.185Z"
+              }
+            ]
+          }
+        },
+        {
+          "id": "blueprint-artifact-e3c065bc-32db-4108-8069-e6548a0acf9e",
+          "type": "route_set",
+          "title": "Autopilot RouteSet",
+          "summary": "Primary and alternative routes prepared for SPEC tree derivation.",
+          "createdAt": "2026-05-07T04:42:00.829Z",
+          "payload": {
+            "id": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16",
+            "requestId": "blueprint-job-41193d56-86f0-415b-92de-631f7b13be70",
+            "createdAt": "2026-05-07T04:42:00.829Z",
+            "primaryRouteId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+            "routes": [
+              {
+                "id": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+                "kind": "primary",
+                "title": "Primary SPEC asset route",
+                "summary": "Clarify GitHub 666ghj/mirofish, derive the durable SPEC tree, then expand documents, preview, and implementation prompts.",
+                "rationale": "Balances product clarification, architecture analysis, and asset persistence so the selected path can become the long-lived SPEC tree.",
+                "riskLevel": "medium",
+                "costLevel": "medium",
+                "complexity": "balanced",
+                "estimatedEffort": "2-4 analysis passes",
+                "capabilities": [
+                  {
+                    "id": "mcp-github-source",
+                    "label": "GitHub source reader",
+                    "kind": "mcp",
+                    "purpose": "Read repository context before route generation."
+                  },
+                  {
+                    "id": "role-product-strategy",
+                    "label": "Product strategy role",
+                    "kind": "role",
+                    "purpose": "Clarify user intent, boundaries, and acceptance signals."
+                  },
+                  {
+                    "id": "role-system-architecture",
+                    "label": "System architecture role",
+                    "kind": "role",
+                    "purpose": "Shape modules, dependencies, and engineering landing risks."
+                  },
+                  {
+                    "id": "docker-analysis-sandbox",
+                    "label": "Docker analysis sandbox",
+                    "kind": "docker",
+                    "purpose": "Run repository inspection and artifact generation in isolation."
+                  },
+                  {
+                    "id": "skill-svg-architecture",
+                    "label": "SVG architecture skill",
+                    "kind": "skill",
+                    "purpose": "Produce architecture diagrams and route evidence artifacts."
+                  },
+                  {
+                    "id": "aigc-spec-node",
+                    "label": "AIGC SPEC derivation node",
+                    "kind": "aigc_node",
+                    "purpose": "Turn route nodes into SPEC tree candidates."
+                  }
+                ],
+                "steps": [
+                  {
+                    "id": "clarify-intent",
+                    "title": "Clarify execution intent",
+                    "description": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                    "role": "Product strategist",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "scan-github-source",
+                    "title": "Scan GitHub source",
+                    "description": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                    "role": "Source analyst",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "map-capability-pool",
+                    "title": "Map capability pool",
+                    "description": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                    "role": "Orchestrator",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "derive-spec-tree-seed",
+                    "title": "Derive SPEC tree seed",
+                    "description": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                    "role": "SPEC curator",
+                    "status": "pending"
+                  },
+                  {
+                    "id": "plan-preview-and-prompts",
+                    "title": "Plan previews and prompts",
+                    "description": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                    "role": "Preview planner",
+                    "status": "pending"
+                  }
+                ],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ]
+              },
+              {
+                "id": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:alternative-docs-first",
+                "kind": "alternative",
+                "title": "Documentation-first conservative route",
+                "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+                "rationale": "Reduces downstream churn when the business boundary is still broad or governance matters more than speed.",
+                "riskLevel": "low",
+                "costLevel": "low",
+                "complexity": "light",
+                "estimatedEffort": "1-2 review passes",
+                "capabilities": [
+                  {
+                    "id": "mcp-github-source",
+                    "label": "GitHub source reader",
+                    "kind": "mcp",
+                    "purpose": "Read repository context before route generation."
+                  },
+                  {
+                    "id": "role-product-strategy",
+                    "label": "Product strategy role",
+                    "kind": "role",
+                    "purpose": "Clarify user intent, boundaries, and acceptance signals."
+                  },
+                  {
+                    "id": "role-system-architecture",
+                    "label": "System architecture role",
+                    "kind": "role",
+                    "purpose": "Shape modules, dependencies, and engineering landing risks."
+                  },
+                  {
+                    "id": "docker-analysis-sandbox",
+                    "label": "Docker analysis sandbox",
+                    "kind": "docker",
+                    "purpose": "Run repository inspection and artifact generation in isolation."
+                  },
+                  {
+                    "id": "skill-svg-architecture",
+                    "label": "SVG architecture skill",
+                    "kind": "skill",
+                    "purpose": "Produce architecture diagrams and route evidence artifacts."
+                  },
+                  {
+                    "id": "aigc-spec-node",
+                    "label": "AIGC SPEC derivation node",
+                    "kind": "aigc_node",
+                    "purpose": "Turn route nodes into SPEC tree candidates."
+                  }
+                ],
+                "steps": [
+                  {
+                    "id": "clarify-intent",
+                    "title": "Clarify execution intent",
+                    "description": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                    "role": "Product strategist",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "scan-github-source",
+                    "title": "Scan GitHub source",
+                    "description": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                    "role": "Source analyst",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "map-capability-pool",
+                    "title": "Map capability pool",
+                    "description": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                    "role": "Orchestrator",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "derive-spec-tree-seed",
+                    "title": "Derive SPEC tree seed",
+                    "description": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                    "role": "SPEC curator",
+                    "status": "pending"
+                  },
+                  {
+                    "id": "plan-preview-and-prompts",
+                    "title": "Plan previews and prompts",
+                    "description": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                    "role": "Preview planner",
+                    "status": "pending"
+                  }
+                ],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ]
+              },
+              {
+                "id": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:alternative-preview-first",
+                "kind": "alternative",
+                "title": "Preview-first exploratory route",
+                "summary": "Push route analysis toward effect preview early, then backfill SPEC documents from the selected prototype direction.",
+                "rationale": "Useful when the user needs to see the future system effect before locking detailed specifications.",
+                "riskLevel": "high",
+                "costLevel": "high",
+                "complexity": "deep",
+                "estimatedEffort": "3-5 exploration passes",
+                "capabilities": [
+                  {
+                    "id": "mcp-github-source",
+                    "label": "GitHub source reader",
+                    "kind": "mcp",
+                    "purpose": "Read repository context before route generation."
+                  },
+                  {
+                    "id": "role-product-strategy",
+                    "label": "Product strategy role",
+                    "kind": "role",
+                    "purpose": "Clarify user intent, boundaries, and acceptance signals."
+                  },
+                  {
+                    "id": "role-system-architecture",
+                    "label": "System architecture role",
+                    "kind": "role",
+                    "purpose": "Shape modules, dependencies, and engineering landing risks."
+                  },
+                  {
+                    "id": "docker-analysis-sandbox",
+                    "label": "Docker analysis sandbox",
+                    "kind": "docker",
+                    "purpose": "Run repository inspection and artifact generation in isolation."
+                  },
+                  {
+                    "id": "skill-svg-architecture",
+                    "label": "SVG architecture skill",
+                    "kind": "skill",
+                    "purpose": "Produce architecture diagrams and route evidence artifacts."
+                  },
+                  {
+                    "id": "aigc-spec-node",
+                    "label": "AIGC SPEC derivation node",
+                    "kind": "aigc_node",
+                    "purpose": "Turn route nodes into SPEC tree candidates."
+                  }
+                ],
+                "steps": [
+                  {
+                    "id": "clarify-intent",
+                    "title": "Clarify execution intent",
+                    "description": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                    "role": "Product strategist",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "scan-github-source",
+                    "title": "Scan GitHub source",
+                    "description": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                    "role": "Source analyst",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "map-capability-pool",
+                    "title": "Map capability pool",
+                    "description": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                    "role": "Orchestrator",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "derive-spec-tree-seed",
+                    "title": "Derive SPEC tree seed",
+                    "description": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                    "role": "SPEC curator",
+                    "status": "pending"
+                  },
+                  {
+                    "id": "plan-preview-and-prompts",
+                    "title": "Plan previews and prompts",
+                    "description": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                    "role": "Preview planner",
+                    "status": "pending"
+                  }
+                ],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ]
+              }
+            ],
+            "nextAsset": {
+              "type": "spec_tree",
+              "menu": "deduction",
+              "description": "Use the selected RouteSet path as the source asset for the Deduction menu and SPEC tree workbench."
+            },
+            "provenance": {
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/666ghj/mirofish"
+              ]
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-5e5f6667-59a3-4a07-a476-5ae7c4e5f4b6",
+          "type": "route_selection",
+          "title": "Selected route: Primary SPEC asset route",
+          "summary": "User-selected autopilot route that acts as the source of SPEC tree derivation.",
+          "createdAt": "2026-05-07T04:42:06.007Z",
+          "payload": {
+            "id": "blueprint-route-selection-06bf909d-984e-4365-b530-4237068962db",
+            "routeSetId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16",
+            "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+            "routeTitle": "Primary SPEC asset route",
+            "selectedAt": "2026-05-07T04:42:06.007Z",
+            "selectedBy": "autopilot",
+            "reason": "Selected from the autopilot RouteSet preflight page.",
+            "mergedAlternativeRouteIds": [],
+            "status": "selected",
+            "provenance": {
+              "jobId": "blueprint-job-41193d56-86f0-415b-92de-631f7b13be70",
+              "projectId": "project-lCQPdgArpM"
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-d1b20c6a-6d47-4ce9-b6b0-c720119e5616",
+          "type": "spec_tree",
+          "title": "Derived SPEC tree",
+          "summary": "Initial durable SPEC tree generated from the selected primary or alternative route.",
+          "createdAt": "2026-05-07T04:42:06.007Z",
+          "payload": {
+            "id": "blueprint-spec-tree-9b35fcbe-3ea9-49c7-92b5-96bbe8c6c9ca",
+            "routeSetId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16",
+            "selectionId": "blueprint-route-selection-06bf909d-984e-4365-b530-4237068962db",
+            "selectedRouteId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+            "rootNodeId": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+            "version": 1,
+            "status": "draft",
+            "createdAt": "2026-05-07T04:42:06.007Z",
+            "updatedAt": "2026-05-07T04:42:06.007Z",
+            "alternativeRouteIds": [
+              "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:alternative-docs-first",
+              "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:alternative-preview-first"
+            ],
+            "nodes": [
+              {
+                "id": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+                "title": "SPEC asset tree: GitHub 666ghj/mirofish",
+                "summary": "Durable tree asset derived from the selected autopilot route. Downstream menus bind to this tree instead of recomputing the route.",
+                "type": "root",
+                "status": "draft",
+                "priority": 0,
+                "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+                "dependencies": [],
+                "outputs": [
+                  "SPEC tree",
+                  "requirements seed",
+                  "design seed",
+                  "tasks seed"
+                ],
+                "children": [
+                  "blueprint-spec-node-1e15b199-17a7-4fd7-a88f-35a67023259f",
+                  "blueprint-spec-node-e63a831f-f66a-444e-8bca-073c0cb715dd",
+                  "blueprint-spec-node-e8410fcd-8e07-4490-9b41-11ca7aa77459",
+                  "blueprint-spec-node-09279b23-14fa-4643-a023-e33a20201e1f",
+                  "blueprint-spec-node-2600fbcc-07ac-4b13-9cf8-077442ec33e0",
+                  "blueprint-spec-node-786e95df-e983-4b55-9de7-a49dcf443dd4",
+                  "blueprint-spec-node-ab6cad63-347e-4b60-90fb-eaf78252bd27",
+                  "blueprint-spec-node-935be03d-9c5a-432e-a74b-9abdd1f730db",
+                  "blueprint-spec-node-96442f09-8ce5-4384-ae24-400e43de6988",
+                  "blueprint-spec-node-f699f0f9-facb-45d2-a01d-362ee4807cc3",
+                  "blueprint-spec-node-80106c28-11ec-4a7a-a532-1ccde2ee01e0"
+                ],
+                "metadata": {
+                  "selectedRouteTitle": "Primary SPEC asset route",
+                  "routeSetId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-1e15b199-17a7-4fd7-a88f-35a67023259f",
+                "parentId": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+                "title": "Clarify execution intent",
+                "summary": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                "type": "route_step",
+                "status": "ready",
+                "priority": 1,
+                "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+                "routeStepId": "clarify-intent",
+                "dependencies": [],
+                "outputs": [
+                  "clarification decisions",
+                  "success criteria"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Product strategist",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-e63a831f-f66a-444e-8bca-073c0cb715dd",
+                "parentId": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+                "title": "Scan GitHub source",
+                "summary": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                "type": "route_step",
+                "status": "ready",
+                "priority": 2,
+                "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+                "routeStepId": "scan-github-source",
+                "dependencies": [],
+                "outputs": [
+                  "route evidence"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Source analyst",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-e8410fcd-8e07-4490-9b41-11ca7aa77459",
+                "parentId": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+                "title": "Map capability pool",
+                "summary": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                "type": "route_step",
+                "status": "ready",
+                "priority": 3,
+                "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+                "routeStepId": "map-capability-pool",
+                "dependencies": [],
+                "outputs": [
+                  "route evidence"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Orchestrator",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-09279b23-14fa-4643-a023-e33a20201e1f",
+                "parentId": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+                "title": "Derive SPEC tree seed",
+                "summary": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                "type": "route_step",
+                "status": "seed",
+                "priority": 4,
+                "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+                "routeStepId": "derive-spec-tree-seed",
+                "dependencies": [],
+                "outputs": [
+                  "SPEC tree seed",
+                  "node map"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "SPEC curator",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-2600fbcc-07ac-4b13-9cf8-077442ec33e0",
+                "parentId": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+                "title": "Plan previews and prompts",
+                "summary": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                "type": "route_step",
+                "status": "seed",
+                "priority": 5,
+                "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+                "routeStepId": "plan-preview-and-prompts",
+                "dependencies": [],
+                "outputs": [
+                  "route evidence"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Preview planner",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-786e95df-e983-4b55-9de7-a49dcf443dd4",
+                "parentId": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+                "title": "Documentation-first conservative route",
+                "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+                "type": "alternative_route",
+                "status": "seed",
+                "priority": 6,
+                "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:alternative-docs-first",
+                "dependencies": [],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ],
+                "children": [],
+                "metadata": {
+                  "riskLevel": "low",
+                  "costLevel": "low",
+                  "complexity": "light",
+                  "mergedIntoSelection": false
+                }
+              },
+              {
+                "id": "blueprint-spec-node-ab6cad63-347e-4b60-90fb-eaf78252bd27",
+                "parentId": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+                "title": "Preview-first exploratory route",
+                "summary": "Push route analysis toward effect preview early, then backfill SPEC documents from the selected prototype direction.",
+                "type": "alternative_route",
+                "status": "seed",
+                "priority": 7,
+                "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:alternative-preview-first",
+                "dependencies": [],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ],
+                "children": [],
+                "metadata": {
+                  "riskLevel": "high",
+                  "costLevel": "high",
+                  "complexity": "deep",
+                  "mergedIntoSelection": false
+                }
+              },
+              {
+                "id": "blueprint-spec-node-935be03d-9c5a-432e-a74b-9abdd1f730db",
+                "parentId": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+                "title": "Specification document generation",
+                "summary": "Expand the selected SPEC tree into requirements, design, and tasks for each important node.",
+                "type": "spec_document",
+                "status": "seed",
+                "priority": 8,
+                "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+                "dependencies": [],
+                "outputs": [
+                  "requirements.md",
+                  "design.md",
+                  "tasks.md"
+                ],
+                "children": []
+              },
+              {
+                "id": "blueprint-spec-node-96442f09-8ce5-4384-ae24-400e43de6988",
+                "parentId": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+                "title": "Effect preview",
+                "summary": "Preview architecture, progress plan, expected UI/prototype direction, and step-by-step implementation effect before coding.",
+                "type": "effect_preview",
+                "status": "seed",
+                "priority": 9,
+                "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+                "dependencies": [
+                  "spec_document"
+                ],
+                "outputs": [
+                  "architecture diagram",
+                  "prototype notes",
+                  "progress plan"
+                ],
+                "children": []
+              },
+              {
+                "id": "blueprint-spec-node-f699f0f9-facb-45d2-a01d-362ee4807cc3",
+                "parentId": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+                "title": "Implementation prompt package",
+                "summary": "Package the selected future implementation into prompts that can be used by Cursor, Kiro, Trae, Windsurf, Codex, Claude, and similar tools.",
+                "type": "prompt_package",
+                "status": "seed",
+                "priority": 10,
+                "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+                "dependencies": [
+                  "effect_preview"
+                ],
+                "outputs": [
+                  "platform prompts",
+                  "acceptance checklist"
+                ],
+                "children": []
+              },
+              {
+                "id": "blueprint-spec-node-80106c28-11ec-4a7a-a532-1ccde2ee01e0",
+                "parentId": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+                "title": "Engineering landing",
+                "summary": "Reserve the later execution bridge that turns accepted SPEC assets into repository changes and run evidence.",
+                "type": "engineering_plan",
+                "status": "seed",
+                "priority": 11,
+                "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+                "dependencies": [
+                  "prompt_package"
+                ],
+                "outputs": [
+                  "landing plan",
+                  "run evidence"
+                ],
+                "children": []
+              }
+            ],
+            "provenance": {
+              "jobId": "blueprint-job-41193d56-86f0-415b-92de-631f7b13be70",
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/666ghj/mirofish"
+              ]
+            }
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "blueprint-event-664b674f-71f5-4022-9587-0c1ca671cd2a",
+          "jobId": "blueprint-job-41193d56-86f0-415b-92de-631f7b13be70",
+          "type": "job.created",
+          "stage": "input",
+          "status": "pending",
+          "message": "Blueprint generation job accepted.",
+          "occurredAt": "2026-05-07T04:42:00.829Z"
+        },
+        {
+          "id": "blueprint-event-ce9cdb97-3305-4af8-9a94-7741fbfe7ae1",
+          "jobId": "blueprint-job-41193d56-86f0-415b-92de-631f7b13be70",
+          "type": "job.stage",
+          "stage": "route_generation",
+          "status": "running",
+          "message": "Generating primary and alternative autopilot routes.",
+          "occurredAt": "2026-05-07T04:42:00.829Z"
+        },
+        {
+          "id": "blueprint-event-95a4e181-4594-44ca-882e-bc229167f91b",
+          "jobId": "blueprint-job-41193d56-86f0-415b-92de-631f7b13be70",
+          "type": "job.completed",
+          "stage": "route_generation",
+          "status": "completed",
+          "message": "RouteSet generated and ready for SPEC tree derivation.",
+          "occurredAt": "2026-05-07T04:42:00.829Z",
+          "payload": {
+            "routeSetId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16"
+          }
+        },
+        {
+          "id": "blueprint-event-a5bfe133-496d-484b-af75-43dd95e393c8",
+          "jobId": "blueprint-job-41193d56-86f0-415b-92de-631f7b13be70",
+          "type": "job.stage",
+          "stage": "spec_tree",
+          "status": "running",
+          "message": "Selected route Primary SPEC asset route and started SPEC tree derivation.",
+          "occurredAt": "2026-05-07T04:42:06.007Z",
+          "payload": {
+            "routeSetId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16",
+            "routeId": "blueprint-routeset-18b331a4-2453-429f-9a41-1aa0a904ca16:primary",
+            "selectionId": "blueprint-route-selection-06bf909d-984e-4365-b530-4237068962db"
+          }
+        },
+        {
+          "id": "blueprint-event-e1ee8b0e-b623-41a6-a5a9-8809321004d8",
+          "jobId": "blueprint-job-41193d56-86f0-415b-92de-631f7b13be70",
+          "type": "job.completed",
+          "stage": "spec_tree",
+          "status": "reviewing",
+          "message": "SPEC tree draft generated and ready for the Deduction workbench.",
+          "occurredAt": "2026-05-07T04:42:06.007Z",
+          "payload": {
+            "specTreeId": "blueprint-spec-tree-9b35fcbe-3ea9-49c7-92b5-96bbe8c6c9ca",
+            "rootNodeId": "blueprint-spec-node-d2d69c05-f722-41bc-ab11-2adef8c04514",
+            "nodeCount": 12
+          }
+        }
+      ]
+    },
+    {
+      "id": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+      "request": {
+        "projectId": "project-lCQPdgArpM",
+        "version": "blueprint-generation/v1",
+        "mode": "autopilot_route",
+        "intakeId": "blueprint-intake-a8a01c7d-0259-454a-a959-dbdb821f15d2",
+        "clarificationSessionId": "blueprint-clarification-e81afeb6-c4f9-446d-9055-804714d67a5f",
+        "githubUrls": [
+          "https://github.com/opencroc/cube-pets-office"
+        ],
+        "clarifications": [
+          {
+            "questionId": "blueprint-question-goal",
+            "answer": "项目全貌"
+          },
+          {
+            "questionId": "blueprint-question-audience",
+            "answer": "项目全貌"
+          },
+          {
+            "questionId": "blueprint-question-constraints",
+            "answer": "spec规范，需求，设计，任务"
+          },
+          {
+            "questionId": "blueprint-question-github-role",
+            "answer": "主次"
+          }
+        ],
+        "domainContext": {
+          "projectId": "project-lCQPdgArpM",
+          "updatedAt": "2026-05-07T05:15:11.054Z",
+          "intakeIds": [
+            "blueprint-intake-a8a01c7d-0259-454a-a959-dbdb821f15d2"
+          ],
+          "sourceIds": [
+            "blueprint-source-opencroc-cube-pets-office"
+          ],
+          "assets": [
+            {
+              "id": "blueprint-asset-github-https-github-com-opencroc-cube-pets-office",
+              "kind": "github_repository",
+              "title": "opencroc/cube-pets-office",
+              "summary": "Repository context placeholder for https://github.com/opencroc/cube-pets-office.",
+              "sourceIds": [
+                "blueprint-source-opencroc-cube-pets-office"
+              ],
+              "evidenceIds": [
+                "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+              ],
+              "tags": [
+                "github",
+                "source"
+              ],
+              "createdAt": "2026-05-07T05:15:11.054Z"
+            }
+          ],
+          "evidence": [
+            {
+              "id": "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office",
+              "kind": "github_url",
+              "label": "opencroc/cube-pets-office",
+              "summary": "GitHub repository URL parsed as opencroc/cube-pets-office.",
+              "value": "https://github.com/opencroc/cube-pets-office",
+              "sourceId": "blueprint-source-opencroc-cube-pets-office",
+              "createdAt": "2026-05-07T05:15:11.054Z"
+            }
+          ]
+        }
+      },
+      "status": "reviewing",
+      "stage": "spec_docs",
+      "projectId": "project-lCQPdgArpM",
+      "version": "blueprint-generation/v1",
+      "createdAt": "2026-05-07T05:15:38.116Z",
+      "updatedAt": "2026-05-07T05:32:18.412Z",
+      "completedAt": "2026-05-07T05:15:40.804Z",
+      "artifacts": [
+        {
+          "id": "blueprint-artifact-a952828f-7cd1-45bd-afdb-d88e493239dd",
+          "type": "intake",
+          "title": "Blueprint Intake",
+          "summary": "Normalized target input and GitHub sources captured before route generation.",
+          "createdAt": "2026-05-07T05:15:38.116Z",
+          "payload": {
+            "id": "blueprint-intake-a8a01c7d-0259-454a-a959-dbdb821f15d2",
+            "projectId": "project-lCQPdgArpM",
+            "githubUrls": [
+              "https://github.com/opencroc/cube-pets-office"
+            ],
+            "sources": [
+              {
+                "id": "blueprint-source-opencroc-cube-pets-office",
+                "kind": "repository",
+                "url": "https://github.com/opencroc/cube-pets-office",
+                "normalizedUrl": "https://github.com/opencroc/cube-pets-office",
+                "owner": "opencroc",
+                "repo": "cube-pets-office",
+                "slug": "opencroc/cube-pets-office",
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ]
+              }
+            ],
+            "duplicateGithubUrls": [],
+            "domainNotes": [],
+            "assets": [
+              {
+                "id": "blueprint-asset-github-https-github-com-opencroc-cube-pets-office",
+                "kind": "github_repository",
+                "title": "opencroc/cube-pets-office",
+                "summary": "Repository context placeholder for https://github.com/opencroc/cube-pets-office.",
+                "sourceIds": [
+                  "blueprint-source-opencroc-cube-pets-office"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ],
+                "tags": [
+                  "github",
+                  "source"
+                ],
+                "createdAt": "2026-05-07T05:15:11.054Z"
+              }
+            ],
+            "evidence": [
+              {
+                "id": "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office",
+                "kind": "github_url",
+                "label": "opencroc/cube-pets-office",
+                "summary": "GitHub repository URL parsed as opencroc/cube-pets-office.",
+                "value": "https://github.com/opencroc/cube-pets-office",
+                "sourceId": "blueprint-source-opencroc-cube-pets-office",
+                "createdAt": "2026-05-07T05:15:11.054Z"
+              }
+            ],
+            "readiness": {
+              "status": "ready",
+              "score": 1,
+              "answeredRequired": 1,
+              "requiredTotal": 1,
+              "missingQuestionIds": []
+            },
+            "createdAt": "2026-05-07T05:15:11.054Z",
+            "updatedAt": "2026-05-07T05:15:11.054Z"
+          }
+        },
+        {
+          "id": "blueprint-artifact-ec2c0d3d-04cd-4960-b924-8d685a337fa3",
+          "type": "github_source",
+          "title": "GitHub Source: opencroc/cube-pets-office",
+          "summary": "Repository source normalized from https://github.com/opencroc/cube-pets-office.",
+          "createdAt": "2026-05-07T05:15:38.116Z",
+          "payload": {
+            "id": "blueprint-source-opencroc-cube-pets-office",
+            "kind": "repository",
+            "url": "https://github.com/opencroc/cube-pets-office",
+            "normalizedUrl": "https://github.com/opencroc/cube-pets-office",
+            "owner": "opencroc",
+            "repo": "cube-pets-office",
+            "slug": "opencroc/cube-pets-office",
+            "evidenceIds": [
+              "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+            ]
+          }
+        },
+        {
+          "id": "blueprint-artifact-f2106172-727f-469b-bc5d-3f5d8c023999",
+          "type": "clarification_session",
+          "title": "Clarification Session",
+          "summary": "0/4 required clarification answers recorded.",
+          "createdAt": "2026-05-07T05:15:38.116Z",
+          "payload": {
+            "id": "blueprint-clarification-e81afeb6-c4f9-446d-9055-804714d67a5f",
+            "intakeId": "blueprint-intake-a8a01c7d-0259-454a-a959-dbdb821f15d2",
+            "projectId": "project-lCQPdgArpM",
+            "questions": [
+              {
+                "id": "blueprint-question-goal",
+                "kind": "goal",
+                "prompt": "What outcome should the blueprint optimize for first?",
+                "required": true,
+                "sourceIds": [],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ]
+              },
+              {
+                "id": "blueprint-question-audience",
+                "kind": "audience",
+                "prompt": "Who is the primary user or operator for this project?",
+                "required": true,
+                "sourceIds": [],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ]
+              },
+              {
+                "id": "blueprint-question-constraints",
+                "kind": "constraint",
+                "prompt": "What constraints, integrations, or risks must the route preserve?",
+                "required": true,
+                "sourceIds": [
+                  "blueprint-source-opencroc-cube-pets-office"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ]
+              },
+              {
+                "id": "blueprint-question-github-role",
+                "kind": "github",
+                "prompt": "How should the GitHub repository influence the first RouteSet?",
+                "required": true,
+                "sourceIds": [
+                  "blueprint-source-opencroc-cube-pets-office"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ]
+              },
+              {
+                "id": "blueprint-question-domain-assets",
+                "kind": "domain",
+                "prompt": "Which durable domain assets should be carried into later stages?",
+                "required": false,
+                "sourceIds": [
+                  "blueprint-source-opencroc-cube-pets-office"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ]
+              }
+            ],
+            "answers": [],
+            "readiness": {
+              "status": "needs_answers",
+              "score": 0,
+              "answeredRequired": 0,
+              "requiredTotal": 4,
+              "missingQuestionIds": [
+                "blueprint-question-goal",
+                "blueprint-question-audience",
+                "blueprint-question-constraints",
+                "blueprint-question-github-role"
+              ]
+            },
+            "createdAt": "2026-05-07T05:15:12.189Z",
+            "updatedAt": "2026-05-07T05:15:12.189Z"
+          }
+        },
+        {
+          "id": "blueprint-artifact-0a2d06ae-4372-4030-8427-763478acad2a",
+          "type": "project_context",
+          "title": "Project Domain Context",
+          "summary": "1 domain assets and 1 evidence items available for routing.",
+          "createdAt": "2026-05-07T05:15:38.116Z",
+          "payload": {
+            "projectId": "project-lCQPdgArpM",
+            "updatedAt": "2026-05-07T05:15:11.054Z",
+            "intakeIds": [
+              "blueprint-intake-a8a01c7d-0259-454a-a959-dbdb821f15d2"
+            ],
+            "sourceIds": [
+              "blueprint-source-opencroc-cube-pets-office"
+            ],
+            "assets": [
+              {
+                "id": "blueprint-asset-github-https-github-com-opencroc-cube-pets-office",
+                "kind": "github_repository",
+                "title": "opencroc/cube-pets-office",
+                "summary": "Repository context placeholder for https://github.com/opencroc/cube-pets-office.",
+                "sourceIds": [
+                  "blueprint-source-opencroc-cube-pets-office"
+                ],
+                "evidenceIds": [
+                  "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office"
+                ],
+                "tags": [
+                  "github",
+                  "source"
+                ],
+                "createdAt": "2026-05-07T05:15:11.054Z"
+              }
+            ],
+            "evidence": [
+              {
+                "id": "blueprint-evidence-github-url-https-github-com-opencroc-cube-pets-office",
+                "kind": "github_url",
+                "label": "opencroc/cube-pets-office",
+                "summary": "GitHub repository URL parsed as opencroc/cube-pets-office.",
+                "value": "https://github.com/opencroc/cube-pets-office",
+                "sourceId": "blueprint-source-opencroc-cube-pets-office",
+                "createdAt": "2026-05-07T05:15:11.054Z"
+              }
+            ]
+          }
+        },
+        {
+          "id": "blueprint-artifact-fd41ae14-862d-4f98-808e-c6afee571da0",
+          "type": "route_set",
+          "title": "Autopilot RouteSet",
+          "summary": "Primary and alternative routes prepared for SPEC tree derivation.",
+          "createdAt": "2026-05-07T05:15:38.116Z",
+          "payload": {
+            "id": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f",
+            "requestId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+            "createdAt": "2026-05-07T05:15:38.116Z",
+            "primaryRouteId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+            "routes": [
+              {
+                "id": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+                "kind": "primary",
+                "title": "Primary SPEC asset route",
+                "summary": "Clarify GitHub opencroc/cube-pets-office, derive the durable SPEC tree, then expand documents, preview, and implementation prompts.",
+                "rationale": "Balances product clarification, architecture analysis, and asset persistence so the selected path can become the long-lived SPEC tree.",
+                "riskLevel": "medium",
+                "costLevel": "medium",
+                "complexity": "balanced",
+                "estimatedEffort": "2-4 analysis passes",
+                "capabilities": [
+                  {
+                    "id": "mcp-github-source",
+                    "label": "GitHub source reader",
+                    "kind": "mcp",
+                    "purpose": "Read repository context before route generation."
+                  },
+                  {
+                    "id": "role-product-strategy",
+                    "label": "Product strategy role",
+                    "kind": "role",
+                    "purpose": "Clarify user intent, boundaries, and acceptance signals."
+                  },
+                  {
+                    "id": "role-system-architecture",
+                    "label": "System architecture role",
+                    "kind": "role",
+                    "purpose": "Shape modules, dependencies, and engineering landing risks."
+                  },
+                  {
+                    "id": "docker-analysis-sandbox",
+                    "label": "Docker analysis sandbox",
+                    "kind": "docker",
+                    "purpose": "Run repository inspection and artifact generation in isolation."
+                  },
+                  {
+                    "id": "skill-svg-architecture",
+                    "label": "SVG architecture skill",
+                    "kind": "skill",
+                    "purpose": "Produce architecture diagrams and route evidence artifacts."
+                  },
+                  {
+                    "id": "aigc-spec-node",
+                    "label": "AIGC SPEC derivation node",
+                    "kind": "aigc_node",
+                    "purpose": "Turn route nodes into SPEC tree candidates."
+                  }
+                ],
+                "steps": [
+                  {
+                    "id": "clarify-intent",
+                    "title": "Clarify execution intent",
+                    "description": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                    "role": "Product strategist",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "scan-github-source",
+                    "title": "Scan GitHub source",
+                    "description": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                    "role": "Source analyst",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "map-capability-pool",
+                    "title": "Map capability pool",
+                    "description": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                    "role": "Orchestrator",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "derive-spec-tree-seed",
+                    "title": "Derive SPEC tree seed",
+                    "description": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                    "role": "SPEC curator",
+                    "status": "pending"
+                  },
+                  {
+                    "id": "plan-preview-and-prompts",
+                    "title": "Plan previews and prompts",
+                    "description": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                    "role": "Preview planner",
+                    "status": "pending"
+                  }
+                ],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ]
+              },
+              {
+                "id": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:alternative-docs-first",
+                "kind": "alternative",
+                "title": "Documentation-first conservative route",
+                "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+                "rationale": "Reduces downstream churn when the business boundary is still broad or governance matters more than speed.",
+                "riskLevel": "low",
+                "costLevel": "low",
+                "complexity": "light",
+                "estimatedEffort": "1-2 review passes",
+                "capabilities": [
+                  {
+                    "id": "mcp-github-source",
+                    "label": "GitHub source reader",
+                    "kind": "mcp",
+                    "purpose": "Read repository context before route generation."
+                  },
+                  {
+                    "id": "role-product-strategy",
+                    "label": "Product strategy role",
+                    "kind": "role",
+                    "purpose": "Clarify user intent, boundaries, and acceptance signals."
+                  },
+                  {
+                    "id": "role-system-architecture",
+                    "label": "System architecture role",
+                    "kind": "role",
+                    "purpose": "Shape modules, dependencies, and engineering landing risks."
+                  },
+                  {
+                    "id": "docker-analysis-sandbox",
+                    "label": "Docker analysis sandbox",
+                    "kind": "docker",
+                    "purpose": "Run repository inspection and artifact generation in isolation."
+                  },
+                  {
+                    "id": "skill-svg-architecture",
+                    "label": "SVG architecture skill",
+                    "kind": "skill",
+                    "purpose": "Produce architecture diagrams and route evidence artifacts."
+                  },
+                  {
+                    "id": "aigc-spec-node",
+                    "label": "AIGC SPEC derivation node",
+                    "kind": "aigc_node",
+                    "purpose": "Turn route nodes into SPEC tree candidates."
+                  }
+                ],
+                "steps": [
+                  {
+                    "id": "clarify-intent",
+                    "title": "Clarify execution intent",
+                    "description": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                    "role": "Product strategist",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "scan-github-source",
+                    "title": "Scan GitHub source",
+                    "description": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                    "role": "Source analyst",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "map-capability-pool",
+                    "title": "Map capability pool",
+                    "description": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                    "role": "Orchestrator",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "derive-spec-tree-seed",
+                    "title": "Derive SPEC tree seed",
+                    "description": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                    "role": "SPEC curator",
+                    "status": "pending"
+                  },
+                  {
+                    "id": "plan-preview-and-prompts",
+                    "title": "Plan previews and prompts",
+                    "description": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                    "role": "Preview planner",
+                    "status": "pending"
+                  }
+                ],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ]
+              },
+              {
+                "id": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:alternative-preview-first",
+                "kind": "alternative",
+                "title": "Preview-first exploratory route",
+                "summary": "Push route analysis toward effect preview early, then backfill SPEC documents from the selected prototype direction.",
+                "rationale": "Useful when the user needs to see the future system effect before locking detailed specifications.",
+                "riskLevel": "high",
+                "costLevel": "high",
+                "complexity": "deep",
+                "estimatedEffort": "3-5 exploration passes",
+                "capabilities": [
+                  {
+                    "id": "mcp-github-source",
+                    "label": "GitHub source reader",
+                    "kind": "mcp",
+                    "purpose": "Read repository context before route generation."
+                  },
+                  {
+                    "id": "role-product-strategy",
+                    "label": "Product strategy role",
+                    "kind": "role",
+                    "purpose": "Clarify user intent, boundaries, and acceptance signals."
+                  },
+                  {
+                    "id": "role-system-architecture",
+                    "label": "System architecture role",
+                    "kind": "role",
+                    "purpose": "Shape modules, dependencies, and engineering landing risks."
+                  },
+                  {
+                    "id": "docker-analysis-sandbox",
+                    "label": "Docker analysis sandbox",
+                    "kind": "docker",
+                    "purpose": "Run repository inspection and artifact generation in isolation."
+                  },
+                  {
+                    "id": "skill-svg-architecture",
+                    "label": "SVG architecture skill",
+                    "kind": "skill",
+                    "purpose": "Produce architecture diagrams and route evidence artifacts."
+                  },
+                  {
+                    "id": "aigc-spec-node",
+                    "label": "AIGC SPEC derivation node",
+                    "kind": "aigc_node",
+                    "purpose": "Turn route nodes into SPEC tree candidates."
+                  }
+                ],
+                "steps": [
+                  {
+                    "id": "clarify-intent",
+                    "title": "Clarify execution intent",
+                    "description": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                    "role": "Product strategist",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "scan-github-source",
+                    "title": "Scan GitHub source",
+                    "description": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                    "role": "Source analyst",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "map-capability-pool",
+                    "title": "Map capability pool",
+                    "description": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                    "role": "Orchestrator",
+                    "status": "ready"
+                  },
+                  {
+                    "id": "derive-spec-tree-seed",
+                    "title": "Derive SPEC tree seed",
+                    "description": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                    "role": "SPEC curator",
+                    "status": "pending"
+                  },
+                  {
+                    "id": "plan-preview-and-prompts",
+                    "title": "Plan previews and prompts",
+                    "description": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                    "role": "Preview planner",
+                    "status": "pending"
+                  }
+                ],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ]
+              }
+            ],
+            "nextAsset": {
+              "type": "spec_tree",
+              "menu": "deduction",
+              "description": "Use the selected RouteSet path as the source asset for the Deduction menu and SPEC tree workbench."
+            },
+            "provenance": {
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/opencroc/cube-pets-office"
+              ]
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-1a1b3a5f-9c85-4921-b77b-fcd6cb354835",
+          "type": "route_selection",
+          "title": "Selected route: Primary SPEC asset route",
+          "summary": "User-selected autopilot route that acts as the source of SPEC tree derivation.",
+          "createdAt": "2026-05-07T05:15:40.804Z",
+          "payload": {
+            "id": "blueprint-route-selection-c827f600-5230-4f47-9928-9cb9d05cd1d2",
+            "routeSetId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f",
+            "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+            "routeTitle": "Primary SPEC asset route",
+            "selectedAt": "2026-05-07T05:15:40.804Z",
+            "selectedBy": "autopilot",
+            "reason": "Selected from the autopilot RouteSet preflight page.",
+            "mergedAlternativeRouteIds": [],
+            "status": "selected",
+            "provenance": {
+              "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+              "projectId": "project-lCQPdgArpM"
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-774dd21d-a65a-46bc-b504-962bd89512a4",
+          "type": "spec_tree",
+          "title": "Derived SPEC tree",
+          "summary": "Initial durable SPEC tree generated from the selected primary or alternative route.",
+          "createdAt": "2026-05-07T05:15:40.804Z",
+          "payload": {
+            "id": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "routeSetId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f",
+            "selectionId": "blueprint-route-selection-c827f600-5230-4f47-9928-9cb9d05cd1d2",
+            "selectedRouteId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+            "rootNodeId": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+            "version": 1,
+            "status": "draft",
+            "createdAt": "2026-05-07T05:15:40.804Z",
+            "updatedAt": "2026-05-07T05:15:40.804Z",
+            "alternativeRouteIds": [
+              "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:alternative-docs-first",
+              "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:alternative-preview-first"
+            ],
+            "nodes": [
+              {
+                "id": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+                "title": "SPEC asset tree: GitHub opencroc/cube-pets-office",
+                "summary": "Durable tree asset derived from the selected autopilot route. Downstream menus bind to this tree instead of recomputing the route.",
+                "type": "root",
+                "status": "draft",
+                "priority": 0,
+                "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+                "dependencies": [],
+                "outputs": [
+                  "SPEC tree",
+                  "requirements seed",
+                  "design seed",
+                  "tasks seed"
+                ],
+                "children": [
+                  "blueprint-spec-node-6c2f2ec5-4984-4965-a50a-e6d7aac4498d",
+                  "blueprint-spec-node-807a17f9-665d-4414-9622-3b3562ca81f1",
+                  "blueprint-spec-node-cda2dbfa-3ac7-49af-8128-5fbc3cb34258",
+                  "blueprint-spec-node-565fb9da-6018-4099-843e-9a6b5c408cc1",
+                  "blueprint-spec-node-40c9941f-09e2-485e-a8dd-b154fb23ba64",
+                  "blueprint-spec-node-d0fdcabe-f04e-4c42-a38a-ca4c0391691f",
+                  "blueprint-spec-node-accd969a-126e-4fa8-8e37-34e91029be87",
+                  "blueprint-spec-node-963ddd66-f535-4302-b41d-cde95117d81d",
+                  "blueprint-spec-node-0599096c-cfbc-45b1-b12a-533320387964",
+                  "blueprint-spec-node-7fda578c-999b-4a8a-bb06-05f44a48ae8f",
+                  "blueprint-spec-node-0b88b5d6-d49b-442e-b21b-867a5ccb55a6"
+                ],
+                "metadata": {
+                  "selectedRouteTitle": "Primary SPEC asset route",
+                  "routeSetId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-6c2f2ec5-4984-4965-a50a-e6d7aac4498d",
+                "parentId": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+                "title": "Clarify execution intent",
+                "summary": "Collect target users, product boundary, constraints, and success criteria before route choice.",
+                "type": "route_step",
+                "status": "ready",
+                "priority": 1,
+                "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+                "routeStepId": "clarify-intent",
+                "dependencies": [],
+                "outputs": [
+                  "clarification decisions",
+                  "success criteria"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Product strategist",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-807a17f9-665d-4414-9622-3b3562ca81f1",
+                "parentId": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+                "title": "Scan GitHub source",
+                "summary": "Inspect repositories and extract technology stack, module boundaries, and reusable assets.",
+                "type": "route_step",
+                "status": "ready",
+                "priority": 2,
+                "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+                "routeStepId": "scan-github-source",
+                "dependencies": [],
+                "outputs": [
+                  "route evidence"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Source analyst",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-cda2dbfa-3ac7-49af-8128-5fbc3cb34258",
+                "parentId": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+                "title": "Map capability pool",
+                "summary": "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.",
+                "type": "route_step",
+                "status": "ready",
+                "priority": 3,
+                "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+                "routeStepId": "map-capability-pool",
+                "dependencies": [],
+                "outputs": [
+                  "route evidence"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Orchestrator",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-565fb9da-6018-4099-843e-9a6b5c408cc1",
+                "parentId": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+                "title": "Derive SPEC tree seed",
+                "summary": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+                "type": "route_step",
+                "status": "seed",
+                "priority": 4,
+                "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+                "routeStepId": "derive-spec-tree-seed",
+                "dependencies": [],
+                "outputs": [
+                  "SPEC tree seed",
+                  "node map"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "SPEC curator",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-40c9941f-09e2-485e-a8dd-b154fb23ba64",
+                "parentId": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+                "title": "Plan previews and prompts",
+                "summary": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+                "type": "route_step",
+                "status": "seed",
+                "priority": 5,
+                "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+                "routeStepId": "plan-preview-and-prompts",
+                "dependencies": [],
+                "outputs": [
+                  "route evidence"
+                ],
+                "children": [],
+                "metadata": {
+                  "role": "Preview planner",
+                  "routeKind": "primary"
+                }
+              },
+              {
+                "id": "blueprint-spec-node-d0fdcabe-f04e-4c42-a38a-ca4c0391691f",
+                "parentId": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+                "title": "Documentation-first conservative route",
+                "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+                "type": "alternative_route",
+                "status": "seed",
+                "priority": 6,
+                "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:alternative-docs-first",
+                "dependencies": [],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ],
+                "children": [],
+                "metadata": {
+                  "riskLevel": "low",
+                  "costLevel": "low",
+                  "complexity": "light",
+                  "mergedIntoSelection": false
+                }
+              },
+              {
+                "id": "blueprint-spec-node-accd969a-126e-4fa8-8e37-34e91029be87",
+                "parentId": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+                "title": "Preview-first exploratory route",
+                "summary": "Push route analysis toward effect preview early, then backfill SPEC documents from the selected prototype direction.",
+                "type": "alternative_route",
+                "status": "seed",
+                "priority": 7,
+                "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:alternative-preview-first",
+                "dependencies": [],
+                "outputs": [
+                  "RouteSet outline",
+                  "Decision evidence",
+                  "SPEC tree seed",
+                  "Architecture notes",
+                  "Implementation prompt seed"
+                ],
+                "children": [],
+                "metadata": {
+                  "riskLevel": "high",
+                  "costLevel": "high",
+                  "complexity": "deep",
+                  "mergedIntoSelection": false
+                }
+              },
+              {
+                "id": "blueprint-spec-node-963ddd66-f535-4302-b41d-cde95117d81d",
+                "parentId": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+                "title": "Specification document generation",
+                "summary": "Expand the selected SPEC tree into requirements, design, and tasks for each important node.",
+                "type": "spec_document",
+                "status": "seed",
+                "priority": 8,
+                "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+                "dependencies": [],
+                "outputs": [
+                  "requirements.md",
+                  "design.md",
+                  "tasks.md"
+                ],
+                "children": []
+              },
+              {
+                "id": "blueprint-spec-node-0599096c-cfbc-45b1-b12a-533320387964",
+                "parentId": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+                "title": "Effect preview",
+                "summary": "Preview architecture, progress plan, expected UI/prototype direction, and step-by-step implementation effect before coding.",
+                "type": "effect_preview",
+                "status": "seed",
+                "priority": 9,
+                "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+                "dependencies": [
+                  "spec_document"
+                ],
+                "outputs": [
+                  "architecture diagram",
+                  "prototype notes",
+                  "progress plan"
+                ],
+                "children": []
+              },
+              {
+                "id": "blueprint-spec-node-7fda578c-999b-4a8a-bb06-05f44a48ae8f",
+                "parentId": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+                "title": "Implementation prompt package",
+                "summary": "Package the selected future implementation into prompts that can be used by Cursor, Kiro, Trae, Windsurf, Codex, Claude, and similar tools.",
+                "type": "prompt_package",
+                "status": "seed",
+                "priority": 10,
+                "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+                "dependencies": [
+                  "effect_preview"
+                ],
+                "outputs": [
+                  "platform prompts",
+                  "acceptance checklist"
+                ],
+                "children": []
+              },
+              {
+                "id": "blueprint-spec-node-0b88b5d6-d49b-442e-b21b-867a5ccb55a6",
+                "parentId": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+                "title": "Engineering landing",
+                "summary": "Reserve the later execution bridge that turns accepted SPEC assets into repository changes and run evidence.",
+                "type": "engineering_plan",
+                "status": "seed",
+                "priority": 11,
+                "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+                "dependencies": [
+                  "prompt_package"
+                ],
+                "outputs": [
+                  "landing plan",
+                  "run evidence"
+                ],
+                "children": []
+              }
+            ],
+            "provenance": {
+              "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/opencroc/cube-pets-office"
+              ]
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-8bd676ea-10e7-4a6d-831d-deec4d4699e9",
+          "type": "requirements",
+          "title": "Requirements: Documentation-first conservative route",
+          "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+          "createdAt": "2026-05-07T05:32:03.744Z",
+          "payload": {
+            "id": "blueprint-spec-document-f12b8c85-569b-4bbe-9a7b-4bf18adff2b4",
+            "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+            "treeId": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "nodeId": "blueprint-spec-node-d0fdcabe-f04e-4c42-a38a-ca4c0391691f",
+            "type": "requirements",
+            "status": "draft",
+            "version": 1,
+            "sourceDocumentId": "blueprint-spec-document-f12b8c85-569b-4bbe-9a7b-4bf18adff2b4",
+            "title": "Requirements: Documentation-first conservative route",
+            "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+            "content": "# Requirements: Documentation-first conservative route\n\n## Summary\n\nCreate a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.\n\n## Inputs\n\n- Node type: alternative_route\n- Status: seed\n- Priority: 6\n- Dependencies: none\n- Outputs: RouteSet outline, Decision evidence, SPEC tree seed, Architecture notes, Implementation prompt seed\n\n## Derived Content\n\n- The system shall support Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review..\n- The node \"Documentation-first conservative route\" shall remain traceable through job artifacts.\n- Downstream outputs: RouteSet outline, Decision evidence, SPEC tree seed, Architecture notes, Implementation prompt seed.",
+            "format": "markdown",
+            "createdAt": "2026-05-07T05:32:03.744Z",
+            "updatedAt": "2026-05-07T05:32:03.744Z",
+            "provenance": {
+              "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/opencroc/cube-pets-office"
+              ],
+              "treeVersion": 1,
+              "nodeType": "alternative_route",
+              "nodeTitle": "Documentation-first conservative route",
+              "nodeSummary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+              "dependencies": [],
+              "outputs": [
+                "RouteSet outline",
+                "Decision evidence",
+                "SPEC tree seed",
+                "Architecture notes",
+                "Implementation prompt seed"
+              ]
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-8d9cf6f9-ab92-41ff-8171-a3d32d3f0bf6",
+          "type": "design",
+          "title": "Design: Documentation-first conservative route",
+          "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+          "createdAt": "2026-05-07T05:32:03.744Z",
+          "payload": {
+            "id": "blueprint-spec-document-fbe20c5b-9a36-49f5-9a72-97bfc1b297f8",
+            "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+            "treeId": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "nodeId": "blueprint-spec-node-d0fdcabe-f04e-4c42-a38a-ca4c0391691f",
+            "type": "design",
+            "status": "draft",
+            "version": 1,
+            "sourceDocumentId": "blueprint-spec-document-fbe20c5b-9a36-49f5-9a72-97bfc1b297f8",
+            "title": "Design: Documentation-first conservative route",
+            "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+            "content": "# Design: Documentation-first conservative route\n\n## Summary\n\nCreate a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.\n\n## Inputs\n\n- Node type: alternative_route\n- Status: seed\n- Priority: 6\n- Dependencies: none\n- Outputs: RouteSet outline, Decision evidence, SPEC tree seed, Architecture notes, Implementation prompt seed\n\n## Derived Content\n\n- Structure the implementation around Documentation-first conservative route.\n- Preserve dependencies in the generated artifact graph.\n- Keep the summary: Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+            "format": "markdown",
+            "createdAt": "2026-05-07T05:32:03.744Z",
+            "updatedAt": "2026-05-07T05:32:03.744Z",
+            "provenance": {
+              "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/opencroc/cube-pets-office"
+              ],
+              "treeVersion": 1,
+              "nodeType": "alternative_route",
+              "nodeTitle": "Documentation-first conservative route",
+              "nodeSummary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+              "dependencies": [],
+              "outputs": [
+                "RouteSet outline",
+                "Decision evidence",
+                "SPEC tree seed",
+                "Architecture notes",
+                "Implementation prompt seed"
+              ]
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-22bb9ffe-272c-4639-8b28-6065c6735f9c",
+          "type": "tasks",
+          "title": "Tasks: Documentation-first conservative route",
+          "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+          "createdAt": "2026-05-07T05:32:03.744Z",
+          "payload": {
+            "id": "blueprint-spec-document-38d936dc-c1f7-41e3-8325-f3f07e02d6db",
+            "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+            "treeId": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "nodeId": "blueprint-spec-node-d0fdcabe-f04e-4c42-a38a-ca4c0391691f",
+            "type": "tasks",
+            "status": "draft",
+            "version": 1,
+            "sourceDocumentId": "blueprint-spec-document-38d936dc-c1f7-41e3-8325-f3f07e02d6db",
+            "title": "Tasks: Documentation-first conservative route",
+            "summary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+            "content": "# Tasks: Documentation-first conservative route\n\n## Summary\n\nCreate a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.\n\n## Inputs\n\n- Node type: alternative_route\n- Status: seed\n- Priority: 6\n- Dependencies: none\n- Outputs: RouteSet outline, Decision evidence, SPEC tree seed, Architecture notes, Implementation prompt seed\n\n## Derived Content\n\n- Step 1: Review Documentation-first conservative route.\n- Step 2: Deliver outputs RouteSet outline, Decision evidence, SPEC tree seed, Architecture notes, Implementation prompt seed.\n- Step 3: Confirm dependencies none.",
+            "format": "markdown",
+            "createdAt": "2026-05-07T05:32:03.744Z",
+            "updatedAt": "2026-05-07T05:32:03.744Z",
+            "provenance": {
+              "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/opencroc/cube-pets-office"
+              ],
+              "treeVersion": 1,
+              "nodeType": "alternative_route",
+              "nodeTitle": "Documentation-first conservative route",
+              "nodeSummary": "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
+              "dependencies": [],
+              "outputs": [
+                "RouteSet outline",
+                "Decision evidence",
+                "SPEC tree seed",
+                "Architecture notes",
+                "Implementation prompt seed"
+              ]
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-8060b336-f51a-4fdb-9821-1ce80fa5ac94",
+          "type": "requirements",
+          "title": "Requirements: Plan previews and prompts",
+          "summary": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+          "createdAt": "2026-05-07T05:32:14.626Z",
+          "payload": {
+            "id": "blueprint-spec-document-83a64de6-c155-4bd9-b15c-c4b6fb0e285c",
+            "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+            "treeId": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "nodeId": "blueprint-spec-node-40c9941f-09e2-485e-a8dd-b154fb23ba64",
+            "type": "requirements",
+            "status": "draft",
+            "version": 1,
+            "sourceDocumentId": "blueprint-spec-document-83a64de6-c155-4bd9-b15c-c4b6fb0e285c",
+            "title": "Requirements: Plan previews and prompts",
+            "summary": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+            "content": "# Requirements: Plan previews and prompts\n\n## Summary\n\nPrepare the downstream effect preview, architecture diagram, and implementation prompt package.\n\n## Inputs\n\n- Node type: route_step\n- Status: seed\n- Priority: 5\n- Dependencies: none\n- Outputs: route evidence\n\n## Derived Content\n\n- The system shall support Prepare the downstream effect preview, architecture diagram, and implementation prompt package..\n- The node \"Plan previews and prompts\" shall remain traceable through job artifacts.\n- Downstream outputs: route evidence.",
+            "format": "markdown",
+            "createdAt": "2026-05-07T05:32:14.626Z",
+            "updatedAt": "2026-05-07T05:32:14.626Z",
+            "provenance": {
+              "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/opencroc/cube-pets-office"
+              ],
+              "treeVersion": 1,
+              "nodeType": "route_step",
+              "nodeTitle": "Plan previews and prompts",
+              "nodeSummary": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+              "dependencies": [],
+              "outputs": [
+                "route evidence"
+              ]
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-97736a77-a775-46bb-8c7f-76bb786e7ef9",
+          "type": "design",
+          "title": "Design: Plan previews and prompts",
+          "summary": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+          "createdAt": "2026-05-07T05:32:14.626Z",
+          "payload": {
+            "id": "blueprint-spec-document-68b725c1-25a6-42a4-9f12-9ea18a0c5fd5",
+            "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+            "treeId": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "nodeId": "blueprint-spec-node-40c9941f-09e2-485e-a8dd-b154fb23ba64",
+            "type": "design",
+            "status": "draft",
+            "version": 1,
+            "sourceDocumentId": "blueprint-spec-document-68b725c1-25a6-42a4-9f12-9ea18a0c5fd5",
+            "title": "Design: Plan previews and prompts",
+            "summary": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+            "content": "# Design: Plan previews and prompts\n\n## Summary\n\nPrepare the downstream effect preview, architecture diagram, and implementation prompt package.\n\n## Inputs\n\n- Node type: route_step\n- Status: seed\n- Priority: 5\n- Dependencies: none\n- Outputs: route evidence\n\n## Derived Content\n\n- Structure the implementation around Plan previews and prompts.\n- Preserve dependencies in the generated artifact graph.\n- Keep the summary: Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+            "format": "markdown",
+            "createdAt": "2026-05-07T05:32:14.626Z",
+            "updatedAt": "2026-05-07T05:32:14.626Z",
+            "provenance": {
+              "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/opencroc/cube-pets-office"
+              ],
+              "treeVersion": 1,
+              "nodeType": "route_step",
+              "nodeTitle": "Plan previews and prompts",
+              "nodeSummary": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+              "dependencies": [],
+              "outputs": [
+                "route evidence"
+              ]
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-d57ecc52-f67f-4881-8d30-0f8be8ec3c2f",
+          "type": "tasks",
+          "title": "Tasks: Plan previews and prompts",
+          "summary": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+          "createdAt": "2026-05-07T05:32:14.626Z",
+          "payload": {
+            "id": "blueprint-spec-document-e1e0f77b-192d-430b-bfac-6350cb0cc092",
+            "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+            "treeId": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "nodeId": "blueprint-spec-node-40c9941f-09e2-485e-a8dd-b154fb23ba64",
+            "type": "tasks",
+            "status": "draft",
+            "version": 1,
+            "sourceDocumentId": "blueprint-spec-document-e1e0f77b-192d-430b-bfac-6350cb0cc092",
+            "title": "Tasks: Plan previews and prompts",
+            "summary": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+            "content": "# Tasks: Plan previews and prompts\n\n## Summary\n\nPrepare the downstream effect preview, architecture diagram, and implementation prompt package.\n\n## Inputs\n\n- Node type: route_step\n- Status: seed\n- Priority: 5\n- Dependencies: none\n- Outputs: route evidence\n\n## Derived Content\n\n- Step 1: Review Plan previews and prompts.\n- Step 2: Deliver outputs route evidence.\n- Step 3: Confirm dependencies none.",
+            "format": "markdown",
+            "createdAt": "2026-05-07T05:32:14.626Z",
+            "updatedAt": "2026-05-07T05:32:14.626Z",
+            "provenance": {
+              "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/opencroc/cube-pets-office"
+              ],
+              "treeVersion": 1,
+              "nodeType": "route_step",
+              "nodeTitle": "Plan previews and prompts",
+              "nodeSummary": "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.",
+              "dependencies": [],
+              "outputs": [
+                "route evidence"
+              ]
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-56cbd5e3-983a-42f3-b0c0-c1060b000e64",
+          "type": "requirements",
+          "title": "Requirements: Derive SPEC tree seed",
+          "summary": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+          "createdAt": "2026-05-07T05:32:18.412Z",
+          "payload": {
+            "id": "blueprint-spec-document-8a89393a-f27b-459a-91c3-40b838303ece",
+            "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+            "treeId": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "nodeId": "blueprint-spec-node-565fb9da-6018-4099-843e-9a6b5c408cc1",
+            "type": "requirements",
+            "status": "draft",
+            "version": 1,
+            "sourceDocumentId": "blueprint-spec-document-8a89393a-f27b-459a-91c3-40b838303ece",
+            "title": "Requirements: Derive SPEC tree seed",
+            "summary": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+            "content": "# Requirements: Derive SPEC tree seed\n\n## Summary\n\nTransform primary and alternative route nodes into an editable SPEC tree asset.\n\n## Inputs\n\n- Node type: route_step\n- Status: seed\n- Priority: 4\n- Dependencies: none\n- Outputs: SPEC tree seed, node map\n\n## Derived Content\n\n- The system shall support Transform primary and alternative route nodes into an editable SPEC tree asset..\n- The node \"Derive SPEC tree seed\" shall remain traceable through job artifacts.\n- Downstream outputs: SPEC tree seed, node map.",
+            "format": "markdown",
+            "createdAt": "2026-05-07T05:32:18.412Z",
+            "updatedAt": "2026-05-07T05:32:18.412Z",
+            "provenance": {
+              "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/opencroc/cube-pets-office"
+              ],
+              "treeVersion": 1,
+              "nodeType": "route_step",
+              "nodeTitle": "Derive SPEC tree seed",
+              "nodeSummary": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+              "dependencies": [],
+              "outputs": [
+                "SPEC tree seed",
+                "node map"
+              ]
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-efb97d0f-19d5-4b03-9dde-7a0cfde6ab8a",
+          "type": "design",
+          "title": "Design: Derive SPEC tree seed",
+          "summary": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+          "createdAt": "2026-05-07T05:32:18.412Z",
+          "payload": {
+            "id": "blueprint-spec-document-1da734b0-c18b-46b8-b0d6-74b2451bf89e",
+            "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+            "treeId": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "nodeId": "blueprint-spec-node-565fb9da-6018-4099-843e-9a6b5c408cc1",
+            "type": "design",
+            "status": "draft",
+            "version": 1,
+            "sourceDocumentId": "blueprint-spec-document-1da734b0-c18b-46b8-b0d6-74b2451bf89e",
+            "title": "Design: Derive SPEC tree seed",
+            "summary": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+            "content": "# Design: Derive SPEC tree seed\n\n## Summary\n\nTransform primary and alternative route nodes into an editable SPEC tree asset.\n\n## Inputs\n\n- Node type: route_step\n- Status: seed\n- Priority: 4\n- Dependencies: none\n- Outputs: SPEC tree seed, node map\n\n## Derived Content\n\n- Structure the implementation around Derive SPEC tree seed.\n- Preserve dependencies in the generated artifact graph.\n- Keep the summary: Transform primary and alternative route nodes into an editable SPEC tree asset.",
+            "format": "markdown",
+            "createdAt": "2026-05-07T05:32:18.412Z",
+            "updatedAt": "2026-05-07T05:32:18.412Z",
+            "provenance": {
+              "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/opencroc/cube-pets-office"
+              ],
+              "treeVersion": 1,
+              "nodeType": "route_step",
+              "nodeTitle": "Derive SPEC tree seed",
+              "nodeSummary": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+              "dependencies": [],
+              "outputs": [
+                "SPEC tree seed",
+                "node map"
+              ]
+            }
+          }
+        },
+        {
+          "id": "blueprint-artifact-83f23655-341e-4883-a8d1-88bb784507b4",
+          "type": "tasks",
+          "title": "Tasks: Derive SPEC tree seed",
+          "summary": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+          "createdAt": "2026-05-07T05:32:18.412Z",
+          "payload": {
+            "id": "blueprint-spec-document-bacf34df-1a60-4610-8e01-cee401570196",
+            "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+            "treeId": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "nodeId": "blueprint-spec-node-565fb9da-6018-4099-843e-9a6b5c408cc1",
+            "type": "tasks",
+            "status": "draft",
+            "version": 1,
+            "sourceDocumentId": "blueprint-spec-document-bacf34df-1a60-4610-8e01-cee401570196",
+            "title": "Tasks: Derive SPEC tree seed",
+            "summary": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+            "content": "# Tasks: Derive SPEC tree seed\n\n## Summary\n\nTransform primary and alternative route nodes into an editable SPEC tree asset.\n\n## Inputs\n\n- Node type: route_step\n- Status: seed\n- Priority: 4\n- Dependencies: none\n- Outputs: SPEC tree seed, node map\n\n## Derived Content\n\n- Step 1: Review Derive SPEC tree seed.\n- Step 2: Deliver outputs SPEC tree seed, node map.\n- Step 3: Confirm dependencies none.",
+            "format": "markdown",
+            "createdAt": "2026-05-07T05:32:18.412Z",
+            "updatedAt": "2026-05-07T05:32:18.412Z",
+            "provenance": {
+              "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+              "projectId": "project-lCQPdgArpM",
+              "githubUrls": [
+                "https://github.com/opencroc/cube-pets-office"
+              ],
+              "treeVersion": 1,
+              "nodeType": "route_step",
+              "nodeTitle": "Derive SPEC tree seed",
+              "nodeSummary": "Transform primary and alternative route nodes into an editable SPEC tree asset.",
+              "dependencies": [],
+              "outputs": [
+                "SPEC tree seed",
+                "node map"
+              ]
+            }
+          }
+        }
+      ],
+      "events": [
+        {
+          "id": "blueprint-event-9a846000-da6b-45a4-b762-0fe92d781642",
+          "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+          "type": "job.created",
+          "stage": "input",
+          "status": "pending",
+          "message": "Blueprint generation job accepted.",
+          "occurredAt": "2026-05-07T05:15:38.116Z"
+        },
+        {
+          "id": "blueprint-event-2683ef1e-2e99-4827-bd44-571acb01e8bd",
+          "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+          "type": "job.stage",
+          "stage": "route_generation",
+          "status": "running",
+          "message": "Generating primary and alternative autopilot routes.",
+          "occurredAt": "2026-05-07T05:15:38.116Z"
+        },
+        {
+          "id": "blueprint-event-a7667d28-9af5-4da4-88c4-9efa3bb449e2",
+          "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+          "type": "job.completed",
+          "stage": "route_generation",
+          "status": "completed",
+          "message": "RouteSet generated and ready for SPEC tree derivation.",
+          "occurredAt": "2026-05-07T05:15:38.116Z",
+          "payload": {
+            "routeSetId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f"
+          }
+        },
+        {
+          "id": "blueprint-event-ee90c010-b342-463e-9f03-bb0a63b8f87e",
+          "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+          "type": "job.stage",
+          "stage": "spec_tree",
+          "status": "running",
+          "message": "Selected route Primary SPEC asset route and started SPEC tree derivation.",
+          "occurredAt": "2026-05-07T05:15:40.804Z",
+          "payload": {
+            "routeSetId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f",
+            "routeId": "blueprint-routeset-2fbee9a0-e630-439f-85cc-3b7c61f7446f:primary",
+            "selectionId": "blueprint-route-selection-c827f600-5230-4f47-9928-9cb9d05cd1d2"
+          }
+        },
+        {
+          "id": "blueprint-event-281c1227-f0f2-45c3-b329-e883592bd770",
+          "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+          "type": "job.completed",
+          "stage": "spec_tree",
+          "status": "reviewing",
+          "message": "SPEC tree draft generated and ready for the Deduction workbench.",
+          "occurredAt": "2026-05-07T05:15:40.804Z",
+          "payload": {
+            "specTreeId": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "rootNodeId": "blueprint-spec-node-c467e054-1dfc-4b31-ba3b-d1d9801de97e",
+            "nodeCount": 12
+          }
+        },
+        {
+          "id": "blueprint-event-89fce4f0-935a-45f1-9bde-667a30224b70",
+          "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+          "type": "job.completed",
+          "stage": "spec_docs",
+          "status": "completed",
+          "message": "SPEC documents generated from the selected SPEC tree.",
+          "occurredAt": "2026-05-07T05:32:03.744Z",
+          "payload": {
+            "specTreeId": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "nodeCount": 12,
+            "documentCount": 3
+          }
+        },
+        {
+          "id": "blueprint-event-6ca82fd6-bb53-49c0-bd2b-2ff308b5367a",
+          "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+          "type": "job.completed",
+          "stage": "spec_docs",
+          "status": "completed",
+          "message": "SPEC documents generated from the selected SPEC tree.",
+          "occurredAt": "2026-05-07T05:32:14.626Z",
+          "payload": {
+            "specTreeId": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "nodeCount": 12,
+            "documentCount": 3
+          }
+        },
+        {
+          "id": "blueprint-event-41f11a30-58aa-4837-ae97-12b8e5914379",
+          "jobId": "blueprint-job-57951662-a9db-4f62-b3b9-dbc6bfa163e3",
+          "type": "job.completed",
+          "stage": "spec_docs",
+          "status": "completed",
+          "message": "SPEC documents generated from the selected SPEC tree.",
+          "occurredAt": "2026-05-07T05:32:18.412Z",
+          "payload": {
+            "specTreeId": "blueprint-spec-tree-e5dcc0e7-45eb-4eb3-9183-e625565a5379",
+            "nodeCount": 12,
+            "documentCount": 3
+          }
+        }
+      ]
+    }
+  ]
+}

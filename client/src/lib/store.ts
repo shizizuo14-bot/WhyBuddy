@@ -120,8 +120,20 @@ function writeStorageValue(key: string, value: string): void {
   }
 }
 
+function isBlueprintChineseRoute(pathname: string): boolean {
+  const normalized = pathname.trim() || '/';
+  return (
+    normalized === '/autopilot' ||
+    normalized.startsWith('/autopilot/') ||
+    normalized === '/specs' ||
+    normalized.startsWith('/specs/')
+  );
+}
+
 function getInitialLocale(): AppLocale {
   if (typeof window === 'undefined') return DEFAULT_LOCALE;
+
+  if (isBlueprintChineseRoute(window.location.pathname)) return 'zh-CN';
 
   const stored = readStorageValue(LOCALE_STORAGE_KEY);
   return isLocale(stored) ? stored : DEFAULT_LOCALE;

@@ -1,0 +1,6 @@
+{
+  "name": "运行时能力桥",
+  "phase": "execution",
+  "order": 10,
+  "summary": "连接 Docker 沙盒、MCP、Skills、多角色和 AIGC 节点，让自动驾驶路线生成与后续推导可以调用真实能力。"
+}

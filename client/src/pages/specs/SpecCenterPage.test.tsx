@@ -87,18 +87,20 @@ describe("SpecCenterPage", () => {
 
     expect(markup).toContain('data-testid="spec-center-page"');
     expect(markup).toContain("Permission System");
-    expect(markup).toContain("v2 · Permission Spec");
-    expect(markup).toContain("84% complete");
-    expect(markup).toContain("Track audit evidence.");
-    expect(markup).toContain("2 evidence");
-    expect(markup).toContain("1 artifacts");
+    expect(markup).toContain("v2 · 权限规格");
+    expect(markup).toContain("84% 完成");
+    expect(markup).toContain("跟踪审计证据。");
+    expect(markup).toContain("2 条证据");
+    expect(markup).toContain("1 个资产");
+    expect(markup).toContain("SPEC 执行概览");
+    expect(markup).toContain("尚未生成 RouteSet");
     expect(markup).toContain('data-testid="spec-center-version-card"');
   });
 
   it("renders an empty state when no project is selected", () => {
     const markup = renderToStaticMarkup(<SpecCenterPage />);
 
-    expect(markup).toContain("No project selected");
-    expect(markup).toContain("No spec draft yet");
+    expect(markup).toContain("尚未选择项目");
+    expect(markup).toContain("暂无规格草稿");
   });
 });
