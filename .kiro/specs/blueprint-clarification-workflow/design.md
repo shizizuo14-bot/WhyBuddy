@@ -4,7 +4,7 @@
 
 本设计负责把输入入口推进到可推演状态。澄清工作流连接输入摄取与自动驾驶路线生成，是将“模糊意图”收敛成“明确上下文”的关键闸门。
 
-在本轮改造中，澄清不再是纯自由追问，而是先选澄清策略模板，再生成问题集并计算准备度信号。
+在本轮改造中，澄清不再是纯自由追问，而是先选澄清策略模板，再由 LLM Question Planner 在模板约束内生成或改写问题集，并计算准备度信号；当 LLM 不可用时回退到模板问题集。
 
 ## 架构
 
@@ -27,6 +27,7 @@ graph TB
 
 根据项目类型、缺失字段和已有上下文生成问题。  
 可按“目标、范围、约束、优先级、交付形态、验收标准”几个维度分类。
+Planner 优先调用 LLM 能力，让模型结合目标文本、GitHub 来源、domain notes 和已有资产改写问题；但模型只能在策略模板给定的 routeDimension、readinessSignal 和必答边界内工作。生成结果会记录 `generationSource`、`llmModel`、`llmPromptId` 和失败时的 `llmError`。
 
 ### Clarification Strategy Selector
 
@@ -52,7 +53,7 @@ graph TB
 
 1. Project Context 进入 Clarification Strategy Selector。  
 2. Selector 选定模板并传入 Question Planner。  
-3. Planner 生成 ClarificationQuestion 列表。  
+3. Planner 调用 LLM 生成 / 改写 ClarificationQuestion；LLM 不可用或返回无效时回退模板问题。
 4. UI 呈现问题并收集答案。  
 5. Answer Collector 写入 ClarificationSession。  
 6. Summary 生成澄清摘要和准备度信号。  
@@ -65,6 +66,7 @@ graph TB
 - 跳过的问题必须保留默认假设或待确认状态。  
 - 未达到准备度阈值时，不应直接进入路线生成。  
 - 澄清模板和问题维度必须可追溯。  
+- LLM 生成来源、模型和 prompt id 必须可追溯；失败时必须保留回退原因。
 - 澄清摘要必须可复用到后续路线生成。
 
 ## 测试策略
@@ -74,5 +76,6 @@ graph TB
 - 跳过与默认假设测试  
 - 准备度门禁测试  
 - 澄清策略模板测试
+- LLM Question Planner 调用与模板回退测试
 - 澄清资产复用测试
 - 澄清摘要回放测试

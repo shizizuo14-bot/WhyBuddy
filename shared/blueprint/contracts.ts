@@ -261,6 +261,10 @@ export type BlueprintClarificationQuestionKind =
 export type BlueprintClarificationReadinessStatus =
   | "needs_answers"
   | "ready";
+export type BlueprintClarificationGenerationSource =
+  | "template"
+  | "llm"
+  | "llm_fallback";
 export type BlueprintDomainAssetKind =
   | "product_goal"
   | "github_repository"
@@ -346,6 +350,9 @@ export interface BlueprintClarificationQuestion {
   required: boolean;
   sourceIds: string[];
   evidenceIds: string[];
+  type?: "free_text" | "single_choice" | "multi_choice";
+  options?: string[];
+  context?: string;
   routeDimension?: BlueprintClarificationRouteDimension;
   readinessSignal?: BlueprintClarificationReadinessSignalId;
   templateId?: string;
@@ -353,6 +360,9 @@ export interface BlueprintClarificationQuestion {
   settledByStrategy?: boolean;
   settledReason?: string;
   defaultAnswer?: string;
+  generationSource?: BlueprintClarificationGenerationSource;
+  llmModel?: string;
+  llmPromptId?: string;
 }
 
 export interface BlueprintClarificationReadiness {
@@ -375,6 +385,10 @@ export interface BlueprintClarificationSession {
   templateId?: string;
   routeReadySummary?: string;
   readinessSignals?: BlueprintClarificationReadinessSignalId[];
+  generationSource?: BlueprintClarificationGenerationSource;
+  llmModel?: string;
+  llmPromptId?: string;
+  llmError?: string;
   questions: BlueprintClarificationQuestion[];
   answers: BlueprintClarificationAnswer[];
   readiness: BlueprintClarificationReadiness;

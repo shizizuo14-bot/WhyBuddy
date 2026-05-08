@@ -1,5 +1,6 @@
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it } from "vitest";
+import { useAppStore } from "@/lib/store";
 
 import {
   normalizeBlueprintArtifactDiffResponse,
@@ -15,6 +16,10 @@ import {
 import BlueprintProgressPanel from "./BlueprintProgressPanel";
 
 describe("BlueprintProgressPanel", () => {
+  beforeEach(() => {
+    useAppStore.setState({ locale: "zh-CN" });
+  });
+
   it("renders aggregate blueprint progress and per-spec status", () => {
     const markup = renderToStaticMarkup(
       <BlueprintProgressPanel
@@ -1301,10 +1306,10 @@ describe("BlueprintProgressPanel", () => {
     expect(markup).toContain("运行时能力桥工作台");
     expect(markup).toContain('data-testid="blueprint-agent-crew-surface"');
     expect(markup).toContain('data-testid="blueprint-agent-role-row"');
-    expect(markup).toContain("Active");
-    expect(markup).toContain("Watching");
-    expect(markup).toContain("Reviewing");
-    expect(markup).toContain("Sleeping");
+    expect(markup).toContain("活跃");
+    expect(markup).toContain("观察中");
+    expect(markup).toContain("评审中");
+    expect(markup).toContain("休眠");
     expect(markup).toContain(
       "Runtime executor is invoking Docker analysis for permission boundaries."
     );
@@ -1672,10 +1677,10 @@ describe("BlueprintProgressPanel", () => {
 
     expect(markup).toContain('data-testid="blueprint-agent-crew-surface"');
     expect(markup.match(/data-testid="blueprint-agent-role-row"/g)?.length).toBe(4);
-    expect(markup).toContain("Active");
-    expect(markup).toContain("Watching");
-    expect(markup).toContain("Reviewing");
-    expect(markup).toContain("Sleeping");
+    expect(markup).toContain("活跃");
+    expect(markup).toContain("观察中");
+    expect(markup).toContain("评审中");
+    expect(markup).toContain("休眠");
     expect(markup).toContain("Runtime executor is invoking Docker analysis sandbox.");
     expect(markup).toContain(
       "Architecture planner is watching runtime handoff signals."
@@ -1686,14 +1691,14 @@ describe("BlueprintProgressPanel", () => {
     expect(markup).toContain('data-testid="agent-crew-event-stream-consumers"');
     expect(markup.match(/data-testid="agent-crew-event-stream-consumer"/g)?.length).toBe(5);
     expect(markup.match(/data-testid="agent-crew-role-event-source"/g)?.length).toBe(4);
-    expect(markup).toContain("3D Scene");
+    expect(markup).toContain("3D 场景");
     expect(markup).toContain("HUD");
-    expect(markup).toContain("Logs");
-    expect(markup).toContain("Browser");
-    expect(markup).toContain("SPEC UI");
+    expect(markup).toContain("日志");
+    expect(markup).toContain("浏览器");
+    expect(markup).toContain("SPEC 界面");
     expect(markup).toContain("event-role-runtime / role.capability_invoked");
     expect(markup).toContain("role.review_completed");
-    expect(markup).toContain("event-role-quality / Reviewing");
+    expect(markup).toContain("event-role-quality / 评审中");
   });
 
   it("renders runtime projection cards from initial effect previews", () => {
@@ -1820,13 +1825,13 @@ describe("BlueprintProgressPanel", () => {
 
     expect(markup).toContain('data-testid="effect-preview-runtime-projection"');
     expect(markup.match(/data-testid="runtime-projection-card"/g)?.length).toBe(4);
-    expect(markup).toContain("3D Scene");
+    expect(markup).toContain("3D 场景");
     expect(markup).toContain("scene-snapshot-3d");
     expect(markup).toContain("HUD");
     expect(markup).toContain("HUD shows the live runtime capability state.");
-    expect(markup).toContain("Logs");
+    expect(markup).toContain("日志");
     expect(markup).toContain("Runtime log timeline connected.");
-    expect(markup).toContain("Browser");
+    expect(markup).toContain("浏览器");
     expect(markup).toContain("browser-preview-runtime");
   });
 

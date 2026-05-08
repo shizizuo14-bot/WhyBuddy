@@ -23,6 +23,8 @@ interface LLMOptions {
   temperature?: number;
   maxTokens?: number;
   jsonMode?: boolean;
+  retryAttempts?: number;
+  timeoutMs?: number;
   /** 调用关联的 Agent ID（用于成本追踪和暂停检查） */
   agentId?: string;
   /** 调用关联的 Mission ID（用于成本追踪） */
@@ -56,6 +58,7 @@ interface ProviderConfig {
   forceModel: boolean;
   stream: boolean;
   chatThinkingType?: string;
+  omitTemperature?: boolean;
 }
 
 const MAX_CONCURRENT = Math.max(1, Number(process.env.LLM_MAX_CONCURRENT || 9999));
@@ -85,6 +88,29 @@ function isUnlimitedModel(model: string | undefined): boolean {
   return unlimitedModels.has("*") || unlimitedModels.has(normalized);
 }
 
+function parseModelList(raw: string | undefined): string[] {
+  if (raw === "") return [];
+  return (raw || "")
+    .split(",")
+    .map(model => model.trim())
+    .filter(Boolean);
+}
+
+function getPrimaryModelFallbacks(defaultModel: string): string[] {
+  const configured = process.env.LLM_MODEL_FALLBACKS;
+  const fallbackModels =
+    configured === undefined
+      ? ["gpt-5.3-codex", "gpt-5.4-mini", "gpt-5.2"]
+      : parseModelList(configured);
+  const seen = new Set([normalizeModelName(defaultModel)]);
+  return fallbackModels.filter(model => {
+    const normalized = normalizeModelName(model);
+    if (!normalized || seen.has(normalized)) return false;
+    seen.add(normalized);
+    return true;
+  });
+}
+
 function buildProviders(): ProviderConfig[] {
   const aiConfig = getAIConfig();
   const primary: ProviderConfig = {
@@ -104,6 +130,17 @@ function buildProviders(): ProviderConfig[] {
   const fallbackBaseUrl = process.env.FALLBACK_LLM_BASE_URL || "";
 
   const providers = [primary];
+  for (const model of getPrimaryModelFallbacks(primary.defaultModel)) {
+    providers.push({
+      ...primary,
+      name: `primary:${model}`,
+      defaultModel: model,
+      forceModel: true,
+      reasoningEffort: undefined,
+      omitTemperature: true,
+    });
+  }
+
   if (fallbackApiKey && fallbackBaseUrl) {
     providers.push({
       name: "fallback",
@@ -161,7 +198,7 @@ function getProviderName(provider: ProviderConfig): string {
 }
 
 function getProviderKey(provider: ProviderConfig): string {
-  return `${provider.name}:${provider.baseUrl}`;
+  return `${provider.name}:${provider.baseUrl}:${provider.defaultModel}`;
 }
 
 function getProviderCooldownMs(provider: ProviderConfig): number {
@@ -229,6 +266,12 @@ function resolveModel(
   return requestedModel || provider.defaultModel;
 }
 
+function normalizePositiveInteger(value: unknown): number | undefined {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed) || parsed <= 0) return undefined;
+  return Math.max(1, Math.floor(parsed));
+}
+
 function missingKeyError(): Error {
   return new Error("No LLM provider is configured. Check .env provider keys.");
 }
@@ -256,13 +299,18 @@ function normalizeLLMError(
   if (!provider.apiKey) {
     return missingKeyError();
   }
-  if (status === 401 || status === 403) {
+  if (
+    status === 429 ||
+    (status === 403 && /billing_error|quota|rate limit|rate_limit|insufficient_quota|out of quota/i.test(lower))
+  ) {
     return new Error(
-      `LLM authentication failed for ${providerName}. Check the API key.`
+      `LLM rate limited or out of quota on ${providerName}.${trimmed ? ` Details: ${trimmed.substring(0, 160)}` : ""}`
     );
   }
-  if (status === 429) {
-    return new Error(`LLM rate limited or out of quota on ${providerName}.`);
+  if (status === 401 || status === 403) {
+    return new Error(
+      `LLM authentication failed for ${providerName}. Check the API key.${trimmed ? ` Details: ${trimmed.substring(0, 160)}` : ""}`
+    );
   }
   if (status >= 500 && lower.includes("no clients available")) {
     return new Error(
@@ -310,26 +358,26 @@ function normalizeNetworkError(
 }
 
 function shouldTryNextProvider(error: Error): boolean {
-  return isModelEndpointMismatchMessage(error.message) || /no available clients|temporarily unavailable|timed out|Cannot reach LLM service|rate limited|out of quota|malformed response|empty response/i.test(
+  return isModelEndpointMismatchMessage(error.message) || /no available clients|temporarily unavailable|LLM service error|HTTP 5\d\d|timed out|Cannot reach LLM service|rate limited|out of quota|malformed response|empty response/i.test(
     error.message
   );
 }
 
 function shouldStopRetryingProvider(error: Error): boolean {
-  return isModelEndpointMismatchMessage(error.message) || /no available clients|authentication failed|invalid_request_error|timed out/i.test(
+  return isModelEndpointMismatchMessage(error.message) || /no available clients|authentication failed|invalid_request_error|timed out|daily quota exceeded|out of quota|insufficient_quota/i.test(
     error.message
   );
 }
 
 function shouldOpenCircuit(error: Error): boolean {
-  return /no available clients|temporarily unavailable|timed out|Cannot reach LLM service|rate limited|out of quota/i.test(
+  return /no available clients|temporarily unavailable|LLM service error|HTTP 5\d\d|timed out|Cannot reach LLM service|rate limited|out of quota/i.test(
     error.message
   );
 }
 
 export function isLLMTemporarilyUnavailableError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /provider cooling down|timed out|Cannot reach LLM service|temporarily unavailable|rate limited|out of quota|All LLM providers are temporarily unavailable/i.test(
+  return /provider cooling down|timed out|Cannot reach LLM service|temporarily unavailable|LLM service error|HTTP 5\d\d|rate limited|out of quota|All LLM providers are temporarily unavailable/i.test(
     message
   );
 }
@@ -424,6 +472,13 @@ function parseJsonSafely(raw: string): any {
   } catch {
     throw malformedResponseError(raw.substring(0, 200));
   }
+}
+
+function looksLikeSSE(raw: string, contentType: string): boolean {
+  return (
+    contentType.includes("text/event-stream") ||
+    /^\s*(event|data):/m.test(raw)
+  );
 }
 
 function parseResponsesStream(raw: string): LLMResponse {
@@ -583,7 +638,7 @@ async function createChatCompletion(
     }
 
     const { raw, contentType } = await readBody(response);
-    if (provider.stream && contentType.includes("text/event-stream")) {
+    if (looksLikeSSE(raw, contentType)) {
       return parseChatCompletionsStream(raw);
     }
 
@@ -611,10 +666,13 @@ async function createResponse(
       model: options.model,
       input,
       instructions,
-      temperature: options.temperature,
       max_output_tokens: options.maxTokens,
-      stream: true,
+      stream: provider.stream,
+      store: false,
     };
+    if (!provider.omitTemperature) {
+      body.temperature = options.temperature;
+    }
 
     if (provider.reasoningEffort) {
       body.reasoning = { effort: provider.reasoningEffort };
@@ -640,7 +698,7 @@ async function createResponse(
     }
 
     const { raw, contentType } = await readBody(response);
-    if (contentType.includes("text/event-stream")) {
+    if (looksLikeSSE(raw, contentType)) {
       return parseResponsesStream(raw);
     }
 
@@ -758,32 +816,41 @@ export async function callLLM(
     let lastError: Error | null = null;
 
     for (const provider of providers) {
-      if (isProviderCoolingDown(provider)) {
-        const remainingMs = getRemainingCooldownMs(provider);
+      const providerForCall: ProviderConfig = {
+        ...provider,
+        timeoutMs:
+          normalizePositiveInteger(effectiveOptions.timeoutMs) ??
+          provider.timeoutMs,
+      };
+
+      if (isProviderCoolingDown(providerForCall)) {
+        const remainingMs = getRemainingCooldownMs(providerForCall);
         lastError = new Error(
-          `Skip ${provider.name}: provider cooling down for ${Math.ceil(remainingMs / 1000)}s after recent failures.`
+          `Skip ${providerForCall.name}: provider cooling down for ${Math.ceil(remainingMs / 1000)}s after recent failures.`
         );
-        console.warn(`[LLM:${provider.name}] ${lastError.message}`);
+        console.warn(`[LLM:${providerForCall.name}] ${lastError.message}`);
         continue;
       }
 
       const attempts = Math.max(
         1,
-        Number(
-          provider.name === "fallback"
-            ? process.env.FALLBACK_LLM_RETRIES || 3
-            : process.env.LLM_RETRIES || 3
-        )
+        normalizePositiveInteger(effectiveOptions.retryAttempts) ??
+          normalizePositiveInteger(
+            providerForCall.name === "fallback"
+              ? process.env.FALLBACK_LLM_RETRIES || 3
+              : process.env.LLM_RETRIES || 3
+          ) ??
+          3
       );
 
       for (let attempt = 0; attempt < attempts; attempt++) {
         try {
-          const response = await callProvider(provider, messages, effectiveOptions);
-          clearProviderCooldown(provider);
+          const response = await callProvider(providerForCall, messages, effectiveOptions);
+          clearProviderCooldown(providerForCall);
           clearGlobalProviderCooldown();
 
           // 3. 记录成功调用的成本（Req 1.1, 1.3, 1.4）
-          const actualModel = effectiveOptions.model || provider.defaultModel;
+          const actualModel = effectiveOptions.model || providerForCall.defaultModel;
           const tokensIn = response.usage?.prompt_tokens ?? 0;
           const tokensOut = response.usage?.completion_tokens ?? 0;
           const pricing = PRICING_TABLE[actualModel] ?? DEFAULT_PRICING;
@@ -807,14 +874,14 @@ export async function callLLM(
 
           return response;
         } catch (error) {
-          lastError = normalizeNetworkError(provider, error);
+          lastError = normalizeNetworkError(providerForCall, error);
           console.error(
-            `[LLM:${provider.name}] Attempt ${attempt + 1} failed:`,
+            `[LLM:${providerForCall.name}] Attempt ${attempt + 1} failed:`,
             lastError.message
           );
 
           if (shouldOpenCircuit(lastError)) {
-            openProviderCooldown(provider);
+            openProviderCooldown(providerForCall);
           }
 
           if (shouldStopRetryingProvider(lastError)) {
@@ -833,7 +900,7 @@ export async function callLLM(
 
       if (lastError && !shouldTryNextProvider(lastError)) {
         // 4. 记录失败调用的成本（Req 1.2, 1.3）
-        const failModel = effectiveOptions.model || provider.defaultModel;
+        const failModel = effectiveOptions.model || providerForCall.defaultModel;
         const failPricing = PRICING_TABLE[failModel] ?? DEFAULT_PRICING;
 
         if (!unlimitedModel) {

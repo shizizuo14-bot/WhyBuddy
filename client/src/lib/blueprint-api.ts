@@ -16,6 +16,7 @@ import type {
   BlueprintAgentRole,
   BlueprintCapabilityBinding,
   BlueprintClarificationAnswer,
+  BlueprintClarificationGenerationSource,
   BlueprintClarificationReadinessSignalId,
   BlueprintClarificationRouteDimension,
   BlueprintClarificationSession,
@@ -144,6 +145,8 @@ export const BLUEPRINT_JOBS_ENDPOINT = "/api/blueprint/jobs";
 export const BLUEPRINT_GENERATIONS_ENDPOINT = "/api/blueprint/generations";
 export const BLUEPRINT_CAPABILITIES_ENDPOINT = "/api/blueprint/capabilities";
 export const BLUEPRINT_INTAKE_ENDPOINT = "/api/blueprint/intake";
+export const BLUEPRINT_CLARIFICATIONS_ENDPOINT =
+  "/api/blueprint/clarifications";
 export const BLUEPRINT_PROJECTS_ENDPOINT = "/api/blueprint/projects";
 
 export interface BlueprintDocumentProgress {
@@ -196,6 +199,10 @@ export interface BlueprintClarificationStrategyMetadata {
   routeDimension?: BlueprintClarificationRouteDimension;
   readinessSignal?: BlueprintClarificationReadinessSignalId;
   settledByStrategy?: boolean;
+  generationSource?: BlueprintClarificationGenerationSource;
+  llmModel?: string;
+  llmPromptId?: string;
+  llmError?: string;
   answerProvenance?: unknown;
   routeReadySummary?: string;
 }
@@ -855,6 +862,11 @@ const CLARIFICATION_READINESS_SIGNALS = [
   "risk_review",
   "fast_path",
 ] as const satisfies readonly BlueprintClarificationReadinessSignalId[];
+const CLARIFICATION_GENERATION_SOURCES = [
+  "template",
+  "llm",
+  "llm_fallback",
+] as const satisfies readonly BlueprintClarificationGenerationSource[];
 
 function asRecord(value: unknown): Record<string, unknown> | null {
   return value && typeof value === "object"
@@ -905,7 +917,9 @@ function normalizeStringEnum<T extends string>(
   value: unknown,
   allowed: readonly T[]
 ): T | undefined {
-  const normalized = asString(value).toLowerCase().replace(/[-\s]+/g, "_");
+  const normalized = asString(value)
+    .toLowerCase()
+    .replace(/[-\s]+/g, "_");
   return allowed.includes(normalized as T) ? (normalized as T) : undefined;
 }
 
@@ -1139,7 +1153,9 @@ function normalizeBlueprintEffectPreviewLogEntry(
     };
   }
 
-  const normalizedLevel = asString(record.level ?? record.severity).toLowerCase();
+  const normalizedLevel = asString(
+    record.level ?? record.severity
+  ).toLowerCase();
   const level: BlueprintEffectPreviewLogEntry["level"] =
     normalizedLevel === "warning" ||
     normalizedLevel === "success" ||
@@ -1148,14 +1164,20 @@ function normalizeBlueprintEffectPreviewLogEntry(
       : "info";
 
   return {
-    id: asString(record.id ?? record.entryId ?? record.entry_id, `runtime-log-${index + 1}`),
+    id: asString(
+      record.id ?? record.entryId ?? record.entry_id,
+      `runtime-log-${index + 1}`
+    ),
     level,
     message: asString(
       record.message ?? record.summary ?? record.detail ?? record.text,
       `Runtime log ${index + 1}`
     ),
     occurredAt: asString(
-      record.occurredAt ?? record.occurred_at ?? record.createdAt ?? record.created_at
+      record.occurredAt ??
+        record.occurred_at ??
+        record.createdAt ??
+        record.created_at
     ),
     sourceDocumentIds: asStringArray(
       record.sourceDocumentIds ??
@@ -1230,16 +1252,24 @@ export function normalizeBlueprintEffectPreviewRuntimeProjection(
   return {
     id: asString(
       record.id ?? record.projectionId ?? record.projection_id,
-      context.previewId ? `${context.previewId}-runtime-projection` : "runtime-projection"
+      context.previewId
+        ? `${context.previewId}-runtime-projection`
+        : "runtime-projection"
     ),
     jobId: asString(record.jobId ?? record.job_id, context.jobId),
     projectId:
       asString(record.projectId ?? record.project_id, context.projectId) ||
       undefined,
-    routeSetId: asString(record.routeSetId ?? record.route_set_id, context.routeSetId),
+    routeSetId: asString(
+      record.routeSetId ?? record.route_set_id,
+      context.routeSetId
+    ),
     routeId: routeId || undefined,
     specTreeId: asString(
-      record.specTreeId ?? record.spec_tree_id ?? record.treeId ?? record.tree_id,
+      record.specTreeId ??
+        record.spec_tree_id ??
+        record.treeId ??
+        record.tree_id,
       context.treeId
     ),
     nodeId,
@@ -1249,7 +1279,10 @@ export function normalizeBlueprintEffectPreviewRuntimeProjection(
     ),
     sceneSnapshotId,
     hudState: {
-      id: asString(hudRecord?.id ?? hudRecord?.stateId ?? hudRecord?.state_id, "runtime-hud"),
+      id: asString(
+        hudRecord?.id ?? hudRecord?.stateId ?? hudRecord?.state_id,
+        "runtime-hud"
+      ),
       status,
       stage: "effect_preview",
       title,
@@ -1290,7 +1323,8 @@ export function normalizeBlueprintEffectPreviewRuntimeProjection(
           record.browser_preview_url
       ),
     },
-    sourceIds: sourceIds as BlueprintEffectPreviewRuntimeProjection["sourceIds"],
+    sourceIds:
+      sourceIds as BlueprintEffectPreviewRuntimeProjection["sourceIds"],
   };
 }
 
@@ -1381,7 +1415,9 @@ export function normalizeBlueprintEffectPreview(
       ? (record.nodes as BlueprintEffectPreview["nodes"])
       : [],
     runtimeProjection: normalizeBlueprintEffectPreviewRuntimeProjection(
-      record.runtimeProjection ?? record.runtime_projection ?? record.projection,
+      record.runtimeProjection ??
+        record.runtime_projection ??
+        record.projection,
       {
         previewId: id,
         jobId,
@@ -1392,24 +1428,23 @@ export function normalizeBlueprintEffectPreview(
         status,
       }
     ),
-    provenance:
-      (record.provenance as BlueprintEffectPreview["provenance"] | undefined) ??
-      {
-        jobId,
-        githubUrls: [],
-        treeVersion: asNumber(record.treeVersion ?? record.tree_version, 0),
-        nodeType: "effect_preview",
-        nodeTitle: title,
-        nodeSummary: asString(record.summary ?? record.description, title),
-        sourceStatus: "mixed",
-        includeDrafts: false,
-        sourceDocumentStatuses: {},
-      },
+    provenance: (record.provenance as
+      | BlueprintEffectPreview["provenance"]
+      | undefined) ?? {
+      jobId,
+      githubUrls: [],
+      treeVersion: asNumber(record.treeVersion ?? record.tree_version, 0),
+      nodeType: "effect_preview",
+      nodeTitle: title,
+      nodeSummary: asString(record.summary ?? record.description, title),
+      sourceStatus: "mixed",
+      includeDrafts: false,
+      sourceDocumentStatuses: {},
+    },
     version,
     supersedesPreviewId:
-      asString(
-        record.supersedesPreviewId ?? record.supersedes_preview_id
-      ) || undefined,
+      asString(record.supersedesPreviewId ?? record.supersedes_preview_id) ||
+      undefined,
     versionStatus: versionStatus || undefined,
     refreshedFromSpecTreeVersion,
     refreshedAt:
@@ -1610,7 +1645,10 @@ export function normalizeBlueprintPromptPackage(
   );
   const content = asString(
     record.content ?? record.prompt ?? record.promptContent,
-    sections.map(section => section.content).filter(Boolean).join("\n\n")
+    sections
+      .map(section => section.content)
+      .filter(Boolean)
+      .join("\n\n")
   );
   const title = asString(
     record.title ?? record.name,
@@ -1703,11 +1741,7 @@ const CAPABILITY_EVIDENCE_KINDS = [
   "log",
   "safety",
 ] as const;
-const CAPABILITY_EVIDENCE_STATUSES = [
-  "recorded",
-  "blocked",
-  "failed",
-] as const;
+const CAPABILITY_EVIDENCE_STATUSES = ["recorded", "blocked", "failed"] as const;
 const BLUEPRINT_ROLE_PRESENCE_STATES = [
   "active",
   "watching",
@@ -1819,7 +1853,9 @@ export function normalizeBlueprintRuntimeCapability(
   };
 }
 
-function normalizeCapabilityRegistryList(payload: unknown): BlueprintRuntimeCapability[] {
+function normalizeCapabilityRegistryList(
+  payload: unknown
+): BlueprintRuntimeCapability[] {
   const record = asRecord(payload) ?? {};
   const rawCapabilities =
     record.capabilities ??
@@ -1840,7 +1876,9 @@ export function normalizeBlueprintCapabilityRegistryResponse(
 
   return {
     capabilities: normalizeCapabilityRegistryList(payload),
-    agentCrew: normalizeBlueprintAgentCrew(record.agentCrew ?? record.agent_crew),
+    agentCrew: normalizeBlueprintAgentCrew(
+      record.agentCrew ?? record.agent_crew
+    ),
   };
 }
 
@@ -1853,7 +1891,9 @@ export function normalizeBlueprintJobCapabilitiesResponse(
     job: record.job as BlueprintJobCapabilitiesResponse["job"],
     routeSet: record.routeSet as BlueprintJobCapabilitiesResponse["routeSet"],
     specTree: record.specTree as BlueprintJobCapabilitiesResponse["specTree"],
-    agentCrew: normalizeBlueprintAgentCrew(record.agentCrew ?? record.agent_crew),
+    agentCrew: normalizeBlueprintAgentCrew(
+      record.agentCrew ?? record.agent_crew
+    ),
     capabilities: normalizeCapabilityRegistryList(payload),
   };
 }
@@ -1913,7 +1953,7 @@ function normalizeBlueprintAgentCrewRoleTimeline(
     )
   );
   const latestCapability = asString(
-      record.latestCapability ??
+    record.latestCapability ??
       record.latest_capability ??
       record.latestCapabilityId ??
       record.latest_capability_id ??
@@ -1973,10 +2013,12 @@ function normalizeBlueprintAgentCrewRoleTimeline(
         `${roleId}-event-${entryIndex + 1}`
       ),
       jobId: asString(entry.jobId ?? entry.job_id, jobId),
-      projectId:
-        asString(entry.projectId ?? entry.project_id) || undefined,
+      projectId: asString(entry.projectId ?? entry.project_id) || undefined,
       crewId: asString(entry.crewId ?? entry.crew_id) || undefined,
-      stage: asString(entry.stage ?? entry.phase, stage) as BlueprintRoleTimelineEntry["stage"],
+      stage: asString(
+        entry.stage ?? entry.phase,
+        stage
+      ) as BlueprintRoleTimelineEntry["stage"],
       roleId: asString(entry.roleId ?? entry.role_id, roleId),
       presenceState: normalizeBlueprintRolePresenceState(
         entry.presenceState ?? entry.presence_state ?? entry.state ?? state
@@ -1990,7 +2032,10 @@ function normalizeBlueprintAgentCrewRoleTimeline(
         asString(record.updatedAt ?? record.updated_at)
       ),
       summary: asString(
-        entry.summary ?? entry.message ?? entry.currentAction ?? entry.current_action,
+        entry.summary ??
+          entry.message ??
+          entry.currentAction ??
+          entry.current_action,
         currentAction
       ),
       currentAction:
@@ -1999,19 +2044,15 @@ function normalizeBlueprintAgentCrewRoleTimeline(
         asString(entry.capabilityId ?? entry.capability_id) || undefined,
       invocationId:
         asString(entry.invocationId ?? entry.invocation_id) || undefined,
-      evidenceId:
-        asString(entry.evidenceId ?? entry.evidence_id) || undefined,
-      artifactId:
-        asString(entry.artifactId ?? entry.artifact_id) || undefined,
+      evidenceId: asString(entry.evidenceId ?? entry.evidence_id) || undefined,
+      artifactId: asString(entry.artifactId ?? entry.artifact_id) || undefined,
       routeId: asString(entry.routeId ?? entry.route_id) || undefined,
       selectionId:
         asString(entry.selectionId ?? entry.selection_id) || undefined,
-      specTreeId:
-        asString(entry.specTreeId ?? entry.spec_tree_id) || undefined,
+      specTreeId: asString(entry.specTreeId ?? entry.spec_tree_id) || undefined,
       nodeId: asString(entry.nodeId ?? entry.node_id) || undefined,
-      sourceIds:
-        (asRecord(entry.sourceIds ?? entry.source_ids) ??
-          {}) as BlueprintRoleTimelineEntry["sourceIds"],
+      sourceIds: (asRecord(entry.sourceIds ?? entry.source_ids) ??
+        {}) as BlueprintRoleTimelineEntry["sourceIds"],
     } satisfies BlueprintRoleTimelineEntry;
   });
 
@@ -2066,7 +2107,10 @@ function normalizeBlueprintAgentCrewRoleTimeline(
       evidenceIds[0] ?? ""
     ),
     latestCapability,
-    entryCount: asNumber(record.entryCount ?? record.entry_count, entries.length),
+    entryCount: asNumber(
+      record.entryCount ?? record.entry_count,
+      entries.length
+    ),
     entries,
   };
 }
@@ -2084,7 +2128,8 @@ export function normalizeBlueprintAgentCrew(
   const capabilityMatrix = asUnknownArray(
     record.capabilityMatrix ?? record.capability_matrix ?? record.bindings
   ).map(
-    binding => (asRecord(binding) ?? {}) as unknown as BlueprintCapabilityBinding
+    binding =>
+      (asRecord(binding) ?? {}) as unknown as BlueprintCapabilityBinding
   );
   const capabilitiesById = new Map(
     capabilityMatrix.map(binding => [
@@ -2226,7 +2271,8 @@ export function normalizeBlueprintCapabilityInvocation(
         asString(record.specTreeId ?? record.spec_tree_id) || undefined,
       nodeId: nodeId || undefined,
       roleId: asString(record.roleId ?? record.role_id) || undefined,
-      targetText: asString(record.targetText ?? record.target_text) || undefined,
+      targetText:
+        asString(record.targetText ?? record.target_text) || undefined,
       githubUrls: asStringArray(record.githubUrls ?? record.github_urls),
     },
   };
@@ -2246,10 +2292,14 @@ export function normalizeBlueprintCapabilityInvocationsResponse(
 
   return {
     job: record.job as BlueprintCapabilityInvocationsResponse["job"],
-    routeSet: record.routeSet as BlueprintCapabilityInvocationsResponse["routeSet"],
-    specTree: record.specTree as BlueprintCapabilityInvocationsResponse["specTree"],
+    routeSet:
+      record.routeSet as BlueprintCapabilityInvocationsResponse["routeSet"],
+    specTree:
+      record.specTree as BlueprintCapabilityInvocationsResponse["specTree"],
     capabilities: normalizeCapabilityRegistryList(payload),
-    agentCrew: normalizeBlueprintAgentCrew(record.agentCrew ?? record.agent_crew),
+    agentCrew: normalizeBlueprintAgentCrew(
+      record.agentCrew ?? record.agent_crew
+    ),
     invocations: asUnknownArray(rawInvocations).map((item, index) =>
       normalizeBlueprintCapabilityInvocation(item, index, fallbackJobId)
     ),
@@ -2307,9 +2357,9 @@ export function normalizeBlueprintCapabilityEvidence(
     artifacts: asStringArray(record.artifacts ?? record.artifactIds),
     logs: asStringArray(record.logs ?? record.log),
     tags: asStringArray(record.tags),
-    payloadSummary:
-      (asRecord(record.payloadSummary ?? record.payload_summary) ??
-        {}) as BlueprintCapabilityEvidence["payloadSummary"],
+    payloadSummary: (asRecord(
+      record.payloadSummary ?? record.payload_summary
+    ) ?? {}) as BlueprintCapabilityEvidence["payloadSummary"],
     provenance: {
       jobId: asString(record.jobId ?? record.job_id, fallbackJobId),
       projectId: asString(record.projectId ?? record.project_id) || undefined,
@@ -2320,7 +2370,8 @@ export function normalizeBlueprintCapabilityEvidence(
       specTreeId:
         asString(record.specTreeId ?? record.spec_tree_id) || undefined,
       nodeId: nodeId || undefined,
-      targetText: asString(record.targetText ?? record.target_text) || undefined,
+      targetText:
+        asString(record.targetText ?? record.target_text) || undefined,
       githubUrls: asStringArray(record.githubUrls ?? record.github_urls),
     },
   };
@@ -2340,8 +2391,10 @@ export function normalizeBlueprintCapabilityEvidenceResponse(
 
   return {
     job: record.job as BlueprintCapabilityEvidenceResponse["job"],
-    routeSet: record.routeSet as BlueprintCapabilityEvidenceResponse["routeSet"],
-    specTree: record.specTree as BlueprintCapabilityEvidenceResponse["specTree"],
+    routeSet:
+      record.routeSet as BlueprintCapabilityEvidenceResponse["routeSet"],
+    specTree:
+      record.specTree as BlueprintCapabilityEvidenceResponse["specTree"],
     evidence: asUnknownArray(rawEvidence).map((item, index) =>
       normalizeBlueprintCapabilityEvidence(item, index, fallbackJobId)
     ),
@@ -2354,7 +2407,8 @@ export function normalizeBlueprintInvokeCapabilityResponse(
 ): BlueprintInvokeCapabilitySnapshotResponse {
   const record = asRecord(payload) ?? {};
   const capabilityValue = record.capability ?? {};
-  const invocationValue = record.invocation ?? record.capabilityInvocation ?? {};
+  const invocationValue =
+    record.invocation ?? record.capabilityInvocation ?? {};
   const evidenceValue = record.evidence ?? record.capabilityEvidence ?? {};
 
   return {
@@ -2362,7 +2416,9 @@ export function normalizeBlueprintInvokeCapabilityResponse(
     routeSet: record.routeSet as BlueprintInvokeCapabilityResponse["routeSet"],
     specTree: record.specTree as BlueprintInvokeCapabilityResponse["specTree"],
     capability: normalizeBlueprintRuntimeCapability(capabilityValue, 0),
-    agentCrew: normalizeBlueprintAgentCrew(record.agentCrew ?? record.agent_crew),
+    agentCrew: normalizeBlueprintAgentCrew(
+      record.agentCrew ?? record.agent_crew
+    ),
     invocation: normalizeBlueprintCapabilityInvocation(
       invocationValue,
       0,
@@ -2382,7 +2438,11 @@ function asCommandStringArray(value: unknown): string[] {
       .map(item => {
         const record = asRecord(item);
         return asString(
-          record?.command ?? record?.cmd ?? record?.script ?? record?.value ?? item
+          record?.command ??
+            record?.cmd ??
+            record?.script ??
+            record?.value ??
+            item
         );
       })
       .filter(Boolean);
@@ -2425,7 +2485,10 @@ function normalizeBlueprintEngineeringVerificationCommand(
       record.expected ?? record.expectedResult ?? record.expected_result
     ),
     platform: normalizePromptTargetPlatform(
-      record.platform ?? record.targetPlatform ?? record.target_platform ?? fallbackPlatform
+      record.platform ??
+        record.targetPlatform ??
+        record.target_platform ??
+        fallbackPlatform
     ),
   };
 }
@@ -2454,7 +2517,10 @@ function normalizeBlueprintEngineeringPlatformHandoff(
   }
 
   const platform = normalizePromptTargetPlatform(
-    record.platform ?? record.targetPlatform ?? record.target_platform ?? fallbackPlatform
+    record.platform ??
+      record.targetPlatform ??
+      record.target_platform ??
+      fallbackPlatform
   );
   const promptPackageId = asString(
     record.promptPackageId ??
@@ -2487,7 +2553,10 @@ function normalizeBlueprintEngineeringPlatformHandoff(
     promptPackageId: promptPackageId || undefined,
     sourcePromptPackageIds,
     nodeIds: asStringArray(
-      record.nodeIds ?? record.node_ids ?? record.sourceNodeIds ?? record.source_node_ids
+      record.nodeIds ??
+        record.node_ids ??
+        record.sourceNodeIds ??
+        record.source_node_ids
     ),
     instructions: asStringArray(
       record.instructions ??
@@ -2532,7 +2601,10 @@ function normalizeBlueprintEngineeringLandingStep(
     owner: asString(record.owner ?? record.role),
     target: asString(record.target ?? record.outcome),
     sourceNodeIds: asStringArray(
-      record.sourceNodeIds ?? record.source_node_ids ?? record.nodeIds ?? record.node_ids
+      record.sourceNodeIds ??
+        record.source_node_ids ??
+        record.nodeIds ??
+        record.node_ids
     ),
     commands: asCommandStringArray(
       record.commands ??
@@ -2571,7 +2643,9 @@ export function normalizeBlueprintEngineeringLandingPlan(
     record.platform ??
       record.targetPlatform ??
       record.target_platform ??
-      (provenancePlatforms ? Object.values(provenancePlatforms)[0] : undefined) ??
+      (provenancePlatforms
+        ? Object.values(provenancePlatforms)[0]
+        : undefined) ??
       targetRecord?.platform
   );
   const promptPackageId = asString(
@@ -2625,7 +2699,10 @@ export function normalizeBlueprintEngineeringLandingPlan(
     [];
 
   return {
-    id: asString(record.id ?? record.planId, `engineering-landing-${index + 1}`),
+    id: asString(
+      record.id ?? record.planId,
+      `engineering-landing-${index + 1}`
+    ),
     jobId: asString(record.jobId ?? record.job_id, fallbackJobId),
     treeId: asString(record.treeId ?? record.tree_id),
     promptPackageId: promptPackageId || undefined,
@@ -2716,7 +2793,8 @@ export function normalizeBlueprintEngineeringLandingResponse(
 
   return {
     job: record.job as BlueprintEngineeringLandingResponse["job"],
-    specTree: record.specTree as BlueprintEngineeringLandingResponse["specTree"],
+    specTree:
+      record.specTree as BlueprintEngineeringLandingResponse["specTree"],
     landingPlans,
   };
 }
@@ -2724,7 +2802,9 @@ export function normalizeBlueprintEngineeringLandingResponse(
 function normalizeBlueprintEngineeringRunStatus(
   value: unknown
 ): BlueprintEngineeringRunStatus {
-  const normalized = asString(value, "planned").toLowerCase().replace(/\s+/g, "_");
+  const normalized = asString(value, "planned")
+    .toLowerCase()
+    .replace(/\s+/g, "_");
   const statuses: BlueprintEngineeringRunStatus[] = [
     "planned",
     "running",
@@ -2766,7 +2846,10 @@ function normalizeBlueprintEngineeringVerificationResult(
     id: asString(record.id ?? record.key, `verification-result-${index + 1}`),
     title,
     command,
-    status: asString(record.status ?? record.result ?? record.outcome, "unknown"),
+    status: asString(
+      record.status ?? record.result ?? record.outcome,
+      "unknown"
+    ),
     summary: asString(record.summary ?? record.description ?? record.detail),
     output: asString(record.output ?? record.logs ?? record.log),
   };
@@ -2817,7 +2900,10 @@ export function normalizeBlueprintEngineeringRun(
         record.file_paths
     ),
     createdAt: asString(
-      record.createdAt ?? record.created_at ?? record.recordedAt ?? record.recorded_at
+      record.createdAt ??
+        record.created_at ??
+        record.recordedAt ??
+        record.recorded_at
     ),
     updatedAt: asString(record.updatedAt ?? record.updated_at),
     recordedAt: asString(record.recordedAt ?? record.recorded_at),
@@ -2901,7 +2987,9 @@ export function normalizeBlueprintCreateEngineeringRunResponse(
     record.engineeringRun ??
     record.engineering_run ??
     record.run ??
-    (Array.isArray(record.engineeringRuns) ? record.engineeringRuns[0] : null) ??
+    (Array.isArray(record.engineeringRuns)
+      ? record.engineeringRuns[0]
+      : null) ??
     record;
 
   return {
@@ -2960,7 +3048,10 @@ function normalizeBlueprintArtifactLineageEdge(
       record.to,
     fallbackTargetEntryId
   );
-  const kind = asString(record.kind ?? record.type ?? record.relation, "derived");
+  const kind = asString(
+    record.kind ?? record.type ?? record.relation,
+    "derived"
+  );
 
   return {
     id: asString(
@@ -3013,7 +3104,10 @@ export function normalizeBlueprintArtifactLedgerEntry(
 ): BlueprintArtifactLedgerEntry {
   const record = asRecord(value) ?? {};
   const artifactRecord = asRecord(record.artifact ?? record.asset);
-  const id = asString(record.id ?? record.entryId ?? record.entry_id, `artifact-entry-${index + 1}`);
+  const id = asString(
+    record.id ?? record.entryId ?? record.entry_id,
+    `artifact-entry-${index + 1}`
+  );
   const artifactId = asString(
     record.artifactId ??
       record.artifact_id ??
@@ -3061,7 +3155,10 @@ export function normalizeBlueprintArtifactLedgerEntry(
   );
   const lineageEdges = readArtifactLineageEdges(record, id, sourceEntryIds);
   const versionNumber = asNumber(
-    record.version ?? record.revision ?? record.snapshotVersion ?? record.snapshot_version,
+    record.version ??
+      record.revision ??
+      record.snapshotVersion ??
+      record.snapshot_version,
     Number.NaN
   );
 
@@ -3169,23 +3266,36 @@ function normalizeBlueprintArtifactReplaySnapshot(
   const edgeCountFallback =
     asUnknownArray(record.lineageEdges ?? record.lineage_edges ?? record.edges)
       .length + sourceEntryIds.length;
-  const entryId = asString(record.entryId ?? record.entry_id ?? record.ledgerEntryId);
+  const entryId = asString(
+    record.entryId ?? record.entry_id ?? record.ledgerEntryId
+  );
 
   return {
-    id: asString(record.id ?? record.snapshotId ?? record.snapshot_id, `replay-snapshot-${index + 1}`),
+    id: asString(
+      record.id ?? record.snapshotId ?? record.snapshot_id,
+      `replay-snapshot-${index + 1}`
+    ),
     entryId: entryId || undefined,
     artifactType: asString(
       record.artifactType ?? record.artifact_type ?? record.type ?? record.kind,
       "artifact"
     ),
-    stage: asString(record.stage ?? record.phase ?? record.jobStage, "artifact_memory"),
-    title: asString(record.title ?? record.name ?? record.label, `Replay snapshot ${index + 1}`),
+    stage: asString(
+      record.stage ?? record.phase ?? record.jobStage,
+      "artifact_memory"
+    ),
+    title: asString(
+      record.title ?? record.name ?? record.label,
+      `Replay snapshot ${index + 1}`
+    ),
     summary: asString(
       record.summary ?? record.description ?? record.detail,
       "Replay snapshot recorded."
     ),
     status: asString(record.status ?? record.state, "recorded"),
-    createdAt: asString(record.createdAt ?? record.created_at ?? record.recordedAt),
+    createdAt: asString(
+      record.createdAt ?? record.created_at ?? record.recordedAt
+    ),
     lineageEdgeCount: asNumber(
       record.lineageEdgeCount ?? record.lineage_edge_count ?? record.edgeCount,
       edgeCountFallback
@@ -3200,7 +3310,10 @@ export function normalizeBlueprintArtifactReplay(
 ): BlueprintArtifactReplay {
   const record = asRecord(value) ?? {};
   const entryId = asString(
-    record.entryId ?? record.entry_id ?? record.ledgerEntryId ?? record.ledger_entry_id
+    record.entryId ??
+      record.entry_id ??
+      record.ledgerEntryId ??
+      record.ledger_entry_id
   );
   const rawSnapshots =
     record.snapshots ??
@@ -3223,11 +3336,17 @@ export function normalizeBlueprintArtifactReplay(
   );
 
   return {
-    id: asString(record.id ?? record.replayId ?? record.replay_id, `artifact-replay-${index + 1}`),
+    id: asString(
+      record.id ?? record.replayId ?? record.replay_id,
+      `artifact-replay-${index + 1}`
+    ),
     jobId: asString(record.jobId ?? record.job_id, fallbackJobId),
     entryId: entryId || undefined,
     stage: asString(record.stage ?? record.phase),
-    title: asString(record.title ?? record.name ?? record.label, `Artifact replay ${index + 1}`),
+    title: asString(
+      record.title ?? record.name ?? record.label,
+      `Artifact replay ${index + 1}`
+    ),
     summary: asString(
       record.summary ?? record.description ?? record.detail,
       snapshots.length
@@ -3242,7 +3361,9 @@ export function normalizeBlueprintArtifactReplay(
       lineageEdges.length ||
         snapshots.reduce((sum, snapshot) => sum + snapshot.lineageEdgeCount, 0)
     ),
-    createdAt: asString(record.createdAt ?? record.created_at ?? record.recordedAt),
+    createdAt: asString(
+      record.createdAt ?? record.created_at ?? record.recordedAt
+    ),
     updatedAt: asString(record.updatedAt ?? record.updated_at),
   };
 }
@@ -3308,18 +3429,26 @@ function normalizeBlueprintArtifactDiffChange(
     record.kind ?? record.type ?? record.changeType ?? record.change_type,
     fallbackKind
   );
-  const path = asString(record.path ?? record.key ?? record.field ?? record.property);
+  const path = asString(
+    record.path ?? record.key ?? record.field ?? record.property
+  );
   const title = asString(
     record.title ?? record.label ?? record.name ?? path,
     `Artifact diff change ${index + 1}`
   );
 
   return {
-    id: asString(record.id ?? record.changeId ?? record.change_id, `artifact-diff-change-${index + 1}`),
+    id: asString(
+      record.id ?? record.changeId ?? record.change_id,
+      `artifact-diff-change-${index + 1}`
+    ),
     kind,
     path,
     title,
-    summary: asString(record.summary ?? record.description ?? record.detail, title),
+    summary: asString(
+      record.summary ?? record.description ?? record.detail,
+      title
+    ),
     before: asString(record.before ?? record.left ?? record.previous),
     after: asString(record.after ?? record.right ?? record.next),
   };
@@ -3335,10 +3464,8 @@ export function normalizeBlueprintArtifactDiff(
 ): BlueprintArtifactDiff {
   const record = asRecord(value) ?? {};
   const stats = asRecord(record.stats ?? record.counts);
-  const rawChanges =
-    record.changes ??
-    record.items ??
-    [
+  const rawChanges = record.changes ??
+    record.items ?? [
       ...asUnknownArray(record.added).map(item => ({
         ...(asRecord(item) ?? { summary: item }),
         kind: "added",
@@ -3360,11 +3487,17 @@ export function normalizeBlueprintArtifactDiff(
     changes.filter(change => change.kind === "added").length
   );
   const removed = countDiffItems(
-    record.removedCount ?? record.removed_count ?? record.removed ?? stats?.removed,
+    record.removedCount ??
+      record.removed_count ??
+      record.removed ??
+      stats?.removed,
     changes.filter(change => change.kind === "removed").length
   );
   const changed = countDiffItems(
-    record.changedCount ?? record.changed_count ?? record.changed ?? stats?.changed,
+    record.changedCount ??
+      record.changed_count ??
+      record.changed ??
+      stats?.changed,
     changes.filter(change => change.kind === "changed").length
   );
 
@@ -3372,10 +3505,16 @@ export function normalizeBlueprintArtifactDiff(
     id: asString(record.id ?? record.diffId ?? record.diff_id, "artifact-diff"),
     jobId: asString(record.jobId ?? record.job_id, fallbackJobId),
     leftEntryId: asString(
-      record.leftEntryId ?? record.left_entry_id ?? record.leftId ?? record.left_id
+      record.leftEntryId ??
+        record.left_entry_id ??
+        record.leftId ??
+        record.left_id
     ),
     rightEntryId: asString(
-      record.rightEntryId ?? record.right_entry_id ?? record.rightId ?? record.right_id
+      record.rightEntryId ??
+        record.right_entry_id ??
+        record.rightId ??
+        record.right_id
     ),
     title: asString(record.title ?? record.name, "Artifact diff"),
     summary: asString(
@@ -3404,7 +3543,11 @@ export function normalizeBlueprintArtifactDiffResponse(
 ): BlueprintArtifactDiffResponse {
   const record = asRecord(payload) ?? {};
   const diffValue =
-    record.diff ?? record.artifactDiff ?? record.artifact_diff ?? record.comparison ?? record;
+    record.diff ??
+    record.artifactDiff ??
+    record.artifact_diff ??
+    record.comparison ??
+    record;
 
   return {
     job: record.job as BlueprintArtifactDiffResponse["job"],
@@ -3420,16 +3563,29 @@ export function normalizeBlueprintArtifactFeedback(
   const record = asRecord(value) ?? {};
 
   return {
-    id: asString(record.id ?? record.feedbackId ?? record.feedback_id, `artifact-feedback-${index + 1}`),
+    id: asString(
+      record.id ?? record.feedbackId ?? record.feedback_id,
+      `artifact-feedback-${index + 1}`
+    ),
     jobId: asString(record.jobId ?? record.job_id, fallbackJobId),
-    entryId: asString(record.entryId ?? record.entry_id ?? record.ledgerEntryId),
-    sentiment: asString(record.sentiment ?? record.mood ?? record.rating, "neutral"),
-    status: asString(record.status ?? record.state ?? record.outcome, "recorded"),
+    entryId: asString(
+      record.entryId ?? record.entry_id ?? record.ledgerEntryId
+    ),
+    sentiment: asString(
+      record.sentiment ?? record.mood ?? record.rating,
+      "neutral"
+    ),
+    status: asString(
+      record.status ?? record.state ?? record.outcome,
+      "recorded"
+    ),
     summary: asString(
       record.summary ?? record.title ?? record.description,
       "Artifact feedback recorded."
     ),
-    notes: asString(record.notes ?? record.note ?? record.comment ?? record.detail),
+    notes: asString(
+      record.notes ?? record.note ?? record.comment ?? record.detail
+    ),
     backfillTargets: asStringArray(
       record.backfillTargets ??
         record.backfill_targets ??
@@ -3437,7 +3593,9 @@ export function normalizeBlueprintArtifactFeedback(
         record.targetIds ??
         record.target_ids
     ),
-    createdAt: asString(record.createdAt ?? record.created_at ?? record.recordedAt),
+    createdAt: asString(
+      record.createdAt ?? record.created_at ?? record.recordedAt
+    ),
     updatedAt: asString(record.updatedAt ?? record.updated_at),
   };
 }
@@ -3473,7 +3631,11 @@ export function normalizeBlueprintArtifactFeedbackResponse(
 
   return {
     job: record.job as BlueprintArtifactFeedbackResponse["job"],
-    feedback: normalizeBlueprintArtifactFeedback(feedbackValue, 0, fallbackJobId),
+    feedback: normalizeBlueprintArtifactFeedback(
+      feedbackValue,
+      0,
+      fallbackJobId
+    ),
   };
 }
 
@@ -3496,22 +3658,21 @@ export function normalizeBlueprintLatestGenerationJobResponse(
     record.roleTimelines ?? record.role_timelines
   );
   const roleTimelines = rawRoleTimelines.length
-    ? rawRoleTimelines.map(
-        (item, index) =>
-          normalizeBlueprintAgentCrewRoleTimeline(
-            item,
-            index,
-            new Map((agentCrew?.roles ?? []).map(role => [role.id, role])),
-            new Map(
-              (agentCrew?.capabilityMatrix ?? []).map(binding => [
-                binding.capabilityId,
-                binding.capabilityLabel || binding.capabilityId,
-              ])
-            ),
-            agentCrew?.stage ?? ""
-          )
+    ? rawRoleTimelines.map((item, index) =>
+        normalizeBlueprintAgentCrewRoleTimeline(
+          item,
+          index,
+          new Map((agentCrew?.roles ?? []).map(role => [role.id, role])),
+          new Map(
+            (agentCrew?.capabilityMatrix ?? []).map(binding => [
+              binding.capabilityId,
+              binding.capabilityLabel || binding.capabilityId,
+            ])
+          ),
+          agentCrew?.stage ?? ""
+        )
       )
-    : agentCrew?.roleTimelines ?? [];
+    : (agentCrew?.roleTimelines ?? []);
   return {
     ...payload,
     effectPreviews,
@@ -3519,8 +3680,8 @@ export function normalizeBlueprintLatestGenerationJobResponse(
       payload,
       fallbackJobId
     ).promptPackages,
-    capabilities: normalizeBlueprintCapabilityRegistryResponse(payload)
-      .capabilities,
+    capabilities:
+      normalizeBlueprintCapabilityRegistryResponse(payload).capabilities,
     agentCrew: agentCrew
       ? {
           ...agentCrew,
@@ -3601,10 +3762,15 @@ function normalizeBlueprintCreateGenerationJobResponse(
 function normalizeBlueprintGithubSource(value: unknown): BlueprintGithubSource {
   const record = asRecord(value) ?? {};
   return {
-    id: asString(record.id ?? record.sourceId ?? record.source_id, "github-source"),
+    id: asString(
+      record.id ?? record.sourceId ?? record.source_id,
+      "github-source"
+    ),
     kind: "repository",
     url: asString(record.url ?? record.githubUrl ?? record.github_url),
-    normalizedUrl: asString(record.normalizedUrl ?? record.normalized_url ?? record.url),
+    normalizedUrl: asString(
+      record.normalizedUrl ?? record.normalized_url ?? record.url
+    ),
     owner: asString(record.owner ?? record.repoOwner ?? record.repo_owner),
     repo: asString(record.repo ?? record.repository ?? record.name),
     slug: asString(record.slug ?? record.fullName ?? record.full_name),
@@ -3636,10 +3802,14 @@ function normalizeBlueprintIntake(value: unknown): BlueprintIntake {
     ),
     domainNotes: asStringArray(record.domainNotes ?? record.domain_notes),
     assets: asUnknownArray(record.assets ?? record.domainAssets ?? []).map(
-      item => (asRecord(item) ?? {}) as unknown as BlueprintIntake["assets"][number]
+      item =>
+        (asRecord(item) ?? {}) as unknown as BlueprintIntake["assets"][number]
     ),
-    evidence: asUnknownArray(record.evidence ?? record.domainEvidence ?? []).map(
-      item => (asRecord(item) ?? {}) as unknown as BlueprintIntake["evidence"][number]
+    evidence: asUnknownArray(
+      record.evidence ?? record.domainEvidence ?? []
+    ).map(
+      item =>
+        (asRecord(item) ?? {}) as unknown as BlueprintIntake["evidence"][number]
     ),
     readiness: {
       status: asString(
@@ -3648,7 +3818,11 @@ function normalizeBlueprintIntake(value: unknown): BlueprintIntake {
           record.readiness_status,
         "needs_answers"
       ) as BlueprintIntake["readiness"]["status"],
-      score: asNumber(asRecord(record.readiness)?.score ?? record.readinessScore ?? record.readiness_score),
+      score: asNumber(
+        asRecord(record.readiness)?.score ??
+          record.readinessScore ??
+          record.readiness_score
+      ),
       answeredRequired: asNumber(
         asRecord(record.readiness)?.answeredRequired ??
           record.answeredRequired ??
@@ -3683,12 +3857,27 @@ function normalizeBlueprintClarificationQuestion(
     CLARIFICATION_READINESS_SIGNALS
   );
   return {
-    id: asString(record.id ?? record.questionId ?? record.question_id, "question"),
-    kind: asString(record.kind, "goal") as BlueprintClarificationSession["questions"][number]["kind"],
+    id: asString(
+      record.id ?? record.questionId ?? record.question_id,
+      "question"
+    ),
+    kind: asString(
+      record.kind,
+      "goal"
+    ) as BlueprintClarificationSession["questions"][number]["kind"],
     prompt: asString(record.prompt ?? record.question ?? record.text),
-    required: asBoolean(record.required ?? record.isRequired ?? record.is_required),
+    required: asBoolean(
+      record.required ?? record.isRequired ?? record.is_required
+    ),
     sourceIds: asStringArray(record.sourceIds ?? record.source_ids),
     evidenceIds: asStringArray(record.evidenceIds ?? record.evidence_ids),
+    type: normalizeStringEnum(record.type, [
+      "free_text",
+      "single_choice",
+      "multi_choice",
+    ] as const),
+    options: asStringArray(record.options),
+    context: asString(record.context) || undefined,
     strategyId: normalizeStringEnum(
       record.strategyId ?? record.strategy_id,
       CLARIFICATION_STRATEGY_IDS
@@ -3702,6 +3891,14 @@ function normalizeBlueprintClarificationQuestion(
       record.settled_by_strategy !== undefined
         ? asBoolean(record.settledByStrategy ?? record.settled_by_strategy)
         : undefined,
+    generationSource: normalizeStringEnum(
+      record.generationSource ?? record.generation_source,
+      CLARIFICATION_GENERATION_SOURCES
+    ),
+    llmModel: asString(record.llmModel ?? record.llm_model) || undefined,
+    llmPromptId:
+      asString(record.llmPromptId ?? record.llm_prompt_id) || undefined,
+    llmError: asString(record.llmError ?? record.llm_error) || undefined,
     answerProvenance:
       record.answerProvenance ?? record.answer_provenance ?? undefined,
     routeReadySummary:
@@ -3723,7 +3920,10 @@ function normalizeBlueprintClarificationSession(
     CLARIFICATION_READINESS_SIGNALS
   );
   return {
-    id: asString(record.id ?? record.sessionId ?? record.session_id, "clarification-session"),
+    id: asString(
+      record.id ?? record.sessionId ?? record.session_id,
+      "clarification-session"
+    ),
     intakeId: asString(record.intakeId ?? record.intake_id),
     projectId: asString(record.projectId ?? record.project_id),
     strategyId: normalizeStringEnum(
@@ -3739,86 +3939,96 @@ function normalizeBlueprintClarificationSession(
       record.settled_by_strategy !== undefined
         ? asBoolean(record.settledByStrategy ?? record.settled_by_strategy)
         : undefined,
+    generationSource: normalizeStringEnum(
+      record.generationSource ?? record.generation_source,
+      CLARIFICATION_GENERATION_SOURCES
+    ),
+    llmModel: asString(record.llmModel ?? record.llm_model) || undefined,
+    llmPromptId:
+      asString(record.llmPromptId ?? record.llm_prompt_id) || undefined,
+    llmError: asString(record.llmError ?? record.llm_error) || undefined,
     answerProvenance:
       record.answerProvenance ?? record.answer_provenance ?? undefined,
     routeReadySummary:
       asString(record.routeReadySummary ?? record.route_ready_summary) ||
       undefined,
-    questions: asUnknownArray(record.questions ?? record.clarificationQuestions ?? []).map(
-      item => normalizeBlueprintClarificationQuestion(item)
-    ),
-    answers: asUnknownArray(record.answers ?? record.clarificationAnswers ?? []).map(
-      item => {
-        const answerRecord = asRecord(item) ?? {};
-        const answerProvenance = asRecord(
+    questions: asUnknownArray(
+      record.questions ?? record.clarificationQuestions ?? []
+    ).map(item => normalizeBlueprintClarificationQuestion(item)),
+    answers: asUnknownArray(
+      record.answers ?? record.clarificationAnswers ?? []
+    ).map(item => {
+      const answerRecord = asRecord(item) ?? {};
+      const answerProvenance = asRecord(
+        answerRecord.provenance ??
+          answerRecord.answerProvenance ??
+          answerRecord.answer_provenance
+      );
+      return {
+        questionId: asString(
+          answerRecord.questionId ?? answerRecord.question_id,
+          "question"
+        ),
+        answer: asString(answerRecord.answer ?? answerRecord.value),
+        answeredAt:
+          asString(answerRecord.answeredAt ?? answerRecord.answered_at) ||
+          undefined,
+        answeredBy:
+          asString(answerRecord.answeredBy ?? answerRecord.answered_by) ||
+          undefined,
+        source: asString(
+          answerRecord.source
+        ) as BlueprintClarificationAnswer["source"],
+        strategyId: normalizeStringEnum(
+          answerRecord.strategyId ??
+            answerRecord.strategy_id ??
+            answerProvenance?.strategyId ??
+            answerProvenance?.strategy_id,
+          CLARIFICATION_STRATEGY_IDS
+        ),
+        strategyLabel: asString(answerRecord.strategyLabel) || undefined,
+        templateId:
+          asString(
+            answerRecord.templateId ??
+              answerRecord.template_id ??
+              answerProvenance?.templateId ??
+              answerProvenance?.template_id
+          ) || undefined,
+        routeDimension: normalizeStringEnum(
+          answerRecord.routeDimension ??
+            answerRecord.route_dimension ??
+            answerProvenance?.routeDimension ??
+            answerProvenance?.route_dimension,
+          CLARIFICATION_ROUTE_DIMENSIONS
+        ),
+        readinessSignal: normalizeStringEnum(
+          answerRecord.readinessSignal ??
+            answerRecord.readiness_signal ??
+            answerProvenance?.readinessSignal ??
+            answerProvenance?.readiness_signal,
+          CLARIFICATION_READINESS_SIGNALS
+        ),
+        settledByStrategy:
+          answerRecord.settledByStrategy !== undefined ||
+          answerRecord.settled_by_strategy !== undefined
+            ? asBoolean(
+                answerRecord.settledByStrategy ??
+                  answerRecord.settled_by_strategy
+              )
+            : undefined,
+        answerProvenance:
           answerRecord.provenance ??
-            answerRecord.answerProvenance ??
-            answerRecord.answer_provenance
-        );
-        return {
-          questionId: asString(
-            answerRecord.questionId ?? answerRecord.question_id,
-            "question"
-          ),
-          answer: asString(answerRecord.answer ?? answerRecord.value),
-          answeredAt:
-            asString(answerRecord.answeredAt ?? answerRecord.answered_at) ||
-            undefined,
-          answeredBy:
-            asString(answerRecord.answeredBy ?? answerRecord.answered_by) ||
-            undefined,
-          source: asString(answerRecord.source) as BlueprintClarificationAnswer["source"],
-          strategyId: normalizeStringEnum(
-            answerRecord.strategyId ??
-              answerRecord.strategy_id ??
-              answerProvenance?.strategyId ??
-              answerProvenance?.strategy_id,
-            CLARIFICATION_STRATEGY_IDS
-          ),
-          strategyLabel: asString(answerRecord.strategyLabel) || undefined,
-          templateId:
-            asString(
-              answerRecord.templateId ??
-                answerRecord.template_id ??
-                answerProvenance?.templateId ??
-                answerProvenance?.template_id
-            ) || undefined,
-          routeDimension: normalizeStringEnum(
-            answerRecord.routeDimension ??
-              answerRecord.route_dimension ??
-              answerProvenance?.routeDimension ??
-              answerProvenance?.route_dimension,
-            CLARIFICATION_ROUTE_DIMENSIONS
-          ),
-          readinessSignal: normalizeStringEnum(
-            answerRecord.readinessSignal ??
-              answerRecord.readiness_signal ??
-              answerProvenance?.readinessSignal ??
-              answerProvenance?.readiness_signal,
-            CLARIFICATION_READINESS_SIGNALS
-          ),
-          settledByStrategy:
-            answerRecord.settledByStrategy !== undefined ||
-            answerRecord.settled_by_strategy !== undefined
-              ? asBoolean(
-                  answerRecord.settledByStrategy ??
-                    answerRecord.settled_by_strategy
-                )
-              : undefined,
-          answerProvenance:
-            answerRecord.provenance ??
-            answerRecord.answerProvenance ??
-            answerRecord.answer_provenance ??
-            undefined,
-          provenance: answerRecord.provenance as BlueprintClarificationAnswer["provenance"],
-          routeReadySummary:
-            asString(
-              answerRecord.routeReadySummary ??
-                answerRecord.route_ready_summary
-            ) || undefined,
-        };
-      }
-    ),
+          answerRecord.answerProvenance ??
+          answerRecord.answer_provenance ??
+          undefined,
+        provenance:
+          answerRecord.provenance as BlueprintClarificationAnswer["provenance"],
+        routeReadySummary:
+          asString(
+            answerRecord.routeReadySummary ?? answerRecord.route_ready_summary
+          ) || undefined,
+      };
+    }),
     readiness: {
       status: asString(
         asRecord(record.readiness)?.status ??
@@ -3826,7 +4036,11 @@ function normalizeBlueprintClarificationSession(
           record.readiness_status,
         "needs_answers"
       ) as BlueprintClarificationSession["readiness"]["status"],
-      score: asNumber(asRecord(record.readiness)?.score ?? record.readinessScore ?? record.readiness_score),
+      score: asNumber(
+        asRecord(record.readiness)?.score ??
+          record.readinessScore ??
+          record.readiness_score
+      ),
       answeredRequired: asNumber(
         asRecord(record.readiness)?.answeredRequired ??
           record.answeredRequired ??
@@ -3842,14 +4056,13 @@ function normalizeBlueprintClarificationSession(
           record.missingQuestionIds ??
           record.missing_question_ids
       ),
-      readinessSignal:
-        normalizeStringEnum(
-          asRecord(record.readiness)?.readinessSignal ??
-            asRecord(record.readiness)?.readiness_signal ??
-            record.readinessSignal ??
-            record.readiness_signal,
-          CLARIFICATION_READINESS_SIGNALS
-        ),
+      readinessSignal: normalizeStringEnum(
+        asRecord(record.readiness)?.readinessSignal ??
+          asRecord(record.readiness)?.readiness_signal ??
+          record.readinessSignal ??
+          record.readiness_signal,
+        CLARIFICATION_READINESS_SIGNALS
+      ),
       routeReadySummary:
         asString(
           asRecord(record.readiness)?.routeReadySummary ??
@@ -3873,15 +4086,21 @@ function normalizeBlueprintProjectDomainContext(
     intakeIds: asStringArray(record.intakeIds ?? record.intake_ids),
     sourceIds: asStringArray(record.sourceIds ?? record.source_ids),
     assets: asUnknownArray(record.assets ?? []).map(
-      item => (asRecord(item) ?? {}) as unknown as BlueprintProjectDomainContext["assets"][number]
+      item =>
+        (asRecord(item) ??
+          {}) as unknown as BlueprintProjectDomainContext["assets"][number]
     ),
     evidence: asUnknownArray(record.evidence ?? []).map(
-      item => (asRecord(item) ?? {}) as unknown as BlueprintProjectDomainContext["evidence"][number]
+      item =>
+        (asRecord(item) ??
+          {}) as unknown as BlueprintProjectDomainContext["evidence"][number]
     ),
   };
 }
 
-function normalizeBlueprintIntakeResponse(payload: unknown): BlueprintIntakeResponse {
+function normalizeBlueprintIntakeResponse(
+  payload: unknown
+): BlueprintIntakeResponse {
   const record = asRecord(payload) ?? {};
   const intakeValue = record.intake ?? record.data ?? record;
   return {
@@ -3899,11 +4118,15 @@ function normalizeBlueprintIntakeResponse(payload: unknown): BlueprintIntakeResp
   };
 }
 
-function normalizeBlueprintIntakesResponse(payload: unknown): BlueprintIntakesResponse {
+function normalizeBlueprintIntakesResponse(
+  payload: unknown
+): BlueprintIntakesResponse {
   const record = asRecord(payload) ?? {};
   const rawIntakes = record.intakes ?? record.items ?? record.data ?? [];
   return {
-    intakes: asUnknownArray(rawIntakes).map(item => normalizeBlueprintIntake(item)),
+    intakes: asUnknownArray(rawIntakes).map(item =>
+      normalizeBlueprintIntake(item)
+    ),
     projectContext: record.projectContext
       ? normalizeBlueprintProjectDomainContext(record.projectContext)
       : record.project_context
@@ -3916,7 +4139,8 @@ function normalizeBlueprintClarificationSessionResponse(
   payload: unknown
 ): BlueprintClarificationSessionResponse {
   const record = asRecord(payload) ?? {};
-  const sessionValue = record.clarificationSession ?? record.session ?? record.data ?? record;
+  const sessionValue =
+    record.clarificationSession ?? record.session ?? record.data ?? record;
   return {
     intake: record.intake ? normalizeBlueprintIntake(record.intake) : undefined,
     clarificationSession: normalizeBlueprintClarificationSession(sessionValue),
@@ -3932,7 +4156,8 @@ function normalizeBlueprintProjectContextResponse(
   payload: unknown
 ): BlueprintProjectContextResponse {
   const record = asRecord(payload) ?? {};
-  const contextValue = record.projectContext ?? record.context ?? record.data ?? record;
+  const contextValue =
+    record.projectContext ?? record.context ?? record.data ?? record;
   return {
     projectContext: normalizeBlueprintProjectDomainContext(contextValue),
   };
@@ -4020,7 +4245,7 @@ export async function fetchBlueprintClarificationSession(
   clarificationId: string
 ): Promise<FetchBlueprintClarificationSessionResult> {
   const result = await fetchJsonSafe<unknown>(
-    `${BLUEPRINT_INTAKE_ENDPOINT}/clarifications/${encodeURIComponent(clarificationId)}`
+    `${BLUEPRINT_CLARIFICATIONS_ENDPOINT}/${encodeURIComponent(clarificationId)}`
   );
 
   if (!result.ok) {
@@ -4039,7 +4264,7 @@ export async function saveBlueprintClarificationAnswers(
   method: "POST" | "PATCH" = "POST"
 ): Promise<SaveBlueprintClarificationAnswersResult> {
   const result = await fetchJsonSafe<unknown>(
-    `${BLUEPRINT_INTAKE_ENDPOINT}/clarifications/${encodeURIComponent(clarificationId)}/answers`,
+    `${BLUEPRINT_CLARIFICATIONS_ENDPOINT}/${encodeURIComponent(clarificationId)}/answers`,
     {
       method,
       headers: { "Content-Type": "application/json" },
@@ -4077,14 +4302,11 @@ export async function fetchBlueprintProjectContext(
 export async function createBlueprintGenerationJob(
   request: BlueprintGenerationRequest
 ): Promise<BlueprintGenerationJobResult> {
-  const result = await fetchJsonSafe<unknown>(
-    BLUEPRINT_JOBS_ENDPOINT,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-    }
-  );
+  const result = await fetchJsonSafe<unknown>(BLUEPRINT_JOBS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
 
   if (!result.ok) {
     return { ok: false, error: result.error };
@@ -4099,14 +4321,11 @@ export async function createBlueprintGenerationJob(
 export async function createBlueprintGenerationCompatJob(
   request: BlueprintGenerationRequest
 ): Promise<BlueprintGenerationJobResult> {
-  const result = await fetchJsonSafe<unknown>(
-    BLUEPRINT_GENERATIONS_ENDPOINT,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(request),
-    }
-  );
+  const result = await fetchJsonSafe<unknown>(BLUEPRINT_GENERATIONS_ENDPOINT, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(request),
+  });
 
   if (!result.ok) {
     return { ok: false, error: result.error };
@@ -4433,9 +4652,7 @@ function capabilityQueryString(
 }
 
 export async function fetchBlueprintCapabilities(): Promise<FetchBlueprintCapabilitiesResult> {
-  const result = await fetchJsonSafe<unknown>(
-    BLUEPRINT_CAPABILITIES_ENDPOINT
-  );
+  const result = await fetchJsonSafe<unknown>(BLUEPRINT_CAPABILITIES_ENDPOINT);
 
   if (!result.ok) {
     return { ok: false, error: result.error };

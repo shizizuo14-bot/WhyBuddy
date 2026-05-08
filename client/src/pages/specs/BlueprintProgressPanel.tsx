@@ -70,7 +70,8 @@ import {
   type BlueprintTaskProgress,
 } from "@/lib/blueprint-api";
 import type { ApiRequestError } from "@/lib/api-client";
-import { blueprintCopy } from "@/lib/blueprint-copy";
+import { blueprintCopy as translateBlueprintCopy } from "@/lib/blueprint-copy";
+import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
 import type {
   BlueprintGenerationJob,
@@ -87,13 +88,28 @@ import type {
 import SpecTreeWorkbenchPanel from "./SpecTreeWorkbenchPanel";
 import SpecDocumentWorkbenchPanel from "./SpecDocumentWorkbenchPanel";
 
-type BlueprintEffectPreview = BlueprintEffectPreviewSnapshot & { title?: string };
+function blueprintCopy(value: string | undefined): string {
+  return translateBlueprintCopy(value, useAppStore.getState().locale);
+}
+
+function panelText(zh: string, en: string): string {
+  return useAppStore.getState().locale === "zh-CN" ? zh : en;
+}
+
+type BlueprintEffectPreview = BlueprintEffectPreviewSnapshot & {
+  title?: string;
+};
 type BlueprintEffectPreviewWithProjection = BlueprintEffectPreview & {
   runtimeProjection?: BlueprintEffectPreviewRuntimeProjection;
   runtime_projection?: unknown;
   projection?: unknown;
 };
-type BlueprintRoleEventConsumerId = "scene" | "hud" | "logs" | "browser" | "spec";
+type BlueprintRoleEventConsumerId =
+  | "scene"
+  | "hud"
+  | "logs"
+  | "browser"
+  | "spec";
 type BlueprintRoleEventProjectionItem = {
   id: BlueprintRoleEventConsumerId;
   label: string;
@@ -173,11 +189,12 @@ const DOC_LABELS: Array<{
 ];
 
 function formatGeneratedAt(value: string): string {
-  if (!value) return "待同步";
+  const locale = useAppStore.getState().locale;
+  if (!value) return locale === "zh-CN" ? "待同步" : "Pending sync";
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return value;
 
-  return new Intl.DateTimeFormat("zh-CN", {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "2-digit",
     hour: "2-digit",
@@ -186,9 +203,12 @@ function formatGeneratedAt(value: string): string {
 }
 
 function formatBlueprintJobStatus(job: BlueprintGenerationJob | null): string {
-  if (!job) return "尚未生成 RouteSet";
+  const locale = useAppStore.getState().locale;
+  if (!job) return locale === "zh-CN" ? "尚未生成 RouteSet" : "No RouteSet generated yet";
   if (job.stage === "spec_tree" && job.status === "reviewing") {
-    return "SPEC 树草稿已生成，等待推导工作台确认";
+    return locale === "zh-CN"
+      ? "SPEC 树草稿已生成，等待推导工作台确认"
+      : "SPEC tree draft generated; waiting for deduction workbench review";
   }
   return `${blueprintCopy(job.stage)} / ${blueprintCopy(job.status)}`;
 }
@@ -199,12 +219,12 @@ function taskPercent(tasks: BlueprintTaskProgress): number {
 }
 
 function routeLevelLabel(level: string): string {
-  if (level === "low") return "低";
-  if (level === "medium") return "中";
-  if (level === "high") return "高";
-  if (level === "light") return "轻量";
-  if (level === "balanced") return "均衡";
-  if (level === "deep") return "深度";
+  if (level === "low") return panelText("低", "Low");
+  if (level === "medium") return panelText("中", "Medium");
+  if (level === "high") return panelText("高", "High");
+  if (level === "light") return panelText("轻量", "Light");
+  if (level === "balanced") return panelText("均衡", "Balanced");
+  if (level === "deep") return panelText("深度", "Deep");
   return level;
 }
 
@@ -472,14 +492,14 @@ function RouteSetPreview({
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
             <Route className="size-3.5" aria-hidden="true" />
-            自动驾驶 RouteSet
+            {panelText("自动驾驶 RouteSet", "Autopilot RouteSet")}
           </div>
           <h3 className="mt-2 text-lg font-black text-slate-950">
             {selection
-              ? "已选择用于推导的路线"
+              ? panelText("已选择用于推导的路线", "Route selected for deduction")
               : job?.status === "completed"
-                ? "可生成 SPEC 树"
-                : "路线草稿"}
+                ? panelText("可生成 SPEC 树", "Ready for SPEC tree")
+                : panelText("路线草稿", "Route draft")}
           </h3>
           <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-500">
             {blueprintCopy(routeSet.nextAsset.description)}
@@ -497,15 +517,21 @@ function RouteSetPreview({
               data-testid="blueprint-reset-route-selection-button"
             >
               {resettingSelection ? (
-                <RefreshCw className="size-3.5 animate-spin" aria-hidden="true" />
+                <RefreshCw
+                  className="size-3.5 animate-spin"
+                  aria-hidden="true"
+                />
               ) : (
                 <Undo2 className="size-3.5" aria-hidden="true" />
               )}
-              重置路线
+              {panelText("重置路线", "Reset route")}
             </Button>
           ) : null}
           <span className="rounded-full bg-white px-3 py-1 text-xs font-black text-slate-500">
-            {routeSet.routes.length} 条路线
+            {panelText(
+              `${routeSet.routes.length} 条路线`,
+              `${routeSet.routes.length} routes`
+            )}
           </span>
         </div>
       </div>
@@ -625,7 +651,9 @@ function readLatestEffectPreviews(value: unknown): BlueprintEffectPreview[] {
   if (!Array.isArray(previews)) return [];
 
   const latestProjection =
-    record?.runtimeProjection ?? record?.runtime_projection ?? record?.projection;
+    record?.runtimeProjection ??
+    record?.runtime_projection ??
+    record?.projection;
   if (!latestProjection) {
     return previews;
   }
@@ -637,7 +665,10 @@ function readLatestEffectPreviews(value: unknown): BlueprintEffectPreview[] {
     )
       ? ({
           ...preview,
-          runtimeProjection: normalizeRuntimeProjection(preview, latestProjection),
+          runtimeProjection: normalizeRuntimeProjection(
+            preview,
+            latestProjection
+          ),
         } satisfies BlueprintEffectPreviewWithProjection)
       : preview
   );
@@ -659,7 +690,9 @@ function readLatestCapabilities(value: unknown): BlueprintRuntimeCapability[] {
   return Array.isArray(capabilities) ? capabilities : [];
 }
 
-function readLatestAgentCrew(value: unknown): BlueprintAgentCrewSnapshot | null {
+function readLatestAgentCrew(
+  value: unknown
+): BlueprintAgentCrewSnapshot | null {
   const record = value as LatestJobWithRuntimeCapabilities | null;
   return record?.agentCrew ?? record?.agent_crew ?? null;
 }
@@ -706,20 +739,18 @@ function readLatestEngineeringLandingPlans(
   value: unknown
 ): BlueprintEngineeringLandingPlan[] {
   const record = value as LatestJobWithEngineeringLanding | null;
-  const fallbackJobId = record?.job?.id ?? record?.jobId ?? record?.job_id ?? "";
-  return normalizeBlueprintEngineeringLandingResponse(
-    value,
-    fallbackJobId
-  ).landingPlans;
+  const fallbackJobId =
+    record?.job?.id ?? record?.jobId ?? record?.job_id ?? "";
+  return normalizeBlueprintEngineeringLandingResponse(value, fallbackJobId)
+    .landingPlans;
 }
 
 function readLatestEngineeringRuns(value: unknown): BlueprintEngineeringRun[] {
   const record = value as LatestJobWithEngineeringLanding | null;
-  const fallbackJobId = record?.job?.id ?? record?.jobId ?? record?.job_id ?? "";
-  return normalizeBlueprintEngineeringRunsResponse(
-    value,
-    fallbackJobId
-  ).engineeringRuns;
+  const fallbackJobId =
+    record?.job?.id ?? record?.jobId ?? record?.job_id ?? "";
+  return normalizeBlueprintEngineeringRunsResponse(value, fallbackJobId)
+    .engineeringRuns;
 }
 
 function readLatestArtifactLedgerEntries(
@@ -738,7 +769,10 @@ function readLatestArtifactLedgerEntries(
 function readLatestArtifactReplays(value: unknown): BlueprintArtifactReplay[] {
   const record = value as LatestJobWithArtifactMemory | null;
   const replays =
-    record?.artifactReplays ?? record?.artifact_replays ?? record?.replays ?? [];
+    record?.artifactReplays ??
+    record?.artifact_replays ??
+    record?.replays ??
+    [];
   return Array.isArray(replays) ? replays : [];
 }
 
@@ -795,7 +829,9 @@ function parseWorkbenchLines(value: string): string[] {
     .filter(Boolean);
 }
 
-function engineeringRunStatusLabel(status: BlueprintEngineeringRunStatus): string {
+function engineeringRunStatusLabel(
+  status: BlueprintEngineeringRunStatus
+): string {
   const translated = blueprintCopy(status);
   if (translated !== status) return translated;
 
@@ -805,10 +841,14 @@ function engineeringRunStatusLabel(status: BlueprintEngineeringRunStatus): strin
     .join(" ");
 }
 
-function artifactTokenLabel(value: string | undefined, fallback: string): string {
+function artifactTokenLabel(
+  value: string | undefined,
+  fallback: string
+): string {
+  const locale = useAppStore.getState().locale;
   const normalized = (value ?? "").trim();
-  if (!normalized) return blueprintCopy(fallback);
-  const translated = blueprintCopy(normalized);
+  if (!normalized) return translateBlueprintCopy(fallback, locale);
+  const translated = translateBlueprintCopy(normalized, locale);
   if (translated !== normalized) return translated;
 
   return normalized
@@ -962,10 +1002,10 @@ function BlueprintClarificationStrategySummary({
 }
 
 function agentRoleStateLabel(state: string): string {
-  if (state === "active") return "Active";
-  if (state === "watching") return "Watching";
-  if (state === "reviewing") return "Reviewing";
-  if (state === "sleeping") return "Sleeping";
+  if (state === "active") return panelText("活跃", "Active");
+  if (state === "watching") return panelText("观察中", "Watching");
+  if (state === "reviewing") return panelText("评审中", "Reviewing");
+  if (state === "sleeping") return panelText("休眠", "Sleeping");
   return artifactTokenLabel(state, "Status");
 }
 
@@ -983,11 +1023,13 @@ function agentRoleStateClass(state: string): string {
 }
 
 function agentRoleStateDetail(state: string): string {
-  if (state === "active") return "driving current work";
-  if (state === "watching") return "watching handoff signals";
-  if (state === "reviewing") return "reviewing evidence";
-  if (state === "sleeping") return "standing by";
-  return "role presence";
+  if (state === "active") return panelText("驱动当前工作", "driving current work");
+  if (state === "watching") {
+    return panelText("观察交接信号", "watching handoff signals");
+  }
+  if (state === "reviewing") return panelText("评审证据", "reviewing evidence");
+  if (state === "sleeping") return panelText("待命", "standing by");
+  return panelText("角色在线状态", "role presence");
 }
 
 function latestAgentRoleItem(
@@ -1096,26 +1138,20 @@ function buildRoleEventProjection(
 ): BlueprintRoleEventProjection {
   const events = collectRoleTimelineEvents(agentCrew, projection);
   const latestEvent = events.at(-1);
-  const sceneEvent = latestRoleEventByPredicate(
-    events,
-    event => {
-      const text = roleEventSearchText(event);
-      return (
-        text.includes("3d") ||
-        text.includes("scene") ||
-        text.includes("snapshot") ||
-        event.stage === "spec_tree" ||
-        Boolean(event.specTreeId || event.nodeId)
-      );
-    }
-  );
-  const hudEvent = latestRoleEventByPredicate(
-    events,
-    event => {
-      const text = roleEventSearchText(event);
-      return text.includes("hud") || event.type === "role.activated";
-    }
-  );
+  const sceneEvent = latestRoleEventByPredicate(events, event => {
+    const text = roleEventSearchText(event);
+    return (
+      text.includes("3d") ||
+      text.includes("scene") ||
+      text.includes("snapshot") ||
+      event.stage === "spec_tree" ||
+      Boolean(event.specTreeId || event.nodeId)
+    );
+  });
+  const hudEvent = latestRoleEventByPredicate(events, event => {
+    const text = roleEventSearchText(event);
+    return text.includes("hud") || event.type === "role.activated";
+  });
   const logEvent = latestRoleEventByPredicate(
     events,
     event =>
@@ -1123,13 +1159,10 @@ function buildRoleEventProjection(
       Boolean(event.capabilityId) ||
       Boolean(event.evidenceId)
   );
-  const browserEvent = latestRoleEventByPredicate(
-    events,
-    event => {
-      const text = roleEventSearchText(event);
-      return text.includes("browser") || text.includes("preview");
-    }
-  );
+  const browserEvent = latestRoleEventByPredicate(events, event => {
+    const text = roleEventSearchText(event);
+    return text.includes("browser") || text.includes("preview");
+  });
   const specEvent = latestRoleEventByPredicate(
     events,
     event =>
@@ -1146,15 +1179,24 @@ function buildRoleEventProjection(
     items: [
       {
         id: "scene",
-        label: "3D Scene",
+        label: panelText("3D 场景", "3D Scene"),
         value:
           projection?.sceneSnapshotId ||
-          roleEventValue(sceneEvent, "Waiting for scene role event"),
+          roleEventValue(
+            sceneEvent,
+            panelText("等待场景角色事件", "Waiting for scene role event")
+          ),
         detail: sceneEvent
-          ? `Role event ${sceneEvent.eventId} keeps scene state aligned.`
+          ? panelText(
+              `角色事件 ${sceneEvent.eventId} 让场景状态保持对齐。`,
+              `Role event ${sceneEvent.eventId} keeps scene state aligned.`
+            )
           : projection?.sceneSnapshotId
-            ? "Scene snapshot is linked to the runtime projection."
-            : "No scene role event yet.",
+            ? panelText(
+                "场景快照已链接到运行时投影。",
+                "Scene snapshot is linked to the runtime projection."
+              )
+            : panelText("暂无场景角色事件。", "No scene role event yet."),
         status: roleEventProjectionStatus(
           sceneEvent,
           projection?.sceneSnapshotId ? "ready" : "pending"
@@ -1169,14 +1211,25 @@ function buildRoleEventProjection(
         value:
           projection?.hudState.summary ||
           projection?.hudState.title ||
-          roleEventValue(hudEvent, "Waiting for HUD role event"),
+          roleEventValue(
+            hudEvent,
+            panelText("等待 HUD 角色事件", "Waiting for HUD role event")
+          ),
         detail: hudEvent
-          ? `Role event ${hudEvent.eventId} drives HUD presence ${agentRoleStateLabel(
-              hudEvent.presenceState
-            )}.`
+          ? panelText(
+              `角色事件 ${hudEvent.eventId} 驱动 HUD 存在感 ${agentRoleStateLabel(
+                hudEvent.presenceState
+              )}。`,
+              `Role event ${hudEvent.eventId} drives HUD presence ${agentRoleStateLabel(
+                hudEvent.presenceState
+              )}.`
+            )
           : projection?.hudState.badges.length
             ? projection.hudState.badges.join(" / ")
-            : `${artifactTokenLabel(projection?.hudState.status, "preview")} status`,
+            : `${artifactTokenLabel(projection?.hudState.status, "preview")} ${panelText(
+                "状态",
+                "status"
+              )}`,
         status: roleEventProjectionStatus(
           hudEvent,
           projection?.hudState.status ?? "pending"
@@ -1187,14 +1240,20 @@ function buildRoleEventProjection(
       },
       {
         id: "logs",
-        label: "Logs",
+        label: panelText("日志", "Logs"),
         value:
           roleEventValue(logEvent, projection?.logTimeline[0]?.message ?? "") ||
-          "Waiting for runtime logs",
+          panelText("等待运行时日志", "Waiting for runtime logs"),
         detail: logEvent
-          ? `Role event ${logEvent.eventId} is mirrored in logs.`
+          ? panelText(
+              `角色事件 ${logEvent.eventId} 已镜像到日志。`,
+              `Role event ${logEvent.eventId} is mirrored in logs.`
+            )
           : projection?.logTimeline[0]?.occurredAt ||
-            `${projection?.logTimeline.length ?? 0} runtime log entries`,
+            panelText(
+              `${projection?.logTimeline.length ?? 0} 条运行时日志`,
+              `${projection?.logTimeline.length ?? 0} runtime log entries`
+            ),
         status: roleEventProjectionStatus(logEvent, "pending"),
         roleState: logEvent?.presenceState,
         eventType: logEvent?.type,
@@ -1202,17 +1261,23 @@ function buildRoleEventProjection(
       },
       {
         id: "browser",
-        label: "Browser",
+        label: panelText("浏览器", "Browser"),
         value:
           projection?.browserPreviewId ||
           projection?.browserPreview.url ||
-          roleEventValue(browserEvent, "Waiting for browser role event"),
+          roleEventValue(
+            browserEvent,
+            panelText("等待浏览器角色事件", "Waiting for browser role event")
+          ),
         detail: browserEvent
-          ? `Role event ${browserEvent.eventId} keeps browser preview aligned.`
+          ? panelText(
+              `角色事件 ${browserEvent.eventId} 让浏览器预览保持对齐。`,
+              `Role event ${browserEvent.eventId} keeps browser preview aligned.`
+            )
           : projection?.browserPreview.url ||
             projection?.browserPreview.summary ||
             projection?.browserPreview.title ||
-            "No browser preview role event yet.",
+            panelText("暂无浏览器预览角色事件。", "No browser preview role event yet."),
         status: roleEventProjectionStatus(
           browserEvent,
           projection?.browserPreviewId || projection?.browserPreview.url
@@ -1225,13 +1290,22 @@ function buildRoleEventProjection(
       },
       {
         id: "spec",
-        label: "SPEC UI",
-        value: roleEventValue(specEvent ?? latestEvent, "Waiting for SPEC role event"),
+        label: panelText("SPEC 界面", "SPEC UI"),
+        value: roleEventValue(
+          specEvent ?? latestEvent,
+          panelText("等待 SPEC 角色事件", "Waiting for SPEC role event")
+        ),
         detail: specEvent
-          ? `Role event ${specEvent.eventId} is visible in SPEC UI.`
+          ? panelText(
+              `角色事件 ${specEvent.eventId} 会在 SPEC 界面中可见。`,
+              `Role event ${specEvent.eventId} is visible in SPEC UI.`
+            )
           : latestEvent
-            ? `Latest role event ${latestEvent.eventId} is visible in SPEC UI.`
-            : "No role event stream entries yet.",
+            ? panelText(
+                `最新角色事件 ${latestEvent.eventId} 会在 SPEC 界面中可见。`,
+                `Latest role event ${latestEvent.eventId} is visible in SPEC UI.`
+              )
+            : panelText("暂无角色事件流条目。", "No role event stream entries yet."),
         status: roleEventProjectionStatus(specEvent ?? latestEvent, "pending"),
         roleState: (specEvent ?? latestEvent)?.presenceState,
         eventType: (specEvent ?? latestEvent)?.type,
@@ -1261,7 +1335,10 @@ function roleEventProjectionLogEntries(
 function previewRecord(
   preview: BlueprintEffectPreview | null | undefined
 ): BlueprintEffectPreviewWithVersionSync | null {
-  return (preview as BlueprintEffectPreviewWithVersionSync | null | undefined) ?? null;
+  return (
+    (preview as BlueprintEffectPreviewWithVersionSync | null | undefined) ??
+    null
+  );
 }
 
 function previewString(value: unknown, fallback = ""): string {
@@ -1347,7 +1424,9 @@ function EffectPreviewVersionSync({
       record?.refreshedFromSpecTreeVersion ??
         record?.refreshed_from_spec_tree_version
     ) || "pending";
-  const refreshedAt = previewString(record?.refreshedAt ?? record?.refreshed_at);
+  const refreshedAt = previewString(
+    record?.refreshedAt ?? record?.refreshed_at
+  );
   const dependencyOrder = previewStringArray(
     record?.dependencyOrder ?? record?.dependency_order
   );
@@ -1427,7 +1506,9 @@ function EffectPreviewVersionSync({
       </div>
       {refreshedAt || sourceSnapshotHash ? (
         <div className="mt-2 truncate text-[10px] font-black uppercase tracking-normal text-slate-400">
-          {refreshedAt ? `Refreshed ${formatEffectPreviewDate(refreshedAt)}` : "Refreshed"}
+          {refreshedAt
+            ? `Refreshed ${formatEffectPreviewDate(refreshedAt)}`
+            : "Refreshed"}
           {sourceSnapshotHash ? ` / ${sourceSnapshotHash}` : ""}
         </div>
       ) : null}
@@ -1438,7 +1519,10 @@ function EffectPreviewVersionSync({
 function readRuntimeProjection(
   preview: BlueprintEffectPreview | null | undefined
 ): unknown {
-  const candidate = preview as BlueprintEffectPreviewWithProjection | null | undefined;
+  const candidate = preview as
+    | BlueprintEffectPreviewWithProjection
+    | null
+    | undefined;
   return (
     candidate?.runtimeProjection ??
     candidate?.runtime_projection ??
@@ -1557,9 +1641,7 @@ function EffectPreviewRuntimeProjection({
   );
   const roleItemsById = useMemo(
     () =>
-      new Map(
-        (roleEventProjection?.items ?? []).map(item => [item.id, item])
-      ),
+      new Map((roleEventProjection?.items ?? []).map(item => [item.id, item])),
     [roleEventProjection]
   );
   const sceneRoleItem = roleItemsById.get("scene");
@@ -1576,10 +1658,12 @@ function EffectPreviewRuntimeProjection({
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
             <PlayCircle className="size-3.5" aria-hidden="true" />
-            Runtime Projection
+            {panelText("运行时投影", "Runtime Projection")}
           </div>
           <h4 className="mt-2 truncate text-base font-black text-slate-950">
-            {blueprintCopy(projection.hudState.title || "Runtime capability projection")}
+            {blueprintCopy(
+              projection.hudState.title || "Runtime capability projection"
+            )}
           </h4>
         </div>
         <Badge
@@ -1592,16 +1676,16 @@ function EffectPreviewRuntimeProjection({
 
       <div className="mt-3 grid gap-2 md:grid-cols-2 xl:grid-cols-4">
         <RuntimeProjectionCard
-          label="3D Scene"
+          label={panelText("3D 场景", "3D Scene")}
           value={runtimeProjectionValue(
             projection.sceneSnapshotId || sceneRoleItem?.value,
-            "Waiting for scene snapshot"
+            panelText("等待场景快照", "Waiting for scene snapshot")
           )}
           detail={
             sceneRoleItem?.detail ||
             (projection.sceneSnapshotId
-              ? "Scene snapshot is linked."
-              : "No scene snapshot yet.")
+              ? panelText("场景快照已连接。", "Scene snapshot is linked.")
+              : panelText("暂无场景快照。", "No scene snapshot yet."))
           }
           status={sceneRoleItem?.status ?? (hasScene ? "ready" : "pending")}
         />
@@ -1609,41 +1693,52 @@ function EffectPreviewRuntimeProjection({
           label="HUD"
           value={runtimeProjectionValue(
             projection.hudState.summary || hudRoleItem?.value,
-            projection.hudState.title || "Waiting for HUD state"
+            projection.hudState.title || panelText("等待 HUD 状态", "Waiting for HUD state")
           )}
           detail={
             hudRoleItem?.detail ??
             (projection.hudState.badges.length
               ? projection.hudState.badges.join(" / ")
-              : `${artifactTokenLabel(projection.hudState.status, "preview")} status`)
+              : `${artifactTokenLabel(projection.hudState.status, "preview")} ${panelText("状态", "status")}`)
           }
-          status={hudRoleItem?.status ?? (hasHud ? projection.hudState.status : "pending")}
+          status={
+            hudRoleItem?.status ??
+            (hasHud ? projection.hudState.status : "pending")
+          }
         />
         <RuntimeProjectionCard
-          label="Logs"
+          label={panelText("日志", "Logs")}
           value={runtimeProjectionValue(
-            latestLog?.message || latestProjectedLog?.message || logsRoleItem?.value,
-            "Waiting for runtime logs"
+            latestLog?.message ||
+              latestProjectedLog?.message ||
+              logsRoleItem?.value,
+            panelText("等待运行时日志", "Waiting for runtime logs")
           )}
           detail={
             logsRoleItem?.detail ||
             latestProjectedLog?.occurredAt ||
-            `${projectedLogs.length} runtime log entries`
+            panelText(
+              `${projectedLogs.length} 条运行时日志`,
+              `${projectedLogs.length} runtime log entries`
+            )
           }
-          status={logsRoleItem?.status ?? (hasLogs ? latestProjectedLog?.level ?? "ready" : "pending")}
+          status={
+            logsRoleItem?.status ??
+            (hasLogs ? (latestProjectedLog?.level ?? "ready") : "pending")
+          }
         />
         <RuntimeProjectionCard
-          label="Browser"
+          label={panelText("浏览器", "Browser")}
           value={runtimeProjectionValue(
             projection.browserPreviewId || browserRoleItem?.value,
-            projection.browserPreview.url || "Waiting for browser preview"
+            projection.browserPreview.url || panelText("等待浏览器预览", "Waiting for browser preview")
           )}
           detail={
             browserRoleItem?.detail ||
             projection.browserPreview.url ||
             projection.browserPreview.summary ||
             projection.browserPreview.title ||
-            "No browser preview link yet."
+            panelText("暂无浏览器预览链接。", "No browser preview link yet.")
           }
           status={browserRoleItem?.status ?? (hasBrowser ? "ready" : "pending")}
         />
@@ -1689,7 +1784,7 @@ function EffectPreviewList({
         </ul>
       ) : (
         <div className="mt-3 rounded-[12px] border border-dashed border-slate-300 bg-slate-50 px-3 py-5 text-sm font-semibold text-slate-500">
-          等待生成说明。
+          {panelText("等待生成说明。", "Waiting for generation notes.")}
         </div>
       )}
     </div>
@@ -1735,7 +1830,10 @@ function BlueprintAgentCrewSurface({
   );
   const streamEventCount =
     roleEventProjection?.eventCount ??
-    roleTimelines.reduce((count, role) => count + (role.entries?.length ?? 0), 0);
+    roleTimelines.reduce(
+      (count, role) => count + (role.entries?.length ?? 0),
+      0
+    );
 
   if (!agentCrew && roleTimelines.length === 0) return null;
 
@@ -1748,22 +1846,31 @@ function BlueprintAgentCrewSurface({
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
             <Layers3 className="size-3.5" aria-hidden="true" />
-            Agent Crew
+            {panelText("智能体团队", "Agent Crew")}
           </div>
           <h3 className="mt-2 text-lg font-black text-slate-950">
-            Companion role surface
+            {panelText("协作角色面板", "Companion role surface")}
           </h3>
           <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
             {agentCrew?.stage
-              ? `${artifactTokenLabel(agentCrew.stage, "runtime_capability")} companion roles are aligned with runtime capabilities, logs, browser preview artifacts, and evidence.`
-              : "Companion roles are aligned with runtime capabilities, logs, browser preview artifacts, and evidence."}
+              ? panelText(
+                  `${artifactTokenLabel(agentCrew.stage, "runtime_capability")} 协作角色已与运行时能力、日志、浏览器预览资产和证据对齐。`,
+                  `${artifactTokenLabel(agentCrew.stage, "runtime_capability")} companion roles are aligned with runtime capabilities, logs, browser preview artifacts, and evidence.`
+                )
+              : panelText(
+                  "协作角色已与运行时能力、日志、浏览器预览资产和证据对齐。",
+                  "Companion roles are aligned with runtime capabilities, logs, browser preview artifacts, and evidence."
+                )}
           </p>
         </div>
         <Badge
           variant="outline"
           className="rounded-full border-slate-200 bg-slate-50 text-[10px] font-black text-slate-500"
         >
-          {roleTimelines.length} roles / {streamEventCount} events
+          {panelText(
+            `${roleTimelines.length} 角色 / ${streamEventCount} 事件`,
+            `${roleTimelines.length} roles / ${streamEventCount} events`
+          )}
         </Badge>
       </div>
 
@@ -1797,8 +1904,10 @@ function BlueprintAgentCrewSurface({
               </div>
               <div className="mt-1 truncate text-[10px] font-bold uppercase tracking-normal text-slate-400">
                 {item.sourceEventId
-                  ? blueprintCopy(`${item.sourceEventId} / ${item.eventType ?? "role.event"}`)
-                  : "Waiting for role event"}
+                  ? blueprintCopy(
+                      `${item.sourceEventId} / ${item.eventType ?? "role.event"}`
+                    )
+                  : panelText("等待角色事件", "Waiting for role event")}
               </div>
             </div>
           ))}
@@ -1830,16 +1939,16 @@ function BlueprintAgentCrewSurface({
                 )
                 .find(Boolean) ||
               role.capabilityLabels[0] ||
-              "No capability bound";
+              panelText("未绑定能力", "No capability bound");
             const latestArtifact = latestAgentRoleItem(
               role.artifactIds,
               role.latestArtifact,
-              "No artifact yet"
+              panelText("暂无资产", "No artifact yet")
             );
             const latestEvidenceId = latestAgentRoleItem(
               role.evidenceIds,
               role.latestEvidence,
-              "No evidence yet"
+              panelText("暂无证据", "No evidence yet")
             );
             const latestEvidence =
               evidenceById.get(latestEvidenceId)?.title ?? latestEvidenceId;
@@ -1880,7 +1989,7 @@ function BlueprintAgentCrewSurface({
                         variant="outline"
                         className="rounded-full border-slate-200 bg-white text-[10px] font-black text-slate-500"
                       >
-                        {artifactTokenLabel(role.group, "Role")}
+                          {artifactTokenLabel(role.group, "Role")}
                       </Badge>
                     </div>
                     <div className="mt-2 text-sm font-semibold leading-6 text-slate-600">
@@ -1895,7 +2004,7 @@ function BlueprintAgentCrewSurface({
                 <div className="mt-3 grid gap-2 md:grid-cols-4">
                   <div className="rounded-[12px] border border-slate-200 bg-white px-3 py-2">
                     <div className="text-[10px] font-black uppercase tracking-normal text-slate-400">
-                      Capability
+                      {panelText("能力", "Capability")}
                     </div>
                     <div className="mt-1 truncate text-xs font-bold text-slate-700">
                       {blueprintCopy(latestCapability)}
@@ -1903,7 +2012,7 @@ function BlueprintAgentCrewSurface({
                   </div>
                   <div className="rounded-[12px] border border-slate-200 bg-white px-3 py-2">
                     <div className="text-[10px] font-black uppercase tracking-normal text-slate-400">
-                      Artifact
+                      {panelText("资产", "Artifact")}
                     </div>
                     <div className="mt-1 truncate text-xs font-bold text-slate-700">
                       {blueprintCopy(latestArtifact)}
@@ -1911,7 +2020,7 @@ function BlueprintAgentCrewSurface({
                   </div>
                   <div className="rounded-[12px] border border-slate-200 bg-white px-3 py-2">
                     <div className="text-[10px] font-black uppercase tracking-normal text-slate-400">
-                      Evidence
+                      {panelText("证据", "Evidence")}
                     </div>
                     <div className="mt-1 truncate text-xs font-bold text-slate-700">
                       {blueprintCopy(latestEvidence)}
@@ -1919,13 +2028,13 @@ function BlueprintAgentCrewSurface({
                   </div>
                   <div className="rounded-[12px] border border-slate-200 bg-white px-3 py-2">
                     <div className="text-[10px] font-black uppercase tracking-normal text-slate-400">
-                      Log / Preview
+                      {panelText("日志 / 预演", "Log / Preview")}
                     </div>
                     <div className="mt-1 truncate text-xs font-bold text-slate-700">
                       {blueprintCopy(
                         latestLog ||
                           latestEvent?.summary ||
-                          "Awaiting runtime log"
+                          panelText("等待运行时日志", "Awaiting runtime log")
                       )}
                     </div>
                   </div>
@@ -1938,7 +2047,7 @@ function BlueprintAgentCrewSurface({
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
                       <div className="text-[10px] font-black uppercase tracking-normal text-slate-400">
-                        Role Event Source
+                        {panelText("角色事件来源", "Role Event Source")}
                       </div>
                       <Badge
                         variant="outline"
@@ -1961,8 +2070,10 @@ function BlueprintAgentCrewSurface({
           })
         ) : (
           <div className="rounded-[14px] border border-dashed border-slate-300 bg-slate-50 px-3 py-6 text-sm font-semibold leading-6 text-slate-500">
-            Agent Crew companion roles will appear after the runtime capability
-            bridge returns crew presence.
+            {panelText(
+              "运行时能力桥返回 crew presence 后，Agent Crew 协作角色会显示在这里。",
+              "Agent Crew companion roles will appear after the runtime capability bridge returns crew presence."
+            )}
           </div>
         )}
       </div>
@@ -1976,12 +2087,14 @@ function EffectPreviewWorkbenchPanel({
   documents,
   initialPreviews,
   agentCrew,
+  onPreviewsChange,
 }: {
   specTree: BlueprintSpecTree;
   jobId?: string | null;
   documents: BlueprintSpecDocument[];
   initialPreviews?: BlueprintEffectPreview[];
   agentCrew?: BlueprintAgentCrewSnapshot | null;
+  onPreviewsChange?: (previews: BlueprintEffectPreview[]) => void;
 }) {
   const acceptedDocuments = useMemo(
     () =>
@@ -2028,7 +2141,7 @@ function EffectPreviewWorkbenchPanel({
     setSelectedPreviewId(current =>
       initialPreviews?.some(preview => preview.id === current)
         ? current
-        : initialPreviews?.[0]?.id ?? ""
+        : (initialPreviews?.[0]?.id ?? "")
     );
   }, [initialPreviews]);
 
@@ -2036,7 +2149,7 @@ function EffectPreviewWorkbenchPanel({
     setSelectedNodeId(current =>
       specTree.nodes.some(node => node.id === current)
         ? current
-        : previewNodes[0]?.id ?? specTree.rootNodeId
+        : (previewNodes[0]?.id ?? specTree.rootNodeId)
     );
   }, [previewNodes, specTree.nodes, specTree.rootNodeId]);
 
@@ -2054,7 +2167,11 @@ function EffectPreviewWorkbenchPanel({
     [previews, selectedPreviewId]
   );
   const activeRuntimeProjection = useMemo(
-    () => normalizeRuntimeProjection(activePreview, readRuntimeProjection(activePreview)),
+    () =>
+      normalizeRuntimeProjection(
+        activePreview,
+        readRuntimeProjection(activePreview)
+      ),
     [activePreview]
   );
   const roleEventProjection = useMemo(
@@ -2063,14 +2180,18 @@ function EffectPreviewWorkbenchPanel({
   );
   const canGenerate = Boolean(jobId) && acceptedDocuments.length > 0;
 
-  const publishPreviews = useCallback((nextPreviews: BlueprintEffectPreview[]) => {
-    setPreviews(nextPreviews);
-    setSelectedPreviewId(current =>
-      nextPreviews.some(preview => preview.id === current)
-        ? current
-        : nextPreviews[0]?.id ?? ""
-    );
-  }, []);
+  const publishPreviews = useCallback(
+    (nextPreviews: BlueprintEffectPreview[]) => {
+      setPreviews(nextPreviews);
+      onPreviewsChange?.(nextPreviews);
+      setSelectedPreviewId(current =>
+        nextPreviews.some(preview => preview.id === current)
+          ? current
+          : (nextPreviews[0]?.id ?? "")
+      );
+    },
+    [onPreviewsChange]
+  );
 
   const handleRefresh = useCallback(async () => {
     if (!jobId) return;
@@ -2111,12 +2232,7 @@ function EffectPreviewWorkbenchPanel({
     } finally {
       setGenerating(false);
     }
-  }, [
-    acceptedDocuments.length,
-    jobId,
-    publishPreviews,
-    selectedNode?.id,
-  ]);
+  }, [acceptedDocuments.length, jobId, publishPreviews, selectedNode?.id]);
 
   useEffect(() => {
     if (!jobId || previews.length > 0) return;
@@ -2132,13 +2248,16 @@ function EffectPreviewWorkbenchPanel({
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-[#0f766e]">
             <Sparkles className="size-3.5" aria-hidden="true" />
-            效果预演
+            {panelText("效果预演", "Effect preview")}
           </div>
           <h3 className="mt-2 text-lg font-black text-slate-950">
-            已接受 SPEC 的效果预演
+            {panelText("已接受 SPEC 的效果预演", "Effect preview for accepted SPEC")}
           </h3>
           <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-            从已接受的 SPEC 文档生成架构说明、原型提示和进度规划。
+            {panelText(
+              "从已接受的 SPEC 文档生成架构说明、原型提示和进度规划。",
+              "Generate architecture notes, prototype cues, and progress planning from accepted SPEC documents."
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -2154,7 +2273,7 @@ function EffectPreviewWorkbenchPanel({
               className={cn("size-3.5", loading && "animate-spin")}
               aria-hidden="true"
             />
-            刷新
+            {panelText("刷新", "Refresh")}
           </Button>
           <Button
             type="button"
@@ -2168,7 +2287,7 @@ function EffectPreviewWorkbenchPanel({
             ) : (
               <Send className="size-3.5" aria-hidden="true" />
             )}
-            生成预演
+            {panelText("生成预演", "Generate preview")}
           </Button>
         </div>
       </div>
@@ -2186,13 +2305,16 @@ function EffectPreviewWorkbenchPanel({
         <div className="rounded-[18px] border border-[#0f766e]/20 bg-white p-3">
           <div className="flex items-center justify-between gap-3 px-1">
             <div className="text-xs font-black uppercase tracking-normal text-slate-500">
-              预演列表
+              {panelText("预演列表", "Preview list")}
             </div>
             <Badge
               variant="outline"
               className="rounded-full border-[#0f766e]/25 bg-[#0f766e]/10 text-[10px] font-black text-[#0f766e]"
             >
-              {previews.length} 个预演
+              {panelText(
+                `${previews.length} 个预演`,
+                `${previews.length} preview${previews.length === 1 ? "" : "s"}`
+              )}
             </Badge>
           </div>
           <ScrollArea className="mt-3 max-h-[320px] pr-2">
@@ -2220,14 +2342,19 @@ function EffectPreviewWorkbenchPanel({
                         {blueprintCopy(preview.summary)}
                       </div>
                       <div className="mt-2 text-[10px] font-black uppercase tracking-normal text-slate-400">
-                        {formatEffectPreviewDate(preview.updatedAt ?? preview.createdAt)}
+                        {formatEffectPreviewDate(
+                          preview.updatedAt ?? preview.createdAt
+                        )}
                       </div>
                     </button>
                   );
                 })
               ) : (
                 <div className="rounded-[14px] border border-dashed border-slate-300 bg-slate-50 px-3 py-6 text-sm font-semibold leading-6 text-slate-500">
-                  暂无效果预演。接受需求、设计或任务文档后即可生成预演。
+                  {panelText(
+                    "暂无效果预演。接受需求、设计或任务文档后即可生成预演。",
+                    "No effect preview yet. Accept requirements, design, or tasks documents to generate one."
+                  )}
                 </div>
               )}
             </div>
@@ -2235,7 +2362,7 @@ function EffectPreviewWorkbenchPanel({
 
           <div className="mt-3 rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3">
             <div className="text-xs font-black uppercase tracking-normal text-slate-500">
-              来源范围
+              {panelText("来源范围", "Source scope")}
             </div>
             <div className="mt-2 grid gap-2">
               {previewNodes.length ? (
@@ -2263,7 +2390,10 @@ function EffectPreviewWorkbenchPanel({
                           {blueprintCopy(node.title)}
                         </span>
                         <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">
-                          {acceptedCount} 已接受
+                          {panelText(
+                            `${acceptedCount} 已接受`,
+                            `${acceptedCount} accepted`
+                          )}
                         </span>
                       </div>
                     </button>
@@ -2271,7 +2401,10 @@ function EffectPreviewWorkbenchPanel({
                 })
               ) : (
                 <div className="text-xs font-semibold leading-5 text-slate-500">
-                  已接受的 SPEC 文档会作为生成范围显示在这里。
+                  {panelText(
+                    "已接受的 SPEC 文档会作为生成范围显示在这里。",
+                    "Accepted SPEC documents will appear here as the generation scope."
+                  )}
                 </div>
               )}
             </div>
@@ -2329,7 +2462,10 @@ function EffectPreviewWorkbenchPanel({
               进度规划
             </div>
             {activePreview?.progressPlan.length ? (
-              <div className="mt-3 grid gap-2" data-testid="effect-preview-progress-plan">
+              <div
+                className="mt-3 grid gap-2"
+                data-testid="effect-preview-progress-plan"
+              >
                 {activePreview.progressPlan.map((step, index) => (
                   <div
                     key={step.id}
@@ -2354,7 +2490,7 @@ function EffectPreviewWorkbenchPanel({
               </div>
             ) : (
               <div className="mt-3 rounded-[12px] border border-dashed border-slate-300 bg-slate-50 px-3 py-5 text-sm font-semibold text-slate-500">
-                等待生成进度规划。
+                {panelText("等待生成进度规划。", "Waiting for progress planning.")}
               </div>
             )}
           </div>
@@ -2412,7 +2548,7 @@ function PromptPackageWorkbenchPanel({
     setSelectedPackageId(current =>
       initialPackages?.some(promptPackage => promptPackage.id === current)
         ? current
-        : initialPackages?.[0]?.id ?? ""
+        : (initialPackages?.[0]?.id ?? "")
     );
   }, [initialPackages]);
 
@@ -2420,9 +2556,9 @@ function PromptPackageWorkbenchPanel({
     setSelectedNodeId(current =>
       specTree.nodes.some(node => node.id === current)
         ? current
-        : specTree.nodes.find(node => node.type === "prompt_package")?.id ??
+        : (specTree.nodes.find(node => node.type === "prompt_package")?.id ??
           packageNodes[0]?.id ??
-          specTree.rootNodeId
+          specTree.rootNodeId)
     );
   }, [packageNodes, specTree.nodes, specTree.rootNodeId]);
 
@@ -2478,7 +2614,7 @@ function PromptPackageWorkbenchPanel({
       setSelectedPackageId(current =>
         nextPackages.some(promptPackage => promptPackage.id === current)
           ? current
-          : nextPackages[0]?.id ?? ""
+          : (nextPackages[0]?.id ?? "")
       );
       onPackagesChange?.(nextPackages);
     },
@@ -2516,9 +2652,9 @@ function PromptPackageWorkbenchPanel({
         nodeId: selectedNode?.id,
         targetPlatforms:
           selectedPlatform === "all"
-            ? PROMPT_PLATFORM_OPTIONS.filter(
-                option => option.id !== "all"
-              ).map(option => option.id as BlueprintPromptTargetPlatform)
+            ? PROMPT_PLATFORM_OPTIONS.filter(option => option.id !== "all").map(
+                option => option.id as BlueprintPromptTargetPlatform
+              )
             : [selectedPlatform],
         includeDrafts: false,
         includePreviewDrafts: false,
@@ -2555,13 +2691,16 @@ function PromptPackageWorkbenchPanel({
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
             <PackageCheck className="size-3.5" aria-hidden="true" />
-            提示词包
+            {panelText("提示词包", "Prompt package")}
           </div>
           <h3 className="mt-2 text-lg font-black text-slate-950">
-            实现提示词包
+            {panelText("实现提示词包", "Implementation prompt package")}
           </h3>
           <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-            将已接受的 SPEC 资产和效果预演打包成可交给下游编码工具使用的实现提示词。
+            {panelText(
+              "将已接受的 SPEC 资产和效果预演打包成可交给下游编码工具使用的实现提示词。",
+              "Package accepted SPEC assets and effect previews into implementation prompts for downstream coding tools."
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -2577,7 +2716,7 @@ function PromptPackageWorkbenchPanel({
               className={cn("size-3.5", loading && "animate-spin")}
               aria-hidden="true"
             />
-            刷新
+            {panelText("刷新", "Refresh")}
           </Button>
           <Button
             type="button"
@@ -2591,7 +2730,7 @@ function PromptPackageWorkbenchPanel({
             ) : (
               <Send className="size-3.5" aria-hidden="true" />
             )}
-            生成提示词包
+            {panelText("生成提示词包", "Generate prompt package")}
           </Button>
         </div>
       </div>
@@ -2605,7 +2744,10 @@ function PromptPackageWorkbenchPanel({
         </div>
       ) : null}
 
-      <div className="mt-4 flex flex-wrap gap-2" data-testid="prompt-package-platform-filter">
+      <div
+        className="mt-4 flex flex-wrap gap-2"
+        data-testid="prompt-package-platform-filter"
+      >
         {PROMPT_PLATFORM_OPTIONS.map(option => {
           const selected = selectedPlatform === option.id;
           return (
@@ -2634,13 +2776,16 @@ function PromptPackageWorkbenchPanel({
         <div className="rounded-[18px] border border-slate-200 bg-white p-3">
           <div className="flex items-center justify-between gap-3 px-1">
             <div className="text-xs font-black uppercase tracking-normal text-slate-500">
-              提示词包列表
+              {panelText("提示词包列表", "Prompt package list")}
             </div>
             <Badge
               variant="outline"
               className="rounded-full border-slate-200 bg-slate-50 text-[10px] font-black text-slate-500"
             >
-              {filteredPackages.length} 个包
+              {panelText(
+                `${filteredPackages.length} 个包`,
+                `${filteredPackages.length} packages`
+              )}
             </Badge>
           </div>
           <ScrollArea className="mt-3 max-h-[320px] pr-2">
@@ -2682,7 +2827,10 @@ function PromptPackageWorkbenchPanel({
                 })
               ) : (
                 <div className="rounded-[14px] border border-dashed border-slate-300 bg-slate-50 px-3 py-6 text-sm font-semibold leading-6 text-slate-500">
-                  暂无提示词包。效果预演就绪后即可生成提示词包。
+                  {panelText(
+                    "暂无提示词包。效果预演就绪后即可生成提示词包。",
+                    "No prompt package yet. Generate one after effect previews are ready."
+                  )}
                 </div>
               )}
             </div>
@@ -2690,12 +2838,12 @@ function PromptPackageWorkbenchPanel({
 
           <div className="mt-3 rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3">
             <div className="text-xs font-black uppercase tracking-normal text-slate-500">
-              来源文档 / 预演
+              {panelText("来源文档 / 预演", "Source docs / previews")}
             </div>
             <div className="mt-2 grid gap-2">
               <div className="rounded-[12px] border border-slate-200 bg-white px-3 py-2">
                 <div className="text-[10px] font-black uppercase tracking-normal text-slate-400">
-                  文档
+                  {panelText("文档", "Docs")}
                 </div>
                 <div className="mt-1 text-xs font-semibold leading-5 text-slate-600">
                   {boundDocuments.length
@@ -2703,12 +2851,15 @@ function PromptPackageWorkbenchPanel({
                         .slice(0, 3)
                         .map(document => blueprintCopy(document.title))
                         .join(" / ")
-                    : "已接受文档会绑定到这里。"}
+                    : panelText(
+                        "已接受文档会绑定到这里。",
+                        "Accepted documents will bind here."
+                      )}
                 </div>
               </div>
               <div className="rounded-[12px] border border-slate-200 bg-white px-3 py-2">
                 <div className="text-[10px] font-black uppercase tracking-normal text-slate-400">
-                  预演
+                  {panelText("预演", "Previews")}
                 </div>
                 <div className="mt-1 text-xs font-semibold leading-5 text-slate-600">
                   {boundPreviews.length
@@ -2716,17 +2867,20 @@ function PromptPackageWorkbenchPanel({
                         .slice(0, 3)
                         .map(preview => blueprintCopy(preview.summary))
                         .join(" / ")
-                    : "效果预演会绑定到这里。"}
+                    : panelText(
+                        "效果预演会绑定到这里。",
+                        "Effect previews will bind here."
+                      )}
                 </div>
               </div>
               <div className="rounded-[12px] border border-slate-200 bg-white px-3 py-2">
                 <div className="text-[10px] font-black uppercase tracking-normal text-slate-400">
-                  目标节点
+                  {panelText("目标节点", "Target node")}
                 </div>
                 <div className="mt-1 text-xs font-semibold leading-5 text-slate-600">
                   {selectedNode?.title
                     ? blueprintCopy(selectedNode.title)
-                    : "实现提示词包"}
+                    : panelText("实现提示词包", "Implementation prompt package")}
                 </div>
               </div>
             </div>
@@ -2739,12 +2893,12 @@ function PromptPackageWorkbenchPanel({
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
                   <Clipboard className="size-3.5" aria-hidden="true" />
-                  提示词内容
+                  {panelText("提示词内容", "Prompt content")}
                 </div>
                 <h4 className="mt-2 truncate text-base font-black text-slate-950">
                   {activePackage?.title
                     ? blueprintCopy(activePackage.title)
-                    : "提示词包已就绪"}
+                    : panelText("提示词包已就绪", "Prompt package ready")}
                 </h4>
               </div>
               <Badge
@@ -2753,22 +2907,28 @@ function PromptPackageWorkbenchPanel({
               >
                 {activePackage
                   ? promptPlatformLabel(activePackage.targetPlatform)
-                  : "未选择平台"}
+                  : panelText("未选择平台", "No platform selected")}
               </Badge>
             </div>
             <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
               {activePackage?.summary
                 ? blueprintCopy(activePackage.summary)
-                : "工作台已连接，正在等待后端提示词包内容。"}
+                : panelText(
+                    "工作台已连接，正在等待后端提示词包内容。",
+                    "Workbench is connected and waiting for backend prompt package content."
+                  )}
             </p>
           </div>
 
           <div className="rounded-[16px] border border-slate-200 bg-white p-4">
             <div className="text-xs font-black uppercase tracking-normal text-slate-500">
-              分段预览
+              {panelText("分段预览", "Section preview")}
             </div>
             {activePackage?.sections.length ? (
-              <div className="mt-3 grid gap-2" data-testid="prompt-package-sections-preview">
+              <div
+                className="mt-3 grid gap-2"
+                data-testid="prompt-package-sections-preview"
+              >
                 {activePackage.sections.map(section => (
                   <div
                     key={section.id}
@@ -2785,7 +2945,10 @@ function PromptPackageWorkbenchPanel({
               </div>
             ) : (
               <div className="mt-3 rounded-[12px] border border-dashed border-slate-300 bg-slate-50 px-3 py-5 text-sm font-semibold text-slate-500">
-                生成后会在这里显示提示词分段。
+                {panelText(
+                  "生成后会在这里显示提示词分段。",
+                  "Prompt sections will appear here after generation."
+                )}
               </div>
             )}
           </div>
@@ -2796,7 +2959,10 @@ function PromptPackageWorkbenchPanel({
           >
             {activePackage
               ? blueprintCopy(summarizePromptContent(activePackage))
-              : "生成提示词包后可预览可直接复制的实现提示词。"}
+              : panelText(
+                  "生成提示词包后可预览可直接复制的实现提示词。",
+                  "Generate a prompt package to preview copy-ready implementation prompts."
+                )}
           </pre>
         </div>
       </div>
@@ -2836,9 +3002,9 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
   const [agentCrew, setAgentCrew] = useState<BlueprintAgentCrewSnapshot | null>(
     initialAgentCrew ?? null
   );
-  const [invocations, setInvocations] = useState<BlueprintCapabilityInvocation[]>(
-    initialInvocations ?? []
-  );
+  const [invocations, setInvocations] = useState<
+    BlueprintCapabilityInvocation[]
+  >(initialInvocations ?? []);
   const [evidence, setEvidence] = useState<BlueprintCapabilityEvidence[]>(
     initialEvidence ?? []
   );
@@ -2863,7 +3029,7 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
     setSelectedCapabilityId(current =>
       initialCapabilities?.some(capability => capability.id === current)
         ? current
-        : initialCapabilities?.[0]?.id ?? ""
+        : (initialCapabilities?.[0]?.id ?? "")
     );
   }, [initialCapabilities]);
 
@@ -2883,7 +3049,7 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
     setSelectedNodeId(current =>
       specTree.nodes.some(node => node.id === current)
         ? current
-        : specTree.rootNodeId ?? specTree.nodes[0]?.id ?? ""
+        : (specTree.rootNodeId ?? specTree.nodes[0]?.id ?? "")
     );
   }, [specTree.nodes, specTree.rootNodeId]);
 
@@ -2899,7 +3065,10 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
     [registry, selectedCapabilityId]
   );
   const selectedNode = useMemo(
-    () => specTree.nodes.find(node => node.id === selectedNodeId) ?? specTree.nodes[0] ?? null,
+    () =>
+      specTree.nodes.find(node => node.id === selectedNodeId) ??
+      specTree.nodes[0] ??
+      null,
     [selectedNodeId, specTree.nodes]
   );
   const activeInvocations = useMemo(() => {
@@ -2923,7 +3092,7 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
       setSelectedCapabilityId(current =>
         nextCapabilities.some(capability => capability.id === current)
           ? current
-          : nextCapabilities[0]?.id ?? ""
+          : (nextCapabilities[0]?.id ?? "")
       );
     },
     [onCapabilitiesChange]
@@ -3084,13 +3253,16 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
             <Terminal className="size-3.5" aria-hidden="true" />
-            运行时能力桥
+            {panelText("运行时能力桥", "Runtime capability bridge")}
           </div>
           <h3 className="mt-2 text-lg font-black text-slate-950">
-            运行时能力桥工作台
+            {panelText("运行时能力桥工作台", "Runtime capability bridge workbench")}
           </h3>
           <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-            查看运行时能力注册表，为当前任务发起能力调用，并跟踪调用后生成的证据。
+            {panelText(
+              "查看运行时能力注册表，为当前任务发起能力调用，并跟踪调用后生成的证据。",
+              "Inspect the runtime capability registry, launch capability invocations for the current task, and track the evidence they produce."
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -3106,7 +3278,7 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
               className={cn("size-3.5", loading && "animate-spin")}
               aria-hidden="true"
             />
-            刷新
+            {panelText("刷新", "Refresh")}
           </Button>
           <Button
             type="button"
@@ -3120,7 +3292,7 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
             ) : (
               <Send className="size-3.5" aria-hidden="true" />
             )}
-            调用能力
+            {panelText("调用能力", "Invoke capability")}
           </Button>
         </div>
       </div>
@@ -3136,24 +3308,27 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
 
       <div className="mt-4 grid gap-2 sm:grid-cols-4">
         <SummaryTile
-          label="能力注册表"
+          label={panelText("能力注册表", "Capability registry")}
           value={registry.length}
-          detail="运行时能力"
+          detail={panelText("运行时能力", "Runtime capabilities")}
         />
         <SummaryTile
-          label="调用记录"
+          label={panelText("调用记录", "Invocations")}
           value={invocations.length}
-          detail={`${statusSummary.allowed} 次允许`}
+          detail={panelText(
+            `${statusSummary.allowed} 次允许`,
+            `${statusSummary.allowed} allowed`
+          )}
         />
         <SummaryTile
-          label="证据"
+          label={panelText("证据", "Evidence")}
           value={evidence.length}
-          detail="调用记录"
+          detail={panelText("调用记录", "Invocations")}
         />
         <SummaryTile
-          label="阻塞"
+          label={panelText("阻塞", "Blocked")}
           value={statusSummary.blocked}
-          detail="安全门结果"
+          detail={panelText("安全门结果", "Safety gate results")}
         />
       </div>
 
@@ -3161,13 +3336,16 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
         <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-3">
           <div className="flex items-center justify-between gap-3 px-1">
             <div className="text-xs font-black uppercase tracking-normal text-slate-500">
-              能力注册表
+              {panelText("能力注册表", "Capability registry")}
             </div>
             <Badge
               variant="outline"
               className="rounded-full border-slate-200 bg-white text-[10px] font-black text-slate-500"
             >
-              {registry.length} 项能力
+              {panelText(
+                `${registry.length} 项能力`,
+                `${registry.length} capabilities`
+              )}
             </Badge>
           </div>
           <ScrollArea className="mt-3 max-h-[360px] pr-2">
@@ -3224,7 +3402,10 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
                 })
               ) : (
                 <div className="rounded-[14px] border border-dashed border-slate-300 bg-white px-3 py-6 text-sm font-semibold leading-6 text-slate-500">
-                  能力桥与后端同步后，能力注册项会显示在这里。
+                  {panelText(
+                    "能力桥与后端同步后，能力注册项会显示在这里。",
+                    "Capability entries will appear here after the bridge syncs with the backend."
+                  )}
                 </div>
               )}
             </div>
@@ -3232,12 +3413,15 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
 
           <div className="mt-3 rounded-[14px] border border-slate-200 bg-white px-3 py-3">
             <div className="text-xs font-black uppercase tracking-normal text-slate-500">
-              能力详情
+              {panelText("能力详情", "Capability details")}
             </div>
             <div className="mt-2 text-xs font-semibold leading-5 text-slate-600">
               {activeCapability
                 ? blueprintCopy(activeCapability.description)
-                : "选择一项能力后可查看适配器与 schema 详情。"}
+                : panelText(
+                    "选择一项能力后可查看适配器与 schema 详情。",
+                    "Select a capability to view its adapter and schema details."
+                  )}
             </div>
             {capabilityTags.length ? (
               <div className="mt-2 flex flex-wrap gap-1.5">
@@ -3261,12 +3445,12 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
                   <Clipboard className="size-3.5" aria-hidden="true" />
-                  调用发射器
+                  {panelText("调用发射器", "Invocation launcher")}
                 </div>
                 <h4 className="mt-2 text-base font-black text-slate-950">
                   {activeCapability?.label
                     ? blueprintCopy(activeCapability.label)
-                    : "能力调用已就绪"}
+                    : panelText("能力调用已就绪", "Capability invocation ready")}
                 </h4>
               </div>
               <Badge
@@ -3275,19 +3459,21 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
               >
                 {activeCapability
                   ? artifactTokenLabel(activeCapability.status, "Status")
-                  : "未选择能力"}
+                  : panelText("未选择能力", "No capability selected")}
               </Badge>
             </div>
             <div className="mt-3 grid gap-3 md:grid-cols-2">
               <label className="grid gap-1.5 text-xs font-black uppercase tracking-normal text-slate-500">
-                能力
+                {panelText("能力", "Capability")}
                 <select
                   value={selectedCapabilityId}
-                  onChange={event => setSelectedCapabilityId(event.target.value)}
+                  onChange={event =>
+                    setSelectedCapabilityId(event.target.value)
+                  }
                   className="h-10 rounded-[12px] border border-slate-200 bg-white px-3 text-sm font-semibold normal-case text-slate-700 outline-none transition focus:border-slate-400"
                   data-testid="capability-launcher-select"
                 >
-                  <option value="">选择能力</option>
+                  <option value="">{panelText("选择能力", "Select capability")}</option>
                   {registry.map(capability => (
                     <option key={capability.id} value={capability.id}>
                       {blueprintCopy(capability.label)}
@@ -3296,7 +3482,7 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
                 </select>
               </label>
               <label className="grid gap-1.5 text-xs font-black uppercase tracking-normal text-slate-500">
-                目标节点
+                {panelText("目标节点", "Target node")}
                 <select
                   value={selectedNodeId}
                   onChange={event => setSelectedNodeId(event.target.value)}
@@ -3311,22 +3497,22 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
                 </select>
               </label>
               <label className="grid gap-1.5 text-xs font-black uppercase tracking-normal text-slate-500 md:col-span-2">
-                路线 ID
+                {panelText("路线 ID", "Route ID")}
                 <input
                   value={selectedRouteId}
                   onChange={event => setSelectedRouteId(event.target.value)}
                   className="h-10 rounded-[12px] border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-400"
-                  placeholder="可选路线 ID"
+                  placeholder={panelText("可选路线 ID", "Optional route ID")}
                   data-testid="capability-launcher-route-input"
                 />
               </label>
               <label className="grid gap-1.5 text-xs font-black uppercase tracking-normal text-slate-500 md:col-span-2">
-                请求人
+                {panelText("请求人", "Requested by")}
                 <input
                   value={requestedBy}
                   onChange={event => setRequestedBy(event.target.value)}
                   className="h-10 rounded-[12px] border border-slate-200 bg-white px-3 text-sm font-semibold text-slate-700 outline-none transition focus:border-slate-400"
-                  placeholder="可选执行者"
+                  placeholder={panelText("可选执行者", "Optional requester")}
                   data-testid="capability-launcher-requested-by-input"
                 />
               </label>
@@ -3336,14 +3522,14 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
                 value={invocationInput}
                 onChange={event => setInvocationInput(event.target.value)}
                 className="min-h-[88px] resize-y rounded-[12px] border border-slate-200 bg-white px-3 py-2 text-sm font-semibold leading-6 text-slate-700 outline-none transition focus:border-slate-400"
-                placeholder="能力输入"
+                placeholder={panelText("能力输入", "Capability input")}
                 data-testid="capability-launcher-input"
               />
               <textarea
                 value={evidenceTags}
                 onChange={event => setEvidenceTags(event.target.value)}
                 className="min-h-[72px] resize-y rounded-[12px] border border-slate-200 bg-white px-3 py-2 text-xs font-semibold leading-5 text-slate-700 outline-none transition focus:border-slate-400"
-                placeholder="证据标签"
+                placeholder={panelText("证据标签", "Evidence tags")}
                 data-testid="capability-launcher-evidence-tags"
               />
               <label className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
@@ -3354,7 +3540,7 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
                   className="size-4 rounded border-slate-300 text-slate-950 focus:ring-slate-400"
                   data-testid="capability-launcher-approved-toggle"
                 />
-                已批准
+                {panelText("已批准", "Approved")}
               </label>
             </div>
           </div>
@@ -3363,9 +3549,12 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
             <div className="rounded-[16px] border border-slate-200 bg-white p-4">
               <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
                 <ListChecks className="size-3.5" aria-hidden="true" />
-                调用列表
+                {panelText("调用列表", "Invocation list")}
               </div>
-              <div className="mt-3 grid gap-2" data-testid="capability-invocation-list">
+              <div
+                className="mt-3 grid gap-2"
+                data-testid="capability-invocation-list"
+              >
                 {activeInvocations.length ? (
                   activeInvocations.slice(0, 6).map(invocation => (
                     <div
@@ -3387,15 +3576,30 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
                         {blueprintCopy(invocation.outputSummary)}
                       </div>
                       <div className="mt-2 flex flex-wrap gap-1.5 text-[10px] font-black uppercase tracking-normal text-slate-400">
-                        <span>{artifactTokenLabel(invocation.kind, "Kind")}</span>
-                        <span>{artifactTokenLabel(invocation.securityLevel, "Security")}</span>
-                        <span>{artifactTokenLabel(invocation.safetyGate.status, "Gate")}</span>
+                        <span>
+                          {artifactTokenLabel(invocation.kind, "Kind")}
+                        </span>
+                        <span>
+                          {artifactTokenLabel(
+                            invocation.securityLevel,
+                            "Security"
+                          )}
+                        </span>
+                        <span>
+                          {artifactTokenLabel(
+                            invocation.safetyGate.status,
+                            "Gate"
+                          )}
+                        </span>
                       </div>
                     </div>
                   ))
                 ) : (
                   <div className="rounded-[12px] border border-dashed border-slate-300 bg-slate-50 px-3 py-5 text-sm font-semibold text-slate-500">
-                    发起调用后，能力调用记录会显示在这里。
+                    {panelText(
+                      "发起调用后，能力调用记录会显示在这里。",
+                      "Capability invocations will appear here after you launch one."
+                    )}
                   </div>
                 )}
               </div>
@@ -3404,9 +3608,12 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
             <div className="rounded-[16px] border border-slate-200 bg-white p-4">
               <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
                 <Sparkles className="size-3.5" aria-hidden="true" />
-                证据列表
+                {panelText("证据列表", "Evidence list")}
               </div>
-              <div className="mt-3 grid gap-2" data-testid="capability-evidence-list">
+              <div
+                className="mt-3 grid gap-2"
+                data-testid="capability-evidence-list"
+              >
                 {activeEvidence.length ? (
                   activeEvidence.slice(0, 6).map(item => (
                     <div
@@ -3436,7 +3643,10 @@ function RuntimeCapabilityBridgeWorkbenchPanel({
                   ))
                 ) : (
                   <div className="rounded-[12px] border border-dashed border-slate-300 bg-slate-50 px-3 py-5 text-sm font-semibold text-slate-500">
-                    能力调用被记录后，相关证据会显示在这里。
+                    {panelText(
+                      "能力调用被记录后，相关证据会显示在这里。",
+                      "Evidence will appear here after capability invocations are recorded."
+                    )}
                   </div>
                 )}
               </div>
@@ -3493,7 +3703,7 @@ function EngineeringLandingWorkbenchPanel({
     setSelectedPlanId(current =>
       initialPlans?.some(plan => plan.id === current)
         ? current
-        : initialPlans?.[0]?.id ?? ""
+        : (initialPlans?.[0]?.id ?? "")
     );
   }, [initialPlans]);
 
@@ -3542,7 +3752,7 @@ function EngineeringLandingWorkbenchPanel({
       setSelectedPlanId(current =>
         nextPlans.some(plan => plan.id === current)
           ? current
-          : nextPlans[0]?.id ?? ""
+          : (nextPlans[0]?.id ?? "")
       );
       onLandingPlansChange?.(nextPlans);
     },
@@ -3622,12 +3832,7 @@ function EngineeringLandingWorkbenchPanel({
     } finally {
       setGenerating(false);
     }
-  }, [
-    jobId,
-    publishPlans,
-    selectedPlatform,
-    selectedPromptPackageId,
-  ]);
+  }, [jobId, publishPlans, selectedPlatform, selectedPromptPackageId]);
 
   const handleRecordRun = useCallback(async () => {
     if (!jobId || !activePlan || !runSummary.trim()) return;
@@ -3710,13 +3915,16 @@ function EngineeringLandingWorkbenchPanel({
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
             <FileCheck2 className="size-3.5" aria-hidden="true" />
-            工程落地
+            {panelText("工程落地", "Engineering landing")}
           </div>
           <h3 className="mt-2 text-lg font-black text-slate-950">
-            工程落地工作台
+            {panelText("工程落地工作台", "Engineering landing workbench")}
           </h3>
           <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-            将实现提示词包转换为平台交接、执行步骤、验证命令和工程执行记录。
+            {panelText(
+              "将实现提示词包转换为平台交接、执行步骤、验证命令和工程执行记录。",
+              "Turn prompt packages into platform handoffs, execution steps, verification commands, and engineering run records."
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -3735,7 +3943,7 @@ function EngineeringLandingWorkbenchPanel({
               )}
               aria-hidden="true"
             />
-            刷新
+            {panelText("刷新", "Refresh")}
           </Button>
           <Button
             type="button"
@@ -3749,7 +3957,7 @@ function EngineeringLandingWorkbenchPanel({
             ) : (
               <Send className="size-3.5" aria-hidden="true" />
             )}
-            生成落地计划
+            {panelText("生成落地计划", "Generate landing plan")}
           </Button>
         </div>
       </div>
@@ -3765,18 +3973,18 @@ function EngineeringLandingWorkbenchPanel({
 
       <div className="mt-4 grid gap-3 md:grid-cols-[minmax(0,1fr)_220px]">
         <label className="grid gap-1.5 text-xs font-black uppercase tracking-normal text-slate-500">
-          提示词来源
+          {panelText("提示词来源", "Prompt source")}
           <select
             value={selectedPromptPackageId}
             onChange={event => setSelectedPromptPackageId(event.target.value)}
             className="h-10 rounded-[12px] border border-slate-200 bg-white px-3 text-sm font-semibold normal-case text-slate-700 outline-none transition focus:border-slate-400"
             data-testid="engineering-landing-package-select"
           >
-            <option value="">全部提示词包</option>
+            <option value="">{panelText("全部提示词包", "All prompt packages")}</option>
             {promptPackages.map(promptPackage => (
               <option key={promptPackage.id} value={promptPackage.id}>
-                {promptPlatformLabel(promptPackage.targetPlatform)} /{" "}
-                {blueprintCopy(promptPackage.title)}
+              {promptPlatformLabel(promptPackage.targetPlatform)} /{" "}
+              {blueprintCopy(promptPackage.title)}
               </option>
             ))}
           </select>
@@ -3808,17 +4016,20 @@ function EngineeringLandingWorkbenchPanel({
         <div className="rounded-[18px] border border-slate-200 bg-slate-50 p-3">
           <div className="flex items-center justify-between gap-3 px-1">
             <div className="text-xs font-black uppercase tracking-normal text-slate-500">
-              落地计划
+              {panelText("落地计划", "Landing plans")}
             </div>
             <Badge
               variant="outline"
               className="rounded-full border-slate-200 bg-white text-[10px] font-black text-slate-500"
             >
-              {plans.length} 个计划
+              {panelText(`${plans.length} 个计划`, `${plans.length} plans`)}
             </Badge>
           </div>
           <ScrollArea className="mt-3 max-h-[340px] pr-2">
-            <div className="grid gap-2" data-testid="engineering-landing-plan-list">
+            <div
+              className="grid gap-2"
+              data-testid="engineering-landing-plan-list"
+            >
               {plans.length ? (
                 plans.map(plan => {
                   const selected = activePlan?.id === plan.id;
@@ -3847,14 +4058,19 @@ function EngineeringLandingWorkbenchPanel({
                         {blueprintCopy(plan.summary)}
                       </div>
                       <div className="mt-2 text-[10px] font-black uppercase tracking-normal text-slate-400">
-                        {formatEffectPreviewDate(plan.updatedAt ?? plan.createdAt)}
+                        {formatEffectPreviewDate(
+                          plan.updatedAt ?? plan.createdAt
+                        )}
                       </div>
                     </button>
                   );
                 })
               ) : (
                 <div className="rounded-[14px] border border-dashed border-slate-300 bg-white px-3 py-6 text-sm font-semibold leading-6 text-slate-500">
-                  暂无工程落地计划。提示词包就绪后即可生成落地计划。
+                  {panelText(
+                    "暂无工程落地计划。提示词包就绪后即可生成落地计划。",
+                    "No engineering landing plan yet. Generate one after prompt packages are ready."
+                  )}
                 </div>
               )}
             </div>
@@ -3862,7 +4078,7 @@ function EngineeringLandingWorkbenchPanel({
 
           <div className="mt-3 rounded-[14px] border border-slate-200 bg-white px-3 py-3">
             <div className="text-xs font-black uppercase tracking-normal text-slate-500">
-              提示词包绑定
+              {panelText("提示词包绑定", "Prompt package binding")}
             </div>
             <div className="mt-2 text-xs font-semibold leading-5 text-slate-600">
               {boundPromptPackages.length
@@ -3872,7 +4088,10 @@ function EngineeringLandingWorkbenchPanel({
                     .join(" / ")
                 : selectedPromptPackage
                   ? blueprintCopy(selectedPromptPackage.title)
-                  : "提示词包交接会绑定到这里。"}
+                  : panelText(
+                      "提示词包交接会绑定到这里。",
+                      "Prompt package handoff will bind here."
+                    )}
             </div>
           </div>
         </div>
@@ -3883,25 +4102,30 @@ function EngineeringLandingWorkbenchPanel({
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
                   <Clipboard className="size-3.5" aria-hidden="true" />
-                  落地详情
+                  {panelText("落地详情", "Landing details")}
                 </div>
                 <h4 className="mt-2 text-base font-black text-slate-950">
                   {activePlan?.title
                     ? blueprintCopy(activePlan.title)
-                    : "工程落地已就绪"}
+                    : panelText("工程落地已就绪", "Engineering landing ready")}
                 </h4>
               </div>
               <Badge
                 variant="outline"
                 className="rounded-full border-slate-200 bg-white text-[10px] font-black text-slate-500"
               >
-                {activePlan ? promptPlatformLabel(activePlan.platform) : "未选择计划"}
+                {activePlan
+                  ? promptPlatformLabel(activePlan.platform)
+                  : panelText("未选择计划", "No plan selected")}
               </Badge>
             </div>
             <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
               {activePlan?.summary
                 ? blueprintCopy(activePlan.summary)
-                : "工作台已连接，正在等待工程落地内容。"}
+                : panelText(
+                    "工作台已连接，正在等待工程落地内容。",
+                    "Workbench is connected and waiting for engineering landing content."
+                  )}
             </p>
           </div>
 
@@ -3909,10 +4133,13 @@ function EngineeringLandingWorkbenchPanel({
             <div className="rounded-[16px] border border-slate-200 bg-white p-4">
               <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
                 <PackageCheck className="size-3.5" aria-hidden="true" />
-                平台交接
+                {panelText("平台交接", "Platform handoffs")}
               </div>
               {activePlan?.handoffs.length ? (
-                <div className="mt-3 grid gap-2" data-testid="engineering-platform-handoffs">
+                <div
+                  className="mt-3 grid gap-2"
+                  data-testid="engineering-platform-handoffs"
+                >
                   {activePlan.handoffs.map(handoff => (
                     <div
                       key={handoff.id}
@@ -3946,7 +4173,10 @@ function EngineeringLandingWorkbenchPanel({
                 </div>
               ) : (
                 <div className="mt-3 rounded-[12px] border border-dashed border-slate-300 bg-slate-50 px-3 py-5 text-sm font-semibold text-slate-500">
-                  生成落地计划后，平台交接会显示在这里。
+                  {panelText(
+                    "生成落地计划后，平台交接会显示在这里。",
+                    "Platform handoffs will appear here after a landing plan is generated."
+                  )}
                 </div>
               )}
             </div>
@@ -3957,7 +4187,10 @@ function EngineeringLandingWorkbenchPanel({
                 步骤
               </div>
               {activePlan?.steps.length ? (
-                <div className="mt-3 grid gap-2" data-testid="engineering-landing-steps">
+                <div
+                  className="mt-3 grid gap-2"
+                  data-testid="engineering-landing-steps"
+                >
                   {activePlan.steps.map((step, index) => (
                     <div
                       key={step.id}
@@ -3993,7 +4226,10 @@ function EngineeringLandingWorkbenchPanel({
                 </div>
               ) : (
                 <div className="mt-3 rounded-[12px] border border-dashed border-slate-300 bg-slate-50 px-3 py-5 text-sm font-semibold text-slate-500">
-                  生成落地计划后，工程步骤会显示在这里。
+                  {panelText(
+                    "生成落地计划后，工程步骤会显示在这里。",
+                    "Engineering steps will appear here after a landing plan is generated."
+                  )}
                 </div>
               )}
             </div>
@@ -4005,7 +4241,10 @@ function EngineeringLandingWorkbenchPanel({
               验证命令
             </div>
             {activePlan?.verificationCommands.length ? (
-              <div className="mt-3 grid gap-2" data-testid="engineering-verification-commands">
+              <div
+                className="mt-3 grid gap-2"
+                data-testid="engineering-verification-commands"
+              >
                 {activePlan.verificationCommands.map(command => (
                   <div
                     key={command.id}
@@ -4027,8 +4266,11 @@ function EngineeringLandingWorkbenchPanel({
               </div>
             ) : (
               <div className="mt-3 rounded-[12px] border border-dashed border-slate-300 bg-slate-50 px-3 py-5 text-sm font-semibold text-slate-500">
-                生成落地计划后，验证命令会显示在这里。
-                </div>
+                  {panelText(
+                    "生成落地计划后，验证命令会显示在这里。",
+                    "Verification commands will appear here after a landing plan is generated."
+                  )}
+              </div>
             )}
           </div>
 
@@ -4047,7 +4289,9 @@ function EngineeringLandingWorkbenchPanel({
                   <select
                     value={runStatus}
                     onChange={event =>
-                      setRunStatus(event.target.value as BlueprintEngineeringRunStatus)
+                      setRunStatus(
+                        event.target.value as BlueprintEngineeringRunStatus
+                      )
                     }
                     className="h-10 rounded-[12px] border border-slate-200 bg-white px-3 text-sm font-semibold normal-case text-slate-700 outline-none transition focus:border-slate-400"
                   >
@@ -4092,7 +4336,10 @@ function EngineeringLandingWorkbenchPanel({
                   data-testid="engineering-run-record-button"
                 >
                   {recording ? (
-                    <RefreshCw className="size-3.5 animate-spin" aria-hidden="true" />
+                    <RefreshCw
+                      className="size-3.5 animate-spin"
+                      aria-hidden="true"
+                    />
                   ) : (
                     <CheckCircle2 className="size-3.5" aria-hidden="true" />
                   )}
@@ -4113,7 +4360,10 @@ function EngineeringLandingWorkbenchPanel({
                   {planRuns.length} 条记录
                 </Badge>
               </div>
-              <div className="mt-3 grid gap-2" data-testid="engineering-run-list">
+              <div
+                className="mt-3 grid gap-2"
+                data-testid="engineering-run-list"
+              >
                 {planRuns.length ? (
                   planRuns.map(run => (
                     <div
@@ -4142,8 +4392,8 @@ function EngineeringLandingWorkbenchPanel({
                   ))
                 ) : (
                   <div className="rounded-[12px] border border-dashed border-slate-300 bg-slate-50 px-3 py-5 text-sm font-semibold text-slate-500">
-                    暂无工程执行记录。
-                </div>
+                    {panelText("暂无工程执行记录。", "No engineering run records yet.")}
+                  </div>
                 )}
               </div>
             </div>
@@ -4213,33 +4463,41 @@ function ArtifactMemoryWorkbenchPanel({
   const [recordingFeedback, setRecordingFeedback] = useState(false);
   const [error, setError] = useState<ApiRequestError | null>(null);
 
-  const publishEntries = useCallback((nextEntries: BlueprintArtifactLedgerEntry[]) => {
-    const firstEntryId = nextEntries[0]?.id ?? "";
-    const secondEntryId = nextEntries[1]?.id ?? firstEntryId;
+  const publishEntries = useCallback(
+    (nextEntries: BlueprintArtifactLedgerEntry[]) => {
+      const firstEntryId = nextEntries[0]?.id ?? "";
+      const secondEntryId = nextEntries[1]?.id ?? firstEntryId;
 
-    setEntries(nextEntries);
-    setSelectedEntryId(current =>
-      nextEntries.some(entry => entry.id === current) ? current : firstEntryId
-    );
-    setFeedbackEntryId(current =>
-      nextEntries.some(entry => entry.id === current) ? current : firstEntryId
-    );
-    setLeftEntryId(current =>
-      nextEntries.some(entry => entry.id === current) ? current : firstEntryId
-    );
-    setRightEntryId(current =>
-      nextEntries.some(entry => entry.id === current) ? current : secondEntryId
-    );
-  }, []);
+      setEntries(nextEntries);
+      setSelectedEntryId(current =>
+        nextEntries.some(entry => entry.id === current) ? current : firstEntryId
+      );
+      setFeedbackEntryId(current =>
+        nextEntries.some(entry => entry.id === current) ? current : firstEntryId
+      );
+      setLeftEntryId(current =>
+        nextEntries.some(entry => entry.id === current) ? current : firstEntryId
+      );
+      setRightEntryId(current =>
+        nextEntries.some(entry => entry.id === current)
+          ? current
+          : secondEntryId
+      );
+    },
+    []
+  );
 
-  const publishReplays = useCallback((nextReplays: BlueprintArtifactReplay[]) => {
-    setReplays(nextReplays);
-    setActiveReplayId(current =>
-      nextReplays.some(replay => replay.id === current)
-        ? current
-        : nextReplays[0]?.id ?? ""
-    );
-  }, []);
+  const publishReplays = useCallback(
+    (nextReplays: BlueprintArtifactReplay[]) => {
+      setReplays(nextReplays);
+      setActiveReplayId(current =>
+        nextReplays.some(replay => replay.id === current)
+          ? current
+          : (nextReplays[0]?.id ?? "")
+      );
+    },
+    []
+  );
 
   const publishFeedback = useCallback(
     (nextFeedback: BlueprintArtifactFeedback[]) => {
@@ -4267,7 +4525,9 @@ function ArtifactMemoryWorkbenchPanel({
   );
   const activeReplay = useMemo(
     () =>
-      replays.find(replay => replay.id === activeReplayId) ?? replays[0] ?? null,
+      replays.find(replay => replay.id === activeReplayId) ??
+      replays[0] ??
+      null,
     [activeReplayId, replays]
   );
   const stageGroups = useMemo(() => {
@@ -4450,13 +4710,16 @@ function ArtifactMemoryWorkbenchPanel({
         <div className="min-w-0">
           <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
             <Layers3 className="size-3.5" aria-hidden="true" />
-            资产记忆
+            {panelText("资产记忆", "Artifact memory")}
           </div>
           <h3 className="mt-2 text-lg font-black text-slate-950">
-            资产记忆与回放工作台
+            {panelText("资产记忆与回放工作台", "Artifact memory and replay workbench")}
           </h3>
           <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-            查看项目资产台账、回放快照、对比两条台账记录，并把执行反馈回填到资产链路中。
+            {panelText(
+              "查看项目资产台账、回放快照、对比两条台账记录，并把执行反馈回填到资产链路中。",
+              "Inspect project asset ledgers, replay snapshots, compare two ledger entries, and feed execution feedback back into the asset chain."
+            )}
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -4475,7 +4738,7 @@ function ArtifactMemoryWorkbenchPanel({
               )}
               aria-hidden="true"
             />
-            刷新
+            {panelText("刷新", "Refresh")}
           </Button>
           <Button
             type="button"
@@ -4489,7 +4752,7 @@ function ArtifactMemoryWorkbenchPanel({
             ) : (
               <PlayCircle className="size-3.5" aria-hidden="true" />
             )}
-            回放快照
+            {panelText("回放快照", "Replay snapshot")}
           </Button>
         </div>
       </div>
@@ -4505,24 +4768,27 @@ function ArtifactMemoryWorkbenchPanel({
 
       <div className="mt-4 grid gap-2 sm:grid-cols-4">
         <SummaryTile
-          label="台账记录"
+          label={panelText("台账记录", "Ledger entries")}
           value={entries.length}
-          detail={`${stageGroups.length} 个阶段`}
+          detail={panelText(
+            `${stageGroups.length} 个阶段`,
+            `${stageGroups.length} stages`
+          )}
         />
         <SummaryTile
-          label="回放"
+          label={panelText("回放", "Replays")}
           value={replays.length}
-          detail="快照历史"
+          detail={panelText("快照历史", "Snapshot history")}
         />
         <SummaryTile
-          label="血缘边"
+          label={panelText("血缘边", "Lineage edges")}
           value={lineageEdgeCount}
-          detail="来源链接"
+          detail={panelText("来源链接", "Source links")}
         />
         <SummaryTile
-          label="反馈"
+          label={panelText("反馈", "Feedback")}
           value={feedback.length}
-          detail="回填记录"
+          detail={panelText("回填记录", "Backfilled records")}
         />
       </div>
 
@@ -4530,13 +4796,13 @@ function ArtifactMemoryWorkbenchPanel({
         <div className="rounded-[18px] border border-slate-200 bg-white p-3">
           <div className="flex items-center justify-between gap-3 px-1">
             <div className="text-xs font-black uppercase tracking-normal text-slate-500">
-              时间线 / 台账
+              {panelText("时间线 / 台账", "Timeline / ledger")}
             </div>
             <Badge
               variant="outline"
               className="rounded-full border-slate-200 bg-slate-50 text-[10px] font-black text-slate-500"
             >
-              {entries.length} 条记录
+              {panelText(`${entries.length} 条记录`, `${entries.length} entries`)}
             </Badge>
           </div>
           <ScrollArea className="mt-3 max-h-[500px] pr-2">
@@ -4553,7 +4819,10 @@ function ArtifactMemoryWorkbenchPanel({
                         {artifactTokenLabel(group.stage, "Artifact memory")}
                       </span>
                       <span className="rounded-full bg-white px-2 py-0.5 text-[10px] font-black text-slate-500">
-                        {group.entries.length} 条记录
+                        {panelText(
+                          `${group.entries.length} 条记录`,
+                          `${group.entries.length} entries`
+                        )}
                       </span>
                     </div>
                     <div className="mt-2 grid gap-2">
@@ -4581,14 +4850,21 @@ function ArtifactMemoryWorkbenchPanel({
                                 {blueprintCopy(entry.title)}
                               </span>
                               <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-black text-slate-500">
-                                {artifactTokenLabel(entry.artifactType, "Artifact")}
+                                {artifactTokenLabel(
+                                  entry.artifactType,
+                                  "Artifact"
+                                )}
                               </span>
                             </div>
                             <div className="mt-1 line-clamp-2 text-xs font-semibold leading-5 text-slate-500">
                               {blueprintCopy(entry.summary)}
                             </div>
                             <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px] font-black uppercase tracking-normal text-slate-400">
-                              <span>{formatEffectPreviewDate(entry.recordedAt ?? entry.createdAt)}</span>
+                              <span>
+                                {formatEffectPreviewDate(
+                                  entry.recordedAt ?? entry.createdAt
+                                )}
+                              </span>
                               <span>{blueprintCopy(entry.status)}</span>
                               <span>{entry.lineageEdgeCount} 条边</span>
                             </div>
@@ -4600,7 +4876,10 @@ function ArtifactMemoryWorkbenchPanel({
                 ))
               ) : (
                 <div className="rounded-[14px] border border-dashed border-slate-300 bg-slate-50 px-3 py-6 text-sm font-semibold leading-6 text-slate-500">
-                  后端记忆层记录任务时间线后，资产台账会显示在这里。
+                  {panelText(
+                    "后端记忆层记录任务时间线后，资产台账会显示在这里。",
+                    "The ledger will appear here after the backend memory layer records the task timeline."
+                  )}
                 </div>
               )}
             </div>
@@ -4613,12 +4892,12 @@ function ArtifactMemoryWorkbenchPanel({
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
                   <GitBranch className="size-3.5" aria-hidden="true" />
-                  已选资产
+                  {panelText("已选资产", "Selected asset")}
                 </div>
                 <h4 className="mt-2 text-base font-black text-slate-950">
                   {selectedEntry?.title
                     ? blueprintCopy(selectedEntry.title)
-                    : "资产台账已就绪"}
+                    : panelText("资产台账已就绪", "Asset ledger ready")}
                 </h4>
               </div>
               <Badge
@@ -4627,24 +4906,36 @@ function ArtifactMemoryWorkbenchPanel({
               >
                 {selectedEntry
                   ? artifactTokenLabel(selectedEntry.stage, "Artifact memory")
-                  : "暂无记录"}
+                  : panelText("暂无记录", "No entries yet")}
               </Badge>
             </div>
             <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
               {selectedEntry?.summary
                 ? blueprintCopy(selectedEntry.summary)
-                : "工作台已连接，正在等待资产台账内容。"}
+                : panelText(
+                    "工作台已连接，正在等待资产台账内容。",
+                    "Workbench is connected and waiting for ledger content."
+                  )}
             </p>
             {selectedEntry ? (
               <div className="mt-3 grid gap-2 sm:grid-cols-3">
                 <RouteMetric
-                  label="资产"
-                  value={artifactTokenLabel(selectedEntry.artifactType, "Artifact")}
+                  label={panelText("资产", "Asset")}
+                  value={artifactTokenLabel(
+                    selectedEntry.artifactType,
+                    "Artifact"
+                  )}
                 />
-                <RouteMetric label="状态" value={blueprintCopy(selectedEntry.status)} />
                 <RouteMetric
-                  label="血缘"
-                  value={`${selectedEntry.lineageEdgeCount} 条边`}
+                  label={panelText("状态", "Status")}
+                  value={blueprintCopy(selectedEntry.status)}
+                />
+                <RouteMetric
+                  label={panelText("血缘", "Lineage")}
+                  value={panelText(
+                    `${selectedEntry.lineageEdgeCount} 条边`,
+                    `${selectedEntry.lineageEdgeCount} edges`
+                  )}
                 />
               </div>
             ) : null}
@@ -4658,29 +4949,37 @@ function ArtifactMemoryWorkbenchPanel({
               <div className="min-w-0">
                 <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
                   <PlayCircle className="size-3.5" aria-hidden="true" />
-                  回放快照摘要
+                  {panelText("回放快照摘要", "Replay snapshot summary")}
                 </div>
                 <h4 className="mt-2 text-base font-black text-slate-950">
                   {activeReplay?.title
                     ? blueprintCopy(activeReplay.title)
-                    : "回放快照已就绪"}
+                    : panelText("回放快照已就绪", "Replay snapshot ready")}
                 </h4>
               </div>
               <Badge
                 variant="outline"
                 className="rounded-full border-slate-200 bg-slate-50 text-[10px] font-black text-slate-500"
               >
-                {activeReplay?.status ? blueprintCopy(activeReplay.status) : "暂无回放"}
+                {activeReplay?.status
+                  ? blueprintCopy(activeReplay.status)
+                  : panelText("暂无回放", "No replay yet")}
               </Badge>
             </div>
             <p className="mt-2 text-sm font-semibold leading-6 text-slate-600">
               {activeReplay?.summary
                 ? blueprintCopy(activeReplay.summary)
-                : "回放摘要会显示某条台账记录的恢复时间线。"}
+                : panelText(
+                    "回放摘要会显示某条台账记录的恢复时间线。",
+                    "The replay summary shows the restored timeline for a ledger entry."
+                  )}
             </p>
 
             {replays.length ? (
-              <div className="mt-3 flex flex-wrap gap-2" data-testid="artifact-replay-list">
+              <div
+                className="mt-3 flex flex-wrap gap-2"
+                data-testid="artifact-replay-list"
+              >
                 {replays.map(replay => {
                   const selected = activeReplay?.id === replay.id;
                   return (
@@ -4744,7 +5043,7 @@ function ArtifactMemoryWorkbenchPanel({
           >
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
-                  <Clipboard className="size-3.5" aria-hidden="true" />
+                <Clipboard className="size-3.5" aria-hidden="true" />
                 资产差异
               </div>
               <Button
@@ -4756,7 +5055,10 @@ function ArtifactMemoryWorkbenchPanel({
                 data-testid="artifact-diff-compare-button"
               >
                 {diffing ? (
-                  <RefreshCw className="size-3.5 animate-spin" aria-hidden="true" />
+                  <RefreshCw
+                    className="size-3.5 animate-spin"
+                    aria-hidden="true"
+                  />
                 ) : (
                   <GitBranch className="size-3.5" aria-hidden="true" />
                 )}
@@ -4891,7 +5193,10 @@ function ArtifactMemoryWorkbenchPanel({
                 data-testid="artifact-feedback-record-button"
               >
                 {recordingFeedback ? (
-                  <RefreshCw className="size-3.5 animate-spin" aria-hidden="true" />
+                  <RefreshCw
+                    className="size-3.5 animate-spin"
+                    aria-hidden="true"
+                  />
                 ) : (
                   <CheckCircle2 className="size-3.5" aria-hidden="true" />
                 )}
@@ -4899,7 +5204,10 @@ function ArtifactMemoryWorkbenchPanel({
               </Button>
             </div>
 
-            <div className="mt-4 grid gap-2" data-testid="artifact-feedback-list">
+            <div
+              className="mt-4 grid gap-2"
+              data-testid="artifact-feedback-list"
+            >
               {feedback.length ? (
                 feedback.slice(0, 4).map(item => (
                   <div
@@ -4994,6 +5302,11 @@ export function BlueprintProgressPanel({
   showEngineeringLandingWorkbench = true,
   showArtifactMemoryWorkbench = true,
 }: BlueprintProgressPanelProps) {
+  const subscribedLocale = useAppStore(state => state.locale);
+  const locale =
+    typeof window === "undefined"
+      ? useAppStore.getState().locale
+      : subscribedLocale;
   const [progress, setProgress] = useState<BlueprintSpecsProgress | null>(
     initialData
   );
@@ -5089,7 +5402,9 @@ export function BlueprintProgressPanel({
         setPromptPackages(readLatestPromptPackages(latestResult.data));
         setCapabilities(readLatestCapabilities(latestResult.data));
         setAgentCrew(readLatestAgentCrew(latestResult.data));
-        setClarificationSession(readLatestClarificationSession(latestResult.data));
+        setClarificationSession(
+          readLatestClarificationSession(latestResult.data)
+        );
         setCapabilityInvocations(
           readLatestCapabilityInvocations(latestResult.data)
         );
@@ -5142,11 +5457,15 @@ export function BlueprintProgressPanel({
           setPromptPackages(readLatestPromptPackages(latestResult.data));
           setCapabilities(readLatestCapabilities(latestResult.data));
           setAgentCrew(readLatestAgentCrew(latestResult.data));
-          setClarificationSession(readLatestClarificationSession(latestResult.data));
+          setClarificationSession(
+            readLatestClarificationSession(latestResult.data)
+          );
           setCapabilityInvocations(
             readLatestCapabilityInvocations(latestResult.data)
           );
-          setCapabilityEvidence(readLatestCapabilityEvidence(latestResult.data));
+          setCapabilityEvidence(
+            readLatestCapabilityEvidence(latestResult.data)
+          );
           setEngineeringLandingPlans(
             readLatestEngineeringLandingPlans(latestResult.data)
           );
@@ -5168,6 +5487,51 @@ export function BlueprintProgressPanel({
       active = false;
     };
   }, [autoLoad]);
+
+  useEffect(() => {
+    if (autoLoad) return;
+
+    setProgress(initialData);
+    setLatestJob(initialJob);
+    setRouteSet(initialRouteSet);
+    setSelection(initialSelection);
+    setSpecTree(initialSpecTree);
+    setSpecTreeVersions(initialSpecTreeVersions ?? []);
+    setSpecDocuments(initialSpecDocuments ?? []);
+    setEffectPreviews(initialEffectPreviews ?? []);
+    setPromptPackages(initialPromptPackages ?? []);
+    setCapabilities(initialCapabilities ?? []);
+    setAgentCrew(initialAgentCrew);
+    setClarificationSession(initialClarificationSession);
+    setCapabilityInvocations(initialCapabilityInvocations ?? []);
+    setCapabilityEvidence(initialCapabilityEvidence ?? []);
+    setEngineeringLandingPlans(initialEngineeringLandingPlans ?? []);
+    setEngineeringRuns(initialEngineeringRuns ?? []);
+    setArtifactLedgerEntries(initialArtifactLedgerEntries ?? []);
+    setArtifactReplays(initialArtifactReplays ?? []);
+    setArtifactFeedback(initialArtifactFeedback ?? []);
+  }, [
+    autoLoad,
+    initialAgentCrew,
+    initialArtifactFeedback,
+    initialArtifactLedgerEntries,
+    initialArtifactReplays,
+    initialCapabilities,
+    initialCapabilityEvidence,
+    initialCapabilityInvocations,
+    initialClarificationSession,
+    initialData,
+    initialEffectPreviews,
+    initialEngineeringLandingPlans,
+    initialEngineeringRuns,
+    initialJob,
+    initialPromptPackages,
+    initialRouteSet,
+    initialSelection,
+    initialSpecDocuments,
+    initialSpecTree,
+    initialSpecTreeVersions,
+  ]);
 
   const generationRequest = useMemo(
     () => parseGenerationInput(generationInput),
@@ -5294,23 +5658,41 @@ export function BlueprintProgressPanel({
   }, [progress]);
   const panelEyebrow =
     showRouteGeneration && !showSpecProgress
-      ? "自动驾驶"
+      ? locale === "zh-CN"
+        ? "自动驾驶"
+        : "Autopilot"
       : showSpecProgress && !showRouteGeneration
-        ? "推导"
-        : "蓝图进度";
+        ? locale === "zh-CN"
+          ? "推导"
+          : "Deduction"
+        : locale === "zh-CN"
+          ? "蓝图进度"
+          : "Blueprint progress";
   const panelTitle =
     showRouteGeneration && !showSpecProgress
-      ? "RouteSet 工厂"
+      ? locale === "zh-CN"
+        ? "RouteSet 工厂"
+        : "RouteSet factory"
       : showSpecProgress && !showRouteGeneration
-        ? "SPEC 资产概览"
-        : "SPEC 执行概览";
+        ? locale === "zh-CN"
+          ? "SPEC 资产概览"
+          : "SPEC asset overview"
+        : locale === "zh-CN"
+          ? "SPEC 执行概览"
+          : "SPEC execution overview";
   const panelDetail = showSpecProgress
     ? progress?.root
-      ? `${progress.root} / 更新于 ${formatGeneratedAt(progress.generatedAt)}`
-      : "等待 /api/blueprint/specs 返回规格进度"
+      ? locale === "zh-CN"
+        ? `${progress.root} / 更新于 ${formatGeneratedAt(progress.generatedAt)}`
+        : `${progress.root} / updated ${formatGeneratedAt(progress.generatedAt)}`
+      : locale === "zh-CN"
+        ? "等待 /api/blueprint/specs 返回规格进度"
+        : "Waiting for /api/blueprint/specs progress"
     : latestJob
       ? formatBlueprintJobStatus(latestJob)
-      : "尚未生成 RouteSet";
+      : locale === "zh-CN"
+        ? "尚未生成 RouteSet"
+        : "No RouteSet generated yet";
 
   return (
     <section
@@ -5339,12 +5721,12 @@ export function BlueprintProgressPanel({
           className="gap-2 rounded-full border-slate-200 bg-slate-50 font-black text-slate-600 hover:bg-slate-100"
           disabled={loading}
           onClick={loadProgress}
-        >
-          <RefreshCw
-            className={cn("size-3.5", loading && "animate-spin")}
-            aria-hidden="true"
-          />
-          刷新
+          >
+            <RefreshCw
+              className={cn("size-3.5", loading && "animate-spin")}
+              aria-hidden="true"
+            />
+          {panelText("刷新", "Refresh")}
         </Button>
       </div>
 
@@ -5352,22 +5734,28 @@ export function BlueprintProgressPanel({
         <>
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             <SummaryTile
-              label="规格"
+              label={panelText("规格", "Specs")}
               value={progress?.totalSpecs ?? "-"}
-              detail={`${progress?.specs.length ?? 0} 项已列出`}
+              detail={panelText(
+                `${progress?.specs.length ?? 0} 项已列出`,
+                `${progress?.specs.length ?? 0} listed`
+              )}
             />
             <SummaryTile
-              label="文档完成"
+              label={panelText("文档完成", "Docs complete")}
               value={progress?.totalDocs ?? "-"}
-              detail="需求 / 设计 / 任务"
+              detail={panelText("需求 / 设计 / 任务", "Requirements / design / tasks")}
             />
             <SummaryTile
-              label="任务进度"
+              label={panelText("任务进度", "Task progress")}
               value={progress ? `${overallTaskPercent}%` : "-"}
               detail={
                 progress
-                  ? `${progress.completedTasks}/${progress.totalTasks} 已完成`
-                  : "暂无任务统计"
+                  ? panelText(
+                      `${progress.completedTasks}/${progress.totalTasks} 已完成`,
+                      `${progress.completedTasks}/${progress.totalTasks} completed`
+                    )
+                  : panelText("暂无任务统计", "No task totals yet")
               }
             />
           </div>
@@ -5385,10 +5773,10 @@ export function BlueprintProgressPanel({
           <div className="flex flex-wrap items-start justify-between gap-3">
             <div className="min-w-0">
               <div className="text-xs font-black uppercase tracking-normal text-slate-500">
-                自动驾驶路线
+                {panelText("自动驾驶路线", "Autopilot route")}
               </div>
               <h3 className="mt-2 text-lg font-black text-slate-950">
-                生成 RouteSet
+                {panelText("生成 RouteSet", "Generate RouteSet")}
               </h3>
             </div>
             {latestJob ? (
@@ -5402,7 +5790,10 @@ export function BlueprintProgressPanel({
               value={generationInput}
               onChange={event => setGenerationInput(event.target.value)}
               className="min-h-[92px] resize-y rounded-[16px] border border-slate-200 bg-white px-3 py-3 text-sm font-semibold leading-6 text-slate-700 outline-none transition focus:border-[#0f766e]/50 focus:ring-2 focus:ring-[#0f766e]/15"
-              placeholder="执行目标或 GitHub 地址"
+              placeholder={panelText(
+                "执行目标或 GitHub 地址",
+                "Execution goal or GitHub URL"
+              )}
               data-testid="blueprint-generation-input"
             />
             <Button
@@ -5417,7 +5808,7 @@ export function BlueprintProgressPanel({
               ) : (
                 <Send className="size-4" aria-hidden="true" />
               )}
-              生成
+              {panelText("生成", "Generate")}
             </Button>
           </div>
           {generationError ? (
@@ -5472,6 +5863,7 @@ export function BlueprintProgressPanel({
           documents={specDocuments}
           initialPreviews={effectPreviews}
           agentCrew={agentCrew}
+          onPreviewsChange={setEffectPreviews}
         />
       ) : null}
 
@@ -5547,13 +5939,13 @@ export function BlueprintProgressPanel({
 
           {!error && !progress && loading ? (
             <div className="rounded-[18px] border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
-              正在加载蓝图规格...
+              {panelText("正在加载蓝图规格...", "Loading blueprint specs...")}
             </div>
           ) : null}
 
           {!error && progress && progress.specs.length === 0 ? (
             <div className="rounded-[18px] border border-dashed border-slate-300 bg-slate-50 px-4 py-8 text-center text-sm font-semibold text-slate-500">
-              暂未返回蓝图规格。
+              {panelText("暂未返回蓝图规格。", "No blueprint specs returned yet.")}
             </div>
           ) : null}
 

@@ -19,6 +19,7 @@ import type {
   ClarificationPreviewResponse,
   GenerateCommandListRequest,
   SelectCommandListCandidateRequest,
+  ApplySuggestionRequest,
 } from "../../shared/nl-command/api.js";
 import type { ClarificationQuestion } from "../../shared/nl-command/contracts.js";
 import {
@@ -352,36 +353,41 @@ function buildFallbackClarificationQuestions(
   return questions.slice(0, 3);
 }
 
-async function defaultPreviewClarificationQuestions(
+export async function defaultPreviewClarificationQuestions(
   request: ClarificationPreviewRequest,
 ): Promise<ClarificationPreviewResponse> {
-  const firstPass = await generatePreviewResponse(request, "judge");
-  if (!firstPass.needsClarification) {
-    return firstPass;
-  }
-  if (!needsChoiceRepair(firstPass)) {
-    return firstPass;
-  }
-
-  const secondPass =
-    firstPass.questions.length === 0
-      ? await generatePreviewResponse(request, "questions")
-      : await generatePreviewResponse(request, "repair", firstPass.questions);
-  if (!needsChoiceRepair(secondPass)) {
-    return secondPass;
-  }
-
-  const repairSource =
-    secondPass.questions.length > 0 ? secondPass.questions : firstPass.questions;
-  if (repairSource.length > 0) {
-    const thirdPass = await generatePreviewResponse(
-      request,
-      "repair",
-      repairSource,
-    );
-    if (!needsChoiceRepair(thirdPass)) {
-      return thirdPass;
+  try {
+    const firstPass = await generatePreviewResponse(request, "judge");
+    if (!firstPass.needsClarification) {
+      return firstPass;
     }
+    if (!needsChoiceRepair(firstPass)) {
+      return firstPass;
+    }
+
+    const secondPass =
+      firstPass.questions.length === 0
+        ? await generatePreviewResponse(request, "questions")
+        : await generatePreviewResponse(request, "repair", firstPass.questions);
+    if (!needsChoiceRepair(secondPass)) {
+      return secondPass;
+    }
+
+    const repairSource =
+      secondPass.questions.length > 0 ? secondPass.questions : firstPass.questions;
+    if (repairSource.length > 0) {
+      const thirdPass = await generatePreviewResponse(
+        request,
+        "repair",
+        repairSource,
+      );
+      if (!needsChoiceRepair(thirdPass)) {
+        return thirdPass;
+      }
+    }
+  } catch {
+    // Match the older task-hub behavior: LLM preview failures should not block
+    // clarification, because deterministic fallback questions are still useful.
   }
 
   return {
@@ -713,7 +719,7 @@ export function createNLCommandRouter(
   router.post("/plans/:id/apply-suggestion", (req, res) => {
     try {
       const { id } = req.params;
-      const body = req.body as { suggestionId?: string };
+      const body = req.body as ApplySuggestionRequest;
       if (!id) {
         res.status(400).json({
           error: "Bad request",

@@ -3,12 +3,25 @@ import { createServer } from "node:http";
 import { mkdtemp, mkdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import type { AddressInfo } from "node:net";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+
+const llmMocks = vi.hoisted(() => ({
+  callLLMJson: vi.fn(),
+}));
+
+vi.mock("../core/llm-client.js", async importOriginal => {
+  const actual = await importOriginal<typeof import("../core/llm-client.js")>();
+  return {
+    ...actual,
+    callLLMJson: llmMocks.callLLMJson,
+  };
+});
 
 import {
   createBlueprintRouter,
   createFileBlueprintJobStore,
   createMemoryBlueprintJobStore,
+  type BlueprintRouterDeps,
   type BlueprintJobStore,
 } from "../routes/blueprint.js";
 
@@ -18,7 +31,13 @@ const BLUEPRINT_ROUTE_TEST_COMMAND =
 async function withServer(
   specsRoot: string,
   handler: (baseUrl: string) => Promise<void>,
-  jobStore: BlueprintJobStore = createMemoryBlueprintJobStore()
+  jobStore: BlueprintJobStore = createMemoryBlueprintJobStore(),
+  routerDeps: Omit<BlueprintRouterDeps, "specsRoot" | "now" | "jobStore"> = {
+    generateClarificationQuestions: async input => ({
+      questions: input.templateQuestions,
+      source: "template",
+    }),
+  }
 ): Promise<void> {
   const app = express();
   app.use(express.json());
@@ -28,6 +47,7 @@ async function withServer(
       specsRoot,
       now: () => new Date("2026-05-06T00:00:00.000Z"),
       jobStore,
+      ...routerDeps,
     })
   );
 
@@ -183,6 +203,7 @@ describe("blueprint specs route", () => {
   let tempRoot = "";
 
   beforeEach(async () => {
+    llmMocks.callLLMJson.mockReset();
     tempRoot = await mkdtemp(
       path.join(process.cwd(), "tmp", "blueprint-specs-")
     );
@@ -1063,6 +1084,178 @@ describe("blueprint specs route", () => {
         answers: [],
       });
     });
+  });
+
+  it("uses an LLM question planner before falling back to clarification templates", async () => {
+    const generateClarificationQuestions = vi.fn(async input => ({
+      source: "llm" as const,
+      model: "test-clarifier-model",
+      promptId: "test-clarification-prompt",
+      questions: input.templateQuestions.map((question: any) =>
+        question.id === "blueprint-question-goal"
+          ? {
+              ...question,
+              prompt:
+                "Which measurable browser-ready outcome should this autopilot blueprint optimize first?",
+            }
+          : question
+      ),
+    }));
+
+    await withServer(
+      tempRoot,
+      async baseUrl => {
+        const intakeResponse = await fetch(`${baseUrl}/api/blueprint/intake`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: "project-llm-clarification",
+            targetText:
+              "Build a browser-visible autopilot route with audit-safe handoff.",
+            domainNotes: ["The first route must make LLM uncertainty visible."],
+          }),
+        });
+        expect(intakeResponse.status).toBe(201);
+        const intake = ((await intakeResponse.json()) as Record<string, any>)
+          .intake;
+
+        const sessionResponse = await fetch(
+          `${baseUrl}/api/blueprint/intake/${intake.id}/clarifications`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              strategyId: "target_first",
+              forceNew: true,
+            }),
+          }
+        );
+        expect(sessionResponse.status).toBe(201);
+        const session = ((await sessionResponse.json()) as Record<string, any>)
+          .session;
+
+        expect(generateClarificationQuestions).toHaveBeenCalledTimes(1);
+        expect(generateClarificationQuestions.mock.calls[0][0]).toMatchObject({
+          intake: {
+            id: intake.id,
+            targetText:
+              "Build a browser-visible autopilot route with audit-safe handoff.",
+          },
+          strategy: {
+            id: "target_first",
+          },
+        });
+        expect(
+          generateClarificationQuestions.mock.calls[0][0].templateQuestions
+        ).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              id: "blueprint-question-goal",
+              routeDimension: "goal",
+              readinessSignal: "goal_defined",
+            }),
+          ])
+        );
+        expect(session).toMatchObject({
+          generationSource: "llm",
+          llmModel: "test-clarifier-model",
+          llmPromptId: "test-clarification-prompt",
+          readiness: {
+            status: "needs_answers",
+          },
+        });
+        expect(session.questions).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              id: "blueprint-question-goal",
+              prompt:
+                "Which measurable browser-ready outcome should this autopilot blueprint optimize first?",
+              type: "free_text",
+              generationSource: "llm",
+              llmModel: "test-clarifier-model",
+              llmPromptId: "test-clarification-prompt",
+              routeDimension: "goal",
+              readinessSignal: "goal_defined",
+            }),
+          ])
+        );
+      },
+      createMemoryBlueprintJobStore(),
+      { generateClarificationQuestions }
+    );
+  });
+
+  it("reuses the NL command clarification preview planner for default LLM blueprint questions", async () => {
+    llmMocks.callLLMJson.mockResolvedValueOnce({
+      needsClarification: true,
+      questions: [
+        {
+          questionId: "timeline",
+          text: "Which launch window should the blueprint optimize for?",
+          type: "single_choice",
+          options: ["Today", "This week", "Flexible"],
+          context: "This keeps the route tradeoff aligned with the delivery window.",
+        },
+      ],
+    });
+
+    await withServer(
+      tempRoot,
+      async baseUrl => {
+        const intakeResponse = await fetch(`${baseUrl}/api/blueprint/intake`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: "project-nl-preview-reuse",
+            targetText:
+              "Build an autopilot route for a browser-visible launch plan.",
+          }),
+        });
+        expect(intakeResponse.status).toBe(201);
+        const intake = ((await intakeResponse.json()) as Record<string, any>)
+          .intake;
+
+        const sessionResponse = await fetch(
+          `${baseUrl}/api/blueprint/intake/${intake.id}/clarifications`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ forceNew: true }),
+          }
+        );
+        expect(sessionResponse.status).toBe(201);
+        const session = ((await sessionResponse.json()) as Record<string, any>)
+          .session;
+
+        expect(llmMocks.callLLMJson).toHaveBeenCalledTimes(1);
+        const [messages, options] = llmMocks.callLLMJson.mock.calls[0];
+        expect(messages[0].content).toContain(
+          "clarification assistant for launch requests"
+        );
+        expect(options).toMatchObject({
+          temperature: 0.2,
+          maxTokens: 800,
+        });
+        expect(session).toMatchObject({
+          generationSource: "llm",
+          llmModel: process.env.OPENAI_MODEL || process.env.LLM_MODEL || "gpt-4o-mini",
+        });
+        expect(session.questions).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({
+              prompt: "Which launch window should the blueprint optimize for?",
+              type: "single_choice",
+              options: ["Today", "This week", "Flexible"],
+              context:
+                "This keeps the route tradeoff aligned with the delivery window.",
+              generationSource: "llm",
+            }),
+          ])
+        );
+      },
+      createMemoryBlueprintJobStore(),
+      {}
+    );
   });
 
   it("creates a generation job from intake and clarification context", async () => {

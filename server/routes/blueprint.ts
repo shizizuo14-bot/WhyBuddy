@@ -4,6 +4,9 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 
+import { getAIConfig } from "../core/ai-config.js";
+import { callLLMJson } from "../core/llm-client.js";
+import { defaultPreviewClarificationQuestions } from "./nl-command.js";
 import type {
   BlueprintArtifactDiff,
   BlueprintArtifactDiffRequest,
@@ -35,6 +38,7 @@ import type {
   BlueprintCapabilityRegistryResponse,
   BlueprintClarificationAnswer,
   BlueprintClarificationQuestion,
+  BlueprintClarificationGenerationSource,
   BlueprintClarificationReadiness,
   BlueprintClarificationReadinessSignalId,
   BlueprintClarificationRouteDimension,
@@ -187,6 +191,26 @@ export interface BlueprintRouterDeps {
   specsRoot?: string;
   now?: () => Date;
   jobStore?: BlueprintJobStore;
+  generateClarificationQuestions?: BlueprintClarificationQuestionGenerator;
+}
+
+export type BlueprintClarificationQuestionGenerator = (
+  input: BlueprintClarificationQuestionGeneratorInput
+) => Promise<BlueprintClarificationQuestionGenerationResult>;
+
+interface BlueprintClarificationQuestionGeneratorInput {
+  intake: BlueprintIntake;
+  strategy: BlueprintClarificationStrategyTemplate;
+  templateQuestions: BlueprintClarificationQuestion[];
+  now: string;
+}
+
+interface BlueprintClarificationQuestionGenerationResult {
+  questions: BlueprintClarificationQuestion[];
+  source: BlueprintClarificationGenerationSource;
+  model?: string;
+  promptId?: string;
+  error?: string;
 }
 
 interface BlueprintIntakeStores {
@@ -431,7 +455,7 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     res.json({ intake, projectContext });
   });
 
-  router.post("/intake/:intakeId/clarifications", (req, res) => {
+  router.post("/intake/:intakeId/clarifications", async (req, res) => {
     const intake = blueprintStores.intakes.get(req.params.intakeId);
     if (!intake) {
       res.status(404).json({
@@ -450,13 +474,23 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       return;
     }
 
-    const session = createClarificationSession(intake, {
-      now: deps.now,
-      stores: blueprintStores,
-      request: parsed.request,
-    });
+    try {
+      const session = await createClarificationSession(intake, {
+        now: deps.now,
+        stores: blueprintStores,
+        request: parsed.request,
+        generateQuestions:
+          deps.generateClarificationQuestions ??
+          generateClarificationQuestionsWithLlm,
+      });
 
-    res.status(201).json({ session });
+      res.status(201).json({ session });
+    } catch (error) {
+      res.status(500).json({
+        error: "Failed to create blueprint clarification session.",
+        message: errorMessage(error),
+      });
+    }
   });
 
   router.get("/clarifications/:sessionId", (req, res) => {
@@ -1886,14 +1920,15 @@ function createBlueprintIntake(
   return intake;
 }
 
-function createClarificationSession(
+async function createClarificationSession(
   intake: BlueprintIntake,
   options: {
     now?: () => Date;
     stores: BlueprintIntakeStores;
     request?: BlueprintClarificationSessionRequest;
+    generateQuestions?: BlueprintClarificationQuestionGenerator;
   }
-): BlueprintClarificationSession {
+): Promise<BlueprintClarificationSession> {
   const createdAt = (options.now?.() ?? new Date()).toISOString();
   const strategy = selectClarificationStrategy(intake, options.request);
   const reusable = options.request?.forceNew
@@ -1903,7 +1938,24 @@ function createClarificationSession(
     return reusable;
   }
 
-  const questions = buildClarificationQuestions(intake, strategy);
+  const templateQuestions = buildClarificationQuestions(intake, strategy);
+  const generation = options.generateQuestions
+    ? await options.generateQuestions({
+        intake,
+        strategy,
+        templateQuestions,
+        now: createdAt,
+      })
+    : {
+        questions: templateQuestions,
+        source: "template" as const,
+      };
+  const questions = normalizeGeneratedClarificationQuestions(
+    generation.questions,
+    templateQuestions,
+    strategy,
+    generation
+  );
   const readiness = calculateClarificationReadiness(questions, []);
   const session: BlueprintClarificationSession = {
     id: createId("blueprint-clarification"),
@@ -1912,6 +1964,10 @@ function createClarificationSession(
     strategyId: strategy.id,
     strategyLabel: strategy.label,
     templateId: strategy.templateId,
+    generationSource: generation.source,
+    llmModel: generation.model,
+    llmPromptId: generation.promptId,
+    llmError: generation.error,
     routeReadySummary: buildClarificationRouteReadySummary(strategy, readiness, questions),
     readinessSignals: uniqueClarificationReadinessSignals(questions),
     questions,
@@ -12963,6 +13019,7 @@ function buildClarificationQuestions(
         readinessSignal: blueprint.readinessSignal,
         templateId: strategy.templateId,
         strategyId: strategy.id,
+        generationSource: "template",
         settledByStrategy,
         settledReason: settledByStrategy
           ? `${strategy.label} uses a strategy default for this route dimension.`
@@ -12971,6 +13028,461 @@ function buildClarificationQuestions(
       },
     ];
   });
+}
+
+interface LlmClarificationQuestionDraft {
+  id?: unknown;
+  prompt?: unknown;
+  question?: unknown;
+  text?: unknown;
+  type?: unknown;
+  options?: unknown;
+  context?: unknown;
+  required?: unknown;
+  routeDimension?: unknown;
+  route_dimension?: unknown;
+  readinessSignal?: unknown;
+  readiness_signal?: unknown;
+  kind?: unknown;
+  defaultAnswer?: unknown;
+  default_answer?: unknown;
+}
+
+interface LlmClarificationQuestionsPayload {
+  questions?: LlmClarificationQuestionDraft[];
+  summary?: unknown;
+}
+
+async function generateClarificationQuestionsWithLlm(
+  input: BlueprintClarificationQuestionGeneratorInput
+): Promise<BlueprintClarificationQuestionGenerationResult> {
+  const aiConfig = getAIConfig();
+  const promptId = stableId(
+    "blueprint-clarification-llm-prompt",
+    `${input.intake.id}-${input.strategy.id}-${input.strategy.templateId}`
+  );
+  if (!aiConfig.apiKey) {
+    return {
+      questions: input.templateQuestions,
+      source: "llm_fallback",
+      model: aiConfig.model,
+      promptId,
+      error: "LLM provider is not configured; using strategy template questions.",
+    };
+  }
+
+  try {
+    const preview = await defaultPreviewClarificationQuestions({
+      commandText: buildBlueprintClarificationPreviewCommand(input),
+      userId: "blueprint-autopilot",
+      priority: input.strategy.id === "fast_execution" ? "high" : "medium",
+      locale: "zh-CN",
+    });
+    const previewQuestions = mapPreviewClarificationQuestionsToBlueprint(
+      preview,
+      input.templateQuestions,
+      input.strategy,
+      {
+        source: "llm",
+        model: aiConfig.model,
+        promptId,
+      }
+    );
+    if (previewQuestions.length) {
+      return {
+        questions: previewQuestions,
+        source: "llm",
+        model: aiConfig.model,
+        promptId,
+      };
+    }
+
+    const payload = await callLLMJson<LlmClarificationQuestionsPayload>(
+      [
+        {
+          role: "system",
+          content:
+            "You are the /autopilot clarification planner. Follow the existing launch clarification behavior: return 1 to 3 concise, clickable, high-signal questions as JSON only. Prefer single_choice or multi_choice with 2 to 4 short options. Keep every question tied to the provided template ids, route dimensions, and readiness signals. Do not ask duplicate questions.",
+        },
+        {
+          role: "user",
+          content: JSON.stringify({
+            promptId,
+            targetText: input.intake.targetText ?? "",
+            githubUrls: input.intake.githubUrls,
+            sources: input.intake.sources.map(source => ({
+              id: source.id,
+              slug: source.slug,
+              url: source.normalizedUrl,
+            })),
+            domainNotes: input.intake.domainNotes,
+            assets: input.intake.assets.map(asset => ({
+              id: asset.id,
+              title: asset.title,
+              summary: asset.summary,
+              tags: asset.tags,
+            })),
+            strategy: {
+              id: input.strategy.id,
+              label: input.strategy.label,
+              templateId: input.strategy.templateId,
+              summary: input.strategy.summary,
+            },
+            templateQuestions: input.templateQuestions.map(question => ({
+              id: question.id,
+              kind: question.kind,
+              prompt: question.prompt,
+              required: question.required,
+              routeDimension: question.routeDimension,
+              readinessSignal: question.readinessSignal,
+              settledByStrategy: question.settledByStrategy,
+              defaultAnswer: question.defaultAnswer,
+            })),
+            outputSchema: {
+              questions: [
+                {
+                  id: "reuse the provided question id when adapting a template question",
+                  prompt: "question text",
+                  type: "single_choice|multi_choice|free_text",
+                  options: ["2 to 4 concise options when type is choice-based"],
+                  context: "short reason why this answer affects the route",
+                  required: true,
+                  kind: "goal|audience|constraint|github|domain|document|preview|execution",
+                  routeDimension:
+                    "goal|audience|risk|repository|domain|document|preview|output|execution|handoff",
+                  readinessSignal:
+                    "goal_defined|audience_defined|constraints_defined|repository_context|domain_assets|document_intent|preview_intent|output_preference|risk_review|fast_path",
+                  defaultAnswer: "optional assumption",
+                },
+              ],
+              summary: "one-sentence route readiness focus",
+            },
+          }),
+        },
+      ],
+      {
+        model: aiConfig.model,
+        temperature: 0.2,
+        maxTokens: 1200,
+        retryAttempts: 1,
+        timeoutMs: Number(process.env.BLUEPRINT_CLARIFICATION_LLM_TIMEOUT_MS || 20000),
+        sessionId: input.intake.id,
+      }
+    );
+
+    const generatedQuestions = normalizeLlmClarificationQuestions(
+      payload,
+      input.templateQuestions,
+      input.strategy,
+      {
+        source: "llm",
+        model: aiConfig.model,
+        promptId,
+      }
+    );
+
+    return {
+      questions: generatedQuestions.length
+        ? generatedQuestions
+        : input.templateQuestions,
+      source: generatedQuestions.length ? "llm" : "llm_fallback",
+      model: aiConfig.model,
+      promptId,
+      error: generatedQuestions.length
+        ? undefined
+        : "LLM returned no usable clarification questions; using strategy template questions.",
+    };
+  } catch (error) {
+    return {
+      questions: input.templateQuestions,
+      source: "llm_fallback",
+      model: aiConfig.model,
+      promptId,
+      error: errorMessage(error),
+    };
+  }
+}
+
+function normalizeLlmClarificationQuestions(
+  payload: LlmClarificationQuestionsPayload,
+  templateQuestions: BlueprintClarificationQuestion[],
+  strategy: BlueprintClarificationStrategyTemplate,
+  metadata: {
+    source: BlueprintClarificationGenerationSource;
+    model?: string;
+    promptId?: string;
+  }
+): BlueprintClarificationQuestion[] {
+  const templateById = new Map(
+    templateQuestions.map(question => [question.id, question])
+  );
+  const drafts = Array.isArray(payload?.questions) ? payload.questions : [];
+  const normalized = drafts
+    .map((draft, index) => {
+      const requestedId = readString(draft.id);
+      const template =
+        (requestedId ? templateById.get(requestedId) : undefined) ??
+        templateQuestions[index];
+      if (!template) return undefined;
+
+      return normalizeGeneratedClarificationQuestion(
+        {
+          ...template,
+          prompt:
+            readString(draft.prompt ?? draft.question ?? draft.text) ??
+            template.prompt,
+          type:
+            normalizeClarificationQuestionType(draft.type) ?? template.type,
+          options:
+            normalizeClarificationQuestionOptions(draft.options) ??
+            template.options,
+          context: readString(draft.context) ?? template.context,
+          required:
+            readBoolean(draft.required) ??
+            template.required,
+          kind:
+            normalizeClarificationQuestionKind(draft.kind) ?? template.kind,
+          routeDimension:
+            normalizeClarificationRouteDimension(
+              draft.routeDimension ?? draft.route_dimension
+            ) ?? template.routeDimension,
+          readinessSignal:
+            normalizeClarificationReadinessSignal(
+              draft.readinessSignal ?? draft.readiness_signal
+            ) ?? template.readinessSignal,
+          defaultAnswer:
+            readString(draft.defaultAnswer ?? draft.default_answer) ??
+            template.defaultAnswer,
+        },
+        strategy,
+        metadata
+      );
+    })
+    .filter((question): question is BlueprintClarificationQuestion =>
+      Boolean(question)
+    );
+
+  return normalized.length >= Math.min(2, templateQuestions.length)
+    ? dedupeClarificationQuestions(normalized)
+    : [];
+}
+
+function buildBlueprintClarificationPreviewCommand(
+  input: BlueprintClarificationQuestionGeneratorInput
+): string {
+  return [
+    input.intake.targetText,
+    input.intake.githubUrls.length
+      ? `GitHub: ${input.intake.githubUrls.join(", ")}`
+      : undefined,
+    input.intake.domainNotes.length
+      ? `Domain notes: ${input.intake.domainNotes.join("; ")}`
+      : undefined,
+    input.intake.assets.length
+      ? `Known assets: ${input.intake.assets
+          .map(asset => `${asset.title}: ${asset.summary}`)
+          .join("; ")}`
+      : undefined,
+    `Clarification strategy: ${input.strategy.label}. ${input.strategy.summary}`,
+    `Template focus: ${input.templateQuestions
+      .map(question => `${question.routeDimension ?? question.kind}:${question.prompt}`)
+      .join(" | ")}`,
+  ]
+    .filter(isString)
+    .join("\n");
+}
+
+function mapPreviewClarificationQuestionsToBlueprint(
+  preview: { needsClarification?: boolean; questions?: unknown[] },
+  templateQuestions: BlueprintClarificationQuestion[],
+  strategy: BlueprintClarificationStrategyTemplate,
+  metadata: {
+    source: BlueprintClarificationGenerationSource;
+    model?: string;
+    promptId?: string;
+  }
+): BlueprintClarificationQuestion[] {
+  if (preview.needsClarification === false) return [];
+  const drafts = Array.isArray(preview.questions) ? preview.questions : [];
+  if (drafts.length === 0) return [];
+
+  return dedupeClarificationQuestions(
+    drafts
+      .slice(0, 3)
+      .map((draft, index) => {
+        const record = isPlainRecord(draft) ? draft : null;
+        const template = templateQuestions[index] ?? templateQuestions[0];
+        if (!record || !template) return undefined;
+        return normalizeGeneratedClarificationQuestion(
+          {
+            ...template,
+            prompt: readString(record.text ?? record.prompt) ?? template.prompt,
+            type:
+              normalizeClarificationQuestionType(record.type) ??
+              template.type ??
+              "single_choice",
+            options:
+              normalizeClarificationQuestionOptions(record.options) ??
+              template.options,
+            context: readString(record.context) ?? template.context,
+            id: template.id,
+          },
+          strategy,
+          metadata
+        );
+      })
+      .filter((question): question is BlueprintClarificationQuestion =>
+        Boolean(question)
+      )
+  );
+}
+
+function normalizeGeneratedClarificationQuestions(
+  questions: BlueprintClarificationQuestion[],
+  templateQuestions: BlueprintClarificationQuestion[],
+  strategy: BlueprintClarificationStrategyTemplate,
+  generation: BlueprintClarificationQuestionGenerationResult
+): BlueprintClarificationQuestion[] {
+  const sourceQuestions = questions.length ? questions : templateQuestions;
+  const normalized = sourceQuestions.map((question, index) =>
+    normalizeGeneratedClarificationQuestion(
+      {
+        ...templateQuestions[index],
+        ...question,
+      },
+      strategy,
+      {
+        source: generation.source,
+        model: generation.model,
+        promptId: generation.promptId,
+      }
+    )
+  );
+
+  return dedupeClarificationQuestions(normalized);
+}
+
+function normalizeGeneratedClarificationQuestion(
+  question: BlueprintClarificationQuestion,
+  strategy: BlueprintClarificationStrategyTemplate,
+  metadata: {
+    source: BlueprintClarificationGenerationSource;
+    model?: string;
+    promptId?: string;
+  }
+): BlueprintClarificationQuestion {
+  return {
+    ...question,
+    id: question.id || stableId("blueprint-question", question.prompt),
+    prompt: question.prompt,
+    type:
+      question.type ??
+      (question.options && question.options.length >= 2
+        ? "single_choice"
+        : "free_text"),
+    options:
+      question.options && question.options.length >= 2
+        ? question.options.slice(0, 4)
+        : undefined,
+    context: question.context,
+    sourceIds: question.sourceIds ?? [],
+    evidenceIds: question.evidenceIds ?? [],
+    strategyId: question.strategyId ?? strategy.id,
+    templateId: question.templateId ?? strategy.templateId,
+    generationSource: metadata.source,
+    llmModel: metadata.source === "llm" ? metadata.model : question.llmModel,
+    llmPromptId:
+      metadata.source === "llm" ? metadata.promptId : question.llmPromptId,
+  };
+}
+
+function dedupeClarificationQuestions(
+  questions: BlueprintClarificationQuestion[]
+): BlueprintClarificationQuestion[] {
+  const seen = new Set<string>();
+  return questions.filter(question => {
+    const key = `${question.id}:${question.routeDimension ?? ""}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+function normalizeClarificationQuestionKind(
+  value: unknown
+): BlueprintClarificationQuestion["kind"] | undefined {
+  const normalized = readString(value)?.toLowerCase().replace(/[-\s]+/g, "_");
+  return normalized === "goal" ||
+    normalized === "audience" ||
+    normalized === "constraint" ||
+    normalized === "github" ||
+    normalized === "domain" ||
+    normalized === "document" ||
+    normalized === "preview" ||
+    normalized === "execution"
+    ? normalized
+    : undefined;
+}
+
+function normalizeClarificationQuestionType(
+  value: unknown
+): BlueprintClarificationQuestion["type"] | undefined {
+  const normalized = readString(value)?.toLowerCase().replace(/[-\s]+/g, "_");
+  return normalized === "free_text" ||
+    normalized === "single_choice" ||
+    normalized === "multi_choice"
+    ? normalized
+    : undefined;
+}
+
+function normalizeClarificationQuestionOptions(
+  value: unknown
+): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  const options = Array.from(
+    new Set(
+      value
+        .map(item => readString(item))
+        .filter((item): item is string => Boolean(item))
+    )
+  ).slice(0, 4);
+  return options.length >= 2 ? options : undefined;
+}
+
+function normalizeClarificationRouteDimension(
+  value: unknown
+): BlueprintClarificationRouteDimension | undefined {
+  const normalized = readString(value)?.toLowerCase().replace(/[-\s]+/g, "_");
+  return normalized === "goal" ||
+    normalized === "audience" ||
+    normalized === "risk" ||
+    normalized === "repository" ||
+    normalized === "domain" ||
+    normalized === "document" ||
+    normalized === "preview" ||
+    normalized === "output" ||
+    normalized === "execution" ||
+    normalized === "handoff"
+    ? normalized
+    : undefined;
+}
+
+function normalizeClarificationReadinessSignal(
+  value: unknown
+): BlueprintClarificationReadinessSignalId | undefined {
+  const normalized = readString(value)?.toLowerCase().replace(/[-\s]+/g, "_");
+  return normalized === "goal_defined" ||
+    normalized === "audience_defined" ||
+    normalized === "constraints_defined" ||
+    normalized === "repository_context" ||
+    normalized === "domain_assets" ||
+    normalized === "document_intent" ||
+    normalized === "preview_intent" ||
+    normalized === "output_preference" ||
+    normalized === "risk_review" ||
+    normalized === "fast_path"
+    ? normalized
+    : undefined;
 }
 
 function buildClarificationEvidence(

@@ -1,3 +1,5 @@
+import type { AppLocale } from "./locale";
+
 const BLUEPRINT_COPY: Record<string, string> = {
   // Navigation and workbench chrome.
   Autopilot: "自动驾驶",
@@ -63,6 +65,35 @@ const BLUEPRINT_COPY: Record<string, string> = {
   preview: "预演",
   previews: "预演",
   Recorded: "已记录",
+  "Runtime Projection": "运行时投影",
+  "Runtime capability projection": "运行时能力投影",
+  "3D Scene": "3D 场景",
+  "Waiting for scene snapshot": "等待场景快照",
+  "Scene snapshot is linked.": "场景快照已连接。",
+  "No scene snapshot yet.": "暂无场景快照。",
+  HUD: "HUD",
+  "Waiting for HUD state": "等待 HUD 状态",
+  Logs: "日志",
+  "Waiting for runtime logs": "等待运行时日志",
+  Browser: "浏览器",
+  "Waiting for browser preview": "等待浏览器预览",
+  "No browser preview link yet.": "暂无浏览器预览链接。",
+  "Agent Crew": "智能体团队",
+  "Companion role surface": "协作角色面板",
+  "Companion roles are aligned with runtime capabilities, logs, browser preview artifacts, and evidence.":
+    "协作角色已与运行时能力、日志、浏览器预览资产和证据对齐。",
+  "Waiting for role event": "等待角色事件",
+  "No capability bound": "未绑定能力",
+  "No artifact yet": "暂无资产",
+  "No evidence yet": "暂无证据",
+  "Log / Preview": "日志 / 预演",
+  "Role Event Source": "角色事件来源",
+  "Awaiting runtime log": "等待运行时日志",
+  Active: "活跃",
+  Watching: "观察中",
+  Reviewing: "评审中",
+  Sleeping: "休眠",
+  standby: "待命",
 
   // Status and token values.
   pending: "待处理",
@@ -393,8 +424,12 @@ const BLUEPRINT_COPY: Record<string, string> = {
   "Capture run evidence": "捕获执行证据",
 };
 
-export function blueprintCopy(value: string | undefined): string {
+export function blueprintCopy(
+  value: string | undefined,
+  locale: AppLocale = "zh-CN"
+): string {
   if (!value) return "";
+  if (locale === "en-US") return value;
   const direct = BLUEPRINT_COPY[value];
   if (direct) return direct;
 
