@@ -2,7 +2,7 @@
  * @Author: wangchunji
  * @Date: 2026-05-08 11:56:44
  * @Description: 
- * @LastEditTime: 2026-05-08 12:04:00
+ * @LastEditTime: 2026-05-08 14:54:48
  * @LastEditors: wangchunji
 -->
 # 任务清单：Autopilot / Blueprint 模块子域拆分重构
@@ -35,7 +35,7 @@
 
 以下任务跨 worktree，放在 4 个 worktree 全部合入 `main` 之后执行。
 
-- [ ] 1. 四个 worktree 合并后的仓库级回归
+- [x] 1. 四个 worktree 合并后的仓库级回归
   - 四个 worktree 全部合入 `main` 后，运行仓库级 `node --run check`，TypeScript 错误数不得比 wt1 合入前扩大。
   - 运行 `vitest run server/tests/blueprint-routes.test.ts`，原 51 条 + 新增 `reviewing` 用例全部通过。
   - 运行客户端冒烟 `vitest run client/src/pages/autopilot client/src/pages/specs client/src/pages/Home.tsx`，全部通过。

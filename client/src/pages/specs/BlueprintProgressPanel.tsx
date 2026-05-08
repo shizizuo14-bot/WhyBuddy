@@ -5996,3 +5996,39 @@ export function BlueprintProgressPanel({
 }
 
 export default BlueprintProgressPanel;
+
+
+// ---------------------------------------------------------------------------
+// wt4 任务 3 注记（autopilot-blueprint-refactor-split）：
+//
+// 本文件仍为 BlueprintProgressPanel 的**物理真相源**（约 5700 行），
+// 包含 6 个内联 local function 面板（EffectPreviewWorkbenchPanel /
+// PromptPackageWorkbenchPanel / RuntimeCapabilityBridgeWorkbenchPanel /
+// EngineeringLandingWorkbenchPanel / ArtifactMemoryWorkbenchPanel /
+// RuntimeProjectionCard / RouteCandidateCard）。
+//
+// 方案 B 下 `./panels/` 与 `./hooks/` 目录已经建立：
+//   ./panels/ProgressHeaderPanel.tsx
+//   ./panels/JobLedgerPanel.tsx
+//   ./panels/SpecTreePanel.tsx         (re-export 已有 SpecTreeWorkbenchPanel)
+//   ./panels/SpecDocumentsPanel.tsx    (re-export 已有 SpecDocumentWorkbenchPanel)
+//   ./panels/EffectPreviewPanel.tsx
+//   ./panels/PromptPackagePanel.tsx
+//   ./panels/RuntimeCapabilityPanel.tsx
+//   ./panels/EngineeringLandingPanel.tsx
+//   ./panels/ArtifactMemoryPanel.tsx
+//   ./panels/RouteCandidateCard.tsx
+//   ./panels/RuntimeProjectionCard.tsx
+//   ./panels/index.ts
+//   ./hooks/use-blueprint-progress-data.ts
+//
+// 物理迁移路径（后续 iteration）：
+// 1. 逐个把本文件内的 local function 组件标记 `export`（不删本地使用）；
+// 2. 在对应 panels/*.tsx 中改为 `export { ... } from "../BlueprintProgressPanel.js"`；
+// 3. 把组件**实物**搬到 panels/*.tsx，本文件保留 barrel re-export；
+// 4. 把统一取数封装到 `use-blueprint-progress-data.ts`，让 BlueprintProgressPanel
+//    只剩区块装配 + 数据分发。
+//
+// 当前任务 3 不做物理瘦身，目的是保证 wt4 不 break `data-testid` 稳定性与 UI 层级
+// （需求 2.6、2.7、6.2）。
+// ---------------------------------------------------------------------------
