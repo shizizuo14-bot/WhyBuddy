@@ -16,6 +16,7 @@ import {
   buildBlueprintServiceContext,
   type BlueprintServiceContext,
 } from "./blueprint/context.js";
+import { createAgentCrewStageActivationDriver } from "./blueprint/agent-crew-stage-activation/driver.js";
 import {
   createFileBlueprintJobStore,
   type BlueprintJobStore,
@@ -1016,6 +1017,14 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       store: jobStore,
     });
 
+    // Task 14.4: Hook point — stage transition to spec_tree after route selection.
+    blueprintServiceContext.agentCrewStageActivationDriver?.onStageTransition({
+      jobId: response.job.id,
+      stageId: "spec_tree",
+      transition: "stage_started",
+      job: response.job,
+    });
+
     res.status(201).json(response);
   });
 
@@ -1513,6 +1522,14 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       store: jobStore,
     });
 
+    // Task 14.4: Hook point — stage transition back to route_generation after reset.
+    blueprintServiceContext.agentCrewStageActivationDriver?.onStageTransition({
+      jobId: result.job.id,
+      stageId: "route_generation",
+      transition: "stage_started",
+      job: result.job,
+    });
+
     res.json(result);
   };
 
@@ -1650,6 +1667,14 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
         return;
       }
 
+      // Task 14.4: Hook point — spec_docs stage after document version saved.
+      blueprintServiceContext.agentCrewStageActivationDriver?.onStageTransition({
+        jobId: job.id,
+        stageId: "spec_docs",
+        transition: "stage_started",
+        job: result.response.job,
+      });
+
       res.status(201).json(result.response);
     }
   );
@@ -1703,6 +1728,14 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
         return;
       }
 
+      // Task 14.4: Hook point — spec_docs stage after document review.
+      blueprintServiceContext.agentCrewStageActivationDriver?.onStageTransition({
+        jobId: job.id,
+        stageId: "spec_docs",
+        transition: "stage_started",
+        job: result.response.job,
+      });
+
       res.json(result.response);
     }
   );
@@ -1754,6 +1787,14 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       return;
     }
 
+    // Task 14.4: Hook point — spec_tree stage update after node modification.
+    blueprintServiceContext.agentCrewStageActivationDriver?.onStageTransition({
+      jobId: job.id,
+      stageId: "spec_tree",
+      transition: "stage_started",
+      job: updateResult.response.job,
+    });
+
     res.json(updateResult.response);
   });
 
@@ -1797,6 +1838,14 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       });
       return;
     }
+
+    // Task 14.4: Hook point — spec_tree stage after tree action.
+    blueprintServiceContext.agentCrewStageActivationDriver?.onStageTransition({
+      jobId: job.id,
+      stageId: "spec_tree",
+      transition: "stage_started",
+      job: actionResult.response.job,
+    });
 
     res.json(actionResult.response);
   });
@@ -2360,6 +2409,10 @@ export async function createGenerationJob(
       now: options.now,
       jobStore: options.store,
     }));
+  // Task 14.1: Lazy construct stage activation driver at job start (per-job lifecycle).
+  if (!ctx.agentCrewStageActivationDriver) {
+    ctx.agentCrewStageActivationDriver = createAgentCrewStageActivationDriver(ctx);
+  }
   const events: BlueprintGenerationEvent[] = [
     createGenerationEvent({
       jobId,
@@ -2559,6 +2612,14 @@ export async function createGenerationJob(
   };
 
   options.store.save(job);
+
+  // Task 14.2: Hook point — route_generation stage started after job creation.
+  ctx.agentCrewStageActivationDriver?.onStageTransition({
+    jobId: job.id,
+    stageId: "route_generation",
+    transition: "stage_started",
+    job,
+  });
 
   return {
     job,
@@ -3036,6 +3097,10 @@ async function createRouteGenerationSandboxDerivation(
     primaryRouteId?: string;
   }
 ): Promise<RouteGenerationSandboxDerivationResult> {
+  // Task 14.1: Lazy construct stage activation driver (reuses same instance if already on ctx).
+  if (!ctx.agentCrewStageActivationDriver) {
+    ctx.agentCrewStageActivationDriver = createAgentCrewStageActivationDriver(ctx);
+  }
   const capabilityIds = uniqueStrings(
     input.routeSet.routes.flatMap(route =>
       route.capabilities.map(capability => capability.id)
