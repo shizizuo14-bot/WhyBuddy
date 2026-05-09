@@ -72,6 +72,79 @@ import {
   createDefaultAigcSpecNodeCapabilityPolicy,
   type AigcSpecNodeCapabilityPolicy,
 } from "./aigc-spec-node/policy.js";
+import { createRoleSystemArchitectureCapabilityBridge } from "./role-system-architecture/bridge.js";
+import { createDefaultRoleSystemArchitectureCapabilityPolicy } from "./role-system-architecture/policy.js";
+
+/**
+ * Role System Architecture capability policy interface.
+ *
+ * Contains security, quota, and configuration constraints for the role
+ * architecture bridge. The full implementation will be provided by task 7
+ * (`server/routes/blueprint/role-system-architecture/policy.ts`); this
+ * declaration enables the `BlueprintServiceContext` type extension without
+ * importing the factory implementation (avoiding circular dependencies).
+ *
+ * @see design §2.D2 / §4.3
+ */
+export interface RoleSystemArchitectureCapabilityPolicy {
+  maxInvocationTimeoutMs: number;
+  temperature: number;
+  maxLogLines: number;
+  maxLogBytes: number;
+  maxStructuredPayloadSummaryBytes: number;
+  redactionKeywords: readonly string[];
+  redactedEmailPattern: RegExp;
+  redactedApiKeyPattern: RegExp;
+  redactedGithubPatPattern: RegExp;
+  callJsonRetryAttempts: number;
+}
+
+/**
+ * Role System Architecture capability bridge function type.
+ *
+ * A pure async function: accepts bridge input (capability / route / request /
+ * primaryRouteId etc.), returns an output containing either a real invocation
+ * (with structured roles) or a fallback invocation. The full implementation
+ * will be provided by task 14
+ * (`server/routes/blueprint/role-system-architecture/bridge.ts`); this type
+ * alias enables the `BlueprintServiceContext` field declaration without
+ * importing the factory (avoiding circular dependencies).
+ *
+ * @see design §2.D1 / §4.2
+ */
+export type RoleSystemArchitectureCapabilityBridge = (
+  input: any
+) => Promise<RoleSystemArchitectureCapabilityBridgeOutput>;
+
+/**
+ * Minimal input shape for the Role System Architecture capability bridge.
+ * Full definition will be provided by task 14.
+ */
+export interface RoleSystemArchitectureCapabilityBridgeInput {
+  capability: unknown;
+  route: unknown;
+  jobId: string;
+  request: unknown;
+  routeSet: unknown;
+  primaryRouteId: string;
+  clarificationSession?: unknown;
+  createdAt: unknown;
+  invocationId: string;
+  roleId: string;
+  [key: string]: unknown;
+}
+
+/**
+ * Minimal output shape for the Role System Architecture capability bridge.
+ * Full definition will be provided by task 14.
+ */
+export interface RoleSystemArchitectureCapabilityBridgeOutput {
+  invocation: unknown;
+  executionMode: "real" | "simulated_fallback";
+  additionalEvents?: unknown[];
+  structuredRoles?: unknown;
+  structuredRolesMeta?: { digest: string; byteSize: number; summary: string };
+}
 
 export type {
   BlueprintHttpFetcher,
@@ -345,6 +418,33 @@ export interface BlueprintServiceContext {
    * incur LLM traffic in default deployments.
    */
   aigcSpecNodeCapabilityBridge?: AigcSpecNodeCapabilityBridge;
+  /**
+   * Optional: Role System Architecture capability policy.
+   *
+   * Contains security/quota/configuration constraints for the role architecture
+   * bridge. When not injected, `buildBlueprintServiceContext` will wire a
+   * default via `createDefaultRoleSystemArchitectureCapabilityPolicy()` (task
+   * 17). The field stays optional so custom contexts assembled directly remain
+   * backwards compatible.
+   *
+   * @see design §2.D2 / §4.3
+   */
+  roleSystemArchitectureCapabilityPolicy?: RoleSystemArchitectureCapabilityPolicy;
+  /**
+   * Optional: Role System Architecture capability bridge instance.
+   *
+   * A pure async function that performs real LLM-driven role architecture
+   * reasoning or falls back to simulated output. When not injected,
+   * `buildBlueprintServiceContext` will wire a default via
+   * `createRoleSystemArchitectureCapabilityBridge(ctx)` (task 17). The bridge
+   * performs its own tier-1 early-exit when
+   * `BLUEPRINT_ROLE_CAPABILITY_BRIDGE_ENABLED !== "true"` or when the resolved
+   * apiKey is empty, so always wiring a bridge instance does not incur LLM
+   * traffic in default deployments.
+   *
+   * @see design §2.D1 / §4.2
+   */
+  roleSystemArchitectureCapabilityBridge?: RoleSystemArchitectureCapabilityBridge;
 }
 
 /**
@@ -416,6 +516,22 @@ export interface BlueprintServiceContextDeps {
    * `aigcSpecNodeCapabilityPolicy` that the rest of the app uses).
    */
   aigcSpecNodeCapabilityBridge?: AigcSpecNodeCapabilityBridge;
+  /**
+   * Optional override for the Role System Architecture capability policy.
+   * When omitted, {@link buildBlueprintServiceContext} will wire a default via
+   * `createDefaultRoleSystemArchitectureCapabilityPolicy()` (task 17).
+   *
+   * @see design §2.D2 / §4.3
+   */
+  roleSystemArchitectureCapabilityPolicy?: RoleSystemArchitectureCapabilityPolicy;
+  /**
+   * Optional override for the Role System Architecture capability bridge.
+   * When omitted, {@link buildBlueprintServiceContext} will wire a default via
+   * `createRoleSystemArchitectureCapabilityBridge(ctx)` (task 17).
+   *
+   * @see design §2.D1 / §4.2
+   */
+  roleSystemArchitectureCapabilityBridge?: RoleSystemArchitectureCapabilityBridge;
 }
 
 /**
@@ -541,6 +657,12 @@ export function buildBlueprintServiceContext(
     // AIGC Spec Node capability: policy eagerly resolved, bridge late-bound.
     aigcSpecNodeCapabilityPolicy: aigcSpecNodePolicy,
     aigcSpecNodeCapabilityBridge: deps.aigcSpecNodeCapabilityBridge,
+    // Role System Architecture capability: policy eagerly resolved, bridge late-bound.
+    roleSystemArchitectureCapabilityPolicy:
+      deps.roleSystemArchitectureCapabilityPolicy ??
+      createDefaultRoleSystemArchitectureCapabilityPolicy(),
+    roleSystemArchitectureCapabilityBridge:
+      deps.roleSystemArchitectureCapabilityBridge,
   };
 
   // Task 13.1 / 13.3 最后一步：用 baseCtx 构造默认 docker bridge（或透传注入的 bridge）。
@@ -563,6 +685,13 @@ export function buildBlueprintServiceContext(
   // ctx.llm / ctx.logger / ctx.now 都已就位。
   if (!ctx.aigcSpecNodeCapabilityBridge) {
     ctx.aigcSpecNodeCapabilityBridge = createAigcSpecNodeCapabilityBridge(ctx);
+  }
+
+  // Role System Architecture bridge late-bind: bridge closure needs
+  // ctx.roleSystemArchitectureCapabilityPolicy / ctx.llm / ctx.logger / ctx.now.
+  if (!ctx.roleSystemArchitectureCapabilityBridge) {
+    ctx.roleSystemArchitectureCapabilityBridge =
+      createRoleSystemArchitectureCapabilityBridge(ctx);
   }
 
   // RouteSet LLM generator late-bind: the default generator needs the fully

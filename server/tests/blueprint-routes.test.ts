@@ -5374,198 +5374,237 @@ describe("blueprint mcp-github capability bridge — e2e", () => {
       createMemoryBlueprintJobStore(),
       { httpFetcher: throwingFetcher }
     );
-=======
-        expect(createResponse.status).toBe(201);
+  });
+});
 
-        const jobResponse = await fetch(
-          `${baseUrl}/api/blueprint/jobs/latest`
-        );
-        expect(jobResponse.status).toBe(200);
-        const latest = (await jobResponse.json()) as Record<string, any>;
+// ---------------------------------------------------------------------------
+// autopilot-capability-bridge-role E2E tests (Task 24 + 25)
+// ---------------------------------------------------------------------------
 
-        const aigcInvocation = latest.capabilityInvocations.find(
-          (inv: any) => inv.capabilityId === "aigc-spec-node"
-        );
-        expect(aigcInvocation).toBeTruthy();
-        expect(aigcInvocation.provenance.executionMode).toBe("real");
-        expect(aigcInvocation.provenance.promptId).toBe(
-          "blueprint.aigc-spec-node.v1"
-        );
-        expect(typeof aigcInvocation.provenance.model).toBe("string");
-        expect(aigcInvocation.provenance.model.length).toBeGreaterThan(0);
-        expect(aigcInvocation.provenance.responseDigest).toMatch(
-          /^sha256:[a-f0-9]{64}$/
-        );
-        expect(aigcInvocation.provenance.structuredPayloadDigest).toMatch(
-          /^sha256:[a-f0-9]{64}$/
-        );
-        expect(aigcInvocation.provenance.promptFingerprint).toMatch(
-          /^sha256:[a-f0-9]{64}$/
-        );
-        expect(aigcInvocation.provenance.error).toBeUndefined();
-        expect(aigcInvocation.outputSummary).toMatch(/4\s+subsystems/);
-        expect(aigcInvocation.outputSummary).toMatch(/2\s+risks?/);
-        expect(aigcInvocation.requestedBy).toBe(
-          "aigc-spec-node-capability-bridge"
-        );
+describe("blueprint role-system-architecture capability bridge — e2e", () => {
+  const ROLE_ENABLED_ENV = "BLUEPRINT_ROLE_CAPABILITY_BRIDGE_ENABLED";
+  let tempRoot: string;
 
-        // Confirm logs never leak raw prompt / response contents.
-        const logsJoined = (aigcInvocation.logs ?? []).join("\n");
-        expect(logsJoined).not.toContain("You are the AIGC Spec Node");
-        expect(logsJoined).not.toContain(
-          "CI providers push deploy events"
-        );
+  function isRoleCall(messages: any): boolean {
+    const text = JSON.stringify(messages);
+    return /Role System Architecture|角色架构推理器/.test(text);
+  }
 
-        // Verify adapter in sandbox + capability events.
-        const eventsResponse = await fetch(
-          `${baseUrl}/api/blueprint/jobs/${latest.job.id}/events`
-        );
-        const eventsBody = (await eventsResponse.json()) as Record<string, any>;
-        const aigcSandboxCompleted = eventsBody.events.find(
-          (event: any) =>
-            event.type === "sandbox.job.completed" &&
-            event.stage === "route_generation"
-        );
-        expect(aigcSandboxCompleted).toBeTruthy();
-        expect(aigcSandboxCompleted.payload?.aigcAdapter).toBe(
-          "blueprint.runtime.aigc.spec-node.llm"
-        );
+  beforeEach(async () => {
+    llmMocks.callLLMJson.mockReset();
+    tempRoot = await mkdtemp(
+      path.join(process.cwd(), "tmp", "blueprint-specs-role-")
+    );
+  });
 
-        const aigcCapabilityEvents = eventsBody.events.filter(
-          (event: any) =>
-            event.family === "capability" &&
-            event.capabilityId === "aigc-spec-node"
-        );
-        const invokedEvent = aigcCapabilityEvents.find(
-          (event: any) => event.type === "capability.invoked"
-        );
-        const completedEvent = aigcCapabilityEvents.find(
-          (event: any) => event.type === "capability.completed"
-        );
-        const adapterFromEvents =
-          invokedEvent?.payload?.adapter ?? completedEvent?.payload?.adapter;
-        expect(adapterFromEvents).toBe(
-          "blueprint.runtime.aigc.spec-node.llm"
-        );
-        expect(adapterFromEvents).not.toMatch(/\.simulated$/);
-        const executionModeFromEvents =
-          invokedEvent?.payload?.executionMode ??
-          completedEvent?.payload?.executionMode;
-        expect(executionModeFromEvents).toBe("real");
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    await rm(tempRoot, { recursive: true, force: true });
+  });
 
-        // Evidence side: structuredPayload digest should echo the invocation.
-        const aigcEvidence = latest.capabilityEvidence.find(
-          (item: any) => item.invocationId === aigcInvocation.id
-        );
-        expect(aigcEvidence).toBeTruthy();
-        expect(aigcEvidence.provenance.executionMode).toBe("real");
-        expect(aigcEvidence.provenance.structuredPayloadDigest).toBe(
-          aigcInvocation.provenance.structuredPayloadDigest
-        );
-        expect(aigcEvidence.provenance.structuredPayload).toBeTruthy();
-        expect(aigcEvidence.provenance.structuredPayload.digest).toBe(
-          aigcInvocation.provenance.structuredPayloadDigest
-        );
-        expect(
-          typeof aigcEvidence.provenance.structuredPayload.byteSize
-        ).toBe("number");
-        expect(aigcEvidence.provenance.structuredPayload.byteSize).toBeGreaterThan(
-          0
-        );
-        expect(
-          typeof aigcEvidence.provenance.structuredPayload.summary
-        ).toBe("string");
-      });
+  // Task 24: E2E test 1 — Real LLM path + downstream retrieval sanity
+  it("Real LLM path — role-system-architecture produces real invocation with downstream-retrievable structuredRoles", async () => {
+    vi.stubEnv(ROLE_ENABLED_ENV, "true");
+    vi.stubEnv("LLM_API_KEY", "sk-test-valid-key-for-role-bridge");
+    vi.stubEnv("LLM_MODEL", "gpt-4-turbo");
+
+    llmMocks.callLLMJson.mockImplementation(async (messages: any) => {
+      if (isRoleCall(messages)) {
+        return {
+          roles: [
+            {
+              id: "planner",
+              label: "Planner",
+              responsibilities: ["Plan tasks", "Coordinate team"],
+              activationStages: ["route_generation", "planning"],
+              permissions: ["read:specs"],
+            },
+            {
+              id: "architect",
+              label: "Architect",
+              responsibilities: ["Design system architecture"],
+              activationStages: ["route_generation"],
+            },
+            {
+              id: "reviewer",
+              label: "Reviewer",
+              responsibilities: ["Review deliverables"],
+              activationStages: ["review"],
+            },
+          ],
+        };
+      }
+      return {};
     });
 
-    it("falls back to simulated output when the LLM call throws", async () => {
-      process.env.BLUEPRINT_AIGC_NODE_CAPABILITY_BRIDGE_ENABLED = "true";
-      process.env.LLM_API_KEY = "sk-test-valid-key-for-bridge-integration";
-      process.env.LLM_MODEL = "gpt-4-turbo";
-      llmMocks.callLLMJson.mockImplementation(async (messages: any) => {
-        if (isAigcCall(messages)) {
-          throw new Error("upstream 503");
-        }
-        return {};
+    await withServer(tempRoot, async baseUrl => {
+      const createResponse = await fetch(`${baseUrl}/api/blueprint/jobs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetText: "Build a release dashboard.",
+          githubUrls: ["https://github.com/example/dashboard"],
+        }),
       });
+      expect(createResponse.status).toBe(201);
 
-      await withServer(tempRoot, async baseUrl => {
-        const createResponse = await fetch(`${baseUrl}/api/blueprint/jobs`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            targetText: "Build a release dashboard.",
-            githubUrls: ["https://github.com/example/dashboard"],
-          }),
-        });
-        expect(createResponse.status).toBe(201);
+      const jobResponse = await fetch(
+        `${baseUrl}/api/blueprint/jobs/latest`
+      );
+      expect(jobResponse.status).toBe(200);
+      const latest = (await jobResponse.json()) as Record<string, any>;
 
-        const jobResponse = await fetch(
-          `${baseUrl}/api/blueprint/jobs/latest`
-        );
-        expect(jobResponse.status).toBe(200);
-        const latest = (await jobResponse.json()) as Record<string, any>;
+      // Find role-system-architecture invocation
+      const roleInvocation = latest.capabilityInvocations.find(
+        (inv: any) => inv.capabilityId === "role-system-architecture"
+      );
+      expect(roleInvocation).toBeTruthy();
 
-        const aigcInvocation = latest.capabilityInvocations.find(
-          (inv: any) => inv.capabilityId === "aigc-spec-node"
-        );
-        expect(aigcInvocation).toBeTruthy();
-        expect(aigcInvocation.provenance.executionMode).toBe("simulated_fallback");
-        expect(aigcInvocation.provenance.error).toMatch(
-          /upstream 503|llm callJson threw/
-        );
-        expect(aigcInvocation.requestedBy).toBe(
-          "route-generation-sandbox-derivation"
-        );
-        expect(typeof aigcInvocation.durationMs).toBe("number");
-        expect(aigcInvocation.outputSummary).toBeTruthy();
+      // Task 24.2: Assert real execution provenance
+      expect(roleInvocation.provenance.executionMode).toBe("real");
+      expect(roleInvocation.provenance.promptId).toBe(
+        "blueprint.role-architecture.v1"
+      );
+      expect(typeof roleInvocation.provenance.model).toBe("string");
+      expect(roleInvocation.provenance.model.length).toBeGreaterThan(0);
+      expect(roleInvocation.provenance.responseDigest).toMatch(
+        /^sha256:[a-f0-9]{64}$/
+      );
+      expect(roleInvocation.provenance.structuredPayloadDigest).toMatch(
+        /^sha256:[a-f0-9]{64}$/
+      );
+      expect(roleInvocation.provenance.promptFingerprint).toMatch(
+        /^sha256:[a-f0-9]{64}$/
+      );
+      expect(roleInvocation.provenance.error).toBeUndefined();
+      expect(typeof roleInvocation.provenance.primaryRouteId).toBe("string");
+      expect(roleInvocation.provenance.roleCount).toBe(3);
+      expect(roleInvocation.outputSummary).toMatch(/Composed\s+3\s+role/);
 
-        // Adapter stays on the simulated string.
-        const eventsResponse = await fetch(
-          `${baseUrl}/api/blueprint/jobs/${latest.job.id}/events`
-        );
-        const eventsBody = (await eventsResponse.json()) as Record<string, any>;
-        const aigcSandboxCompleted = eventsBody.events.find(
-          (event: any) =>
-            event.type === "sandbox.job.completed" &&
-            event.stage === "route_generation"
-        );
-        expect(aigcSandboxCompleted).toBeTruthy();
-        expect(aigcSandboxCompleted.payload?.aigcAdapter).toBe(
-          "blueprint.runtime.aigc.spec-node.simulated"
-        );
+      // Task 24.3: Assert adapter
+      const eventsResponse = await fetch(
+        `${baseUrl}/api/blueprint/jobs/${latest.job.id}/events`
+      );
+      const eventsBody = (await eventsResponse.json()) as Record<string, any>;
+      const sandboxCompleted = eventsBody.events.find(
+        (event: any) =>
+          event.type === "sandbox.job.completed" &&
+          event.stage === "route_generation"
+      );
+      expect(sandboxCompleted).toBeTruthy();
+      expect(sandboxCompleted.payload?.roleAdapter).toBe(
+        "blueprint.runtime.role.llm"
+      );
+      expect(sandboxCompleted.payload?.roleAdapter).not.toContain(".simulated");
 
-        const aigcCapabilityEvents = eventsBody.events.filter(
-          (event: any) =>
-            event.family === "capability" &&
-            event.capabilityId === "aigc-spec-node"
-        );
-        const invokedEvent = aigcCapabilityEvents.find(
-          (event: any) => event.type === "capability.invoked"
-        );
-        const completedEvent = aigcCapabilityEvents.find(
-          (event: any) => event.type === "capability.completed"
-        );
-        const adapterFromEvents =
-          invokedEvent?.payload?.adapter ?? completedEvent?.payload?.adapter;
-        expect(adapterFromEvents).toBe(
-          "blueprint.runtime.aigc.spec-node.simulated"
-        );
-        const executionModeFromEvents =
-          invokedEvent?.payload?.executionMode ??
-          completedEvent?.payload?.executionMode;
-        expect(executionModeFromEvents).toBe("simulated_fallback");
+      // Task 24.4: Downstream retrieval sanity
+      const roleEvidence = latest.capabilityEvidence.find(
+        (item: any) => item.capabilityId === "role-system-architecture"
+      );
+      expect(roleEvidence).toBeTruthy();
+      expect(roleEvidence.provenance.executionMode).toBe("real");
+      expect(roleEvidence.provenance.structuredRoles).toBeTruthy();
+      expect(roleEvidence.provenance.structuredRoles.digest).toBe(
+        roleInvocation.provenance.structuredPayloadDigest
+      );
+      expect(roleEvidence.provenance.structuredRoles.byteSize).toBeGreaterThan(0);
+      expect(roleEvidence.provenance.structuredRoles.payload).toBeTruthy();
+      expect(roleEvidence.provenance.structuredRoles.payload.roles.length).toBe(3);
+      expect(
+        roleEvidence.provenance.structuredRoles.payload.roles.map((r: any) => r.id)
+      ).toEqual(["planner", "architect", "reviewer"]);
+      expect(
+        roleEvidence.provenance.structuredRoles.payload.roles[0].activationStages
+      ).toContain("route_generation");
+      expect(roleEvidence.provenance.primaryRouteId).toBe(
+        roleInvocation.provenance.primaryRouteId
+      );
+      expect(roleEvidence.provenance.roleCount).toBe(3);
 
-        // Evidence must not carry structuredPayload object on fallback.
-        const aigcEvidence = latest.capabilityEvidence.find(
-          (item: any) => item.invocationId === aigcInvocation.id
-        );
-        expect(aigcEvidence).toBeTruthy();
-        expect(aigcEvidence.provenance.executionMode).toBe(
-          "simulated_fallback"
-        );
-        expect(aigcEvidence.provenance.structuredPayload).toBeUndefined();
+      // Explicit triple-key retrieval
+      const retrieved = latest.capabilityEvidence.find(
+        (e: any) =>
+          e.capabilityId === "role-system-architecture" &&
+          e.provenance.routeSetId === roleEvidence.provenance.routeSetId &&
+          e.provenance.primaryRouteId === roleEvidence.provenance.primaryRouteId &&
+          e.provenance.executionMode === "real"
+      );
+      expect(retrieved).toBeTruthy();
+      expect(retrieved.provenance.structuredRoles.payload.roles).toEqual(
+        roleEvidence.provenance.structuredRoles.payload.roles
+      );
+    });
+  });
+
+  // Task 25: E2E test 2 — Fallback path
+  it("Fallback path — role-system-architecture falls back to simulated when LLM throws", async () => {
+    vi.stubEnv(ROLE_ENABLED_ENV, "true");
+    vi.stubEnv("LLM_API_KEY", "sk-test-valid-key-for-role-bridge");
+    vi.stubEnv("LLM_MODEL", "gpt-4-turbo");
+
+    llmMocks.callLLMJson.mockImplementation(async (messages: any) => {
+      if (isRoleCall(messages)) {
+        throw new Error("upstream 503");
+      }
+      return {};
+    });
+
+    await withServer(tempRoot, async baseUrl => {
+      const createResponse = await fetch(`${baseUrl}/api/blueprint/jobs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetText: "Build a release dashboard.",
+          githubUrls: ["https://github.com/example/dashboard"],
+        }),
       });
+      expect(createResponse.status).toBe(201);
+
+      const jobResponse = await fetch(
+        `${baseUrl}/api/blueprint/jobs/latest`
+      );
+      expect(jobResponse.status).toBe(200);
+      const latest = (await jobResponse.json()) as Record<string, any>;
+
+      // Find role-system-architecture invocation
+      const roleInvocation = latest.capabilityInvocations.find(
+        (inv: any) => inv.capabilityId === "role-system-architecture"
+      );
+      expect(roleInvocation).toBeTruthy();
+
+      // Task 25.2: Assert fallback provenance
+      expect(roleInvocation.provenance.executionMode).toBe("simulated_fallback");
+      expect(roleInvocation.provenance.error).toMatch(
+        /upstream 503|llm callJson threw/
+      );
+      expect(roleInvocation.provenance.roleCount).toBeUndefined();
+      expect(typeof roleInvocation.provenance.primaryRouteId).toBe("string");
+      expect(typeof roleInvocation.durationMs).toBe("number");
+      expect(roleInvocation.outputSummary).toBeTruthy();
+
+      // Task 25.3: Assert adapter stays simulated
+      const eventsResponse = await fetch(
+        `${baseUrl}/api/blueprint/jobs/${latest.job.id}/events`
+      );
+      const eventsBody = (await eventsResponse.json()) as Record<string, any>;
+      const sandboxCompleted = eventsBody.events.find(
+        (event: any) =>
+          event.type === "sandbox.job.completed" &&
+          event.stage === "route_generation"
+      );
+      expect(sandboxCompleted).toBeTruthy();
+      expect(sandboxCompleted.payload?.roleAdapter).toBe(
+        "blueprint.runtime.role.system-architecture.simulated"
+      );
+
+      // Task 25.4: Evidence should not carry structuredRoles
+      const roleEvidence = latest.capabilityEvidence.find(
+        (item: any) => item.capabilityId === "role-system-architecture"
+      );
+      expect(roleEvidence).toBeTruthy();
+      expect(roleEvidence.provenance.structuredRoles).toBeUndefined();
+      expect(roleEvidence.provenance.roleCount).toBeUndefined();
+      expect(typeof roleEvidence.provenance.primaryRouteId).toBe("string");
     });
   });
 });

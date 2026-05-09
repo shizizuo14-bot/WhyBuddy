@@ -84,6 +84,7 @@ import type {
   BlueprintGenerationEventFamily as _BlueprintGenerationEventFamily,
   BlueprintGenerationEventType as _BlueprintGenerationEventType,
 } from "./events.js";
+import type { RoleArchitectureResponse } from "./role-architecture.js";
 
 export type BlueprintGenerationEventFamily = _BlueprintGenerationEventFamily;
 export type BlueprintGenerationEventType = _BlueprintGenerationEventType;
@@ -658,6 +659,11 @@ export interface BlueprintCapabilityInvocation {
     tokenCount?: number;
     structuredPayloadDigest?: string;
     promptFingerprint?: string;
+    // —— Role System Architecture 桥 spec 新增字段 ——
+    /** 当前选中的 primary route id；下游 Wave 2 stage-activation 的主检索键之一 */
+    primaryRouteId?: string;
+    /** Real 路径下产出的 roles 数组长度；fallback 下 undefined */
+    roleCount?: number;
   };
 }
 
@@ -722,6 +728,22 @@ export interface BlueprintCapabilityEvidence {
       digest: string;
       byteSize: number;
       summary: string;
+    };
+    // —— Role System Architecture 桥 spec 新增字段 ——
+    /** 当前选中的 primary route id；下游 Wave 2 stage-activation 的主检索键之一 */
+    primaryRouteId?: string;
+    /** Real 路径下产出的 roles 数组长度；fallback 下 undefined */
+    roleCount?: number;
+    /**
+     * Real 路径下承载完整结构化角色 JSON 的对象；fallback 下 undefined。
+     * 与 aigc-node 桥的 `structuredPayload` 三字段形态不同（本字段含完整 payload），
+     * 故使用独立字段名避免语义冲突。
+     */
+    structuredRoles?: {
+      digest: string;
+      byteSize: number;
+      summary: string;
+      payload: RoleArchitectureResponse;
     };
   };
 }

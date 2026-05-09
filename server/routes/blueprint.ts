@@ -3033,6 +3033,7 @@ async function createRouteGenerationSandboxDerivation(
     capabilities: BlueprintRuntimeCapability[];
     createdAt: string;
     clarificationSession?: BlueprintClarificationSession;
+    primaryRouteId?: string;
   }
 ): Promise<RouteGenerationSandboxDerivationResult> {
   const capabilityIds = uniqueStrings(
@@ -3059,6 +3060,8 @@ async function createRouteGenerationSandboxDerivation(
   const primaryRoute =
     input.routeSet.routes.find(route => route.id === input.routeSet.primaryRouteId) ??
     input.routeSet.routes[0];
+  // Task 18.2: resolve primaryRouteId with fallback to primaryRoute.id
+  const primaryRouteId = input.primaryRouteId ?? primaryRoute.id;
   const roleId = "role-runtime-executor";
   const crewId = input.agentCrew.id;
   const baseJob: BlueprintGenerationJob = {
@@ -3148,6 +3151,36 @@ async function createRouteGenerationSandboxDerivation(
         return bridgeResult.invocation;
       }
 
+      // autopilot-capability-bridge-role task 19：role-system-architecture 分支.
+      // The bridge returns the invocation plus structured roles metadata that
+      // the outer aggregation layer uses to fill evidence.provenance.structuredRoles.
+      if (
+        capability.id === "role-system-architecture" &&
+        ctx.roleSystemArchitectureCapabilityBridge
+      ) {
+        const bridgeResult = await ctx.roleSystemArchitectureCapabilityBridge({
+          capability,
+          route,
+          jobId: input.jobId,
+          request: input.request,
+          routeSet: input.routeSet,
+          primaryRouteId,
+          clarificationSession: input.clarificationSession,
+          createdAt: input.createdAt,
+          invocationId,
+          roleId: invocationRoleId,
+        });
+        const inv = bridgeResult.invocation as BlueprintCapabilityInvocation & {
+          __roleBridgeExecutionMode?: string;
+          __roleBridgeStructuredRoles?: unknown;
+          __roleBridgeStructuredRolesMeta?: unknown;
+        };
+        inv.__roleBridgeExecutionMode = bridgeResult.executionMode;
+        inv.__roleBridgeStructuredRoles = bridgeResult.structuredRoles;
+        inv.__roleBridgeStructuredRolesMeta = bridgeResult.structuredRolesMeta;
+        return inv;
+      }
+
       // Task 15.4：其它 capability（role-system-architecture /
       // skill-svg-architecture）以及 docker / mcp-github-source / aigc-spec-node
       // 分支在对应 bridge 未注入时，继续走原模板化 simulated 路径。相比原实现，
@@ -3205,12 +3238,43 @@ async function createRouteGenerationSandboxDerivation(
       };
     })
   );
+  // autopilot-capability-bridge-role: extract role execution mode BEFORE the
+  // evidence loop deletes the side-fields.
+  const roleInvocationForAdapter = invocations.find(
+    invocation => invocation.capabilityId === "role-system-architecture"
+  );
+  const roleExecutionModeForAdapter = (roleInvocationForAdapter as unknown as Record<string, unknown>)?.__roleBridgeExecutionMode as string | undefined;
+
   const evidenceItems = invocations.map(invocation => {
     const capability = routeGenerationCapabilities.find(
       item => item.id === invocation.capabilityId
     );
     if (!capability) {
       throw new Error(`Route sandbox capability ${invocation.capabilityId} missing.`);
+    }
+    // autopilot-capability-bridge-role task 22: extract role bridge output
+    // from the side-fields attached by the role-system-architecture branch.
+    const invocationAny = invocation as unknown as Record<string, unknown>;
+    const roleBridgeOutput =
+      invocationAny.__roleBridgeStructuredRoles && invocationAny.__roleBridgeStructuredRolesMeta
+        ? {
+            structuredRoles: invocationAny.__roleBridgeStructuredRoles as Record<string, unknown>,
+            structuredRolesMeta: invocationAny.__roleBridgeStructuredRolesMeta as {
+              digest: string;
+              byteSize: number;
+              summary: string;
+            },
+          }
+        : undefined;
+    // Clean up side-fields so they don't leak into artifact payloads
+    if (invocationAny.__roleBridgeExecutionMode !== undefined) {
+      delete invocationAny.__roleBridgeExecutionMode;
+    }
+    if (invocationAny.__roleBridgeStructuredRoles !== undefined) {
+      delete invocationAny.__roleBridgeStructuredRoles;
+    }
+    if (invocationAny.__roleBridgeStructuredRolesMeta !== undefined) {
+      delete invocationAny.__roleBridgeStructuredRolesMeta;
     }
     return buildCapabilityEvidence({
       job: baseJob,
@@ -3219,6 +3283,7 @@ async function createRouteGenerationSandboxDerivation(
       routeSet: input.routeSet,
       createdAt: input.createdAt,
       tags: ["route_generation", "sandbox_derivation"],
+      roleBridgeOutput,
     });
   });
   const invocationsWithEvidence = invocations.map(invocation => {
@@ -3258,12 +3323,23 @@ async function createRouteGenerationSandboxDerivation(
       : routeGenerationCapabilities.find(
           capability => capability.id === "aigc-spec-node"
         )?.adapter ?? "blueprint.runtime.aigc.spec-node.simulated";
+  // autopilot-capability-bridge-role task 20.1: role-system-architecture adapter
+  // resolution — real LLM path vs simulated fallback.
+  const roleAdapter: string =
+    roleExecutionModeForAdapter === "real"
+      ? "blueprint.runtime.role.llm"
+      : routeGenerationCapabilities.find(
+          capability => capability.id === "role-system-architecture"
+        )?.adapter ?? "blueprint.runtime.role.system-architecture.simulated";
   const adapterForCapability = (capabilityId: string): string => {
     if (capabilityId === "docker-analysis-sandbox") {
       return dockerAdapter;
     }
     if (capabilityId === "aigc-spec-node") {
       return aigcAdapter;
+    }
+    if (capabilityId === "role-system-architecture") {
+      return roleAdapter;
     }
     return (
       routeGenerationCapabilities.find(
@@ -3508,6 +3584,9 @@ async function createRouteGenerationSandboxDerivation(
         // consumers can distinguish real LLM execution vs simulated fallback
         // without inspecting every invocation.
         aigcAdapter,
+        // autopilot-capability-bridge-role task 20.2: surface the resolved
+        // role adapter for downstream consumers.
+        roleAdapter,
         sourceIds: {
           projectId: input.request.projectId,
           routeSetId: input.routeSet.id,
@@ -3546,6 +3625,8 @@ async function createRouteGenerationSandboxDerivation(
         // Task 18.2: mirror aigc adapter on completion so real-vs-fallback
         // readers do not need to correlate with the `started` event.
         aigcAdapter,
+        // autopilot-capability-bridge-role task 20.2: mirror role adapter.
+        roleAdapter,
         sourceIds: {
           projectId: input.request.projectId,
           routeSetId: input.routeSet.id,
@@ -10666,6 +10747,10 @@ function buildCapabilityEvidence(input: {
   specTree?: BlueprintSpecTree;
   createdAt: string;
   tags: string[];
+  roleBridgeOutput?: {
+    structuredRoles: Record<string, unknown>;
+    structuredRolesMeta: { digest: string; byteSize: number; summary: string };
+  };
 }): BlueprintCapabilityEvidence {
   const kind = mapCapabilityEvidenceKind(input.capability);
   const title = `Capability evidence: ${input.capability.label}`;
@@ -10807,6 +10892,29 @@ function buildCapabilityEvidence(input: {
         : {}),
       ...(invocationProvenance.error !== undefined
         ? { error: invocationProvenance.error }
+        : {}),
+      // —— autopilot-capability-bridge-role task 21.2 / 21.3 / 21.4 ——
+      // Inherit primaryRouteId and roleCount from invocation provenance.
+      ...(invocationProvenance.primaryRouteId !== undefined
+        ? { primaryRouteId: invocationProvenance.primaryRouteId }
+        : {}),
+      ...(invocationProvenance.roleCount !== undefined
+        ? { roleCount: invocationProvenance.roleCount }
+        : {}),
+      // Task 21.3: materialise structuredRoles for role-system-architecture
+      // real path. Only when roleBridgeOutput is provided AND the invocation
+      // is in real execution mode.
+      ...(input.roleBridgeOutput &&
+      input.capability.id === "role-system-architecture" &&
+      invocationProvenance.executionMode === "real"
+        ? {
+            structuredRoles: {
+              digest: input.roleBridgeOutput.structuredRolesMeta.digest,
+              byteSize: input.roleBridgeOutput.structuredRolesMeta.byteSize,
+              summary: input.roleBridgeOutput.structuredRolesMeta.summary,
+              payload: input.roleBridgeOutput.structuredRoles as any,
+            },
+          }
         : {}),
     },
   };

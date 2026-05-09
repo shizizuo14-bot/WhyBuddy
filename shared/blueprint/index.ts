@@ -31,3 +31,6 @@ export type * from "./routeset/types.js";
 export type * from "./spec-documents/types.js";
 export type * from "./downstream/types.js";
 export type * from "./artifact-memory/types.js";
+
+// Role System Architecture 纯类型（与 server 侧 zod schema z.infer 等价）。
+export type { AgentRoleEntry, RoleArchitectureResponse } from "./role-architecture.js";
