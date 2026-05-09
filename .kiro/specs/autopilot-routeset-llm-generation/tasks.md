@@ -61,46 +61,46 @@
   - [ ] 8.2 在 `buildBlueprintServiceContext(deps)` 中，当 `deps.routeSetLlmGenerator` 未提供时使用 `createRouteSetLlmGenerator(ctx)` 构造默认实例并挂载到 ctx 上
   - _Requirements: 6.1, 6.2, 6.3_
 
-- [ ] 9. 扩展 `BlueprintRouterDeps` 并改造 `createBlueprintRouter`
-  - [ ] 9.1 在 `server/routes/blueprint.ts` 的 `BlueprintRouterDeps` 追加 `routeSetLlmGenerator?: RouteSetLlmGenerator`
-  - [ ] 9.2 在 `createBlueprintRouter(deps)` 中按 `deps.routeSetLlmGenerator ?? createRouteSetLlmGenerator(ctx)` 解析实例，并在 `CreateGenerationJobOptions` 中透传给 `createGenerationJob`
+- [x] 9. 扩展 `BlueprintRouterDeps` 并改造 `createBlueprintRouter`
+  - [x] 9.1 在 `server/routes/blueprint.ts` 的 `BlueprintRouterDeps` 追加 `routeSetLlmGenerator?: RouteSetLlmGenerator`
+  - [x] 9.2 在 `createBlueprintRouter(deps)` 中按 `deps.routeSetLlmGenerator ?? createRouteSetLlmGenerator(ctx)` 解析实例，并在 `CreateGenerationJobOptions` 中透传给 `createGenerationJob`
   - _Requirements: 6.2, 6.3_
 
-- [ ] 10. 将 `buildRouteSet()` 改造为 async 并调用 generator
-  - [ ] 10.1 把 `buildRouteSet` 签名从 sync 改为 `async`，追加参数 `generator: RouteSetLlmGenerator`、`intake?: BlueprintIntake`、`projectContext?: BlueprintProjectDomainContext`
-  - [ ] 10.2 调用 `await generator({ request, intake, clarificationSession, projectContext, routeSetId, primaryRouteId, createdAt })`，使用返回的 `routes` 与 `provenanceExtras`
-  - [ ] 10.3 合并 provenance：保留所有既有字段不变（`projectId` / `sourceId` / `targetText` / `githubUrls` / 所有 `clarification*` 字段），追加 `generationSource` / `promptId` / `model` / `error` 四个新字段
+- [x] 10. 将 `buildRouteSet()` 改造为 async 并调用 generator
+  - [x] 10.1 把 `buildRouteSet` 签名从 sync 改为 `async`，追加参数 `generator: RouteSetLlmGenerator`、`intake?: BlueprintIntake`、`projectContext?: BlueprintProjectDomainContext`
+  - [x] 10.2 调用 `await generator({ request, intake, clarificationSession, projectContext, routeSetId, primaryRouteId, createdAt })`，使用返回的 `routes` 与 `provenanceExtras`
+  - [x] 10.3 合并 provenance：保留所有既有字段不变（`projectId` / `sourceId` / `targetText` / `githubUrls` / 所有 `clarification*` 字段），追加 `generationSource` / `promptId` / `model` / `error` 四个新字段
   - _Requirements: 2.4, 2.5, 4.2, 5.1, 5.2, 7.4_
 
-- [ ] 11. 将 `createGenerationJob()` 改造为 async 并发出 `route.generated` 事件
-  - [ ] 11.1 把 `createGenerationJob` 签名改为 `async`；把 `CreateGenerationJobOptions` 追加必填字段 `routeSetLlmGenerator: RouteSetLlmGenerator`（调用方负责从 deps 或默认工厂解析并注入）
-  - [ ] 11.2 在内部 `await buildRouteSet(request, jobId, createdAt, clarificationSession, options.routeSetLlmGenerator, options.intake, options.context)` 并消费返回的 RouteSet
-  - [ ] 11.3 在调用 `createRouteGenerationSandboxDerivation()` **之前**追加一条 `createGenerationEvent({ type: BlueprintEventName.RouteGenerated, stage: "route_generation", status: "completed", artifactId: routeArtifact.id, payload: { routeSetId, primaryRouteId, routeCount, generationSource, promptId, model, error } })` 事件
+- [x] 11. 将 `createGenerationJob()` 改造为 async 并发出 `route.generated` 事件
+  - [x] 11.1 把 `createGenerationJob` 签名改为 `async`；把 `CreateGenerationJobOptions` 追加必填字段 `routeSetLlmGenerator: RouteSetLlmGenerator`（调用方负责从 deps 或默认工厂解析并注入）
+  - [x] 11.2 在内部 `await buildRouteSet(request, jobId, createdAt, clarificationSession, options.routeSetLlmGenerator, options.intake, options.context)` 并消费返回的 RouteSet
+  - [x] 11.3 在调用 `createRouteGenerationSandboxDerivation()` **之前**追加一条 `createGenerationEvent({ type: BlueprintEventName.RouteGenerated, stage: "route_generation", status: "completed", artifactId: routeArtifact.id, payload: { routeSetId, primaryRouteId, routeCount, generationSource, promptId, model, error } })` 事件
   - _Requirements: 7.1, 7.2, 7.3, 7.4, 8.1_
 
-- [ ] 12. 将 `handleCreateGenerationJob` 改造为 async 并 trace 其他调用点
-  - [ ] 12.1 把 `handleCreateGenerationJob` 改为 `async (req, res) => { try { ...; const result = await createGenerationJob(resolved.request, options); res.status(201).json(result); } catch (error) { res.status(500).json({ error: "Failed to create blueprint generation job.", message: errorMessage(error) }); } }`；在 `options` 中传入已解析的 `routeSetLlmGenerator`
-  - [ ] 12.2 运行 `grep -nE "(createGenerationJob|buildRouteSet)\\(" server/ shared/ --include="*.ts"`，逐一检查匹配项：确认除 `server/routes/blueprint.ts` 内部调用外没有其他函数级调用；如有，追加 `await` 并把外层改 `async`
-  - [ ] 12.3 运行 `node --run check` 确认 sync → async 改造未引入新 TS 错误
+- [x] 12. 将 `handleCreateGenerationJob` 改造为 async 并 trace 其他调用点
+  - [x] 12.1 把 `handleCreateGenerationJob` 改为 `async (req, res) => { try { ...; const result = await createGenerationJob(resolved.request, options); res.status(201).json(result); } catch (error) { res.status(500).json({ error: "Failed to create blueprint generation job.", message: errorMessage(error) }); } }`；在 `options` 中传入已解析的 `routeSetLlmGenerator`
+  - [x] 12.2 运行 `grep -nE "(createGenerationJob|buildRouteSet)\\(" server/ shared/ --include="*.ts"`，逐一检查匹配项：确认除 `server/routes/blueprint.ts` 内部调用外没有其他函数级调用；如有，追加 `await` 并把外层改 `async`
+  - [x] 12.3 运行 `node --run check` 确认 sync → async 改造未引入新 TS 错误
   - _Requirements: 5.3, 5.4_
 
-- [ ] 13. 在 `server/tests/blueprint-routes.test.ts` 追加 2 条 E2E 用例
-  - [ ] 13.1 追加 **Happy path** 用例：在既有 routeSet 相关断言附近（不修改 45 条既有用例），`llmMocks.callLLMJson.mockResolvedValueOnce({ routes: [...] })` 注入 design §6.2.1 所述 2 条路线的合法 JSON；`POST /api/blueprint/jobs`；断言 `routeSet.routes.length === 2`、`routes[0].title === "LLM-derived balanced route"`、`routes[0].kind === "primary"`、`provenance.generationSource === "llm"`、`provenance.promptId === "blueprint.routeset.v1"`、`typeof provenance.model === "string"`、`provenance.error` 为 undefined
-  - [ ] 13.2 追加 **Fallback path** 用例：`llmMocks.callLLMJson.mockRejectedValueOnce(new Error("Connection timeout"))`；`POST /api/blueprint/jobs`；断言 `routeSet.routes.length === 3`、`routes[0].title === "Primary SPEC asset route"`（今日模板原文）、`provenance.generationSource === "llm_fallback"`、`provenance.error` 匹配 `/Connection timeout/`
+- [x] 13. 在 `server/tests/blueprint-routes.test.ts` 追加 2 条 E2E 用例
+  - [x] 13.1 追加 **Happy path** 用例：在既有 routeSet 相关断言附近（不修改 45 条既有用例），`llmMocks.callLLMJson.mockResolvedValueOnce({ routes: [...] })` 注入 design §6.2.1 所述 2 条路线的合法 JSON；`POST /api/blueprint/jobs`；断言 `routeSet.routes.length === 2`、`routes[0].title === "LLM-derived balanced route"`、`routes[0].kind === "primary"`、`provenance.generationSource === "llm"`、`provenance.promptId === "blueprint.routeset.v1"`、`typeof provenance.model === "string"`、`provenance.error` 为 undefined
+  - [x] 13.2 追加 **Fallback path** 用例：`llmMocks.callLLMJson.mockRejectedValueOnce(new Error("Connection timeout"))`；`POST /api/blueprint/jobs`；断言 `routeSet.routes.length === 3`、`routes[0].title === "Primary SPEC asset route"`（今日模板原文）、`provenance.generationSource === "llm_fallback"`、`provenance.error` 匹配 `/Connection timeout/`
   - _Requirements: 9.1_
 
-- [ ] 14. 执行全量回归并修复类型 / 测试失败
-  - [ ] 14.1 `node --run check` → 0 个新增 TS 错误（若仓库已有历史类型债，不应扩大错误面）
-  - [ ] 14.2 `node ./node_modules/vitest/vitest.mjs run --config vitest.config.server.ts server/tests/blueprint-routes.test.ts` → 45 + 2 = 47 条通过
-  - [ ] 14.3 `node ./node_modules/vitest/vitest.mjs run --config vitest.config.server.ts server/routes/blueprint/routeset/` → ~22 条新增 co-located 单测通过（9 schema + 6 prompt + 7 generator）
-  - [ ] 14.4 `node ./node_modules/vitest/vitest.mjs run --config vitest.config.server.ts server/routes/blueprint` → 48 条既有子域单测继续通过
-  - [ ] 14.5 `node ./node_modules/vitest/vitest.mjs run --config vitest.config.server.ts client/src/lib/blueprint-api/` → 9 条 SDK smoke 继续通过
+- [x] 14. 执行全量回归并修复类型 / 测试失败
+  - [x] 14.1 `node --run check` → 0 个新增 TS 错误（若仓库已有历史类型债，不应扩大错误面）
+  - [x] 14.2 `node ./node_modules/vitest/vitest.mjs run --config vitest.config.server.ts server/tests/blueprint-routes.test.ts` → 45 + 2 = 47 条通过
+  - [x] 14.3 `node ./node_modules/vitest/vitest.mjs run --config vitest.config.server.ts server/routes/blueprint/routeset/` → ~22 条新增 co-located 单测通过（9 schema + 6 prompt + 7 generator）
+  - [x] 14.4 `node ./node_modules/vitest/vitest.mjs run --config vitest.config.server.ts server/routes/blueprint` → 48 条既有子域单测继续通过
+  - [x] 14.5 `node ./node_modules/vitest/vitest.mjs run --config vitest.config.server.ts client/src/lib/blueprint-api/` → 9 条 SDK smoke 继续通过
   - _Requirements: 5.3, 5.4, 9.6_
 
-- [ ] 15. 确认 SDK normalizer 支持新 provenance 字段
-  - [ ] 15.1 检查 `client/src/lib/blueprint-api.ts` 与 `client/src/lib/blueprint-api/routeset.ts`（如存在）中是否存在显式的 routeSet / provenance normalizer
-  - [ ] 15.2 如使用对象 spread 或透明透传：确认无需改动，仅运行 SDK smoke 验证 4 个新字段能到达客户端
-  - [ ] 15.3 如使用显式字段映射：追加 4 行可选字段透传（`generationSource` / `promptId` / `model` / `error`）；**不得**修改任一既有字段映射行为
+- [x] 15. 确认 SDK normalizer 支持新 provenance 字段
+  - [x] 15.1 检查 `client/src/lib/blueprint-api.ts` 与 `client/src/lib/blueprint-api/routeset.ts`（如存在）中是否存在显式的 routeSet / provenance normalizer
+  - [x] 15.2 如使用对象 spread 或透明透传：确认无需改动，仅运行 SDK smoke 验证 4 个新字段能到达客户端
+  - [x] 15.3 如使用显式字段映射：追加 4 行可选字段透传（`generationSource` / `promptId` / `model` / `error`）；**不得**修改任一既有字段映射行为
   - _Requirements: 5.4_
 
 ## 说明

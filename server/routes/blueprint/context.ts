@@ -33,6 +33,10 @@ import type {
   BlueprintProjectDomainContext,
 } from "../../../shared/blueprint/index.js";
 import { createBlueprintEventBus } from "./event-bus.js";
+import {
+  createRouteSetLlmGenerator,
+  type RouteSetLlmGenerator,
+} from "./routeset/route-llm-generator.js";
 
 /**
  * 纯内存 Map 三件套：存放尚未进入 jobStore 的 intake / clarification / project context。
@@ -185,6 +189,17 @@ export interface BlueprintServiceContext {
   jobStore: BlueprintJobStore;
   llm: BlueprintLlmDependencies;
   generateClarificationQuestions?: BlueprintClarificationQuestionGenerator;
+  /**
+   * Optional RouteSet LLM driven generator (see
+   * `.kiro/specs/autopilot-routeset-llm-generation/design.md` 2.D3 / 4.3).
+   * When `buildBlueprintServiceContext` is invoked without
+   * `deps.routeSetLlmGenerator`, a default instance is constructed via
+   * `createRouteSetLlmGenerator(ctx)` and attached here. Tests can inject a
+   * mock through `BlueprintServiceContextDeps.routeSetLlmGenerator` to
+   * completely short-circuit LLM calls, matching the semantics of
+   * `generateClarificationQuestions`.
+   */
+  routeSetLlmGenerator?: RouteSetLlmGenerator;
   sandboxDerivationRunner: BlueprintSandboxDerivationRunner;
   replayStore: BlueprintReplayStore;
   eventBus: BlueprintEventBus;
@@ -205,6 +220,12 @@ export interface BlueprintServiceContextDeps {
   jobStore?: BlueprintJobStore;
   llm?: Partial<BlueprintLlmDependencies>;
   generateClarificationQuestions?: BlueprintClarificationQuestionGenerator;
+  /**
+   * Optional RouteSet LLM generator override. When omitted,
+   * `buildBlueprintServiceContext` wires a default via
+   * `createRouteSetLlmGenerator(ctx)`.
+   */
+  routeSetLlmGenerator?: RouteSetLlmGenerator;
   sandboxDerivationRunner?: BlueprintSandboxDerivationRunner;
   replayStore?: BlueprintReplayStore;
   eventBus?: BlueprintEventBus;
@@ -256,7 +277,7 @@ export function buildBlueprintServiceContext(
   deps: BlueprintServiceContextDeps = {}
 ): BlueprintServiceContext {
   const jobStore = deps.jobStore ?? getDefaultJobStore(deps.jobStoreFile);
-  return {
+  const ctx: BlueprintServiceContext = {
     now: deps.now ?? (() => new Date()),
     blueprintStores: deps.blueprintStores ?? createDefaultBlueprintStores(),
     jobStore,
@@ -265,6 +286,9 @@ export function buildBlueprintServiceContext(
       getConfig: deps.llm?.getConfig ?? (() => getAIConfig()),
     },
     generateClarificationQuestions: deps.generateClarificationQuestions,
+    // `routeSetLlmGenerator` is assigned below after `ctx` is fully built so
+    // the default generator can bind to the finalized `llm` / `logger`.
+    routeSetLlmGenerator: undefined,
     sandboxDerivationRunner:
       deps.sandboxDerivationRunner ?? createDefaultSandboxDerivationRunner(),
     replayStore: deps.replayStore ?? createJobBackedReplayStore(jobStore),
@@ -273,6 +297,9 @@ export function buildBlueprintServiceContext(
       deps.specsRoot ?? path.resolve(process.cwd(), ".kiro", "specs"),
     logger: deps.logger ?? createSilentBlueprintLogger(),
   };
+  ctx.routeSetLlmGenerator =
+    deps.routeSetLlmGenerator ?? createRouteSetLlmGenerator(ctx);
+  return ctx;
 }
 
 /**

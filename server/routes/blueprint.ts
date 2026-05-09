@@ -8,6 +8,11 @@ import { getAIConfig } from "../core/ai-config.js";
 import { callLLMJson } from "../core/llm-client.js";
 import { defaultPreviewClarificationQuestions } from "./nl-command.js";
 import { projectHandoffOntoJob } from "./blueprint/routeset/handoff-projection.js";
+import {
+  createRouteSetLlmGenerator,
+  type RouteSetLlmGenerator,
+} from "./blueprint/routeset/route-llm-generator.js";
+import { buildBlueprintServiceContext } from "./blueprint/context.js";
 import { BlueprintEventName } from "../../shared/blueprint/events.js";
 import type {
   BlueprintArtifactDiff,
@@ -194,6 +199,13 @@ export interface BlueprintRouterDeps {
   now?: () => Date;
   jobStore?: BlueprintJobStore;
   generateClarificationQuestions?: BlueprintClarificationQuestionGenerator;
+  /**
+   * RouteSet LLM driven generator. When omitted, `createBlueprintRouter` uses
+   * `buildBlueprintServiceContext` (see design sections 4.3 and 4.6) to wire
+   * a default instance that shares `jobStore` / `now` / `specsRoot` with the
+   * router. Tests can inject a mock here to fully short-circuit LLM calls.
+   */
+  routeSetLlmGenerator?: RouteSetLlmGenerator;
 }
 
 export type BlueprintClarificationQuestionGenerator = (
@@ -394,6 +406,37 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     clarificationSessions: new Map<string, BlueprintClarificationSession>(),
     projectContexts: new Map<string, BlueprintProjectDomainContext>(),
   };
+  // Resolution order for `routeSetLlmGenerator` (design sections 4.3 + 4.6):
+  // 1. Prefer `deps.routeSetLlmGenerator` so tests can inject a mock that
+  //    completely short-circuits LLM calls.
+  // 2. Otherwise construct a minimal `BlueprintServiceContext` sharing
+  //    `jobStore` / `now` / `specsRoot` with the router. The context factory
+  //    auto-wires a default `createRouteSetLlmGenerator(ctx)` instance which
+  //    is read here. The context only powers the generator (touches
+  //    `ctx.llm` / `ctx.logger` only), so it will not conflict with the
+  //    router-owned `blueprintStores` above.
+  //
+  // Resolution is lazy (wrapped in a getter) because `blueprint.ts` ends with
+  // `const router = createBlueprintRouter();` at module scope; evaluating
+  // `buildBlueprintServiceContext` eagerly during that module-level call would
+  // trip the `context.ts` -> `blueprint.ts` circular import (context.ts imports
+  // `createFileBlueprintJobStore` / `BlueprintJobStore` from `../blueprint.js`).
+  // Deferring to first use keeps the behavior identical for any real request
+  // path while letting barrel consumers (`server/routes/blueprint/index.ts`)
+  // import `./context.js` first without hitting an uninitialized binding.
+  let cachedRouteSetLlmGenerator: RouteSetLlmGenerator | null =
+    deps.routeSetLlmGenerator ?? null;
+  const resolveRouteSetLlmGenerator = (): RouteSetLlmGenerator => {
+    if (cachedRouteSetLlmGenerator) {
+      return cachedRouteSetLlmGenerator;
+    }
+    cachedRouteSetLlmGenerator = buildBlueprintServiceContext({
+      jobStore,
+      now: deps.now,
+      specsRoot: deps.specsRoot,
+    }).routeSetLlmGenerator as RouteSetLlmGenerator;
+    return cachedRouteSetLlmGenerator;
+  };
 
   router.get("/specs", async (_req, res) => {
     try {
@@ -546,7 +589,7 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     res.json({ context });
   });
 
-  const handleCreateGenerationJob = (req: Request, res: Response) => {
+  const handleCreateGenerationJob = async (req: Request, res: Response) => {
     const parsed = parseGenerationRequest(req.body);
     if (!parsed.ok) {
       res.status(400).json({
@@ -565,15 +608,26 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       return;
     }
 
-    const result = createGenerationJob(resolved.request, {
-      now: deps.now,
-      store: jobStore,
-      context: resolved.context,
-      intake: resolved.intake,
-      clarificationSession: resolved.clarificationSession,
-    });
+    try {
+      const result = await createGenerationJob(resolved.request, {
+        now: deps.now,
+        store: jobStore,
+        context: resolved.context,
+        intake: resolved.intake,
+        clarificationSession: resolved.clarificationSession,
+        routeSetLlmGenerator: resolveRouteSetLlmGenerator(),
+      });
 
-    res.status(201).json(result);
+      res.status(201).json(result);
+    } catch (error) {
+      // The generator internally swallows LLM errors / schema failures and
+      // falls back to templated routes, so this 500 branch is reserved for
+      // unexpected exceptions outside the generator boundary (design 5.4).
+      res.status(500).json({
+        error: "Failed to create blueprint generation job.",
+        message: errorMessage(error),
+      });
+    }
   };
 
   const handleJobDetails = (req: Request, res: Response) => {
@@ -1828,6 +1882,25 @@ interface CreateGenerationJobOptions {
   context?: BlueprintProjectDomainContext;
   intake?: BlueprintIntake;
   clarificationSession?: BlueprintClarificationSession;
+  /**
+   * RouteSet LLM driven generator. Required because only `createGenerationJob`
+   * consumes it. The router resolves the default instance from `deps`
+   * (see design 4.7); tests that call `createGenerationJob` directly must
+   * pass a generator explicitly.
+   */
+  routeSetLlmGenerator: RouteSetLlmGenerator;
+}
+
+/**
+ * Narrower option shape for subdomain helpers that only need `now` / `store`
+ * (for example `selectRouteForSpecTree`, `generateSpecDocuments`,
+ * `getOrCreateCapabilityRegistry`). Keeping this type separate avoids
+ * forcing every helper call site to pass `routeSetLlmGenerator` when only
+ * `createGenerationJob` actually reads it (design 4.7 trailing note).
+ */
+interface CreateGenerationJobHelperOptions {
+  now?: () => Date;
+  store: BlueprintJobStore;
 }
 
 type ParseIntakeRequestResult =
@@ -2241,10 +2314,10 @@ function parseGenerationRequest(body: unknown): ParseGenerationRequestResult {
   };
 }
 
-export function createGenerationJob(
+export async function createGenerationJob(
   request: BlueprintGenerationRequest,
   options: CreateGenerationJobOptions
-): BlueprintCreateGenerationJobResponse {
+): Promise<BlueprintCreateGenerationJobResponse> {
   const createdAt = (options.now?.() ?? new Date()).toISOString();
   const jobId = createId("blueprint-job");
   const events: BlueprintGenerationEvent[] = [
@@ -2265,11 +2338,14 @@ export function createGenerationJob(
       occurredAt: createdAt,
     }),
   ];
-  const routeSet = buildRouteSet(
+  const routeSet = await buildRouteSet(
     request,
     jobId,
     createdAt,
-    options.clarificationSession
+    options.clarificationSession,
+    options.routeSetLlmGenerator,
+    options.intake,
+    options.context
   );
   const routeArtifact: BlueprintGenerationArtifact = {
     id: createId("blueprint-artifact"),
@@ -2280,6 +2356,33 @@ export function createGenerationJob(
     createdAt,
     payload: routeSet,
   };
+  // Emit `route.generated` event (design 4.8, task 11.3). Ordered before
+  // `createRouteGenerationSandboxDerivation()` so Artifact Replay / Agent
+  // Crew panels observe the RouteSet completion prior to sandbox, role and
+  // capability events. The LLM provenance extras (generationSource,
+  // promptId, model, error) are appended to the existing payload shape
+  // rather than introducing a new event name.
+  events.push(
+    createGenerationEvent({
+      jobId,
+      projectId: request.projectId,
+      stage: "route_generation",
+      status: "completed",
+      type: BlueprintEventName.RouteGenerated,
+      message: "RouteSet routes generated.",
+      occurredAt: createdAt,
+      artifactId: routeArtifact.id,
+      payload: {
+        routeSetId: routeSet.id,
+        primaryRouteId: routeSet.primaryRouteId,
+        routeCount: routeSet.routes.length,
+        generationSource: routeSet.provenance.generationSource,
+        promptId: routeSet.provenance.promptId,
+        model: routeSet.provenance.model,
+        error: routeSet.provenance.error,
+      },
+    })
+  );
   const agentCrew = buildAgentCrew({
     jobId,
     stage: "route_generation",
@@ -2422,74 +2525,41 @@ export function createGenerationJob(
   };
 }
 
-function buildRouteSet(
+async function buildRouteSet(
   request: BlueprintGenerationRequest,
   requestId: string,
   createdAt: string,
-  clarificationSession?: BlueprintClarificationSession
-): BlueprintRouteSet {
+  clarificationSession: BlueprintClarificationSession | undefined,
+  generator: RouteSetLlmGenerator,
+  intake?: BlueprintIntake,
+  projectContext?: BlueprintProjectDomainContext
+): Promise<BlueprintRouteSet> {
   const routeSetId = createId("blueprint-routeset");
   const primaryRouteId = `${routeSetId}:primary`;
-  const targetLabel = summarizeRequestTarget(request);
-  const hasGithub = (request.githubUrls?.length ?? 0) > 0;
   const clarificationContext = buildClarificationRouteContext(
     request,
     clarificationSession
   );
+
+  // The generator internally swallows LLM errors / schema failures / missing
+  // API key and falls back to templated routes with an annotated
+  // `provenanceExtras.error`, so no additional try/catch is needed here.
+  const { routes, provenanceExtras } = await generator({
+    request,
+    intake,
+    clarificationSession,
+    projectContext,
+    routeSetId,
+    primaryRouteId,
+    createdAt,
+  });
 
   return {
     id: routeSetId,
     requestId,
     createdAt,
     primaryRouteId,
-    routes: [
-      buildRouteCandidate({
-        id: primaryRouteId,
-        kind: "primary",
-        title: "Primary SPEC asset route",
-        summary: `Clarify ${targetLabel}, derive the durable SPEC tree, then expand documents, preview, and implementation prompts.`,
-        rationale:
-          "Balances product clarification, architecture analysis, and asset persistence so the selected path can become the long-lived SPEC tree.",
-        riskLevel: "medium",
-        costLevel: "medium",
-        complexity: "balanced",
-        estimatedEffort: hasGithub
-          ? "2-4 analysis passes"
-          : "1-3 analysis passes",
-        includeGithubStep: hasGithub,
-        clarificationContext,
-      }),
-      buildRouteCandidate({
-        id: `${routeSetId}:alternative-docs-first`,
-        kind: "alternative",
-        title: "Documentation-first conservative route",
-        summary:
-          "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.",
-        rationale:
-          "Reduces downstream churn when the business boundary is still broad or governance matters more than speed.",
-        riskLevel: "low",
-        costLevel: "low",
-        complexity: "light",
-        estimatedEffort: "1-2 review passes",
-        includeGithubStep: hasGithub,
-        clarificationContext,
-      }),
-      buildRouteCandidate({
-        id: `${routeSetId}:alternative-preview-first`,
-        kind: "alternative",
-        title: "Preview-first exploratory route",
-        summary:
-          "Push route analysis toward effect preview early, then backfill SPEC documents from the selected prototype direction.",
-        rationale:
-          "Useful when the user needs to see the future system effect before locking detailed specifications.",
-        riskLevel: "high",
-        costLevel: "high",
-        complexity: "deep",
-        estimatedEffort: "3-5 exploration passes",
-        includeGithubStep: hasGithub,
-        clarificationContext,
-      }),
-    ],
+    routes,
     nextAsset: {
       type: "spec_tree",
       menu: "deduction",
@@ -2497,6 +2567,7 @@ function buildRouteSet(
         "Use the selected RouteSet path as the source asset for the Deduction menu and SPEC tree workbench.",
     },
     provenance: {
+      // Existing fields (unchanged, not renamed, not removed).
       projectId: request.projectId,
       sourceId: request.sourceId,
       targetText: request.targetText,
@@ -2511,11 +2582,16 @@ function buildRouteSet(
       clarificationEvidenceIds: clarificationContext.evidenceIds,
       clarificationSourceIds: clarificationContext.sourceIds,
       clarificationRouteReadySummary: clarificationContext.routeReadySummary,
+      // New optional fields (append-only, design 4.9).
+      generationSource: provenanceExtras.generationSource,
+      promptId: provenanceExtras.promptId,
+      model: provenanceExtras.model,
+      error: provenanceExtras.error,
     },
   };
 }
 
-interface BlueprintClarificationRouteContext {
+export interface BlueprintClarificationRouteContext {
   strategyId?: BlueprintClarificationStrategyId;
   templateId?: string;
   routeReadySummary?: string;
@@ -2527,7 +2603,7 @@ interface BlueprintClarificationRouteContext {
   answerCount: number;
 }
 
-function buildClarificationRouteContext(
+export function buildClarificationRouteContext(
   request: BlueprintGenerationRequest,
   clarificationSession?: BlueprintClarificationSession
 ): BlueprintClarificationRouteContext {
@@ -2664,7 +2740,7 @@ function buildGenerationContextArtifacts(input: {
   return artifacts;
 }
 
-function buildRouteCandidate(input: {
+export function buildRouteCandidate(input: {
   id: string;
   kind: "primary" | "alternative";
   title: string;
@@ -2676,32 +2752,57 @@ function buildRouteCandidate(input: {
   estimatedEffort: string;
   includeGithubStep: boolean;
   clarificationContext: BlueprintClarificationRouteContext;
+  /**
+   * Optional skeleton overrides injected by external generators (for
+   * example the RouteSet LLM normalizer in
+   * `server/routes/blueprint/routeset/route-llm-generator.ts`). When
+   * provided, each field takes precedence over the corresponding `input`
+   * value, while `steps` / `outputs` continue to be generated from
+   * `clarificationContext` + `includeGithubStep` so downstream sandbox
+   * derivation and capability accounting remain stable
+   * (see autopilot-routeset-llm-generation design 4.5).
+   */
+  externalOverrides?: {
+    id?: string;
+    kind?: "primary" | "alternative";
+    title?: string;
+    summary?: string;
+    rationale?: string;
+    riskLevel?: BlueprintRouteRiskLevel;
+    costLevel?: BlueprintRouteCostLevel;
+    complexity?: BlueprintRouteComplexity;
+    estimatedEffort?: string;
+    capabilities?: BlueprintCapabilityUsage[];
+  };
 }): BlueprintRouteCandidate {
   const steps = buildRouteSteps(
     input.includeGithubStep,
     input.clarificationContext
   );
+  const overrides = input.externalOverrides;
 
   return {
-    id: input.id,
-    kind: input.kind,
-    title: input.title,
+    id: overrides?.id ?? input.id,
+    kind: overrides?.kind ?? input.kind,
+    title: overrides?.title ?? input.title,
     summary: appendClarificationRouteSummary(
-      input.summary,
+      overrides?.summary ?? input.summary,
       input.clarificationContext
     ),
     rationale: appendClarificationRouteSummary(
-      input.rationale,
+      overrides?.rationale ?? input.rationale,
       input.clarificationContext
     ),
-    riskLevel: input.riskLevel,
-    costLevel: input.costLevel,
-    complexity: input.complexity,
-    estimatedEffort: input.estimatedEffort,
-    capabilities: buildCapabilityUsage(
-      input.includeGithubStep,
-      input.clarificationContext
-    ),
+    riskLevel: overrides?.riskLevel ?? input.riskLevel,
+    costLevel: overrides?.costLevel ?? input.costLevel,
+    complexity: overrides?.complexity ?? input.complexity,
+    estimatedEffort: overrides?.estimatedEffort ?? input.estimatedEffort,
+    capabilities:
+      overrides?.capabilities ??
+      buildCapabilityUsage(
+        input.includeGithubStep,
+        input.clarificationContext
+      ),
     steps,
     outputs: uniqueStrings([
       "RouteSet outline",
@@ -4044,7 +4145,11 @@ function mapGenerationEventFamily(
     prefix === "preview" ||
     prefix === "prompt" ||
     prefix === "mission" ||
-    prefix === "sandbox"
+    prefix === "sandbox" ||
+    prefix === "route" ||
+    prefix === "clarification" ||
+    prefix === "spec" ||
+    prefix === "evidence"
   ) {
     return prefix;
   }
@@ -4603,7 +4708,7 @@ function buildArtifactMemoryEntryFromEvent(
 function createArtifactReplaySnapshot(
   job: BlueprintGenerationJob,
   request: BlueprintCreateArtifactReplayRequest,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): BlueprintArtifactReplayResponse {
   const createdAt = (options.now?.() ?? new Date()).toISOString();
   const ledger = buildArtifactLedger(job);
@@ -5046,7 +5151,7 @@ function compareArtifactLedgerEntries(
 function recordArtifactFeedback(
   job: BlueprintGenerationJob,
   request: BlueprintArtifactFeedbackRequest,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ):
   | { ok: true; response: BlueprintArtifactFeedbackResponse }
   | { ok: false; status: number; error: string; message: string } {
@@ -7354,7 +7459,7 @@ function selectRouteForSpecTree(
   job: BlueprintGenerationJob,
   routeSet: BlueprintRouteSet,
   request: BlueprintRouteSelectionRequest,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): BlueprintSelectRouteResponse {
   const selectedAt = (options.now?.() ?? new Date()).toISOString();
   const selectedRoute = routeSet.routes.find(
@@ -7612,7 +7717,7 @@ function selectRouteForSpecTree(
 function resetRouteSelection(
   job: BlueprintGenerationJob,
   routeSet: BlueprintRouteSet,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): BlueprintResetRouteSelectionResponse {
   const updatedAt = (options.now?.() ?? new Date()).toISOString();
   const nextAction = createGenerationNextAction({
@@ -7816,7 +7921,7 @@ function updateSpecTreeNode(
   specTree: BlueprintSpecTree,
   nodeId: string,
   request: BlueprintUpdateSpecTreeNodeRequest,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): UpdateSpecTreeNodeResult {
   const updatedAt = (options.now?.() ?? new Date()).toISOString();
   const nodeIndex = specTree.nodes.findIndex(node => node.id === nodeId);
@@ -7890,7 +7995,7 @@ function runSpecTreeAction(
   job: BlueprintGenerationJob,
   specTree: BlueprintSpecTree,
   request: BlueprintSpecTreeActionRequest,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): SpecTreeActionResult {
   const updatedAt = (options.now?.() ?? new Date()).toISOString();
   const actionResult = applySpecTreeAction(job, specTree, request, updatedAt);
@@ -8328,7 +8433,7 @@ function saveSpecTreeVersion(
   job: BlueprintGenerationJob,
   specTree: BlueprintSpecTree,
   request: { title?: string; summary?: string; savedBy?: string },
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): BlueprintSaveSpecTreeVersionResponse {
   const savedAt = (options.now?.() ?? new Date()).toISOString();
   const snapshot: BlueprintSpecTreeVersionSnapshot = {
@@ -8407,7 +8512,7 @@ function saveSpecDocumentVersion(
   specTree: BlueprintSpecTree,
   documentId: string,
   request: { savedBy?: string; reviewNote?: string },
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): SaveSpecDocumentVersionResult {
   const savedAt = (options.now?.() ?? new Date()).toISOString();
   const document = findSpecDocument(job, documentId);
@@ -8511,7 +8616,7 @@ function reviewSpecDocument(
   specTree: BlueprintSpecTree,
   documentId: string,
   request: BlueprintReviewSpecDocumentRequest,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): ReviewSpecDocumentResult {
   const reviewedAt = (options.now?.() ?? new Date()).toISOString();
   const document = findSpecDocument(job, documentId);
@@ -8572,7 +8677,7 @@ function generateSpecDocuments(
   job: BlueprintGenerationJob,
   specTree: BlueprintSpecTree,
   request: BlueprintGenerateSpecDocumentsRequest,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): BlueprintSpecDocumentsResponse {
   const createdAt = (options.now?.() ?? new Date()).toISOString();
   const targetNodeIds = request.nodeId
@@ -8679,7 +8784,7 @@ function generateEffectPreviews(
   job: BlueprintGenerationJob,
   specTree: BlueprintSpecTree,
   request: BlueprintGenerateEffectPreviewsRequest,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): GenerateEffectPreviewsResult {
   const createdAt = (options.now?.() ?? new Date()).toISOString();
   const includeDrafts = request.includeDrafts ?? false;
@@ -8847,7 +8952,7 @@ function generateImplementationPromptPackages(
   job: BlueprintGenerationJob,
   specTree: BlueprintSpecTree,
   request: BlueprintGenerateImplementationPromptPackagesRequest,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): GenerateImplementationPromptPackagesResult {
   const createdAt = (options.now?.() ?? new Date()).toISOString();
   const includeDrafts = request.includeDrafts ?? false;
@@ -9037,7 +9142,7 @@ function generateEngineeringLandingPlans(
   job: BlueprintGenerationJob,
   specTree: BlueprintSpecTree,
   request: BlueprintGenerateEngineeringLandingPlansRequest,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): GenerateEngineeringLandingPlansResult {
   const createdAt = (options.now?.() ?? new Date()).toISOString();
   const selectedPromptPackages = selectEngineeringLandingPromptPackages(
@@ -9264,7 +9369,7 @@ type GetOrCreateCapabilityRegistryResult = {
 function createSandboxDerivationJob(
   job: BlueprintGenerationJob,
   request: BlueprintSandboxDerivationJobRequest,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): CreateSandboxDerivationJobResult {
   const createdAt = (options.now?.() ?? new Date()).toISOString();
   const registry = getOrCreateCapabilityRegistry(job, options);
@@ -9604,7 +9709,7 @@ function createSandboxDerivationJob(
 
 function getOrCreateCapabilityRegistry(
   job: BlueprintGenerationJob,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): GetOrCreateCapabilityRegistryResult {
   const existing = extractRuntimeCapabilities(job);
   const hasRegistry = job.artifacts.some(
@@ -9768,7 +9873,7 @@ type InvokeCapabilityResult =
 function invokeCapability(
   job: BlueprintGenerationJob,
   request: BlueprintCapabilityInvocationRequest,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): InvokeCapabilityResult {
   const roleId = request.roleId;
   if (!roleId) {
@@ -10362,7 +10467,7 @@ type RecordEngineeringRunResult =
 function recordEngineeringRun(
   job: BlueprintGenerationJob,
   request: BlueprintRecordEngineeringRunRequest,
-  options: CreateGenerationJobOptions
+  options: CreateGenerationJobHelperOptions
 ): RecordEngineeringRunResult {
   const createdAt = (options.now?.() ?? new Date()).toISOString();
   const landingPlan = extractEngineeringLandingPlans(job).find(

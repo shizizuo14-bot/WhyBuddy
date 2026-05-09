@@ -772,6 +772,21 @@ export interface BlueprintRouteSet {
     clarificationEvidenceIds?: string[];
     clarificationSourceIds?: string[];
     clarificationRouteReadySummary?: string;
+    /**
+     * RouteSet generation source tag. See
+     * `.kiro/specs/autopilot-routeset-llm-generation/design.md` 4.9.
+     * - `"llm"`: routes came entirely from the LLM generator.
+     * - `"llm_fallback"`: LLM was attempted but the result was unusable and
+     *   the generator returned templated routes.
+     * - `"template"`: reserved for future use (e.g. feature flag disabled).
+     */
+    generationSource?: "llm" | "llm_fallback" | "template";
+    /** Stable RouteSet prompt identifier (for example `blueprint.routeset.v1`). */
+    promptId?: string;
+    /** Actual LLM model used when `generationSource !== "template"`. */
+    model?: string;
+    /** Truncated fallback reason (LLM error or schema validation summary). */
+    error?: string;
   };
 }
 
