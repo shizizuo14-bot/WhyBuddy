@@ -83,6 +83,7 @@ export type BlueprintGenerationEventType =
   | "role.capability_invoked"
   | "role.review_started"
   | "role.review_completed"
+  | "role.sleeping"
   | "role.completed"
   // Runtime capability
   | "capability.invoked"
@@ -138,6 +139,7 @@ export const BlueprintEventName = {
   RoleCapabilityInvoked: "role.capability_invoked",
   RoleReviewStarted: "role.review_started",
   RoleReviewCompleted: "role.review_completed",
+  RoleSleeping: "role.sleeping",
   RoleCompleted: "role.completed",
   // Runtime capability
   CapabilityInvoked: "capability.invoked",

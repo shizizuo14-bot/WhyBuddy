@@ -72,6 +72,9 @@ import {
   createDefaultAigcSpecNodeCapabilityPolicy,
   type AigcSpecNodeCapabilityPolicy,
 } from "./aigc-spec-node/policy.js";
+import type { AgentCrewStageActivationPolicy } from "./agent-crew-stage-activation/policy.js";
+import { createDefaultAgentCrewStageActivationPolicy } from "./agent-crew-stage-activation/policy.js";
+import type { AgentCrewStageActivationDriver } from "./agent-crew-stage-activation/driver.js";
 
 export type {
   BlueprintHttpFetcher,
@@ -345,6 +348,21 @@ export interface BlueprintServiceContext {
    * incur LLM traffic in default deployments.
    */
   aigcSpecNodeCapabilityBridge?: AigcSpecNodeCapabilityBridge;
+  /**
+   * Agent Crew Stage Activation policy (pure data, stateless).
+   * Controls event suppression, idempotence, redaction rules and schema
+   * version allow-list. Defaults to `createDefaultAgentCrewStageActivationPolicy()`
+   * when not provided via deps.
+   */
+  agentCrewStageActivationPolicy?: AgentCrewStageActivationPolicy;
+  /**
+   * Agent Crew Stage Activation driver instance.
+   * **Not default-assembled** — the driver is per-job lifecycle (internal
+   * tracker state), so the outer layer lazy-constructs it at each job start
+   * via `createAgentCrewStageActivationDriver(ctx)` and writes it back here.
+   * See design §2.D2.
+   */
+  agentCrewStageActivationDriver?: AgentCrewStageActivationDriver;
 }
 
 /**
@@ -416,6 +434,19 @@ export interface BlueprintServiceContextDeps {
    * `aigcSpecNodeCapabilityPolicy` that the rest of the app uses).
    */
   aigcSpecNodeCapabilityBridge?: AigcSpecNodeCapabilityBridge;
+  /**
+   * Optional override for the Agent Crew Stage Activation policy.
+   * When omitted, {@link buildBlueprintServiceContext} wires
+   * {@link createDefaultAgentCrewStageActivationPolicy}.
+   */
+  agentCrewStageActivationPolicy?: AgentCrewStageActivationPolicy;
+  /**
+   * Optional: inject a pre-constructed Agent Crew Stage Activation driver.
+   * When omitted, `buildBlueprintServiceContext` does NOT default-assemble a
+   * driver (per-job lifecycle; design §2.D2). The outer layer lazy-constructs
+   * it at each job start.
+   */
+  agentCrewStageActivationDriver?: AgentCrewStageActivationDriver;
 }
 
 /**
@@ -498,6 +529,12 @@ export function buildBlueprintServiceContext(
     deps.aigcSpecNodeCapabilityPolicy ??
     createDefaultAigcSpecNodeCapabilityPolicy();
 
+  // Agent Crew Stage Activation policy default (pure data, stateless).
+  // Driver is NOT default-assembled here — it is per-job lifecycle (design §2.D2).
+  const agentCrewStageActivationPolicy =
+    deps.agentCrewStageActivationPolicy ??
+    createDefaultAgentCrewStageActivationPolicy();
+
   const baseCtx: BlueprintServiceContext = {
     now,
     blueprintStores: deps.blueprintStores ?? createDefaultBlueprintStores(),
@@ -541,6 +578,10 @@ export function buildBlueprintServiceContext(
     // AIGC Spec Node capability: policy eagerly resolved, bridge late-bound.
     aigcSpecNodeCapabilityPolicy: aigcSpecNodePolicy,
     aigcSpecNodeCapabilityBridge: deps.aigcSpecNodeCapabilityBridge,
+    // Agent Crew Stage Activation: policy eagerly resolved, driver NOT
+    // default-assembled (per-job lifecycle; design §2.D2).
+    agentCrewStageActivationPolicy,
+    agentCrewStageActivationDriver: deps.agentCrewStageActivationDriver,
   };
 
   // Task 13.1 / 13.3 最后一步：用 baseCtx 构造默认 docker bridge（或透传注入的 bridge）。

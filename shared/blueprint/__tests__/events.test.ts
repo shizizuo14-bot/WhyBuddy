@@ -55,6 +55,10 @@ describe("BlueprintEventName", () => {
     }
   });
 
+  it("exposes RoleSleeping constant matching role.sleeping", () => {
+    expect(BlueprintEventName.RoleSleeping).toBe("role.sleeping");
+  });
+
   it("resolveBlueprintEventFamily 返回事件名的首段", () => {
     const samples: Array<{ type: BlueprintGenerationEventType; family: BlueprintGenerationEventFamily }> = [
       { type: BlueprintEventName.JobCreated, family: "job" },
@@ -70,6 +74,7 @@ describe("BlueprintEventName", () => {
       { type: BlueprintEventName.CapabilityFailed, family: "capability" },
       { type: BlueprintEventName.CrewContextUpdated, family: "crew" },
       { type: BlueprintEventName.SandboxJobCompleted, family: "sandbox" },
+      { type: BlueprintEventName.RoleSleeping, family: "role" },
     ];
 
     for (const sample of samples) {
