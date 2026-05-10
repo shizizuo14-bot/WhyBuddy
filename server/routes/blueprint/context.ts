@@ -77,6 +77,10 @@ import { createDefaultRoleSystemArchitectureCapabilityPolicy } from "./role-syst
 import type { AgentCrewStageActivationPolicy } from "./agent-crew-stage-activation/policy.js";
 import { createDefaultAgentCrewStageActivationPolicy } from "./agent-crew-stage-activation/policy.js";
 import type { AgentCrewStageActivationDriver } from "./agent-crew-stage-activation/driver.js";
+import type { EngineeringHandoffLlmPolicy } from "./engineering-handoff/policy.js";
+import type { EngineeringHandoffLlmService } from "./engineering-handoff/service.js";
+import { createDefaultEngineeringHandoffLlmPolicy } from "./engineering-handoff/policy.js";
+import { createEngineeringHandoffLlmService } from "./engineering-handoff/service.js";
 
 /**
  * Role System Architecture capability policy interface.
@@ -463,6 +467,24 @@ export interface BlueprintServiceContext {
    * See design §2.D2.
    */
   agentCrewStageActivationDriver?: AgentCrewStageActivationDriver;
+  /**
+   * Optional Engineering Handoff LLM policy.
+   *
+   * When not injected, {@link buildBlueprintServiceContext} uses
+   * `createDefaultEngineeringHandoffLlmPolicy()`. See
+   * `.kiro/specs/autopilot-engineering-handoff-llm/design.md` §2.D2 / §4.3.
+   */
+  engineeringHandoffLlmPolicy?: EngineeringHandoffLlmPolicy;
+  /**
+   * Optional Engineering Handoff LLM service.
+   *
+   * When not injected, {@link buildBlueprintServiceContext} lazy-assembles
+   * a default via `createEngineeringHandoffLlmService(ctx)`. The service's
+   * tier-1 early exit (`BLUEPRINT_ENGINEERING_HANDOFF_LLM_ENABLED !== "true"`)
+   * and tier-2 early exit (`apiKey` missing) ensure default deployments do
+   * not incur LLM traffic.
+   */
+  engineeringHandoffLlmService?: EngineeringHandoffLlmService;
 }
 
 /**
@@ -563,6 +585,20 @@ export interface BlueprintServiceContextDeps {
    * it at each job start.
    */
   agentCrewStageActivationDriver?: AgentCrewStageActivationDriver;
+  /**
+   * Optional override for the Engineering Handoff LLM policy. When omitted,
+   * {@link buildBlueprintServiceContext} wires
+   * `createDefaultEngineeringHandoffLlmPolicy()`.
+   */
+  engineeringHandoffLlmPolicy?: EngineeringHandoffLlmPolicy;
+  /**
+   * Optional override for the Engineering Handoff LLM service. When omitted,
+   * {@link buildBlueprintServiceContext} wires a default via
+   * `createEngineeringHandoffLlmService(ctx)` using the fully-constructed
+   * context (so the service sees the same `llm` / `logger` / `now` /
+   * `engineeringHandoffLlmPolicy` that the rest of the app uses).
+   */
+  engineeringHandoffLlmService?: EngineeringHandoffLlmService;
 }
 
 /**
@@ -651,6 +687,11 @@ export function buildBlueprintServiceContext(
     deps.agentCrewStageActivationPolicy ??
     createDefaultAgentCrewStageActivationPolicy();
 
+  // Engineering Handoff LLM policy default (pure data, dependency-free).
+  const engineeringHandoffLlmPolicy =
+    deps.engineeringHandoffLlmPolicy ??
+    createDefaultEngineeringHandoffLlmPolicy();
+
   const baseCtx: BlueprintServiceContext = {
     now,
     blueprintStores: deps.blueprintStores ?? createDefaultBlueprintStores(),
@@ -704,6 +745,10 @@ export function buildBlueprintServiceContext(
     // default-assembled (per-job lifecycle; design §2.D2).
     agentCrewStageActivationPolicy,
     agentCrewStageActivationDriver: deps.agentCrewStageActivationDriver,
+    // Engineering Handoff LLM: policy eagerly resolved, service late-bound
+    // below after `ctx` is finalized.
+    engineeringHandoffLlmPolicy,
+    engineeringHandoffLlmService: deps.engineeringHandoffLlmService,
   };
 
   // Task 13.1 / 13.3 最后一步：用 baseCtx 构造默认 docker bridge（或透传注入的 bridge）。
@@ -741,6 +786,13 @@ export function buildBlueprintServiceContext(
   // rationale.
   ctx.routeSetLlmGenerator =
     deps.routeSetLlmGenerator ?? createRouteSetLlmGenerator(ctx);
+
+  // Engineering Handoff LLM service late-bind: the default service needs the
+  // fully assembled `ctx` (including llm / logger / engineeringHandoffLlmPolicy).
+  // See `.kiro/specs/autopilot-engineering-handoff-llm/design.md` §2.D2.
+  if (!ctx.engineeringHandoffLlmService) {
+    ctx.engineeringHandoffLlmService = createEngineeringHandoffLlmService(ctx);
+  }
   return ctx;
 }
 
