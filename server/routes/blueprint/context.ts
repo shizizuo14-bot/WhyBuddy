@@ -77,6 +77,10 @@ import { createDefaultRoleSystemArchitectureCapabilityPolicy } from "./role-syst
 import type { AgentCrewStageActivationPolicy } from "./agent-crew-stage-activation/policy.js";
 import { createDefaultAgentCrewStageActivationPolicy } from "./agent-crew-stage-activation/policy.js";
 import type { AgentCrewStageActivationDriver } from "./agent-crew-stage-activation/driver.js";
+import type { SpecTreeLlmPolicy } from "./spec-tree/policy.js";
+import type { SpecTreeLlmService } from "./spec-tree/service.js";
+import { createDefaultSpecTreeLlmPolicy } from "./spec-tree/policy.js";
+import { createSpecTreeLlmService } from "./spec-tree/service.js";
 
 /**
  * Role System Architecture capability policy interface.
@@ -463,6 +467,28 @@ export interface BlueprintServiceContext {
    * See design §2.D2.
    */
   agentCrewStageActivationDriver?: AgentCrewStageActivationDriver;
+  /**
+   * Optional: SPEC Tree LLM generation policy (pure data, stateless).
+   * Controls timeout, temperature, retry attempts, schema bounds, and
+   * redaction rules. When not injected, `buildBlueprintServiceContext` wires
+   * a default via `createDefaultSpecTreeLlmPolicy()`.
+   *
+   * @see design §2.D2 / §4.3
+   */
+  specTreeLlmPolicy?: SpecTreeLlmPolicy;
+  /**
+   * Optional: SPEC Tree LLM service instance.
+   * A pure async function that performs LLM-driven SPEC Tree generation or
+   * falls back to template output. When not injected,
+   * `buildBlueprintServiceContext` wires a default via
+   * `createSpecTreeLlmService(ctx)`. The service performs its own tier-1
+   * early-exit when `BLUEPRINT_SPEC_TREE_LLM_ENABLED !== "true"` or when the
+   * resolved apiKey is empty, so always wiring a service instance does not
+   * incur LLM traffic in default deployments.
+   *
+   * @see design §2.D1 / §4.2
+   */
+  specTreeLlmService?: SpecTreeLlmService;
 }
 
 /**
@@ -563,6 +589,24 @@ export interface BlueprintServiceContextDeps {
    * it at each job start.
    */
   agentCrewStageActivationDriver?: AgentCrewStageActivationDriver;
+  /**
+   * Optional override for the SPEC Tree LLM policy. When omitted,
+   * {@link buildBlueprintServiceContext} wires
+   * {@link createDefaultSpecTreeLlmPolicy}.
+   *
+   * @see design §2.D2 / §4.3
+   */
+  specTreeLlmPolicy?: SpecTreeLlmPolicy;
+  /**
+   * Optional override for the SPEC Tree LLM service. When omitted,
+   * {@link buildBlueprintServiceContext} wires
+   * {@link createSpecTreeLlmService} using the fully-constructed context
+   * (so the service sees the same `llm` / `logger` / `now` /
+   * `specTreeLlmPolicy` that the rest of the app uses).
+   *
+   * @see design §2.D1 / §4.2
+   */
+  specTreeLlmService?: SpecTreeLlmService;
 }
 
 /**
@@ -704,6 +748,9 @@ export function buildBlueprintServiceContext(
     // default-assembled (per-job lifecycle; design §2.D2).
     agentCrewStageActivationPolicy,
     agentCrewStageActivationDriver: deps.agentCrewStageActivationDriver,
+    // SPEC Tree LLM: policy eagerly resolved, service late-bound.
+    specTreeLlmPolicy: deps.specTreeLlmPolicy ?? createDefaultSpecTreeLlmPolicy(),
+    specTreeLlmService: deps.specTreeLlmService,
   };
 
   // Task 13.1 / 13.3 最后一步：用 baseCtx 构造默认 docker bridge（或透传注入的 bridge）。
@@ -741,6 +788,13 @@ export function buildBlueprintServiceContext(
   // rationale.
   ctx.routeSetLlmGenerator =
     deps.routeSetLlmGenerator ?? createRouteSetLlmGenerator(ctx);
+
+  // SPEC Tree LLM: policy eagerly resolved (pure data), service late-bound.
+  // The service closure needs ctx.llm / ctx.logger / ctx.now / ctx.specTreeLlmPolicy.
+  if (!ctx.specTreeLlmService) {
+    ctx.specTreeLlmService = createSpecTreeLlmService(ctx);
+  }
+
   return ctx;
 }
 

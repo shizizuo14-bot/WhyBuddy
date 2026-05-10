@@ -947,6 +947,20 @@ export interface BlueprintSpecTree {
     reusedRoleFindingIds?: string[];
     reusedRoleIds?: string[];
     reusedEvidenceIds?: string[];
+    /** "llm" | "llm_fallback" | "template" — distinguishes LLM-driven vs template-driven SPEC Tree */
+    generationSource?: "llm" | "llm_fallback" | "template";
+    /** Stable prompt version identifier, e.g. "blueprint.spec-tree.v1" */
+    promptId?: string;
+    /** LLM model used for generation */
+    model?: string;
+    /** SHA-256 digest of the raw LLM response JSON */
+    responseDigest?: string;
+    /** SHA-256 digest of the validated+parsed payload JSON */
+    structuredPayloadDigest?: string;
+    /** SHA-256 fingerprint of the prompt (system + user messages) */
+    promptFingerprint?: string;
+    /** Redacted error message; only filled when generationSource === "llm_fallback" */
+    error?: string;
   };
 }
 
