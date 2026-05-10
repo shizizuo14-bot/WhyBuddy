@@ -1846,6 +1846,47 @@ async function startServer() {
     console.log(`Server running on http://localhost:${port}/`);
     console.log(`API available at http://localhost:${port}/api/`);
   });
+
+  // ── Graceful shutdown ──
+  // tsx watch will send SIGTERM when files change and re-spawn the process;
+  // Ctrl+C triggers SIGINT. Both paths need to:
+  //   1. Stop accepting new connections (server.close());
+  //   2. Close the MySQL pool (authDb.close() -> pool.end()) to avoid the
+  //      mysql2 pool.js:36 synchronous crash when an in-flight query races
+  //      with the pool being closed on process exit.
+  //   3. Force-exit so dangling handles don't block tsx watch's respawn.
+  //
+  // shutdown is idempotent - a second signal is a no-op.
+  let isShuttingDown = false;
+  const shutdown = async (signal: string): Promise<void> => {
+    if (isShuttingDown) return;
+    isShuttingDown = true;
+    console.log(`[Shutdown] Received ${signal}, closing gracefully...`);
+
+    server.close(err => {
+      if (err) {
+        console.error("[Shutdown] HTTP server close error:", err);
+      } else {
+        console.log("[Shutdown] HTTP server closed");
+      }
+    });
+
+    try {
+      await authDb.close();
+      console.log("[Shutdown] MySQL pool closed");
+    } catch (error) {
+      console.error("[Shutdown] MySQL pool close error:", error);
+    }
+
+    process.exit(0);
+  };
+
+  process.on("SIGINT", () => {
+    void shutdown("SIGINT");
+  });
+  process.on("SIGTERM", () => {
+    void shutdown("SIGTERM");
+  });
 }
 
 export { initializeAgentRuntime, startServer };
