@@ -118,7 +118,7 @@
   - 该测试在任务 1–8 全部完成前即可写入，先用 mock narrow 函数；每次面板抽离合入后同步扩充 8 个 case
   - _需求：Requirement 2.1–2.8、Requirement 8_
 
-- [-] 10. **[Edge-case]** Shim identity 测试 + Rendering parity 测试
+- [x] 10. **[Edge-case]** Shim identity 测试 + Rendering parity 测试
   - 在 `client/src/pages/autopilot/right-rail/panels/__tests__/shim-identity.test.ts` 中，对 8 个面板分别断言：
     ```ts
     import * as shim from "@/pages/specs/panels/<Name>Panel";
@@ -134,7 +134,7 @@
   - 标记为 edge-case 风险测试，不使用 fast-check；fixture 应与真实 job 数据贴近以触达分支
   - _需求：Requirement 3、Requirement 4.4、Requirement 6.5_
 
-- [ ] 11. `<AutopilotRightRail>` fabric dispatch 收口 + 最终 parity 验证
+- [x] 11. `<AutopilotRightRail>` fabric dispatch 收口 + 最终 parity 验证
   - 本任务在 8 个面板抽离 PR 全部合入后执行
   - 在 `AutopilotRightRail.tsx` 中把 fabric stage 内 `currentSubStage` 的 switch 收口为一个 `PANEL_MAP: Record<AutopilotRailSubStage, React.ComponentType<any>>` 常量（可选重构），确保 8 个 case 写法一致
   - 确认 `resolveRailSubStage(...)` 返回 `undefined` 的兜底路径（理论不触发）渲染 `<AgentCrewFabricPanel .../>`（Requirement 6.4）
@@ -148,7 +148,7 @@
   - 确认 `BlueprintProgressPanel.tsx` 行数显著下降（从 ~5700 行压缩到 ~1500–2000 行）
   - _需求：Requirement 5、Requirement 6、Requirement 7.5、Requirement 10_
 
-- [ ] 12. 单向依赖与 import cycle 守卫校验
+- [x] 12. 单向依赖与 import cycle 守卫校验
   - 跑 `grep -r "BlueprintProgressPanel" client/src/pages/autopilot/right-rail/panels/`，**必须** 0 匹配（Requirement 8.2）
   - 跑 `grep -r "useAppStore\|from \"@/lib/blueprint-api\"" client/src/pages/autopilot/right-rail/panels/`，**必须** 0 匹配（Requirement 2.9）
   - 跑 `grep -r "@/pages/autopilot/right-rail/panels" client/src/pages/specs/BlueprintProgressPanel.tsx`，确认只有一处（或集中的）import，且 import 方向**唯一**为「`BlueprintProgressPanel` → `autopilot/right-rail/panels`」

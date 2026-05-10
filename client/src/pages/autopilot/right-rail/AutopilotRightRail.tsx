@@ -9,6 +9,17 @@
  * 本文件是 Spec 1 的最小 scaffolding：仅渲染 5 个 timeline stage 与（fabric 分支下）8 个 sub-stage
  * 的占位区块，不搬运任何真实工作台内容。Spec 2 / 3 / 4 / 5 后续会逐步接管真实内容。
  *
+ * Spec 2（`autopilot-right-rail-stage-panels`）收口状态（任务 11）：
+ * - fabric 分支下的 8 个 `AutopilotRailSubStage`（`agent_crew_fabric` / `spec_tree` / `spec_documents`
+ *   / `effect_preview` / `prompt_package` / `runtime_capability` / `engineering_handoff`
+ *   / `artifact_memory`）已**全部**接入 `@/pages/autopilot/right-rail/panels` 下的真实 canonical 面板。
+ * - 下方三元链覆盖 `RAIL_SUB_STAGE_ORDER` 中所有 8 个枚举值；末尾 `: subStage` 分支作为 TypeScript
+ *   穷尽性的 exhaustive safety net 保留 —— 正常运行时不应触达，仅用于在未来新增 sub-stage 时让
+ *   类型系统/视觉回归立刻暴露漏洞（见 `tasks.md` 任务 11.1）。
+ * - 保持三元链形式而非重构为 `PANEL_MAP`，原因：每个 panel 需要的 props 子集不同，统一
+ *   `Record<SubStage, ComponentType<any>>` 反而需要丢掉精确的 props narrowing，得不偿失；
+ *   当前形式在已通过 Spec 2 Task 1–8 验证的基础上零改动即可维持正确性。
+ *
  * 硬性约束（任务 3 明示）：
  * - 不得 `useAppStore`；
  * - 不得 import `@/lib/blueprint-api` 的运行时成员；
