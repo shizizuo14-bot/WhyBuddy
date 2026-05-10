@@ -107,7 +107,7 @@
   - 在 `<AutopilotRightRail>` 的 `case "artifact_memory"` 渲染 `<ArtifactMemoryPanel jobId={jobId} locale={locale} />`
   - _需求：Requirement 1、2.8、3、5、6.1、7、8、10_
 
-- [ ] 9. **[PBT]** Props slice narrowing property 测试
+- [x] 9. **[PBT]** Props slice narrowing property 测试
   - 在 `client/src/pages/autopilot/right-rail/panels/__tests__/props-narrowing.property.test.ts` 中定义纯函数 `narrowPropsFor(panelKey, fullProps)`，该函数**只供测试使用**（不进入 `index.ts` barrel）
   - 使用 `fast-check` 生成任意合法 `AutopilotRightRailProps`（可使用 `fc.record` 与 `fc.constant(null)` 等组合 `job / routeSet / selection / specTree / agentCrew` 的 null 与对象值）
   - 对 8 个 `panelKey`，断言：
