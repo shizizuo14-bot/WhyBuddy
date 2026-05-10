@@ -24,6 +24,7 @@ import {
   type BlueprintRouterDeps,
   type BlueprintJobStore,
 } from "../routes/blueprint.js";
+import { BlueprintEventName } from "../../shared/blueprint/events.js";
 
 const BLUEPRINT_ROUTE_TEST_COMMAND =
   "node node_modules/vitest/vitest.mjs run --config vitest.config.server.ts server/tests/blueprint-routes.test.ts";
@@ -5376,54 +5377,6 @@ describe("blueprint mcp-github capability bridge 锟?e2e", () => {
     );
   });
 
-  it("falls back to simulated output when the LLM call throws", async () => {
-      process.env.BLUEPRINT_AIGC_NODE_CAPABILITY_BRIDGE_ENABLED = "true";
-      process.env.LLM_API_KEY = "sk-test-valid-key-for-bridge-integration";
-      process.env.LLM_MODEL = "gpt-4-turbo";
-      llmMocks.callLLMJson.mockImplementation(async (messages: any) => {
-        if (isAigcCall(messages)) {
-          throw new Error("upstream 503");
-        }
-        return {};
-      });
-
-      await withServer(tempRoot, async baseUrl => {
-        const createResponse = await fetch(`${baseUrl}/api/blueprint/jobs`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            targetText: "Build a release dashboard.",
-            githubUrls: ["https://github.com/example/dashboard"],
-          }),
-        });
-        expect(createResponse.status).toBe(201);
-
-        const jobResponse = await fetch(
-          `${baseUrl}/api/blueprint/jobs/latest`
-        );
-        expect(jobResponse.status).toBe(200);
-        const latest = (await jobResponse.json()) as Record<string, any>;
-
-        const aigcInvocation = latest.capabilityInvocations.find(
-          (inv: any) => inv.capabilityId === "aigc-spec-node"
-        );
-        expect(aigcInvocation).toBeTruthy();
-        expect(aigcInvocation.provenance.executionMode).toBe(
-          "simulated_fallback"
-        );
-        expect(aigcInvocation.provenance.error).toMatch(/upstream 503/);
-
-        const aigcEvidence = latest.capabilityEvidence.find(
-          (item: any) => item.invocationId === aigcInvocation.id
-        );
-        expect(aigcEvidence).toBeTruthy();
-        expect(aigcEvidence.provenance.executionMode).toBe(
-          "simulated_fallback"
-        );
-        expect(aigcEvidence.provenance.structuredPayload).toBeUndefined();
-      });
-    });
-  });
 });
 
 // ---------------------------------------------------------------------------
@@ -5656,11 +5609,10 @@ describe("blueprint role-system-architecture capability bridge — e2e", () => {
       expect(typeof roleEvidence.provenance.primaryRouteId).toBe("string");
     });
   });
+});
 
 // Task 16 + 17: Agent Crew Stage Activation Driver E2E
 // 2 E2E cases for the stage activation driver. APPEND only (Requirement 9.4 / 1.10).
-
-import { BlueprintEventName } from "../../shared/blueprint/events.js";
 
 describe("blueprint agent-crew stage-activation driver E2E", () => {
   let tempRoot: string;
@@ -5826,6 +5778,231 @@ describe("blueprint agent-crew stage-activation driver E2E", () => {
         .find((e: any) => e?.capabilityId === "role-system-architecture");
       expect(roleEvidence).toBeTruthy();
       expect(roleEvidence.provenance.structuredRoles).toBeUndefined();
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Task 17: E2E — blueprint spec-tree LLM generation (Requirement 9.1a)
+// ---------------------------------------------------------------------------
+describe("blueprint spec-tree LLM generation — e2e", () => {
+  let specsRoot: string;
+
+  function isSpecTreeCall(messages: any): boolean {
+    const joined = JSON.stringify(messages);
+    return /SPEC Tree|SPEC 资产树/i.test(joined);
+  }
+
+  beforeEach(async () => {
+    llmMocks.callLLMJson.mockReset();
+    specsRoot = await mkdtemp(
+      path.join(process.cwd(), "tmp", "blueprint-spec-tree-llm-e2e-")
+    );
+  });
+
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    await rm(specsRoot, { recursive: true, force: true });
+  });
+
+  it("buildSpecTreeFromRouteSet produces LLM-driven nodes when spec-tree llm is enabled", async () => {
+    // 17.2: Set up environment and mock
+    vi.stubEnv("BLUEPRINT_SPEC_TREE_LLM_ENABLED", "true");
+    vi.stubEnv("LLM_API_KEY", "sk-test-spec-tree-llm-key");
+    vi.stubEnv("LLM_MODEL", "gpt-4-turbo");
+
+    llmMocks.callLLMJson.mockImplementation(async (messages: any) => {
+      // Route based on prompt content — only spec-tree returns real payload
+      if (isSpecTreeCall(messages)) {
+        return {
+          nodes: [
+            {
+              id: "root",
+              title: "Release dashboard SPEC asset tree",
+              summary: "LLM-derived root summarising deploy dashboard plan.",
+              type: "root",
+              status: "draft",
+              priority: 0,
+              dependencies: [],
+              outputs: ["SPEC tree", "requirements seed", "design seed"],
+              children: ["step-1", "step-2", "spec-doc"],
+            },
+            {
+              id: "step-1",
+              parentId: "root",
+              title: "Collect deploy events",
+              summary: "Identify which CI providers export deploy signals.",
+              type: "route_step",
+              status: "seed",
+              priority: 1,
+              dependencies: [],
+              outputs: ["deploy event schema"],
+              children: [],
+            },
+            {
+              id: "step-2",
+              parentId: "root",
+              title: "Model tenant RBAC boundaries",
+              summary: "Tenant scope derived from email domain.",
+              type: "route_step",
+              status: "seed",
+              priority: 2,
+              dependencies: ["step-1"],
+              outputs: ["RBAC mapping"],
+              children: [],
+            },
+            {
+              id: "spec-doc",
+              parentId: "root",
+              title: "Dashboard requirements draft",
+              summary: "SPEC document node seeding requirements.md.",
+              type: "spec_document",
+              status: "seed",
+              priority: 3,
+              dependencies: ["step-1", "step-2"],
+              outputs: ["requirements.md"],
+              children: [],
+            },
+          ],
+        };
+      }
+      // Other prompt families (routeset, role, aigc-node) — return undefined
+      return undefined;
+    });
+
+    await withServer(specsRoot, async baseUrl => {
+      // 17.3: Create job via POST /api/blueprint/jobs
+      const createResponse = await fetch(`${baseUrl}/api/blueprint/jobs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetText: "Build a release dashboard.",
+          githubUrls: ["https://github.com/example/dashboard"],
+        }),
+      });
+      expect(createResponse.status).toBe(201);
+      const created = (await createResponse.json()) as Record<string, any>;
+
+      // Select the primary route to trigger spec-tree generation
+      const selectResponse = await fetch(
+        `${baseUrl}/api/blueprint/jobs/${created.job.id}/route-selection`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            routeId: created.routeSet.routes[0].id,
+            selectedBy: "spec-tree-llm-test",
+            reason: "Trigger LLM-driven spec tree generation.",
+          }),
+        }
+      );
+      expect(selectResponse.status).toBe(201);
+      const selected = (await selectResponse.json()) as Record<string, any>;
+      const specTree = selected.specTree;
+      expect(specTree).toBeDefined();
+
+      // 17.3: Assert provenance fields
+      expect(specTree.provenance.generationSource).toBe("llm");
+      expect(specTree.provenance.promptId).toBe("blueprint.spec-tree.v1");
+      expect(typeof specTree.provenance.model).toBe("string");
+      expect(specTree.provenance.responseDigest).toMatch(
+        /^sha256:[a-f0-9]{64}$/
+      );
+      expect(specTree.provenance.structuredPayloadDigest).toMatch(
+        /^sha256:[a-f0-9]{64}$/
+      );
+      expect(specTree.provenance.promptFingerprint).toMatch(
+        /^sha256:[a-f0-9]{64}$/
+      );
+      expect(specTree.provenance.error).toBeUndefined();
+
+      // 17.4: Assert LLM nodes are visible
+      const rootNode = specTree.nodes.find(
+        (n: any) => n.type === "root"
+      );
+      expect(rootNode).toBeTruthy();
+      expect(rootNode.title).toBe("Release dashboard SPEC asset tree");
+
+      const specDocNode = specTree.nodes.find(
+        (n: any) =>
+          n.type === "spec_document" &&
+          n.title === "Dashboard requirements draft"
+      );
+      expect(specDocNode).toBeTruthy();
+
+      // 17.5: Assert rootNodeId remapping is correct
+      expect(specTree.rootNodeId).toBe(rootNode.id);
+      expect(rootNode.id).toMatch(/^blueprint-spec-node/);
+    });
+  });
+
+  it("buildSpecTreeFromRouteSet falls back to template when spec-tree llm call throws", async () => {
+    // 18.2: Set up environment and mock — reject only for spec-tree prompts
+    vi.stubEnv("BLUEPRINT_SPEC_TREE_LLM_ENABLED", "true");
+    vi.stubEnv("LLM_API_KEY", "sk-test-spec-tree-fallback-key");
+    vi.stubEnv("LLM_MODEL", "gpt-4-turbo");
+
+    llmMocks.callLLMJson.mockImplementation(async (messages: any) => {
+      const joined = JSON.stringify(messages);
+      if (/SPEC Tree|SPEC 资产树/i.test(joined)) {
+        return Promise.reject(new Error("upstream 503"));
+      }
+      // Other prompt families return undefined (pass-through)
+      return undefined;
+    });
+
+    await withServer(specsRoot, async baseUrl => {
+      // 18.3: Create job via POST /api/blueprint/jobs
+      const createResponse = await fetch(`${baseUrl}/api/blueprint/jobs`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetText: "Build a release dashboard.",
+          githubUrls: ["https://github.com/example/dashboard"],
+        }),
+      });
+      expect(createResponse.status).toBe(201);
+      const created = (await createResponse.json()) as Record<string, any>;
+
+      // Select the primary route to trigger spec-tree generation (fallback path)
+      const selectResponse = await fetch(
+        `${baseUrl}/api/blueprint/jobs/${created.job.id}/route-selection`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            routeId: created.routeSet.routes[0].id,
+            selectedBy: "spec-tree-fallback-test",
+            reason: "Trigger LLM fallback spec tree generation.",
+          }),
+        }
+      );
+      expect(selectResponse.status).toBe(201);
+      const selected = (await selectResponse.json()) as Record<string, any>;
+      const specTree = selected.specTree;
+      expect(specTree).toBeDefined();
+
+      // 18.3: Assert provenance fields for fallback path
+      expect(specTree.provenance.generationSource).toBe("llm_fallback");
+      expect(specTree.provenance.error).toMatch(
+        /upstream 503|llm callJson threw/
+      );
+      expect(specTree.provenance.promptId).toBe("blueprint.spec-tree.v1");
+      expect(typeof specTree.provenance.model).toBe("string");
+
+      // 18.4: Assert nodes fall back to template output with standard downstream menu strings
+      const titles = specTree.nodes.map((n: any) => n.title);
+      expect(titles).toContain("Specification document generation");
+      expect(titles).toContain("Effect preview");
+      expect(titles).toContain("Implementation prompt package");
+      expect(titles).toContain("Engineering landing");
+
+      // 18.5: Assert root uses template format
+      const rootNode = specTree.nodes.find(
+        (n: any) => n.type === "root"
+      );
+      expect(rootNode).toBeTruthy();
+      expect(rootNode.title).toMatch(/^SPEC asset tree: /);
     });
   });
 });

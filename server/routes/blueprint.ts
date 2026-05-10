@@ -973,7 +973,7 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     } satisfies BlueprintCapabilityEvidenceResponse);
   });
 
-  router.post("/jobs/:jobId/route-selection", (req, res) => {
+  router.post("/jobs/:jobId/route-selection", async (req, res) => {
     const job = jobStore.get(req.params.jobId);
     if (!job) {
       res.status(404).json({
@@ -1012,9 +1012,10 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       return;
     }
 
-    const response = selectRouteForSpecTree(job, routeSet, parsed.request, {
+    const response = await selectRouteForSpecTree(job, routeSet, parsed.request, {
       now: deps.now,
       store: jobStore,
+      ctx: blueprintServiceContext,
     });
 
     // Task 14.4: Hook point — stage transition to spec_tree after route selection.
@@ -7917,12 +7918,12 @@ function filterImplementationPromptPackages(
   });
 }
 
-function selectRouteForSpecTree(
+async function selectRouteForSpecTree(
   job: BlueprintGenerationJob,
   routeSet: BlueprintRouteSet,
   request: BlueprintRouteSelectionRequest,
-  options: CreateGenerationJobHelperOptions
-): BlueprintSelectRouteResponse {
+  options: CreateGenerationJobHelperOptions & { ctx?: BlueprintServiceContext }
+): Promise<BlueprintSelectRouteResponse> {
   const selectedAt = (options.now?.() ?? new Date()).toISOString();
   const selectedRoute = routeSet.routes.find(
     route => route.id === request.routeId
@@ -7978,7 +7979,13 @@ function selectRouteForSpecTree(
     routeId: selectedRoute.id,
     limit: 6,
   });
-  const specTree = buildSpecTreeFromRouteSet({
+  const resolvedCtx = options.ctx ?? await resolveDefaultBlueprintServiceContext({
+    now: options.now,
+    jobStore: options.store,
+  });
+  const specTree = await buildSpecTreeFromRouteSet(
+    resolvedCtx,
+    {
     job,
     routeSet,
     selection,
@@ -12670,22 +12677,17 @@ function cloneSpecTree(specTree: BlueprintSpecTree): BlueprintSpecTree {
   return JSON.parse(JSON.stringify(specTree)) as BlueprintSpecTree;
 }
 
-function buildSpecTreeFromRouteSet(input: {
-  job: BlueprintGenerationJob;
+function buildTemplateSpecTreeNodes(input: {
+  rootNodeId: string;
+  selectedRoute: BlueprintRouteCandidate;
   routeSet: BlueprintRouteSet;
   selection: BlueprintRouteSelection;
-  selectedRoute: BlueprintRouteCandidate;
-  createdAt: string;
-  artifactLinks?: BlueprintGenerationArtifactLink[];
-  previousRoleFindings?: BlueprintRoleTimelineEntry[];
-}): BlueprintSpecTree {
-  const specTreeId = createId("blueprint-spec-tree");
-  const rootNodeId = createId("blueprint-spec-node");
-  const targetTitle = summarizeRequestTarget(input.job.request);
-  const previousRoleFindings = input.previousRoleFindings ?? [];
+  previousRoleFindings: BlueprintRoleTimelineEntry[];
+  targetTitle: string;
+}): BlueprintSpecTreeNode[] {
   const mainStepNodes = input.selectedRoute.steps.map((step, index) =>
     createSpecTreeNode({
-      parentId: rootNodeId,
+      parentId: input.rootNodeId,
       title: step.title,
       summary: step.description,
       type: "route_step",
@@ -12709,7 +12711,7 @@ function buildSpecTreeFromRouteSet(input: {
     .filter(route => route.id !== input.selectedRoute.id)
     .map((route, index) =>
       createSpecTreeNode({
-        parentId: rootNodeId,
+        parentId: input.rootNodeId,
         title: route.title,
         summary: route.summary,
         type: "alternative_route",
@@ -12729,14 +12731,13 @@ function buildSpecTreeFromRouteSet(input: {
       })
     );
   const downstreamNodes = createDownstreamSpecTreeNodes({
-    parentId: rootNodeId,
+    parentId: input.rootNodeId,
     routeId: input.selectedRoute.id,
     startPriority: mainStepNodes.length + alternativeNodes.length + 1,
   });
-  const childNodes = mainStepNodes.concat(alternativeNodes, downstreamNodes);
   const rootNode: BlueprintSpecTreeNode = {
-    id: rootNodeId,
-    title: `SPEC asset tree: ${targetTitle}`,
+    id: input.rootNodeId,
+    title: `SPEC asset tree: ${input.targetTitle}`,
     summary:
       "Durable tree asset derived from the selected autopilot route. Downstream menus bind to this tree instead of recomputing the route.",
     type: "root",
@@ -12745,7 +12746,7 @@ function buildSpecTreeFromRouteSet(input: {
     routeId: input.selectedRoute.id,
     dependencies: [],
     outputs: ["SPEC tree", "requirements seed", "design seed", "tasks seed"],
-    children: childNodes.map(node => node.id),
+    children: mainStepNodes.concat(alternativeNodes, downstreamNodes).map(node => node.id),
     metadata: {
       selectedRouteTitle: input.selectedRoute.title,
       routeSetId: input.routeSet.id,
@@ -12756,10 +12757,10 @@ function buildSpecTreeFromRouteSet(input: {
       confirmable: true,
       editable: true,
       resumable: true,
-      previousRoleFindingCount: previousRoleFindings.length,
-      reusedRoleFindingIds: collectRoleFindingIds(previousRoleFindings),
-      reusedRoleIds: collectRoleFindingRoleIds(previousRoleFindings),
-      reusedEvidenceIds: collectRoleFindingEvidenceIds(previousRoleFindings),
+      previousRoleFindingCount: input.previousRoleFindings.length,
+      reusedRoleFindingIds: collectRoleFindingIds(input.previousRoleFindings),
+      reusedRoleIds: collectRoleFindingRoleIds(input.previousRoleFindings),
+      reusedEvidenceIds: collectRoleFindingEvidenceIds(input.previousRoleFindings),
       downstreamMenus: [
         "spec_docs",
         "effect_preview",
@@ -12769,21 +12770,111 @@ function buildSpecTreeFromRouteSet(input: {
     },
   };
 
+  return [rootNode].concat(mainStepNodes, alternativeNodes, downstreamNodes);
+}
+
+async function buildSpecTreeFromRouteSet(
+  ctx: BlueprintServiceContext,
+  input: {
+  job: BlueprintGenerationJob;
+  routeSet: BlueprintRouteSet;
+  selection: BlueprintRouteSelection;
+  selectedRoute: BlueprintRouteCandidate;
+  createdAt: string;
+  artifactLinks?: BlueprintGenerationArtifactLink[];
+  previousRoleFindings?: BlueprintRoleTimelineEntry[];
+  clarificationSession?: BlueprintClarificationSession;
+  domainContext?: {
+    projectId?: string;
+    sourceId?: string;
+    domain?: string;
+    notes?: string;
+  };
+  aigcSpecNodeEvidence?: {
+    subsystemsSummary: string;
+    riskNoteCount: number;
+  };
+}): Promise<BlueprintSpecTree> {
+  const specTreeId = createId("blueprint-spec-tree");
+  const rootNodeId = createId("blueprint-spec-node");
+  const targetTitle = summarizeRequestTarget(input.job.request);
+  const previousRoleFindings = input.previousRoleFindings ?? [];
+  const alternativeRouteIds = input.routeSet.routes
+    .filter(route => route.id !== input.selectedRoute.id)
+    .map(route => route.id)
+    .filter(isString);
+
+  // Attempt LLM-driven SPEC Tree generation via ctx.specTreeLlmService
+  const serviceResult = await ctx.specTreeLlmService?.({
+    jobId: input.job.id,
+    job: input.job,
+    request: input.job.request,
+    routeSet: input.routeSet,
+    primaryRoute: input.selectedRoute,
+    alternativeRoutes: input.routeSet.routes.filter(r => r.id !== input.selectedRoute.id),
+    clarificationSession: input.clarificationSession,
+    domainContext: input.domainContext,
+    aigcSpecNodeEvidence: input.aigcSpecNodeEvidence,
+    createdAt: input.createdAt,
+    rootNodeId,
+  });
+
+  let nodes: BlueprintSpecTreeNode[];
+  let provenanceExtras: {
+    generationSource?: "llm" | "llm_fallback" | "template";
+    promptId?: string;
+    model?: string;
+    responseDigest?: string;
+    structuredPayloadDigest?: string;
+    promptFingerprint?: string;
+    error?: string;
+  };
+
+  if (serviceResult?.generationSource === "llm" && serviceResult.nodes) {
+    // LLM real path: use LLM-generated nodes
+    nodes = serviceResult.nodes;
+    provenanceExtras = {
+      generationSource: "llm",
+      promptId: serviceResult.promptId,
+      model: serviceResult.model,
+      responseDigest: serviceResult.responseDigest,
+      structuredPayloadDigest: serviceResult.structuredPayloadDigest,
+      promptFingerprint: serviceResult.promptFingerprint,
+    };
+  } else {
+    // Template / llm_fallback path: use template scaffold
+    nodes = buildTemplateSpecTreeNodes({
+      rootNodeId,
+      selectedRoute: input.selectedRoute,
+      routeSet: input.routeSet,
+      selection: input.selection,
+      previousRoleFindings,
+      targetTitle,
+    });
+    provenanceExtras = {
+      generationSource: serviceResult?.generationSource ?? "template",
+      promptId: serviceResult?.promptId,
+      model: serviceResult?.model,
+      promptFingerprint: serviceResult?.promptFingerprint,
+      error: serviceResult?.error,
+    };
+  }
+
   return {
     id: specTreeId,
     routeSetId: input.routeSet.id,
     selectionId: input.selection.id,
     selectedPathId: input.selection.selectedPathId ?? input.selectedRoute.id,
     selectedRouteId: input.selectedRoute.id,
-    rootNodeId,
+    rootNodeId: serviceResult?.generationSource === "llm" && serviceResult.rootNodeId
+      ? serviceResult.rootNodeId
+      : rootNodeId,
     version: 1,
     status: "reviewing",
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
-    alternativeRouteIds: alternativeNodes
-      .map(node => node.routeId)
-      .filter(isString),
-    nodes: [rootNode].concat(childNodes),
+    alternativeRouteIds,
+    nodes,
     provenance: {
       jobId: input.job.id,
       projectId: input.job.projectId,
@@ -12799,6 +12890,7 @@ function buildSpecTreeFromRouteSet(input: {
       reusedRoleFindingIds: collectRoleFindingIds(previousRoleFindings),
       reusedRoleIds: collectRoleFindingRoleIds(previousRoleFindings),
       reusedEvidenceIds: collectRoleFindingEvidenceIds(previousRoleFindings),
+      ...provenanceExtras,
     },
   };
 }
