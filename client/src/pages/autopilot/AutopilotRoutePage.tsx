@@ -1,14 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Steps } from "antd";
 import {
-  ArrowRight,
   Bot,
   CheckCircle2,
   FileSearch,
   Gauge,
   GitBranch,
   HelpCircle,
-  Layers3,
   Link2,
   Play,
   RefreshCw,
@@ -60,11 +58,7 @@ import type {
   BlueprintSpecTree,
 } from "@shared/blueprint/contracts";
 
-import BlueprintProgressPanel from "../specs/BlueprintProgressPanel";
-// Spec 1 scaffolding reference（`autopilot-cockpit-right-rail-convergence`）：
-// 只做 type 级引用以验证 `AutopilotRightRailProps` 契约可被主页面消费；本 spec 不接管渲染，
-// 真实搬运由 Spec 2 / 3 / 4 / 5 承接。前缀 `_` 避免 lint 警告 unused。
-import type { AutopilotRightRailProps as _AutopilotRightRailProps } from "./right-rail";
+import { AutopilotRightRail, resolveRailSubStage } from "./right-rail";
 
 const GITHUB_URL_PATTERN = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+/i;
 
@@ -1211,93 +1205,6 @@ function RouteOption({
   );
 }
 
-function AgentCrewSummary({
-  locale,
-  agentCrew,
-  capabilities,
-  capabilityInvocations,
-  capabilityEvidence,
-  effectPreviews,
-}: {
-  locale: AppLocale;
-  agentCrew: BlueprintAgentCrewSnapshot | null;
-  capabilities: BlueprintRuntimeCapability[];
-  capabilityInvocations: BlueprintCapabilityInvocation[];
-  capabilityEvidence: BlueprintCapabilityEvidence[];
-  effectPreviews: BlueprintEffectPreviewSnapshot[];
-}) {
-  const roles = agentCrew?.roleTimelines ?? [];
-  return (
-    <div className="grid gap-3">
-      <div className="grid gap-2 sm:grid-cols-2">
-        <MetricBox
-          label={t(locale, "角色", "Roles")}
-          value={agentCrew?.roles.length ?? 0}
-          tone={agentCrew ? "good" : "neutral"}
-        />
-        <MetricBox
-          label={t(locale, "能力绑定", "Bindings")}
-          value={agentCrew?.capabilityMatrix.length ?? capabilities.length}
-          tone={agentCrew || capabilities.length ? "good" : "neutral"}
-        />
-        <MetricBox
-          label={t(locale, "能力调用", "Invocations")}
-          value={capabilityInvocations.length}
-          tone={capabilityInvocations.length ? "good" : "neutral"}
-        />
-        <MetricBox
-          label={t(locale, "预演投影", "Preview projections")}
-          value={effectPreviews.length}
-          tone={effectPreviews.length ? "good" : "neutral"}
-        />
-      </div>
-
-      {roles.length > 0 ? (
-        <div className="space-y-2">
-          {roles.slice(0, 4).map(role => (
-            <div
-              key={role.id}
-              className="rounded-[8px] border border-slate-200 bg-slate-50 px-3 py-2"
-            >
-              <div className="flex items-center justify-between gap-2">
-                <div className="min-w-0">
-                  <div className="truncate text-xs font-black text-slate-900">
-                    {locale === "zh-CN" ? role.displayLabel : role.displayName}
-                  </div>
-                  <div className="mt-0.5 truncate text-[10px] font-semibold text-slate-500">
-                    {copyDynamic(locale, role.currentAction)}
-                  </div>
-                </div>
-                <span className="shrink-0 rounded-[6px] border border-slate-200 bg-white px-2 py-1 text-[10px] font-black text-slate-600">
-                  {statusLabel(role.state, locale)}
-                </span>
-              </div>
-            </div>
-          ))}
-        </div>
-      ) : (
-        <div className="rounded-[8px] border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-xs font-semibold leading-5 text-slate-500">
-          {t(
-            locale,
-            "RouteSet 或 SPEC 交接后，AgentCrewFabric 的角色、能力矩阵和 RoleTimeline 会在这里出现。",
-            "After RouteSet or SPEC handoff, AgentCrewFabric roles, capability matrix, and RoleTimeline appear here."
-          )}
-        </div>
-      )}
-
-      {capabilityEvidence.length > 0 ? (
-        <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs font-semibold leading-5 text-emerald-800">
-          {t(
-            locale,
-            `已有 ${capabilityEvidence.length} 条能力证据写入事件流。`,
-            `${capabilityEvidence.length} capability evidence items are recorded in the event stream.`
-          )}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 function AutopilotWorkflowRail({
   locale,
   targetText,
@@ -1647,13 +1554,27 @@ function AutopilotWorkflowRail({
                 )}
               </div>
             )}
-            <AgentCrewSummary
-              locale={locale}
+            <AutopilotRightRail
+              jobId={latestJob?.id ?? ""}
+              currentStage="fabric"
+              currentSubStage={resolveRailSubStage({
+                currentStage: "fabric",
+                job: latestJob,
+                selection,
+                specTree,
+                agentCrew,
+              })}
+              job={latestJob}
+              routeSet={routeSet}
+              selection={selection}
+              specTree={specTree}
               agentCrew={agentCrew}
               capabilities={capabilities}
               capabilityInvocations={capabilityInvocations}
               capabilityEvidence={capabilityEvidence}
               effectPreviews={effectPreviews}
+              locale={locale}
+              onSubStageChange={() => {}}
             />
           </div>
         );
@@ -2084,15 +2005,14 @@ export function AutopilotSpecTreeHandoffPanel({
             </div>
           ) : null}
         </div>
-        <Button
-          asChild
-          className="gap-2 rounded-[8px] bg-slate-950 px-4 font-black text-white hover:bg-slate-800"
+        <a
+          href={SPECS_PATH}
+          data-testid="autopilot-open-specs-link"
+          className="inline-flex items-center gap-1 text-xs font-semibold text-slate-500 underline decoration-slate-300 decoration-dotted underline-offset-[3px] hover:text-slate-700 hover:decoration-slate-500"
         >
-          <a href={SPECS_PATH} data-testid="autopilot-open-specs-link">
-            {t(locale, "进入推导工作台", "Open deduction workbench")}
-            <ArrowRight className="size-4" aria-hidden="true" />
-          </a>
-        </Button>
+          {t(locale, "在独立工作台查看", "View in standalone workbench")}
+          <Link2 className="size-3" aria-hidden="true" />
+        </a>
       </div>
 
       <div className="mt-4 grid gap-2 md:grid-cols-4">
@@ -2268,9 +2188,6 @@ export default function AutopilotRoutePage() {
       specTree,
     ]
   );
-  const blueprintPanelKey = `${latestJob?.id ?? "autopilot-blueprint-progress"}:${
-    selection?.id ?? "route-unselected"
-  }:${specTree?.id ?? "spec-tree-pending"}`;
 
   useEffect(() => {
     let active = true;
@@ -2563,52 +2480,6 @@ export default function AutopilotRoutePage() {
             apiError={apiError}
           />
         </div>
-
-        <details
-          className="rounded-[14px] border border-slate-200 bg-white"
-          data-testid="autopilot-advanced-workbenches"
-        >
-          <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-4 py-3 text-sm font-black text-slate-900">
-            <span className="flex items-center gap-2">
-              <Layers3 className="size-4 text-slate-500" aria-hidden="true" />
-              {t(locale, "高级资产工作台", "Advanced asset workbenches")}
-            </span>
-            <span className="text-xs font-semibold text-slate-500">
-              {t(
-                locale,
-                "展开查看 SPEC、预演、提示词、能力桥和回放",
-                "Expand for SPEC, previews, prompts, capability bridge, and replay"
-              )}
-            </span>
-          </summary>
-          <div className="border-t border-slate-200 p-4">
-            <BlueprintProgressPanel
-              key={blueprintPanelKey}
-              className="relative z-10"
-              projectId={currentProjectId}
-              initialJob={latestJob}
-              initialRouteSet={routeSet}
-              initialSelection={selection}
-              initialSpecTree={specTree}
-              initialEffectPreviews={autopilotEffectPreviews}
-              initialCapabilities={autopilotCapabilities}
-              initialAgentCrew={autopilotAgentCrew}
-              initialClarificationSession={clarificationSession}
-              initialCapabilityInvocations={autopilotCapabilityInvocations}
-              initialCapabilityEvidence={autopilotCapabilityEvidence}
-              autoLoad={false}
-              showRouteGeneration={false}
-              showSpecProgress={false}
-              showSpecTreePreview
-              showSpecDocumentWorkbench
-              showEffectPreviewWorkbench
-              showPromptPackageWorkbench
-              showRuntimeCapabilityBridgeWorkbench
-              showEngineeringLandingWorkbench={false}
-              showArtifactMemoryWorkbench
-            />
-          </div>
-        </details>
       </div>
     </main>
   );
@@ -2616,13 +2487,25 @@ export default function AutopilotRoutePage() {
 
 
 // ---------------------------------------------------------------------------
-// wt3 任务 3 注记（autopilot-blueprint-refactor-split）：
+// wt3 任务 3 注记（autopilot-blueprint-refactor-split） + Spec 3 收口注记
+//（autopilot-advanced-workbench-inline）：
 //
-// 本文件仍为 AutopilotRoutePage 的**物理真相源**（约 2469 行），包含：
+// 本文件仍为 AutopilotRoutePage 的**物理真相源**，包含：
 //   - 五个阶段面板（input / clarification / routeset / selection / fabric）
 //     内联组件：AutopilotWorkflowRail、ClarificationPanel、RouteOption、
-//     AgentCrewSummary、AutopilotSpecTreeHandoffPanel
+//     AutopilotSpecTreeHandoffPanel
 //   - 三个辅助组件：AutopilotConsolePanel、AutopilotVisualStage、AutopilotMissionHud
+//
+// Spec 3 已收口：
+//   - 物理删除底部 Advanced_Workbenches_Fold 折叠区与其内嵌的 blueprint 进度面板
+//     实例；对应的 Layers3 / ArrowRight 图标 import、blueprint 进度面板 import、
+//     folded-panel-key 变量与 AgentCrew 汇总组件定义一并移除。
+//   - `AutopilotWorkflowRail` 的 `case "fabric":` 分支改为由 `<AutopilotRightRail>`
+//     按 `resolveRailSubStage(...)` 派发到 Spec 2 的 8 个 canonical 面板；
+//     `AutopilotSpecTreeHandoffPanel` 保留为摘要 + 次级 `/specs` 链接承载。
+//   - `AutopilotSpecTreeHandoffPanel` 内 `/specs` 主 CTA 降级为次级文本链接
+//     「在独立工作台查看 / View in standalone workbench」，保留 `href={SPECS_PATH}`
+//     与 `data-testid="autopilot-open-specs-link"`。
 //
 // 方案 B 下 `./stages/` 目录已经建立：
 //   ./stages/InputStage.tsx

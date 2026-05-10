@@ -15,7 +15,7 @@
 
 ---
 
-- [ ] 1. 删除底部 Advanced_Workbenches_Fold 及其依赖
+- [x] 1. 删除底部 Advanced_Workbenches_Fold 及其依赖
   - 在 `AutopilotRoutePage.tsx` 中删除包含 `data-testid="autopilot-advanced-workbenches"` 的 `<details>` 节点（含 `<summary>` 与内嵌 `<BlueprintProgressPanel ... autoLoad={false} ...>`）
   - 删除 `const blueprintPanelKey = ...` 这一行（仅被 fold 使用）
   - 删除顶部 `import BlueprintProgressPanel from "../specs/BlueprintProgressPanel";`，确认删除后 `BlueprintProgressPanel` 不再被该文件引用
@@ -24,7 +24,7 @@
   - 通过 `node --run check` 验证无类型错误
   - _需求：Requirement 1.1、1.2、1.3、1.5、Requirement 8.1_
 
-- [ ] 2. 在 `AutopilotWorkflowRail` 的 fabric 分支接入 `<AutopilotRightRail>`
+- [x] 2. 在 `AutopilotWorkflowRail` 的 fabric 分支接入 `<AutopilotRightRail>`
   - 在 `AutopilotRoutePage.tsx` 顶部添加 `import { AutopilotRightRail, resolveRailSubStage } from "./right-rail";`
   - 定位到 `AutopilotWorkflowRail` 内部 `case "fabric":` 分支
   - 保留 `AutopilotSpecTreeHandoffPanel`（作为摘要 + 次级 `/specs` 链接承载）的渲染段，保留 `selection` 为空时的「先完成路线选择，AgentCrewFabric 才会展开」提示
@@ -42,7 +42,7 @@
   - 通过 `node --run check` 验证
   - _需求：Requirement 2.1、2.2、2.3、2.4、2.5、2.6、2.7、2.8、Requirement 6.1、6.2、6.3_
 
-- [ ] 3. 将 `AutopilotSpecTreeHandoffPanel` 主 CTA 降级为次级文本链接
+- [x] 3. 将 `AutopilotSpecTreeHandoffPanel` 主 CTA 降级为次级文本链接
   - 定位到 `export function AutopilotSpecTreeHandoffPanel` 函数体内的 `<Button asChild ...>` 段落
   - 将 `<Button asChild className="... bg-slate-950 ... text-white ...">` 包裹的 `<a href={SPECS_PATH} data-testid="autopilot-open-specs-link">进入推导工作台 / Open deduction workbench <ArrowRight /></a>` 改为次级文本链接：
     ```tsx
@@ -117,7 +117,7 @@
   - 通过 `npm exec vitest run client/src/pages/autopilot/right-rail` 验证
   - _需求：Requirement 10.1、Requirement 10.4、Requirement 10.5_
 
-- [ ] 7. 清理 `AutopilotRoutePage.tsx` 残留
+- [x] 7. 清理 `AutopilotRoutePage.tsx` 残留
   - grep `AgentCrewSummary`、`blueprintPanelKey`、`BlueprintProgressPanel`、`autopilot-advanced-workbenches`、`Advanced asset workbenches`、`高级资产工作台`、`Expand for SPEC`、`Open deduction workbench`、`进入推导工作台` 共 9 个关键词
   - 所有关键词在 `AutopilotRoutePage.tsx` 中的出现次数必须为 0
   - 若 `AgentCrewSummary` 组件定义仍保留在文件中但不再被使用，删除该组件定义
