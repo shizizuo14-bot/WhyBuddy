@@ -81,6 +81,10 @@ import type { SpecTreeLlmPolicy } from "./spec-tree/policy.js";
 import type { SpecTreeLlmService } from "./spec-tree/service.js";
 import { createDefaultSpecTreeLlmPolicy } from "./spec-tree/policy.js";
 import { createSpecTreeLlmService } from "./spec-tree/service.js";
+import type { SpecDocumentsLlmPolicy } from "./spec-documents/policy.js";
+import { createDefaultSpecDocumentsLlmPolicy } from "./spec-documents/policy.js";
+import type { SpecDocumentsLlmService } from "./spec-documents/service.js";
+import { createSpecDocumentsLlmService } from "./spec-documents/service.js";
 
 /**
  * Role System Architecture capability policy interface.
@@ -489,6 +493,23 @@ export interface BlueprintServiceContext {
    * @see design §2.D1 / §4.2
    */
   specTreeLlmService?: SpecTreeLlmService;
+  /**
+   * Optional: SPEC Documents LLM service policy.
+   *
+   * Controls schema upper bounds (sections / body / title length), redaction
+   * patterns, retry attempts and timeout ceiling for the SPEC Documents LLM
+   * driven generation path. When omitted, {@link buildBlueprintServiceContext}
+   * wires {@link createDefaultSpecDocumentsLlmPolicy}.
+   *
+   * @see `.kiro/specs/autopilot-spec-documents-llm/design.md` §4.3
+   */
+  specDocumentsLlmPolicy?: SpecDocumentsLlmPolicy;
+  /**
+   * Optional: SPEC Documents LLM service instance (per-document LLM driver).
+   *
+   * @see `.kiro/specs/autopilot-spec-documents-llm/design.md` §2.D2 / §4.2 / §4.6
+   */
+  specDocumentsLlmService?: SpecDocumentsLlmService;
 }
 
 /**
@@ -607,6 +628,24 @@ export interface BlueprintServiceContextDeps {
    * @see design §2.D1 / §4.2
    */
   specTreeLlmService?: SpecTreeLlmService;
+  /**
+   * Optional override for the SPEC Documents LLM policy. When omitted,
+   * {@link buildBlueprintServiceContext} wires
+   * {@link createDefaultSpecDocumentsLlmPolicy}.
+   *
+   * @see `.kiro/specs/autopilot-spec-documents-llm/design.md` §4.3
+   */
+  specDocumentsLlmPolicy?: SpecDocumentsLlmPolicy;
+  /**
+   * Optional override for the SPEC Documents LLM service. When omitted,
+   * {@link buildBlueprintServiceContext} wires
+   * {@link createSpecDocumentsLlmService} using the fully-constructed context
+   * so the service sees the same `llm` / `logger` / `now` /
+   * `specDocumentsLlmPolicy` that the rest of the app uses.
+   *
+   * @see `.kiro/specs/autopilot-spec-documents-llm/design.md` §2.D2 / §4.6
+   */
+  specDocumentsLlmService?: SpecDocumentsLlmService;
 }
 
 /**
@@ -695,6 +734,10 @@ export function buildBlueprintServiceContext(
     deps.agentCrewStageActivationPolicy ??
     createDefaultAgentCrewStageActivationPolicy();
 
+  // SPEC Documents LLM policy default (pure data, dependency-free).
+  const specDocumentsLlmPolicy =
+    deps.specDocumentsLlmPolicy ?? createDefaultSpecDocumentsLlmPolicy();
+
   const baseCtx: BlueprintServiceContext = {
     now,
     blueprintStores: deps.blueprintStores ?? createDefaultBlueprintStores(),
@@ -751,6 +794,10 @@ export function buildBlueprintServiceContext(
     // SPEC Tree LLM: policy eagerly resolved, service late-bound.
     specTreeLlmPolicy: deps.specTreeLlmPolicy ?? createDefaultSpecTreeLlmPolicy(),
     specTreeLlmService: deps.specTreeLlmService,
+    // SPEC Documents LLM: policy eagerly resolved, service late-bound below
+    // (needs finalized `ctx` for `llm` / `logger` / `now` closure).
+    specDocumentsLlmPolicy,
+    specDocumentsLlmService: deps.specDocumentsLlmService,
   };
 
   // Task 13.1 / 13.3 最后一步：用 baseCtx 构造默认 docker bridge（或透传注入的 bridge）。
@@ -795,6 +842,15 @@ export function buildBlueprintServiceContext(
     ctx.specTreeLlmService = createSpecTreeLlmService(ctx);
   }
 
+  // SPEC Documents LLM service late-bind: service closure needs
+  // ctx.specDocumentsLlmPolicy / ctx.llm / ctx.logger / ctx.now to be fully
+  // resolved. The service performs its own tier-1 (env var not enabled) and
+  // tier-2 (apiKey missing) early-exit to the template path, so always wiring
+  // a default instance does not incur LLM traffic in default deployments.
+  // See `.kiro/specs/autopilot-spec-documents-llm/design.md` §4.6.
+  if (!ctx.specDocumentsLlmService) {
+    ctx.specDocumentsLlmService = createSpecDocumentsLlmService(ctx);
+  }
   return ctx;
 }
 

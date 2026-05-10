@@ -1070,6 +1070,28 @@ export interface BlueprintSpecDocument {
     reusedRoleFindingIds?: string[];
     reusedRoleIds?: string[];
     reusedEvidenceIds?: string[];
+    /**
+     * SPEC Document generation source tag. See
+     * `.kiro/specs/autopilot-spec-documents-llm/design.md` §4.9.
+     * - `"llm"`: title/summary/content came entirely from the LLM generator.
+     * - `"llm_fallback"`: LLM was attempted but the result was unusable and
+     *   the generator returned templated output.
+     * - `"template"`: LLM was never attempted (feature flag disabled, apiKey
+     *   missing, or service not wired).
+     */
+    generationSource?: "llm" | "llm_fallback" | "template";
+    /** Stable SPEC Documents prompt identifier (fixed to `blueprint.spec-documents.v1`). */
+    promptId?: string;
+    /** Actual LLM model used when `generationSource !== "template"`. */
+    model?: string;
+    /** SHA-256 digest of the raw LLM response (`sha256:<hex>`). Populated on real path. */
+    responseDigest?: string;
+    /** SHA-256 digest of the normalized/structured payload (`sha256:<hex>`). Populated on real path. */
+    structuredPayloadDigest?: string;
+    /** SHA-256 digest of (systemMessage + "\n\n" + userMessage) (`sha256:<hex>`). */
+    promptFingerprint?: string;
+    /** Truncated + redacted fallback reason (only set when `generationSource === "llm_fallback"`). */
+    error?: string;
   };
 }
 

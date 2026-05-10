@@ -1056,7 +1056,7 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     });
   });
 
-  router.post("/jobs/:jobId/spec-documents", (req, res) => {
+  router.post("/jobs/:jobId/spec-documents", async (req, res) => {
     const job = jobStore.get(req.params.jobId);
     if (!job) {
       res.status(404).json({
@@ -1095,10 +1095,16 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       return;
     }
 
-    const response = generateSpecDocuments(job, specTree, parsed.request, {
-      now: deps.now,
-      store: jobStore,
-    });
+    const response = await generateSpecDocuments(
+      blueprintServiceContext,
+      job,
+      specTree,
+      parsed.request,
+      {
+        now: deps.now,
+        store: jobStore,
+      }
+    );
 
     res.status(201).json(response);
   });
@@ -9142,12 +9148,13 @@ function reviewSpecDocument(
   };
 }
 
-function generateSpecDocuments(
+async function generateSpecDocuments(
+  ctx: BlueprintServiceContext | undefined,
   job: BlueprintGenerationJob,
   specTree: BlueprintSpecTree,
   request: BlueprintGenerateSpecDocumentsRequest,
   options: CreateGenerationJobHelperOptions
-): BlueprintSpecDocumentsResponse {
+): Promise<BlueprintSpecDocumentsResponse> {
   const createdAt = (options.now?.() ?? new Date()).toISOString();
   const targetNodeIds = request.nodeId
     ? new Set([request.nodeId])
@@ -9156,26 +9163,50 @@ function generateSpecDocuments(
     request.types && request.types.length > 0
       ? request.types
       : SPEC_DOCUMENT_TYPES;
-  const documents = specTree.nodes
-    .filter(node => targetNodeIds.has(node.id))
-    .flatMap(node => {
-      const previousRoleFindings = collectReusableRoleFindings(job, {
-        stages: ["route_generation", "spec_tree", "runtime_capability"],
-        routeId: node.routeId ?? specTree.selectedRouteId,
-        nodeId: node.id,
-        limit: 8,
-      });
-      return targetTypes.map(type =>
-        buildSpecDocument({
-          job,
-          specTree,
-          node,
-          type,
-          createdAt,
-          previousRoleFindings,
-        })
-      );
-    });
+
+  // Build routeById lookup for primaryRoute enrichment.
+  const routeSet = extractRouteSet(job);
+  const routeById = new Map<string, BlueprintRouteCandidate>(
+    (routeSet?.routes ?? []).map(route => [route.id, route])
+  );
+  // Read optional context from job (undefined when not present — do not throw).
+  const clarificationSession =
+    (job as unknown as { clarificationSession?: BlueprintClarificationSession })
+      .clarificationSession;
+  const domainContext =
+    (job as unknown as { projectContext?: BlueprintProjectDomainContext })
+      .projectContext;
+
+  const documents = await Promise.all(
+    specTree.nodes
+      .filter(node => targetNodeIds.has(node.id))
+      .flatMap(node => {
+        const previousRoleFindings = collectReusableRoleFindings(job, {
+          stages: ["route_generation", "spec_tree", "runtime_capability"],
+          routeId: node.routeId ?? specTree.selectedRouteId,
+          nodeId: node.id,
+          limit: 8,
+        });
+        const primaryRoute = node.routeId
+          ? routeById.get(node.routeId)
+          : specTree.selectedRouteId
+            ? routeById.get(specTree.selectedRouteId)
+            : undefined;
+        return targetTypes.map(type =>
+          buildSpecDocument(ctx, {
+            job,
+            specTree,
+            node,
+            type,
+            createdAt,
+            previousRoleFindings,
+            clarificationSession,
+            domainContext,
+            primaryRoute,
+          })
+        );
+      })
+  );
   const generatedDocumentKeys = new Set(
     documents.map(document => `${document.nodeId}:${document.type}`)
   );
@@ -12387,17 +12418,104 @@ function buildEffectPreviewSourceSnapshotHash(input: {
   return `sha256:${createHash("sha256").update(source).digest("hex").slice(0, 16)}`;
 }
 
-function buildSpecDocument(input: {
-  job: BlueprintGenerationJob;
-  specTree: BlueprintSpecTree;
-  node: BlueprintSpecTreeNode;
-  type: BlueprintSpecDocumentType;
-  createdAt: string;
-  previousRoleFindings?: BlueprintRoleTimelineEntry[];
-}): BlueprintSpecDocument {
+async function buildSpecDocument(
+  ctx: BlueprintServiceContext | undefined,
+  input: {
+    job: BlueprintGenerationJob;
+    specTree: BlueprintSpecTree;
+    node: BlueprintSpecTreeNode;
+    type: BlueprintSpecDocumentType;
+    createdAt: string;
+    previousRoleFindings?: BlueprintRoleTimelineEntry[];
+    clarificationSession?: BlueprintClarificationSession;
+    domainContext?: BlueprintProjectDomainContext;
+    primaryRoute?: BlueprintRouteCandidate;
+  }
+): Promise<BlueprintSpecDocument> {
   const id = createId("blueprint-spec-document");
-  const heading = buildSpecDocumentHeading(input.type, input.node.title);
-  const body = buildSpecDocumentBody(input);
+
+  // ---- Call SPEC Documents LLM service (per-document) ----
+  // Derive upstreamEvidence from previousRoleFindings (undefined when empty).
+  const reusableRoleFindings = (input.previousRoleFindings ?? []).flatMap(
+    entry => {
+      const findings = Array.isArray(
+        (entry as unknown as { findings?: unknown[] }).findings
+      )
+        ? ((entry as unknown as { findings: Array<Record<string, unknown>> })
+            .findings)
+        : [];
+      return findings.map(finding => ({
+        id: String((finding as Record<string, unknown>).id ?? ""),
+        label: String((finding as Record<string, unknown>).label ?? ""),
+        summary: String((finding as Record<string, unknown>).summary ?? ""),
+      }));
+    }
+  );
+  const upstreamEvidence =
+    reusableRoleFindings.length > 0
+      ? { reusableRoleFindings }
+      : undefined;
+
+  const serviceResult = ctx?.specDocumentsLlmService
+    ? await ctx.specDocumentsLlmService({
+        jobId: input.job.id,
+        job: input.job,
+        request: input.job.request,
+        specTreeNode: input.node,
+        targetDocumentType: input.type,
+        primaryRoute: input.primaryRoute,
+        clarificationSession: input.clarificationSession,
+        domainContext: input.domainContext,
+        upstreamEvidence,
+        createdAt: input.createdAt,
+      })
+    : undefined;
+
+  // ---- Branch: LLM success vs template/fallback ----
+  let title: string;
+  let summary: string;
+  let content: string;
+  let provenanceExtras: {
+    generationSource?: "llm" | "llm_fallback" | "template";
+    promptId?: string;
+    model?: string;
+    responseDigest?: string;
+    structuredPayloadDigest?: string;
+    promptFingerprint?: string;
+    error?: string;
+  } = {};
+
+  if (
+    serviceResult?.generationSource === "llm" &&
+    serviceResult.title &&
+    serviceResult.summary &&
+    serviceResult.content
+  ) {
+    // Real LLM path: use LLM output.
+    title = serviceResult.title;
+    summary = serviceResult.summary;
+    content = serviceResult.content;
+    provenanceExtras = {
+      generationSource: "llm",
+      promptId: serviceResult.promptId,
+      model: serviceResult.model,
+      responseDigest: serviceResult.responseDigest,
+      structuredPayloadDigest: serviceResult.structuredPayloadDigest,
+      promptFingerprint: serviceResult.promptFingerprint,
+    };
+  } else {
+    // Template / llm_fallback path: execute today's templated helpers unchanged.
+    title = buildSpecDocumentHeading(input.type, input.node.title);
+    summary = input.node.summary;
+    content = buildSpecDocumentBody(input);
+    provenanceExtras = {
+      generationSource: serviceResult?.generationSource ?? "template",
+      promptId: serviceResult?.promptId,
+      model: serviceResult?.model,
+      promptFingerprint: serviceResult?.promptFingerprint,
+      error: serviceResult?.error,
+    };
+  }
 
   return {
     id,
@@ -12408,9 +12526,9 @@ function buildSpecDocument(input: {
     status: "draft",
     version: 1,
     sourceDocumentId: id,
-    title: heading,
-    summary: input.node.summary,
-    content: body,
+    title,
+    summary,
+    content,
     format: "markdown",
     createdAt: input.createdAt,
     updatedAt: input.createdAt,
@@ -12433,6 +12551,7 @@ function buildSpecDocument(input: {
       reusedEvidenceIds: collectRoleFindingEvidenceIds(
         input.previousRoleFindings ?? []
       ),
+      ...provenanceExtras,
     },
   };
 }
