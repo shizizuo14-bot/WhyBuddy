@@ -1264,7 +1264,7 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     });
   });
 
-  router.post("/jobs/:jobId/prompt-packages", (req, res) => {
+  router.post("/jobs/:jobId/prompt-packages", async (req, res) => {
     const job = jobStore.get(req.params.jobId);
     if (!job) {
       res.status(404).json({
@@ -1303,7 +1303,8 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       return;
     }
 
-    const result = generateImplementationPromptPackages(
+    const result = await generateImplementationPromptPackages(
+      blueprintServiceContext,
       job,
       specTree,
       parsed.request,
@@ -9533,12 +9534,13 @@ type GenerateImplementationPromptPackagesResult =
     }
   | { ok: false; status: number; error: string; message: string };
 
-function generateImplementationPromptPackages(
+async function generateImplementationPromptPackages(
+  ctx: BlueprintServiceContext,
   job: BlueprintGenerationJob,
   specTree: BlueprintSpecTree,
   request: BlueprintGenerateImplementationPromptPackagesRequest,
   options: CreateGenerationJobHelperOptions
-): GenerateImplementationPromptPackagesResult {
+): Promise<GenerateImplementationPromptPackagesResult> {
   const createdAt = (options.now?.() ?? new Date()).toISOString();
   const includeDrafts = request.includeDrafts ?? false;
   const includePreviewDrafts = request.includePreviewDrafts ?? false;
@@ -9603,18 +9605,41 @@ function generateImplementationPromptPackages(
   const sourceDocumentIds = sourceDocuments.map(document => document.id);
   const sourcePreviewIds = sourcePreviews.map(preview => preview.id);
   const nodes = specTree.nodes.filter(node => nodeIds.includes(node.id));
-  const packages = targetPlatforms.map(targetPlatform =>
-    buildImplementationPromptPackage({
-      job,
-      specTree,
-      targetPlatform,
-      nodes,
-      documents: sourceDocuments,
-      previews: sourcePreviews,
-      includeDrafts,
-      includePreviewDrafts,
-      createdAt,
-    })
+
+  // Defensive derivation of optional upstream inputs for the LLM service.
+  // Any missing field becomes `undefined` without throwing — the service
+  // treats every upstream field as optional (design §5.6 / spec task 16.11).
+  const clarificationSession = (
+    job as { clarificationSession?: BlueprintClarificationSession }
+  ).clarificationSession;
+  const domainContext = (
+    job as { projectContext?: BlueprintProjectDomainContext }
+  ).projectContext;
+  let primaryRoute: BlueprintRouteCandidate | undefined;
+  const routeSet = extractRouteSet(job);
+  if (routeSet && specTree.selectedRouteId) {
+    primaryRoute = routeSet.routes.find(
+      route => route.id === specTree.selectedRouteId
+    );
+  }
+
+  const packages = await Promise.all(
+    targetPlatforms.map(targetPlatform =>
+      buildImplementationPromptPackage(ctx, {
+        job,
+        specTree,
+        targetPlatform,
+        nodes,
+        documents: sourceDocuments,
+        previews: sourcePreviews,
+        includeDrafts,
+        includePreviewDrafts,
+        createdAt,
+        clarificationSession,
+        domainContext,
+        primaryRoute,
+      })
+    )
   );
   const generatedKeys = new Set(
     packages.map(promptPackage => promptPackageReplacementKey(promptPackage))
@@ -9699,6 +9724,29 @@ function generateImplementationPromptPackages(
             specDocumentIds: sourceDocumentIds,
             effectPreviewIds: sourcePreviewIds,
           },
+          // autopilot-prompt-package-llm (design §D7 / spec task 16.12):
+          // per-package generationSource summary + optional meta-prompt id +
+          // optional model name. All three fields are additive and optional —
+          // existing subscribers remain unaffected.
+          promptPackageGenerationSources: packages.map(promptPackage => ({
+            promptPackageId: promptPackage.id,
+            targetPlatform: promptPackage.targetPlatform,
+            generationSource:
+              promptPackage.provenance.generationSource ?? "template",
+          })),
+          ...(packages.some(
+            promptPackage =>
+              promptPackage.provenance.generationSource === "llm" ||
+              promptPackage.provenance.generationSource === "llm_fallback"
+          ) && { promptId: "blueprint.prompt-package.v1" }),
+          ...(() => {
+            const packageWithModel = packages.find(
+              promptPackage => promptPackage.provenance.model !== undefined
+            );
+            return packageWithModel?.provenance.model !== undefined
+              ? { model: packageWithModel.provenance.model }
+              : {};
+          })(),
         },
       })
     ),
@@ -11325,40 +11373,268 @@ function recordEngineeringRun(
   };
 }
 
-function buildImplementationPromptPackage(input: {
-  job: BlueprintGenerationJob;
-  specTree: BlueprintSpecTree;
-  targetPlatform: BlueprintImplementationPromptTargetPlatform;
-  nodes: BlueprintSpecTreeNode[];
-  documents: BlueprintSpecDocument[];
-  previews: BlueprintEffectPreview[];
-  includeDrafts: boolean;
-  includePreviewDrafts: boolean;
-  createdAt: string;
-}): BlueprintImplementationPromptPackage {
+/**
+ * Merge LLM-rendered `(heading, body)` sections with the templated scaffold
+ * sections produced by {@link buildImplementationPromptSections}.
+ *
+ * Merge semantics (design §4.7 + §5.2; spec task 16.7):
+ * 1. Positional overlay — for the aligned prefix `min(rendered, scaffold)`
+ *    copy the scaffold section structure and replace `title` / `content`
+ *    with the LLM's `heading` / `body`. Scaffold-derived `id` / `kind` /
+ *    `items` / `nodeIds` / `sourceDocumentIds` / `sourcePreviewIds` are
+ *    preserved so downstream consumers of
+ *    {@link BlueprintImplementationPromptSection} keep working.
+ * 2. Extra LLM sections — when `renderedSections.length > scaffoldSections.length`
+ *    emit a fresh `"implementation"`-kind section for each extra entry,
+ *    carrying the full node / document / preview ids so the section can
+ *    still anchor to the source bundle.
+ * 3. Extra scaffold sections — when `scaffoldSections.length > renderedSections.length`
+ *    preserve the remaining scaffold sections verbatim; this keeps the
+ *    templated `constraints` / `verification` / `handoff` kinds intact
+ *    even when the LLM only covered the leading narrative sections.
+ * 4. Reusable Prompts aggregate — when `renderedPrompts` is non-empty
+ *    append a final `"implementation"`-kind `"Reusable Prompts"` section
+ *    whose `items[]` persist the prompt asset list one-to-one. The
+ *    aggregate section body is a short Markdown bullet list pointing at
+ *    each prompt id.
+ */
+function mergeLlmSectionsWithScaffolds(input: {
+  renderedSections: Array<{ heading: string; body: string }>;
+  renderedPrompts: ReadonlyArray<{
+    id: string;
+    title: string;
+    systemPrompt: string;
+    userPrompt: string;
+    variables: ReadonlyArray<{
+      name: string;
+      description: string;
+      required: boolean;
+    }>;
+    examples: ReadonlyArray<{
+      title?: string;
+      input?: string;
+      output?: string;
+    }>;
+  }>;
+  scaffoldSections: BlueprintImplementationPromptSection[];
+  nodeIds: string[];
+  sourceDocumentIds: string[];
+  sourcePreviewIds: string[];
+}): BlueprintImplementationPromptSection[] {
+  const {
+    renderedSections,
+    renderedPrompts,
+    scaffoldSections,
+    nodeIds,
+    sourceDocumentIds,
+    sourcePreviewIds,
+  } = input;
+
+  const alignedLength = Math.min(
+    renderedSections.length,
+    scaffoldSections.length
+  );
+  const merged: BlueprintImplementationPromptSection[] = [];
+
+  // (1) Positional overlay — LLM heading/body replace scaffold title/content.
+  for (let index = 0; index < alignedLength; index += 1) {
+    const scaffold = scaffoldSections[index];
+    const llmSection = renderedSections[index];
+    merged.push({
+      ...scaffold,
+      title: llmSection.heading,
+      content: llmSection.body,
+    });
+  }
+
+  // (3) Preserve any scaffold sections beyond what the LLM produced so the
+  // fallback-only kinds (constraints / verification / handoff) do not vanish.
+  for (
+    let index = alignedLength;
+    index < scaffoldSections.length;
+    index += 1
+  ) {
+    merged.push(scaffoldSections[index]);
+  }
+
+  // (2) Append fresh implementation-kind sections for any LLM sections that
+  // exceed the scaffold count.
+  for (let index = alignedLength; index < renderedSections.length; index += 1) {
+    const llmSection = renderedSections[index];
+    merged.push({
+      id: createId("blueprint-prompt-section"),
+      kind: "implementation",
+      title: llmSection.heading,
+      content: llmSection.body,
+      items: [],
+      nodeIds,
+      sourceDocumentIds,
+      sourcePreviewIds,
+    });
+  }
+
+  // (4) Reusable Prompts aggregate section — only when the LLM actually
+  // returned prompt assets.
+  if (renderedPrompts.length > 0) {
+    const items: BlueprintImplementationPromptItem[] = renderedPrompts.map(
+      prompt => ({
+        id: createId("blueprint-prompt-item"),
+        kind: "instruction",
+        title: prompt.title,
+        content: `${prompt.systemPrompt}\n\n${prompt.userPrompt}`,
+        nodeIds,
+        sourceDocumentIds,
+        sourcePreviewIds,
+      })
+    );
+    const bullets = renderedPrompts
+      .map(prompt => `- **${prompt.title}** (id: \`${prompt.id}\`)`)
+      .join("\n");
+    merged.push({
+      id: createId("blueprint-prompt-section"),
+      kind: "implementation",
+      title: "Reusable Prompts",
+      content: bullets,
+      items,
+      nodeIds,
+      sourceDocumentIds,
+      sourcePreviewIds,
+    });
+  }
+
+  return merged;
+}
+
+async function buildImplementationPromptPackage(
+  ctx: BlueprintServiceContext,
+  input: {
+    job: BlueprintGenerationJob;
+    specTree: BlueprintSpecTree;
+    targetPlatform: BlueprintImplementationPromptTargetPlatform;
+    nodes: BlueprintSpecTreeNode[];
+    documents: BlueprintSpecDocument[];
+    previews: BlueprintEffectPreview[];
+    includeDrafts: boolean;
+    includePreviewDrafts: boolean;
+    createdAt: string;
+    clarificationSession?: BlueprintClarificationSession;
+    domainContext?: BlueprintProjectDomainContext;
+    primaryRoute?: BlueprintRouteCandidate;
+    capabilityInvocations?: BlueprintCapabilityInvocation[];
+    capabilityEvidence?: BlueprintCapabilityEvidence[];
+  }
+): Promise<BlueprintImplementationPromptPackage> {
   const nodeIds = uniqueStrings(input.nodes.map(node => node.id));
   const sourceDocumentIds = input.documents.map(document => document.id);
   const sourcePreviewIds = input.previews.map(preview => preview.id);
   const target = buildImplementationPromptTarget(input.targetPlatform);
-  const title = `Implementation prompt package: ${target.label}`;
-  const summary =
+
+  // Templated title / summary / sections remain byte-identical to today so the
+  // fallback and template paths stay backwards compatible (design §D3 / §8.3).
+  const templatedTitle = `Implementation prompt package: ${target.label}`;
+  const templatedSummary =
     input.previews.length > 0
       ? `Implementation prompt package for ${target.label} using SPEC documents and effect previews.`
       : `Document-only implementation prompt package for ${target.label}.`;
-  const sections = buildImplementationPromptSections({
-    ...input,
+  const templatedSections = buildImplementationPromptSections({
+    job: input.job,
+    specTree: input.specTree,
     target,
+    nodes: input.nodes,
+    documents: input.documents,
+    previews: input.previews,
     nodeIds,
     sourceDocumentIds,
     sourcePreviewIds,
   });
-  const content = renderImplementationPromptContent({
-    title,
-    target,
-    sections,
-    sourceDocumentIds,
-    sourcePreviewIds,
+
+  const llmOutput = await ctx.promptPackageLlmService?.({
+    jobId: input.job.id,
+    job: input.job,
+    specTree: input.specTree,
+    targetPlatform: input.targetPlatform,
+    nodes: input.nodes,
+    sourceDocuments: input.documents,
+    sourcePreviews: input.previews,
+    primaryRoute: input.primaryRoute,
+    clarificationSession: input.clarificationSession,
+    domainContext: input.domainContext,
+    capabilityInvocations: input.capabilityInvocations,
+    capabilityEvidence: input.capabilityEvidence,
+    includeDrafts: input.includeDrafts,
+    includePreviewDrafts: input.includePreviewDrafts,
+    createdAt: input.createdAt,
   });
+
+  let title: string;
+  let summary: string;
+  let content: string;
+  let sections: BlueprintImplementationPromptSection[];
+  let provenanceExtras: {
+    generationSource?: "llm" | "llm_fallback" | "template";
+    promptId?: string;
+    model?: string;
+    responseDigest?: string;
+    structuredPayloadDigest?: string;
+    promptFingerprint?: string;
+    error?: string;
+  };
+
+  if (
+    llmOutput?.generationSource === "llm" &&
+    llmOutput.renderedTitle !== undefined &&
+    llmOutput.renderedSummary !== undefined &&
+    llmOutput.renderedContent !== undefined &&
+    llmOutput.renderedSections !== undefined
+  ) {
+    title = llmOutput.renderedTitle;
+    summary = llmOutput.renderedSummary;
+    content = llmOutput.renderedContent;
+    sections = mergeLlmSectionsWithScaffolds({
+      renderedSections: llmOutput.renderedSections,
+      renderedPrompts: llmOutput.renderedPrompts ?? [],
+      scaffoldSections: templatedSections,
+      nodeIds,
+      sourceDocumentIds,
+      sourcePreviewIds,
+    });
+    provenanceExtras = {
+      generationSource: "llm",
+      ...(llmOutput.promptId !== undefined && { promptId: llmOutput.promptId }),
+      ...(llmOutput.model !== undefined && { model: llmOutput.model }),
+      ...(llmOutput.responseDigest !== undefined && {
+        responseDigest: llmOutput.responseDigest,
+      }),
+      ...(llmOutput.structuredPayloadDigest !== undefined && {
+        structuredPayloadDigest: llmOutput.structuredPayloadDigest,
+      }),
+      ...(llmOutput.promptFingerprint !== undefined && {
+        promptFingerprint: llmOutput.promptFingerprint,
+      }),
+    };
+  } else {
+    title = templatedTitle;
+    summary = templatedSummary;
+    sections = templatedSections;
+    content = renderImplementationPromptContent({
+      title,
+      target,
+      sections,
+      sourceDocumentIds,
+      sourcePreviewIds,
+    });
+    provenanceExtras = {
+      generationSource: llmOutput?.generationSource ?? "template",
+      ...(llmOutput?.promptId !== undefined && {
+        promptId: llmOutput.promptId,
+      }),
+      ...(llmOutput?.model !== undefined && { model: llmOutput.model }),
+      ...(llmOutput?.promptFingerprint !== undefined && {
+        promptFingerprint: llmOutput.promptFingerprint,
+      }),
+      ...(llmOutput?.error !== undefined && { error: llmOutput.error }),
+    };
+  }
 
   return {
     id: createId("blueprint-prompt-package"),
@@ -11399,6 +11675,7 @@ function buildImplementationPromptPackage(input: {
       sourcePreviewStatuses: Object.fromEntries(
         input.previews.map(preview => [preview.id, preview.status])
       ),
+      ...provenanceExtras,
     },
   };
 }

@@ -1404,6 +1404,42 @@ export interface BlueprintImplementationPromptPackage {
     includePreviewDrafts: boolean;
     sourceDocumentStatuses: Record<string, BlueprintSpecDocumentStatus>;
     sourcePreviewStatuses: Record<string, BlueprintEffectPreviewStatus>;
+    /**
+     * LLM-driven Prompt Package generation source.
+     *
+     * - `"llm"`: LLM returned a structured payload that passed strict zod +
+     *   `.superRefine()` invariants; `title` / `summary` / `content` /
+     *   `sections[*].title` / `sections[*].content` are LLM-derived.
+     * - `"llm_fallback"`: LLM was invoked but the call threw / returned
+     *   non-JSON / failed schema or invariant validation / timed out; the
+     *   templated output from `buildImplementationPromptPackage()` was used
+     *   byte-for-byte. `error` is populated with a redacted reason.
+     * - `"template"`: LLM was never attempted (service not enabled, apiKey
+     *   missing, or service not wired); the templated output was used.
+     *
+     * Added by `.kiro/specs/autopilot-prompt-package-llm` (see §D6).
+     */
+    generationSource?: "llm" | "llm_fallback" | "template";
+    /**
+     * Meta-prompt version identifier used by the Prompt Package LLM
+     * generator. Locked to `"blueprint.prompt-package.v1"`; bumps to `v2`
+     * signal a breaking schema change. Populated when `generationSource` ∈
+     * `{"llm", "llm_fallback"}` — i.e., whenever the LLM path was attempted.
+     *
+     * Distinct from the LLM-emitted `prompts[*].id` (asset-layer identifiers
+     * rendered into `content` / `sections[*].items`); they are never mixed.
+     */
+    promptId?: string;
+    /** Model name from `ctx.llm.getConfig().model`. Populated when LLM was invoked. */
+    model?: string;
+    /** `sha256:…` digest of the raw LLM response JSON. Populated on real path only. */
+    responseDigest?: string;
+    /** `sha256:…` digest of the normalized canonical payload. Populated on real path only. */
+    structuredPayloadDigest?: string;
+    /** `sha256:…` digest of the (system + user) prompt messages. Populated when LLM was invoked. */
+    promptFingerprint?: string;
+    /** Redacted, truncated error message. Populated when `generationSource === "llm_fallback"`. */
+    error?: string;
   };
 }
 

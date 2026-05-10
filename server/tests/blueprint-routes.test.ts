@@ -6695,3 +6695,239 @@ describe("blueprint effect-preview llm bridge ¡ª e2e", () => {
     });
   });
 });
+
+// ---------------------------------------------------------------------------
+// autopilot-prompt-package-llm E2E tests (Task 19 + 20)
+// ---------------------------------------------------------------------------
+
+describe("blueprint prompt-package LLM E2E", () => {
+  const PROMPT_PACKAGE_ENABLED_ENV = "BLUEPRINT_PROMPT_PACKAGE_LLM_ENABLED";
+  let tempRoot: string;
+
+  function isPromptPackageCall(messages: any): boolean {
+    const text = JSON.stringify(messages);
+    return /Prompt Package Éú³ÉÆ÷|Prompt Package generator/i.test(text);
+  }
+
+  beforeEach(async () => {
+    llmMocks.callLLMJson.mockReset();
+    tempRoot = await mkdtemp(
+      path.join(process.cwd(), "tmp", "blueprint-prompt-package-e2e-")
+    );
+  });
+
+  afterEach(async () => {
+    vi.unstubAllEnvs();
+    if (tempRoot) {
+      await rm(tempRoot, { recursive: true, force: true });
+    }
+  });
+
+  // Task 19: Real LLM path
+  it("generateImplementationPromptPackages produces LLM-driven content when prompt-package llm is enabled", async () => {
+    vi.stubEnv(PROMPT_PACKAGE_ENABLED_ENV, "true");
+    vi.stubEnv("LLM_API_KEY", "sk-test-valid-key-for-prompt-package");
+    vi.stubEnv("LLM_MODEL", "gpt-4-turbo");
+
+    const llmPayload = {
+      title: "Release Dashboard Implementation Pack (Codex)",
+      summary:
+        "Codex-ready prompt package for shipping the tenant-scoped release dashboard.",
+      prompts: [
+        {
+          id: "dashboard-root-setup",
+          title: "Dashboard root setup",
+          systemPrompt:
+            "You are a senior web engineer creating the release dashboard root page.",
+          userPrompt:
+            "Implement the dashboard root page at app/dashboard/page.tsx with tenant scope.",
+          variables: [
+            { name: "tenantId", description: "Tenant id", required: true },
+          ],
+          examples: [
+            {
+              title: "Happy path",
+              input: "tenant=acme",
+              output: "<DashboardRoot tenantId='acme' />",
+            },
+          ],
+        },
+        {
+          id: "deploy-feed-widget",
+          title: "Deploy feed widget",
+          systemPrompt:
+            "You are implementing a realtime deploy feed widget.",
+          userPrompt:
+            "Create app/dashboard/_components/DeployFeed.tsx with a websocket-backed list.",
+          variables: [
+            {
+              name: "streamEndpoint",
+              description: "Webhook stream endpoint",
+              required: true,
+            },
+          ],
+        },
+      ],
+      sections: [
+        {
+          heading: "Target platform overview",
+          body: "Use Codex to execute these prompts against the release dashboard scope.",
+        },
+        {
+          heading: "Source node mapping",
+          body: "This package targets the release-dashboard root node and its accepted SPEC documents.",
+        },
+        {
+          heading: "Verification commands",
+          body: "Run `node --run check` and the focused prompt-package tests after edits.",
+        },
+      ],
+    };
+
+    llmMocks.callLLMJson.mockImplementation(async (messages: any) => {
+      if (isPromptPackageCall(messages)) {
+        return llmPayload;
+      }
+      return undefined;
+    });
+
+    await withServer(tempRoot, async baseUrl => {
+      const { selected } = await createAcceptedRootDocsAndPreview(baseUrl);
+
+      const packageResponse = await fetch(
+        `${baseUrl}/api/blueprint/jobs/${selected.job.id}/prompt-packages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            includeDrafts: true,
+            includePreviewDrafts: true,
+          }),
+        }
+      );
+      expect(packageResponse.status).toBe(201);
+      const body = (await packageResponse.json()) as Record<string, any>;
+      const promptPackages: any[] = body.promptPackages;
+      expect(promptPackages.length).toBeGreaterThan(0);
+
+      for (const pkg of promptPackages) {
+        // Task 19.4: provenance assertions
+        expect(pkg.provenance.generationSource).toBe("llm");
+        expect(pkg.provenance.promptId).toBe("blueprint.prompt-package.v1");
+        expect(typeof pkg.provenance.model).toBe("string");
+        expect(pkg.provenance.model.length).toBeGreaterThan(0);
+        expect(pkg.provenance.responseDigest).toMatch(
+          /^sha256:[a-f0-9]{64}$/
+        );
+        expect(pkg.provenance.structuredPayloadDigest).toMatch(
+          /^sha256:[a-f0-9]{64}$/
+        );
+        expect(pkg.provenance.promptFingerprint).toMatch(
+          /^sha256:[a-f0-9]{64}$/
+        );
+        expect(pkg.provenance.error).toBeUndefined();
+
+        // Task 19.5: LLM content is visible
+        expect(pkg.title).toBe(
+          "Release Dashboard Implementation Pack (Codex)"
+        );
+        expect(pkg.title).not.toMatch(/^Implementation prompt package:/);
+        expect(pkg.summary).toContain("Codex-ready prompt package");
+        expect(pkg.summary).not.toMatch(
+          /^Implementation prompt package for|^Document-only implementation prompt package/
+        );
+        expect(pkg.content).toContain("Reusable Prompts");
+        expect(pkg.content).toContain("dashboard-root-setup");
+        expect(pkg.content).toContain("deploy-feed-widget");
+
+        // Task 19.6: scaffold fields preserved
+        expect(pkg.id).toBeTruthy();
+        expect(pkg.jobId).toBe(selected.job.id);
+        expect(pkg.treeId).toBeTruthy();
+        expect(Array.isArray(pkg.nodeIds)).toBe(true);
+        expect(Array.isArray(pkg.sourceDocumentIds)).toBe(true);
+        expect(Array.isArray(pkg.sourcePreviewIds)).toBe(true);
+        expect(typeof pkg.targetPlatform).toBe("string");
+        expect(pkg.target).toBeTruthy();
+        expect(typeof pkg.createdAt).toBe("string");
+        expect(Array.isArray(pkg.sections)).toBe(true);
+        expect(pkg.sections.length).toBeGreaterThanOrEqual(1);
+        const hasReusablePrompts = pkg.sections.some(
+          (section: any) =>
+            section.kind === "implementation" &&
+            section.title === "Reusable Prompts"
+        );
+        expect(hasReusablePrompts).toBe(true);
+      }
+    });
+  });
+
+  // Task 20: Fallback path
+  it("generateImplementationPromptPackages falls back to template when prompt-package llm call throws", async () => {
+    vi.stubEnv(PROMPT_PACKAGE_ENABLED_ENV, "true");
+    vi.stubEnv("LLM_API_KEY", "sk-test-valid-key-for-prompt-package");
+    vi.stubEnv("LLM_MODEL", "gpt-4-turbo");
+
+    llmMocks.callLLMJson.mockImplementation(async (messages: any) => {
+      if (isPromptPackageCall(messages)) {
+        throw new Error("upstream 503");
+      }
+      return undefined;
+    });
+
+    await withServer(tempRoot, async baseUrl => {
+      const { selected } = await createAcceptedRootDocsAndPreview(baseUrl);
+
+      const packageResponse = await fetch(
+        `${baseUrl}/api/blueprint/jobs/${selected.job.id}/prompt-packages`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            includeDrafts: true,
+            includePreviewDrafts: true,
+          }),
+        }
+      );
+      expect(packageResponse.status).toBe(201);
+      const body = (await packageResponse.json()) as Record<string, any>;
+      const promptPackages: any[] = body.promptPackages;
+      expect(promptPackages.length).toBeGreaterThan(0);
+
+      for (const pkg of promptPackages) {
+        // Task 20.4: fallback provenance
+        expect(pkg.provenance.generationSource).toBe("llm_fallback");
+        expect(pkg.provenance.error).toMatch(
+          /upstream 503|llm callJson threw/
+        );
+        expect(pkg.provenance.promptId).toBe("blueprint.prompt-package.v1");
+        expect(typeof pkg.provenance.model).toBe("string");
+
+        // Task 20.5: content falls back to templated
+        expect(pkg.title).toMatch(/^Implementation prompt package: /);
+        expect(pkg.summary).toMatch(
+          /^(Implementation prompt package for|Document-only implementation prompt package)/
+        );
+        expect(pkg.content.startsWith("# Implementation prompt package:")).toBe(
+          true
+        );
+        const validKinds = [
+          "context",
+          "implementation",
+          "constraints",
+          "verification",
+          "handoff",
+        ];
+        for (const section of pkg.sections) {
+          expect(validKinds).toContain(section.kind);
+        }
+        const hasReusablePrompts = pkg.sections.some(
+          (section: any) =>
+            section.kind === "implementation" &&
+            section.title === "Reusable Prompts"
+        );
+        expect(hasReusablePrompts).toBe(false);
+      }
+    });
+  });
+});
