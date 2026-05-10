@@ -16,6 +16,10 @@
  *                 capabilityEvidence`）+ 懒加载 gate + registry-first 合并 + W2 cache seed。
  * Spec 4 Task 4 — Wave 3 fetch（`effectPreviews + promptPackages + landingPlans +
  *                 engineeringRuns`）+ 按子阶段 / job.stage 懒加载阈值 + W3 cache seed。
+ * Spec 4 Task 5 — Wave 4 fetch（`artifactEntries + artifactReplays`）+ `artifactFeedback`
+ *                 派生（来自 W1 job.artifacts 中 `type === "feedback"` 的 payload，不新增
+ *                 后端调用）+ 按 `currentSubStage === "artifact_memory"` 或
+ *                 `job.stage === "engineering_landing"` 懒加载阈值 + W4 cache seed。
  *
  * 本文件目前包含的硬边界：
  * - Wave 1：`fetchLatestBlueprintGenerationJob()`；当 `initialData.job.id === jobId` 时跳过
@@ -26,12 +30,17 @@
  * - Wave 3：通过 `shouldLoadField` 按 `currentSubStage` / `job.stage` 双维度判定 4 个字段的懒加载
  *   阈值，`Promise.allSettled` 并发拉取 `fetchBlueprintEffectPreviews / PromptPackages /
  *   EngineeringLanding / EngineeringRuns`；单字段失败不阻塞其余字段，并按字段写入 W3 cache。
- * - Wave 4 的字段仍为占位 `loading=false`；Task 5 会接入真实 fetch。
+ * - Wave 4：通过 `shouldLoadField` 按 `currentSubStage === "artifact_memory"` 或
+ *   `job.stage === "engineering_landing"` 判定 3 个字段的懒加载阈值，`Promise.allSettled` 并发
+ *   拉取 `fetchBlueprintArtifactLedger / fetchBlueprintArtifactReplays`；`artifactFeedback`
+ *   作为派生字段不发起独立 fetch，其值来自 `state.job.data?.artifacts` 中 `type === "feedback"`
+ *   的 payload（与服务器 `extractArtifactFeedback` 一致，Requirement 12.5）。
  * - SSE / polling / 指数退避由 Task 6 实现；当前版本不启动任何 `EventSource` 或 `setTimeout`。
- * - `retry` 当前只覆盖 W1 字段（job + 3 个派生字段共享同一次 refetch）；W2 的 `agentCrew.retry`
- *   与 `job.retry` 行为一致（共享 Wave 1 refetch）；W2 其余 3 个字段共享 `retryWave2`；W3 的
- *   4 个字段共享 `retryWave3`（共享一次 Wave 3 fetch 重跑）；W4 字段与 per-field retry 的
- *   in-flight guard 由 Task 5/7 接入。
+ * - `retry` 当前覆盖 W1-W4 全部 15 个字段：W1 4 个字段共享 `retryWave1`（含 `agentCrew` 派生
+ *   与 `artifactFeedback` 派生）；W2 除 `agentCrew` 外 3 个字段共享 `retryWave2`；W3 4 个字段
+ *   共享 `retryWave3`；W4 `artifactEntries / artifactReplays` 共享 `retryWave4`，
+ *   `artifactFeedback` 由于是 W1 派生，`retry` 复用 `retryWave1`。Per-field retry 的
+ *   in-flight guard 由 Task 7 接入。
  *
  * 硬性约束（贯穿本 spec 全部任务）：
  * - 不订阅 `useAppStore` / `useProjectStore`；不写入全局 store。
@@ -44,6 +53,8 @@ import { useCallback, useEffect, useMemo, useReducer, useRef } from "react";
 
 import type { ApiRequestError } from "@/lib/api-client";
 import {
+  fetchBlueprintArtifactLedger,
+  fetchBlueprintArtifactReplays,
   fetchBlueprintCapabilities,
   fetchBlueprintCapabilityEvidence,
   fetchBlueprintCapabilityInvocations,
@@ -507,6 +518,23 @@ const WAVE_3_FETCH_FIELDS: readonly RightRailFieldName[] = [
   "engineeringRuns",
 ] as const;
 
+/**
+ * Wave 4 fetch 字段集合（顺序固定，便于测试断言）。
+ *
+ * 本常量只包含真正发起独立 HTTP 请求的字段：
+ * - `artifactEntries`  → `fetchBlueprintArtifactLedger(jobId)`
+ * - `artifactReplays`  → `fetchBlueprintArtifactReplays(jobId)`
+ *
+ * 注意：`artifactFeedback` 是派生字段（值来自 `state.job.data?.artifacts` 中 `type === "feedback"`
+ * 的 payload，与服务器 `extractArtifactFeedback` 语义一致），**不**发起独立 fetch，因此不进入
+ * 本常量。懒加载 gate 打开 `artifactEntries / artifactReplays` 时，`artifactFeedback` 的可见性
+ * 也会随之就绪（通过 view 映射时从 job snapshot 派生）。Requirement 12.5：不新增后端调用。
+ */
+const WAVE_4_FETCH_FIELDS: readonly RightRailFieldName[] = [
+  "artifactEntries",
+  "artifactReplays",
+] as const;
+
 // ---------------------------------------------------------------------------
 // Wave 3 lazy-loading stage sets
 //
@@ -616,6 +644,58 @@ export function deriveAgentCrewFromJob(
 }
 
 /**
+ * 从 job artifacts 派生 `BlueprintArtifactFeedback[]`。
+ *
+ * 规则与服务端 `extractArtifactFeedback`（`server/routes/blueprint.ts`）一致：
+ *   1. 取 `job.artifacts` 中 `type === "feedback"` 的 payload；
+ *   2. 按 `createdAt` 升序排序（若 payload 缺失 createdAt 则保持 artifact 出现顺序，与服务端
+ *      的稳定排序语义对齐）；
+ *   3. 结果里每个 payload 本身就是 `BlueprintArtifactFeedback`（后端已在写入 artifact 时完成
+ *      规范化，前端仅做最基本的形状断言过滤）。
+ *
+ * 该 helper 让 Wave 4 的 `artifactFeedback` 字段可以完全从 W1 `state.job.data` 派生出来，
+ * 不再需要单独 fetch（Requirement 12.5：不新增后端调用）。任何 job 级状态变化（W1 job refetch
+ * 成功 / SSE stage 推进）都会自动带来 artifactFeedback 的刷新。
+ */
+export function deriveArtifactFeedbackFromJob(
+  job: BlueprintGenerationJob | null
+): BlueprintArtifactFeedback[] {
+  if (!job) return [];
+  const feedbackArtifacts = job.artifacts.filter(
+    artifact => artifact.type === "feedback"
+  );
+  if (feedbackArtifacts.length === 0) return [];
+  const payloads = feedbackArtifacts
+    .filter(artifact => isArtifactFeedbackPayload(artifact.payload))
+    .map(artifact => artifact.payload as BlueprintArtifactFeedback);
+  // 按 createdAt 升序排序；无 createdAt 的项保持相对顺序。
+  return [...payloads].sort((left, right) => {
+    const leftCreatedAt = left.createdAt ?? "";
+    const rightCreatedAt = right.createdAt ?? "";
+    if (!leftCreatedAt && !rightCreatedAt) return 0;
+    if (!leftCreatedAt) return 1;
+    if (!rightCreatedAt) return -1;
+    return leftCreatedAt.localeCompare(rightCreatedAt);
+  });
+}
+
+/**
+ * 防御性形状检查：artifact.payload 是否真的是 `BlueprintArtifactFeedback`。
+ * 与 `server/routes/blueprint.ts` 中 `isArtifactFeedbackPayload` 对齐（只断言必要字段）。
+ */
+function isArtifactFeedbackPayload(
+  value: unknown
+): value is BlueprintArtifactFeedback {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+  return (
+    typeof record.id === "string" &&
+    typeof record.jobId === "string" &&
+    typeof record.entryId === "string"
+  );
+}
+
+/**
  * registry + job 两路 capabilities 的合并规则：
  * - 与 `RuntimeCapabilityPanel` 当前 UI 逻辑（`jobCapabilities.length ? job : registry`）等价：
  *   只要 job 返回了非空列表，就以 job 列表为准；否则回退到 registry 列表。
@@ -637,8 +717,7 @@ export function mergeCapabilities(
 /**
  * 判断 `field` 是否应当在当前 `(jobStage, currentSubStage, skipLazyLoad)` 快照下发起 fetch。
  *
- * Task 3-4 实现范围：Wave 2 与 Wave 3 的 case 均返回真实规则，Wave 4 的 case 仍为 `false`
- * 占位；Task 5 会把 Wave 4 的规则接入。
+ * Task 3-5 实现范围：Wave 2、Wave 3 与 Wave 4 的 case 均返回真实规则。
  *
  * 注：`job / routeSet / selection / specTree` 四个 W1 字段不走本 gate —— 它们始终加载（由 W1
  * effect 直接驱动），因此不作为本函数的合法输入；若误传入，函数也会在 default 分支返回 `false`。
@@ -702,8 +781,18 @@ export function shouldLoadField(
     case "artifactEntries":
     case "artifactReplays":
     case "artifactFeedback":
-      // Wave 4：Task 5 会扩展真实规则。
-      return false;
+      // Wave 4：共享懒加载阈值
+      //  - currentSubStage === "artifact_memory" → 触发；
+      //  - job.stage === "engineering_landing" → 触发（即便 currentSubStage 尚未进入
+      //    fabric 子阶段，例如 `/specs` autoLoad 路径需要 bootstrap artifact memory）。
+      //
+      // 说明：`artifactFeedback` 本身不发起独立 HTTP 请求（Requirement 12.5），但 view 层
+      // 依然需要用同一 gate 判定它的可见性；这样切回 artifact_memory 子阶段后 feedback 能
+      // 与 entries / replays 同步出现。
+      return (
+        currentSubStage === "artifact_memory" ||
+        jobStage === "engineering_landing"
+      );
     default:
       return false;
   }
@@ -1344,15 +1433,197 @@ export function useAutopilotRightRailData(
     bumpW3Retry();
   }, [hasJob]);
 
-  // Wave 4 retry 占位（Task 5/7 会替换为真实实现）。
-  // 绑定到 jobId 确保「仅在 jobId 变化时重建」的稳定引用契约。
-  const noopRetry = useCallback(() => {
-    /* Task 5/7 会接入 W4 retry */
-  }, [trimmedJobId]);
+  // -------------------------------------------------------------------------
+  // Wave 4 fetch orchestration
+  //
+  // 触发条件：W1 已经有 `job.data` + `shouldLoadField` 对 `artifactEntries / artifactReplays`
+  // 返回 true。本 effect 按 `(jobId, job.stage, currentSubStage, skipLazyLoad, w4RetryTrigger)`
+  // 五元组重跑；通过 `AbortController` 取消在飞请求。
+  //
+  // 字段覆盖范围：
+  //   - `artifactEntries`  → `fetchBlueprintArtifactLedger(jobId)`（独立 HTTP 请求）
+  //   - `artifactReplays`  → `fetchBlueprintArtifactReplays(jobId)`（独立 HTTP 请求）
+  //   - `artifactFeedback` → **不**发起独立 fetch；值来自 `state.job.data?.artifacts` 中
+  //     `type === "feedback"` 的 payload（Requirement 12.5），在 view 映射时通过
+  //     `deriveArtifactFeedbackFromJob(state.job.data)` 派生。
+  //
+  // 为避免与 W1/W2/W3 effect 的双写冲突：本 effect 只负责 `artifactEntries / artifactReplays`
+  // 两个字段；与 Wave 1/2/3 字段的 `FETCH_STARTED` 不会在 reducer 中发生交叠（字段集合互斥）。
+  //
+  // 单字段失败不阻塞其余字段：每个结果独立判定 ok；成功字段走一次批量 FETCH_FULFILLED，
+  // 失败字段走一次 FETCH_REJECTED 并附带该次 fetch 的 primaryError（记录在 field error）。
+  // -------------------------------------------------------------------------
+  const [w4RetryTrigger, bumpW4Retry] = useReducer((x: number) => x + 1, 0);
+
+  useEffect(() => {
+    if (!hasJob) return;
+    // 与 W2/W3 effect 一致，要求 W1 job 数据已就绪并且指向当前 jobId，避免 gate 判定悬空。
+    if (!state.job.data || state.job.data.id !== trimmedJobId) return;
+
+    const fields = WAVE_4_FETCH_FIELDS.filter(field =>
+      shouldLoadField(
+        field as Exclude<
+          RightRailFieldName,
+          "job" | "routeSet" | "selection" | "specTree"
+        >,
+        { currentSubStage, jobStage, skipLazyLoad }
+      )
+    );
+    if (fields.length === 0) return;
+
+    const controller = new AbortController();
+    const requestId = nextRequestId();
+
+    dispatch({
+      type: "FETCH_STARTED",
+      jobId: trimmedJobId,
+      fields,
+      requestId,
+    });
+
+    void (async () => {
+      const wantArtifactEntries = fields.includes("artifactEntries");
+      const wantArtifactReplays = fields.includes("artifactReplays");
+
+      const entriesPromise = wantArtifactEntries
+        ? fetchBlueprintArtifactLedger(trimmedJobId)
+        : null;
+      const replaysPromise = wantArtifactReplays
+        ? fetchBlueprintArtifactReplays(trimmedJobId)
+        : null;
+
+      const settled = await Promise.allSettled([
+        entriesPromise,
+        replaysPromise,
+      ]);
+      if (controller.signal.aborted) return;
+
+      const [entriesSettled, replaysSettled] = settled;
+
+      const fieldUpdates: PartialFieldDataMap = {};
+      const rejectedFields: RightRailFieldName[] = [];
+      let primaryError: ApiRequestError | null = null;
+
+      const extractResult = <T,>(
+        entry: (typeof settled)[number],
+        endpoint: string
+      ):
+        | { ok: true; data: T }
+        | { ok: false; error: ApiRequestError }
+        | null => {
+        if (entry.status === "fulfilled") {
+          if (entry.value === null || entry.value === undefined) return null;
+          return entry.value as
+            | { ok: true; data: T }
+            | { ok: false; error: ApiRequestError };
+        }
+        return { ok: false, error: coerceApiRequestError(entry.reason, endpoint) };
+      };
+
+      if (wantArtifactEntries) {
+        const result = extractResult<{
+          entries: BlueprintArtifactLedgerEntry[];
+        }>(
+          entriesSettled,
+          `/api/blueprint/jobs/${trimmedJobId}/artifact-ledger`
+        );
+        if (result && result.ok) {
+          fieldUpdates.artifactEntries = result.data.entries;
+          options?.onArtifactEntriesChange?.(result.data.entries);
+        } else if (result && !result.ok) {
+          rejectedFields.push("artifactEntries");
+          primaryError ??= result.error;
+        }
+      }
+
+      if (wantArtifactReplays) {
+        const result = extractResult<{
+          replays: BlueprintArtifactReplay[];
+        }>(
+          replaysSettled,
+          `/api/blueprint/jobs/${trimmedJobId}/artifact-replays`
+        );
+        if (result && result.ok) {
+          fieldUpdates.artifactReplays = result.data.replays;
+          options?.onArtifactReplaysChange?.(result.data.replays);
+        } else if (result && !result.ok) {
+          rejectedFields.push("artifactReplays");
+          primaryError ??= result.error;
+        }
+      }
+
+      if (Object.keys(fieldUpdates).length > 0) {
+        dispatch({
+          type: "FETCH_FULFILLED",
+          jobId: trimmedJobId,
+          requestId,
+          fieldUpdates,
+        });
+
+        // 写入 W4 cache 条目，供历史 jobId 切回复用。
+        // `artifactFeedback` 为派生字段，不进入独立 cache（切回时会随 W1 job snapshot 一同
+        // 从历史 cache 恢复 `state.job.data` 后由 view 映射派生）。
+        const entry: PartialCacheEntry =
+          cacheRef.current.get(trimmedJobId) ?? {};
+        if ("artifactEntries" in fieldUpdates) {
+          entry.artifactEntries = fieldUpdates.artifactEntries;
+        }
+        if ("artifactReplays" in fieldUpdates) {
+          entry.artifactReplays = fieldUpdates.artifactReplays;
+        }
+        cacheRef.current.set(trimmedJobId, entry);
+      }
+      if (rejectedFields.length > 0 && primaryError) {
+        dispatch({
+          type: "FETCH_REJECTED",
+          jobId: trimmedJobId,
+          requestId,
+          fields: rejectedFields,
+          error: primaryError,
+        });
+        for (const field of rejectedFields) {
+          options?.onFieldError?.(field, primaryError);
+        }
+      }
+    })();
+
+    return () => {
+      controller.abort();
+    };
+    // 注：`options.on*Change` 故意排除依赖以避免消费者每 render 重建 callback 触发 W4 重发。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    trimmedJobId,
+    hasJob,
+    state.job.data,
+    jobStage,
+    currentSubStage,
+    skipLazyLoad,
+    w4RetryTrigger,
+  ]);
+
+  // Wave 4 共享 retry：触发 W4 effect 重跑。
+  // Task 5 实现范围：`artifactEntries / artifactReplays` 共享此 retry；
+  // `artifactFeedback` 由于是 W1 派生，retry 复用 `retryWave1`（在 view 映射中绑定）。
+  const retryWave4 = useCallback(() => {
+    if (!hasJob) return;
+    bumpW4Retry();
+  }, [hasJob]);
 
   // 预先计算 Wave 2 字段的 gate 状态，view 映射中直接复用。
   const wave2GateOpen = useMemo(() => {
     return shouldLoadField("agentCrew", {
+      currentSubStage,
+      jobStage,
+      skipLazyLoad,
+    });
+  }, [currentSubStage, jobStage, skipLazyLoad]);
+
+  // 预先计算 Wave 4 字段（`artifactFeedback` 派生部分）的 gate 状态。
+  // `artifactEntries / artifactReplays` 的 gate 由 W4 effect 直接判定；这里的 gate 专用于
+  // view 映射层决定 `artifactFeedback` 的可见性与 loading/error 绑定。
+  const wave4GateOpen = useMemo(() => {
+    return shouldLoadField("artifactFeedback", {
       currentSubStage,
       jobStage,
       skipLazyLoad,
@@ -1375,6 +1646,24 @@ export function useAutopilotRightRailData(
     const fromJob = deriveAgentCrewFromJob(state.job.data);
     return fromJob ?? initialAgentCrewFallback;
   }, [wave2GateOpen, state.job.data, initialAgentCrewFallback]);
+
+  // `artifactFeedback` 是派生字段（Requirement 12.5）：
+  //  - gate 打开（artifact_memory / engineering_landing 或 skipLazyLoad）→ 从当前
+  //    `state.job.data` 的 `artifacts` 中 `type === "feedback"` payload 派生；若派生结果
+  //    为空且 initialData 提供了 artifactFeedback，则退回到 initialData。
+  //  - gate 关闭（尚未进入 artifact 阶段且未 skipLazyLoad）→ 暴露
+  //    `initialData.artifactFeedback ?? []`（保持数组形状，供 panel 组件直接消费）。
+  //
+  // 该字段不发起独立 HTTP 请求，loading/error 直接复用 `state.job` 的生命周期（W1 job
+  // refetch 成功 / 失败即为 artifactFeedback 的刷新 / 错误）。
+  const initialArtifactFeedbackFallback = initialData?.artifactFeedback ?? [];
+  const derivedArtifactFeedback = useMemo<BlueprintArtifactFeedback[]>(() => {
+    if (!wave4GateOpen) {
+      return initialArtifactFeedbackFallback;
+    }
+    const fromJob = deriveArtifactFeedbackFromJob(state.job.data);
+    return fromJob.length > 0 ? fromJob : initialArtifactFeedbackFallback;
+  }, [wave4GateOpen, state.job.data, initialArtifactFeedbackFallback]);
 
   // 把 reducer state 映射为 public `RightRailDataView`：剥离 `pendingRequestId`，挂接 retry。
   return useMemo<RightRailDataView>(() => {
@@ -1405,6 +1694,26 @@ export function useAutopilotRightRailData(
             retry: retryWave1,
           };
 
+    // artifactFeedback view：派生字段，与 `view.job` 共享 loading/error 生命周期。
+    // - gate 打开 → data 使用 `deriveArtifactFeedbackFromJob` 派生值，loading/error 沿 state.job；
+    // - gate 关闭 → data 退回 `initialData.artifactFeedback ?? []`，loading/error 清零；
+    // - retry 复用 `retryWave1`（刷新 W1 job 会自动带出最新 feedback）。
+    const artifactFeedbackView: RightRailDataFieldStatus<
+      BlueprintArtifactFeedback[]
+    > = wave4GateOpen
+      ? {
+          data: derivedArtifactFeedback,
+          loading: state.job.loading,
+          error: state.job.error,
+          retry: retryWave1,
+        }
+      : {
+          data: derivedArtifactFeedback,
+          loading: false,
+          error: null,
+          retry: retryWave1,
+        };
+
     return {
       // Wave 1 共享 retryWave1
       job: toPublic(state.job, retryWave1),
@@ -1421,19 +1730,22 @@ export function useAutopilotRightRailData(
       promptPackages: toPublic(state.promptPackages, retryWave3),
       landingPlans: toPublic(state.landingPlans, retryWave3),
       engineeringRuns: toPublic(state.engineeringRuns, retryWave3),
-      // Wave 4 占位
-      artifactEntries: toPublic(state.artifactEntries, noopRetry),
-      artifactReplays: toPublic(state.artifactReplays, noopRetry),
-      artifactFeedback: toPublic(state.artifactFeedback, noopRetry),
+      // Wave 4：`artifactEntries / artifactReplays` 共享 retryWave4；
+      // `artifactFeedback` 为派生字段，绑定 W1 生命周期并复用 retryWave1（见上方 view 构造）。
+      artifactEntries: toPublic(state.artifactEntries, retryWave4),
+      artifactReplays: toPublic(state.artifactReplays, retryWave4),
+      artifactFeedback: artifactFeedbackView,
     };
   }, [
     state,
     wave2GateOpen,
+    wave4GateOpen,
     derivedAgentCrew,
+    derivedArtifactFeedback,
     retryWave1,
     retryWave2,
     retryWave3,
-    noopRetry,
+    retryWave4,
   ]);
 }
 
@@ -1499,10 +1811,13 @@ export const __testing__ = {
   WAVE_1_FIELDS,
   WAVE_2_FETCH_FIELDS,
   WAVE_3_FETCH_FIELDS,
+  WAVE_4_FETCH_FIELDS,
   ALL_FIELD_NAMES,
   // Task 3：Wave 2 helpers
   shouldLoadField,
   deriveAgentCrewFromJob,
   mergeCapabilities,
   coerceApiRequestError,
+  // Task 5：Wave 4 helpers
+  deriveArtifactFeedbackFromJob,
 };

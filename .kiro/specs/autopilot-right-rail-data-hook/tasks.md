@@ -67,7 +67,7 @@
   - **验收**:Wave 3 4 个字段按表懒加载;`/specs` 路径 `skipLazyLoad=true` 时全量发起
   - _需求:Requirement 2.1、2.2、2.5、Requirement 3.1、3.4、3.5_
 
-- [ ] 5. 实现 Wave 4 fetch(`artifactEntries + artifactReplays + artifactFeedback`)
+- [x] 5. 实现 Wave 4 fetch(`artifactEntries + artifactReplays + artifactFeedback`)
   - `artifactEntries` 调用 `fetchBlueprintArtifactLedger(jobId)`
   - `artifactReplays` 调用 `fetchBlueprintArtifactReplays(jobId)`
   - `artifactFeedback` 从 `artifactReplays` 响应的 `artifactFeedback` 切片派生(字段存在于 `BlueprintArtifactReplaysResponse`);不新增后端路由

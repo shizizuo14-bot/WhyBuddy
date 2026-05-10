@@ -17,6 +17,13 @@
  *   `FETCH_STARTED / FETCH_FULFILLED / FETCH_REJECTED` 行为（与 Wave 1/2 共用 reducer，但
  *   需覆盖 Wave 3 字段集合不污染 Wave 1/2/4）；`JOB_CHANGED` 切回历史 `jobId` 时从
  *   `cachedFields` 恢复 Wave 3 字段；`WAVE_3_FETCH_FIELDS` 常量断言。
+ * - Task 5 新增 Wave 4 范围：`shouldLoadField` 对 `artifactEntries / artifactReplays /
+ *   artifactFeedback` 三个字段的懒加载阈值（`currentSubStage === "artifact_memory"` 或
+ *   `job.stage === "engineering_landing"`）；reducer 对 Wave 4 fetch 字段（entries / replays）
+ *   的 `FETCH_STARTED / FETCH_FULFILLED / FETCH_REJECTED` 行为（不污染 Wave 1/2/3）；
+ *   `JOB_CHANGED` 切回历史 `jobId` 时从 `cachedFields` 恢复 Wave 4 fetch 字段；
+ *   `WAVE_4_FETCH_FIELDS` 常量断言（**不**含 `artifactFeedback`，因为是派生字段）；
+ *   `deriveArtifactFeedbackFromJob` helper 从 job artifacts 派生 feedback 列表。
  * - 不测试 hook 的 fetch 副作用与 React render cycle（需要 DOM runtime；本 repo 当前不集成
  *   `@testing-library/react`，且 `useEffect` 在 `renderToStaticMarkup` 中不执行）。
  * - Task 11 的 PBT 会引入 `renderHook` 或等价手段覆盖 fetch 副作用、SSE、polling 与 retry。
@@ -48,10 +55,12 @@ const {
   WAVE_1_FIELDS,
   WAVE_2_FETCH_FIELDS,
   WAVE_3_FETCH_FIELDS,
+  WAVE_4_FETCH_FIELDS,
   ALL_FIELD_NAMES,
   shouldLoadField,
   deriveAgentCrewFromJob,
   mergeCapabilities,
+  deriveArtifactFeedbackFromJob,
 } = __testing__;
 
 // ---------------------------------------------------------------------------
@@ -494,15 +503,19 @@ describe("shouldLoadField (Spec 4 Task 3)", () => {
     }
   });
 
-  it("Wave 4 字段当前仍为 false 占位（Task 5 会扩展）", () => {
+  it("Wave 4 字段（artifactEntries / artifactReplays / artifactFeedback）按 artifact_memory 或 engineering_landing 阈值开启", () => {
+    // currentSubStage === "artifact_memory" → 三个字段均返回 true
     for (const field of [
       "artifactEntries",
       "artifactReplays",
       "artifactFeedback",
     ] as const) {
       expect(
-        shouldLoadField(field, { ...baseParams, currentSubStage: "spec_tree" })
-      ).toBe(false);
+        shouldLoadField(field, {
+          ...baseParams,
+          currentSubStage: "artifact_memory",
+        })
+      ).toBe(true);
     }
   });
 });
@@ -1175,5 +1188,359 @@ describe("WAVE_3_FETCH_FIELDS (Spec 4 Task 4)", () => {
         "engineeringRuns",
       ].sort()
     );
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Wave 4 helper: shouldLoadField 按 artifact_memory / engineering_landing 判定
+// ---------------------------------------------------------------------------
+
+describe("shouldLoadField · Wave 4 (Spec 4 Task 5)", () => {
+  const baseParams = {
+    jobStage: null as BlueprintGenerationJob["stage"] | null,
+    skipLazyLoad: false,
+  };
+
+  const WAVE_4_FIELDS = [
+    "artifactEntries",
+    "artifactReplays",
+    "artifactFeedback",
+  ] as const;
+
+  it("currentSubStage === 'artifact_memory' 时 3 个字段均返回 true", () => {
+    for (const field of WAVE_4_FIELDS) {
+      expect(
+        shouldLoadField(field, {
+          ...baseParams,
+          currentSubStage: "artifact_memory",
+        })
+      ).toBe(true);
+    }
+  });
+
+  it("非 artifact_memory 的其它合法 currentSubStage（spec_tree / agent_crew_fabric / effect_preview / prompt_package / runtime_capability / engineering_handoff / spec_documents）且 jobStage=null 时返回 false", () => {
+    for (const sub of [
+      "spec_tree",
+      "agent_crew_fabric",
+      "effect_preview",
+      "prompt_package",
+      "runtime_capability",
+      "engineering_handoff",
+      "spec_documents",
+    ] as const) {
+      for (const field of WAVE_4_FIELDS) {
+        expect(
+          shouldLoadField(field, {
+            ...baseParams,
+            currentSubStage: sub,
+          })
+        ).toBe(false);
+      }
+    }
+  });
+
+  it("jobStage === 'engineering_landing' 且 currentSubStage=undefined 时 3 个字段均返回 true", () => {
+    for (const field of WAVE_4_FIELDS) {
+      expect(
+        shouldLoadField(field, {
+          currentSubStage: undefined,
+          jobStage: "engineering_landing",
+          skipLazyLoad: false,
+        })
+      ).toBe(true);
+    }
+  });
+
+  it("非 engineering_landing 的其它合法 jobStage（engineering_handoff / preview / prompt_packaging / runtime_capability）且 currentSubStage 非 artifact_memory 时返回 false", () => {
+    for (const stage of [
+      "engineering_handoff",
+      "preview",
+      "prompt_packaging",
+      "runtime_capability",
+    ] as const) {
+      for (const field of WAVE_4_FIELDS) {
+        expect(
+          shouldLoadField(field, {
+            currentSubStage: "spec_tree",
+            jobStage: stage,
+            skipLazyLoad: false,
+          })
+        ).toBe(false);
+      }
+    }
+  });
+
+  it("skipLazyLoad === true 时 Wave 4 三个字段全部返回 true（即便 currentSubStage=undefined 且 jobStage=null）", () => {
+    for (const field of WAVE_4_FIELDS) {
+      expect(
+        shouldLoadField(field, {
+          currentSubStage: undefined,
+          jobStage: null,
+          skipLazyLoad: true,
+        })
+      ).toBe(true);
+    }
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Reducer: Wave 4 field 行为（Wave 4 fetch 字段 = entries + replays；feedback 为派生字段不
+// 进入 reducer 流程）
+// ---------------------------------------------------------------------------
+
+describe("rightRailDataReducer · Wave 4 fetch fields (Spec 4 Task 5)", () => {
+  it("FETCH_STARTED 只把 artifactEntries / artifactReplays 置为 loading，不动 Wave 1/2/3 或 artifactFeedback", () => {
+    const initial = buildInitialReducerState("job-1", undefined, null);
+    const next = rightRailDataReducer(initial, {
+      type: "FETCH_STARTED",
+      jobId: "job-1",
+      fields: ["artifactEntries", "artifactReplays"],
+      requestId: 200,
+    });
+
+    expect(next.artifactEntries.loading).toBe(true);
+    expect(next.artifactEntries.pendingRequestId).toBe(200);
+    expect(next.artifactReplays.loading).toBe(true);
+    expect(next.artifactReplays.pendingRequestId).toBe(200);
+    // artifactFeedback 不进入 reducer 流程
+    expect(next.artifactFeedback.loading).toBe(false);
+    expect(next.artifactFeedback.pendingRequestId).toBeNull();
+    // Wave 1/2/3 未受影响
+    expect(next.job.loading).toBe(false);
+    expect(next.capabilities.loading).toBe(false);
+    expect(next.effectPreviews.loading).toBe(false);
+    expect(next.promptPackages.loading).toBe(false);
+    expect(next.landingPlans.loading).toBe(false);
+    expect(next.engineeringRuns.loading).toBe(false);
+  });
+
+  it("FETCH_FULFILLED 批量应用 Wave 4 fetch 字段", () => {
+    const initial = buildInitialReducerState("job-1", undefined, null);
+    const started = rightRailDataReducer(initial, {
+      type: "FETCH_STARTED",
+      jobId: "job-1",
+      fields: ["artifactEntries", "artifactReplays"],
+      requestId: 1,
+    });
+
+    const entriesPayload = [{ id: "entry-1" }] as never;
+    const replaysPayload = [{ id: "replay-1" }] as never;
+
+    const next = rightRailDataReducer(started, {
+      type: "FETCH_FULFILLED",
+      jobId: "job-1",
+      requestId: 1,
+      fieldUpdates: {
+        artifactEntries: entriesPayload,
+        artifactReplays: replaysPayload,
+      },
+    });
+
+    expect(next.artifactEntries.data).toBe(entriesPayload);
+    expect(next.artifactEntries.loading).toBe(false);
+    expect(next.artifactEntries.error).toBeNull();
+    expect(next.artifactReplays.data).toBe(replaysPayload);
+    expect(next.artifactReplays.loading).toBe(false);
+  });
+
+  it("FETCH_REJECTED 保留 previousCache 并写入 error", () => {
+    const previousEntries = [{ id: "entry-old" }] as never;
+    const initial = buildInitialReducerState(
+      "job-1",
+      { artifactEntries: previousEntries },
+      null
+    );
+    const started = rightRailDataReducer(initial, {
+      type: "FETCH_STARTED",
+      jobId: "job-1",
+      fields: ["artifactEntries"],
+      requestId: 1,
+    });
+
+    const error: ApiRequestError = {
+      kind: "error",
+      source: "network",
+      endpoint: "/api/blueprint/jobs/job-1/artifact-ledger",
+      message: "boom",
+      detail: "",
+      retryable: true,
+    };
+    const next = rightRailDataReducer(started, {
+      type: "FETCH_REJECTED",
+      jobId: "job-1",
+      requestId: 1,
+      fields: ["artifactEntries"],
+      error,
+    });
+
+    expect(next.artifactEntries.data).toBe(previousEntries);
+    expect(next.artifactEntries.error).toBe(error);
+    expect(next.artifactEntries.loading).toBe(false);
+  });
+});
+
+// ---------------------------------------------------------------------------
+// JOB_CHANGED：Wave 4 字段的 cache seed 行为
+// ---------------------------------------------------------------------------
+
+describe("rightRailDataReducer · JOB_CHANGED seeds Wave 4 cache (Spec 4 Task 5)", () => {
+  it("切回历史 jobId 时从 cachedFields 恢复 artifactEntries / artifactReplays / artifactFeedback", () => {
+    const initial = buildInitialReducerState("job-2", undefined, null);
+    const cachedEntries = [{ id: "entry-cached" }] as never;
+    const cachedReplays = [{ id: "replay-cached" }] as never;
+    const cachedFeedback = [{ id: "feedback-cached" }] as never;
+
+    const next = rightRailDataReducer(initial, {
+      type: "JOB_CHANGED",
+      jobId: "job-1",
+      initialData: undefined,
+      cachedFields: {
+        artifactEntries: cachedEntries,
+        artifactReplays: cachedReplays,
+        artifactFeedback: cachedFeedback,
+      },
+    });
+
+    expect(next.artifactEntries.data).toBe(cachedEntries);
+    expect(next.artifactEntries.loading).toBe(false);
+    expect(next.artifactReplays.data).toBe(cachedReplays);
+    expect(next.artifactFeedback.data).toBe(cachedFeedback);
+    expect(next.artifactEntries.pendingRequestId).toBeNull();
+    expect(next.artifactReplays.pendingRequestId).toBeNull();
+    expect(next.artifactFeedback.pendingRequestId).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// WAVE_4_FETCH_FIELDS 常量断言
+// ---------------------------------------------------------------------------
+
+describe("WAVE_4_FETCH_FIELDS (Spec 4 Task 5)", () => {
+  it("精确等于 2 个 Wave 4 fetch 字段（不含派生字段 artifactFeedback）", () => {
+    expect([...WAVE_4_FETCH_FIELDS].sort()).toEqual(
+      ["artifactEntries", "artifactReplays"].sort()
+    );
+    expect([...WAVE_4_FETCH_FIELDS]).not.toContain("artifactFeedback");
+  });
+});
+
+// ---------------------------------------------------------------------------
+// deriveArtifactFeedbackFromJob helper
+// ---------------------------------------------------------------------------
+
+describe("deriveArtifactFeedbackFromJob (Spec 4 Task 5)", () => {
+  function makeJobWithArtifacts(
+    artifacts: Array<{ type: string; payload: unknown }>
+  ): BlueprintGenerationJob {
+    return {
+      id: "job-1",
+      request: { userInput: "", sources: [] } as unknown as BlueprintGenerationJob["request"],
+      status: "running",
+      stage: "engineering_landing",
+      version: "1",
+      createdAt: "2026-05-11T00:00:00Z",
+      updatedAt: "2026-05-11T00:00:00Z",
+      artifacts: artifacts.map((a, i) => ({
+        id: `artifact-${i}`,
+        type: a.type,
+        title: `title-${i}`,
+        summary: `summary-${i}`,
+        createdAt: "2026-05-11T00:00:00Z",
+        payload: a.payload,
+      })) as unknown as BlueprintGenerationJob["artifacts"],
+      events: [],
+    } as unknown as BlueprintGenerationJob;
+  }
+
+  it("job 为 null 时返回空数组", () => {
+    expect(deriveArtifactFeedbackFromJob(null)).toEqual([]);
+  });
+
+  it("job 无 feedback artifact 时返回空数组", () => {
+    const job = makeJobWithArtifacts([
+      { type: "intake", payload: { anything: true } },
+      { type: "agent_crew", payload: { id: "crew-1" } },
+    ]);
+    expect(deriveArtifactFeedbackFromJob(job)).toEqual([]);
+  });
+
+  it("job 有 feedback artifact 时返回对应 payload 列表", () => {
+    const feedbackPayload = {
+      id: "feedback-1",
+      jobId: "job-1",
+      entryId: "entry-1",
+      artifactId: "artifact-1",
+      artifactType: "spec_tree",
+      kind: "feedback" as const,
+      message: "looks good",
+      summary: "approved",
+      status: "recorded",
+      recordedAt: "2026-05-11T00:00:00Z",
+      actor: "agent-planner",
+      tags: [],
+    };
+    const job = makeJobWithArtifacts([
+      { type: "feedback", payload: feedbackPayload },
+    ]);
+    const result = deriveArtifactFeedbackFromJob(job);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("feedback-1");
+    expect(result[0].jobId).toBe("job-1");
+    expect(result[0].entryId).toBe("entry-1");
+  });
+
+  it("形状不合法的 payload 会被过滤掉（仅保留具备 id/jobId/entryId 的 feedback）", () => {
+    const job = makeJobWithArtifacts([
+      { type: "feedback", payload: { missing: "fields" } },
+      {
+        type: "feedback",
+        payload: {
+          id: "ok",
+          jobId: "job-1",
+          entryId: "entry-1",
+          artifactId: "artifact-1",
+          artifactType: "spec_tree",
+          kind: "feedback" as const,
+          message: "m",
+          summary: "s",
+          status: "recorded",
+          recordedAt: "2026-05-11T00:00:00Z",
+          actor: "agent",
+          tags: [],
+        },
+      },
+    ]);
+    const result = deriveArtifactFeedbackFromJob(job);
+    expect(result).toHaveLength(1);
+    expect(result[0].id).toBe("ok");
+  });
+
+  it("按 createdAt 升序排序多个 feedback payload", () => {
+    const olderFeedback = {
+      id: "older",
+      jobId: "job-1",
+      entryId: "entry-1",
+      artifactId: "artifact-1",
+      artifactType: "spec_tree",
+      kind: "feedback" as const,
+      message: "m",
+      summary: "s",
+      status: "recorded",
+      recordedAt: "2026-05-10T00:00:00Z",
+      actor: "agent",
+      tags: [],
+      createdAt: "2026-05-10T00:00:00Z",
+    };
+    const newerFeedback = {
+      ...olderFeedback,
+      id: "newer",
+      createdAt: "2026-05-12T00:00:00Z",
+    };
+    const job = makeJobWithArtifacts([
+      { type: "feedback", payload: newerFeedback },
+      { type: "feedback", payload: olderFeedback },
+    ]);
+    const result = deriveArtifactFeedbackFromJob(job);
+    expect(result.map(item => item.id)).toEqual(["older", "newer"]);
   });
 });
