@@ -10,6 +10,9 @@
 export { SpecTreeWorkbenchPanel } from "./SpecTreePanel.js";
 export { SpecDocumentWorkbenchPanel } from "./SpecDocumentsPanel.js";
 
+export { AgentCrewFabricPanel } from "./AgentCrewFabricPanel";
+export type { AgentCrewFabricPanelProps } from "./AgentCrewFabricPanel";
+
 export { PROGRESS_HEADER_PANEL_PLACEHOLDER } from "./ProgressHeaderPanel.js";
 export { JOB_LEDGER_PANEL_PLACEHOLDER } from "./JobLedgerPanel.js";
 export { EFFECT_PREVIEW_PANEL_PLACEHOLDER } from "./EffectPreviewPanel.js";

@@ -22,6 +22,7 @@
 
 import type { FC } from "react";
 
+import { AgentCrewFabricPanel } from "./panels";
 import { resolveRailSubStage } from "./resolve-rail-sub-stage";
 import {
   RAIL_SUB_STAGE_ORDER,
@@ -80,12 +81,16 @@ function resolveAriaLabel(locale: AutopilotRightRailProps["locale"]): string {
  */
 export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
   const {
+    jobId,
     currentStage,
     currentSubStage: currentSubStageFromProps,
     job,
     selection,
     specTree,
     agentCrew,
+    capabilities,
+    capabilityInvocations,
+    capabilityEvidence,
     locale,
   } = props;
 
@@ -131,7 +136,19 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
                       data-sub-stage-placeholder={subStage}
                       aria-current={isCurrent ? "step" : undefined}
                     >
-                      {subStage}
+                      {subStage === "agent_crew_fabric" ? (
+                        <AgentCrewFabricPanel
+                          jobId={jobId}
+                          job={job}
+                          agentCrew={agentCrew}
+                          capabilities={capabilities}
+                          capabilityInvocations={capabilityInvocations}
+                          capabilityEvidence={capabilityEvidence}
+                          locale={locale}
+                        />
+                      ) : (
+                        subStage
+                      )}
                     </div>
                   );
                 })

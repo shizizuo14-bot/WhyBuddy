@@ -19,7 +19,7 @@
 
 ---
 
-- [ ] 1. 抽离 `AgentCrewFabricPanel`（对应 `agent_crew_fabric`）
+- [x] 1. 抽离 `AgentCrewFabricPanel`（对应 `agent_crew_fabric`）
   - 新增 `client/src/pages/autopilot/right-rail/panels/AgentCrewFabricPanel.tsx`
   - 从 `BlueprintProgressPanel.tsx::BlueprintAgentCrewSurface`（~行 1794–2083）完整搬运到新文件，并改名为 `AgentCrewFabricPanel`
   - 定义 `AgentCrewFabricPanelProps = Pick<AutopilotRightRailProps, "jobId" | "job" | "agentCrew" | "capabilities" | "capabilityInvocations" | "capabilityEvidence" | "locale">`，追加一个可选的 `roleEventProjection?: BlueprintRoleEventProjection` 私有字段以保留原 local function 的能力
