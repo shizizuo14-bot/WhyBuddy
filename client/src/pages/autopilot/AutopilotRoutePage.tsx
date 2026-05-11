@@ -71,7 +71,6 @@ import {
   type RightRailSubStageContextValue,
   type ViewportTier,
 } from "./right-rail";
-import { RailMetricsBlock } from "./right-rail/rail-metrics-block";
 
 const GITHUB_URL_PATTERN = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+/i;
 
@@ -1595,24 +1594,6 @@ function AutopilotWorkflowRail({
         );
         return (
           <div className="grid gap-3" data-testid="autopilot-fabric-step">
-            {selection ? (
-              <AutopilotSpecTreeHandoffPanel
-                locale={locale}
-                job={latestJob}
-                selection={selection}
-                specTree={specTree}
-                embedded
-              />
-            ) : (
-              <div className="rounded-[8px] border border-dashed border-slate-300 bg-slate-50 px-3 py-3 text-xs font-semibold leading-5 text-slate-500">
-                {t(
-                  locale,
-                  "先完成路线选择，AgentCrewFabric 才会展开。",
-                  "Complete route selection before AgentCrewFabric expands."
-                )}
-              </div>
-            )}
-
             {/* Drawer tier：触发按钮 + <HoloDrawer> */}
             {tier === "drawer" ? (
               <>
@@ -1777,17 +1758,6 @@ function AutopilotWorkflowRail({
       </section>
 
       <ApiErrorNotice error={apiError} />
-
-      {/* Spec 5 布局校准:4 个指标卡在所有 stage 底部可见 */}
-      <RailMetricsBlock
-        locale={locale}
-        routeSet={routeSet}
-        selection={selection}
-        specTree={specTree}
-        agentCrew={agentCrew}
-        effectPreviews={effectPreviews}
-        capabilityEvidence={capabilityEvidence}
-      />
     </aside>
   );
 }

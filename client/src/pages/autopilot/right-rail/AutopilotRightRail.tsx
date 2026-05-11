@@ -29,7 +29,6 @@ import {
   SpecDocumentsPanel,
   SpecTreePanel,
 } from "./panels";
-import { RailMetricsBlock } from "./rail-metrics-block";
 import { resolveRailSubStage } from "./resolve-rail-sub-stage";
 import {
   RAIL_SUB_STAGE_ORDER,
@@ -50,20 +49,6 @@ const TIMELINE_STAGE_ORDER: readonly AutopilotTimelineStage[] = [
   "selection",
   "fabric",
 ] as const;
-
-const TIMELINE_STAGE_LABELS: Record<
-  AutopilotTimelineStage,
-  { "zh-CN": string; "en-US": string }
-> = {
-  input: { "zh-CN": "输入阶段", "en-US": "Input stage" },
-  clarification: { "zh-CN": "澄清问答", "en-US": "Clarification" },
-  routeset: { "zh-CN": "路线候选", "en-US": "Route set" },
-  selection: { "zh-CN": "路线选择", "en-US": "Route selection" },
-  fabric: {
-    "zh-CN": "AgentCrewFabric 推演工作台",
-    "en-US": "AgentCrewFabric workbench",
-  },
-};
 
 function resolveAriaLabel(locale: AutopilotRightRailProps["locale"]): string {
   return locale === "zh-CN"
@@ -163,23 +148,18 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
       data-autopilot-sub-stage={activeSubStage ?? ""}
     >
       {TIMELINE_STAGE_ORDER.map((stage) => {
-        const labels = TIMELINE_STAGE_LABELS[stage];
-        const label = labels[locale] ?? labels["en-US"];
         const isFabric = stage === "fabric";
         const isActive = stage === currentStage;
 
         if (!isFabric || currentStage !== "fabric") {
           return (
-            <div key={stage} data-stage-placeholder={stage} data-active={isActive ? "true" : "false"}>
-              <div>{label}</div>
-            </div>
+            <div key={stage} data-stage-placeholder={stage} data-active={isActive ? "true" : "false"} />
           );
         }
 
         // Fabric: all 8 panels rendered top-to-bottom, scrollable.
         return (
           <div key={stage} data-stage-placeholder={stage} data-active={isActive ? "true" : "false"}>
-            <div className="mb-2 text-sm font-bold">{label}</div>
             <div
               ref={scrollRef}
               data-testid="autopilot-right-rail-scroll-container"
@@ -215,15 +195,6 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
           </div>
         );
       })}
-      <RailMetricsBlock
-        locale={locale}
-        routeSet={routeSet}
-        selection={selection}
-        specTree={specTree}
-        agentCrew={agentCrew}
-        effectPreviews={effectPreviews}
-        capabilityEvidence={capabilityEvidence}
-      />
     </aside>
   );
 };
