@@ -47,7 +47,6 @@ import type { FC } from "react";
 import {
   CheckCircle2,
   Clipboard,
-  FileCheck2,
   ListChecks,
   PackageCheck,
   PlayCircle,
@@ -477,31 +476,15 @@ function EngineeringHandoffPanelInner({
 
   return (
     <div
-      className="mt-4 rounded-[20px] border border-slate-200 bg-white px-4 py-4"
+      className="grid gap-3"
       data-testid="engineering-landing-workbench"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
-            <FileCheck2 className="size-3.5" aria-hidden="true" />
-            {panelText("工程落地", "Engineering landing", locale)}
-          </div>
-          <h3 className="mt-2 text-lg font-black text-slate-950">
-            {panelText("工程落地工作台", "Engineering landing workbench", locale)}
-          </h3>
-          <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-            {panelText(
-              "将实现提示词包转换为平台交接、执行步骤、验证命令和工程执行记录。",
-              "Turn prompt packages into platform handoffs, execution steps, verification commands, and engineering run records.",
-              locale
-            )}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      {/* Header chrome removed: SubStageCard 已提供标题 / apiPath / summary / 状态胶囊 */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             variant="outline"
-            className="gap-2 rounded-full border-slate-200 bg-slate-50 font-black text-slate-600 hover:bg-slate-100"
+            className="gap-2 rounded-none border-[#CCCCCC] bg-white font-black text-black hover:bg-[#F3F3F3]"
             disabled={!jobId || loadingPlans || loadingRuns || generating}
             onClick={handleRefreshAll}
             data-testid="engineering-landing-refresh-button"
@@ -517,7 +500,7 @@ function EngineeringHandoffPanelInner({
           </Button>
           <Button
             type="button"
-            className="gap-2 rounded-full bg-slate-950 font-black text-white hover:bg-slate-800"
+            className="gap-2 rounded-none bg-black font-black text-white hover:bg-[#333]"
             disabled={!canGenerateLanding || loadingPlans || generating}
             onClick={handleGenerateLanding}
             data-testid="engineering-landing-generate-button"
@@ -529,7 +512,6 @@ function EngineeringHandoffPanelInner({
             )}
             {panelText("生成落地计划", "Generate landing plan", locale)}
           </Button>
-        </div>
       </div>
 
       {error ? (

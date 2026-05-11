@@ -794,3 +794,34 @@
 [class*="animate-in"] {
   will-change: transform, opacity;
 }
+
+/* -------------------------------------------------------------------------
+ * Autopilot sub-stage panel adapter (Spec 5 / autopilot-sub-stage-panel-wrapping)
+ *
+ * 对应 spec：.kiro/specs/autopilot-sub-stage-panel-wrapping/
+ * - 需求 2（不能修改的 SpecTreePanel / SpecDocumentsPanel 靠外层样式适配）
+ * - 任务 7（在 `.mirofish-rail` scope 下添加 adapter CSS override）
+ *
+ * Spec 4 的 `render-sub-stage-panel.tsx` 会把 `SpecTreePanel` / `SpecDocumentsPanel`
+ * 外层包一层 `<div className="autopilot-panel-adapter">`，本规则仅在
+ * `.mirofish-rail` scope + `.autopilot-panel-adapter` 内部生效，不影响 `/specs`
+ * 页面或其他位置的 SpecTreeWorkbenchPanel / SpecDocumentWorkbenchPanel 展示。
+ * ------------------------------------------------------------------------- */
+
+.mirofish-rail .autopilot-panel-adapter > * {
+  border-radius: 0 !important;
+  background: transparent !important;
+}
+
+.mirofish-rail .autopilot-panel-adapter [class*="rounded-"] {
+  border-radius: 0 !important;
+}
+
+.mirofish-rail .autopilot-panel-adapter [class*="bg-slate-50"],
+.mirofish-rail .autopilot-panel-adapter [class*="bg-slate-100"] {
+  background-color: white !important;
+}
+
+.mirofish-rail .autopilot-panel-adapter [class*="border-slate-200"] {
+  border-color: #EAEAEA !important;
+}

@@ -38,8 +38,6 @@
 import { useMemo } from "react";
 import type { FC } from "react";
 
-import { Layers3 } from "lucide-react";
-
 import { Badge } from "@/components/ui/badge";
 import { blueprintCopy as translateBlueprintCopy } from "@/lib/blueprint-copy";
 import type { AppLocale } from "@/lib/locale";
@@ -141,16 +139,14 @@ function agentRoleStateLabel(state: string, locale: AppLocale): string {
 }
 
 function agentRoleStateClass(state: string): string {
-  if (state === "active") {
-    return "border-emerald-200 bg-emerald-50 text-emerald-700";
+  if (
+    state === "active" ||
+    state === "watching" ||
+    state === "reviewing"
+  ) {
+    return "border-[#CCCCCC] bg-white text-black";
   }
-  if (state === "watching") {
-    return "border-sky-200 bg-sky-50 text-sky-700";
-  }
-  if (state === "reviewing") {
-    return "border-amber-200 bg-amber-50 text-amber-700";
-  }
-  return "border-slate-200 bg-slate-100 text-slate-500";
+  return "border-[#CCCCCC] bg-white text-[#666]";
 }
 
 function agentRoleStateDetail(state: string, locale: AppLocale): string {
@@ -181,7 +177,7 @@ function SummaryTile({
   detail: string;
 }) {
   return (
-    <div className="rounded-[14px] border border-slate-200 bg-slate-50 px-3 py-3">
+    <div className="rounded-none border border-[#EAEAEA] bg-white px-3 py-3">
       <div className="text-xl font-black text-slate-950">{value}</div>
       <div className="mt-1 text-[10px] font-black uppercase tracking-normal text-slate-500">
         {label}
@@ -233,64 +229,26 @@ export const AgentCrewFabricPanel: FC<AgentCrewFabricPanelProps> = ({
       ),
     [roleTimelines]
   );
-  const streamEventCount =
-    roleEventProjection?.eventCount ??
-    roleTimelines.reduce(
-      (count, role) => count + (role.entries?.length ?? 0),
-      0
-    );
+  // streamEventCount removed with header chrome; downstream JSX still consumes roleEventProjection.
 
   if (!agentCrew && roleTimelines.length === 0) return null;
 
   return (
     <div
-      className="mt-4 rounded-[20px] border border-slate-200 bg-white px-4 py-4"
+      className="grid gap-3"
       data-testid="blueprint-agent-crew-surface"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
-            <Layers3 className="size-3.5" aria-hidden="true" />
-            {panelText("智能体团队", "Agent Crew", locale)}
-          </div>
-          <h3 className="mt-2 text-lg font-black text-slate-950">
-            {panelText("协作角色面板", "Companion role surface", locale)}
-          </h3>
-          <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-            {agentCrew?.stage
-              ? panelText(
-                  `${artifactTokenLabel(agentCrew.stage, "runtime_capability", locale)} 协作角色已与运行时能力、日志、浏览器预览资产和证据对齐。`,
-                  `${artifactTokenLabel(agentCrew.stage, "runtime_capability", locale)} companion roles are aligned with runtime capabilities, logs, browser preview artifacts, and evidence.`,
-                  locale
-                )
-              : panelText(
-                  "协作角色已与运行时能力、日志、浏览器预览资产和证据对齐。",
-                  "Companion roles are aligned with runtime capabilities, logs, browser preview artifacts, and evidence.",
-                  locale
-                )}
-          </p>
-        </div>
-        <Badge
-          variant="outline"
-          className="rounded-full border-slate-200 bg-slate-50 text-[10px] font-black text-slate-500"
-        >
-          {panelText(
-            `${roleTimelines.length} 角色 / ${streamEventCount} 事件`,
-            `${roleTimelines.length} roles / ${streamEventCount} events`,
-            locale
-          )}
-        </Badge>
-      </div>
+      {/* Header chrome removed: SubStageCard 已提供标题 / apiPath / summary / 状态胶囊 */}
 
       {roleEventProjection ? (
         <div
-          className="mt-4 grid gap-2 md:grid-cols-5"
+          className="grid gap-2 md:grid-cols-5"
           data-testid="agent-crew-event-stream-consumers"
         >
           {roleEventProjection.items.map(item => (
             <div
               key={item.id}
-              className="rounded-[12px] border border-slate-200 bg-slate-50 px-3 py-2"
+              className="rounded-none border border-[#EAEAEA] bg-white px-3 py-2"
               data-testid="agent-crew-event-stream-consumer"
             >
               <div className="flex items-center justify-between gap-2">
@@ -300,7 +258,7 @@ export const AgentCrewFabricPanel: FC<AgentCrewFabricPanelProps> = ({
                 <Badge
                   variant="outline"
                   className={cn(
-                    "shrink-0 rounded-full text-[10px] font-black",
+                    "shrink-0 rounded-none text-[10px] font-black",
                     agentRoleStateClass(item.roleState ?? item.status)
                   )}
                 >
@@ -323,7 +281,7 @@ export const AgentCrewFabricPanel: FC<AgentCrewFabricPanelProps> = ({
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-4">
+      <div className="grid gap-2 sm:grid-cols-4">
         {(["active", "watching", "reviewing", "sleeping"] as const).map(
           state => (
             <SummaryTile
@@ -376,7 +334,7 @@ export const AgentCrewFabricPanel: FC<AgentCrewFabricPanelProps> = ({
             return (
               <div
                 key={role.id}
-                className="rounded-[16px] border border-slate-200 bg-slate-50 px-4 py-3"
+                className="rounded-none border border-[#EAEAEA] bg-white px-4 py-3"
                 data-testid="blueprint-agent-role-row"
               >
                 <div className="flex flex-wrap items-start justify-between gap-3">
@@ -388,7 +346,7 @@ export const AgentCrewFabricPanel: FC<AgentCrewFabricPanelProps> = ({
                       <Badge
                         variant="outline"
                         className={cn(
-                          "rounded-full text-[10px] font-black",
+                          "rounded-none text-[10px] font-black",
                           agentRoleStateClass(role.state)
                         )}
                       >
@@ -396,7 +354,7 @@ export const AgentCrewFabricPanel: FC<AgentCrewFabricPanelProps> = ({
                       </Badge>
                       <Badge
                         variant="outline"
-                        className="rounded-full border-slate-200 bg-white text-[10px] font-black text-slate-500"
+                        className="rounded-none border-[#CCCCCC] bg-white text-[10px] font-black text-black font-mono uppercase"
                       >
                           {artifactTokenLabel(role.group, "Role", locale)}
                       </Badge>
@@ -411,7 +369,7 @@ export const AgentCrewFabricPanel: FC<AgentCrewFabricPanelProps> = ({
                 </div>
 
                 <div className="mt-3 grid gap-2 md:grid-cols-4">
-                  <div className="rounded-[12px] border border-slate-200 bg-white px-3 py-2">
+                  <div className="rounded-none border border-[#EAEAEA] bg-white px-3 py-2">
                     <div className="text-[10px] font-black uppercase tracking-normal text-slate-400">
                       {panelText("能力", "Capability", locale)}
                     </div>
@@ -419,7 +377,7 @@ export const AgentCrewFabricPanel: FC<AgentCrewFabricPanelProps> = ({
                       {blueprintCopy(latestCapability, locale)}
                     </div>
                   </div>
-                  <div className="rounded-[12px] border border-slate-200 bg-white px-3 py-2">
+                  <div className="rounded-none border border-[#EAEAEA] bg-white px-3 py-2">
                     <div className="text-[10px] font-black uppercase tracking-normal text-slate-400">
                       {panelText("资产", "Artifact", locale)}
                     </div>
@@ -427,7 +385,7 @@ export const AgentCrewFabricPanel: FC<AgentCrewFabricPanelProps> = ({
                       {blueprintCopy(latestArtifact, locale)}
                     </div>
                   </div>
-                  <div className="rounded-[12px] border border-slate-200 bg-white px-3 py-2">
+                  <div className="rounded-none border border-[#EAEAEA] bg-white px-3 py-2">
                     <div className="text-[10px] font-black uppercase tracking-normal text-slate-400">
                       {panelText("证据", "Evidence", locale)}
                     </div>
@@ -435,7 +393,7 @@ export const AgentCrewFabricPanel: FC<AgentCrewFabricPanelProps> = ({
                       {blueprintCopy(latestEvidence, locale)}
                     </div>
                   </div>
-                  <div className="rounded-[12px] border border-slate-200 bg-white px-3 py-2">
+                  <div className="rounded-none border border-[#EAEAEA] bg-white px-3 py-2">
                     <div className="text-[10px] font-black uppercase tracking-normal text-slate-400">
                       {panelText("日志 / 预演", "Log / Preview", locale)}
                     </div>
@@ -452,7 +410,7 @@ export const AgentCrewFabricPanel: FC<AgentCrewFabricPanelProps> = ({
 
                 {latestEvent ? (
                   <div
-                    className="mt-2 rounded-[12px] border border-slate-200 bg-white px-3 py-2"
+                    className="mt-2 rounded-none border border-[#EAEAEA] bg-white px-3 py-2"
                     data-testid="agent-crew-role-event-source"
                   >
                     <div className="flex flex-wrap items-center justify-between gap-2">
@@ -461,7 +419,7 @@ export const AgentCrewFabricPanel: FC<AgentCrewFabricPanelProps> = ({
                       </div>
                       <Badge
                         variant="outline"
-                        className="rounded-full border-slate-200 bg-slate-50 text-[10px] font-black text-slate-500"
+                        className="rounded-none border-[#CCCCCC] bg-white text-[10px] font-black text-black font-mono uppercase"
                       >
                         {blueprintCopy(latestEvent.type, locale)}
                       </Badge>
@@ -481,7 +439,7 @@ export const AgentCrewFabricPanel: FC<AgentCrewFabricPanelProps> = ({
             );
           })
         ) : (
-          <div className="rounded-[14px] border border-dashed border-slate-300 bg-slate-50 px-3 py-6 text-sm font-semibold leading-6 text-slate-500">
+          <div className="rounded-none border border-dashed border-[#CCCCCC] bg-white px-3 py-6 text-sm font-semibold leading-6 text-slate-500">
             {panelText(
               "运行时能力桥返回 crew presence 后，Agent Crew 协作角色会显示在这里。",
               "Agent Crew companion roles will appear after the runtime capability bridge returns crew presence.",

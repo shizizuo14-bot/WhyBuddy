@@ -46,7 +46,6 @@ import {
   CheckCircle2,
   Clipboard,
   GitBranch,
-  Layers3,
   PlayCircle,
   RefreshCw,
 } from "lucide-react";
@@ -512,31 +511,15 @@ function ArtifactMemoryPanelInner({
 
   return (
     <div
-      className="mt-4 rounded-[20px] border border-slate-200 bg-slate-50 px-4 py-4"
+      className="grid gap-3"
       data-testid="artifact-memory-workbench"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
-            <Layers3 className="size-3.5" aria-hidden="true" />
-            {panelText("资产记忆", "Artifact memory", locale)}
-          </div>
-          <h3 className="mt-2 text-lg font-black text-slate-950">
-            {panelText("资产记忆与回放工作台", "Artifact memory and replay workbench", locale)}
-          </h3>
-          <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-            {panelText(
-              "查看项目资产台账、回放快照、对比两条台账记录，并把执行反馈回填到资产链路中。",
-              "Inspect project asset ledgers, replay snapshots, compare two ledger entries, and feed execution feedback back into the asset chain.",
-              locale
-            )}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      {/* Header chrome removed: SubStageCard 已提供标题 / apiPath / summary / 状态胶囊 */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             variant="outline"
-            className="gap-2 rounded-full border-slate-200 bg-white font-black text-slate-600 hover:bg-slate-100"
+            className="gap-2 rounded-none border-[#CCCCCC] bg-white font-black text-black hover:bg-[#F3F3F3]"
             disabled={!jobId || loadingLedger || loadingReplays || replaying}
             onClick={handleRefreshAll}
             data-testid="artifact-memory-refresh-button"
@@ -552,7 +535,7 @@ function ArtifactMemoryPanelInner({
           </Button>
           <Button
             type="button"
-            className="gap-2 rounded-full bg-slate-950 font-black text-white hover:bg-slate-800"
+            className="gap-2 rounded-none bg-black font-black text-white hover:bg-[#333]"
             disabled={!canReplay || loadingLedger || replaying}
             onClick={handleReplayEntry}
             data-testid="artifact-replay-button"
@@ -564,7 +547,6 @@ function ArtifactMemoryPanelInner({
             )}
             {panelText("回放快照", "Replay snapshot", locale)}
           </Button>
-        </div>
       </div>
 
       {error ? (

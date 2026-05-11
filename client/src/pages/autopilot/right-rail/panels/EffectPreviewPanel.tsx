@@ -53,7 +53,6 @@ import {
   PlayCircle,
   RefreshCw,
   Send,
-  Sparkles,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -1215,35 +1214,15 @@ function EffectPreviewPanelInner({
 
   return (
     <div
-      className="mt-4 rounded-[20px] border border-[#0f766e]/20 bg-[#f0fdfa] px-4 py-4"
+      className="grid gap-3"
       data-testid="effect-preview-workbench"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-[#0f766e]">
-            <Sparkles className="size-3.5" aria-hidden="true" />
-            {panelText("效果预演", "Effect preview", locale)}
-          </div>
-          <h3 className="mt-2 text-lg font-black text-slate-950">
-            {panelText(
-              "已接受 SPEC 的效果预演",
-              "Effect preview for accepted SPEC",
-              locale
-            )}
-          </h3>
-          <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-            {panelText(
-              "从已接受的 SPEC 文档生成架构说明、原型提示和进度规划。",
-              "Generate architecture notes, prototype cues, and progress planning from accepted SPEC documents.",
-              locale
-            )}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      {/* Header chrome removed: SubStageCard 已提供标题 / apiPath / summary / 状态胶囊 */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             variant="outline"
-            className="gap-2 rounded-full border-[#0f766e]/25 bg-white font-black text-[#0f766e] hover:bg-[#ecfdf5] hover:text-[#115e59]"
+            className="gap-2 rounded-none border-[#CCCCCC] bg-white font-black text-black hover:bg-[#F3F3F3]"
             disabled={!jobId || loading || generating}
             onClick={handleRefresh}
             data-testid="effect-preview-refresh-button"
@@ -1256,7 +1235,7 @@ function EffectPreviewPanelInner({
           </Button>
           <Button
             type="button"
-            className="gap-2 rounded-full bg-[#0f766e] font-black text-white hover:bg-[#115e59]"
+            className="gap-2 rounded-none bg-black font-black text-white hover:bg-[#333]"
             disabled={!canGenerate || loading || generating}
             onClick={handleGenerate}
             data-testid="effect-preview-generate-button"
@@ -1268,11 +1247,10 @@ function EffectPreviewPanelInner({
             )}
             {panelText("生成预演", "Generate preview", locale)}
           </Button>
-        </div>
       </div>
 
       {error ? (
-        <div className="mt-4 rounded-[16px] border border-dashed border-rose-200 bg-rose-50 px-4 py-3 text-sm">
+        <div className="rounded-none border border-dashed border-rose-200 bg-rose-50 px-4 py-3 text-sm">
           <div className="font-black text-rose-950">{error.message}</div>
           <p className="mt-1 font-semibold leading-6 text-rose-700">
             {error.detail}
@@ -1280,15 +1258,15 @@ function EffectPreviewPanelInner({
         </div>
       ) : null}
 
-      <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(240px,0.75fr)_minmax(0,1.25fr)]">
-        <div className="rounded-[18px] border border-[#0f766e]/20 bg-white p-3">
+      <div className="grid gap-4 lg:grid-cols-[minmax(240px,0.75fr)_minmax(0,1.25fr)]">
+        <div className="rounded-none border border-[#EAEAEA] bg-white p-3">
           <div className="flex items-center justify-between gap-3 px-1">
             <div className="text-xs font-black uppercase tracking-normal text-slate-500">
               {panelText("预演列表", "Preview list", locale)}
             </div>
             <Badge
               variant="outline"
-              className="rounded-full border-[#0f766e]/25 bg-[#0f766e]/10 text-[10px] font-black text-[#0f766e]"
+              className="rounded-none border-[#CCCCCC] bg-white text-[10px] font-black text-black font-mono uppercase"
             >
               {panelText(
                 `${previews.length} 个预演`,

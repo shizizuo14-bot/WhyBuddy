@@ -44,7 +44,6 @@ import {
   RefreshCw,
   Send,
   Sparkles,
-  Terminal,
 } from "lucide-react";
 
 import { Badge } from "@/components/ui/badge";
@@ -498,31 +497,15 @@ function RuntimeCapabilityPanelInner({
 
   return (
     <div
-      className="mt-4 rounded-[20px] border border-slate-200 bg-white px-4 py-4"
+      className="grid gap-3"
       data-testid="runtime-capability-bridge-workbench"
     >
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="min-w-0">
-          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-slate-500">
-            <Terminal className="size-3.5" aria-hidden="true" />
-            {panelText("运行时能力桥", "Runtime capability bridge", locale)}
-          </div>
-          <h3 className="mt-2 text-lg font-black text-slate-950">
-            {panelText("运行时能力桥工作台", "Runtime capability bridge workbench", locale)}
-          </h3>
-          <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-            {panelText(
-              "查看运行时能力注册表，为当前任务发起能力调用，并跟踪调用后生成的证据。",
-              "Inspect the runtime capability registry, launch capability invocations for the current task, and track the evidence they produce.",
-              locale
-            )}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+      {/* Header chrome removed: SubStageCard 已提供标题 / apiPath / summary / 状态胶囊 */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
           <Button
             type="button"
             variant="outline"
-            className="gap-2 rounded-full border-slate-200 bg-slate-50 font-black text-slate-600 hover:bg-slate-100"
+            className="gap-2 rounded-none border-[#CCCCCC] bg-white font-black text-black hover:bg-[#F3F3F3]"
             disabled={!jobId || loading || invoking}
             onClick={handleRefresh}
             data-testid="capability-bridge-refresh-button"
@@ -535,7 +518,7 @@ function RuntimeCapabilityPanelInner({
           </Button>
           <Button
             type="button"
-            className="gap-2 rounded-full bg-slate-950 font-black text-white hover:bg-slate-800"
+            className="gap-2 rounded-none bg-black font-black text-white hover:bg-[#333]"
             disabled={!canInvoke || loading || invoking}
             onClick={handleInvoke}
             data-testid="capability-invoke-button"
@@ -547,7 +530,6 @@ function RuntimeCapabilityPanelInner({
             )}
             {panelText("调用能力", "Invoke capability", locale)}
           </Button>
-        </div>
       </div>
 
       {error ? (
