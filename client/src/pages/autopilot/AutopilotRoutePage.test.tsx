@@ -60,7 +60,8 @@ describe("AutopilotRoutePage", () => {
     expect(markup).toContain('data-testid="mock-scene-3d"');
     expect(markup).toContain('data-project-id="project-1"');
     expect(markup).not.toContain('data-testid="autopilot-experience-rail"');
-    expect(markup).toContain('data-testid="autopilot-mission-hud"');
+    // HUD 浮层已移除(指标卡固定在右栏底部);testid 不再存在于 3D 场景中
+    expect(markup).not.toContain('data-testid="autopilot-mission-hud"');
     expect(markup).toContain('data-testid="autopilot-workflow-rail"');
     expect(markup).toContain('data-testid="autopilot-workflow-steps"');
     expect(markup).toContain('data-testid="autopilot-step-input"');
@@ -96,7 +97,7 @@ describe("AutopilotRoutePage", () => {
     expect(markup).toContain('data-autopilot-crew-state="pending"');
     expect(markup).toContain('data-testid="autopilot-runtime-console"');
     expect(markup).toContain("absolute bottom-4 left-4 right-4 z-10");
-    expect(markup).toContain("absolute left-4 top-4 z-10");
+    // HUD 浮层已移除;不再断言 "absolute left-4 top-4 z-10"
     expect(markup).not.toContain("radial-gradient");
     expect(markup).not.toContain("linear-gradient(180deg");
     expect(markup).not.toContain("opacity-35");

@@ -47,6 +47,7 @@ import {
   SpecDocumentsPanel,
   SpecTreePanel,
 } from "./panels";
+import { RailMetricsBlock } from "./rail-metrics-block";
 import { resolveRailSubStage } from "./resolve-rail-sub-stage";
 import {
   RAIL_SUB_STAGE_ORDER,
@@ -288,6 +289,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
     currentStage,
     currentSubStage: currentSubStageFromProps,
     job,
+    routeSet,
     selection,
     specTree,
     agentCrew,
@@ -581,6 +583,19 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
           </div>
         );
       })}
+      {/*
+        Spec 5 布局校准(2026-05-11):原本挂在 <AutopilotMissionHud> 3D 场景浮层
+        的 4 个指标卡搬到 rail 底部,所有 stage 都可见;HUD 浮层只保留主标题 + 摘要。
+      */}
+      <RailMetricsBlock
+        locale={locale}
+        routeSet={routeSet}
+        selection={selection}
+        specTree={specTree}
+        agentCrew={agentCrew}
+        effectPreviews={effectPreviews}
+        capabilityEvidence={capabilityEvidence}
+      />
     </aside>
   );
 };

@@ -71,6 +71,7 @@ import {
   type RightRailSubStageContextValue,
   type ViewportTier,
 } from "./right-rail";
+import { RailMetricsBlock } from "./right-rail/rail-metrics-block";
 
 const GITHUB_URL_PATTERN = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+/i;
 
@@ -295,7 +296,7 @@ function levelLabel(value: string, locale: AppLocale): string {
   return value;
 }
 
-function countLabel(
+export function countLabel(
   locale: AppLocale,
   count: number,
   zhUnit: string,
@@ -461,7 +462,7 @@ function readAutopilotEffectPreviews(
   ).effectPreviews;
 }
 
-function readRoleStateCount(
+export function readRoleStateCount(
   agentCrew: BlueprintAgentCrewSnapshot | null,
   state: string
 ): number {
@@ -643,7 +644,7 @@ function ApiErrorNotice({
   );
 }
 
-function MetricBox({
+export function MetricBox({
   label,
   value,
   tone = "neutral",
@@ -791,61 +792,11 @@ function AutopilotMissionHud({
         )}
       </p>
 
-      <div className="mt-4 grid gap-2 sm:grid-cols-2">
-        <MetricBox
-          label={t(locale, "3D 场景", "3D scene")}
-          value={
-            preview?.runtimeProjection?.sceneSnapshotId ||
-            (specTree
-              ? countLabel(locale, specTree.nodes.length, "个节点", "node", "nodes")
-              : t(locale, "待同步", "Pending"))
-          }
-          tone={specTree ? "good" : "neutral"}
-          dark
-        />
-        <MetricBox
-          label="AgentCrewFabric"
-          value={
-            agentCrew
-              ? t(
-                  locale,
-                  `${activeRoles} 活跃 / ${reviewingRoles} 评审`,
-                  `${activeRoles} active / ${reviewingRoles} reviewing`
-                )
-              : t(locale, "待初始化", "Pending")
-          }
-          tone={agentCrew ? "good" : "neutral"}
-          dark
-        />
-        <MetricBox
-          label="RouteSet"
-          value={
-            selection
-              ? t(locale, "已选择", "Selected")
-              : routeSet
-                ? countLabel(locale, routeSet.routes.length, "条路线", "route", "routes")
-                : t(locale, "待生成", "Pending")
-          }
-          tone={routeSet ? "good" : "neutral"}
-          dark
-        />
-        <MetricBox
-          label={t(locale, "证据", "Evidence")}
-          value={
-            capabilityEvidence.length > 0
-              ? countLabel(
-                  locale,
-                  capabilityEvidence.length,
-                  "条证据",
-                  "evidence item",
-                  "evidence items"
-                )
-              : countLabel(locale, effectPreviews.length, "个预演", "preview", "previews")
-          }
-          tone={capabilityEvidence.length || effectPreviews.length ? "good" : "neutral"}
-          dark
-        />
-      </div>
+      {/*
+        Spec 5 布局校准:4 个指标卡(3D 场景 / AgentCrewFabric / RouteSet / 证据)从
+        HUD 浮层搬到 <AutopilotRightRail> 底部,HUD 浮层仅保留主标题 + 摘要叙事,
+        避免场景右上角遮挡 3D 画面。
+      */}
     </aside>
   );
 }
@@ -891,23 +842,13 @@ function AutopilotVisualStage({
           <Scene3D performanceProfile="balanced" projectId={currentProjectId} />
         </div>
 
-        <AutopilotMissionHud
-          locale={locale}
-          job={job}
-          routeSet={routeSet}
-          selection={selection}
-          specTree={specTree}
-          agentCrew={agentCrew}
-          effectPreviews={effectPreviews}
-          capabilityEvidence={capabilityEvidence}
-          className="absolute left-4 top-4 z-10 w-[calc(100%-2rem)] max-w-[360px] xl:left-auto xl:right-5 xl:top-5"
-        />
+        {/* HUD 浮层已移除 — 指标卡固定在右栏底部(RailMetricsBlock) */}
 
         <AutopilotConsolePanel
           locale={locale}
           lines={consoleLines}
           embedded
-          className="absolute bottom-4 left-4 right-4 z-10 xl:bottom-5 xl:left-5 xl:right-[400px]"
+          className="absolute bottom-4 left-4 right-4 z-10 xl:bottom-5 xl:left-5 xl:right-[calc(40%+1rem)]"
         />
       </div>
     </section>
@@ -1847,6 +1788,17 @@ function AutopilotWorkflowRail({
       </section>
 
       <ApiErrorNotice error={apiError} />
+
+      {/* Spec 5 布局校准:4 个指标卡在所有 stage 底部可见 */}
+      <RailMetricsBlock
+        locale={locale}
+        routeSet={routeSet}
+        selection={selection}
+        specTree={specTree}
+        agentCrew={agentCrew}
+        effectPreviews={effectPreviews}
+        capabilityEvidence={capabilityEvidence}
+      />
     </aside>
   );
 }
@@ -2074,7 +2026,13 @@ function AutopilotConsolePanel({
           </span>
         </div>
       </div>
-      <div className="overflow-hidden px-4 py-3 font-mono text-[11px] leading-6">
+      <div
+        className={cn(
+          "px-4 py-3 font-mono text-[11px] leading-6",
+          // Spec 5 布局校准:embedded 浮层限高 + 内滚,不遮挡 3D 场景。
+          embedded ? "max-h-32 overflow-y-auto" : "overflow-hidden"
+        )}
+      >
         {visibleLines.map(line => (
           <div
             key={`${line.channel}-${line.id}`}
@@ -2664,7 +2622,7 @@ export default function AutopilotRoutePage() {
       </header>
 
       <div className="grid w-full gap-4 px-0 py-4">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_400px]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
           <AutopilotVisualStage
             locale={locale}
             currentProjectId={currentProjectId}
