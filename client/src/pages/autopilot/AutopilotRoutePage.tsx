@@ -61,9 +61,12 @@ import type {
 import {
   AutopilotRightRail,
   resolveRailSubStage,
+  RightRailSubStageContext,
   useAutopilotRightRailData,
+  useRightRailSubStageState,
   type AutopilotRailSubStage,
   type RightRailDataView,
+  type RightRailSubStageContextValue,
 } from "./right-rail";
 
 const GITHUB_URL_PATTERN = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+/i;
@@ -1250,6 +1253,7 @@ function AutopilotWorkflowRail({
   apiError,
   rightRailView,
   fabricSubStage,
+  subStageContext,
 }: {
   locale: AppLocale;
   targetText: string;
@@ -1304,8 +1308,22 @@ function AutopilotWorkflowRail({
    * Spec 4 Task 9：预先由父组件通过 `resolveRailSubStage({ currentStage: "fabric",
    * ... })` 算好的 fabric 子阶段。fabric 分支直接用它作为 `<AutopilotRightRail>` 的
    * `currentSubStage` prop，避免在 render 期间重复调用 resolver。
+   *
+   * Spec 5 Task 7 校准：当父组件同时传入 `subStageContext` 时，`<AutopilotRightRail>`
+   * 的 `currentSubStage` 取 `subStageContext.effectiveSubStage`；`fabricSubStage` 继续
+   * 保留以兼容非 Spec 5 注入路径（例如未来单测通过静态 props 渲染）。
    */
   fabricSubStage: AutopilotRailSubStage | undefined;
+  /**
+   * Spec 5 Task 7：`useRightRailSubStageState` 的返回值。
+   *
+   * - `effectiveSubStage` 用作 `<AutopilotRightRail>` 的 `currentSubStage` 权威源；
+   * - `setPinnedSubStage` 包装为 `onSubStageChange` 回调；
+   * - 整体通过 `<RightRailSubStageContext.Provider>` 注入，`<AutopilotRightRail>` 内部
+   *   通过 `useRightRailSubStageContext()` 读取 `isPinned / togglePin` 等（Task 6 的
+   *   sticky toggle 与 Task 4 的键盘快捷键依赖此 Context）。
+   */
+  subStageContext: RightRailSubStageContextValue;
 }) {
   const primaryRoute =
     routeSet?.routes.find(route => route.id === routeSet.primaryRouteId) ??
@@ -1581,24 +1599,26 @@ function AutopilotWorkflowRail({
                 )}
               </div>
             )}
-            <AutopilotRightRail
-              jobId={rightRailView.job.data?.id ?? latestJob?.id ?? ""}
-              currentStage="fabric"
-              currentSubStage={fabricSubStage}
-              job={rightRailView.job.data}
-              routeSet={rightRailView.routeSet.data}
-              selection={rightRailView.selection.data}
-              specTree={rightRailView.specTree.data}
-              agentCrew={rightRailView.agentCrew.data}
-              capabilities={rightRailView.capabilities.data ?? []}
-              capabilityInvocations={
-                rightRailView.capabilityInvocations.data ?? []
-              }
-              capabilityEvidence={rightRailView.capabilityEvidence.data ?? []}
-              effectPreviews={rightRailView.effectPreviews.data ?? []}
-              locale={locale}
-              onSubStageChange={() => {}}
-            />
+            <RightRailSubStageContext.Provider value={subStageContext}>
+              <AutopilotRightRail
+                jobId={rightRailView.job.data?.id ?? latestJob?.id ?? ""}
+                currentStage="fabric"
+                currentSubStage={subStageContext.effectiveSubStage ?? fabricSubStage}
+                job={rightRailView.job.data}
+                routeSet={rightRailView.routeSet.data}
+                selection={rightRailView.selection.data}
+                specTree={rightRailView.specTree.data}
+                agentCrew={rightRailView.agentCrew.data}
+                capabilities={rightRailView.capabilities.data ?? []}
+                capabilityInvocations={
+                  rightRailView.capabilityInvocations.data ?? []
+                }
+                capabilityEvidence={rightRailView.capabilityEvidence.data ?? []}
+                effectPreviews={rightRailView.effectPreviews.data ?? []}
+                locale={locale}
+                onSubStageChange={subStageContext.setPinnedSubStage}
+              />
+            </RightRailSubStageContext.Provider>
           </div>
         );
       case "projection":
@@ -2192,6 +2212,21 @@ export default function AutopilotRoutePage() {
       }),
     [latestJob, selection, specTree, autopilotAgentCrew]
   );
+  // Spec 5 Task 7：用 `useRightRailSubStageState` 把 `fabricSubStage` 从单向派生升级为
+  // 「URL `?sub` + sticky pin + 派生」三路合并的权威 state。
+  //  - `effectiveSubStage` 同时下传到 `<AutopilotRightRail currentSubStage={...}>`
+  //    与 Spec 4 `useAutopilotRightRailData(..., { currentSubStage })`，保证 URL / pin /
+  //    scroll / 数据懒加载共用一个口径（Requirement 6.3）。
+  //  - `setPinnedSubStage` 包装为 `onSubStageChange`，替代 Spec 3/4 的 no-op 占位
+  //    （Requirement 6.2）。
+  //  - 非 fabric 阶段 `fabricSubStage` 为 `undefined`，hook 仍可安全调用；
+  //    `effectiveSubStage` 退化为 `pinnedSubStage`（用户刷新页面恢复位置的底层语义，
+  //    Requirement 2.7）。
+  const subStageState = useRightRailSubStageState({
+    jobStage: latestJob?.stage ?? null,
+    resolvedSubStage: fabricSubStage,
+  });
+  const effectiveSubStage = subStageState.effectiveSubStage;
   const rightRailView = useAutopilotRightRailData(latestJob?.id ?? "", {
     initialData: {
       job: latestJob,
@@ -2204,7 +2239,7 @@ export default function AutopilotRoutePage() {
       capabilityEvidence: autopilotCapabilityEvidence,
       effectPreviews: autopilotEffectPreviews,
     },
-    currentSubStage: fabricSubStage,
+    currentSubStage: effectiveSubStage,
   });
   const flowSteps = useMemo(
     () =>
@@ -2552,6 +2587,7 @@ export default function AutopilotRoutePage() {
             apiError={apiError}
             rightRailView={rightRailView}
             fabricSubStage={fabricSubStage}
+            subStageContext={subStageState}
           />
         </div>
       </div>

@@ -107,7 +107,7 @@
   - **验收**：所有新 testid 存在；aria 属性正确；视觉上 sticky toggle 与当前 tab 栏对齐
   - _需求：Requirement 2.4、2.5、Requirement 8.1、8.2、8.4、8.6、Requirement 9.1（sticky-toggle / sr-announcer / sub-stage-tab testid）_
 
-- [ ] 7. 在 `AutopilotRoutePage.tsx` fabric 分支接入 hook + Context Provider
+- [x] 7. 在 `AutopilotRoutePage.tsx` fabric 分支接入 hook + Context Provider
   - 在 fabric 分支顶部新增：
     ```tsx
     const resolvedSubStage = useMemo(() => resolveRailSubStage({
