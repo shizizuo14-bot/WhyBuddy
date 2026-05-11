@@ -183,7 +183,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
             <div
               ref={scrollRef}
               data-testid="autopilot-right-rail-scroll-container"
-              className="relative h-[calc(100vh-220px)] overflow-y-auto space-y-4"
+              className="relative max-h-[calc(100vh-280px)] overflow-y-auto space-y-4"
             >
               {RAIL_SUB_STAGE_ORDER.map((subStage) => {
                 const isCurrent = subStage === activeSubStage;

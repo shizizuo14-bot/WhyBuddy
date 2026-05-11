@@ -1731,11 +1731,11 @@ function AutopilotWorkflowRail({
 
   return (
     <aside
-      className="grid min-w-0 content-start gap-3"
+      className="grid min-w-0 content-start gap-3 xl:max-h-[calc(100vh-104px)] xl:overflow-y-auto"
       data-testid="autopilot-workflow-rail"
     >
       <section
-        className="min-w-0 overflow-hidden rounded-[14px] border border-slate-200 bg-white"
+        className="min-w-0 rounded-[14px] border border-slate-200 bg-white"
         data-testid="autopilot-workflow-steps"
       >
         <div className="border-b border-slate-200 px-3 py-3">
@@ -2597,7 +2597,7 @@ export default function AutopilotRoutePage() {
 
   return (
     <main
-      className="min-h-screen bg-[#f4f6f8] text-slate-950"
+      className="min-h-screen bg-[#f4f6f8] text-slate-950 xl:flex xl:h-screen xl:flex-col xl:overflow-hidden"
       data-testid="autopilot-route-page"
     >
       <header
@@ -2637,8 +2637,8 @@ export default function AutopilotRoutePage() {
         </div>
       </header>
 
-      <div className="grid w-full gap-4 px-0 py-4">
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+      <div className="grid w-full gap-4 px-0 py-4 xl:flex-1 xl:overflow-hidden">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:overflow-hidden">
           <AutopilotVisualStage
             locale={locale}
             currentProjectId={currentProjectId}

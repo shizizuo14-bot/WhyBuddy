@@ -142,7 +142,7 @@ export const RailMetricsBlock: FC<RailMetricsBlockProps> = props => {
 
   return (
     <div
-      className="fixed bottom-0 right-0 z-20 grid w-[40%] grid-cols-4 gap-2 border-t border-border bg-background/95 px-3 py-3 backdrop-blur-sm"
+      className="grid grid-cols-4 gap-2 border-t border-border bg-background/95 px-3 py-3"
       data-testid="autopilot-right-rail-metrics"
     >
       <MetricBox
