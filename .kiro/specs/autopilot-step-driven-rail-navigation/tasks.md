@@ -145,7 +145,7 @@
   - **验收**：`<md` 断点下 3D 场景不再被挤压；`md-xl` 下可手动折叠；`≥xl` 保持 Spec 3 现状
   - _需求：Requirement 5.1-5.7、Requirement 9.1（drawer-trigger / collapse-toggle testid）_
 
-- [ ] 9. 完整接通 `onSubStageChange` + 键盘快捷键 Context 消费
+- [x] 9. 完整接通 `onSubStageChange` + 键盘快捷键 Context 消费
   - 确认 `<AutopilotRightRail>` 内部所有 8 个子阶段 tab 的 `onClick` 最终调用 `props.onSubStageChange(subStage)`（Spec 1 契约），而 `AutopilotRoutePage` 把它接为 `setPinnedSubStage`（task 7）
   - 在 `<AutopilotRightRail>` 内部通过 `useRightRailSubStageContext()` 读 `togglePin`、`isPinned`、`setPinnedSubStage`（用于键盘快捷键）；若 Context 缺失（`/specs` 等场景）使用 fallback no-op（不影响展示）
   - 补齐 task 4 的键盘快捷键 handler 逻辑：`[` / `]` 调 `setPinnedSubStage(neighbor)`；`Shift + P` 调 `togglePin()`；`Escape` 调 parent 的 `setDrawerOpen(false)`（通过 prop 或 Context 传入 drawer 状态）

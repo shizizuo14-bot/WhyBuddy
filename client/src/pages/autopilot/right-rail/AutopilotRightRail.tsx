@@ -395,7 +395,9 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
         subStageContextRef.current.togglePin();
         return;
       }
-      // "close-drawer" 在 Task 4 阶段由父层 Task 5 / Task 8 承接，这里 no-op。
+      // "close-drawer" 在 drawer 模式下由 <HoloDrawer> 自带的 Escape 关闭逻辑承接；
+      // Requirement 4.3 明确要求 "不重复注册造成行为叠加"，因此此处保持 no-op。
+      // Task 8 已在 AutopilotRoutePage 顶层通过 <HoloDrawer onClose> 接通 drawer 关闭。
     };
     document.addEventListener("keydown", handler);
     return () => {
