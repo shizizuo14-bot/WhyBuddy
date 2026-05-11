@@ -60,7 +60,7 @@
   - **验收**：子阶段切换自动滚动；首次挂载无视觉跳变；`prefers-reduced-motion` 生效；非 scroll container 的 `document.scrollingElement` 不被滚动
   - _需求：Requirement 3.1、3.2、3.3、3.4、3.5、3.7、Requirement 9.1（anchor testid）、Requirement 12.5（不改 canonical 面板）_
 
-- [ ] 4. 实现键盘快捷键 `[` / `]` / `Esc` / `Shift + P`（含 Key_Input_Focus_Guard）
+- [x] 4. 实现键盘快捷键 `[` / `]` / `Esc` / `Shift + P`（含 Key_Input_Focus_Guard）
   - 在 `<AutopilotRightRail>` 内（或通过 `useRightRailSubStageContext()` 读 toggle / setPinnedSubStage）新增 `useEffect` 注册 `document.addEventListener("keydown", handler)`
   - 实现 `isInputFocused(target)` helper：若 `target` 是 `<input>` / `<textarea>` / `<select>` / `contenteditable` 或其子孙，返回 `true`
   - 实现 handler 逻辑：

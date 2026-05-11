@@ -25,12 +25,15 @@
  * - Viewport_Tier 三档渲染分支（drawer trigger / collapse toggle）
  */
 
-import { useEffect, useRef, type FC } from "react";
+import { useEffect, useRef, useState, type FC } from "react";
 
 import {
   readPrefersReducedMotion,
+  resolveKeyboardIntent,
   resolveScrollBehavior,
   scrollAnchorIntoView,
+  stepSubStage,
+  useRightRailSubStageContext,
 } from "./hooks/use-right-rail-sub-stage-state";
 import {
   AgentCrewFabricPanel,
@@ -83,6 +86,28 @@ const TIMELINE_STAGE_LABELS: Record<
  * 测试、组件、hook 共用同一常量，避免字符串漂移。
  */
 export const RAIL_SUB_STAGE_ANCHOR_ATTR = "data-sub-stage-anchor" as const;
+
+/**
+ * 键盘提示文案（Task 4）。
+ *
+ * 仅在 fabric 阶段显示；用户可通过提示内的 dismiss 按钮临时隐藏（session scope，不持久化）。
+ * 文案与 Requirement 4.1-4.4 的快捷键语义对齐。
+ */
+const KEYBOARD_HINT_COPY: Record<
+  AutopilotRightRailProps["locale"],
+  { hint: string; dismiss: string; dismissLabel: string }
+> = {
+  "zh-CN": {
+    hint: "快捷键：[ / ] 切换子阶段，Shift + P 暂停跟随，Esc 关闭抽屉",
+    dismiss: "收起",
+    dismissLabel: "收起键盘快捷键提示",
+  },
+  "en-US": {
+    hint: "Shortcuts: [ / ] switch sub-stage, Shift + P toggle pin, Esc close drawer",
+    dismiss: "Hide",
+    dismissLabel: "Hide keyboard shortcut hint",
+  },
+};
 
 /**
  * `<aside>` 根节点的 aria-label 值。
@@ -242,6 +267,74 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
     }
   }, [currentStage, activeSubStage]);
 
+  // -------------------------------------------------------------------------
+  // Spec 5 Task 4 — 键盘快捷键（`[` / `]` / `Shift + P` / `Esc`）
+  // -------------------------------------------------------------------------
+  // Esc 关闭 drawer 依赖 Task 5 引入的 drawer state；在本 spec 的 Task 4 阶段只提供
+  // `close-drawer` intent 决策，由 Task 5 / Task 8 在 `AutopilotRoutePage` 层真正承接。
+  // Context 缺失（例如 `/specs` 页面无 Provider）时，`togglePin / setPinnedSubStage` 已由
+  // `NULL_CONTEXT_FALLBACK` 提供 no-op 实现；因此本 effect 仍可挂载而不会抛错。
+  const subStageContext = useRightRailSubStageContext();
+  const subStageContextRef = useRef(subStageContext);
+  useEffect(() => {
+    subStageContextRef.current = subStageContext;
+  }, [subStageContext]);
+
+  const activeSubStageRef = useRef<AutopilotRailSubStage | undefined>(activeSubStage);
+  useEffect(() => {
+    activeSubStageRef.current = activeSubStage;
+  }, [activeSubStage]);
+
+  const currentStageRef = useRef<AutopilotTimelineStage>(currentStage);
+  useEffect(() => {
+    currentStageRef.current = currentStage;
+  }, [currentStage]);
+
+  useEffect(() => {
+    if (typeof document === "undefined") {
+      return;
+    }
+    const handler = (event: KeyboardEvent) => {
+      const intent = resolveKeyboardIntent({
+        key: event.key,
+        shiftKey: event.shiftKey,
+        metaKey: event.metaKey,
+        ctrlKey: event.ctrlKey,
+        altKey: event.altKey,
+        target: event.target,
+        currentStage: currentStageRef.current,
+        // Task 4 阶段本组件暂不拥有 drawer state；Task 5 会通过 Context / prop 把真实
+        // `drawerOpen` 值注入。当前传 `false`，避免 `Esc` 误触发父层关闭逻辑。
+        drawerOpen: false,
+      });
+      if (intent === "ignore") {
+        return;
+      }
+      if (intent === "step-prev" || intent === "step-next") {
+        const direction = intent === "step-prev" ? "prev" : "next";
+        const next = stepSubStage(activeSubStageRef.current, direction);
+        if (next === undefined) {
+          // 边界（首位 `[` / 末位 `]`）或 activeSubStage 异常，no-op。
+          return;
+        }
+        subStageContextRef.current.setPinnedSubStage(next);
+        return;
+      }
+      if (intent === "toggle-pin") {
+        subStageContextRef.current.togglePin();
+        return;
+      }
+      // "close-drawer" 在 Task 4 阶段由父层 Task 5 / Task 8 承接，这里 no-op。
+    };
+    document.addEventListener("keydown", handler);
+    return () => {
+      document.removeEventListener("keydown", handler);
+    };
+  }, []);
+
+  // 键盘提示 session-scope dismiss state（Requirement 8.5）。
+  const [keyboardHintDismissed, setKeyboardHintDismissed] = useState<boolean>(false);
+
   return (
     <aside
       role="complementary"
@@ -269,6 +362,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
         }
 
         // fabric 分支：包裹 scroll container + 8 个 anchor <section>。
+        const hintCopy = KEYBOARD_HINT_COPY[locale] ?? KEYBOARD_HINT_COPY["en-US"];
         return (
           <div
             key={stage}
@@ -276,6 +370,22 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
             data-active={isActive ? "true" : "false"}
           >
             <div>{label}</div>
+            {keyboardHintDismissed ? null : (
+              <div
+                data-testid="autopilot-right-rail-keyboard-hint"
+                className="flex items-center justify-between gap-2 text-xs text-muted-foreground"
+              >
+                <span>{hintCopy.hint}</span>
+                <button
+                  type="button"
+                  onClick={() => setKeyboardHintDismissed(true)}
+                  aria-label={hintCopy.dismissLabel}
+                  className="underline"
+                >
+                  {hintCopy.dismiss}
+                </button>
+              </div>
+            )}
             <div
               ref={scrollRef}
               data-testid="autopilot-right-rail-scroll-container"

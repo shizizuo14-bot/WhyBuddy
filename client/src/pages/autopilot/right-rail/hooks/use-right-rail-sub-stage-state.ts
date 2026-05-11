@@ -232,6 +232,152 @@ function readPrefersReducedMotion(): boolean {
 export { resolveScrollBehavior, scrollAnchorIntoView, readPrefersReducedMotion };
 
 // =============================================================================
+// Keyboard helpers (Task 4) —— 不依赖 window，供组件与 unit 测试共享
+// =============================================================================
+
+/**
+ * 键盘快捷键决策结果。
+ *
+ * `"step-prev"` / `"step-next"`：`[` / `]` 触发的前后切换；必须与 `stepSubStage(..., direction)` 连用
+ *   计算真实目标 sub-stage。
+ * `"toggle-pin"`：`Shift + P` 触发的 sticky toggle。
+ * `"close-drawer"`：drawer 模式下 `Escape` 触发关闭；`<AutopilotRightRail>` 当前不持有 drawer state，
+ *   由 Task 5 / Task 8 在 `AutopilotRoutePage` 层承接。
+ * `"ignore"`：early-return；本次 keydown 不应触发任何 rail 交互。
+ */
+export type RailKeyboardIntent =
+  | "step-prev"
+  | "step-next"
+  | "toggle-pin"
+  | "close-drawer"
+  | "ignore";
+
+/**
+ * 判断目标元素是否在输入类控件或其子孙中（Key_Input_Focus_Guard）。
+ *
+ * - `<input>` / `<textarea>` / `<select>`：直接命中
+ * - `contenteditable="true"`：命中
+ * - 其他：不命中
+ *
+ * 向上逐层检查 `parentElement`，以处理 wrapper span 包裹的 input 情况。
+ * 纯函数；不依赖 `window`，在 node 环境下可测试。
+ */
+function isInputFocused(target: EventTarget | null): boolean {
+  if (!target || typeof (target as Element).tagName !== "string") {
+    return false;
+  }
+  let cursor: Element | null = target as Element;
+  let depth = 0;
+  while (cursor && depth < 10) {
+    const tag = cursor.tagName?.toUpperCase?.();
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+      return true;
+    }
+    if (typeof (cursor as HTMLElement).getAttribute === "function") {
+      const editable = (cursor as HTMLElement).getAttribute("contenteditable");
+      if (editable === "" || editable === "true") {
+        return true;
+      }
+    }
+    cursor = cursor.parentElement;
+    depth += 1;
+  }
+  return false;
+}
+
+/**
+ * 根据 keydown 事件的各维度（按键、modifier、target、currentStage、drawerOpen）
+ * 计算应该触发哪种 rail 交互。
+ *
+ * 决策优先级（硬性顺序）：
+ * 1. 目标元素在输入控件内 → `"ignore"`（Requirement 4.5）
+ * 2. 任一 `metaKey / ctrlKey / altKey` 按下 → `"ignore"`（Requirement 4.8；`Shift` 不算 modifier）
+ * 3. `currentStage !== "fabric"`：
+ *    - `"Escape"` 且 `drawerOpen === true` → `"close-drawer"`
+ *    - 其他 → `"ignore"`（Requirement 4.7）
+ * 4. `currentStage === "fabric"`：
+ *    - `"["` → `"step-prev"`
+ *    - `"]"` → `"step-next"`
+ *    - `"P"` 且 `shiftKey` → `"toggle-pin"`
+ *    - `"Escape"` 且 `drawerOpen === true` → `"close-drawer"`
+ *    - 其他 → `"ignore"`
+ *
+ * 纯函数。`event` 用最小接口以便 node 环境可直接构造测试用例。
+ */
+function resolveKeyboardIntent(input: {
+  key: string;
+  shiftKey: boolean;
+  metaKey: boolean;
+  ctrlKey: boolean;
+  altKey: boolean;
+  target: EventTarget | null;
+  currentStage: string | undefined;
+  drawerOpen: boolean;
+}): RailKeyboardIntent {
+  if (isInputFocused(input.target)) {
+    return "ignore";
+  }
+  if (input.metaKey || input.ctrlKey || input.altKey) {
+    return "ignore";
+  }
+  const isFabric = input.currentStage === "fabric";
+
+  if (!isFabric) {
+    if (input.key === "Escape" && input.drawerOpen) {
+      return "close-drawer";
+    }
+    return "ignore";
+  }
+
+  if (input.key === "[") {
+    return "step-prev";
+  }
+  if (input.key === "]") {
+    return "step-next";
+  }
+  if (input.key === "P" && input.shiftKey) {
+    return "toggle-pin";
+  }
+  if (input.key === "Escape" && input.drawerOpen) {
+    return "close-drawer";
+  }
+  return "ignore";
+}
+
+/**
+ * 计算 `[` / `]` 后的目标 sub-stage（纯函数）。
+ *
+ * - `current` 为 `undefined`：direction=`"prev"` 返回 `undefined`（无切换目标）；
+ *   direction=`"next"` 返回 `RAIL_SUB_STAGE_ORDER[0]`（从头开始）。
+ * - `current` 在 `RAIL_SUB_STAGE_ORDER` 中：
+ *   - `"prev"` 且已在首位 → `undefined`（边界 no-op，不循环）
+ *   - `"next"` 且已在末位 → `undefined`（边界 no-op，不循环）
+ *   - 否则返回 index ± 1
+ * - `current` 不在 `RAIL_SUB_STAGE_ORDER` 中（防御性）：回退到 `undefined`。
+ *
+ * 调用方应在 `undefined` 时跳过 `setPinnedSubStage` 以避免无意义的 URL 写入。
+ */
+function stepSubStage(
+  current: AutopilotRailSubStage | undefined,
+  direction: "prev" | "next",
+): AutopilotRailSubStage | undefined {
+  if (current === undefined) {
+    return direction === "next" ? RAIL_SUB_STAGE_ORDER[0] : undefined;
+  }
+  const idx = RAIL_SUB_STAGE_ORDER.indexOf(current);
+  if (idx < 0) {
+    return undefined;
+  }
+  const nextIdx = direction === "prev" ? idx - 1 : idx + 1;
+  if (nextIdx < 0 || nextIdx >= RAIL_SUB_STAGE_ORDER.length) {
+    return undefined;
+  }
+  return RAIL_SUB_STAGE_ORDER[nextIdx];
+}
+
+export { isInputFocused, resolveKeyboardIntent, stepSubStage };
+
+// =============================================================================
 // Impure wrappers (依赖 window；生产环境与 jsdom 集成测试使用)
 // =============================================================================
 
@@ -387,4 +533,7 @@ export const __testing__ = {
   resolveScrollBehavior,
   scrollAnchorIntoView,
   readPrefersReducedMotion,
+  isInputFocused,
+  resolveKeyboardIntent,
+  stepSubStage,
 };

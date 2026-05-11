@@ -24,6 +24,9 @@ const {
   applySubToSearch,
   resolveScrollBehavior,
   scrollAnchorIntoView,
+  isInputFocused,
+  resolveKeyboardIntent,
+  stepSubStage,
 } = __testing__;
 
 describe("use-right-rail-sub-stage-state / Task 2 — URL pure helpers", () => {
@@ -360,6 +363,236 @@ describe("use-right-rail-sub-stage-state / Task 3 — scroll helpers", () => {
         block: "center",
       });
       expect(scrollCalls[0]).toEqual({ behavior: "auto", block: "center" });
+    });
+  });
+});
+
+// =============================================================================
+// Task 4 —— keyboard pure helpers
+// =============================================================================
+
+describe("use-right-rail-sub-stage-state / Task 4 — keyboard helpers", () => {
+  /**
+   * 伪造一个最小的 `Element`-like 目标，支持 tagName / getAttribute / parentElement
+   * 链式访问。isInputFocused 只会用到这些字段，所以不需要 jsdom。
+   */
+  function makeTarget(opts: {
+    tagName?: string;
+    contentEditable?: string | null;
+    parent?: ReturnType<typeof makeTarget> | null;
+  }): EventTarget {
+    const parent = opts.parent ?? null;
+    return {
+      tagName: opts.tagName ?? "DIV",
+      getAttribute: (name: string) => {
+        if (name === "contenteditable") {
+          return opts.contentEditable ?? null;
+        }
+        return null;
+      },
+      parentElement: parent,
+    } as unknown as EventTarget;
+  }
+
+  describe("isInputFocused", () => {
+    it("returns false for null / undefined / non-element target", () => {
+      expect(isInputFocused(null)).toBe(false);
+      expect(isInputFocused({} as EventTarget)).toBe(false);
+    });
+
+    it("returns true for INPUT / TEXTAREA / SELECT", () => {
+      expect(isInputFocused(makeTarget({ tagName: "INPUT" }))).toBe(true);
+      expect(isInputFocused(makeTarget({ tagName: "TEXTAREA" }))).toBe(true);
+      expect(isInputFocused(makeTarget({ tagName: "SELECT" }))).toBe(true);
+    });
+
+    it("is case-insensitive on tagName", () => {
+      expect(isInputFocused(makeTarget({ tagName: "input" }))).toBe(true);
+      expect(isInputFocused(makeTarget({ tagName: "Input" }))).toBe(true);
+    });
+
+    it("returns true when contenteditable='true'", () => {
+      expect(
+        isInputFocused(makeTarget({ tagName: "DIV", contentEditable: "true" })),
+      ).toBe(true);
+    });
+
+    it("returns true when contenteditable is empty string (HTML spec allows)", () => {
+      expect(
+        isInputFocused(makeTarget({ tagName: "DIV", contentEditable: "" })),
+      ).toBe(true);
+    });
+
+    it("returns false when contenteditable='false'", () => {
+      expect(
+        isInputFocused(makeTarget({ tagName: "DIV", contentEditable: "false" })),
+      ).toBe(false);
+    });
+
+    it("walks up parentElement to find ancestor input", () => {
+      const input = makeTarget({ tagName: "INPUT" });
+      const child = makeTarget({
+        tagName: "SPAN",
+        parent: input as ReturnType<typeof makeTarget>,
+      });
+      const grandchild = makeTarget({
+        tagName: "SPAN",
+        parent: child as ReturnType<typeof makeTarget>,
+      });
+      expect(isInputFocused(grandchild)).toBe(true);
+    });
+
+    it("returns false when neither self nor ancestors match", () => {
+      const root = makeTarget({ tagName: "MAIN" });
+      const mid = makeTarget({
+        tagName: "DIV",
+        parent: root as ReturnType<typeof makeTarget>,
+      });
+      const leaf = makeTarget({
+        tagName: "BUTTON",
+        parent: mid as ReturnType<typeof makeTarget>,
+      });
+      expect(isInputFocused(leaf)).toBe(false);
+    });
+  });
+
+  describe("resolveKeyboardIntent", () => {
+    const baseEvent = {
+      key: "[",
+      shiftKey: false,
+      metaKey: false,
+      ctrlKey: false,
+      altKey: false,
+      target: makeTarget({ tagName: "BODY" }),
+      currentStage: "fabric" as string | undefined,
+      drawerOpen: false,
+    };
+
+    it("returns 'ignore' when target is INPUT (focus guard)", () => {
+      expect(
+        resolveKeyboardIntent({
+          ...baseEvent,
+          target: makeTarget({ tagName: "INPUT" }),
+        }),
+      ).toBe("ignore");
+    });
+
+    it("returns 'ignore' when metaKey pressed", () => {
+      expect(
+        resolveKeyboardIntent({ ...baseEvent, metaKey: true }),
+      ).toBe("ignore");
+    });
+
+    it("returns 'ignore' when ctrlKey pressed", () => {
+      expect(
+        resolveKeyboardIntent({ ...baseEvent, ctrlKey: true }),
+      ).toBe("ignore");
+    });
+
+    it("returns 'ignore' when altKey pressed", () => {
+      expect(
+        resolveKeyboardIntent({ ...baseEvent, altKey: true }),
+      ).toBe("ignore");
+    });
+
+    it("maps '[' to step-prev in fabric stage", () => {
+      expect(resolveKeyboardIntent({ ...baseEvent, key: "[" })).toBe("step-prev");
+    });
+
+    it("maps ']' to step-next in fabric stage", () => {
+      expect(resolveKeyboardIntent({ ...baseEvent, key: "]" })).toBe("step-next");
+    });
+
+    it("maps Shift+P to toggle-pin in fabric stage", () => {
+      expect(
+        resolveKeyboardIntent({ ...baseEvent, key: "P", shiftKey: true }),
+      ).toBe("toggle-pin");
+    });
+
+    it("returns 'ignore' for 'P' without shift (not toggle-pin)", () => {
+      expect(
+        resolveKeyboardIntent({ ...baseEvent, key: "P", shiftKey: false }),
+      ).toBe("ignore");
+    });
+
+    it("returns 'close-drawer' only when Escape + drawerOpen (fabric or not)", () => {
+      // fabric + drawerOpen
+      expect(
+        resolveKeyboardIntent({ ...baseEvent, key: "Escape", drawerOpen: true }),
+      ).toBe("close-drawer");
+      // non-fabric + drawerOpen
+      expect(
+        resolveKeyboardIntent({
+          ...baseEvent,
+          key: "Escape",
+          drawerOpen: true,
+          currentStage: "input",
+        }),
+      ).toBe("close-drawer");
+    });
+
+    it("returns 'ignore' for Escape when drawer closed", () => {
+      expect(
+        resolveKeyboardIntent({ ...baseEvent, key: "Escape", drawerOpen: false }),
+      ).toBe("ignore");
+    });
+
+    it("returns 'ignore' for '[' / ']' / Shift+P in non-fabric stage", () => {
+      const cases = [
+        { ...baseEvent, key: "[", currentStage: "input" },
+        { ...baseEvent, key: "]", currentStage: "selection" },
+        { ...baseEvent, key: "P", shiftKey: true, currentStage: "clarification" },
+      ];
+      for (const c of cases) {
+        expect(resolveKeyboardIntent(c)).toBe("ignore");
+      }
+    });
+
+    it("returns 'ignore' for unknown keys", () => {
+      expect(resolveKeyboardIntent({ ...baseEvent, key: "a" })).toBe("ignore");
+      expect(resolveKeyboardIntent({ ...baseEvent, key: "Enter" })).toBe("ignore");
+      expect(resolveKeyboardIntent({ ...baseEvent, key: "Tab" })).toBe("ignore");
+    });
+  });
+
+  describe("stepSubStage", () => {
+    it("returns RAIL_SUB_STAGE_ORDER[0] for next when current is undefined", () => {
+      expect(stepSubStage(undefined, "next")).toBe(RAIL_SUB_STAGE_ORDER[0]);
+    });
+
+    it("returns undefined for prev when current is undefined", () => {
+      expect(stepSubStage(undefined, "prev")).toBe(undefined);
+    });
+
+    it("returns undefined at boundaries (no wraparound)", () => {
+      expect(stepSubStage(RAIL_SUB_STAGE_ORDER[0], "prev")).toBe(undefined);
+      expect(
+        stepSubStage(
+          RAIL_SUB_STAGE_ORDER[RAIL_SUB_STAGE_ORDER.length - 1],
+          "next",
+        ),
+      ).toBe(undefined);
+    });
+
+    it("advances index by +1 / -1 respectively", () => {
+      for (let i = 1; i < RAIL_SUB_STAGE_ORDER.length; i += 1) {
+        expect(stepSubStage(RAIL_SUB_STAGE_ORDER[i], "prev")).toBe(
+          RAIL_SUB_STAGE_ORDER[i - 1],
+        );
+      }
+      for (let i = 0; i < RAIL_SUB_STAGE_ORDER.length - 1; i += 1) {
+        expect(stepSubStage(RAIL_SUB_STAGE_ORDER[i], "next")).toBe(
+          RAIL_SUB_STAGE_ORDER[i + 1],
+        );
+      }
+    });
+
+    it("is symmetric: prev then next returns to the same sub-stage (except at boundaries)", () => {
+      for (let i = 1; i < RAIL_SUB_STAGE_ORDER.length - 1; i += 1) {
+        const prev = stepSubStage(RAIL_SUB_STAGE_ORDER[i], "prev");
+        const back = stepSubStage(prev, "next");
+        expect(back).toBe(RAIL_SUB_STAGE_ORDER[i]);
+      }
     });
   });
 });
