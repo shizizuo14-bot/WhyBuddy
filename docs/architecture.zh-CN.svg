@@ -6,57 +6,54 @@
   role="img"
   aria-labelledby="title desc"
 >
-  <title id="title">Cube Pets Office Architecture</title>
+  <title id="title">Cube Pets Office 架构图(中文版)</title>
   <desc id="desc">
-    Product architecture overview for Cube Pets Office updated on 2026-05-11.
-    This version preserves the 2026-04-26 pastel card layout while adding two
-    mainline changes: (1) the autopilot right rail convergence 5 specs that
-    shipped shared Destination parser, AutopilotRightRail component with 8
-    canonical fabric sub-stage panels, useAutopilotRightRailData unified hook,
-    useRightRailSubStageState (URL ?sub + pin + viewport tier), and the
-    step-driven navigation interactions; (2) the Blueprint LLM pipeline 9 specs
-    that remain in planning (RouteSet LLM + 4 capability bridges + stage
-    activation + 5 downstream LLM) — drawn with dashed orange borders to
-    distinguish planning from shipped code.
+    Cube Pets Office 产品架构总览,2026-05-11 版本。
+    保留 2026-04-26 的柔和卡片风格,新增两条主线变化:
+    (1) 已落地的 Autopilot 右栏收敛 5 specs(&lt;AutopilotRightRail&gt; + 8 个 fabric 子阶段面板、
+    useAutopilotRightRailData 统一数据 hook、useRightRailSubStageState 的 URL ?sub + sticky
+    pin + 响应式三档、步骤驱动导航);
+    (2) 规划中的 Blueprint LLM 主线 9 specs(RouteSet LLM + 4 条 capability 桥 +
+    伴随式 Agent Crew + 5 条下游 LLM)。规划层用橙色虚线边框,与已落地内容做视觉区分。
   </desc>
 
   <style>
     .ts {
-      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, -apple-system, sans-serif;
       font-size: 12px;
       fill: #0f172a;
     }
     .th {
-      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, -apple-system, sans-serif;
       font-size: 14px;
       font-weight: 700;
       fill: #0f172a;
     }
     .sm {
-      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, -apple-system, sans-serif;
       font-size: 10px;
       fill: #475569;
     }
     .xs {
-      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, -apple-system, sans-serif;
       font-size: 9px;
       fill: #64748b;
     }
     .fl {
-      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, -apple-system, sans-serif;
       font-size: 8.5px;
       letter-spacing: 0.02em;
       fill: #475569;
     }
     .plan-tag {
-      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, -apple-system, sans-serif;
       font-size: 9px;
       font-weight: 700;
       letter-spacing: 0.04em;
       fill: #9a3412;
     }
     .done-tag {
-      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      font-family: "PingFang SC", "Microsoft YaHei", "Segoe UI", system-ui, -apple-system, sans-serif;
       font-size: 9px;
       font-weight: 700;
       letter-spacing: 0.04em;
@@ -87,93 +84,93 @@
 
   <rect x="0" y="0" width="1440" height="1020" fill="#f8fafc" />
 
-  <!-- ==================== ROW 0: ENTRY + FRONTEND + WEB-AIGC SNAPSHOT ==================== -->
+  <!-- ==================== 第 0 行:入口 + 前端 + 快照徽章 ==================== -->
 
   <rect x="20" y="20" width="160" height="92" rx="14" fill="#f8fafc" stroke="#d4d4d8" stroke-width="0.8" />
-  <text class="th" x="100" y="42" text-anchor="middle" fill="#52525b">Entry</text>
+  <text class="th" x="100" y="42" text-anchor="middle" fill="#52525b">入口</text>
   <circle cx="58" cy="68" r="10" fill="none" stroke="#534ab7" stroke-width="1.2" />
   <circle cx="58" cy="62" r="4" fill="none" stroke="#534ab7" stroke-width="1" />
   <path d="M46 78Q58 86 70 78" fill="none" stroke="#534ab7" stroke-width="1" />
-  <text class="ts" x="58" y="98" text-anchor="middle" fill="#3c3489">User query</text>
+  <text class="ts" x="58" y="98" text-anchor="middle" fill="#3c3489">用户请求</text>
   <rect x="106" y="54" width="54" height="24" rx="6" fill="#eeedfe" stroke="#534ab7" stroke-width="0.6" />
-  <text class="ts" x="133" y="70" text-anchor="middle" fill="#3c3489">Feishu</text>
-  <text class="xs" x="133" y="92" text-anchor="middle" fill="#7c3aed">Relay</text>
+  <text class="ts" x="133" y="70" text-anchor="middle" fill="#3c3489">飞书</text>
+  <text class="xs" x="133" y="92" text-anchor="middle" fill="#7c3aed">Relay 中继</text>
   <line x1="180" y1="66" x2="198" y2="66" stroke="#534ab7" stroke-width="1" marker-end="url(#a)" />
 
   <rect x="200" y="20" width="900" height="92" rx="14" fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.8" />
   <text class="th" x="650" y="42" text-anchor="middle" fill="#0c447c">
-    Frontend - office shell + mission-first cockpit + single primary launch dock + autopilot right rail
+    前端 · 办公室壳层 + 任务驾驶舱 + 统一发起器 + Autopilot 右栏
   </text>
 
   <rect x="214" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
-  <text class="ts" x="258" y="69" text-anchor="middle" fill="#0c447c">Office shell</text>
-  <text class="sm" x="258" y="84" text-anchor="middle" fill="#185fa5">desktop default</text>
+  <text class="ts" x="258" y="69" text-anchor="middle" fill="#0c447c">办公室壳</text>
+  <text class="sm" x="258" y="84" text-anchor="middle" fill="#185fa5">桌面默认</text>
 
   <rect x="312" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
-  <text class="ts" x="356" y="69" text-anchor="middle" fill="#0c447c">Task queue</text>
-  <text class="sm" x="356" y="84" text-anchor="middle" fill="#185fa5">mission list + live</text>
+  <text class="ts" x="356" y="69" text-anchor="middle" fill="#0c447c">任务队列</text>
+  <text class="sm" x="356" y="84" text-anchor="middle" fill="#185fa5">任务列表 + 实时</text>
 
   <rect x="410" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
-  <text class="ts" x="454" y="69" text-anchor="middle" fill="#0c447c">Unified launch</text>
-  <text class="sm" x="454" y="84" text-anchor="middle" fill="#185fa5">bottom primary input</text>
+  <text class="ts" x="454" y="69" text-anchor="middle" fill="#0c447c">统一发起器</text>
+  <text class="sm" x="454" y="84" text-anchor="middle" fill="#185fa5">底部主输入</text>
 
   <rect x="508" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
-  <text class="ts" x="552" y="69" text-anchor="middle" fill="#0c447c">Right rail</text>
-  <text class="sm" x="552" y="84" text-anchor="middle" fill="#185fa5">fabric 8 sub-stages</text>
+  <text class="ts" x="552" y="69" text-anchor="middle" fill="#0c447c">右栏工作台</text>
+  <text class="sm" x="552" y="84" text-anchor="middle" fill="#185fa5">fabric 8 子阶段</text>
 
   <rect x="606" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
-  <text class="ts" x="650" y="69" text-anchor="middle" fill="#0c447c">Scene3D</text>
-  <text class="sm" x="650" y="84" text-anchor="middle" fill="#185fa5">main scene + wall HUD</text>
+  <text class="ts" x="650" y="69" text-anchor="middle" fill="#0c447c">3D 场景</text>
+  <text class="sm" x="650" y="84" text-anchor="middle" fill="#185fa5">主场景 + 墙面 HUD</text>
 
   <rect x="704" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
-  <text class="ts" x="748" y="69" text-anchor="middle" fill="#0c447c">History</text>
-  <text class="sm" x="748" y="84" text-anchor="middle" fill="#185fa5">sessions + DAG</text>
+  <text class="ts" x="748" y="69" text-anchor="middle" fill="#0c447c">历史</text>
+  <text class="sm" x="748" y="84" text-anchor="middle" fill="#185fa5">会话 + DAG</text>
 
   <rect x="802" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
-  <text class="ts" x="846" y="69" text-anchor="middle" fill="#0c447c">Reports</text>
-  <text class="sm" x="846" y="84" text-anchor="middle" fill="#185fa5">memory + audit</text>
+  <text class="ts" x="846" y="69" text-anchor="middle" fill="#0c447c">报告</text>
+  <text class="sm" x="846" y="84" text-anchor="middle" fill="#185fa5">记忆 + 审计</text>
 
   <rect x="900" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
-  <text class="ts" x="944" y="69" text-anchor="middle" fill="#0c447c">Overlays</text>
-  <text class="sm" x="944" y="84" text-anchor="middle" fill="#185fa5">chat + telemetry</text>
+  <text class="ts" x="944" y="69" text-anchor="middle" fill="#0c447c">浮层</text>
+  <text class="sm" x="944" y="84" text-anchor="middle" fill="#185fa5">聊天 + 遥测</text>
 
   <rect x="998" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
-  <text class="ts" x="1042" y="69" text-anchor="middle" fill="#0c447c">Browser RT</text>
-  <text class="sm" x="1042" y="84" text-anchor="middle" fill="#185fa5">IndexedDB + preview</text>
+  <text class="ts" x="1042" y="69" text-anchor="middle" fill="#0c447c">浏览器运行时</text>
+  <text class="sm" x="1042" y="84" text-anchor="middle" fill="#185fa5">IndexedDB + 预览</text>
 
   <rect x="1120" y="20" width="300" height="92" rx="14" fill="#eef2ff" stroke="#818cf8" stroke-width="0.8" />
-  <text class="th" x="1270" y="40" text-anchor="middle" fill="#3730a3">Snapshot 2026-05-11</text>
+  <text class="th" x="1270" y="40" text-anchor="middle" fill="#3730a3">2026-05-11 快照</text>
   <rect x="1130" y="50" width="66" height="28" rx="6" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
   <text class="ts" x="1163" y="62" text-anchor="middle" fill="#3730a3">58/58</text>
   <text class="sm" x="1163" y="74" text-anchor="middle" fill="#4f46e5">Web-AIGC</text>
   <rect x="1204" y="50" width="66" height="28" rx="6" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
   <text class="ts" x="1237" y="62" text-anchor="middle" fill="#3730a3">18/18</text>
-  <text class="sm" x="1237" y="74" text-anchor="middle" fill="#4f46e5">autopilot ph1</text>
+  <text class="sm" x="1237" y="74" text-anchor="middle" fill="#4f46e5">自动驾驶一期</text>
   <rect x="1278" y="50" width="66" height="28" rx="6" fill="#dcfce7" stroke="#16a34a" stroke-width="0.6" />
   <text class="ts" x="1311" y="62" text-anchor="middle" fill="#14532d">5/5</text>
-  <text class="sm" x="1311" y="74" text-anchor="middle" fill="#166534">right rail</text>
+  <text class="sm" x="1311" y="74" text-anchor="middle" fill="#166534">右栏收敛</text>
   <rect x="1352" y="50" width="58" height="28" rx="6" fill="#fef3c7" stroke="#f59e0b" stroke-width="0.6" stroke-dasharray="3 2" />
   <text class="ts" x="1381" y="62" text-anchor="middle" fill="#92400e">0/9</text>
-  <text class="sm" x="1381" y="74" text-anchor="middle" fill="#b45309">BP LLM</text>
-  <text class="xs" x="1130" y="91" fill="#4f46e5">58 + 18 sealed · 5 shipped · 9 planning</text>
-  <text class="xs" x="1130" y="104" fill="#4f46e5">253 tests · TS baseline 107 · pages green</text>
+  <text class="sm" x="1381" y="74" text-anchor="middle" fill="#b45309">蓝图 LLM</text>
+  <text class="xs" x="1130" y="91" fill="#4f46e5">58 + 18 已封板 · 5 已落地 · 9 规划中</text>
+  <text class="xs" x="1130" y="104" fill="#4f46e5">253 tests · TS 基线 107 · pages 全绿</text>
 
   <path d="M454 92 L454 122 L392 122 L392 132" fill="none" stroke="#185fa5" stroke-width="1" marker-end="url(#a)" />
   <rect x="394" y="114" width="96" height="14" rx="4" fill="#e6f1fb" />
-  <text class="fl" x="442" y="124" text-anchor="middle" fill="#185fa5">① primary launch cmd</text>
+  <text class="fl" x="442" y="124" text-anchor="middle" fill="#185fa5">① 主发起指令</text>
 
   <path d="M258 92 L258 122 L300 122 L300 132" fill="none" stroke="#3b6d11" stroke-width="1" marker-end="url(#a)" />
   <rect x="220" y="114" width="82" height="14" rx="4" fill="#eaf3de" />
-  <text class="fl" x="261" y="124" text-anchor="middle" fill="#3b6d11">② cockpit sync</text>
+  <text class="fl" x="261" y="124" text-anchor="middle" fill="#3b6d11">② 驾驶舱同步</text>
 
   <path d="M552 92 L552 122 L490 122 L490 132" fill="none" stroke="#185fa5" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
   <rect x="528" y="114" width="96" height="14" rx="4" fill="#e6f1fb" />
-  <text class="fl" x="576" y="124" text-anchor="middle" fill="#185fa5">③ drive panel sync</text>
+  <text class="fl" x="576" y="124" text-anchor="middle" fill="#185fa5">③ 驾驶面板同步</text>
 
-  <!-- ==================== ROW 1: CONTRACTS + CUBE BRAIN + INTELLIGENCE + TASK AUTOPILOT ==================== -->
+  <!-- ==================== 第 1 行:共享契约 + Cube 大脑 + 智能层 + 自动驾驶 ==================== -->
 
   <rect x="20" y="132" width="160" height="418" rx="14" fill="#fbeaf0" stroke="#ed93b1" stroke-width="0.8" />
-  <text class="th" x="100" y="158" text-anchor="middle" fill="#4b1528">Shared contracts</text>
+  <text class="th" x="100" y="158" text-anchor="middle" fill="#4b1528">共享契约</text>
   <text class="ts" x="34" y="188" fill="#72243e">cost.ts</text>
   <text class="ts" x="34" y="208" fill="#72243e">cost-governance.ts</text>
   <text class="ts" x="34" y="228" fill="#72243e">llm/contracts.ts</text>
@@ -188,185 +185,185 @@
   <text class="ts" x="34" y="408" fill="#72243e">mission/api.ts</text>
   <text class="ts" x="34" y="428" fill="#72243e">blueprint/contracts.ts</text>
   <text class="ts" x="34" y="448" fill="#72243e">swarm.ts · guest-agent</text>
-  <text class="sm" x="100" y="508" text-anchor="middle" fill="#993556">contract modules</text>
-  <text class="sm" x="100" y="524" text-anchor="middle" fill="#993556">representative examples shown</text>
+  <text class="sm" x="100" y="508" text-anchor="middle" fill="#993556">契约模块</text>
+  <text class="sm" x="100" y="524" text-anchor="middle" fill="#993556">仅列举代表性模块</text>
   <line x1="180" y1="248" x2="218" y2="248" stroke="#ed93b1" stroke-width="0.5" stroke-dasharray="3 3" />
   <line x1="180" y1="328" x2="218" y2="328" stroke="#ed93b1" stroke-width="0.5" stroke-dasharray="3 3" />
   <line x1="180" y1="388" x2="218" y2="388" stroke="#ed93b1" stroke-width="0.5" stroke-dasharray="3 3" />
   <line x1="180" y1="428" x2="218" y2="428" stroke="#ed93b1" stroke-width="0.5" stroke-dasharray="3 3" />
 
   <rect x="200" y="132" width="390" height="418" rx="16" fill="#eaf3de" stroke="#97c459" stroke-width="0.8" />
-  <text class="th" x="395" y="158" text-anchor="middle" fill="#27500a">Cube brain (server)</text>
+  <text class="th" x="395" y="158" text-anchor="middle" fill="#27500a">Cube 大脑(服务端)</text>
 
   <rect x="220" y="178" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
   <text class="ts" x="300" y="198" text-anchor="middle" fill="#27500a">Express API</text>
   <text class="sm" x="300" y="216" text-anchor="middle" fill="#3b6d11">REST + Socket.IO</text>
 
   <rect x="410" y="178" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="490" y="198" text-anchor="middle" fill="#27500a">Skill system</text>
-  <text class="sm" x="490" y="216" text-anchor="middle" fill="#3b6d11">hot-plug registry</text>
+  <text class="ts" x="490" y="198" text-anchor="middle" fill="#27500a">Skill 技能系统</text>
+  <text class="sm" x="490" y="216" text-anchor="middle" fill="#3b6d11">热插拔注册表</text>
 
   <rect x="220" y="240" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="300" y="260" text-anchor="middle" fill="#27500a">Dynamic org</text>
-  <text class="sm" x="300" y="278" text-anchor="middle" fill="#3b6d11">CEO / manager / worker</text>
+  <text class="ts" x="300" y="260" text-anchor="middle" fill="#27500a">动态组织</text>
+  <text class="sm" x="300" y="278" text-anchor="middle" fill="#3b6d11">CEO / 经理 / 员工</text>
 
   <rect x="410" y="240" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="490" y="260" text-anchor="middle" fill="#27500a">Role system</text>
-  <text class="sm" x="490" y="278" text-anchor="middle" fill="#3b6d11">dynamic switch</text>
+  <text class="ts" x="490" y="260" text-anchor="middle" fill="#27500a">Role 角色系统</text>
+  <text class="sm" x="490" y="278" text-anchor="middle" fill="#3b6d11">动态切换</text>
 
   <rect x="220" y="302" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="300" y="322" text-anchor="middle" fill="#27500a">10-stage engine</text>
-  <text class="sm" x="300" y="340" text-anchor="middle" fill="#3b6d11">workflow pipeline</text>
+  <text class="ts" x="300" y="322" text-anchor="middle" fill="#27500a">10 阶段引擎</text>
+  <text class="sm" x="300" y="340" text-anchor="middle" fill="#3b6d11">工作流管道</text>
 
   <rect x="410" y="302" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="490" y="322" text-anchor="middle" fill="#27500a">Cost governance</text>
-  <text class="sm" x="490" y="340" text-anchor="middle" fill="#3b6d11">budget + alert ladder</text>
+  <text class="ts" x="490" y="322" text-anchor="middle" fill="#27500a">成本治理</text>
+  <text class="sm" x="490" y="340" text-anchor="middle" fill="#3b6d11">预算 + 告警分级</text>
 
   <rect x="220" y="364" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="300" y="384" text-anchor="middle" fill="#27500a">Mission runtime</text>
-  <text class="sm" x="300" y="402" text-anchor="middle" fill="#3b6d11">FSM + Drive State + Takeover</text>
+  <text class="ts" x="300" y="384" text-anchor="middle" fill="#27500a">任务运行时</text>
+  <text class="sm" x="300" y="402" text-anchor="middle" fill="#3b6d11">状态机 + 驾驶态 + 接管</text>
 
   <rect x="410" y="364" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="490" y="384" text-anchor="middle" fill="#27500a">Review system</text>
-  <text class="sm" x="490" y="402" text-anchor="middle" fill="#3b6d11">score + revise loop</text>
+  <text class="ts" x="490" y="384" text-anchor="middle" fill="#27500a">评审系统</text>
+  <text class="sm" x="490" y="402" text-anchor="middle" fill="#3b6d11">评分 + 修订循环</text>
 
   <rect x="220" y="426" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="300" y="446" text-anchor="middle" fill="#27500a">Executor bridge</text>
-  <text class="sm" x="300" y="464" text-anchor="middle" fill="#3b6d11">dispatch + callbacks + evidence</text>
+  <text class="ts" x="300" y="446" text-anchor="middle" fill="#27500a">执行器桥接</text>
+  <text class="sm" x="300" y="464" text-anchor="middle" fill="#3b6d11">派发 + 回调 + 证据</text>
 
   <rect x="410" y="426" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="490" y="446" text-anchor="middle" fill="#27500a">Permission</text>
-  <text class="sm" x="490" y="464" text-anchor="middle" fill="#3b6d11">RBAC + capability checks</text>
+  <text class="ts" x="490" y="446" text-anchor="middle" fill="#27500a">权限系统</text>
+  <text class="sm" x="490" y="464" text-anchor="middle" fill="#3b6d11">RBAC + 能力校验</text>
 
   <rect x="220" y="488" width="350" height="38" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="395" y="504" text-anchor="middle" fill="#27500a">Task Autopilot projection slice</text>
-  <text class="sm" x="395" y="518" text-anchor="middle" fill="#3b6d11">Mission → Destination / Route / Drive / Fleet / Takeover</text>
+  <text class="ts" x="395" y="504" text-anchor="middle" fill="#27500a">自动驾驶投影切片</text>
+  <text class="sm" x="395" y="518" text-anchor="middle" fill="#3b6d11">Mission → 目的地 / 路线 / 驾驶态 / 车队 / 接管点</text>
 
   <path d="M570 507 L958 507 L958 223 L978 223" fill="none" stroke="#97c459" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
   <rect x="738" y="499" width="116" height="14" rx="4" fill="#eaf3de" />
-  <text class="fl" x="796" y="509" text-anchor="middle" fill="#3b6d11">autopilot projection</text>
+  <text class="fl" x="796" y="509" text-anchor="middle" fill="#3b6d11">自动驾驶投影</text>
 
   <line x1="380" y1="326" x2="408" y2="326" stroke="#97c459" stroke-width="0.9" marker-end="url(#a)" />
   <path d="M490 364 L490 356 L380 356 L380 350" fill="none" stroke="#3b6d11" stroke-width="0.8" stroke-dasharray="3 2" marker-end="url(#a)" />
-  <text class="fl" x="438" y="354" text-anchor="middle" fill="#3b6d11">score feedback</text>
+  <text class="fl" x="438" y="354" text-anchor="middle" fill="#3b6d11">评分反馈</text>
 
   <rect x="610" y="132" width="330" height="236" rx="16" fill="#faeeda" stroke="#fac775" stroke-width="0.8" />
-  <text class="th" x="775" y="158" text-anchor="middle" fill="#412402">Intelligence layer</text>
+  <text class="th" x="775" y="158" text-anchor="middle" fill="#412402">智能层</text>
 
   <rect x="628" y="178" width="120" height="48" rx="8" fill="#ffffff" stroke="#fac775" stroke-width="0.6" />
-  <text class="ts" x="688" y="198" text-anchor="middle" fill="#633806">3-tier memory</text>
-  <text class="sm" x="688" y="216" text-anchor="middle" fill="#854f0b">short / mid / long</text>
+  <text class="ts" x="688" y="198" text-anchor="middle" fill="#633806">三级记忆</text>
+  <text class="sm" x="688" y="216" text-anchor="middle" fill="#854f0b">短 / 中 / 长期</text>
 
   <rect x="628" y="240" width="120" height="48" rx="8" fill="#ffffff" stroke="#fac775" stroke-width="0.6" />
-  <text class="ts" x="688" y="260" text-anchor="middle" fill="#633806">Knowledge graph</text>
-  <text class="sm" x="688" y="278" text-anchor="middle" fill="#854f0b">entity + relation</text>
+  <text class="ts" x="688" y="260" text-anchor="middle" fill="#633806">知识图谱</text>
+  <text class="sm" x="688" y="278" text-anchor="middle" fill="#854f0b">实体 + 关系</text>
 
   <rect x="628" y="302" width="120" height="48" rx="8" fill="#ffffff" stroke="#fac775" stroke-width="0.6" />
-  <text class="ts" x="688" y="322" text-anchor="middle" fill="#633806">Vector DB + RAG</text>
-  <text class="sm" x="688" y="340" text-anchor="middle" fill="#854f0b">context retrieval</text>
+  <text class="ts" x="688" y="322" text-anchor="middle" fill="#633806">向量库 + RAG</text>
+  <text class="sm" x="688" y="340" text-anchor="middle" fill="#854f0b">上下文检索</text>
 
   <rect x="766" y="178" width="120" height="48" rx="8" fill="#ffffff" stroke="#fac775" stroke-width="0.6" />
-  <text class="ts" x="826" y="198" text-anchor="middle" fill="#633806">Self-evolution</text>
-  <text class="sm" x="826" y="216" text-anchor="middle" fill="#854f0b">persona refinement</text>
+  <text class="ts" x="826" y="198" text-anchor="middle" fill="#633806">自进化</text>
+  <text class="sm" x="826" y="216" text-anchor="middle" fill="#854f0b">人设打磨</text>
 
   <rect x="766" y="240" width="120" height="48" rx="8" fill="#ffffff" stroke="#fac775" stroke-width="0.6" />
-  <text class="ts" x="826" y="260" text-anchor="middle" fill="#633806">Reputation</text>
-  <text class="sm" x="826" y="278" text-anchor="middle" fill="#854f0b">score + decay</text>
+  <text class="ts" x="826" y="260" text-anchor="middle" fill="#633806">信誉评分</text>
+  <text class="sm" x="826" y="278" text-anchor="middle" fill="#854f0b">评分 + 衰减</text>
 
   <rect x="766" y="302" width="120" height="48" rx="8" fill="#ffffff" stroke="#fac775" stroke-width="0.6" />
-  <text class="ts" x="826" y="322" text-anchor="middle" fill="#633806">Autonomy</text>
-  <text class="sm" x="826" y="340" text-anchor="middle" fill="#854f0b">self-eval + compete</text>
+  <text class="ts" x="826" y="322" text-anchor="middle" fill="#633806">自主性</text>
+  <text class="sm" x="826" y="340" text-anchor="middle" fill="#854f0b">自评估 + 竞争</text>
 
   <rect x="890" y="178" width="40" height="172" rx="8" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.6" />
   <text class="sm" x="910" y="196" text-anchor="middle" fill="#3c3489">LLM</text>
-  <text class="sm" x="910" y="210" text-anchor="middle" fill="#3c3489">provider</text>
+  <text class="sm" x="910" y="210" text-anchor="middle" fill="#3c3489">提供商</text>
   <text class="xs" x="910" y="248" text-anchor="middle" fill="#534ab7">OpenAI</text>
-  <text class="xs" x="910" y="260" text-anchor="middle" fill="#534ab7">compatible</text>
-  <text class="xs" x="910" y="292" text-anchor="middle" fill="#534ab7">multi-</text>
-  <text class="xs" x="910" y="304" text-anchor="middle" fill="#534ab7">provider</text>
+  <text class="xs" x="910" y="260" text-anchor="middle" fill="#534ab7">兼容接口</text>
+  <text class="xs" x="910" y="292" text-anchor="middle" fill="#534ab7">多厂商</text>
+  <text class="xs" x="910" y="304" text-anchor="middle" fill="#534ab7">可切换</text>
 
   <line x1="590" y1="202" x2="626" y2="202" stroke="#ba7517" stroke-width="1" marker-end="url(#a)" />
   <rect x="592" y="190" width="62" height="14" rx="4" fill="#faeeda" />
-  <text class="fl" x="623" y="200" text-anchor="middle" fill="#854f0b">④ context</text>
+  <text class="fl" x="623" y="200" text-anchor="middle" fill="#854f0b">④ 上下文注入</text>
 
   <line x1="590" y1="326" x2="626" y2="326" stroke="#ba7517" stroke-width="1" marker-end="url(#a)" />
   <rect x="592" y="314" width="70" height="14" rx="4" fill="#faeeda" />
-  <text class="fl" x="627" y="324" text-anchor="middle" fill="#854f0b">⑤ RAG enrich</text>
+  <text class="fl" x="627" y="324" text-anchor="middle" fill="#854f0b">⑤ RAG 增强</text>
 
   <line x1="886" y1="264" x2="890" y2="264" stroke="#534ab7" stroke-width="0.8" marker-end="url(#a)" />
-  <text class="fl" x="858" y="258" fill="#534ab7">LLM calls</text>
+  <text class="fl" x="858" y="258" fill="#534ab7">LLM 调用</text>
 
   <path d="M826 226 L826 234 L748 234 L748 226" fill="none" stroke="#ba7517" stroke-width="0.8" marker-end="url(#a)" />
-  <text class="fl" x="787" y="232" text-anchor="middle" fill="#854f0b">persona update</text>
+  <text class="fl" x="787" y="232" text-anchor="middle" fill="#854f0b">人设更新</text>
 
   <rect x="610" y="392" width="330" height="158" rx="16" fill="#f0e6ff" stroke="#b794f4" stroke-width="0.8" />
-  <text class="th" x="775" y="420" text-anchor="middle" fill="#44337a">Trust and compliance</text>
+  <text class="th" x="775" y="420" text-anchor="middle" fill="#44337a">信任与合规</text>
 
   <rect x="628" y="454" width="90" height="56" rx="8" fill="#ffffff" stroke="#b794f4" stroke-width="0.6" />
-  <text class="ts" x="673" y="476" text-anchor="middle" fill="#44337a">Audit chain</text>
-  <text class="sm" x="673" y="494" text-anchor="middle" fill="#6b46c1">hash-linked log</text>
+  <text class="ts" x="673" y="476" text-anchor="middle" fill="#44337a">审计链</text>
+  <text class="sm" x="673" y="494" text-anchor="middle" fill="#6b46c1">哈希链日志</text>
 
   <rect x="730" y="454" width="90" height="56" rx="8" fill="#ffffff" stroke="#b794f4" stroke-width="0.6" />
-  <text class="ts" x="775" y="476" text-anchor="middle" fill="#44337a">Data lineage</text>
-  <text class="sm" x="775" y="494" text-anchor="middle" fill="#6b46c1">DAG tracking</text>
+  <text class="ts" x="775" y="476" text-anchor="middle" fill="#44337a">数据血缘</text>
+  <text class="sm" x="775" y="494" text-anchor="middle" fill="#6b46c1">DAG 追踪</text>
 
   <rect x="832" y="454" width="90" height="56" rx="8" fill="#ffffff" stroke="#b794f4" stroke-width="0.6" />
-  <text class="ts" x="877" y="476" text-anchor="middle" fill="#44337a">Anomaly detect</text>
-  <text class="sm" x="877" y="494" text-anchor="middle" fill="#6b46c1">compliance map</text>
+  <text class="ts" x="877" y="476" text-anchor="middle" fill="#44337a">异常检测</text>
+  <text class="sm" x="877" y="494" text-anchor="middle" fill="#6b46c1">合规映射</text>
 
   <path d="M590 446 L608 446 L608 482 L626 482" fill="none" stroke="#6b46c1" stroke-width="1" marker-end="url(#a)" />
   <rect x="588" y="434" width="62" height="14" rx="4" fill="#f0e6ff" />
-  <text class="fl" x="619" y="444" text-anchor="middle" fill="#6b46c1">⑥ audit evt</text>
+  <text class="fl" x="619" y="444" text-anchor="middle" fill="#6b46c1">⑥ 审计事件</text>
 
   <path d="M590 470 L608 470 L608 482 L728 482" fill="none" stroke="#6b46c1" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
   <rect x="626" y="460" width="88" height="14" rx="4" fill="#f0e6ff" />
-  <text class="fl" x="670" y="470" text-anchor="middle" fill="#6b46c1">⑦ data mutations</text>
+  <text class="fl" x="670" y="470" text-anchor="middle" fill="#6b46c1">⑦ 数据变更</text>
 
   <path d="M673 454 L673 124 L846 124 L846 92" fill="none" stroke="#6b46c1" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
   <rect x="706" y="116" width="72" height="14" rx="4" fill="#f0e6ff" />
-  <text class="fl" x="742" y="126" text-anchor="middle" fill="#6b46c1">⑧ audit stream</text>
+  <text class="fl" x="742" y="126" text-anchor="middle" fill="#6b46c1">⑧ 审计推流</text>
 
   <path d="M775 454 L775 124 L748 124 L748 92" fill="none" stroke="#6b46c1" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
   <rect x="792" y="116" width="70" height="14" rx="4" fill="#f0e6ff" />
-  <text class="fl" x="827" y="126" text-anchor="middle" fill="#6b46c1">⑨ lineage DAG</text>
+  <text class="fl" x="827" y="126" text-anchor="middle" fill="#6b46c1">⑨ 血缘 DAG</text>
 
-  <!-- Task Autopilot architecture block -->
+  <!-- 任务自动驾驶架构块 -->
   <rect x="960" y="132" width="460" height="418" rx="16" fill="#eef2ff" stroke="#818cf8" stroke-width="0.8" />
-  <text class="th" x="1190" y="156" text-anchor="middle" fill="#3730a3">Task Autopilot architecture</text>
-  <text class="sm" x="1190" y="172" text-anchor="middle" fill="#4f46e5">goal → route → fleet → drive state → takeover → evidence</text>
+  <text class="th" x="1190" y="156" text-anchor="middle" fill="#3730a3">任务自动驾驶架构</text>
+  <text class="sm" x="1190" y="172" text-anchor="middle" fill="#4f46e5">目标 → 路线 → 车队 → 驾驶态 → 接管点 → 证据</text>
 
-  <!-- Autopilot domain row -->
+  <!-- 自动驾驶领域对象行 -->
   <rect x="980" y="186" width="196" height="46" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
-  <text class="ts" x="1078" y="205" text-anchor="middle" fill="#3730a3">Destination parser</text>
-  <text class="sm" x="1078" y="220" text-anchor="middle" fill="#4f46e5">goal · constraints · success</text>
+  <text class="ts" x="1078" y="205" text-anchor="middle" fill="#3730a3">目的地解析器</text>
+  <text class="sm" x="1078" y="220" text-anchor="middle" fill="#4f46e5">目标 · 约束 · 成功标准</text>
 
   <rect x="1208" y="186" width="196" height="46" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
-  <text class="ts" x="1306" y="205" text-anchor="middle" fill="#3730a3">Route planner</text>
-  <text class="sm" x="1306" y="220" text-anchor="middle" fill="#4f46e5">main route · candidates · risk</text>
+  <text class="ts" x="1306" y="205" text-anchor="middle" fill="#3730a3">路线规划器</text>
+  <text class="sm" x="1306" y="220" text-anchor="middle" fill="#4f46e5">主路线 · 候选 · 风险</text>
 
   <rect x="980" y="240" width="196" height="46" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
-  <text class="ts" x="1078" y="259" text-anchor="middle" fill="#3730a3">Fleet organizer</text>
-  <text class="sm" x="1078" y="274" text-anchor="middle" fill="#4f46e5">planner · researcher · reviewer</text>
+  <text class="ts" x="1078" y="259" text-anchor="middle" fill="#3730a3">车队编组</text>
+  <text class="sm" x="1078" y="274" text-anchor="middle" fill="#4f46e5">规划 · 调研 · 评审</text>
 
   <rect x="1208" y="240" width="196" height="46" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
-  <text class="ts" x="1306" y="259" text-anchor="middle" fill="#3730a3">Mission runtime</text>
-  <text class="sm" x="1306" y="274" text-anchor="middle" fill="#4f46e5">run · wait · resume · replan</text>
+  <text class="ts" x="1306" y="259" text-anchor="middle" fill="#3730a3">任务运行时</text>
+  <text class="sm" x="1306" y="274" text-anchor="middle" fill="#4f46e5">运行 · 等待 · 恢复 · 重规划</text>
 
   <rect x="980" y="294" width="196" height="46" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
-  <text class="ts" x="1078" y="313" text-anchor="middle" fill="#3730a3">Telemetry + explain</text>
-  <text class="sm" x="1078" y="328" text-anchor="middle" fill="#4f46e5">why · confidence · status</text>
+  <text class="ts" x="1078" y="313" text-anchor="middle" fill="#3730a3">遥测 + 可解释</text>
+  <text class="sm" x="1078" y="328" text-anchor="middle" fill="#4f46e5">原因 · 置信度 · 状态</text>
 
   <rect x="1208" y="294" width="196" height="46" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
-  <text class="ts" x="1306" y="313" text-anchor="middle" fill="#3730a3">Review + recovery</text>
-  <text class="sm" x="1306" y="328" text-anchor="middle" fill="#4f46e5">score · revise · fallback</text>
+  <text class="ts" x="1306" y="313" text-anchor="middle" fill="#3730a3">评审 + 恢复</text>
+  <text class="sm" x="1306" y="328" text-anchor="middle" fill="#4f46e5">评分 · 修订 · 降级</text>
 
   <rect x="980" y="348" width="196" height="46" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
-  <text class="ts" x="1078" y="367" text-anchor="middle" fill="#3730a3">Takeover bridge</text>
-  <text class="sm" x="1078" y="382" text-anchor="middle" fill="#4f46e5">decision · budget · permission</text>
+  <text class="ts" x="1078" y="367" text-anchor="middle" fill="#3730a3">接管桥</text>
+  <text class="sm" x="1078" y="382" text-anchor="middle" fill="#4f46e5">决策 · 预算 · 权限</text>
 
   <rect x="1208" y="348" width="196" height="46" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
-  <text class="ts" x="1306" y="367" text-anchor="middle" fill="#3730a3">Evidence trust chain</text>
-  <text class="sm" x="1306" y="382" text-anchor="middle" fill="#4f46e5">audit · replay · lineage</text>
+  <text class="ts" x="1306" y="367" text-anchor="middle" fill="#3730a3">证据信任链</text>
+  <text class="sm" x="1306" y="382" text-anchor="middle" fill="#4f46e5">审计 · 回放 · 血缘</text>
 
   <path d="M1176 208 L1206 208" fill="none" stroke="#818cf8" stroke-width="0.8" marker-end="url(#a)" />
   <path d="M1306 232 L1306 238" fill="none" stroke="#818cf8" stroke-width="0.8" marker-end="url(#a)" />
@@ -376,59 +373,59 @@
   <path d="M1306 340 L1306 346" fill="none" stroke="#818cf8" stroke-width="0.8" marker-end="url(#a)" />
   <path d="M1208 370 L1178 370" fill="none" stroke="#818cf8" stroke-width="0.8" marker-end="url(#a)" />
 
-  <!-- Right rail convergence 5 specs — SHIPPED (green accent) -->
+  <!-- 右栏收敛 5 specs — 已落地(绿色强调) -->
   <rect x="974" y="404" width="432" height="64" rx="8" fill="#f0fdf4" stroke="#22c55e" stroke-width="1" />
   <rect x="982" y="408" width="60" height="12" rx="3" fill="#22c55e" />
-  <text class="done-tag" x="1012" y="418" text-anchor="middle" fill="#ffffff">SHIPPED</text>
-  <text class="ts" x="1050" y="418" fill="#14532d" font-weight="700">Right rail convergence · 5 specs · 54 / 54</text>
-  <text class="sm" x="982" y="436" fill="#166534">&lt;AutopilotRightRail&gt; + 8 canonical sub-stage panels (agent_crew_fabric ... artifact_memory)</text>
-  <text class="sm" x="982" y="450" fill="#166534">useAutopilotRightRailData (9+6 fetch · lazy gate · SSE+polling · per-field retry)</text>
-  <text class="sm" x="982" y="464" fill="#166534">useRightRailSubStageState · URL ?sub · sticky pin · keyboard [ ] Esc P · viewport 3 tiers</text>
+  <text class="done-tag" x="1012" y="418" text-anchor="middle" fill="#ffffff">已落地</text>
+  <text class="ts" x="1050" y="418" fill="#14532d" font-weight="700">右栏收敛 · 5 specs · 54 / 54 任务</text>
+  <text class="sm" x="982" y="436" fill="#166534">&lt;AutopilotRightRail&gt; + 8 个 canonical 子阶段面板 (agent_crew_fabric ... artifact_memory)</text>
+  <text class="sm" x="982" y="450" fill="#166534">useAutopilotRightRailData (9+6 fetch · 懒加载门 · SSE+轮询 · 字段级重试)</text>
+  <text class="sm" x="982" y="464" fill="#166534">useRightRailSubStageState · URL ?sub · 粘滞 pin · 键盘 [ ] Esc P · 响应式三档</text>
 
-  <!-- Phase 1 closed banner -->
+  <!-- Phase 1 closed 横幅 -->
   <rect x="974" y="476" width="432" height="62" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
-  <text class="ts" x="1190" y="494" text-anchor="middle" fill="#3730a3">Phase 1 closed: 18/18 specs · 345/345 core · 602 raw</text>
-  <text class="sm" x="1190" y="510" text-anchor="middle" fill="#4f46e5">shared parser + server projection + tasks-store + cockpit panel</text>
-  <text class="sm" x="1190" y="526" text-anchor="middle" fill="#4f46e5">Web-AIGC 58/58 nodes stay as capability pool, not user-facing node list</text>
+  <text class="ts" x="1190" y="494" text-anchor="middle" fill="#3730a3">第一期已封板:18/18 specs · 345/345 核心任务 · 602 原始任务</text>
+  <text class="sm" x="1190" y="510" text-anchor="middle" fill="#4f46e5">shared 解析器 + 服务端投影 + tasks-store + 驾驶舱面板</text>
+  <text class="sm" x="1190" y="526" text-anchor="middle" fill="#4f46e5">Web-AIGC 58/58 节点作为能力池,不作为用户可见节点列表</text>
 
   <path d="M940 322 L958 322" fill="none" stroke="#818cf8" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
   <rect x="920" y="310" width="52" height="14" rx="4" fill="#eef2ff" />
-  <text class="fl" x="946" y="320" text-anchor="middle" fill="#4f46e5">RAG deps</text>
+  <text class="fl" x="946" y="320" text-anchor="middle" fill="#4f46e5">RAG 依赖</text>
 
   <path d="M940 505 L958 505" fill="none" stroke="#818cf8" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
   <rect x="910" y="493" width="64" height="14" rx="4" fill="#eef2ff" />
-  <text class="fl" x="942" y="503" text-anchor="middle" fill="#4f46e5">audit mirror</text>
+  <text class="fl" x="942" y="503" text-anchor="middle" fill="#4f46e5">审计镜像</text>
 
-  <!-- ==================== ROW 2: RUNNER + EXECUTION + INTEROP + DUAL RUNTIME ==================== -->
+  <!-- ==================== 第 2 行:Runner + 执行层 + 互操作 + 双运行时 ==================== -->
 
   <rect x="20" y="575" width="160" height="150" rx="14" fill="#f8fafc" stroke="#d4d4d8" stroke-width="0.8" />
-  <text class="th" x="100" y="602" text-anchor="middle" fill="#3f3f46">Runner strategy</text>
+  <text class="th" x="100" y="602" text-anchor="middle" fill="#3f3f46">Runner 策略</text>
   <rect x="34" y="622" width="132" height="28" rx="6" fill="#eaf3de" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="100" y="641" text-anchor="middle" fill="#27500a">DockerRunner (real)</text>
+  <text class="ts" x="100" y="641" text-anchor="middle" fill="#27500a">DockerRunner (真容器)</text>
   <rect x="34" y="660" width="132" height="28" rx="6" fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.6" />
-  <text class="ts" x="100" y="679" text-anchor="middle" fill="#0c447c">NativeRunner (native)</text>
+  <text class="ts" x="100" y="679" text-anchor="middle" fill="#0c447c">NativeRunner (本地)</text>
   <rect x="34" y="698" width="132" height="28" rx="6" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.6" />
-  <text class="ts" x="100" y="717" text-anchor="middle" fill="#3c3489">MockRunner (mock)</text>
+  <text class="ts" x="100" y="717" text-anchor="middle" fill="#3c3489">MockRunner (模拟)</text>
   <line x1="166" y1="636" x2="218" y2="636" stroke="#97c459" stroke-width="0.8" marker-end="url(#a)" />
 
   <rect x="200" y="575" width="500" height="150" rx="16" fill="#faece7" stroke="#f0997b" stroke-width="0.8" />
-  <text class="th" x="450" y="602" text-anchor="middle" fill="#4a1b0c">Execution layer (real / native / mock)</text>
+  <text class="th" x="450" y="602" text-anchor="middle" fill="#4a1b0c">执行层 (real / native / mock)</text>
 
   <rect x="220" y="620" width="106" height="44" rx="8" fill="#ffffff" stroke="#f0997b" stroke-width="0.6" />
-  <text class="ts" x="273" y="638" text-anchor="middle" fill="#712b13">Lobster exec</text>
-  <text class="sm" x="273" y="655" text-anchor="middle" fill="#993c1d">runner dispatch</text>
+  <text class="ts" x="273" y="638" text-anchor="middle" fill="#712b13">Lobster 执行器</text>
+  <text class="sm" x="273" y="655" text-anchor="middle" fill="#993c1d">runner 派发</text>
 
   <rect x="336" y="620" width="106" height="44" rx="8" fill="#ffffff" stroke="#f0997b" stroke-width="0.6" />
-  <text class="ts" x="389" y="638" text-anchor="middle" fill="#712b13">HMAC callback</text>
-  <text class="sm" x="389" y="655" text-anchor="middle" fill="#993c1d">status + artifacts</text>
+  <text class="ts" x="389" y="638" text-anchor="middle" fill="#712b13">HMAC 回调</text>
+  <text class="sm" x="389" y="655" text-anchor="middle" fill="#993c1d">状态 + 产物</text>
 
   <rect x="452" y="620" width="106" height="44" rx="8" fill="#ffffff" stroke="#f0997b" stroke-width="0.6" />
-  <text class="ts" x="505" y="638" text-anchor="middle" fill="#712b13">Secure sandbox</text>
-  <text class="sm" x="505" y="655" text-anchor="middle" fill="#993c1d">seccomp + caps</text>
+  <text class="ts" x="505" y="638" text-anchor="middle" fill="#712b13">安全沙箱</text>
+  <text class="sm" x="505" y="655" text-anchor="middle" fill="#993c1d">seccomp + 能力</text>
 
   <rect x="568" y="620" width="112" height="44" rx="8" fill="#ffffff" stroke="#f0997b" stroke-width="0.6" />
-  <text class="ts" x="624" y="638" text-anchor="middle" fill="#712b13">Live preview</text>
-  <text class="sm" x="624" y="655" text-anchor="middle" fill="#993c1d">terminal + screenshot</text>
+  <text class="ts" x="624" y="638" text-anchor="middle" fill="#712b13">实时预览</text>
+  <text class="sm" x="624" y="655" text-anchor="middle" fill="#993c1d">终端 + 截图</text>
 
   <rect x="220" y="680" width="132" height="28" rx="6" fill="#eaf3de" stroke="#97c459" stroke-width="0.6" />
   <text class="ts" x="286" y="699" text-anchor="middle" fill="#27500a">DockerRunner</text>
@@ -437,188 +434,188 @@
   <rect x="516" y="680" width="82" height="28" rx="6" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.6" />
   <text class="ts" x="557" y="699" text-anchor="middle" fill="#3c3489">MockRunner</text>
   <rect x="608" y="680" width="72" height="28" rx="6" fill="#f8fafc" stroke="#d4d4d8" stroke-width="0.6" />
-  <text class="ts" x="644" y="699" text-anchor="middle" fill="#52525b">Docker probe</text>
+  <text class="ts" x="644" y="699" text-anchor="middle" fill="#52525b">Docker 探测</text>
 
   <path d="M300 474 L300 573" fill="none" stroke="#d85a30" stroke-width="1" marker-end="url(#a)" />
   <rect x="260" y="522" width="62" height="14" rx="4" fill="#faece7" />
-  <text class="fl" x="291" y="532" text-anchor="middle" fill="#993c1d">⑩ exec plan</text>
+  <text class="fl" x="291" y="532" text-anchor="middle" fill="#993c1d">⑩ 执行计划</text>
 
   <path d="M389 620 L389 530 L490 530 L490 474" fill="none" stroke="#d85a30" stroke-width="0.9" stroke-dasharray="4 3" marker-end="url(#a)" />
   <rect x="404" y="522" width="78" height="14" rx="4" fill="#faece7" />
-  <text class="fl" x="443" y="532" text-anchor="middle" fill="#993c1d">⑪ status / cancel</text>
+  <text class="fl" x="443" y="532" text-anchor="middle" fill="#993c1d">⑪ 状态 / 取消</text>
 
   <path d="M624 620 L624 122 L1042 122 L1042 92" fill="none" stroke="#85b7eb" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
   <rect x="980" y="114" width="86" height="14" rx="4" fill="#e6f1fb" />
-  <text class="fl" x="1023" y="124" text-anchor="middle" fill="#185fa5">⑫ terminal / preview</text>
+  <text class="fl" x="1023" y="124" text-anchor="middle" fill="#185fa5">⑫ 终端 / 预览</text>
 
   <path d="M505 620 L505 540 L628 540 L628 510" fill="none" stroke="#6b46c1" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
   <rect x="520" y="532" width="82" height="14" rx="4" fill="#f0e6ff" />
-  <text class="fl" x="561" y="542" text-anchor="middle" fill="#6b46c1">⑬ container audit</text>
+  <text class="fl" x="561" y="542" text-anchor="middle" fill="#6b46c1">⑬ 容器审计</text>
 
   <rect x="720" y="575" width="300" height="150" rx="16" fill="#e6fffa" stroke="#38b2ac" stroke-width="0.8" />
-  <text class="th" x="870" y="602" text-anchor="middle" fill="#234e52">Interop layer</text>
+  <text class="th" x="870" y="602" text-anchor="middle" fill="#234e52">互操作层</text>
   <rect x="740" y="620" width="260" height="44" rx="8" fill="#ffffff" stroke="#38b2ac" stroke-width="0.6" />
-  <text class="ts" x="870" y="638" text-anchor="middle" fill="#234e52">A2A protocol server + client</text>
-  <text class="sm" x="870" y="655" text-anchor="middle" fill="#2c7a7b">CrewAI / LangGraph / AutoGen adapters</text>
+  <text class="ts" x="870" y="638" text-anchor="middle" fill="#234e52">A2A 协议 server + client</text>
+  <text class="sm" x="870" y="655" text-anchor="middle" fill="#2c7a7b">CrewAI / LangGraph / AutoGen 适配器</text>
   <rect x="740" y="684" width="124" height="30" rx="8" fill="#ffffff" stroke="#38b2ac" stroke-width="0.6" />
-  <text class="ts" x="802" y="699" text-anchor="middle" fill="#234e52">Swarm</text>
-  <text class="sm" x="802" y="711" text-anchor="middle" fill="#2c7a7b">cross-pod</text>
+  <text class="ts" x="802" y="699" text-anchor="middle" fill="#234e52">Swarm 集群</text>
+  <text class="sm" x="802" y="711" text-anchor="middle" fill="#2c7a7b">跨 Pod</text>
   <rect x="876" y="684" width="124" height="30" rx="8" fill="#ffffff" stroke="#38b2ac" stroke-width="0.6" />
-  <text class="ts" x="938" y="699" text-anchor="middle" fill="#234e52">Guest agent</text>
-  <text class="sm" x="938" y="711" text-anchor="middle" fill="#2c7a7b">TTL sandbox</text>
+  <text class="ts" x="938" y="699" text-anchor="middle" fill="#234e52">客座 Agent</text>
+  <text class="sm" x="938" y="711" text-anchor="middle" fill="#2c7a7b">TTL 沙箱</text>
 
   <path d="M490 474 L490 552 L740 552 L740 630" fill="none" stroke="#38b2ac" stroke-width="1" marker-end="url(#a)" />
   <rect x="574" y="544" width="132" height="14" rx="4" fill="#e6fffa" />
-  <text class="fl" x="640" y="554" text-anchor="middle" fill="#2c7a7b">⑭ A2A delegate + guest invite</text>
+  <text class="fl" x="640" y="554" text-anchor="middle" fill="#2c7a7b">⑭ A2A 委派 + 客座邀请</text>
 
   <path d="M740 650 L704 650 L704 552 L570 552 L570 474" fill="none" stroke="#38b2ac" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
   <rect x="600" y="544" width="108" height="14" rx="4" fill="#e6fffa" />
-  <text class="fl" x="654" y="554" text-anchor="middle" fill="#2c7a7b">⑮ external results</text>
+  <text class="fl" x="654" y="554" text-anchor="middle" fill="#2c7a7b">⑮ 外部结果回传</text>
 
   <path d="M1208 262 L1192 262 L1192 552 L1000 552 L1000 630" fill="none" stroke="#38b2ac" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
   <rect x="1098" y="544" width="92" height="14" rx="4" fill="#e6fffa" />
-  <text class="fl" x="1144" y="554" text-anchor="middle" fill="#2c7a7b">capability calls</text>
+  <text class="fl" x="1144" y="554" text-anchor="middle" fill="#2c7a7b">能力调用</text>
 
   <rect x="1040" y="575" width="380" height="150" rx="16" fill="#f8fafc" stroke="#d4d4d8" stroke-width="0.8" />
-  <text class="th" x="1230" y="602" text-anchor="middle" fill="#3f3f46">Dual runtime</text>
+  <text class="th" x="1230" y="602" text-anchor="middle" fill="#3f3f46">双运行时</text>
   <rect x="1056" y="622" width="168" height="52" rx="8" fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.6" />
-  <text class="ts" x="1140" y="640" text-anchor="middle" fill="#0c447c">Frontend runtime</text>
-  <text class="sm" x="1140" y="655" text-anchor="middle" fill="#185fa5">Frontend: Browser + IndexedDB</text>
-  <text class="sm" x="1140" y="668" text-anchor="middle" fill="#185fa5">+ preview runtime</text>
+  <text class="ts" x="1140" y="640" text-anchor="middle" fill="#0c447c">前端运行时</text>
+  <text class="sm" x="1140" y="655" text-anchor="middle" fill="#185fa5">纯浏览器 + IndexedDB</text>
+  <text class="sm" x="1140" y="668" text-anchor="middle" fill="#185fa5">+ 前端预览</text>
   <rect x="1236" y="622" width="168" height="52" rx="8" fill="#eaf3de" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="1320" y="640" text-anchor="middle" fill="#27500a">Advanced runtime</text>
-  <text class="sm" x="1320" y="655" text-anchor="middle" fill="#3b6d11">Advanced: Express + real/native</text>
-  <text class="sm" x="1320" y="668" text-anchor="middle" fill="#3b6d11">executor + Socket.IO</text>
+  <text class="ts" x="1320" y="640" text-anchor="middle" fill="#27500a">高级运行时</text>
+  <text class="sm" x="1320" y="655" text-anchor="middle" fill="#3b6d11">Express + real/native</text>
+  <text class="sm" x="1320" y="668" text-anchor="middle" fill="#3b6d11">执行器 + Socket.IO</text>
   <rect x="1060" y="684" width="340" height="30" rx="6" fill="#ffffff" stroke="#d4d4d8" stroke-width="0.6" />
-  <text class="ts" x="1230" y="703" text-anchor="middle" fill="#52525b">Socket.IO telemetry + replay evidence + preview callbacks</text>
+  <text class="ts" x="1230" y="703" text-anchor="middle" fill="#52525b">Socket.IO 遥测 + 回放证据 + 预览回调</text>
 
-  <!-- ==================== ROW 3: WORKFLOW PIPELINE ==================== -->
+  <!-- ==================== 第 3 行:10 阶段工作流管道 ==================== -->
 
   <rect x="20" y="742" width="1400" height="88" rx="16" fill="#f8fafc" stroke="#d4d4d8" stroke-width="0.8" />
-  <text class="th" x="720" y="766" text-anchor="middle" fill="#3f3f46">10-stage workflow pipeline</text>
+  <text class="th" x="720" y="766" text-anchor="middle" fill="#3f3f46">10 阶段工作流管道</text>
 
   <rect x="40" y="780" width="120" height="36" rx="8" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.6" />
-  <text class="ts" x="100" y="795" text-anchor="middle" fill="#3c3489">1. Assemble</text>
-  <text class="xs" x="100" y="809" text-anchor="middle" fill="#534ab7">dynamic org</text>
+  <text class="ts" x="100" y="795" text-anchor="middle" fill="#3c3489">1. 组建</text>
+  <text class="xs" x="100" y="809" text-anchor="middle" fill="#534ab7">动态组织</text>
   <line x1="160" y1="798" x2="173" y2="798" stroke="#afa9ec" stroke-width="0.8" marker-end="url(#a)" />
 
   <rect x="175" y="780" width="120" height="36" rx="8" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.6" />
-  <text class="ts" x="235" y="795" text-anchor="middle" fill="#3c3489">2. CEO split</text>
-  <text class="xs" x="235" y="809" text-anchor="middle" fill="#534ab7">decompose</text>
+  <text class="ts" x="235" y="795" text-anchor="middle" fill="#3c3489">2. CEO 拆解</text>
+  <text class="xs" x="235" y="809" text-anchor="middle" fill="#534ab7">任务分解</text>
   <line x1="295" y1="798" x2="308" y2="798" stroke="#afa9ec" stroke-width="0.8" marker-end="url(#a)" />
 
   <rect x="310" y="780" width="120" height="36" rx="8" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.6" />
-  <text class="ts" x="370" y="795" text-anchor="middle" fill="#3c3489">3. Mgr plan</text>
-  <text class="xs" x="370" y="809" text-anchor="middle" fill="#534ab7">assign work</text>
+  <text class="ts" x="370" y="795" text-anchor="middle" fill="#3c3489">3. 经理规划</text>
+  <text class="xs" x="370" y="809" text-anchor="middle" fill="#534ab7">分配任务</text>
   <line x1="430" y1="798" x2="443" y2="798" stroke="#afa9ec" stroke-width="0.8" marker-end="url(#a)" />
 
   <rect x="445" y="780" width="120" height="36" rx="8" fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.6" />
-  <text class="ts" x="505" y="795" text-anchor="middle" fill="#0c447c">4. Execute</text>
-  <text class="xs" x="505" y="809" text-anchor="middle" fill="#185fa5">parallel work</text>
+  <text class="ts" x="505" y="795" text-anchor="middle" fill="#0c447c">4. 执行</text>
+  <text class="xs" x="505" y="809" text-anchor="middle" fill="#185fa5">并行工作</text>
   <line x1="565" y1="798" x2="578" y2="798" stroke="#85b7eb" stroke-width="0.8" marker-end="url(#a)" />
 
   <rect x="580" y="780" width="120" height="36" rx="8" fill="#eaf3de" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="640" y="795" text-anchor="middle" fill="#27500a">5. Review</text>
-  <text class="xs" x="640" y="809" text-anchor="middle" fill="#3b6d11">score quality</text>
+  <text class="ts" x="640" y="795" text-anchor="middle" fill="#27500a">5. 评审</text>
+  <text class="xs" x="640" y="809" text-anchor="middle" fill="#3b6d11">质量评分</text>
   <line x1="700" y1="798" x2="713" y2="798" stroke="#97c459" stroke-width="0.8" marker-end="url(#a)" />
 
   <rect x="715" y="780" width="120" height="36" rx="8" fill="#faeeda" stroke="#fac775" stroke-width="0.6" />
-  <text class="ts" x="775" y="795" text-anchor="middle" fill="#633806">6. Audit</text>
-  <text class="xs" x="775" y="809" text-anchor="middle" fill="#854f0b">meta check</text>
+  <text class="ts" x="775" y="795" text-anchor="middle" fill="#633806">6. 元审计</text>
+  <text class="xs" x="775" y="809" text-anchor="middle" fill="#854f0b">元数据校验</text>
   <line x1="835" y1="798" x2="848" y2="798" stroke="#fac775" stroke-width="0.8" marker-end="url(#a)" />
 
   <rect x="850" y="780" width="120" height="36" rx="8" fill="#faece7" stroke="#f0997b" stroke-width="0.6" />
-  <text class="ts" x="910" y="795" text-anchor="middle" fill="#712b13">7. Revise</text>
-  <text class="xs" x="910" y="809" text-anchor="middle" fill="#993c1d">fix gaps</text>
+  <text class="ts" x="910" y="795" text-anchor="middle" fill="#712b13">7. 修订</text>
+  <text class="xs" x="910" y="809" text-anchor="middle" fill="#993c1d">修补缺口</text>
   <line x1="970" y1="798" x2="983" y2="798" stroke="#f0997b" stroke-width="0.8" marker-end="url(#a)" />
 
   <rect x="985" y="780" width="120" height="36" rx="8" fill="#eaf3de" stroke="#97c459" stroke-width="0.6" />
-  <text class="ts" x="1045" y="795" text-anchor="middle" fill="#27500a">8. Verify</text>
-  <text class="xs" x="1045" y="809" text-anchor="middle" fill="#3b6d11">confirm</text>
+  <text class="ts" x="1045" y="795" text-anchor="middle" fill="#27500a">8. 验证</text>
+  <text class="xs" x="1045" y="809" text-anchor="middle" fill="#3b6d11">最终确认</text>
   <line x1="1105" y1="798" x2="1118" y2="798" stroke="#97c459" stroke-width="0.8" marker-end="url(#a)" />
 
   <rect x="1120" y="780" width="120" height="36" rx="8" fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.6" />
-  <text class="ts" x="1180" y="795" text-anchor="middle" fill="#0c447c">9. Summary</text>
-  <text class="xs" x="1180" y="809" text-anchor="middle" fill="#185fa5">aggregate</text>
+  <text class="ts" x="1180" y="795" text-anchor="middle" fill="#0c447c">9. 汇总</text>
+  <text class="xs" x="1180" y="809" text-anchor="middle" fill="#185fa5">聚合产出</text>
   <line x1="1240" y1="798" x2="1253" y2="798" stroke="#85b7eb" stroke-width="0.8" marker-end="url(#a)" />
 
   <rect x="1255" y="780" width="120" height="36" rx="8" fill="#fbeaf0" stroke="#ed93b1" stroke-width="0.6" />
-  <text class="ts" x="1315" y="795" text-anchor="middle" fill="#72243e">10. Evolve</text>
-  <text class="xs" x="1315" y="809" text-anchor="middle" fill="#993556">learn + refine</text>
+  <text class="ts" x="1315" y="795" text-anchor="middle" fill="#72243e">10. 进化</text>
+  <text class="xs" x="1315" y="809" text-anchor="middle" fill="#993556">学习 + 打磨</text>
 
   <path d="M910 816 L910 826 L505 826 L505 816" fill="none" stroke="#d85a30" stroke-width="0.7" stroke-dasharray="4 3" marker-end="url(#a)" />
-  <text class="fl" x="706" y="824" text-anchor="middle" fill="#993c1d">Score below threshold - revise and re-execute</text>
+  <text class="fl" x="706" y="824" text-anchor="middle" fill="#993c1d">评分不达标 - 修订后重新执行</text>
 
-  <!-- ==================== ROW 4: BLUEPRINT LLM PIPELINE (PLANNING) ==================== -->
+  <!-- ==================== 第 4 行:蓝图 LLM 管道(规划中) ==================== -->
 
   <rect x="20" y="842" width="1400" height="130" rx="16" fill="#fff7ed" stroke="#f59e0b" stroke-width="1" stroke-dasharray="6 4" />
   <rect x="36" y="852" width="76" height="14" rx="3" fill="#f59e0b" />
-  <text class="plan-tag" x="74" y="862" text-anchor="middle" fill="#ffffff">PLANNING</text>
-  <text class="th" x="124" y="862" fill="#7c2d12">Blueprint LLM pipeline · 9 specs · RouteSet LLM + 4 bridges + stage activation + 5 downstream</text>
-  <text class="xs" x="124" y="876" fill="#9a3412">源: .kiro/specs/autopilot-*/requirements.md · Wave 0 tasks ready · Wave 1-3 REQ ready, design pending</text>
+  <text class="plan-tag" x="74" y="862" text-anchor="middle" fill="#ffffff">规划中</text>
+  <text class="th" x="124" y="862" fill="#7c2d12">蓝图 LLM 管道 · 9 specs · RouteSet LLM + 4 条能力桥 + 伴随式 Agent Crew + 5 条下游 LLM</text>
+  <text class="xs" x="124" y="876" fill="#9a3412">源: .kiro/specs/autopilot-*/requirements.md · Wave 0 tasks 就绪 · Wave 1-3 REQ 就绪待 design</text>
 
   <!-- Wave 0 -->
   <rect x="36" y="884" width="180" height="80" rx="8" fill="#ffffff" stroke="#16a34a" stroke-width="0.8" />
-  <text class="done-tag" x="46" y="900" fill="#065f46">TASKS READY</text>
+  <text class="done-tag" x="46" y="900" fill="#065f46">TASKS 就绪</text>
   <text class="ts" x="46" y="916" fill="#0f172a" font-weight="700">Wave 0 · RouteSet LLM</text>
   <text class="sm" x="46" y="932" fill="#475569">routeset-llm-generation</text>
   <text class="xs" x="46" y="948" fill="#64748b">15 tasks · strict zod · +2 E2E</text>
-  <text class="xs" x="46" y="960" fill="#64748b">RouteSet hardcoded → LLM driven</text>
+  <text class="xs" x="46" y="960" fill="#64748b">RouteSet 硬编码 → LLM 驱动</text>
 
-  <!-- Wave 1 (4 bridges) -->
+  <!-- Wave 1(4 条桥) -->
   <rect x="226" y="884" width="370" height="80" rx="8" fill="#ffffff" stroke="#f59e0b" stroke-width="0.8" stroke-dasharray="4 3" />
-  <text class="plan-tag" x="236" y="900" fill="#9a3412">REQ READY · 4 × DESIGN PENDING</text>
-  <text class="ts" x="236" y="916" fill="#0f172a" font-weight="700">Wave 1 · Capability Bridges · 4 parallel</text>
-  <text class="sm" x="236" y="932" fill="#475569">docker-sandbox → real Docker · mcp-github → real MCP / HTTP</text>
+  <text class="plan-tag" x="236" y="900" fill="#9a3412">REQ 就绪 · 4 × DESIGN 待写</text>
+  <text class="ts" x="236" y="916" fill="#0f172a" font-weight="700">Wave 1 · Capability 4 条桥 · 全并行</text>
+  <text class="sm" x="236" y="932" fill="#475569">docker-sandbox → 真 Docker · mcp-github → 真 MCP / HTTP</text>
   <text class="sm" x="236" y="948" fill="#475569">aigc-spec-node → callJson 结构化 · role → JSON → evidence store</text>
-  <text class="xs" x="236" y="960" fill="#64748b">9 reqs each · allow-list · executionMode · strict zod · no internal dep</text>
+  <text class="xs" x="236" y="960" fill="#64748b">每条 9 reqs · allow-list · executionMode · strict zod · 无内部依赖</text>
 
   <!-- Wave 2 -->
   <rect x="606" y="884" width="210" height="80" rx="8" fill="#ffffff" stroke="#f59e0b" stroke-width="0.8" stroke-dasharray="4 3" />
-  <text class="plan-tag" x="616" y="900" fill="#9a3412">REQ READY · DESIGN PENDING</text>
-  <text class="ts" x="616" y="916" fill="#0f172a" font-weight="700">Wave 2 · Agent Crew Activation</text>
-  <text class="sm" x="616" y="932" fill="#475569">stage-activation · consumes role JSON</text>
+  <text class="plan-tag" x="616" y="900" fill="#9a3412">REQ 就绪 · DESIGN 待写</text>
+  <text class="ts" x="616" y="916" fill="#0f172a" font-weight="700">Wave 2 · Agent Crew 激活</text>
+  <text class="sm" x="616" y="932" fill="#475569">stage-activation · 消费 role JSON</text>
   <text class="sm" x="616" y="948" fill="#475569">role.activated / watching / sleeping</text>
-  <text class="xs" x="616" y="960" fill="#64748b">9 reqs · depends on Wave 1 role bridge</text>
+  <text class="xs" x="616" y="960" fill="#64748b">9 reqs · 依赖 Wave 1 role 桥</text>
 
-  <!-- Wave 3 (5 downstream) -->
+  <!-- Wave 3(5 条下游) -->
   <rect x="826" y="884" width="558" height="80" rx="8" fill="#ffffff" stroke="#f59e0b" stroke-width="0.8" stroke-dasharray="4 3" />
-  <text class="plan-tag" x="836" y="900" fill="#9a3412">REQ READY · 5 × DESIGN PENDING</text>
-  <text class="ts" x="836" y="916" fill="#0f172a" font-weight="700">Wave 3 · Downstream LLM · 5 parallel · weak dep on Wave 0</text>
+  <text class="plan-tag" x="836" y="900" fill="#9a3412">REQ 就绪 · 5 × DESIGN 待写</text>
+  <text class="ts" x="836" y="916" fill="#0f172a" font-weight="700">Wave 3 · 下游 LLM · 5 条并行 · 弱依赖 Wave 0</text>
   <text class="sm" x="836" y="932" fill="#475569">spec-tree (buildSpecTreeFromRouteSet → LLM) · spec-documents · effect-preview</text>
-  <text class="sm" x="836" y="948" fill="#475569">prompt-package · engineering-handoff · each 9 reqs · strict zod · promptId.v1</text>
-  <text class="xs" x="836" y="960" fill="#64748b">Shared constraints: no PBT · no bare event names · no module-level callLLMJson singleton</text>
+  <text class="sm" x="836" y="948" fill="#475569">prompt-package · engineering-handoff · 每条 9 reqs · strict zod · promptId.v1</text>
+  <text class="xs" x="836" y="960" fill="#64748b">共享约束:禁止 PBT · 禁止裸字符串事件名 · 禁止模块级 callLLMJson 单例</text>
 
-  <!-- Dep arrow Wave 1 role → Wave 2 -->
+  <!-- Wave 1 role → Wave 2 的依赖箭头 -->
   <path d="M596 920 L600 920 L600 924 L606 924" fill="none" stroke="#f59e0b" stroke-width="1" marker-end="url(#a)" />
-  <!-- Wave 0 feeds Wave 3 -->
+  <!-- Wave 0 喂给 Wave 3 -->
   <path d="M216 920 L220 920 L220 978 L1106 978 L1106 966" fill="none" stroke="#16a34a" stroke-width="0.8" stroke-dasharray="3 3" marker-end="url(#a)" />
-  <text class="fl" x="640" y="976" text-anchor="middle" fill="#475569">Wave 0 RouteSet feeds Wave 3 downstream LLM (weak dep)</text>
+  <text class="fl" x="640" y="976" text-anchor="middle" fill="#475569">Wave 0 RouteSet 喂给 Wave 3 下游 LLM(弱依赖)</text>
 
-  <!-- ==================== FLOW LEGEND ==================== -->
+  <!-- ==================== 图例 ==================== -->
 
   <rect x="20" y="982" width="1400" height="28" rx="10" fill="#f8fafc" stroke="#d4d4d8" stroke-width="0.5" />
   <circle cx="50" cy="998" r="5" fill="#eaf3de" stroke="#97c459" stroke-width="0.5" />
-  <text class="sm" x="60" y="1002" fill="#52525b">Server</text>
+  <text class="sm" x="60" y="1002" fill="#52525b">服务端</text>
   <circle cx="124" cy="998" r="5" fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.5" />
-  <text class="sm" x="134" y="1002" fill="#52525b">Frontend</text>
+  <text class="sm" x="134" y="1002" fill="#52525b">前端</text>
   <circle cx="214" cy="998" r="5" fill="#faeeda" stroke="#fac775" stroke-width="0.5" />
-  <text class="sm" x="224" y="1002" fill="#52525b">Intelligence</text>
+  <text class="sm" x="224" y="1002" fill="#52525b">智能层</text>
   <circle cx="326" cy="998" r="5" fill="#faece7" stroke="#f0997b" stroke-width="0.5" />
-  <text class="sm" x="336" y="1002" fill="#52525b">Execution</text>
+  <text class="sm" x="336" y="1002" fill="#52525b">执行层</text>
   <circle cx="426" cy="998" r="5" fill="#fbeaf0" stroke="#ed93b1" stroke-width="0.5" />
-  <text class="sm" x="436" y="1002" fill="#52525b">Contracts</text>
+  <text class="sm" x="436" y="1002" fill="#52525b">契约</text>
   <circle cx="526" cy="998" r="5" fill="#f0e6ff" stroke="#b794f4" stroke-width="0.5" />
-  <text class="sm" x="536" y="1002" fill="#52525b">Trust</text>
+  <text class="sm" x="536" y="1002" fill="#52525b">信任</text>
   <circle cx="604" cy="998" r="5" fill="#e6fffa" stroke="#38b2ac" stroke-width="0.5" />
-  <text class="sm" x="614" y="1002" fill="#52525b">Interop</text>
+  <text class="sm" x="614" y="1002" fill="#52525b">互操作</text>
   <circle cx="686" cy="998" r="5" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.5" />
-  <text class="sm" x="696" y="1002" fill="#52525b">Workflow</text>
+  <text class="sm" x="696" y="1002" fill="#52525b">工作流</text>
   <circle cx="780" cy="998" r="5" fill="#eef2ff" stroke="#818cf8" stroke-width="0.5" />
-  <text class="sm" x="790" y="1002" fill="#52525b">Web-AIGC / Autopilot</text>
+  <text class="sm" x="790" y="1002" fill="#52525b">Web-AIGC / 自动驾驶</text>
   <rect x="922" y="993" width="10" height="10" rx="2" fill="#f0fdf4" stroke="#22c55e" stroke-width="0.8" />
-  <text class="sm" x="936" y="1002" fill="#52525b">Shipped</text>
+  <text class="sm" x="936" y="1002" fill="#52525b">已落地</text>
   <rect x="990" y="993" width="10" height="10" rx="2" fill="#fff7ed" stroke="#f59e0b" stroke-width="0.8" stroke-dasharray="2 1.5" />
-  <text class="sm" x="1004" y="1002" fill="#52525b">Planning</text>
-  <text class="xs" x="1080" y="1002" fill="#475569">2026-05-11 · Right rail 5/5 shipped · Blueprint LLM 9 specs planning · runtime deepening next</text>
+  <text class="sm" x="1004" y="1002" fill="#52525b">规划中</text>
+  <text class="xs" x="1080" y="1002" fill="#475569">2026-05-11 · 右栏 5/5 已落地 · 蓝图 LLM 9 specs 规划中 · 下一步深化 runtime</text>
 </svg>
