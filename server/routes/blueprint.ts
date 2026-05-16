@@ -17,6 +17,12 @@ import {
   type BlueprintServiceContext,
 } from "./blueprint/context.js";
 import { createAgentCrewStageActivationDriver } from "./blueprint/agent-crew-stage-activation/driver.js";
+// `autopilot-llm-spec-generation` Task 6.2：以 `import type` 引入
+// `SpecDocsLlmNodeOutput`，仅作为 `buildSpecDocument` 的可选参数注入 LLM
+// 批量生成结果，不会触发 spec-docs-llm-generation.ts 内部 runtime 副作用。
+import type { SpecDocsLlmNodeOutput } from "./blueprint/spec-docs-llm-generation.js";
+import { fetchRepoContext } from "./blueprint/repo-context-fetcher.js";
+import { createStageProgressEmitter } from "./blueprint/stage-progress-emitter.js";
 import {
   createFileBlueprintJobStore,
   type BlueprintJobStore,
@@ -460,6 +466,30 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     } satisfies BlueprintCapabilityRegistryResponse);
   });
 
+  // Task 11（design §4.7 / requirement 5.1 / 5.4 / 5.9）：暴露运行时诊断 snapshot。
+  //
+  // 该端点返回 `ctx.runtimeDiagnostics.snapshot(ctx.now)` 的深拷贝结果，用于让运维
+  // 或排障人员快速判断 5 条 `/autopilot` capability bridge（docker / mcpGithub /
+  // role / aigcNode / agentCrewStageActivation）当前处于 real、fallback、enabled
+  // 还是 disabled 状态。
+  //
+  // 约束：
+  // - 只读：SHALL NOT 触发 bridge 调用、SHALL NOT 改动运行时状态。
+  // - 不鉴权：本 spec 不引入新的鉴权中间件（requirement 5.9），与 /capabilities
+  //   / /specs 等只读端点保持一致。
+  // - 故障隔离：snapshot 内部抛错时返回 HTTP 500 + 固定错误结构，不交由
+  //   Express 默认错误处理（requirement 5.9）。
+  router.get("/diagnostics", (_req, res) => {
+    try {
+      const snapshot = blueprintServiceContext.runtimeDiagnostics.snapshot(
+        blueprintServiceContext.now,
+      );
+      res.status(200).json(snapshot);
+    } catch {
+      res.status(500).json({ error: "diagnostics unavailable" });
+    }
+  });
+
   router.post("/intake", (req, res) => {
     const parsed = parseIntakeRequest(req.body);
     if (!parsed.ok) {
@@ -514,6 +544,54 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
         message: parsed.message,
       });
       return;
+    }
+
+    // `autopilot-llm-spec-generation`：在生成澄清问题前，先通过 MCP 扫描仓库，
+    // 把仓库上下文注入到 intake 的 domainNotes 中，让 LLM 基于真实代码结构
+    // 提出更有针对性的澄清问题。失败时不阻塞，继续走无仓库上下文路径。
+    //
+    // 修正记录：参见 `.kiro/specs/autopilot-streaming-experience/integration-gap-2026-05-16.md`
+    // 中的 P0 #2 —— 历史上这里曾以 `firstGithubUrl && deps.mcpToolAdapter` 为门槛,
+    // 但 `deps.mcpToolAdapter` 在 per-handler `deps` 作用域下始终为 undefined（仅
+    // router 顶层 `blueprintServiceContext` 才能拿到适配器），导致仓库扫描整段被
+    // 跳过、`intake.domainNotes` 退化为空、`assets[1].summary` 仅剩 placeholder。
+    // 由于 `fetchRepoContext`（见 `server/routes/blueprint/repo-context-fetcher.ts`）
+    // 已直接走 GitHub REST API、其首参 `_mcpToolAdapter` 仅保留签名兼容性、并未真正
+    // 使用 MCP 适配器，因此此处只需要 `firstGithubUrl` 即可放行仓库上下文抓取。
+    //
+    // autopilot-streaming-experience integration-gap-2026-05-16：仓库扫描的事件
+    // 此前 stageId 写为 "clarification"，导致这些"为澄清做准备"的扫描进度
+    // 在前端落到澄清卡片底部，让用户误判为"输入时的执行过程"。从用户视角看，
+    // 仓库扫描属于 intake 输入归一化的一部分（用户提交 URL 后系统在做的事），
+    // 因此把 stageId 调整为 "intake_created"，让事件挂在"输入记录"卡片下。
+    const firstGithubUrl = intake.githubUrls?.[0];
+    if (firstGithubUrl) {
+      // 创建进度发射器，让前端实时看到仓库扫描过程
+      const emitter = blueprintServiceContext?.eventBus
+        ? createStageProgressEmitter(blueprintServiceContext.eventBus, intake.id, "intake_created", "analyzer")
+        : undefined;
+
+      emitter?.thinking("正在扫描 GitHub 仓库，获取项目结构和技术栈信息...");
+      try {
+        const repoCtx = await fetchRepoContext(
+          deps.mcpToolAdapter,
+          firstGithubUrl,
+          blueprintServiceContext?.logger ?? { debug() {}, info() {}, warn() {}, error() {} },
+          15000,
+        );
+        if (repoCtx?.promptSummary) {
+          intake.domainNotes = [
+            ...(intake.domainNotes ?? []),
+            `[仓库分析] ${repoCtx.promptSummary.slice(0, 4000)}`,
+          ];
+          emitter?.observing(true, `仓库扫描完成：${repoCtx.treeDigest.slice(0, 200)}`);
+        } else {
+          emitter?.observing(false, "仓库扫描未返回有效数据，将基于 URL 信息生成澄清问题");
+        }
+      } catch {
+        emitter?.observing(false, "仓库扫描失败，将基于 URL 信息生成澄清问题");
+      }
+      emitter?.thinking("基于仓库分析结果，正在生成针对性的澄清问题...");
     }
 
     try {
@@ -606,6 +684,45 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     }
 
     try {
+      // `autopilot-llm-spec-generation`：在生成路线前注入仓库上下文到 intake.domainNotes，
+      // 让路线规划基于真实代码结构。复用澄清阶段相同的 MCP 抓取逻辑。
+      //
+      // 修正记录：参见 `.kiro/specs/autopilot-streaming-experience/integration-gap-2026-05-16.md`
+      // 中的 P0 #2 —— 与澄清阶段同源问题：`deps.mcpToolAdapter` 在 per-handler `deps`
+      // 作用域下为 undefined，导致路线生成阶段也跳过仓库扫描、`intake.domainNotes`
+      // 与流式 emitter 事件全部丢失。`fetchRepoContext` 直接通过 GitHub REST API
+      // 抓取，并未真正消费 MCP 适配器，因此移除 `&& deps.mcpToolAdapter` 守卫不会
+      // 引入额外依赖。
+      const firstUrl = resolved.intake?.githubUrls?.[0];
+      // 创建进度发射器，让前端实时看到路线规划过程
+      const routeEmitter = blueprintServiceContext?.eventBus
+        ? createStageProgressEmitter(blueprintServiceContext.eventBus, resolved.request.intakeId, "route_generation", "planner")
+        : undefined;
+
+      if (firstUrl && resolved.intake) {
+        routeEmitter?.thinking("正在获取仓库上下文，为路线规划提供代码结构依据...");
+        try {
+          const repoCtx = await fetchRepoContext(
+            deps.mcpToolAdapter,
+            firstUrl,
+            blueprintServiceContext?.logger ?? { debug() {}, info() {}, warn() {}, error() {} },
+            15000,
+          );
+          if (repoCtx?.promptSummary) {
+            resolved.intake.domainNotes = [
+              ...(resolved.intake.domainNotes ?? []),
+              `[仓库分析] ${repoCtx.promptSummary.slice(0, 4000)}`,
+            ];
+            routeEmitter?.observing(true, `仓库上下文已获取，包含 ${repoCtx.keyFiles.length} 个关键文件`);
+          }
+        } catch {
+          routeEmitter?.observing(false, "仓库上下文获取失败，将基于澄清答案规划路线");
+        }
+      }
+
+      routeEmitter?.thinking("正在基于仓库分析和澄清答案，规划候选路线...");
+      routeEmitter?.acting("llm.route_generation");
+
       const result = await createGenerationJob(resolved.request, {
         now: deps.now,
         store: jobStore,
@@ -615,6 +732,9 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
         routeSetLlmGenerator: resolveRouteSetLlmGenerator(),
         ctx: blueprintServiceContext,
       });
+
+      routeEmitter?.observing(true, `路线规划完成：生成了 ${result.routeSet?.routes?.length ?? 0} 条候选路线`);
+      routeEmitter?.completed("路线规划完成");
 
       res.status(201).json(result);
     } catch (error) {
@@ -2467,15 +2587,43 @@ export async function createGenerationJob(
       occurredAt: createdAt,
     }),
   ];
-  const routeSet = await buildRouteSet(
-    request,
-    jobId,
-    createdAt,
-    options.clarificationSession,
-    options.routeSetLlmGenerator,
-    options.intake,
-    options.context
-  );
+
+  // ── Agent-driven pipeline（autopilot-agent-driven-pipeline Task 5）──
+  // 当 ctx.roleAgentDelegator 已装配且 env flag 为 "true" 时，优先走 Agent 驱动链路。
+  let routeSet: BlueprintRouteSet;
+  if (
+    ctx.roleAgentDelegator != null &&
+    process.env.BLUEPRINT_AGENT_DRIVEN_PIPELINE_ENABLED === "true"
+  ) {
+    const { createAgentDrivenRouteSetGenerator } = await import(
+      "./blueprint/routeset/agent-driven-generator.js"
+    );
+    const agentGenerator = createAgentDrivenRouteSetGenerator(
+      ctx.roleAgentDelegator,
+      options.routeSetLlmGenerator,
+      ctx.logger,
+    );
+    const agentResult = await agentGenerator({
+      request,
+      jobId,
+      createdAt,
+      intake: options.intake,
+      clarificationSession: options.clarificationSession,
+      projectContext: options.context,
+    });
+    routeSet = agentResult.routeSet;
+  } else {
+    // Legacy path (unchanged)
+    routeSet = await buildRouteSet(
+      request,
+      jobId,
+      createdAt,
+      options.clarificationSession,
+      options.routeSetLlmGenerator,
+      options.intake,
+      options.context
+    );
+  }
   const routeArtifact: BlueprintGenerationArtifact = {
     id: createId("blueprint-artifact"),
     type: "route_set",
@@ -2539,6 +2687,40 @@ export async function createGenerationJob(
       clarificationSession: options.clarificationSession,
     }
   );
+
+  // 中文注释：autopilot-streaming-experience integration-gap-2026-05-16 P0#3 / P0#4
+  //
+  // `role-system-architecture`(P0#3) 与 `aigc-spec-node`(P0#4) 的 capability
+  // bridge 已注册并已在 `createRouteGenerationSandboxDerivation` 内构造出
+  // `capability.invoked` / `capability.completed` 事件。但既有实现把这些事件
+  // 直接 push 进本地 `events` 数组、再随 `options.store.save(job)` 一次性落盘，
+  // 没有走 `ctx.eventBus.emit(...)`，因此 `runtime-enablement/subscriber.ts` 永远
+  // 看不到它们，对应的 `recordBridgeInvocation("role", ...)` /
+  // `recordBridgeInvocation("aigcNode", ...)` 也永远不会触发，
+  // `/api/blueprint/diagnostics` 中两条桥的 `totalInvocations` 长期停留在 0。
+  //
+  // 修复策略：把这两个 capability 的事件从“本地直写 job.events”路径中剥离，
+  // 在 `options.store.save(job)` 完成后再通过事件总线广播一次；总线的
+  // `persistToJobStore` 会负责把它们追加到 store 中的 `job.events` 末尾，避免
+  // 重复落盘。事件名复用 `BlueprintEventName.CapabilityInvoked` /
+  // `BlueprintEventName.CapabilityCompleted`，不引入新的 `BlueprintEventName`。
+  const bridgeDiagnosticsCapabilityIds = new Set<string>([
+    "role-system-architecture",
+    "aigc-spec-node",
+  ]);
+  const isBridgeDiagnosticsCapabilityEvent = (
+    event: BlueprintGenerationEvent
+  ): boolean =>
+    (event.type === BlueprintEventName.CapabilityInvoked ||
+      event.type === BlueprintEventName.CapabilityCompleted) &&
+    typeof event.capabilityId === "string" &&
+    bridgeDiagnosticsCapabilityIds.has(event.capabilityId);
+  const pendingBridgeDiagnosticsEvents =
+    routeSandboxDerivation.events.filter(isBridgeDiagnosticsCapabilityEvent);
+  const inlineSandboxDerivationEvents =
+    routeSandboxDerivation.events.filter(
+      event => !isBridgeDiagnosticsCapabilityEvent(event)
+    );
   const contextArtifacts = buildGenerationContextArtifacts({
     createdAt,
     intake: options.intake,
@@ -2575,7 +2757,7 @@ export async function createGenerationJob(
         ),
       },
     }),
-    ...routeSandboxDerivation.events,
+    ...inlineSandboxDerivationEvents,
     createGenerationEvent({
       jobId,
       projectId: request.projectId,
@@ -2649,16 +2831,42 @@ export async function createGenerationJob(
 
   options.store.save(job);
 
+  // 中文注释：autopilot-streaming-experience integration-gap-2026-05-16 P0#3 / P0#4
+  //
+  // 在 `options.store.save(job)` 之后，把上面剥离出来的 `role-system-architecture`
+  // 与 `aigc-spec-node` 的 `capability.invoked` / `capability.completed` 事件
+  // 通过 `ctx.eventBus.emit(...)` 广播出去。这一步驱动两件事：
+  // 1. `server/routes/blueprint/runtime-enablement/subscriber.ts` 的
+  //    `attachDiagnosticsSubscriber` 监听 `capability.completed` /
+  //    `capability.failed` 事件，按 `capabilityId` 把它们映射到 `role` /
+  //    `aigcNode` 桥并调用 `store.recordBridgeInvocation(...)`，从而让
+  //    `/api/blueprint/diagnostics` 中两条桥的 `totalInvocations` 不再停在 0。
+  // 2. `BlueprintEventBus.emit` 的 `persistToJobStore` 会把这些事件追加到
+  //    `jobStore` 中已保存的 `job.events` 末尾，最终 GET `/api/blueprint/jobs/:id`
+  //    返回的事件序列与本地 `job` 引用保持一致（见下方的 `refreshedJob` 回读）。
+  //
+  // 事件名仅复用既有 `BlueprintEventName.CapabilityInvoked` /
+  // `BlueprintEventName.CapabilityCompleted`，不引入新的 `BlueprintEventName`。
+  for (const bridgeEvent of pendingBridgeDiagnosticsEvents) {
+    ctx.eventBus.emit(bridgeEvent);
+  }
+
+  // 中文注释：在 `eventBus.emit` 把 `pendingBridgeDiagnosticsEvents` 追加到
+  // store 中的 `job.events` 之后，从 store 重新读出最新的 job 快照，避免 POST
+  // 响应里的 `job.events` 与后续 GET `/api/blueprint/jobs/:id/events` 不一致
+  // （否则 `eventsBody.events.length === created.job.events.length` 这类断言会失败）。
+  const refreshedJob = options.store.get(jobId) ?? job;
+
   // Task 14.2: Hook point — route_generation stage started after job creation.
   ctx.agentCrewStageActivationDriver?.onStageTransition({
-    jobId: job.id,
+    jobId: refreshedJob.id,
     stageId: "route_generation",
     transition: "stage_started",
-    job,
+    job: refreshedJob,
   });
 
   return {
-    job,
+    job: options.store.get(jobId) ?? refreshedJob,
     routeSet,
     intake: options.intake,
     clarificationSession: options.clarificationSession,
@@ -9206,9 +9414,74 @@ async function generateSpecDocuments(
     (job as unknown as { projectContext?: BlueprintProjectDomainContext })
       .projectContext;
 
+  // ─────────────────────────────────────────────────────────────────────
+  // `autopilot-llm-spec-generation` Task 6.2：spec_docs handler 注入
+  // env-gated LLM 批量生成分支。当 `BLUEPRINT_SPEC_DOCS_LLM_ENABLED ===
+  // "true"`、非 `BUILD_TARGET=test` 且 `ctx.specDocsLlmGeneration` 已装配
+  // 时，按 root-first DFS 顺序传入待生成节点，预先调用工厂的
+  // `generate(...)` 拿到每节点的 `requirements / design / tasks` markdown
+  // 与 provenance；后续 `buildSpecDocument` 按 `perNode[i].generationSource`
+  // 决定使用 LLM 输出还是回落到既有 `specDocumentsLlmService` + 模板路径。
+  // 多节点混合时各自独立 artifact 写入；`overallSource` 反映批次整体来源。
+  //
+  // 关键约束：
+  // - `generate()` 永不抛错；任何节点级失败已在工厂内部转 fallback；
+  // - 测试态 `BUILD_TARGET=test` 默认视旗标为 `false`；
+  // - 未启用 / 失败时不构建 batch result，等价于既有路径不变。
+  //
+  // _Implements Req 2.1 / 2.2 / 2.5 / 2.6 / 4.2 / 4.4_
+  // ─────────────────────────────────────────────────────────────────────
+  const specDocsLlmEnabled =
+    process.env.BLUEPRINT_SPEC_DOCS_LLM_ENABLED === "true";
+  const isTestBuildTargetSpecDocs = process.env.BUILD_TARGET === "test";
+  const specDocsLlmGeneration = ctx?.specDocsLlmGeneration;
+  const targetNodes = specTree.nodes.filter(node => targetNodeIds.has(node.id));
+
+  let llmNodeOutputById: Map<string, SpecDocsLlmNodeOutput> | undefined;
+  if (
+    specDocsLlmEnabled &&
+    !isTestBuildTargetSpecDocs &&
+    specDocsLlmGeneration !== undefined &&
+    targetNodes.length > 0
+  ) {
+    // 选择主路线：优先用 specTree.selectedRouteId，缺失时回退到 routeSet
+    // 的 primaryRouteId 或第一个候选 route。无 routeSet 则跳过 LLM 路径。
+    const primaryRouteForBatch =
+      (specTree.selectedRouteId
+        ? routeById.get(specTree.selectedRouteId)
+        : undefined) ??
+      (routeSet?.primaryRouteId
+        ? routeById.get(routeSet.primaryRouteId)
+        : undefined) ??
+      routeSet?.routes[0];
+    if (primaryRouteForBatch !== undefined) {
+      const batchResult = await specDocsLlmGeneration.generate({
+        jobId: job.id,
+        nodes: targetNodes,
+        primaryRoute: primaryRouteForBatch,
+      });
+      llmNodeOutputById = new Map<string, SpecDocsLlmNodeOutput>();
+      for (const perNode of batchResult.perNode) {
+        llmNodeOutputById.set(perNode.nodeId, perNode);
+      }
+      ctx?.logger?.debug(
+        "[blueprint.spec_docs] LLM batch generation completed",
+        {
+          jobId: job.id,
+          nodeCount: targetNodes.length,
+          overallSource: batchResult.overallSource,
+        },
+      );
+    } else {
+      ctx?.logger?.debug(
+        "[blueprint.spec_docs] LLM batch generation skipped: no primary route available",
+        { jobId: job.id },
+      );
+    }
+  }
+
   const documents = await Promise.all(
-    specTree.nodes
-      .filter(node => targetNodeIds.has(node.id))
+    targetNodes
       .flatMap(node => {
         const previousRoleFindings = collectReusableRoleFindings(job, {
           stages: ["route_generation", "spec_tree", "runtime_capability"],
@@ -9221,6 +9494,7 @@ async function generateSpecDocuments(
           : specTree.selectedRouteId
             ? routeById.get(specTree.selectedRouteId)
             : undefined;
+        const llmNodeOutput = llmNodeOutputById?.get(node.id);
         return targetTypes.map(type =>
           buildSpecDocument(ctx, {
             job,
@@ -9232,6 +9506,7 @@ async function generateSpecDocuments(
             clarificationSession,
             domainContext,
             primaryRoute,
+            llmNodeOutput,
           })
         );
       })
@@ -13153,6 +13428,30 @@ function buildEffectPreviewSourceSnapshotHash(input: {
   return `sha256:${createHash("sha256").update(source).digest("hex").slice(0, 16)}`;
 }
 
+/**
+ * `autopilot-llm-spec-generation` Task 6.2：从 LLM 批量生成结果中按文档类型
+ * 取出对应 markdown。仅在 `output.generationSource === "llm"` 且对应字段
+ * 非空时返回字符串；其余情况返回 `undefined`，由调用方走既有
+ * `specDocumentsLlmService` + 模板兜底路径。
+ */
+function pickSpecDocsLlmMarkdownForType(
+  output: SpecDocsLlmNodeOutput | undefined,
+  type: BlueprintSpecDocumentType,
+): string | undefined {
+  if (output === undefined) return undefined;
+  if (output.generationSource !== "llm") return undefined;
+  switch (type) {
+    case "requirements":
+      return output.requirements;
+    case "design":
+      return output.design;
+    case "tasks":
+      return output.tasks;
+    default:
+      return undefined;
+  }
+}
+
 async function buildSpecDocument(
   ctx: BlueprintServiceContext | undefined,
   input: {
@@ -13165,9 +13464,74 @@ async function buildSpecDocument(
     clarificationSession?: BlueprintClarificationSession;
     domainContext?: BlueprintProjectDomainContext;
     primaryRoute?: BlueprintRouteCandidate;
+    /**
+     * `autopilot-llm-spec-generation` Task 6.2：可选的 LLM 批量生成结果。
+     * 当 `generationSource === "llm"` 时，本节点对应的 `requirements` /
+     * `design` / `tasks` markdown 直接来自 Lite Agent 驱动版本的
+     * {@link SpecDocsLlmGeneration.generate}；否则保持 undefined，由下方
+     * 既有 `specDocumentsLlmService` + 模板路径兜底。
+     */
+    llmNodeOutput?: SpecDocsLlmNodeOutput;
   }
 ): Promise<BlueprintSpecDocument> {
   const id = createId("blueprint-spec-document");
+
+  // ---- Task 6.2：优先使用 spec_docs LLM 批量生成结果（env-gated 分支） ----
+  // 当 `llmNodeOutput?.generationSource === "llm"` 且本节点的对应 type
+  // markdown 存在时，直接走 LLM 路径并跳过既有 specDocumentsLlmService /
+  // 模板调用，避免重复 LLM 流量。否则 fall through 到既有路径。
+  const llmMarkdown = pickSpecDocsLlmMarkdownForType(
+    input.llmNodeOutput,
+    input.type,
+  );
+  if (
+    input.llmNodeOutput?.generationSource === "llm" &&
+    typeof llmMarkdown === "string" &&
+    llmMarkdown.length > 0
+  ) {
+    const llmTitle = buildSpecDocumentHeading(input.type, input.node.title);
+    return {
+      id,
+      jobId: input.job.id,
+      treeId: input.specTree.id,
+      nodeId: input.node.id,
+      type: input.type,
+      status: "draft",
+      version: 1,
+      sourceDocumentId: id,
+      title: llmTitle,
+      summary: input.node.summary,
+      content: llmMarkdown,
+      format: "markdown",
+      createdAt: input.createdAt,
+      updatedAt: input.createdAt,
+      provenance: {
+        jobId: input.job.id,
+        projectId: input.job.projectId,
+        sourceId: input.job.sourceId,
+        targetText: input.job.request.targetText,
+        githubUrls: input.job.request.githubUrls ?? [],
+        treeVersion: input.specTree.version,
+        nodeType: input.node.type,
+        nodeTitle: input.node.title,
+        nodeSummary: input.node.summary,
+        dependencies: [...input.node.dependencies],
+        outputs: [...input.node.outputs],
+        reusedRoleFindingIds: collectRoleFindingIds(
+          input.previousRoleFindings ?? []
+        ),
+        reusedRoleIds: collectRoleFindingRoleIds(input.previousRoleFindings ?? []),
+        reusedEvidenceIds: collectRoleFindingEvidenceIds(
+          input.previousRoleFindings ?? []
+        ),
+        generationSource: "llm",
+        promptId: input.llmNodeOutput.promptId,
+        model: input.llmNodeOutput.model,
+        promptFingerprint: input.llmNodeOutput.promptFingerprint,
+        responseDigest: input.llmNodeOutput.responseDigest,
+      },
+    };
+  }
 
   // ---- Call SPEC Documents LLM service (per-document) ----
   // Derive upstreamEvidence from previousRoleFindings (undefined when empty).
@@ -13657,6 +14021,128 @@ async function buildSpecTreeFromRouteSet(
     .filter(route => route.id !== input.selectedRoute.id)
     .map(route => route.id)
     .filter(isString);
+
+  // ─────────────────────────────────────────────────────────────────────
+  // `autopilot-llm-spec-generation` Task 6.1：spec_tree handler 注入
+  // env-gated LLM 分支。当 `BLUEPRINT_SPEC_TREE_LLM_ENABLED === "true"`、
+  // 非 `BUILD_TARGET=test` 且 `ctx.specTreeLlmDerivation` 已装配时，优先
+  // 调 Lite Agent 驱动版本的 `derive(...)` 走真实 LLM 推导；成功即用其
+  // `nodes` / `rootNodeId` 与 provenance（promptId / model / fingerprint /
+  // responseDigest）填入既有 wrapper，使 selectionId / artifactLinks 等
+  // 上下文与 fallback 路径完全一致；失败 / 未启用时静默回落到既有
+  // `specTreeLlmService` + 模板分支，保留 5140+ 既有测试默认兼容性。
+  //
+  // 关键约束：
+  // - `derive()` 永不抛错；任何异常已在工厂内部转 fallback；
+  // - 测试态 `BUILD_TARGET=test` 默认视旗标为 `false`（仍可由测试
+  //   `vi.stubEnv` 显式 opt-in）；
+  // - 未启用 / 失败时不调用 `derive()`，避免任何运行期副作用。
+  //
+  // _Implements Req 1.1 / 1.5 / 4.2 / 4.4_
+  // ─────────────────────────────────────────────────────────────────────
+  const specTreeLlmEnabled =
+    process.env.BLUEPRINT_SPEC_TREE_LLM_ENABLED === "true";
+  const isTestBuildTarget = process.env.BUILD_TARGET === "test";
+  const specTreeLlmDerivation = ctx.specTreeLlmDerivation;
+  if (
+    specTreeLlmEnabled &&
+    !isTestBuildTarget &&
+    specTreeLlmDerivation !== undefined
+  ) {
+    // autopilot-streaming-experience integration-gap-2026-05-16：
+    // 选完路线后用户最关心"系统在做什么"——即 SPEC 树派生的 LLM 推导过程。
+    // 这里在调用 specTreeLlmDerivation.derive 前后包一层 stage-progress-emitter，
+    // 让前端"路线"卡片的 stageFilter=["route_generation","route_selection","spec_tree"]
+    // 子时间线能看到 thinking / acting / observing 流，避免出现"选完就什么
+    // 都没了"的断层。
+    const specTreeEmitter = ctx.eventBus
+      ? createStageProgressEmitter(ctx.eventBus, input.job.id, "spec_tree", "planner")
+      : undefined;
+
+    specTreeEmitter?.thinking("路线已选中，正在分析路线节点结构以派生 SPEC 树...");
+    specTreeEmitter?.acting("llm.spec_tree_derivation");
+
+    const derivationResult = await specTreeLlmDerivation.derive({
+      jobId: input.job.id,
+      routeSet: input.routeSet,
+      selectedRouteId: input.selectedRoute.id,
+      githubUrls: input.job.request.githubUrls ?? [],
+      targetText: input.job.request.targetText ?? "",
+    });
+    if (
+      derivationResult.generationSource === "llm" &&
+      derivationResult.tree !== undefined
+    ) {
+      specTreeEmitter?.observing(
+        true,
+        `SPEC 树派生完成：${derivationResult.tree.nodes.length} 个节点（model=${derivationResult.model ?? "n/a"}）`,
+      );
+      specTreeEmitter?.completed("SPEC 树派生完成");
+
+      // 成功路径：使用 LLM 推导的 nodes / rootNodeId 与 provenance 摘要，
+      // 但保留外层 wrapper 的 selectionId / specTreeId / artifactLinks /
+      // reused* 字段，确保后续投影路径不变。
+      const derivedTree = derivationResult.tree;
+      ctx.logger?.debug(
+        "[blueprint.spec_tree] LLM derivation succeeded; using LLM tree",
+        {
+          jobId: input.job.id,
+          contextTier: derivationResult.contextTier,
+          model: derivationResult.model,
+        },
+      );
+      return {
+        id: specTreeId,
+        routeSetId: input.routeSet.id,
+        selectionId: input.selection.id,
+        selectedPathId: input.selection.selectedPathId ?? input.selectedRoute.id,
+        selectedRouteId: input.selectedRoute.id,
+        rootNodeId: derivedTree.rootNodeId,
+        version: 1,
+        status: "reviewing",
+        createdAt: input.createdAt,
+        updatedAt: input.createdAt,
+        alternativeRouteIds,
+        nodes: derivedTree.nodes,
+        provenance: {
+          jobId: input.job.id,
+          projectId: input.job.projectId,
+          sourceId: input.job.sourceId,
+          routeSetId: input.routeSet.id,
+          routeId: input.selectedRoute.id,
+          selectionId: input.selection.id,
+          selectedPathId:
+            input.selection.selectedPathId ?? input.selectedRoute.id,
+          specTreeId,
+          targetText: input.job.request.targetText,
+          githubUrls: input.job.request.githubUrls ?? [],
+          artifactLinks: input.artifactLinks,
+          reusedRoleFindingIds: collectRoleFindingIds(previousRoleFindings),
+          reusedRoleIds: collectRoleFindingRoleIds(previousRoleFindings),
+          reusedEvidenceIds: collectRoleFindingEvidenceIds(previousRoleFindings),
+          generationSource: "llm",
+          promptId: derivationResult.promptId,
+          model: derivationResult.model,
+          promptFingerprint: derivationResult.promptFingerprint,
+          responseDigest: derivationResult.responseDigest,
+        },
+      };
+    }
+    // 失败 / fallback：fall through 到既有 specTreeLlmService + 模板分支，
+    // 保持既有 fallback 语义不变。
+    specTreeEmitter?.observing(
+      false,
+      `SPEC 树 LLM 派生回退：${derivationResult.fallbackReason ?? "未知原因"}，将走模板分支`,
+    );
+    ctx.logger?.debug(
+      "[blueprint.spec_tree] LLM derivation fell back to template",
+      {
+        jobId: input.job.id,
+        contextTier: derivationResult.contextTier,
+        fallbackReason: derivationResult.fallbackReason,
+      },
+    );
+  }
 
   // Attempt LLM-driven SPEC Tree generation via ctx.specTreeLlmService
   const serviceResult = await ctx.specTreeLlmService?.({
