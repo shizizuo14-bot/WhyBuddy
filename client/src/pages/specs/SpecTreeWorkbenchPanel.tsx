@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import { Tree } from "antd";
+import type { TreeDataNode } from "antd";
 import {
   CheckCircle2,
   Combine,
@@ -15,7 +17,6 @@ import {
 
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   runBlueprintSpecTreeAction,
   saveBlueprintSpecTreeVersion,
@@ -116,6 +117,62 @@ function parseOutputs(value: string): string[] {
     .filter(Boolean);
 }
 
+/**
+ * 把 flat `BlueprintSpecTreeNode[]` 转成 antd `<Tree>` 需要的嵌套 `TreeDataNode[]`。
+ */
+function buildAntdTreeData(
+  nodes: BlueprintSpecTreeNode[],
+  rootNodeId: string
+): TreeDataNode[] {
+  const byId = new Map(nodes.map(node => [node.id, node]));
+
+  const convert = (nodeId: string): TreeDataNode | null => {
+    const node = byId.get(nodeId);
+    if (!node) return null;
+    const children = node.children
+      .map(childId => convert(childId))
+      .filter((child): child is TreeDataNode => child !== null);
+    return {
+      key: node.id,
+      title: (
+        <span className="inline-flex items-center gap-2">
+          <span className="grid size-5 shrink-0 place-items-center rounded-full border border-slate-200 bg-white text-[9px] font-black text-[#0f766e]">
+            {node.priority}
+          </span>
+          <span className="text-sm font-semibold text-slate-900">
+            {blueprintCopy(node.title)}
+          </span>
+          <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
+            {nodeTypeLabel(node.type)}
+          </span>
+        </span>
+      ),
+      children: children.length > 0 ? children : undefined,
+    };
+  };
+
+  const root = byId.get(rootNodeId) ?? nodes[0];
+  if (!root) return [];
+
+  const rootTree = convert(root.id);
+  if (!rootTree) return [];
+
+  // 把不在 root 子树里的孤立节点也加进来
+  const visited = new Set<string>();
+  const collectKeys = (treeNode: TreeDataNode) => {
+    visited.add(treeNode.key as string);
+    (treeNode.children ?? []).forEach(collectKeys);
+  };
+  collectKeys(rootTree);
+
+  const orphans = nodes
+    .filter(node => !visited.has(node.id))
+    .map(node => convert(node.id))
+    .filter((item): item is TreeDataNode => item !== null);
+
+  return [rootTree, ...orphans];
+}
+
 export function SpecTreeWorkbenchPanel({
   specTree,
   selection,
@@ -193,6 +250,10 @@ export function SpecTreeWorkbenchPanel({
     () =>
       draftTree.nodes.filter(node => node.id !== selectedNode?.id),
     [draftTree.nodes, selectedNode?.id]
+  );
+  const antdTreeData = useMemo(
+    () => buildAntdTreeData(draftTree.nodes, draftTree.rootNodeId),
+    [draftTree.nodes, draftTree.rootNodeId]
   );
   const sortedVersionSnapshots = useMemo(
     () =>
@@ -647,47 +708,19 @@ export function SpecTreeWorkbenchPanel({
               可编辑草稿
             </Badge>
           </div>
-          <ScrollArea className="mt-3 max-h-[390px] pr-2">
-            <div className="grid gap-2" data-testid="spec-tree-node-list">
-              {rows.map(({ node, depth }) => {
-                const selected = selectedNode?.id === node.id;
-                return (
-                  <button
-                    key={node.id}
-                    type="button"
-                    className={cn(
-                      "w-full rounded-[14px] border px-3 py-3 text-left transition",
-                      selected
-                        ? "border-[#0f766e] bg-[#0f766e]/10"
-                        : "border-slate-200 bg-slate-50 hover:border-[#0f766e]/30 hover:bg-white"
-                    )}
-                    style={{ paddingLeft: `${12 + depth * 18}px` }}
-                    onClick={() => setSelectedNodeId(node.id)}
-                    data-testid="blueprint-spec-tree-node"
-                    aria-pressed={selected}
-                  >
-                    <div className="flex min-w-0 items-center justify-between gap-2">
-                      <span className="flex min-w-0 items-center gap-2">
-                        <span className="grid size-6 shrink-0 place-items-center rounded-full bg-white text-[10px] font-black text-[#0f766e]">
-                          {node.priority}
-                        </span>
-                        <span className="truncate text-sm font-black text-slate-900">
-                          {blueprintCopy(node.title)}
-                        </span>
-                      </span>
-                      <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-[10px] font-black text-slate-500">
-                        {blueprintCopy(node.status)}
-                      </span>
-                    </div>
-                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[10px] font-black uppercase tracking-normal text-slate-400">
-                      <span>{nodeTypeLabel(node.type)}</span>
-                      <span>{node.children.length} 个子节点</span>
-                    </div>
-                  </button>
-                );
-              })}
-            </div>
-          </ScrollArea>
+          <div className="mt-3 max-h-[480px] overflow-y-auto" data-testid="spec-tree-node-list">
+            <Tree
+              treeData={antdTreeData}
+              selectedKeys={selectedNodeId ? [selectedNodeId] : []}
+              defaultExpandAll
+              blockNode
+              onSelect={(keys) => {
+                if (keys.length > 0) {
+                  setSelectedNodeId(keys[0] as string);
+                }
+              }}
+            />
+          </div>
         </div>
 
         <div className="rounded-[18px] border border-slate-200 bg-white p-4">

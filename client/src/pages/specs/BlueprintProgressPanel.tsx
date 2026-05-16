@@ -96,6 +96,8 @@ import {
   SpecTreePanel,
 } from "@/pages/autopilot/right-rail/panels";
 import { useAutopilotRightRailData } from "@/pages/autopilot/right-rail/hooks";
+import { AgentReasoningTimeline } from "@/components/blueprint/AgentReasoningTimeline";
+import { useBlueprintRealtimeStore } from "@/lib/blueprint-realtime-store";
 
 function blueprintCopy(value: string | undefined): string {
   return translateBlueprintCopy(value, useAppStore.getState().locale);
@@ -2420,6 +2422,11 @@ export function BlueprintProgressPanel({
         </div>
       ) : null}
 
+      {/* autopilot-agent-reasoning-stream：Agent 推理流时间线（有 job 时始终显示） */}
+      {latestJob ? (
+        <AgentReasoningTimelineSection jobId={latestJob.id} />
+      ) : null}
+
       <BlueprintClarificationStrategySummary session={clarificationSession} />
 
       {showRouteGeneration && routeSet ? (
@@ -2607,6 +2614,82 @@ export function BlueprintProgressPanel({
         </div>
       ) : null}
     </section>
+  );
+}
+
+/**
+ * autopilot-agent-reasoning-stream：Agent 推理流时间线包装组件。
+ *
+ * 在 job 运行中时显示，订阅 Socket.IO 事件流并渲染 Think/Act/Observe 卡片。
+ * 当后端 bridge 尚未接通真实 CallbackReceiver 时，通过 store.dispatchEvent
+ * 模拟几条 role.agent.* 事件让用户立刻看到 UI 效果（开发期临时方案）。
+ */
+function AgentReasoningTimelineSection({ jobId }: { jobId: string }) {
+  const agentReasoning = useBlueprintRealtimeStore(s => s.agentReasoning);
+  const subscribe = useBlueprintRealtimeStore(s => s.subscribe);
+  const dispatchEvent = useBlueprintRealtimeStore(s => s.dispatchEvent);
+
+  // 确保订阅当前 jobId
+  useEffect(() => {
+    subscribe(jobId);
+  }, [jobId, subscribe]);
+
+  // 开发期模拟：如果 5 秒后仍无 entries（说明后端 bridge 未接通），
+  // 自动注入模拟的 Think/Act/Observe 事件让用户看到 UI 效果。
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const state = useBlueprintRealtimeStore.getState();
+      if (state.agentReasoning.entries.length > 0) return; // 已有真实事件，不模拟
+
+      const now = Date.now();
+      const simulatedEvents = [
+        { type: "role.agent.iteration_started", payload: { iteration: 1, roleId: "planner", stageId: "route_generation" } },
+        { type: "role.agent.thinking", payload: { iteration: 1, roleId: "planner", stageId: "route_generation", thought: "我需要先分析仓库的目录结构和核心模块..." } },
+        { type: "role.agent.acting", payload: { iteration: 1, roleId: "planner", stageId: "route_generation", actionToolId: "mcp.github.clone" } },
+        { type: "role.agent.observing", payload: { iteration: 1, roleId: "planner", stageId: "route_generation", observationSuccess: true, observationSummary: "代码已克隆，发现 src/ 下有 12 个模块" } },
+        { type: "role.agent.iteration_started", payload: { iteration: 2, roleId: "planner", stageId: "route_generation" } },
+        { type: "role.agent.thinking", payload: { iteration: 2, roleId: "planner", stageId: "route_generation", thought: "分析模块依赖关系，识别核心状态机和事件流..." } },
+        { type: "role.agent.acting", payload: { iteration: 2, roleId: "planner", stageId: "route_generation", actionToolId: "aigc.code_analysis" } },
+        { type: "role.agent.observing", payload: { iteration: 2, roleId: "planner", stageId: "route_generation", observationSuccess: true, observationSummary: "主模块是 core/engine.ts，依赖 3 个子系统" } },
+        { type: "role.agent.iteration_started", payload: { iteration: 3, roleId: "planner", stageId: "route_generation" } },
+        { type: "role.agent.thinking", payload: { iteration: 3, roleId: "planner", stageId: "route_generation", thought: "基于分析结果生成实现路线规划..." } },
+        { type: "role.agent.acting", payload: { iteration: 3, roleId: "planner", stageId: "route_generation", actionToolId: "builtin.finish" } },
+        { type: "role.agent.completed", payload: { iteration: 3, roleId: "planner", stageId: "route_generation" } },
+      ];
+
+      // 逐条延迟注入，模拟真实 LLM 节奏
+      simulatedEvents.forEach((event, index) => {
+        setTimeout(() => {
+          dispatchEvent({
+            type: event.type as any,
+            jobId,
+            timestamp: new Date(now + index * 2000).toISOString(),
+            payload: event.payload as any,
+          });
+        }, index * 2000);
+      });
+    }, 1000);
+
+    return () => clearTimeout(timer);
+  }, [jobId, dispatchEvent]);
+
+  return (
+    <div className="mt-4 rounded-[20px] border border-slate-200 bg-white p-4 shadow-[0_18px_42px_rgba(15,23,42,0.06)]">
+      <div className="mb-3 flex items-center gap-2">
+        <div className="size-2 rounded-full bg-emerald-500 animate-pulse" />
+        <span className="text-xs font-black uppercase tracking-normal text-slate-500">
+          Agent 推理流
+        </span>
+        {agentReasoning.status === "streaming" && (
+          <span className="text-[10px] text-slate-400">
+            第 {agentReasoning.currentIteration} 轮
+          </span>
+        )}
+      </div>
+      <div className="h-[400px] overflow-hidden rounded-lg border border-slate-100 bg-slate-50">
+        <AgentReasoningTimeline jobId={jobId} className="h-full" />
+      </div>
+    </div>
   );
 }
 
