@@ -67,6 +67,11 @@ export type BlueprintGenerationEventType =
   | "spec.tree.versioned"
   | "spec.document.versioned"
   | "spec.document.reviewed"
+  // autopilot-mirofish-stream（2026-05-17）：
+  // 节点级 SPEC 文档完成事件，归入 `spec` 家族。当
+  // spec-docs-llm-generation 完成单个节点的 requirements/design/tasks
+  // 三份文档时发出,前端 MiroFishCardStream 据此派生 node_completed 卡片。
+  | "spec.node_completed"
   // Effect preview
   | "preview.generated"
   | "preview.refreshed"
@@ -77,6 +82,10 @@ export type BlueprintGenerationEventType =
   // Evidence / Artifact Replay
   | "evidence.recorded"
   | "evidence.linked"
+  // autopilot-mirofish-stream（2026-05-17）：
+  // job.artifacts 写入时发出的产物落库事件，归入 `evidence` 家族。
+  // 前端 MiroFishCardStream 据此派生 artifact_created 卡片。
+  | "evidence.artifact_created"
   // Agent Crew roles
   | "role.activated"
   | "role.watching"
@@ -140,6 +149,8 @@ export const BlueprintEventName = {
   SpecTreeVersioned: "spec.tree.versioned",
   SpecDocumentVersioned: "spec.document.versioned",
   SpecDocumentReviewed: "spec.document.reviewed",
+  // autopilot-mirofish-stream（2026-05-17）
+  SpecNodeCompleted: "spec.node_completed",
   // Effect preview
   PreviewGenerated: "preview.generated",
   PreviewRefreshed: "preview.refreshed",
@@ -150,6 +161,8 @@ export const BlueprintEventName = {
   // Evidence / Artifact Replay
   EvidenceRecorded: "evidence.recorded",
   EvidenceLinked: "evidence.linked",
+  // autopilot-mirofish-stream（2026-05-17）
+  EvidenceArtifactCreated: "evidence.artifact_created",
   // Agent Crew roles
   RoleActivated: "role.activated",
   RoleWatching: "role.watching",

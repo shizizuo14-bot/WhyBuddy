@@ -78,6 +78,10 @@ describe("BlueprintEventName", () => {
       { type: BlueprintEventName.PromptPackaged, family: "prompt" },
       { type: BlueprintEventName.MissionHandoff, family: "mission" },
       { type: BlueprintEventName.EvidenceRecorded, family: "evidence" },
+      // autopilot-mirofish-stream（2026-05-17）：3 条新事件归入既有家族,
+      // 不扩展 12 家族目录。
+      { type: BlueprintEventName.SpecNodeCompleted, family: "spec" },
+      { type: BlueprintEventName.EvidenceArtifactCreated, family: "evidence" },
       { type: BlueprintEventName.RoleCapabilityInvoked, family: "role" },
       { type: BlueprintEventName.CapabilityFailed, family: "capability" },
       { type: BlueprintEventName.CrewContextUpdated, family: "crew" },
