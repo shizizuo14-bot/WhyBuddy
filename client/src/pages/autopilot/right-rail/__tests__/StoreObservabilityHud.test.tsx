@@ -124,7 +124,8 @@ describe("StoreObservabilityHud", () => {
     // 四个子组件的 testid 都不应该出现，因为切片为空时它们各自返回 null
     expect(markup).not.toContain('data-testid="role-status-strip"');
     expect(markup).not.toContain('data-testid="capability-rail"');
-    expect(markup).not.toContain('data-testid="agent-reasoning-sub-timeline"');
+    // autopilot-mirofish-stream 重构后 testid 改为 mirofish-card-stream
+    expect(markup).not.toContain('data-testid="mirofish-card-stream"');
     expect(markup).not.toContain('data-testid="fleet-activation-log"');
   });
 
@@ -151,7 +152,8 @@ describe("StoreObservabilityHud", () => {
     const markup = renderToStaticMarkup(<StoreObservabilityHud />);
 
     expect(markup).toContain('data-testid="store-observability-hud"');
-    expect(markup).toContain('data-testid="agent-reasoning-sub-timeline"');
+    // autopilot-mirofish-stream 重构后 testid 改为 mirofish-card-stream
+    expect(markup).toContain('data-testid="mirofish-card-stream"');
     expect(markup).toContain("正在扫描 GitHub 仓库");
   });
 

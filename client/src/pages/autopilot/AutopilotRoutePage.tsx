@@ -1430,14 +1430,14 @@ function AutopilotWorkflowRail({
                         挂载子时间线，让用户在历史卡片里看到当时仓库扫描的
                         thinking / observing 流。
                       */}
-                      <AgentReasoningSubTimeline locale={locale} stageFilter="intake_created" />
+                      <AgentReasoningSubTimeline locale={locale} job={latestJob} stageFilter="intake_created" />
                     </div>
                   )}
                   {isCompleted && sub === "clarification" && (
                     <div className="mt-2 space-y-2">
                       <div className="text-xs text-slate-500">{readReadinessLabel(readiness, locale)}</div>
                       <ClarificationPanel locale={locale} session={clarificationSession} answerDrafts={answerDrafts} onAnswerChange={onAnswerChange} onSubmit={onSubmitAnswers} saving={savingAnswers} />
-                      <AgentReasoningSubTimeline locale={locale} stageFilter="clarification" />
+                      <AgentReasoningSubTimeline locale={locale} job={latestJob} stageFilter="clarification" />
                     </div>
                   )}
                   {isCompleted && sub === "route" && routeSet && (
@@ -1459,7 +1459,7 @@ function AutopilotWorkflowRail({
                           - spec_tree：选完路线后系统派生 SPEC 树的 thinking / observing
                         让历史卡片与 active 状态一致地展示完整执行流。
                       */}
-                      <AgentReasoningSubTimeline locale={locale} stageFilter={["route_generation", "route_selection", "spec_tree"]} />
+                      <AgentReasoningSubTimeline locale={locale} job={latestJob} stageFilter={["route_generation", "route_selection", "spec_tree"]} />
                     </div>
                   )}
 
@@ -1487,7 +1487,7 @@ function AutopilotWorkflowRail({
                         被实际执行（仓库扫描发生在生成澄清问题之前），因此 active
                         时也要挂子时间线，让用户实时看到仓库扫描进度。
                       */}
-                      <AgentReasoningSubTimeline locale={locale} stageFilter="intake_created" />
+                      <AgentReasoningSubTimeline locale={locale} job={latestJob} stageFilter="intake_created" />
                     </div>
                   )}
 
@@ -1501,7 +1501,7 @@ function AutopilotWorkflowRail({
                         <span className={cn("rounded-md px-2 py-1 text-[10px] font-bold", readiness?.status === "ready" ? "bg-emerald-50 text-emerald-700" : "bg-slate-100 text-slate-600")} data-testid="autopilot-readiness">{readReadinessLabel(readiness, locale)}</span>
                       </div>
                       <ClarificationPanel locale={locale} session={clarificationSession} answerDrafts={answerDrafts} onAnswerChange={onAnswerChange} onSubmit={onSubmitAnswers} saving={savingAnswers} />
-                      <AgentReasoningSubTimeline locale={locale} stageFilter="clarification" />
+                      <AgentReasoningSubTimeline locale={locale} job={latestJob} stageFilter="clarification" />
                     </div>
                   )}
 
@@ -1540,7 +1540,7 @@ function AutopilotWorkflowRail({
                         因此 active 状态下用户从"看路线"到"选路线"再到"系统派生 SPEC"
                         都能在同一卡片底部看到对应的事件流，不会出现断层。
                       */}
-                      <AgentReasoningSubTimeline locale={locale} stageFilter={["route_generation", "route_selection", "spec_tree"]} />
+                      <AgentReasoningSubTimeline locale={locale} job={latestJob} stageFilter={["route_generation", "route_selection", "spec_tree"]} />
                     </div>
                   )}
                 </TimelineNode>

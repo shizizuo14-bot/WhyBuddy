@@ -120,8 +120,10 @@ function ActiveNodeContent({
         </div>
       )}
 
-      {/* autopilot-agent-reasoning-stream：Agent 推理子时间线（在 active 节点内部展开） */}
-      <AgentReasoningSubTimeline locale={locale} />
+      {/* autopilot-agent-reasoning-stream：Agent 推理子时间线（在 active 节点内部展开）
+          autopilot-mirofish-stream（2026-05-17）：组件内部委托给 MiroFishCardStream，
+          job prop 让流能合并 artifact / route / node_completed entry。 */}
+      <AgentReasoningSubTimeline locale={locale} job={job} />
 
       {/*
         数据就绪时显示"确认并继续"按钮。

@@ -55,7 +55,7 @@ function readArtifactPayload<T>(
   job: BlueprintGenerationJob | null | undefined,
   type: BlueprintGenerationArtifact["type"]
 ): T | null {
-  const artifact = job?.artifacts.find(a => a.type === type);
+  const artifact = job?.artifacts?.find(a => a.type === type);
   if (!artifact || artifact.payload === undefined) return null;
   return artifact.payload as T;
 }

@@ -205,10 +205,10 @@ describe("AgentReasoningSubTimeline render contract via AutopilotRightRail SSR",
     expect(markup).toContain('data-timeline-status="active"');
     expect(markup).toContain('data-sub-stage-placeholder="agent_crew_fabric"');
 
-    // 但子时间线容器（`max-h-[360px]` + `grid-cols-[1fr_2px_1fr]`）不应出现，
-    // 即 AgentReasoningSubTimeline 早返回 null。
-    expect(markup).not.toContain("max-h-[360px]");
-    expect(markup).not.toContain("grid-cols-[1fr_2px_1fr]");
+    // 但子时间线容器（autopilot-mirofish-stream 重构后用 testid="mirofish-card-stream"
+    // 标识；旧版本是 max-h-[360px] + grid-cols-[1fr_2px_1fr] 双轨容器，现已删除）
+    // 不应出现，即 AgentReasoningSubTimeline → MiroFishCardStream 早返回 null。
+    expect(markup).not.toContain('data-testid="mirofish-card-stream"');
   });
 
   it("renders the subtimeline container when entries contain a thinking phase and status is streaming", () => {
@@ -227,11 +227,11 @@ describe("AgentReasoningSubTimeline render contract via AutopilotRightRail SSR",
       />
     );
 
-    // 子时间线容器与双轨布局都应出现在 active 子阶段卡片内。
-    expect(markup).toContain("max-h-[360px]");
-    expect(markup).toContain("grid-cols-[1fr_2px_1fr]");
+    // autopilot-mirofish-stream 重构后：子时间线容器 testid 改为 mirofish-card-stream，
+    // 单纵向布局取代了原双轨 grid-cols-[1fr_2px_1fr]。
+    expect(markup).toContain('data-testid="mirofish-card-stream"');
 
-    // entry 的 thought 文本会被原样渲染到左轨卡片中。
+    // entry 的 thought 文本会被原样渲染到 reasoning 卡片中。
     expect(markup).toContain("正在分析仓库目录结构");
   });
 
@@ -256,8 +256,7 @@ describe("AgentReasoningSubTimeline render contract via AutopilotRightRail SSR",
       />
     );
 
-    expect(markup).not.toContain("max-h-[360px]");
-    expect(markup).not.toContain("grid-cols-[1fr_2px_1fr]");
+    expect(markup).not.toContain('data-testid="mirofish-card-stream"');
     expect(markup).not.toContain('data-timeline-status="active"');
     expect(markup).toContain('data-stage-placeholder="input"');
   });
