@@ -1700,7 +1700,17 @@ describe("blueprint specs route", () => {
       expect(
         restored.specTree.nodes.some((node: any) => node.id === added.node.id)
       ).toBe(false);
-      expect(restored.job.events).toHaveLength(selected.job.events.length + 7);
+      // autopilot-mirofish-stream Wave 2（2026-05-17）：
+      // POST /jobs/:jobId/route-selection 路由层在 selectRouteForSpecTree 返回后,
+      // 额外 emit 4 条事件——1 条 route.selected + 3 条 evidence.artifact_created
+      // （对应 route_selection / spec_tree / agent_crew 三类 artifact）。
+      // 这 4 条事件是在 selectRouteForSpecTree 内部 store.save(updatedJob) 之后由
+      // 路由层补 emit 的,所以不在 selected.job 这个 HTTP 响应快照里,但会通过
+      // jobStore.save 进入持久化 events,后续 jobStore.get 读取的 restored.job 中
+      // 可见。本测试随后又触发了 7 次 spec-tree actions（add/split/move/merge/
+      // delete/baseline 创建/set_current_version 恢复）,所以最终 events 长度等于
+      // selected.job.events.length + 4（路由层补发） + 7（actions）= +11。
+      expect(restored.job.events).toHaveLength(selected.job.events.length + 11);
       expect(restored.job.events.at(-1).payload).toMatchObject({
         action: "set_current_version",
         versionId: baseline.version.id,

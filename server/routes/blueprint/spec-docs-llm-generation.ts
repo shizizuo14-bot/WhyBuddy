@@ -710,6 +710,33 @@ export function createSpecDocsLlmGeneration(
                 emitter?.observing(false, `⚠ ${node.title} — 降级为模板`);
               }
               processed.add(node.id);
+              // autopilot-mirofish-stream（2026-05-17）：
+              // 在 observing 文案之外,追加结构化 spec.node_completed 事件,
+              // 让前端 MiroFishCardStream 直接派生 node_completed 卡片
+              // （而不是只能从 deriveSpecDocumentTreeStats 反查 lifecycle）。
+              if (deps.eventBus) {
+                try {
+                  deps.eventBus.emit({
+                    id: `${"spec.node_completed"}-${request.jobId}-${node.id}`,
+                    jobId: request.jobId,
+                    type: "spec.node_completed" as never,
+                    family: "spec",
+                    stage: "spec_docs",
+                    status: "completed",
+                    message: `Spec node ${node.title} documents generated.`,
+                    occurredAt: new Date().toISOString(),
+                    payload: {
+                      nodeId: node.id,
+                      nodeTitle: node.title,
+                      documentTypes: ["requirements", "design", "tasks"],
+                      generationSource: result.generationSource,
+                      stageId: "spec_docs",
+                    },
+                  });
+                } catch {
+                  // emit 不应阻塞 LLM 主流程
+                }
+              }
               // 写入 parentSummaryMap 供下一层使用
               if (result.generationSource === "llm" && node.summary.length > 0) {
                 parentSummaryMap.set(node.id, node.summary.slice(0, PARENT_SUMMARY_MAX_CHARS));

@@ -1138,6 +1138,67 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       ctx: blueprintServiceContext,
     });
 
+    // autopilot-mirofish-stream（2026-05-17）：
+    // 路线选择确认后 emit route.selected 事件,让前端 MiroFishCardStream
+    // 派生 route_decision 卡片立刻出现在右栏阶段流里。
+    // BlueprintEventName.RouteSelected 自 events.ts 一直存在,本处补的是
+    // 实际 emit 调用——之前路径只更新 job.artifacts,没有走 eventBus。
+    if (blueprintServiceContext.eventBus) {
+      try {
+        const selection = response.selection;
+        blueprintServiceContext.eventBus.emit({
+          id: `${BlueprintEventName.RouteSelected}-${selection.id}`,
+          jobId: response.job.id,
+          type: BlueprintEventName.RouteSelected,
+          family: "route",
+          stage: "route_generation",
+          status: "completed",
+          message: `Route ${selection.routeId} selected for SPEC tree derivation.`,
+          occurredAt: selection.selectedAt,
+          payload: {
+            selectionId: selection.id,
+            routeId: selection.routeId,
+            routeSetId: selection.routeSetId,
+            routeTitle: selection.routeTitle,
+            stageId: "route_selection",
+          },
+        });
+
+        // 同时为本次新增的 3 类关键 artifact 各发一条 evidence.artifact_created
+        // 事件,让 MiroFishCardStream 能在阶段卡底部显示 "📦 spec_tree" /
+        // "📦 route_selection" / "📦 agent_crew" 卡片。
+        // 这里仅遍历 response.job.artifacts 中类型为 route_selection /
+        // spec_tree / agent_crew 的最新条目（select 后的 job.artifacts 已经
+        // 把旧的同类 artifact 替换成新版本）,不去重历史。
+        const ARTIFACT_TYPES_TO_EMIT = new Set([
+          "route_selection",
+          "spec_tree",
+          "agent_crew",
+        ]);
+        for (const artifact of response.job.artifacts) {
+          if (!ARTIFACT_TYPES_TO_EMIT.has(artifact.type)) continue;
+          blueprintServiceContext.eventBus.emit({
+            id: `${BlueprintEventName.EvidenceArtifactCreated}-${artifact.id}`,
+            jobId: response.job.id,
+            type: BlueprintEventName.EvidenceArtifactCreated,
+            family: "evidence",
+            stage: "spec_tree",
+            status: "completed",
+            message: `Artifact ${artifact.type} created.`,
+            occurredAt: artifact.createdAt,
+            payload: {
+              artifactId: artifact.id,
+              artifactType: artifact.type,
+              title: artifact.title,
+              summary: artifact.summary,
+            },
+          });
+        }
+      } catch {
+        // emit 不应阻塞主链路
+      }
+    }
+
     // Task 14.4: Hook point — stage transition to spec_tree after route selection.
     blueprintServiceContext.agentCrewStageActivationDriver?.onStageTransition({
       jobId: response.job.id,
