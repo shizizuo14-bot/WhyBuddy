@@ -51,6 +51,14 @@ const SECONDARY_SCENE_MODELS = [
 
 export type ScenePerformanceProfile = "balanced" | "resizing";
 
+/**
+ * 自动驾驶 3D 场景融合模式判别。
+ * - "blueprint"：蓝图页（/autopilot），3D 场景跟随 BlueprintRealtimeStore。
+ * - "mission-first"：mission-first 任务壳（/tasks 等），3D 场景跟随 mission 信号。
+ * Wave B 落地 scene-fusion/role-id-bridge.ts 后回填 import 路径。
+ */
+export type SceneFusionMode = "blueprint" | "mission-first";
+
 export interface Scene3DProps {
   performanceProfile?: ScenePerformanceProfile;
   /** Current sidebar width in pixels, used for camera compensation. Default 0. */
@@ -59,6 +67,12 @@ export interface Scene3DProps {
   hidden?: boolean;
   /** Optional project scope for task overlays rendered inside the scene. */
   projectId?: string | null;
+  /**
+   * 场景融合模式，默认 "mission-first"。
+   * 蓝图页（/autopilot）应显式传入 "blueprint"，让 MissionIsland 在蓝图页隐藏。
+   * Wave B / C 会进一步把 mode 透传给 PetWorkers / SceneStageFlow。
+   */
+  mode?: SceneFusionMode;
 }
 
 export function Scene3D({
@@ -66,6 +80,7 @@ export function Scene3D({
   sidebarWidth = 0,
   hidden = false,
   projectId = null,
+  mode = "mission-first",
 }: Scene3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { isMobile, isTablet, tier } = useViewportTier();
@@ -256,7 +271,7 @@ export function Scene3D({
             projectId={projectId}
             reducedOverlays={!deferredDetailsReady || reducedSceneEffects}
           />
-          <MissionIsland projectId={projectId} />
+          <MissionIsland projectId={projectId} mode={mode} />
           <SandboxMonitor projectId={projectId} />
           <WaitingDecisionBubble projectId={projectId} />
           {!reducedSceneEffects && deferredDetailsReady ? (

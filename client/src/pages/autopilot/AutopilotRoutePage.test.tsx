@@ -18,14 +18,17 @@ vi.mock("@/components/Scene3D", () => ({
   Scene3D: ({
     performanceProfile,
     projectId,
+    mode,
   }: {
     performanceProfile?: string;
     projectId?: string | null;
+    mode?: string;
   }) => (
     <div
       data-testid="mock-scene-3d"
       data-performance-profile={performanceProfile}
       data-project-id={projectId ?? ""}
+      data-scene-mode={mode ?? ""}
     />
   ),
 }));
@@ -59,6 +62,9 @@ describe("AutopilotRoutePage", () => {
     expect(markup).toContain('data-testid="autopilot-scene-visual"');
     expect(markup).toContain('data-testid="mock-scene-3d"');
     expect(markup).toContain('data-project-id="project-1"');
+    // Wave A：自动驾驶 3D 场景融合 — 蓝图页 Scene3D 必须以 mode="blueprint" 挂载，
+    // 让 MissionIsland 在蓝图页隐藏，避免 mission-first 任务岛残影。
+    expect(markup).toContain('data-scene-mode="blueprint"');
     expect(markup).not.toContain('data-testid="autopilot-experience-rail"');
     // HUD 浮层已移除(指标卡固定在右栏底部);testid 不再存在于 3D 场景中
     expect(markup).not.toContain('data-testid="autopilot-mission-hud"');
