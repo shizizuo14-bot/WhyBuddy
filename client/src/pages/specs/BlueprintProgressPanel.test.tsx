@@ -80,6 +80,81 @@ describe("BlueprintProgressPanel", () => {
     expect(markup).toContain("设计");
   });
 
+  it("keeps the SPEC document workbench nested under the SPEC tree preview gate", () => {
+    const markup = renderToStaticMarkup(
+      <BlueprintProgressPanel
+        autoLoad={false}
+        showRouteGeneration={false}
+        showSpecProgress={false}
+        showSpecTreePreview={false}
+        showSpecDocumentWorkbench={true}
+        showEffectPreviewWorkbench={false}
+        showPromptPackageWorkbench={false}
+        showRuntimeCapabilityBridgeWorkbench={false}
+        showEngineeringLandingWorkbench={false}
+        showArtifactMemoryWorkbench={false}
+        initialSpecTree={{
+          id: "spec-tree-merge-test",
+          routeSetId: "routeset-merge-test",
+          selectionId: "selection-merge-test",
+          selectedRouteId: "route-merge-test",
+          rootNodeId: "node-root",
+          version: 1,
+          status: "draft",
+          createdAt: "2026-05-17T00:00:00.000Z",
+          updatedAt: "2026-05-17T00:00:00.000Z",
+          alternativeRouteIds: [],
+          provenance: {
+            jobId: "job-merge-test",
+            githubUrls: [],
+          },
+          nodes: [
+            {
+              id: "node-root",
+              title: "Root SPEC",
+              summary: "Root node.",
+              type: "root",
+              status: "draft",
+              priority: 0,
+              dependencies: [],
+              outputs: [],
+              children: [],
+            },
+          ],
+        }}
+        initialSpecDocuments={[
+          {
+            id: "doc-requirements",
+            jobId: "job-merge-test",
+            treeId: "spec-tree-merge-test",
+            nodeId: "node-root",
+            type: "requirements",
+            status: "reviewing",
+            version: 1,
+            title: "Requirements",
+            summary: "Requirements summary.",
+            content: "# Requirements",
+            format: "markdown",
+            createdAt: "2026-05-17T00:00:00.000Z",
+            provenance: {
+              jobId: "job-merge-test",
+              githubUrls: [],
+              treeVersion: 1,
+              nodeType: "root",
+              nodeTitle: "Root SPEC",
+              nodeSummary: "Root node.",
+              dependencies: [],
+              outputs: [],
+            },
+          },
+        ]}
+      />
+    );
+
+    expect(markup).not.toContain('data-testid="blueprint-spec-tree-preview"');
+    expect(markup).not.toContain('data-testid="spec-document-workbench"');
+  });
+
   it("renders clarification strategy metadata from latest job data", () => {
     const latestPayload = {
       job: {
@@ -1251,7 +1326,7 @@ describe("BlueprintProgressPanel", () => {
     expect(markup).toContain("规格文档生成");
     expect(markup).toContain('data-testid="spec-document-workbench"');
     expect(markup).toContain("规格文档工作台");
-    expect(markup).toContain("生成文档");
+    expect(markup).toContain("生成全部文档");
     expect(markup).toContain('data-testid="spec-document-review-status"');
     expect(markup).toContain("已接受");
     expect(markup).toContain('data-testid="spec-document-accept-button"');
@@ -1265,7 +1340,7 @@ describe("BlueprintProgressPanel", () => {
     expect(markup).toContain("跟踪审计证据。");
     expect(markup).toContain('data-testid="effect-preview-workbench"');
     expect(markup).toContain("效果预演");
-    expect(markup).toContain("已接受 SPEC 的效果预演");
+    expect(markup).toContain("1 份已接受文档");
     expect(markup).toContain("生成预演");
     expect(markup).toContain('data-testid="effect-preview-list"');
     expect(markup).toContain("预演详情");
@@ -1302,8 +1377,8 @@ describe("BlueprintProgressPanel", () => {
     expect(markup).toContain(
       'data-testid="runtime-capability-bridge-workbench"'
     );
-    expect(markup).toContain("运行时能力桥");
-    expect(markup).toContain("运行时能力桥工作台");
+    expect(markup).toContain("能力注册表");
+    expect(markup).toContain("调用能力");
     expect(markup).toContain('data-testid="blueprint-agent-crew-surface"');
     expect(markup).toContain('data-testid="blueprint-agent-role-row"');
     expect(markup).toContain("活跃");
@@ -1347,7 +1422,6 @@ describe("BlueprintProgressPanel", () => {
     ).toBeLessThan(markup.indexOf('data-testid="engineering-landing-workbench"'));
     expect(markup).toContain('data-testid="engineering-landing-workbench"');
     expect(markup).toContain("工程落地");
-    expect(markup).toContain("工程落地工作台");
     expect(markup).toContain('data-testid="engineering-landing-generate-button"');
     expect(markup).toContain("生成落地计划");
     expect(markup).toContain('data-testid="engineering-landing-plan-list"');
@@ -1368,7 +1442,7 @@ describe("BlueprintProgressPanel", () => {
     expect(markup).toContain("Cursor 交接已实现并验证。");
     expect(markup).toContain("client/src/permission.ts");
     expect(markup).toContain('data-testid="artifact-memory-workbench"');
-    expect(markup).toContain("资产记忆与回放工作台");
+    expect(markup).toContain("回放快照摘要");
     expect(markup).toContain('data-testid="artifact-ledger-timeline"');
     expect(markup).toContain('data-testid="artifact-ledger-stage-group"');
     expect(markup).toContain("RouteSet 已生成");

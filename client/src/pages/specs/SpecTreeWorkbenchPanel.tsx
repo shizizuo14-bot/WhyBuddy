@@ -27,8 +27,13 @@ import {
 } from "@/lib/blueprint-api";
 import { blueprintCopy } from "@/lib/blueprint-copy";
 import { cn } from "@/lib/utils";
+import {
+  deriveSpecDocumentTreeStatsFromDocuments,
+  type SpecDocumentTreeStats,
+} from "@/lib/blueprint-spec-document-stats";
 import type {
   BlueprintRouteSelection,
+  BlueprintSpecDocument,
   BlueprintSpecTreeActionRequest,
   BlueprintSpecTree,
   BlueprintSpecTreeNode,
@@ -41,6 +46,7 @@ interface SpecTreeWorkbenchPanelProps {
   selection: BlueprintRouteSelection | null;
   jobId?: string | null;
   versions?: BlueprintSpecTreeVersionSnapshot[] | null;
+  documents?: BlueprintSpecDocument[] | null;
   onSpecTreeChange?: (specTree: BlueprintSpecTree) => void;
   onSpecTreeVersionsChange?: (versions: BlueprintSpecTreeVersionSnapshot[]) => void;
 }
@@ -122,7 +128,8 @@ function parseOutputs(value: string): string[] {
  */
 function buildAntdTreeData(
   nodes: BlueprintSpecTreeNode[],
-  rootNodeId: string
+  rootNodeId: string,
+  documentStatsByNodeId?: SpecDocumentTreeStats["byNodeId"] | null
 ): TreeDataNode[] {
   const byId = new Map(nodes.map(node => [node.id, node]));
 
@@ -132,6 +139,7 @@ function buildAntdTreeData(
     const children = node.children
       .map(childId => convert(childId))
       .filter((child): child is TreeDataNode => child !== null);
+    const documentStats = documentStatsByNodeId?.get(node.id);
     return {
       key: node.id,
       title: (
@@ -145,6 +153,15 @@ function buildAntdTreeData(
           <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[9px] font-bold text-slate-500">
             {nodeTypeLabel(node.type)}
           </span>
+          {documentStats ? (
+            <span
+              className="rounded-full border border-[#0f766e]/20 bg-[#0f766e]/10 px-1.5 py-0.5 text-[9px] font-black text-[#0f766e]"
+              data-testid="spec-tree-node-document-status"
+              data-doc-lifecycle={documentStats.lifecycle}
+            >
+              {documentStats.generated}/{documentStats.total}
+            </span>
+          ) : null}
         </span>
       ),
       children: children.length > 0 ? children : undefined,
@@ -178,6 +195,7 @@ export function SpecTreeWorkbenchPanel({
   selection,
   jobId = null,
   versions = null,
+  documents = null,
   onSpecTreeChange,
   onSpecTreeVersionsChange,
 }: SpecTreeWorkbenchPanelProps) {
@@ -251,9 +269,18 @@ export function SpecTreeWorkbenchPanel({
       draftTree.nodes.filter(node => node.id !== selectedNode?.id),
     [draftTree.nodes, selectedNode?.id]
   );
+  const documentStats = useMemo(
+    () => deriveSpecDocumentTreeStatsFromDocuments(documents ?? [], draftTree),
+    [documents, draftTree]
+  );
   const antdTreeData = useMemo(
-    () => buildAntdTreeData(draftTree.nodes, draftTree.rootNodeId),
-    [draftTree.nodes, draftTree.rootNodeId]
+    () =>
+      buildAntdTreeData(
+        draftTree.nodes,
+        draftTree.rootNodeId,
+        documentStats.byNodeId
+      ),
+    [draftTree.nodes, draftTree.rootNodeId, documentStats.byNodeId]
   );
   const sortedVersionSnapshots = useMemo(
     () =>
@@ -808,7 +835,7 @@ export function SpecTreeWorkbenchPanel({
                 <label className="grid gap-1.5 text-xs font-black text-slate-500">
                   输出
                   <textarea
-                    value={outputsToText(selectedNode.outputs.map(blueprintCopy))}
+                    value={outputsToText(selectedNode.outputs.map(output => blueprintCopy(output)))}
                     onChange={event =>
                       applySelectedPatch({
                         outputs: parseOutputs(event.target.value),

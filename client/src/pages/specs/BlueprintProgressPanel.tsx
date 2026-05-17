@@ -92,7 +92,6 @@ import {
   EngineeringHandoffPanel,
   PromptPackagePanel,
   RuntimeCapabilityPanel,
-  SpecDocumentsPanel,
   SpecTreePanel,
 } from "@/pages/autopilot/right-rail/panels";
 import { useAutopilotRightRailData } from "@/pages/autopilot/right-rail/hooks";
@@ -2448,17 +2447,10 @@ export function BlueprintProgressPanel({
           selection={selection}
           locale={locale}
           versions={specTreeVersions}
+          showDocuments={showSpecDocumentWorkbench}
+          initialDocuments={specDocuments}
           onSpecTreeChange={setSpecTree}
           onSpecTreeVersionsChange={setSpecTreeVersions}
-        />
-      ) : null}
-
-      {showSpecDocumentWorkbench && specTree ? (
-        <SpecDocumentsPanel
-          jobId={latestJob?.id ?? ""}
-          specTree={specTree}
-          locale={locale}
-          initialDocuments={specDocuments}
           onDocumentsChange={setSpecDocuments}
         />
       ) : null}

@@ -86,7 +86,7 @@ describe("SpecDocumentWorkbenchPanel", () => {
     expect(markup).toContain('data-testid="spec-document-node-button"');
     expect(markup).toContain("规格文档生成");
     expect(markup).toContain('data-testid="spec-document-generate-button"');
-    expect(markup).toContain("生成文档");
+    expect(markup).toContain("生成全部文档");
     expect(markup).toContain('data-testid="spec-document-review-status"');
     expect(markup).toContain("评审中");
     expect(markup).toContain('data-testid="spec-document-accept-button"');
@@ -102,5 +102,22 @@ describe("SpecDocumentWorkbenchPanel", () => {
     expect(markup).toContain("requirements.md");
     expect(markup).toContain("design.md");
     expect(markup).toContain("tasks.md");
+  });
+
+  it("generates documents for the whole SPEC tree from the workbench action", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "SpecDocumentWorkbenchPanel.tsx"),
+      "utf8"
+    );
+
+    const generateRequest = source.match(
+      /generateBlueprintSpecDocuments\(\s*jobId\s*,\s*\{([\s\S]*?)\}\s*\)/
+    );
+
+    expect(generateRequest).not.toBeNull();
+    expect(generateRequest![1]).toMatch(/types\s*:/);
+    expect(generateRequest![1]).not.toMatch(/\bnodeId\s*:/);
   });
 });

@@ -278,14 +278,13 @@ export function SpecDocumentWorkbenchPanel({
   };
 
   const handleGenerate = async () => {
-    if (!jobId || !selectedNode) return;
+    if (!jobId || specTree.nodes.length === 0) return;
 
     setGenerating(true);
     setError(null);
 
     try {
       const result = await generateBlueprintSpecDocuments(jobId, {
-        nodeId: selectedNode.id,
         types: DOCUMENT_TYPES.map(item => item.type),
       });
 
@@ -370,7 +369,7 @@ export function SpecDocumentWorkbenchPanel({
             需求 / 设计 / 任务
           </h3>
           <p className="mt-1 max-w-3xl text-sm font-semibold leading-6 text-slate-600">
-            选择一个 SPEC 树节点，生成三份规格文档，并在评审、版本化和打包前检查 Markdown 预览。
+            选择一个 SPEC 树节点查看预览；生成操作会一次性覆盖整棵树的 requirements / design / tasks。
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -391,7 +390,7 @@ export function SpecDocumentWorkbenchPanel({
           <Button
             type="button"
             className="gap-2 rounded-full bg-[#0f766e] font-black text-white hover:bg-[#115e59]"
-            disabled={!jobId || !selectedNode || generating || loading}
+            disabled={!jobId || specTree.nodes.length === 0 || generating || loading}
             onClick={handleGenerate}
             data-testid="spec-document-generate-button"
           >
@@ -400,7 +399,7 @@ export function SpecDocumentWorkbenchPanel({
             ) : (
               <Send className="size-3.5" aria-hidden="true" />
             )}
-            生成文档
+            生成全部文档
           </Button>
         </div>
       </div>
