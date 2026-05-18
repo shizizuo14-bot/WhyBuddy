@@ -151,6 +151,39 @@ describe("exportSpecDocumentsToDownload", () => {
     expect(dom.anchor.download).toBe("job-1-single.md");
   });
 
+  it("RFC 5987 filename* 优先于 ASCII fallback", async () => {
+    // 后端发了两段：filename="ascii-fallback.zip"; filename*=UTF-8''...
+    fetchMock.mockResolvedValueOnce(
+      makeOkResponse(
+        "ZIP",
+        `attachment; filename="ascii_fallback.zip"; filename*=UTF-8''${encodeURIComponent("项目主航道.zip")}`,
+      ),
+    );
+
+    await exportSpecDocumentsToDownload({
+      jobId: "job-1",
+      granularity: "tree",
+    });
+
+    expect(dom.anchor.download).toBe("项目主航道.zip");
+  });
+
+  it("仅有 RFC 5987 字段时也能解析", async () => {
+    fetchMock.mockResolvedValueOnce(
+      makeOkResponse(
+        "ZIP",
+        `attachment; filename*=UTF-8''${encodeURIComponent("纯中文.zip")}`,
+      ),
+    );
+
+    await exportSpecDocumentsToDownload({
+      jobId: "job-1",
+      granularity: "tree",
+    });
+
+    expect(dom.anchor.download).toBe("纯中文.zip");
+  });
+
   it("拼 URL 时按 granularity / nodeId / type 加 query", async () => {
     fetchMock.mockResolvedValueOnce(makeOkResponse("X"));
 

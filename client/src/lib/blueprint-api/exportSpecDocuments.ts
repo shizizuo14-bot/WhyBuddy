@@ -74,17 +74,35 @@ export async function exportSpecDocumentsToDownload(
  * 解析 `Content-Disposition` 头取出 filename。失败时回退到 `<jobId>-<granularity>.<ext>`
  * 格式（granularity = single → md，其它 → zip）。
  *
- * 仅支持 ASCII filename；不实现 RFC 5987 编码（`filename*=UTF-8''...`），
- * 等到第一个真实场景出现时再扩展（Req 4.1 测试已锁定 ASCII 路径）。
+ * 优先级：
+ * 1. RFC 5987 编码字段 `filename*=UTF-8''<percent-encoded>`（Chrome / Firefox /
+ *    Safari / Edge 现代浏览器优先消费此字段，支持中文 / emoji / 任意非 ASCII）
+ * 2. ASCII fallback 字段 `filename="<ascii>"`（老浏览器与脚本工具回落使用）
+ * 3. 客户端默认 `<jobId>-<granularity>.<ext>`
+ *
+ * 本仓库后端 `formatContentDisposition` 同时输出两个字段，因此 modern
+ * fetch 能拿到正确中文文件名；只有当后端 / 反向代理裁剪 `filename*` 时
+ * 才会退回到 ASCII fallback。
  */
 function parseFilenameFromContentDisposition(
   disposition: string | null,
   args: ExportSpecDocumentsArgs,
 ): string {
   if (disposition) {
-    const match = /filename="([^"]+)"/.exec(disposition);
-    if (match && match[1].length > 0) {
-      return match[1];
+    // 1. RFC 5987：filename*=UTF-8''<percent-encoded>
+    const utf8Match = /filename\*=UTF-8''([^;\r\n"]+)/i.exec(disposition);
+    if (utf8Match && utf8Match[1].length > 0) {
+      try {
+        return decodeURIComponent(utf8Match[1]);
+      } catch {
+        // 编码异常（理论上不会，因后端用 encodeURIComponent 输出）
+        // 落到 ASCII fallback 兜底
+      }
+    }
+    // 2. ASCII fallback：filename="<ascii>"
+    const asciiMatch = /filename="([^"]+)"/.exec(disposition);
+    if (asciiMatch && asciiMatch[1].length > 0) {
+      return asciiMatch[1];
     }
   }
   const ext = args.granularity === "single" ? "md" : "zip";

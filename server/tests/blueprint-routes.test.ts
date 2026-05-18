@@ -1825,7 +1825,13 @@ describe("blueprint specs route", () => {
       const disposition = exportResponse.headers.get("content-disposition");
       expect(disposition).not.toBeNull();
       expect(disposition).toContain("attachment");
-      expect(disposition).toMatch(/filename="[^"]+-spec\.zip"/);
+      // `autopilot-spec-document-export` 修复 1：Content-Disposition 同时含
+      // ASCII fallback (`filename="..."`) 与 RFC 5987 编码 (`filename*=UTF-8''...`)。
+      // 之前只有 `filename="<sanitized>"` 时若 sanitized 仍含中文（例如
+      // emoji 或被 sanitize 漏掉的字符）会触发 Node ERR_INVALID_CHAR，导致
+      // `res.setHeader` 抛异常请求 fail。本断言锁定双段格式，防止后续回归。
+      expect(disposition).toMatch(/filename="[^"]+"/);
+      expect(disposition).toMatch(/filename\*=UTF-8''[^;]+/);
 
       const arrayBuffer = await exportResponse.arrayBuffer();
       expect(arrayBuffer.byteLength).toBeGreaterThan(0);

@@ -1371,7 +1371,7 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     res.setHeader("Content-Type", result.archive.contentType);
     res.setHeader(
       "Content-Disposition",
-      `attachment; filename="${result.archive.filename}"`,
+      formatContentDisposition(result.archive.filename),
     );
     if (typeof result.archive.body === "string") {
       res.send(result.archive.body);
@@ -5035,6 +5035,38 @@ function extractSpecTreeVersions(
       isPlainRecord(version)
     )
     .sort((left, right) => left.version - right.version);
+}
+
+/**
+ * `autopilot-spec-document-export` Task 3.1 修复 1：构造合法的
+ * `Content-Disposition` 响应头。
+ *
+ * Node `res.setHeader` 不允许 header value 含非 ASCII 字符（中文、emoji
+ * 等），直接塞会抛 `ERR_INVALID_CHAR`。这里实现 RFC 5987 编码 +
+ * ASCII fallback：
+ *
+ * - 同时给出 `filename="<ascii>"`（老浏览器兜底）
+ * - 与 `filename*=UTF-8''<percent-encoded>`（现代浏览器优先消费）
+ *
+ * 例：filename = "项目主航道.zip" → 响应头：
+ * `attachment; filename="spec.zip"; filename*=UTF-8''%E9%A1%B9%E7%9B%AE...`
+ *
+ * 现代浏览器（Chrome / Firefox / Safari / Edge）会正确解析 `filename*`
+ * 字段并显示中文文件名；前端 `parseFilenameFromContentDisposition`
+ * 暂时只读 `filename="..."`，因此 ASCII fallback 必须给出有意义的
+ * 名字而非 "untitled"，否则下载到 ASCII fallback 时是个 ascii 占位名。
+ */
+function formatContentDisposition(filename: string): string {
+  // ASCII fallback：把所有非 ASCII 字符替换为 `_`，至少保留扩展名
+  const asciiFallback = filename.replace(/[^\x20-\x7E]/g, "_") || "spec.zip";
+
+  // RFC 5987：UTF-8 percent-encoding，并去掉 RFC 5987 规定不允许的字符
+  // encodeURIComponent 已编码绝大部分字符；剩下 `'` 与 `*` / `(` / `)` 等
+  // 在 RFC 5987 token 里也需 percent-encode，但 encodeURIComponent 不处理
+  // `'`，这里手动补 `'` -> `%27`。
+  const utf8Encoded = encodeURIComponent(filename).replace(/'/g, "%27");
+
+  return `attachment; filename="${asciiFallback}"; filename*=UTF-8''${utf8Encoded}`;
 }
 
 function extractSpecDocuments(
