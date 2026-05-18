@@ -23,20 +23,20 @@
     - 定义 `StreamingWeaveState`、`StreamTokenBufferConfig`、`InterruptionConfig` 接口
     - _需求: 1.1_
 
-- [ ] 2. 创建流中断检测与恢复
-  - [~] 2.1 创建 `client/src/components/right-rail/streaming-weave/StreamInterruptionDetector.ts`
+- [x] 2. 创建流中断检测与恢复
+  - [x] 2.1 创建 `client/src/components/right-rail/streaming-weave/StreamInterruptionDetector.ts`
     - 监测 lastTokenAt 与当前时间差
     - 500ms 无 token → 设置 isInterrupted=true
     - 10s 无 token → 设置 isReconnecting=true
     - token 恢复 → 清除中断状态
     - _需求: 3.1, 3.2, 3.3_
-  - [~] 2.2 创建 `client/src/components/right-rail/streaming-weave/StreamResumeHandler.ts`
+  - [x] 2.2 创建 `client/src/components/right-rail/streaming-weave/StreamResumeHandler.ts`
     - 恢复后检测补偿数据（通过 sequence number 或 timestamp）
     - 合并补偿数据到已有内容，避免重复
     - _需求: 3.4_
 
 - [ ] 3. 创建 StreamingProgressOverlay 进度叠加组件
-  - [~] 3.1 创建 `client/src/components/right-rail/streaming-weave/StreamingProgressOverlay.tsx`
+  - [x] 3.1 创建 `client/src/components/right-rail/streaming-weave/StreamingProgressOverlay.tsx`
     - 叠加在 StageProgressIndicator 上方
     - 正常流式：蓝色渐变脉冲动画
     - 中断态：琥珀色背景 + 警告图标 + "连接中断" 文案

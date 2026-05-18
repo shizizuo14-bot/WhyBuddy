@@ -19,8 +19,8 @@
     - 定义 `BRIDGE_TYPE_CONFIG` 常量映射
     - _需求: 3.1, 3.2, 3.3, 3.4_
 
-- [ ] 2. 创建 BridgeInvocationCard 调用卡片组件
-  - [~] 2.1 创建 `client/src/components/right-rail/capability-panel/BridgeInvocationCard.tsx`
+- [x] 2. 创建 BridgeInvocationCard 调用卡片组件
+  - [x] 2.1 创建 `client/src/components/right-rail/capability-panel/BridgeInvocationCard.tsx`
     - 单行紧凑布局：类型图标(12×12) + 名称 + 状态徽章 + 耗时
     - 根据 bridgeType 显示差异化图标和颜色
     - running 态图标使用 `animate-spin`
@@ -29,14 +29,14 @@
     - py-1.5 紧凑内边距，text-[11px]
     - _需求: 1.1, 1.2, 1.3, 1.4, 3.1, 3.2, 3.3, 3.4, 4.1, 4.2, 4.3_
 
-- [ ] 3. 创建 BridgeInvocationTimeline 时间线组件
-  - [~] 3.1 创建 `client/src/components/right-rail/capability-panel/BridgeInvocationTimeline.tsx`
+- [x] 3. 创建 BridgeInvocationTimeline 时间线组件
+  - [x] 3.1 创建 `client/src/components/right-rail/capability-panel/BridgeInvocationTimeline.tsx`
     - 垂直时间线，左侧 1px 连接线（border-slate-200）
     - 使用 framer-motion `AnimatePresence` 管理条目进入/退出
     - 并行调用并排展示（flex-row gap-1）
     - 已完成旧记录折叠为摘要行
     - _需求: 1.5, 2.1, 2.2, 2.3_
-  - [~] 3.2 创建 `client/src/components/right-rail/capability-panel/BridgeStatusSummary.tsx`
+  - [x] 3.2 创建 `client/src/components/right-rail/capability-panel/BridgeStatusSummary.tsx`
     - 顶部摘要栏：total / running / completed / failed 计数
     - 使用 4 个紧凑徽章横向排列
     - text-[10px] font-mono
