@@ -518,7 +518,6 @@ function buildFlowSteps({
     routeSet,
     selection,
   });
-  const projectionReady = effectPreviews.length > 0;
   const clarificationReady = isClarificationReady(clarificationSession, readiness);
 
   return [
@@ -554,31 +553,9 @@ function buildFlowSteps({
       status: !selection
         ? "blocked"
         : workflowStage === "fabric"
-          ? projectionReady
-            ? "done"
-            : "active"
+          ? "active"
           : "done",
       icon: Bot,
-    },
-    {
-      id: "projection",
-      index: 3,
-      title: t(locale, "3D/HUD", "3D/HUD"),
-      detail: effectPreviews.length
-        ? t(
-            locale,
-            `${effectPreviews.length} 个投影结果已同步`,
-            `${effectPreviews.length} projected result${
-              effectPreviews.length === 1 ? "" : "s"
-            }`
-          )
-        : t(
-            locale,
-            "运行结果会投影到 3D 场景与 HUD",
-            "Runtime results project into the 3D scene and HUD"
-          ),
-      status: !selection ? "blocked" : projectionReady ? "active" : "blocked",
-      icon: Gauge,
     },
   ];
 }
@@ -1338,8 +1315,6 @@ function AutopilotWorkflowRail({
         return t(locale, "输入", "Input");
       case "fabric":
         return t(locale, "编组", "Fabric");
-      case "projection":
-        return t(locale, "3D/HUD", "3D/HUD");
       default:
         return step.title;
     }
@@ -1655,63 +1630,6 @@ function AutopilotWorkflowRail({
           </div>
         );
       }
-      case "projection":
-        return (
-          <div className="grid gap-3" data-testid="autopilot-projection-step">
-            <div className="rounded-[8px] border border-emerald-200 bg-emerald-50 px-3 py-3 text-xs font-semibold leading-5 text-emerald-800">
-              {t(
-                locale,
-                "3D 场景和 HUD 已联动，运行结果会直接投影到场景屏幕上。",
-                "The 3D scene and HUD are linked, and runtime output projects directly into the scene."
-              )}
-            </div>
-            <div className="grid gap-2 sm:grid-cols-2">
-              <MetricBox
-                label={t(locale, "3D 场景", "3D scene")}
-                value={
-                  effectPreviews[0]?.runtimeProjection?.sceneSnapshotId ||
-                  (selection
-                    ? countLabel(locale, effectPreviews.length, "个投影", "projection", "projections")
-                    : t(locale, "等待投影", "Pending"))
-                }
-                tone={selection ? "good" : "neutral"}
-              />
-              <MetricBox
-                label="AgentCrewFabric"
-                value={
-                  agentCrew
-                    ? t(
-                        locale,
-                        `${agentCrew.roles.length} 个角色 / ${agentCrew.capabilityMatrix.length} 个绑定`,
-                        `${agentCrew.roles.length} roles / ${agentCrew.capabilityMatrix.length} bindings`
-                      )
-                    : t(locale, "等待角色编排", "Waiting for role orchestration")
-                }
-                tone={agentCrew ? "good" : "neutral"}
-              />
-              <MetricBox
-                label={t(locale, "证据", "Evidence")}
-                value={
-                  capabilityEvidence.length > 0
-                    ? countLabel(
-                        locale,
-                        capabilityEvidence.length,
-                        "条证据",
-                        "evidence item",
-                        "evidence items"
-                      )
-                    : countLabel(locale, effectPreviews.length, "个预演", "preview", "previews")
-                }
-                tone={capabilityEvidence.length || effectPreviews.length ? "good" : "neutral"}
-              />
-              <MetricBox
-                label={t(locale, "当前状态", "Current state")}
-                value={latestJob ? readAutopilotJobStatus(latestJob, locale) : t(locale, "待机", "Standby")}
-                tone="good"
-              />
-            </div>
-          </div>
-        );
       default:
         return null;
     }

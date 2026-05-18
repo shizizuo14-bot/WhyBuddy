@@ -79,7 +79,6 @@ describe("AutopilotRoutePage", () => {
     expect(markup).toContain("ant-steps-horizontal");
     expect(markup).toContain("输入");
     expect(markup).toContain("编组");
-    expect(markup).toContain("3D/HUD");
     expect(markup).not.toContain("自动驾驶画布");
     expect(markup).not.toContain(
       'data-testid="autopilot-generate-clarifications-button"'
@@ -120,7 +119,6 @@ describe("AutopilotRoutePage", () => {
     expect(markup).toContain("ant-steps-horizontal");
     expect(markup).toContain("Input");
     expect(markup).toContain("Fabric");
-    expect(markup).toContain("3D/HUD");
     expect(markup).toContain("Autopilot console");
     // Spec 3: advanced workbenches fold copy removed.
     expect(markup).not.toContain("Advanced asset workbenches");
