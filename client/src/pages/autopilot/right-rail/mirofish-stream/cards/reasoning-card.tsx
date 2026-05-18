@@ -13,6 +13,15 @@
  * - 可选 `streamingTokens` prop 接收来自 useStreamingWeave 的实时 token
  * - 使用 useRef 避免每次 token 到达触发整个卡片列表 re-render
  * - 实际接线在 Wave 3 task 5.1 的 AutopilotRightRail 中完成
+ *
+ * ReAct 循环内联展示（autopilot-llm-react-loop-inline / Task 5.1）：
+ * - 当需要更细粒度的阶段差异化展示时，可使用
+ *   `ReActLoopIterator`（来自 `../react-loop/ReActLoopIterator`）
+ *   作为替代详情视图，它将 reasoning entries 按 ReAct 循环分组，
+ *   并为每个阶段（thinking / tool-selecting / executing / observing / next-step）
+ *   提供独立的彩色竖条和流式文本展示。
+ * - 本组件（ReasoningCard）仍作为卡片流中的紧凑摘要视图使用，
+ *   ReActLoopIterator 适用于展开详情或独立面板场景。
  */
 
 import { type FC, useEffect, useRef } from "react";

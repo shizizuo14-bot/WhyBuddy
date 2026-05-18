@@ -18,6 +18,20 @@
  * - 只读：不写 store，不订阅 socket
  * - 折叠态：可见 entry 计数为 0 时返回 null，避免空容器抢占布局
  * - 可在多个位置挂载：右栏 fabric 分支 + 跨阶段 HUD overlay 都是合法位置
+ *
+ * ReAct 循环内联展示（autopilot-llm-react-loop-inline / Task 5.2）：
+ * - 当需要展示完整 ReAct 循环详情时，可在本组件旁或替代位置挂载
+ *   `ReActLoopIterator`（来自 `./react-loop/ReActLoopIterator`）。
+ * - ReActLoopIterator 将 agentReasoning.entries 按循环分组，提供阶段差异化
+ *   视觉（彩色竖条 + 流式文本 + 工具标签），适合展开详情场景。
+ * - 示例用法（commented-out）：
+ *   ```tsx
+ *   import { ReActLoopIterator } from "./react-loop/ReActLoopIterator";
+ *   import { useReActLoopState } from "./react-loop/useReActLoopState";
+ *
+ *   const { loops } = useReActLoopState();
+ *   // <ReActLoopIterator loops={loops} locale={locale} />
+ *   ```
  */
 
 import { type FC } from "react";

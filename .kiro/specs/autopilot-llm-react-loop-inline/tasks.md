@@ -18,21 +18,21 @@
     - 定义 `PHASE_CONFIG` 阶段视觉配置常量
     - _需求: 1.1_
 
-- [ ] 2. 创建 ReActPhaseBlock 阶段块组件
-  - [~] 2.1 创建 `client/src/components/right-rail/react-loop/ReActPhaseBlock.tsx`
+- [x] 2. 创建 ReActPhaseBlock 阶段块组件
+  - [x] 2.1 创建 `client/src/components/right-rail/react-loop/ReActPhaseBlock.tsx`
     - 左侧 2px 彩色竖条（border-l-2）+ 阶段图标 + 阶段标签
     - 内容区域使用 StreamingText 组件
     - tool-selecting 阶段额外显示 ToolSelectionBadge
     - 进入动画：framer-motion opacity: 0→1, x: -4→0, duration: 0.2
     - _需求: 1.1, 1.2, 1.3, 1.4, 1.5, 3.3_
-  - [~] 2.2 创建 `client/src/components/right-rail/react-loop/PhaseIndicator.tsx`
+  - [x] 2.2 创建 `client/src/components/right-rail/react-loop/PhaseIndicator.tsx`
     - 显示阶段图标 + 中文标签
     - text-[10px] font-medium
     - 根据 PHASE_CONFIG 映射颜色
     - _需求: 1.1, 1.2, 1.3, 1.4, 1.5_
 
-- [ ] 3. 创建 StreamingText 流式文本组件
-  - [~] 3.1 创建 `client/src/components/right-rail/react-loop/StreamingText.tsx`
+- [x] 3. 创建 StreamingText 流式文本组件
+  - [x] 3.1 创建 `client/src/components/right-rail/react-loop/StreamingText.tsx`
     - 逐字显示文本内容
     - isStreaming 时末尾显示闪烁光标（CSS @keyframes react-cursor-blink）
     - 超过 maxLines(默认 4) 行时折叠，显示"展开"按钮
@@ -43,8 +43,8 @@
     - prefers-reduced-motion 下改为静态 `|` 字符
     - _需求: 2.2, 2.4_
 
-- [ ] 4. 创建 ReActLoopIterator 循环迭代器
-  - [~] 4.1 创建 `client/src/components/right-rail/react-loop/ReActLoopIterator.tsx`
+- [x] 4. 创建 ReActLoopIterator 循环迭代器
+  - [x] 4.1 创建 `client/src/components/right-rail/react-loop/ReActLoopIterator.tsx`
     - 渲染多个 ReActLoop，每个 loop 包含多个 ReActPhaseBlock
     - 循环之间用虚线分隔（border-t border-dashed border-slate-200）
     - 超过 3 次循环时折叠中间循环，显示"展开 N 个循环"
