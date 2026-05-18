@@ -2973,6 +2973,23 @@ export async function createGenerationJob(
   // （否则 `eventsBody.events.length === created.job.events.length` 这类断言会失败）。
   const refreshedJob = options.store.get(jobId) ?? job;
 
+  // 伴随式介入修复：在 route_generation 之前先触发 input 和 clarification
+  // 两个阶段的 stage_started，让角色状态机能正确派生这两个阶段的角色状态
+  // （例如"决策者"在 input 阶段应为 active）。之前这两个阶段没有 job 对象
+  // 所以无法触发；现在 job 创建后补发，让前端 3D 场景里的角色态势回溯正确。
+  ctx.agentCrewStageActivationDriver?.onStageTransition({
+    jobId: refreshedJob.id,
+    stageId: "input",
+    transition: "stage_started",
+    job: refreshedJob,
+  });
+  ctx.agentCrewStageActivationDriver?.onStageTransition({
+    jobId: refreshedJob.id,
+    stageId: "clarification",
+    transition: "stage_started",
+    job: refreshedJob,
+  });
+
   // Task 14.2: Hook point — route_generation stage started after job creation.
   ctx.agentCrewStageActivationDriver?.onStageTransition({
     jobId: refreshedJob.id,
