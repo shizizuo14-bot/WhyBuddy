@@ -1,326 +1,227 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="1840" height="1620" viewBox="0 0 1840 1620" role="img" aria-labelledby="title desc">
+<svg xmlns="http://www.w3.org/2000/svg" width="1840" height="1840" viewBox="0 0 1840 1840" role="img" aria-labelledby="title desc">
   <title id="title">/autopilot 整体目标架构图（全流程伴随版）— 2026-05-18 更新</title>
-  <desc id="desc">展示 SPEC-first 自动驾驶闭环：伴随式 Agent Crew + 角色能力网络 + 3D 运行台观察层 + 核心资产链 + 统一事件流。标注 2026-05-18 各层完成度，含 5-13 → 5-18 五日内闭环增量。</desc>
+  <desc id="desc">SPEC-first 自动驾驶闭环：伴随式 Agent Crew + 角色能力网络 + 3D 运行台观察层 + 核心资产链 + 统一事件流 + 伴随式介入矩阵。</desc>
   <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#f8fafc"/><stop offset="48%" stop-color="#eef7f4"/><stop offset="100%" stop-color="#f5f7fb"/>
-    </linearGradient>
-    <linearGradient id="crewGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#dbeafe"/><stop offset="100%" stop-color="#bfdbfe"/>
-    </linearGradient>
-    <linearGradient id="capGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#ecfdf5"/><stop offset="100%" stop-color="#ccfbf1"/>
-    </linearGradient>
-    <linearGradient id="obsGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#fff7ed"/><stop offset="100%" stop-color="#ffedd5"/>
-    </linearGradient>
-    <linearGradient id="eventGrad" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0%" stop-color="#f5f3ff"/><stop offset="100%" stop-color="#ede9fe"/>
-    </linearGradient>
-    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="8" stdDeviation="8" flood-color="#0f172a" flood-opacity="0.1"/>
-    </filter>
-    <marker id="arrowB" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
-      <path d="M2,2 L9,5 L2,8 Z" fill="#2563eb"/>
-    </marker>
-    <marker id="arrowT" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto">
-      <path d="M2,2 L9,5 L2,8 Z" fill="#0f766e"/>
-    </marker>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f8fafc"/><stop offset="48%" stop-color="#eef7f4"/><stop offset="100%" stop-color="#f5f7fb"/></linearGradient>
+    <linearGradient id="crewGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#dbeafe"/><stop offset="100%" stop-color="#bfdbfe"/></linearGradient>
+    <linearGradient id="capGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#ecfdf5"/><stop offset="100%" stop-color="#ccfbf1"/></linearGradient>
+    <linearGradient id="obsGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#fff7ed"/><stop offset="100%" stop-color="#ffedd5"/></linearGradient>
+    <linearGradient id="eventGrad" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#f5f3ff"/><stop offset="100%" stop-color="#ede9fe"/></linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%"><feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#0f172a" flood-opacity="0.08"/></filter>
+    <marker id="arrowB" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M2,2 L9,5 L2,8 Z" fill="#2563eb"/></marker>
+    <marker id="arrowT" markerWidth="10" markerHeight="10" refX="9" refY="5" orient="auto"><path d="M2,2 L9,5 L2,8 Z" fill="#0f766e"/></marker>
     <style>
-      .title{font:900 32px "Microsoft YaHei","PingFang SC",sans-serif;fill:#0f172a}
-      .sub{font:700 15px "Microsoft YaHei","PingFang SC",sans-serif;fill:#475569}
+      .title{font:900 28px "Microsoft YaHei","PingFang SC",sans-serif;fill:#0f172a}
+      .sub{font:700 14px "Microsoft YaHei","PingFang SC",sans-serif;fill:#475569}
       .kick{font:900 11px "Microsoft YaHei","PingFang SC",sans-serif;fill:#64748b;letter-spacing:1px}
-      .sec{font:900 20px "Microsoft YaHei","PingFang SC",sans-serif;fill:#0f172a}
-      .lbl{font:900 13px "Microsoft YaHei","PingFang SC",sans-serif;fill:#0f172a}
+      .lbl{font:900 12px "Microsoft YaHei","PingFang SC",sans-serif;fill:#0f172a}
       .bd{font:700 12px "Microsoft YaHei","PingFang SC",sans-serif;fill:#334155}
       .sm{font:700 11px "Microsoft YaHei","PingFang SC",sans-serif;fill:#475569}
-      .mono{font:800 11px Consolas,"Microsoft YaHei",monospace;fill:#0f172a}
+      .mono{font:700 10px Consolas,"Microsoft YaHei",monospace;fill:#334155}
       .pct{font:900 13px Consolas,monospace;fill:#059669}
       .pct-warn{font:900 13px Consolas,monospace;fill:#d97706}
-      .card{rx:18;filter:url(#shadow)}
-      .line{stroke-width:2.5;fill:none;stroke-linecap:round}
-      .dash{stroke-dasharray:7 7}
+      .card{filter:url(#shadow)}
+      .line{stroke-width:2;fill:none;stroke-linecap:round}
+      .dash{stroke-dasharray:6 6}
       .pill{font:900 10px "Microsoft YaHei","PingFang SC",sans-serif}
-      .done{fill:#dcfce7;stroke:#86efac}
-      .prog{fill:#fef3c7;stroke:#fbbf24}
-      .new{fill:#dbeafe;stroke:#60a5fa}
+      .done{fill:#dcfce7;stroke:#86efac;stroke-width:1}
+      .prog{fill:#fef3c7;stroke:#fbbf24;stroke-width:1}
+      .new{fill:#dbeafe;stroke:#60a5fa;stroke-width:1}
+      .warn-text{font:700 11px "Microsoft YaHei","PingFang SC",sans-serif;fill:#dc2626}
+      .ok-text{font:700 11px "Microsoft YaHei","PingFang SC",sans-serif;fill:#059669}
     </style>
   </defs>
-  <rect width="1840" height="1620" fill="url(#bg)"/>
+  <rect width="1840" height="1840" fill="url(#bg)"/>
 
-  <!-- Header -->
-  <g transform="translate(64 44)">
+  <!-- ══ Header ══ -->
+  <g transform="translate(60 40)">
     <text class="title">/autopilot 整体目标架构图（全流程伴随版）</text>
-    <text class="sub" y="32">2026-05-18 更新 · 整体完成度 ~88% · Step 2/3/5 均为伴随式横切层 · 五日内 6 次主线收尾</text>
-    <text class="mono" y="58">关键修正：Step 2 与 Step 3 不属于某一个环节，而是伴随整流程；本轮 SPEC 树工作台 + MiroFish 流式右栏 + 文档质量基线 + 文档导出 + 3D 场景联动 全部闭环。</text>
+    <text class="sub" y="30">2026-05-18 更新 · 整体完成度 ~88% · Step 2/3/5 均为伴随式横切层</text>
+    <text class="mono" y="50">伴随式审查结论：Step 5 全程伴随 OK；Step 2/3 从 route_generation 开始介入，input / clarification 阶段为空白。</text>
   </g>
 
-  <!-- ═══ Step 2: Agent Crew 伴随层 ═══ -->
-  <g transform="translate(64 120)">
-    <rect class="card" width="1712" height="130" rx="24" fill="url(#crewGrad)" stroke="#93c5fd" stroke-width="2"/>
-    <text class="kick" x="24" y="28">Step 2 · 伴随式 Agent Crew（全流程角色层）</text>
-    <text class="pct" x="1600" y="28">95%</text>
-    <text class="sm" x="24" y="52">角色 = Docker + 动态加载 MCP + Skills 的复合代理；scene-fusion 已让 3D 场景里的 PetWorkers 直接绑定 FSD roleId，角色态势可视化打通。</text>
-
-    <g transform="translate(24 68)">
-      <rect width="160" height="48" rx="12" class="done"/><text class="lbl" x="12" y="20">决策者</text><text class="sm" x="12" y="38">目标/风险/仲裁</text>
-    </g>
-    <g transform="translate(200 68)">
-      <rect width="160" height="48" rx="12" class="done"/><text class="lbl" x="12" y="20">规划师</text><text class="sm" x="12" y="38">LLM RouteSet/SPEC</text>
-    </g>
-    <g transform="translate(376 68)">
-      <rect width="160" height="48" rx="12" class="done"/><text class="lbl" x="12" y="20">架构师</text><text class="sm" x="12" y="38">SPEC Tree/文档</text>
-    </g>
-    <g transform="translate(552 68)">
-      <rect width="160" height="48" rx="12" class="done"/><text class="lbl" x="12" y="20">执行者</text><text class="sm" x="12" y="38">Docker/MCP/Skills</text>
-    </g>
-    <g transform="translate(728 68)">
-      <rect width="160" height="48" rx="12" class="done"/><text class="lbl" x="12" y="20">审计员</text><text class="sm" x="12" y="38">一致性/证据</text>
-    </g>
-    <g transform="translate(904 68)">
-      <rect width="160" height="48" rx="12" class="done"/><text class="lbl" x="12" y="20">UI 预演师</text><text class="sm" x="12" y="38">效果预演/提示词</text>
-    </g>
-    <g transform="translate(1080 68)">
-      <rect width="180" height="48" rx="12" class="done"/><text class="lbl" x="12" y="20">记忆管理员</text><text class="sm" x="12" y="38">Replay/Artifact Memory</text>
-    </g>
-    <g transform="translate(1280 68)">
-      <rect width="200" height="48" rx="12" class="done"/><text class="lbl" x="12" y="20">自主 Agent Runtime ✓</text><text class="sm" x="12" y="38">ReAct Loop/ToolProxy/降级</text>
-    </g>
-    <g transform="translate(1500 68)">
-      <rect width="186" height="48" rx="12" class="done"/><text class="lbl" x="12" y="20">Stage Activation ✓</text><text class="sm" x="12" y="38">114/114 · FSD 桥已上线</text>
-    </g>
+  <!-- ══ Step 2: Agent Crew ══ -->
+  <g transform="translate(60 100)">
+    <rect class="card" width="1720" height="150" rx="16" fill="url(#crewGrad)" stroke="#93c5fd" stroke-width="1.5"/>
+    <text class="kick" x="20" y="22">STEP 2 · 伴随式 AGENT CREW（全流程角色层）</text>
+    <text class="pct" x="1620" y="22">95%</text>
+    <text class="sm" x="20" y="42">角色 = Docker + MCP + Skills 复合代理；PetWorkers 直接绑定 FSD roleId，角色态势可视化打通。</text>
+    <text class="warn-text" x="20" y="58">!! 介入盲区：input / clarification 阶段不触发 onStageTransition，角色全部 sleeping；从 route_generation 才激活</text>
+    <g transform="translate(20 72)"><rect width="140" height="44" rx="10" class="done"/><text class="lbl" x="10" y="18">决策者</text><text class="sm" x="10" y="34">目标/风险/仲裁</text></g>
+    <g transform="translate(172 72)"><rect width="140" height="44" rx="10" class="done"/><text class="lbl" x="10" y="18">规划师</text><text class="sm" x="10" y="34">RouteSet/SPEC</text></g>
+    <g transform="translate(324 72)"><rect width="140" height="44" rx="10" class="done"/><text class="lbl" x="10" y="18">架构师</text><text class="sm" x="10" y="34">SPEC Tree/文档</text></g>
+    <g transform="translate(476 72)"><rect width="140" height="44" rx="10" class="done"/><text class="lbl" x="10" y="18">执行者</text><text class="sm" x="10" y="34">Docker/MCP/Skills</text></g>
+    <g transform="translate(628 72)"><rect width="140" height="44" rx="10" class="done"/><text class="lbl" x="10" y="18">审计员</text><text class="sm" x="10" y="34">一致性/证据</text></g>
+    <g transform="translate(780 72)"><rect width="140" height="44" rx="10" class="done"/><text class="lbl" x="10" y="18">UI 预演师</text><text class="sm" x="10" y="34">效果预演/提示词</text></g>
+    <g transform="translate(932 72)"><rect width="160" height="44" rx="10" class="done"/><text class="lbl" x="10" y="18">记忆管理员</text><text class="sm" x="10" y="34">Replay/Artifact</text></g>
+    <g transform="translate(1104 72)"><rect width="180" height="44" rx="10" class="done"/><text class="lbl" x="10" y="18">自主 Agent Runtime</text><text class="sm" x="10" y="34">ReAct/ToolProxy/降级</text></g>
+    <g transform="translate(1296 72)"><rect width="180" height="44" rx="10" class="done"/><text class="lbl" x="10" y="18">Stage Activation</text><text class="sm" x="10" y="34">114/114 · FSD 桥</text></g>
+    <g transform="translate(1488 72)"><rect width="210" height="44" rx="10" class="done"/><text class="lbl" x="10" y="18">Role Container Loader</text><text class="sm" x="10" y="34">Docker+MCP+Skill 装配</text></g>
   </g>
 
-  <!-- ═══ Step 3: 角色能力网络 伴随层 ═══ -->
-  <g transform="translate(64 264)">
-    <rect class="card" width="1712" height="110" rx="24" fill="url(#capGrad)" stroke="#5eead4" stroke-width="2"/>
-    <text class="kick" x="24" y="28">Step 3 · 角色能力网络与沙盒推导（全流程能力层）</text>
-    <text class="pct" x="1600" y="28">90%</text>
-    <text class="sm" x="24" y="52">能力由角色调用，按事件触发；本轮 effect-preview-llm 已合并，capability-bridge-role 132/132，runtime evidence 链路打通。</text>
-
-    <g transform="translate(24 64)">
-      <rect width="150" height="36" rx="10" class="done"/><text class="sm" x="10" y="22">60+ AIGC 节点 ✓</text>
-    </g>
-    <g transform="translate(186 64)">
-      <rect width="150" height="36" rx="10" class="done"/><text class="sm" x="10" y="22">Docker Sandbox ✓</text>
-    </g>
-    <g transform="translate(348 64)">
-      <rect width="150" height="36" rx="10" class="done"/><text class="sm" x="10" y="22">MCP / Skills ✓</text>
-    </g>
-    <g transform="translate(510 64)">
-      <rect width="180" height="36" rx="10" class="done"/><text class="sm" x="10" y="22">GitHub/Browser/SVG 75%</text>
-    </g>
-    <g transform="translate(702 64)">
-      <rect width="200" height="36" rx="10" class="done"/><text class="sm" x="10" y="22">4 条 Bridge 100% ✓</text>
-    </g>
-    <g transform="translate(914 64)">
-      <rect width="200" height="36" rx="10" class="done"/><text class="sm" x="10" y="22">RouteSet LLM 生成 ✓</text>
-    </g>
-    <g transform="translate(1126 64)">
-      <rect width="200" height="36" rx="10" class="done"/><text class="sm" x="10" y="22">Effect Preview LLM ✓</text>
-    </g>
-    <g transform="translate(1338 64)">
-      <rect width="200" height="36" rx="10" class="done"/><text class="sm" x="10" y="22">多角色协同调度 88%</text>
-    </g>
+  <!-- ══ Step 3: 能力网络 ══ -->
+  <g transform="translate(60 264)">
+    <rect class="card" width="1720" height="120" rx="16" fill="url(#capGrad)" stroke="#5eead4" stroke-width="1.5"/>
+    <text class="kick" x="20" y="22">STEP 3 · 角色能力网络与沙盒推导（全流程能力层）</text>
+    <text class="pct" x="1620" y="22">90%</text>
+    <text class="sm" x="20" y="42">能力由角色调用，按事件触发；capability-bridge-role 132/132，runtime evidence 链路打通。</text>
+    <text class="warn-text" x="20" y="58">!! 介入盲区：input 无能力调用；clarification 的 fetchRepoContext 走 HTTP 直调不经 bridge，诊断面板不可见</text>
+    <g transform="translate(20 72)"><rect width="140" height="34" rx="8" class="done"/><text class="sm" x="8" y="20">60+ AIGC 节点</text></g>
+    <g transform="translate(172 72)"><rect width="140" height="34" rx="8" class="done"/><text class="sm" x="8" y="20">Docker Sandbox</text></g>
+    <g transform="translate(324 72)"><rect width="130" height="34" rx="8" class="done"/><text class="sm" x="8" y="20">MCP / Skills</text></g>
+    <g transform="translate(466 72)"><rect width="160" height="34" rx="8" class="done"/><text class="sm" x="8" y="20">GitHub/Browser 75%</text></g>
+    <g transform="translate(638 72)"><rect width="170" height="34" rx="8" class="done"/><text class="sm" x="8" y="20">4 Bridge 100%</text></g>
+    <g transform="translate(820 72)"><rect width="170" height="34" rx="8" class="done"/><text class="sm" x="8" y="20">RouteSet LLM</text></g>
+    <g transform="translate(1002 72)"><rect width="170" height="34" rx="8" class="done"/><text class="sm" x="8" y="20">Effect Preview LLM</text></g>
+    <g transform="translate(1184 72)"><rect width="170" height="34" rx="8" class="done"/><text class="sm" x="8" y="20">多角色协同 88%</text></g>
+    <g transform="translate(1366 72)"><rect width="170" height="34" rx="8" class="done"/><text class="sm" x="8" y="20">SPEC Docs LLM</text></g>
   </g>
 
-  <!-- ═══ Step 5: 3D 运行台 伴随层 ═══ -->
-  <g transform="translate(64 388)">
-    <rect class="card" width="1712" height="100" rx="24" fill="url(#obsGrad)" stroke="#fdba74" stroke-width="2"/>
-    <text class="kick" x="24" y="28">Step 5 · 3D 运行台与观察面联动（全流程伴随式观察层）</text>
-    <text class="pct" x="1600" y="28">85%</text>
-    <text class="sm" x="24" y="52">scene-fusion 4 wave 全部闭环：PetWorkers FSD 角色桥 + MissionIsland 蓝图隐藏 + SceneStageFlow 9 阶段信号 + Scene3D mode/blueprintJob props。</text>
-
-    <g transform="translate(24 64)">
-      <rect width="180" height="28" rx="8" class="done"/><text class="sm" x="10" y="18">时间线自动推进 ✓</text>
-    </g>
-    <g transform="translate(216 64)">
-      <rect width="200" height="28" rx="8" class="done"/><text class="sm" x="10" y="18">3D 角色 FSD 绑定 ✓</text>
-    </g>
-    <g transform="translate(428 64)">
-      <rect width="180" height="28" rx="8" class="done"/><text class="sm" x="10" y="18">9 阶段信号 ✓</text>
-    </g>
-    <g transform="translate(620 64)">
-      <rect width="180" height="28" rx="8" class="prog"/><text class="sm" x="10" y="18">HUD Fleet 实时 80%</text>
-    </g>
-    <g transform="translate(812 64)">
-      <rect width="220" height="28" rx="8" class="done"/><text class="sm" x="10" y="18">日志 / 事件 流式追加 ✓</text>
-    </g>
-    <g transform="translate(1044 64)">
-      <rect width="220" height="28" rx="8" class="done"/><text class="sm" x="10" y="18">realtime-observation-bridge ✓</text>
-    </g>
-    <g transform="translate(1276 64)">
-      <rect width="180" height="28" rx="8" class="done"/><text class="sm" x="10" y="18">Replay Viewer ✓</text>
+  <!-- ══ Step 5: 3D 观察层 ══ -->
+  <g transform="translate(60 398)">
+    <rect class="card" width="1720" height="110" rx="16" fill="url(#obsGrad)" stroke="#fdba74" stroke-width="1.5"/>
+    <text class="kick" x="20" y="22">STEP 5 · 3D 运行台与观察面联动（全流程伴随式观察层）</text>
+    <text class="pct" x="1620" y="22">85%</text>
+    <text class="sm" x="20" y="42">scene-fusion 4 wave 闭环：PetWorkers FSD 桥 + MissionIsland 蓝图隐藏 + SceneStageFlow 9 阶段 + Scene3D mode props</text>
+    <text class="ok-text" x="20" y="58">OK 全程伴随：input 阶段即有 zone trail（mission-leadDesk）+ progress 0%；每阶段实时映射颜色/进度/区域</text>
+    <g transform="translate(20 72)"><rect width="160" height="28" rx="8" class="done"/><text class="sm" x="8" y="18">时间线自动推进</text></g>
+    <g transform="translate(192 72)"><rect width="160" height="28" rx="8" class="done"/><text class="sm" x="8" y="18">3D 角色 FSD 绑定</text></g>
+    <g transform="translate(364 72)"><rect width="150" height="28" rx="8" class="done"/><text class="sm" x="8" y="18">9 阶段信号</text></g>
+    <g transform="translate(526 72)"><rect width="150" height="28" rx="8" class="prog"/><text class="sm" x="8" y="18">HUD Fleet 80%</text></g>
+    <g transform="translate(688 72)"><rect width="180" height="28" rx="8" class="done"/><text class="sm" x="8" y="18">日志/事件流式追加</text></g>
+    <g transform="translate(880 72)"><rect width="200" height="28" rx="8" class="done"/><text class="sm" x="8" y="18">realtime-observation-bridge</text></g>
+    <g transform="translate(1092 72)"><rect width="150" height="28" rx="8" class="done"/><text class="sm" x="8" y="18">Replay Viewer</text></g>
+  </g>
+  <!-- == 主干流程 == -->
+  <g transform="translate(60 524)">
+    <rect class="card" width="1720" height="310" rx="16" fill="#ffffff" stroke="#cbd5e1" stroke-width="1.5"/>
+    <text class="kick" x="20" y="22">全流程生命周期主干流程（STEP 1 - STEP 4）</text>
+    <text class="sm" x="20" y="42">Step 2/3/5 在每个阶段伴随运行；SPEC 树工作台让 spec_tree - spec_docs 在右栏一个卡片内闭环展开。</text>
+    <g transform="translate(20 62)"><rect width="130" height="70" rx="12" fill="#eff6ff" stroke="#93c5fd"/><text class="lbl" x="10" y="20">输入/GitHub</text><text class="pct" x="10" y="42">92%</text><text class="sm" x="10" y="60">目标/仓库/上下文</text></g>
+    <path class="line" d="M160 97 H180" stroke="#2563eb" marker-end="url(#arrowB)"/>
+    <g transform="translate(186 62)"><rect width="130" height="70" rx="12" fill="#eff6ff" stroke="#93c5fd"/><text class="lbl" x="10" y="20">动态澄清</text><text class="pct" x="10" y="42">88%</text><text class="sm" x="10" y="60">策略+LLM问题集</text></g>
+    <path class="line" d="M326 97 H346" stroke="#2563eb" marker-end="url(#arrowB)"/>
+    <g transform="translate(352 62)"><rect width="130" height="70" rx="12" fill="#dcfce7" stroke="#86efac"/><text class="lbl" x="10" y="20">RouteSet</text><text class="pct" x="10" y="42">95%</text><text class="sm" x="10" y="60">LLM生成+回退</text></g>
+    <path class="line" d="M492 97 H512" stroke="#0f766e" marker-end="url(#arrowT)"/>
+    <g transform="translate(518 62)"><rect width="130" height="70" rx="12" fill="#dcfce7" stroke="#86efac"/><text class="lbl" x="10" y="20">SPEC Tree</text><text class="pct" x="10" y="42">92%</text><text class="sm" x="10" y="60">右栏工作台内嵌</text></g>
+    <path class="line" d="M658 97 H678" stroke="#0f766e" marker-end="url(#arrowT)"/>
+    <g transform="translate(684 62)"><rect width="130" height="70" rx="12" fill="#dcfce7" stroke="#86efac"/><text class="lbl" x="10" y="20">规格文档</text><text class="pct" x="10" y="42">92%</text><text class="sm" x="10" y="60">质量基线+导出</text></g>
+    <path class="line" d="M824 97 H844" stroke="#0f766e" marker-end="url(#arrowT)"/>
+    <g transform="translate(850 62)"><rect width="130" height="70" rx="12" fill="#dcfce7" stroke="#86efac"/><text class="lbl" x="10" y="20">效果预演</text><text class="pct" x="10" y="42">78%</text><text class="sm" x="10" y="60">LLM 接入完成</text></g>
+    <path class="line" d="M990 97 H1010" stroke="#0f766e" marker-end="url(#arrowT)"/>
+    <g transform="translate(1016 62)"><rect width="140" height="70" rx="12" fill="#fef3c7" stroke="#fbbf24"/><text class="lbl" x="10" y="20">实现提示词</text><text class="pct-warn" x="10" y="42">62%</text><text class="sm" x="10" y="60">PromptPackage</text></g>
+    <path class="line" d="M1166 97 H1186" stroke="#0f766e" marker-end="url(#arrowT)"/>
+    <g transform="translate(1192 62)"><rect width="160" height="70" rx="12" fill="#fef3c7" stroke="#fbbf24"/><text class="lbl" x="10" y="20">工程落地/Mission</text><text class="pct-warn" x="10" y="42">68%</text><text class="sm" x="10" y="60">Engineering Landing</text></g>
+    <path class="line dash" d="M1352 132 C1352 160 1352 180 1352 200 C1352 220 180 220 180 200 C180 180 180 160 180 132" stroke="#7c3aed"/>
+    <text class="sm" x="600" y="218" fill="#7c3aed">证据回流 Artifact Memory + spec.node_completed / evidence.artifact_created (76%)</text>
+    <g transform="translate(20 240)">
+      <text class="kick">STEP 4 · RouteSet 与 SPEC 资产工厂 — 92%</text>
+      <text class="sm" y="18">RouteSet 95% · SPEC 树+工作台 92% · 文档质量 92% · 文档导出 100% · 下游资产 82% · 事件串联 92%</text>
     </g>
   </g>
 
-  <!-- ═══ 全流程生命周期主干流程 ═══ -->
-  <g transform="translate(64 510)">
-    <rect class="card" width="1712" height="320" rx="24" fill="#ffffff" stroke="#cbd5e1" stroke-width="2"/>
-    <text class="kick" x="24" y="28">全流程生命周期主干流程（Step 1 → Step 4）</text>
-    <text class="sm" x="24" y="50">Step 2/3/5 在每个阶段都伴随运行；本轮 SPEC 树工作台让 spec_tree → spec_docs 在右栏一个卡片内闭环展开。</text>
-
-    <!-- 主干流程节点 -->
-    <g transform="translate(24 72)">
-      <rect width="140" height="80" rx="14" fill="#eff6ff" stroke="#93c5fd"/>
-      <text class="lbl" x="12" y="24">输入/GitHub</text>
-      <text class="pct" x="12" y="48">92%</text>
-      <text class="sm" x="12" y="68">目标/仓库/上下文</text>
-    </g>
-    <path class="line" d="M174 112 H200" stroke="#2563eb" marker-end="url(#arrowB)"/>
-    <g transform="translate(206 72)">
-      <rect width="140" height="80" rx="14" fill="#eff6ff" stroke="#93c5fd"/>
-      <text class="lbl" x="12" y="24">动态澄清</text>
-      <text class="pct" x="12" y="48">88%</text>
-      <text class="sm" x="12" y="68">策略+LLM问题集</text>
-    </g>
-    <path class="line" d="M356 112 H382" stroke="#2563eb" marker-end="url(#arrowB)"/>
-    <g transform="translate(388 72)">
-      <rect width="140" height="80" rx="14" fill="#dcfce7" stroke="#86efac"/>
-      <text class="lbl" x="12" y="24">RouteSet</text>
-      <text class="pct" x="12" y="48">95% ✓</text>
-      <text class="sm" x="12" y="68">LLM真实生成+回退</text>
-    </g>
-    <path class="line" d="M538 112 H564" stroke="#0f766e" marker-end="url(#arrowT)"/>
-    <g transform="translate(570 72)">
-      <rect width="140" height="80" rx="14" fill="#dcfce7" stroke="#86efac"/>
-      <text class="lbl" x="12" y="24">SPEC Tree</text>
-      <text class="pct" x="12" y="48">92%</text>
-      <text class="sm" x="12" y="68">右栏工作台内嵌</text>
-    </g>
-    <path class="line" d="M720 112 H746" stroke="#0f766e" marker-end="url(#arrowT)"/>
-    <g transform="translate(752 72)">
-      <rect width="140" height="80" rx="14" fill="#dcfce7" stroke="#86efac"/>
-      <text class="lbl" x="12" y="24">规格文档</text>
-      <text class="pct" x="12" y="48">92% 🆕</text>
-      <text class="sm" x="12" y="68">质量基线 + 导出</text>
-    </g>
-    <path class="line" d="M902 112 H928" stroke="#0f766e" marker-end="url(#arrowT)"/>
-    <g transform="translate(934 72)">
-      <rect width="140" height="80" rx="14" fill="#dcfce7" stroke="#86efac"/>
-      <text class="lbl" x="12" y="24">效果预演</text>
-      <text class="pct" x="12" y="48">78% 🆕</text>
-      <text class="sm" x="12" y="68">LLM 接入完成</text>
-    </g>
-    <path class="line" d="M1084 112 H1110" stroke="#0f766e" marker-end="url(#arrowT)"/>
-    <g transform="translate(1116 72)">
-      <rect width="160" height="80" rx="14" fill="#fef3c7" stroke="#fbbf24"/>
-      <text class="lbl" x="12" y="24">实现提示词</text>
-      <text class="pct-warn" x="12" y="48">62%</text>
-      <text class="sm" x="12" y="68">PromptPackage/Handoff</text>
-    </g>
-    <path class="line" d="M1286 112 H1312" stroke="#0f766e" marker-end="url(#arrowT)"/>
-    <g transform="translate(1318 72)">
-      <rect width="180" height="80" rx="14" fill="#fef3c7" stroke="#fbbf24"/>
-      <text class="lbl" x="12" y="24">工程落地/Mission</text>
-      <text class="pct-warn" x="12" y="48">68%</text>
-      <text class="sm" x="12" y="68">Engineering Landing ✓</text>
-    </g>
-
-    <!-- 回流箭头 -->
-    <path class="line dash" d="M1498 152 C1498 180 1498 200 1498 220 C1498 240 200 240 200 220 C200 200 200 180 200 152" stroke="#7c3aed"/>
-    <text class="sm" x="700" y="240" fill="#7c3aed">证据回流 Artifact Memory + spec.node_completed / evidence.artifact_created → 反哺下一版 SPEC（76%）</text>
-
-    <!-- Step 4 标注 -->
-    <g transform="translate(24 260)">
-      <text class="kick">Step 4 · RouteSet 与 SPEC 资产工厂 — 92%</text>
-      <text class="sm" y="20">RouteSet 主题色/路线筛选 95% · SPEC 树定型 + 工作台 92% · 文档质量 92% · 文档导出 100% · 下游资产绑定 82% · 事件驱动串联 92%</text>
-    </g>
+  <!-- == 统一事件流 == -->
+  <g transform="translate(60 850)">
+    <rect class="card" width="1720" height="100" rx="16" fill="url(#eventGrad)" stroke="#a78bfa" stroke-width="1.5"/>
+    <text class="kick" x="20" y="22">统一运行时事件总线 · AUTOPILOT RUNTIME EVENT STREAM</text>
+    <text class="pct" x="1620" y="22">92%</text>
+    <text class="sm" x="20" y="42">12 家族事件目录 100% · 事件消费者 88% · 事件存储 92% · 本轮新增 spec.node_completed + evidence.artifact_created</text>
+    <g transform="translate(20 58)"><rect width="200" height="24" rx="10" class="done"/><text class="pill" x="8" y="16" fill="#166534">EventBus 产出 OK</text></g>
+    <g transform="translate(232 58)"><rect width="220" height="24" rx="10" class="done"/><text class="pill" x="8" y="16" fill="#166534">Socket.IO Relay OK</text></g>
+    <g transform="translate(464 58)"><rect width="180" height="24" rx="10" class="done"/><text class="pill" x="8" y="16" fill="#166534">Artifact Memory OK</text></g>
+    <g transform="translate(656 58)"><rect width="180" height="24" rx="10" class="done"/><text class="pill" x="8" y="16" fill="#166534">Replay/Provenance OK</text></g>
+    <g transform="translate(848 58)"><rect width="200" height="24" rx="10" class="done"/><text class="pill" x="8" y="16" fill="#166534">MiroFish 6卡+流式 OK</text></g>
   </g>
 
-  <!-- ═══ 统一事件流 ═══ -->
-  <g transform="translate(64 854)">
-    <rect class="card" width="1712" height="130" rx="24" fill="url(#eventGrad)" stroke="#a78bfa" stroke-width="2"/>
-    <text class="kick" x="24" y="28">统一运行时事件总线 · Autopilot Runtime Event Stream</text>
-    <text class="pct" x="1600" y="28">92%</text>
-    <text class="sm" x="24" y="52">clarification.* / sandbox.* / crew.* / role.* / capability.* / route.* / spec.* / preview.* / prompt.* / mission.* / evidence.* / scene.* / hud.* / browser.*</text>
-    <text class="sm" x="24" y="72">12 家族事件目录 100% · 事件消费者 88% · 事件存储 92% · 本轮新增 spec.node_completed + evidence.artifact_created</text>
-
-    <g transform="translate(24 92)">
-      <rect width="240" height="24" rx="10" class="done"/><text class="pill" x="10" y="16" fill="#166534">事件产出（服务端 eventBus）✓</text>
-    </g>
-    <g transform="translate(280 92)">
-      <rect width="280" height="24" rx="10" class="done"/><text class="pill" x="10" y="16" fill="#166534">Socket.IO Relay → 前端 Store ✓</text>
-    </g>
-    <g transform="translate(576 92)">
-      <rect width="200" height="24" rx="10" class="done"/><text class="pill" x="10" y="16" fill="#166534">Artifact Memory ✓</text>
-    </g>
-    <g transform="translate(792 92)">
-      <rect width="200" height="24" rx="10" class="done"/><text class="pill" x="10" y="16" fill="#166534">Replay / Provenance ✓</text>
-    </g>
-    <g transform="translate(1008 92)">
-      <rect width="240" height="24" rx="10" class="done"/><text class="pill" x="10" y="16" fill="#166534">MiroFish 6 卡 + 流式增量 ✓</text>
-    </g>
+  <!-- == 4 层模型 == -->
+  <g transform="translate(60 966)">
+    <rect class="card" width="1720" height="60" rx="14" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5"/>
+    <text class="kick" x="20" y="20">4 层统一模型 — 93%</text>
+    <g transform="translate(20 34)"><rect width="160" height="20" rx="8" class="done"/><text class="pill" x="8" y="14" fill="#166534">Role 95%</text></g>
+    <g transform="translate(192 34)"><rect width="220" height="20" rx="8" class="done"/><text class="pill" x="8" y="14" fill="#166534">Capability 95% (4 bridge 100%)</text></g>
+    <g transform="translate(424 34)"><rect width="200" height="20" rx="8" class="done"/><text class="pill" x="8" y="14" fill="#166534">Stage 90% (114/114)</text></g>
+    <g transform="translate(636 34)"><rect width="160" height="20" rx="8" class="done"/><text class="pill" x="8" y="14" fill="#166534">Event 92%</text></g>
+    <g transform="translate(808 34)"><rect width="160" height="20" rx="8" class="done"/><text class="pill" x="8" y="14" fill="#166534">FSD Role ID OK</text></g>
   </g>
 
-  <!-- ═══ 4 层统一模型 ═══ -->
-  <g transform="translate(64 1008)">
-    <rect class="card" width="1712" height="80" rx="20" fill="#ffffff" stroke="#e2e8f0" stroke-width="2"/>
-    <text class="kick" x="24" y="28">4 层统一模型 — 93%</text>
-    <g transform="translate(24 44)">
-      <rect width="200" height="24" rx="10" class="done"/><text class="pill" x="10" y="16" fill="#166534">Role 角色 95%</text>
-    </g>
-    <g transform="translate(240 44)">
-      <rect width="280" height="24" rx="10" class="done"/><text class="pill" x="10" y="16" fill="#166534">Capability 能力 95%（4 bridge 100%）</text>
-    </g>
-    <g transform="translate(536 44)">
-      <rect width="240" height="24" rx="10" class="done"/><text class="pill" x="10" y="16" fill="#166534">Stage 阶段 90%（114/114）</text>
-    </g>
-    <g transform="translate(792 44)">
-      <rect width="200" height="24" rx="10" class="done"/><text class="pill" x="10" y="16" fill="#166534">Event 事件 92%</text>
-    </g>
-    <g transform="translate(1008 44)">
-      <rect width="200" height="24" rx="10" class="done"/><text class="pill" x="10" y="16" fill="#166534">FSD Role ID 桥 ✓</text>
-    </g>
+  <!-- == 目标闭环 == -->
+  <g transform="translate(60 1042)">
+    <rect class="card" width="1720" height="60" rx="14" fill="#0f172a" stroke="#1e293b" stroke-width="1.5"/>
+    <text class="kick" x="20" y="22" fill="#94a3b8">目标闭环：从推演到执行落地 — 80%</text>
+    <text class="bd" x="20" y="44" fill="#e2e8f0">输入-RouteSet-SPEC Tree-规格文档 95% · 效果预演-提示词-工程落地 70% · 证据回流+SPEC演化 76% · 文档导出(md/zip) OK</text>
   </g>
 
-  <!-- ═══ 目标闭环 ═══ -->
-  <g transform="translate(64 1110)">
-    <rect class="card" width="1712" height="80" rx="20" fill="#0f172a" stroke="#1e293b" stroke-width="2"/>
-    <text class="kick" x="24" y="28" fill="#94a3b8">目标闭环：从推演未来到执行落地 — 80%</text>
-    <text class="bd" x="24" y="56" fill="#e2e8f0">输入→RouteSet→SPEC Tree→规格文档 95% · 效果预演→实现提示词→工程落地 70% · 证据回流+SPEC演化 76% · 文档可导出（md / zip 三颗粒度）✓</text>
+  <!-- == 伴随式介入矩阵 == -->
+  <g transform="translate(60 1120)">
+    <rect class="card" width="1720" height="200" rx="16" fill="#ffffff" stroke="#94a3b8" stroke-width="1.5"/>
+    <text class="kick" x="20" y="24">伴随式介入矩阵 — STEP 2/3/5 在 STEP 1 与 STEP 4 各阶段的真实介入情况</text>
+    <text class="sm" x="20" y="44">审查方法：追踪 onStageTransition hook + capability.invoked 事件 + SceneStageFlow zone 映射</text>
+    <!-- 表头 -->
+    <text class="lbl" x="20" y="70">阶段</text>
+    <text class="lbl" x="200" y="70">Step 2 Agent Crew</text>
+    <text class="lbl" x="560" y="70">Step 3 能力网络</text>
+    <text class="lbl" x="1020" y="70">Step 5 3D 观察层</text>
+    <!-- 分隔线 -->
+    <line x1="20" y1="76" x2="1700" y2="76" stroke="#e2e8f0" stroke-width="1"/>
+    <!-- input -->
+    <text class="sm" x="20" y="96">input</text>
+    <text class="warn-text" x="200" y="96">X 不触发</text>
+    <text class="warn-text" x="560" y="96">X 无调用</text>
+    <text class="ok-text" x="1020" y="96">OK zone mission-leadDesk / 0%</text>
+    <!-- clarification -->
+    <text class="sm" x="20" y="118">clarification</text>
+    <text class="warn-text" x="200" y="118">X 不触发</text>
+    <text class="sm" x="560" y="118" fill="#d97706">!! fetchRepoContext HTTP 直调（不经 bridge）</text>
+    <text class="ok-text" x="1020" y="118">OK zone leadDesk-podA / 11%</text>
+    <!-- route_generation -->
+    <text class="sm" x="20" y="140">route_generation</text>
+    <text class="ok-text" x="200" y="140">OK onStageTransition 触发，角色激活</text>
+    <text class="ok-text" x="560" y="140">OK 4 条 bridge 全量调用</text>
+    <text class="ok-text" x="1020" y="140">OK zone leadDesk-podA-podB / 22%</text>
+    <!-- spec_tree / spec_docs / effect_preview -->
+    <text class="sm" x="20" y="162">spec_tree / spec_docs / effect_preview</text>
+    <text class="ok-text" x="200" y="162">OK 每个子阶段都触发 hook</text>
+    <text class="ok-text" x="560" y="162">OK LLM 能力调用 + evidence 回填</text>
+    <text class="ok-text" x="1020" y="162">OK zone 逐段推进 44%-56%-67%</text>
+    <!-- prompt_packaging / engineering -->
+    <text class="sm" x="20" y="184">prompt_packaging / engineering</text>
+    <text class="ok-text" x="200" y="184">OK hook 触发</text>
+    <text class="ok-text" x="560" y="184">OK LLM + Handoff</text>
+    <text class="ok-text" x="1020" y="184">OK zone podD-lounge-mission / 78%-100%</text>
   </g>
 
-  <!-- ═══ 5 日内闭环增量 ═══ -->
-  <g transform="translate(64 1212)">
-    <rect class="card" width="1712" height="240" rx="20" fill="#eff6ff" stroke="#93c5fd" stroke-width="2"/>
-    <text class="kick" x="24" y="28">2026-05-14 → 2026-05-18 五日内主线收尾增量</text>
-    <g transform="translate(24 50)">
-      <text class="lbl" y="0">✅ autopilot-routeset-llm-generation</text><text class="sm" x="420" y="0">RouteSet 走真实 LLM 生成 + 模板回退 · 5-13 → 5-17 闭环</text>
-    </g>
-    <g transform="translate(24 70)">
-      <text class="lbl" y="0">✅ autopilot-capability-bridge-role（132/132）</text><text class="sm" x="420" y="0">Step 3 角色能力网络核心桥 100% 落地，含 E2E + evidence 回填</text>
-    </g>
-    <g transform="translate(24 90)">
-      <text class="lbl" y="0">✅ autopilot-effect-preview-llm</text><text class="sm" x="420" y="0">效果预演节点接入 LLM，去模板化</text>
-    </g>
-    <g transform="translate(24 110)">
-      <text class="lbl" y="0">✅ autopilot-fabric-streaming-timeline + streaming-experience（9 specs）</text><text class="sm" x="420" y="0">右栏时间线自动推进 + Wave 0/1/2 流式事件 + spec.node_completed + evidence.artifact_created</text>
-    </g>
-    <g transform="translate(24 130)">
-      <text class="lbl" y="0">✅ autopilot-mirofish-stream（18/18）</text><text class="sm" x="420" y="0">右栏 MiroFish 流式卡片：6 类卡 + 主组件 + 中英文 i18n 翻译表</text>
-    </g>
-    <g transform="translate(24 150)">
-      <text class="lbl" y="0">✅ autopilot-spec-tree-workbench</text><text class="sm" x="420" y="0">spec_tree 卡片内嵌完整生命周期：CTA + 行展开 + 文档预览（H2 + 3 行段落）+ chip</text>
-    </g>
-    <g transform="translate(24 170)">
-      <text class="lbl" y="0">✅ autopilot-scene-fusion（Wave A-D）</text><text class="sm" x="420" y="0">PetWorkers FSD roleId 桥 / MissionIsland 蓝图隐藏 / SceneStageFlow 9 阶段 / Scene3D mode/blueprintJob props</text>
-    </g>
-    <g transform="translate(24 190)">
-      <text class="lbl" y="0">✅ autopilot-llm-spec-generation Quality Uplift Wave</text><text class="sm" x="420" y="0">SPEC 三段 markdown 对齐 ai-enabled-sandbox：H2 + EARS + Mermaid + TS interface + ≥3 Validates 属性</text>
-    </g>
-    <g transform="translate(24 210)">
-      <text class="lbl" y="0">✅ autopilot-spec-document-export 🆕 今日</text><text class="sm" x="420" y="0">SPEC 文档导出 md / zip 三颗粒度 + RFC 5987 中文 filename + MANIFEST.json + 同名碰撞处理</text>
-    </g>
+  <!-- == 5 日增量 == -->
+  <g transform="translate(60 1336)">
+    <rect class="card" width="1720" height="220" rx="16" fill="#eff6ff" stroke="#93c5fd" stroke-width="1.5"/>
+    <text class="kick" x="20" y="22">2026-05-14 - 2026-05-18 五日内主线收尾增量</text>
+    <text class="sm" x="20" y="44">OK autopilot-routeset-llm-generation — RouteSet 走真实 LLM 生成 + 模板回退</text>
+    <text class="sm" x="20" y="62">OK autopilot-capability-bridge-role (132/132) — Step 3 角色能力网络核心桥 100%</text>
+    <text class="sm" x="20" y="80">OK autopilot-effect-preview-llm — 效果预演节点接入 LLM</text>
+    <text class="sm" x="20" y="98">OK autopilot-fabric-streaming-timeline + streaming-experience (9 specs) — 右栏时间线自动推进</text>
+    <text class="sm" x="20" y="116">OK autopilot-mirofish-stream (18/18) — 右栏 MiroFish 流式卡片 6 类卡 + i18n</text>
+    <text class="sm" x="20" y="134">OK autopilot-spec-tree-workbench — spec_tree 卡片内嵌完整生命周期</text>
+    <text class="sm" x="20" y="152">OK autopilot-scene-fusion (Wave A-D) — PetWorkers FSD / MissionIsland / SceneStageFlow / Scene3D</text>
+    <text class="sm" x="20" y="170">OK autopilot-llm-spec-generation Quality Uplift — SPEC 三段 markdown 对齐 ai-enabled-sandbox</text>
+    <text class="sm" x="20" y="188">OK autopilot-spec-document-export — SPEC 文档导出 md/zip 三颗粒度 + RFC 5987 中文 filename</text>
+    <text class="sm" x="20" y="206">OK blueprint-routes mock counter fix — isSpecDocumentsCall 正则收窄，74/74 全绿</text>
   </g>
 
-  <!-- ═══ 整体完成度 ═══ -->
-  <g transform="translate(64 1476)">
-    <rect class="card" width="1712" height="120" rx="20" fill="#0f172a" stroke="#1e293b" stroke-width="2"/>
-    <text class="kick" x="24" y="28" fill="#94a3b8">整体完成度</text>
-    <text class="title" x="24" y="68" fill="#4ade80">~88%</text>
-    <text class="sub" x="160" y="68" fill="#e2e8f0">Step 2: 95% · Step 3: 90% · Step 4: 92% · Step 5: 85% · 主干流程: 88% · 事件总线: 92% · 4层模型: 93% · 目标闭环: 80%</text>
-    <text class="sm" x="24" y="92" fill="#94a3b8">五日内 6 次主线收尾，SPEC-first 路径已基本贯穿；剩余主要是实现提示词 → 工程落地的端到端自动化串联。</text>
-    <text class="sm" x="24" y="108" fill="#94a3b8">TS 基线保持 116 不变（与 5-13 完全一致）· 5140+ 既有测试零回归 · 新增测试均使用 react-dom/server SSR + vi.mock 模式</text>
+  <!-- == 整体完成度 == -->
+  <g transform="translate(60 1572)">
+    <rect class="card" width="1720" height="100" rx="16" fill="#0f172a" stroke="#1e293b" stroke-width="1.5"/>
+    <text class="kick" x="20" y="24" fill="#94a3b8">整体完成度</text>
+    <text class="title" x="20" y="58" fill="#4ade80">~88%</text>
+    <text class="sub" x="140" y="58" fill="#e2e8f0">Step 2: 95% · Step 3: 90% · Step 4: 92% · Step 5: 85% · 主干: 88% · 事件: 92% · 4层: 93% · 闭环: 80%</text>
+    <text class="sm" x="20" y="82" fill="#94a3b8">TS 116 不变 · 5140+ 测试零回归 · 右栏 3D/HUD step 已移除（收为 2 步）· 新增测试均 react-dom/server SSR + vi.mock</text>
+  </g>
+
+  <!-- == 下一步建议 == -->
+  <g transform="translate(60 1688)">
+    <rect class="card" width="1720" height="120" rx="16" fill="#fefce8" stroke="#fbbf24" stroke-width="1.5"/>
+    <text class="kick" x="20" y="22">下一步建议（基于伴随式审查结论）</text>
+    <text class="sm" x="20" y="44">1. 在 input 阶段也触发一次 onStageTransition，让「决策者」角色在输入阶段就显示为 active（Step 2 盲区修复）</text>
+    <text class="sm" x="20" y="62">2. 把 clarification 阶段的 fetchRepoContext 包装成 mcp-github-source bridge 调用（Step 3 盲区修复，可选）</text>
+    <text class="sm" x="20" y="80">3. 实现提示词 PromptPackage 62% - 工程落地 68%：端到端自动化串联是剩余主要工作</text>
+    <text class="sm" x="20" y="98">4. HUD Fleet 实时 80%：补齐角色状态实时同步到 3D 场景的最后 20%</text>
   </g>
 </svg>
