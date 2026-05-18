@@ -42,6 +42,15 @@ pnpm run dev:all        # 全栈：前端 + 服务端 + 执行器
 
 ---
 
+## 产品界面一览
+
+| | |
+|---|---|
+| ![Cube Pets Office 界面截图 A](./docs/assets/A.png) | ![Cube Pets Office 界面截图 B](./docs/assets/B.png) |
+| ![Cube Pets Office 界面截图 D](./docs/assets/D.png) | ![Cube Pets Office 界面截图 C](./docs/assets/C.png) |
+
+---
+
 # 它是什么？
 
 Cube Pets Office 是一个开源的 **AI 产品预演引擎**。输入一句话想法，它为你推演出完整的产品方案 —— 规格文档、系统架构、路线规划、提示词包、效果预览 —— 全程可见、全部可导出、全部有证据留痕。
