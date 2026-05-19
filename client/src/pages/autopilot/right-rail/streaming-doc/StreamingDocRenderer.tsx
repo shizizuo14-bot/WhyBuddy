@@ -865,7 +865,7 @@ export const StreamingDocRenderer: FC<StreamingDocRendererProps> = ({
         {/* 头部：当前文档标题 + 类型徽章 + 流式状态 */}
         {activeDocMeta && (
           <header
-            className="flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-2"
+            className="flex items-center gap-2 border-b border-slate-200 bg-white px-2 py-1.5"
             data-testid="streaming-doc-main-header"
             style={{ minWidth: 0 }}
           >
@@ -936,14 +936,14 @@ export const StreamingDocRenderer: FC<StreamingDocRendererProps> = ({
         >
           {isEmpty ? (
             <div
-              className="flex h-full items-center justify-center px-4 text-xs text-slate-500"
+              className="flex h-full items-center justify-center px-2 text-xs text-slate-500"
               data-testid="streaming-doc-empty"
             >
               {emptyHint}
             </div>
           ) : (
             <div
-              className="px-4 py-4 text-xs leading-relaxed text-slate-700"
+              className="px-2 py-2 text-xs leading-relaxed text-slate-700"
               data-testid="streaming-doc-body"
               data-streaming-doc-body
               data-is-streaming={

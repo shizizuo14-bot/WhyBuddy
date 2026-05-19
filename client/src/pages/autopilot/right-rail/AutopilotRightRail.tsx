@@ -173,7 +173,7 @@ function ActiveNodeContent({
   const isSpecTreeStage = subStage === "spec_tree";
 
   return (
-    <div className="space-y-3">
+    <div className="px-2 py-1.5 space-y-2">
       <div className="font-mono text-[10px] text-slate-400">
         {summary.apiPath}
       </div>
