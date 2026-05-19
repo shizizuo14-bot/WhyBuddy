@@ -72,7 +72,7 @@ const StageHeader: FC<StageHeaderProps> = ({
   const stepNumber = String(stageIndex + 1).padStart(2, "0");
 
   return (
-    <header className="sticky top-0 z-10 bg-slate-50 border-b border-slate-100 px-2 py-1">
+    <header className="sticky top-0 z-10 bg-slate-50 border-b border-slate-100 px-3 py-2">
       {/* 英文步骤标识 */}
       <p
         className={`font-mono text-[10px] uppercase tracking-wider ${
