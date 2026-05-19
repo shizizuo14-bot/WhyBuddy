@@ -480,7 +480,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
       data-testid="autopilot-right-rail"
       data-autopilot-stage={currentStage}
       data-autopilot-sub-stage={activeSubStage ?? ""}
-      className="flex h-full flex-col px-3 py-3 gap-2"
+      className="flex h-full flex-col"
       style={{
         // 硬约束 aside 宽度。父级是 grid track minmax(0, 2fr)，正常情况下
         // 应该自然限制宽度，但右栏内部多层 flex / motion.div / overflow 嵌套
