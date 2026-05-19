@@ -144,9 +144,15 @@ describe("AutopilotRightRail streaming timeline", () => {
     expect(markup).toContain('data-stage-key="spec_documents"');
     // StreamingDocRenderer 占据 StageContent 主区域
     expect(markup).toContain('data-testid="streaming-doc-renderer"');
-    // 多份 SpecDocument 透传给 DocTabBar，按 artifact payload.id 渲染 tab
-    expect(markup).toContain('data-testid="streaming-doc-tab-doc-req"');
-    expect(markup).toContain('data-testid="streaming-doc-tab-doc-design"');
+    // 重构后侧边栏分组按 nodeId 渲染（替代旧的 DocTabBar 横向 tab），
+    // 每份 SpecDocument 在分组展开后通过 streaming-doc-sidebar-doc-* 暴露
+    expect(markup).toContain(
+      'data-testid="streaming-doc-sidebar-group-node-root"'
+    );
+    expect(markup).toContain('data-testid="streaming-doc-sidebar-doc-doc-req"');
+    expect(markup).toContain(
+      'data-testid="streaming-doc-sidebar-doc-doc-design"'
+    );
     // 不再走 SpecTreeWorkbench 分支
     expect(markup).not.toContain('data-testid="spec-tree-workbench"');
   });

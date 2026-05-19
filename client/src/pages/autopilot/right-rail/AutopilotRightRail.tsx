@@ -565,6 +565,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
               <StreamingDocRenderer
                 entries={reasoningEntries}
                 specDocuments={extractSpecDocuments(props.job)}
+                specTree={props.specTree}
                 locale={locale}
               />
             </div>

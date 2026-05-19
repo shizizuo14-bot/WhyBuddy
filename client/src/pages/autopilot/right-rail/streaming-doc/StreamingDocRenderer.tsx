@@ -1,27 +1,36 @@
 /**
- * `autopilot-streaming-doc-renderer` — Wave 0 / Task 1.1 + 1.2 +
- * Wave 1 / Task 2.1, 2.3, 3.1, 3.2
+ * `autopilot-streaming-doc-renderer` — 全新 2 栏布局版本
  *
- * 流式文档渲染主容器。
+ * 流式文档渲染主容器（全新 IA）。
  *
- * 该组件消费来自 `useBlueprintRealtimeStore.agentReasoning.entries` 中阶段
- * 为 `spec_documents`、内容类型为 `content` 的增量片段，将其按 `documentId`
- * 分组，维护多文档状态，并把当前活跃文档的 Markdown 字符串交给
- * `MarkdownRenderer` 进行格式化展示，尾部叠加 `StreamCursor` 闪烁光标。
+ * 历史背景：之前使用 `DocTabBar` 横向标签栏展示多文档，但当 SPEC 树有
+ * `~50` 个节点 × `3` 类文档（Requirements / Design / Tasks）= `150+` 文档时，
+ * 横向 tab 总宽度超过 `15000px`，无法横向滚动且 UX 极差。
  *
- * 关键边界：
- * - 只读消费 entries，不写 store，不直接订阅 socket。
+ * 新设计：
+ * - 左侧 `200px` 固定宽度侧边栏：搜索框 + 节点折叠树
+ *   - 一级：SPEC 节点（按 `nodeId` 分组）
+ *   - 二级：3 类文档（带类型徽章 `需 / 设 / 任`）
+ *   - 当前 active 文档：indigo 高亮 + 左侧 2px 竖条
+ *   - 流式生成中：右侧蓝色脉冲圆点
+ * - 右侧主区：当前文档头部（标题 + 类型徽章 + 流式状态） + 可滚动 markdown
+ * - 实时生成但尚未落库的文档（`documentId === "default"` 等）放在侧边栏顶部
+ *   "实时生成" 分组中
+ * - 搜索时自动展开匹配的节点
+ *
+ * 设计约束：
  * - 不引入 `@testing-library/react`，所有验证依赖纯函数 + SSR 渲染。
- * - 不扩大 TS 基线 116 errors：所有字段读取走显式 narrow，禁止使用 `any`。
- * - 右栏背景为白色，需要使用浅色主题（`bg-slate-50 / text-slate-700`），
- *   不允许出现 `bg-white/5 / text-white/*` 等深色毛玻璃语义（详见 design.md
- *   样式方案的浅色翻译）。
+ * - 不扩大 TS 基线 117 errors。
+ * - 浅色主题：右栏底色为白色，使用 `bg-slate-50 / text-slate-700` 等浅色
+ *   语义；不允许出现 `bg-white/5 / text-white/*` 等深色毛玻璃语义。
+ * - 宽度硬约束：每一层都使用 inline style `width: 100%, maxWidth: 100%,
+ *   minWidth: 0, boxSizing: border-box`，杜绝 flex item `min-width: auto =
+ *   min-content` 把容器撑出 grid track。
  *
- * 与 `MarkdownRenderer` / `StreamCursor` 的协作：
- * - 当前 active 文档的 `rawMarkdown` 直接交给 `MarkdownRenderer`，由其
- *   完成 token 切分与 React 渲染；
- * - `StreamCursor` 仅在该文档 `isStreaming === true` 时渲染，承担"光标
- *   仅在末尾闪烁"的视觉职责，与 Markdown block 解耦。
+ * 与 reducer 的协作：
+ * - `streamingDocsReducer` / `appendChunkReducer` / `pickChunk` 等纯函数
+ *   逻辑保持不变，仅替换可视化层。
+ * - 测试导入的 `__testing__` 命名空间维持不变，不破坏现有测试契约。
  */
 
 import {
@@ -36,13 +45,16 @@ import {
 } from "react";
 
 import type { AppLocale } from "@/lib/locale";
+import { cn } from "@/lib/utils";
 import type { AgentReasoningEntry } from "@shared/blueprint/agent-reasoning";
-import type { BlueprintSpecDocument } from "@shared/blueprint/contracts";
+import type {
+  BlueprintSpecDocument,
+  BlueprintSpecDocumentType,
+  BlueprintSpecTree,
+} from "@shared/blueprint/contracts";
 
-import { MarkdownRenderer, extractHeadings } from "./MarkdownRenderer";
+import { MarkdownRenderer } from "./MarkdownRenderer";
 import { StreamCursor } from "./StreamCursor";
-import { DocOutline } from "./DocOutline";
-import { DocTabBar, type DocTabBarItem } from "./DocTabBar";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -51,14 +63,16 @@ import { DocTabBar, type DocTabBarItem } from "./DocTabBar";
 /**
  * `StreamingDocRenderer` 的对外 props。
  *
- * 与设计文档「关键接口」一节保持一致；`specDocuments` 是 socket 推送结束后
- * 已落库的稳定文档列表，用于在流式生成结束后回填完整 Markdown。
+ * 与设计文档「关键接口」一节保持一致；新增 `specTree` 用于把 `nodeId` 映射
+ * 到节点 `title`，让侧边栏展示节点中文标题而不是裸 UUID。
  */
 export interface StreamingDocRendererProps {
   /** 当前 job 的 spec documents entries（已包含全部阶段，组件内部再过滤）。 */
   entries: AgentReasoningEntry[];
   /** 已完成的 SpecDocument 对象（用于静态展示已完成文档）。 */
   specDocuments?: BlueprintSpecDocument[];
+  /** SPEC 树，用于将 `nodeId` 解析为节点中文标题。 */
+  specTree?: BlueprintSpecTree | null;
   locale: AppLocale;
 }
 
@@ -66,15 +80,6 @@ export interface StreamingDocRendererProps {
 // 状态层：StreamingState + reducer
 // ---------------------------------------------------------------------------
 
-/**
- * 单个文档的流式渲染状态。
- *
- * - `rawMarkdown`：累积的完整 Markdown 字符串，每次新 chunk 拼接到末尾。
- * - `parsedTokens`：Task 2.1 的 token 缓存位，当前先用空数组占位。
- * - `lastParsedLength`：上次解析到的字符位置，用于 Task 2.1 做 token-level
- *   增量解析；当前与 `rawMarkdown.length` 同步，但保留独立字段避免 2.1
- *   再次扩字段时造成结构变更。
- */
 export interface StreamingDocState {
   rawMarkdown: string;
   parsedTokens: readonly unknown[];
@@ -83,9 +88,7 @@ export interface StreamingDocState {
 }
 
 interface StreamingDocsReducerState {
-  /** documentId → 单文档状态。使用 Record 而非 Map 以便受控比较与 SSR。 */
   documents: Record<string, StreamingDocState>;
-  /** 已知文档顺序，用于 DocTabBar 顺序稳定。 */
   documentIds: readonly string[];
 }
 
@@ -116,12 +119,6 @@ const INITIAL_REDUCER_STATE: StreamingDocsReducerState = {
   documentIds: [],
 };
 
-/**
- * 仅追加：把 chunk 拼接到指定文档末尾，保证幂等的字符串累积语义。
- *
- * 当 `chunk` 为空字符串时跳过状态更新，避免触发不必要的 re-render；
- * 当文档此前不存在时，自动注册到 `documentIds` 末尾。
- */
 function appendChunkReducer(
   state: StreamingDocsReducerState,
   documentId: string,
@@ -182,16 +179,6 @@ function streamingDocsReducer(
 // Entries → chunks 派生
 // ---------------------------------------------------------------------------
 
-/**
- * `AgentReasoningEntry` 上 spec documents 流式 chunk 的扩展形态。
- *
- * 设计文档原文：`filter(e => e.stage === 'spec_documents' && e.type === 'content')
- * → groupBy documentId`。当前 `AgentReasoningEntry` 顶层并没有 `stage` /
- * `type` / `documentId` / `chunk` 字段（参见 `shared/blueprint/agent-reasoning.ts`），
- * 但服务端 emitter 在 stage_id = `spec_documents` 时会通过 payload 透传这些
- * 语义字段。我们使用 intersection 类型只读地 narrow，向后兼容上游字段尚未
- * 落地的时间窗口（task 2.1 会真正消费 `chunk`，此处先留出 hook）。
- */
 type SpecDocumentEntry = AgentReasoningEntry & {
   stage?: unknown;
   type?: unknown;
@@ -217,19 +204,6 @@ function pickString(value: unknown): string | undefined {
   return value;
 }
 
-/**
- * 判断条目是否属于 spec documents 阶段的 content chunk。
- *
- * 兼容三种来源：
- * 1. 顶层 `entry.stage === 'spec_documents'` 与 `entry.type === 'content'`
- *    （设计文档原口径）。
- * 2. 顶层 `entry.stageId === 'spec_documents'`（`AgentReasoningEntry` 实际
- *    字段名，由 `agent-reasoning-bridge` 翻译时映射）。
- * 3. `entry.payload.stage === 'spec_documents'` & `payload.type === 'content'`
- *    （`stage-progress-emitter` 直发事件的常见 payload 形态）。
- *
- * 兼容历史 stage 名 `spec_docs`（参见 `parse-spec-docs-observing.ts`）。
- */
 export function isSpecDocumentContentEntry(
   entry: AgentReasoningEntry
 ): boolean {
@@ -245,20 +219,13 @@ export function isSpecDocumentContentEntry(
     return false;
   }
   const type =
-    pickString(extended.type) ??
-    pickString(extended.payload?.type);
-  // 当上游尚未补 `type` 字段时（兼容窗口），保留向前兼容：只要 stage 命中
-  // spec documents 即视为可投递；Task 2.1 会进一步收口为严格 `content`。
+    pickString(extended.type) ?? pickString(extended.payload?.type);
   if (type !== undefined && type !== CONTENT_TYPE) {
     return false;
   }
   return true;
 }
 
-/**
- * 从 entry 中提取 documentId；缺失时退化为 `DEFAULT_DOCUMENT_ID`，与设计
- * 文档「filter ... groupBy(e => e.documentId || 'default')」保持一致。
- */
 export function pickDocumentId(entry: AgentReasoningEntry): string {
   const extended = entry as SpecDocumentEntry;
   return (
@@ -268,11 +235,6 @@ export function pickDocumentId(entry: AgentReasoningEntry): string {
   );
 }
 
-/**
- * 从 entry 中提取本次 chunk 文本；当 entry 没有携带 `chunk` 时退回
- * `observationSummary` / `thought`，保证流式骨架在 Task 2.1 落地前不至于
- * 完全空白（仅作为占位，UI 将在 Task 2.1 替换为真正的 Markdown 渲染）。
- */
 export function pickChunk(entry: AgentReasoningEntry): string {
   const extended = entry as SpecDocumentEntry;
   return (
@@ -293,7 +255,7 @@ function deriveDocumentTitle(
   specDocuments: readonly BlueprintSpecDocument[] | undefined,
   locale: AppLocale
 ): string {
-  const matched = specDocuments?.find((doc) => doc.id === documentId);
+  const matched = specDocuments?.find(doc => doc.id === documentId);
   if (matched && typeof matched.title === "string" && matched.title.length > 0) {
     return matched.title;
   }
@@ -304,39 +266,115 @@ function deriveDocumentTitle(
 }
 
 // ---------------------------------------------------------------------------
+// 节点分组
+// ---------------------------------------------------------------------------
+
+interface DocGroup {
+  nodeId: string;
+  nodeTitle: string;
+  documents: BlueprintSpecDocument[];
+}
+
+const TYPE_ORDER: Record<BlueprintSpecDocumentType, number> = {
+  requirements: 0,
+  design: 1,
+  tasks: 2,
+};
+
+/**
+ * 把 specDocuments 按 nodeId 分组，并使用 specTree 把 nodeId 解析为节点
+ * 中文标题。组内文档按 requirements → design → tasks 顺序排序。
+ */
+function groupDocumentsByNode(
+  documents: readonly BlueprintSpecDocument[],
+  nodeTitleByNodeId: ReadonlyMap<string, string>
+): DocGroup[] {
+  const map = new Map<string, DocGroup>();
+  for (const doc of documents) {
+    const existing = map.get(doc.nodeId);
+    if (existing) {
+      existing.documents.push(doc);
+    } else {
+      map.set(doc.nodeId, {
+        nodeId: doc.nodeId,
+        nodeTitle: nodeTitleByNodeId.get(doc.nodeId) ?? doc.nodeId,
+        documents: [doc],
+      });
+    }
+  }
+  for (const group of map.values()) {
+    group.documents.sort(
+      (a, b) =>
+        (TYPE_ORDER[a.type] ?? 99) - (TYPE_ORDER[b.type] ?? 99)
+    );
+  }
+  return Array.from(map.values());
+}
+
+// ---------------------------------------------------------------------------
+// 类型徽章
+// ---------------------------------------------------------------------------
+
+interface TypeBadgeStyle {
+  shortLabel: string;
+  fullLabel: string;
+  className: string;
+}
+
+function getTypeBadge(
+  type: BlueprintSpecDocumentType,
+  locale: AppLocale
+): TypeBadgeStyle {
+  const isZh = locale === "zh-CN";
+  switch (type) {
+    case "requirements":
+      return {
+        shortLabel: isZh ? "需" : "REQ",
+        fullLabel: isZh ? "需求" : "Requirements",
+        className: "bg-indigo-100 text-indigo-700",
+      };
+    case "design":
+      return {
+        shortLabel: isZh ? "设" : "DSG",
+        fullLabel: isZh ? "设计" : "Design",
+        className: "bg-emerald-100 text-emerald-700",
+      };
+    case "tasks":
+      return {
+        shortLabel: isZh ? "任" : "TSK",
+        fullLabel: isZh ? "任务" : "Tasks",
+        className: "bg-amber-100 text-amber-700",
+      };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // 组件
 // ---------------------------------------------------------------------------
 
-/**
- * 流式文档渲染主容器。
- *
- * 对应 spec：`.kiro/specs/autopilot-streaming-doc-renderer/`
- * - 需求 1.1：DocMainArea 占据 StageViewport 主区
- * - 需求 1.5：空态居中提示
- * - 需求 2.1：增量追加新 chunk
- * - 需求 4.1：多份 SpecDocument 时展示文档标签栏（占位 div，Task 5.1 落地）
- */
 export const StreamingDocRenderer: FC<StreamingDocRendererProps> = ({
   entries,
   specDocuments,
+  specTree,
   locale,
 }) => {
+  const isZh = locale === "zh-CN";
+
+  // ── reducer ───────────────────────────────────────────────────────────
   const [state, dispatch] = useReducer(
     streamingDocsReducer,
     INITIAL_REDUCER_STATE
   );
 
-  // 已经分发到 reducer 的 entry 索引，避免 entries 被刷新时重复追加。
   const dispatchedIdsRef = useRef<Set<string>>(new Set());
 
   // entries → reducer：把所有未处理过的 spec documents content entry 顺序
-  // 追加到对应文档。Task 2.1 之后会把这一步替换为更细粒度的 token 解析。
+  // 追加到对应文档。
   useEffect(() => {
     const dispatched = dispatchedIdsRef.current;
     for (const entry of entries) {
       if (dispatched.has(entry.id)) continue;
       if (!isSpecDocumentContentEntry(entry)) {
-        // 即使不命中 spec documents 阶段，也标记为已处理，避免下次循环再扫一次。
         dispatched.add(entry.id);
         continue;
       }
@@ -348,18 +386,110 @@ export const StreamingDocRenderer: FC<StreamingDocRendererProps> = ({
     }
   }, [entries]);
 
-  // 已知 documentId 列表：reducer 中的活跃文档 + specDocuments 中已落库的文档。
-  const documentIds = useMemo<readonly string[]>(() => {
+  // ── 节点分组（侧边栏数据源）─────────────────────────────────────────
+  const nodeTitleByNodeId = useMemo(() => {
+    const map = new Map<string, string>();
+    if (specTree) {
+      for (const node of specTree.nodes) {
+        map.set(node.id, node.title);
+      }
+    }
+    return map;
+  }, [specTree]);
+
+  const groupedDocs = useMemo(() => {
+    if (!specDocuments || specDocuments.length === 0) return [];
+    return groupDocumentsByNode(specDocuments, nodeTitleByNodeId);
+  }, [specDocuments, nodeTitleByNodeId]);
+
+  /** documentId → 完整 doc 对象的快速查询表。 */
+  const docById = useMemo(() => {
+    const map = new Map<string, BlueprintSpecDocument>();
+    if (specDocuments) {
+      for (const doc of specDocuments) {
+        map.set(doc.id, doc);
+      }
+    }
+    return map;
+  }, [specDocuments]);
+
+  /** 实时生成中但尚未落库为 SpecDocument 的文档 id（例如 "default"）。 */
+  const streamingOnlyIds = useMemo(() => {
+    return state.documentIds.filter(id => !docById.has(id));
+  }, [state.documentIds, docById]);
+
+  // ── 搜索 + 折叠状态 ─────────────────────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState("");
+  const [expandedNodeIds, setExpandedNodeIds] = useState<ReadonlySet<string>>(
+    () => new Set<string>()
+  );
+
+  /** 搜索过滤后的分组列表。搜索匹配节点标题、文档标题或类型字符串。 */
+  const filteredGroups = useMemo(() => {
+    if (searchQuery.trim().length === 0) return groupedDocs;
+    const q = searchQuery.trim().toLowerCase();
+    const result: DocGroup[] = [];
+    for (const group of groupedDocs) {
+      const nodeTitleMatched = group.nodeTitle.toLowerCase().includes(q);
+      const matchedDocs = nodeTitleMatched
+        ? group.documents
+        : group.documents.filter(
+            doc =>
+              doc.title.toLowerCase().includes(q) ||
+              doc.type.toLowerCase().includes(q)
+          );
+      if (matchedDocs.length > 0) {
+        result.push({
+          ...group,
+          documents: matchedDocs,
+        });
+      }
+    }
+    return result;
+  }, [groupedDocs, searchQuery]);
+
+  /** 搜索时自动展开所有匹配的分组；非搜索状态下用用户手动展开的集合，
+   *  并兜底展开第一个分组（如果用户尚未手动操作）以让 IA 在首次渲染
+   *  / SSR 渲染时立刻可见，不依赖 useEffect。 */
+  const effectiveExpandedIds = useMemo<ReadonlySet<string>>(() => {
+    if (searchQuery.trim().length > 0) {
+      return new Set(filteredGroups.map(g => g.nodeId));
+    }
+    if (expandedNodeIds.size > 0) {
+      return expandedNodeIds;
+    }
+    if (groupedDocs.length > 0) {
+      const firstGroup = groupedDocs[0];
+      if (firstGroup) {
+        return new Set([firstGroup.nodeId]);
+      }
+    }
+    return expandedNodeIds;
+  }, [searchQuery, filteredGroups, expandedNodeIds, groupedDocs]);
+
+  const toggleNode = useCallback((nodeId: string) => {
+    setExpandedNodeIds(prev => {
+      const next = new Set(prev);
+      if (next.has(nodeId)) next.delete(nodeId);
+      else next.add(nodeId);
+      return next;
+    });
+  }, []);
+
+  // ── active doc id ──────────────────────────────────────────────────
+  const allDocIds = useMemo<readonly string[]>(() => {
     const order: string[] = [];
     const seen = new Set<string>();
-    for (const id of state.documentIds) {
+    // 1. 实时生成中的 default doc 等放最前
+    for (const id of streamingOnlyIds) {
       if (!seen.has(id)) {
         seen.add(id);
         order.push(id);
       }
     }
-    if (specDocuments) {
-      for (const doc of specDocuments) {
+    // 2. 已落库的 SpecDocuments 按节点分组顺序
+    for (const group of groupedDocs) {
+      for (const doc of group.documents) {
         if (!seen.has(doc.id)) {
           seen.add(doc.id);
           order.push(doc.id);
@@ -367,36 +497,49 @@ export const StreamingDocRenderer: FC<StreamingDocRendererProps> = ({
       }
     }
     return order;
-  }, [state.documentIds, specDocuments]);
+  }, [streamingOnlyIds, groupedDocs]);
 
-  // 默认 activeDocId：第一个已知文档；首次出现新文档时自动 follow。
   const [activeDocId, setActiveDocId] = useState<string | null>(null);
   useEffect(() => {
-    if (activeDocId === null && documentIds.length > 0) {
-      setActiveDocId(documentIds[0] ?? null);
+    if (activeDocId === null && allDocIds.length > 0) {
+      setActiveDocId(allDocIds[0] ?? null);
       return;
     }
     if (
       activeDocId !== null &&
-      documentIds.length > 0 &&
-      !documentIds.includes(activeDocId)
+      allDocIds.length > 0 &&
+      !allDocIds.includes(activeDocId)
     ) {
-      setActiveDocId(documentIds[0] ?? null);
+      setActiveDocId(allDocIds[0] ?? null);
     }
-  }, [activeDocId, documentIds]);
+  }, [activeDocId, allDocIds]);
 
-  // documentId → 已记录的滚动位置，切换标签时恢复（Task 5.1 真正落地，
-  // 当前先把状态层做出来，给后续 DocTabBar 对接预留容器）。
+  /** 当 active doc 落在某个分组内但该分组未展开时，自动展开它。 */
+  useEffect(() => {
+    if (activeDocId === null) return;
+    const doc = docById.get(activeDocId);
+    if (!doc) return;
+    setExpandedNodeIds(prev => {
+      if (prev.has(doc.nodeId)) return prev;
+      const next = new Set(prev);
+      next.add(doc.nodeId);
+      return next;
+    });
+  }, [activeDocId, docById]);
+
+  // ── 滚动位置维护 ───────────────────────────────────────────────────
   const [scrollPositions, setScrollPositions] = useState<
     Readonly<Record<string, number>>
   >({});
+  const scrollRef = useRef<HTMLDivElement | null>(null);
+  const pendingRestoreRef = useRef<string | null>(null);
 
   const handleScroll = useCallback(
     (event: React.UIEvent<HTMLDivElement>) => {
       const target = event.currentTarget;
       const top = target.scrollTop;
       if (activeDocId === null) return;
-      setScrollPositions((prev) => {
+      setScrollPositions(prev => {
         if (prev[activeDocId] === top) return prev;
         return { ...prev, [activeDocId]: top };
       });
@@ -404,33 +547,8 @@ export const StreamingDocRenderer: FC<StreamingDocRendererProps> = ({
     [activeDocId]
   );
 
-  const activeDocState = useMemo<StreamingDocState>(() => {
-    if (activeDocId === null) return EMPTY_DOC_STATE;
-    return state.documents[activeDocId] ?? EMPTY_DOC_STATE;
-  }, [activeDocId, state.documents]);
-
-  // 当前活跃文档的 h1-h3 标题列表，供 DocOutline 渲染。流式过程中每次新
-  // chunk 进来，`rawMarkdown` 变化都会触发重算；headings 长度 < 2 时
-  // DocOutline 内部直接返回 null，此处不再做额外条件判断。
-  const headings = useMemo(
-    () => extractHeadings(activeDocState.rawMarkdown),
-    [activeDocState.rawMarkdown]
-  );
-
-  // 滚动容器 ref：DocTabBar 切换 tab 后需要把滚动位置恢复到上次记录的
-  // `scrollPositions[activeDocId]`；DocOutline 点击标题时也通过该 ref
-  // 找到对应 heading 元素并平滑滚动。
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-
-  // 记录"刚切到这个 docId 时还没恢复滚动位置"，用 ref 而不是 state
-  // 避免 set 后再次触发 render；useLayoutEffect 在 DOM 更新后立即同步
-  // 还原 scrollTop，避免出现一帧的视觉跳动。
-  const pendingRestoreRef = useRef<string | null>(null);
-
   useLayoutEffect(() => {
     if (activeDocId === null) return;
-    // 仅在 activeDocId 切换或 pendingRestoreRef 命中时执行恢复，避免与
-    // `handleScroll` 的 setScrollPositions 形成竞争。
     if (pendingRestoreRef.current !== activeDocId) {
       pendingRestoreRef.current = activeDocId;
       const target = scrollPositions[activeDocId] ?? 0;
@@ -441,18 +559,14 @@ export const StreamingDocRenderer: FC<StreamingDocRendererProps> = ({
     }
   }, [activeDocId, scrollPositions]);
 
-  // 切换 tab：先记录"切走前"的滚动位置（由 handleScroll 持续维护），
-  // 再更新 activeDocId；下一次 useLayoutEffect 会把新 doc 的 scrollTop
-  // 还原到 `scrollPositions[newId]`。
-  const handleTabClick = useCallback(
+  /** 切换文档：先 snapshot 当前滚动位置再切，避免 onScroll 节流尾帧丢失。 */
+  const handleSelectDoc = useCallback(
     (docId: string) => {
       if (docId === activeDocId) return;
-      // 在切换前主动 snapshot 当前滚动位置，覆盖 onScroll 节流的最后一帧
-      // 可能尚未提交的情况。
       const node = scrollRef.current;
       if (node && activeDocId !== null) {
         const top = node.scrollTop;
-        setScrollPositions((prev) => {
+        setScrollPositions(prev => {
           if (prev[activeDocId] === top) return prev;
           return { ...prev, [activeDocId]: top };
         });
@@ -463,151 +577,373 @@ export const StreamingDocRenderer: FC<StreamingDocRendererProps> = ({
     [activeDocId]
   );
 
-  // DocOutline 点击：用稳定 id（与 MarkdownRenderer 的 `buildHeadingId`
-  // 保持一致）在当前 scrollRef 子树里找到 heading 节点，平滑滚动到该
-  // 位置。若节点暂未渲染（极端情况下 token 还未提交），降级为不做。
-  const handleHeadingClick = useCallback((headingId: string) => {
-    const container = scrollRef.current;
-    if (!container) return;
-    const target = container.querySelector<HTMLElement>(`#${CSS.escape(headingId)}`);
-    if (!target) return;
-    // 使用 `scrollIntoView({ behavior: "smooth", block: "start" })` 而不是
-    // 计算 offsetTop，避免在内部布局存在 padding/transform 时定位偏差。
-    target.scrollIntoView({ behavior: "smooth", block: "start" });
-  }, []);
+  // ── 当前 active 文档元数据 ────────────────────────────────────────
+  const activeDocState = useMemo<StreamingDocState>(() => {
+    if (activeDocId === null) return EMPTY_DOC_STATE;
+    return state.documents[activeDocId] ?? EMPTY_DOC_STATE;
+  }, [activeDocId, state.documents]);
 
-  const isEmpty = activeDocId === null || activeDocState.rawMarkdown.length === 0;
-  const emptyHint = locale === "zh-CN" ? "等待文档生成…" : "Waiting for document…";
+  interface ActiveDocMeta {
+    id: string;
+    title: string;
+    type: BlueprintSpecDocumentType | undefined;
+    nodeTitle: string | undefined;
+    isStreaming: boolean;
+  }
 
-  const ariaLabel =
-    locale === "zh-CN" ? "流式文档渲染区" : "Streaming document area";
-
-  // Task 5.1：多文档时使用 DocTabBar，单文档时省略标签栏。
-  const showTabs = documentIds.length > 1;
-  const tabItems = useMemo<readonly DocTabBarItem[]>(() => {
-    if (!showTabs) return [];
-    return documentIds.map((id) => {
-      const docState = state.documents[id] ?? EMPTY_DOC_STATE;
+  const activeDocMeta = useMemo<ActiveDocMeta | null>(() => {
+    if (activeDocId === null) return null;
+    const doc = docById.get(activeDocId);
+    const isStreaming =
+      state.documents[activeDocId]?.isStreaming ?? false;
+    if (doc) {
       return {
-        id,
-        title: deriveDocumentTitle(id, specDocuments, locale),
-        isStreaming: docState.isStreaming,
+        id: doc.id,
+        title: doc.title,
+        type: doc.type,
+        nodeTitle: nodeTitleByNodeId.get(doc.nodeId),
+        isStreaming,
       };
-    });
-  }, [showTabs, documentIds, state.documents, specDocuments, locale]);
+    }
+    return {
+      id: activeDocId,
+      title: deriveDocumentTitle(activeDocId, specDocuments, locale),
+      type: undefined,
+      nodeTitle: undefined,
+      isStreaming,
+    };
+  }, [
+    activeDocId,
+    docById,
+    nodeTitleByNodeId,
+    specDocuments,
+    locale,
+    state.documents,
+  ]);
 
+  const isEmpty =
+    activeDocId === null || activeDocState.rawMarkdown.length === 0;
+  const emptyHint = isZh ? "等待文档生成…" : "Waiting for document…";
+  const ariaLabel = isZh ? "流式文档渲染区" : "Streaming document area";
+
+  // ── 渲染 ────────────────────────────────────────────────────────────
   return (
     <div
-      className="flex h-full min-h-0 flex-col rounded-lg bg-slate-50"
+      className="flex h-full min-h-0 overflow-hidden rounded-lg bg-slate-50"
       data-testid="streaming-doc-renderer"
       role="region"
       aria-label={ariaLabel}
       style={{
-        // 硬约束最外层宽度，防止任何 flex item 子项把容器撑出 grid track。
-        // `containIntrinsicSize` + `contain: layout size` 阻断子元素布局对外扩散。
         width: "100%",
         maxWidth: "100%",
         minWidth: 0,
         boxSizing: "border-box",
       }}
     >
-      {showTabs ? (
-        <DocTabBar
-          documents={tabItems}
-          activeDocId={activeDocId}
-          onTabClick={handleTabClick}
-        />
-      ) : null}
-
-      {/*
-        滚动容器宽度边界（2026-05-19 第 7 次溢出修复）：
-        - 该 div 的 cross-axis 宽度由 `<div className="flex h-full ... flex-col">`
-          父容器的 width 决定。flex column 子项的 cross-axis 默认 stretch 满父级
-          宽度，所以这里 *不能* 用 `w-0`（会被 stretch 覆盖也容易破布局）。
-        - 关键修复在于内层 streaming-doc-body 不再用 `flex max-w-prose`，避免
-          flex 横向轴在 markdown 行很长时被 inner content 撑出超大宽度。
-        - 容器自身保留 `flex-1 min-h-0 min-w-0 overflow-y-auto overflow-x-hidden`，
-          继续承担纵向滚动职责，并通过 `min-w-0` 让自己尊重外层 grid track 的
-          `minmax(0, 2fr)` 宽度边界。
-      */}
-      <div
-        ref={scrollRef}
-        className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden"
-        data-testid="streaming-doc-scroll"
-        data-active-doc-id={activeDocId ?? ""}
-        data-scroll-position={
-          activeDocId !== null ? scrollPositions[activeDocId] ?? 0 : 0
-        }
-        onScroll={handleScroll}
+      {/* 左侧：节点折叠树 + 搜索 */}
+      <aside
+        className="flex flex-col border-r border-slate-200 bg-white"
+        data-testid="streaming-doc-sidebar"
         style={{
-          // 硬约束滚动容器宽度。父级 StageViewport content div 在 flex
-          // column 中作为 cross-axis stretch 子项，但内部 markdown 长内容
-          // 会触发 flex item min-width: auto = min-content 规则把容器撑大。
-          // inline `maxWidth: 100%` + `minWidth: 0` 强制 layout 服从父级宽度。
-          maxWidth: "100%",
-          width: "100%",
-          minWidth: 0,
+          width: "200px",
+          minWidth: "200px",
+          maxWidth: "200px",
+          flexShrink: 0,
           boxSizing: "border-box",
         }}
       >
-        {isEmpty ? (
-          <div
-            className="flex h-full items-center justify-center px-4 text-xs text-slate-500"
-            data-testid="streaming-doc-empty"
-          >
-            {emptyHint}
-          </div>
-        ) : (
-          <div
-            className="block px-4 py-4 text-xs leading-relaxed text-slate-700"
-            data-testid="streaming-doc-body"
-            data-streaming-doc-body
-            data-is-streaming={activeDocState.isStreaming ? "true" : "false"}
-            data-raw-length={activeDocState.rawMarkdown.length}
-            style={{
-              // 硬约束容器宽度，杜绝 flex/inline 子元素把容器撑出 grid track。
-              // contain: layout 阻止子元素的布局影响外部，inline-size 防止
-              // 在 flex column 内被 stretch 之外的内容增大。
-              maxWidth: "100%",
-              width: "100%",
-              minWidth: 0,
-              boxSizing: "border-box",
-              overflow: "hidden",
-            }}
-          >
-            {/*
-              Task 4.1（2026-05-19 重排版）：DocOutline 改为 float-right + sticky
-              的浅辅助导航，仅在 md+ 屏幕展示。`float-right + ml-3 + mb-2` 让
-              主区 markdown 自然回流到大纲左侧，避免 flex 横向布局在窄屏下
-              因为 `max-w-prose` 与 `flex-1` 共存撑出超长行。
-            */}
-            {headings.length >= 2 ? (
-              <aside
-                className="float-right ml-3 mb-2 hidden w-32 shrink-0 md:block"
-                data-testid="streaming-doc-outline-aside"
-                style={{ position: "sticky", top: 0 }}
-              >
-                <DocOutline
-                  headings={headings}
-                  onHeadingClick={handleHeadingClick}
-                />
-              </aside>
-            ) : null}
+        {/* 搜索框 */}
+        <div className="border-b border-slate-100 p-2">
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={e => setSearchQuery(e.target.value)}
+            placeholder={isZh ? "搜索文档…" : "Search docs…"}
+            className="w-full rounded border border-slate-200 bg-slate-50 px-2 py-1 text-[10px] outline-none transition focus:border-indigo-300 focus:bg-white"
+            data-testid="streaming-doc-sidebar-search"
+            aria-label={isZh ? "搜索文档" : "Search documents"}
+          />
+        </div>
+
+        {/* 滚动列表 */}
+        <div
+          className="flex-1 overflow-y-auto overflow-x-hidden"
+          data-testid="streaming-doc-sidebar-list"
+          style={{ minHeight: 0 }}
+        >
+          {/* 实时生成中的文档（无 artifact） */}
+          {streamingOnlyIds.length > 0 && (
             <div
-              className="block"
+              className="border-b border-slate-100 py-1"
+              data-testid="streaming-doc-sidebar-streaming-section"
+            >
+              <div className="px-3 py-1 font-mono text-[9px] uppercase tracking-wider text-slate-400">
+                {isZh ? "实时生成" : "Live"}
+              </div>
+              {streamingOnlyIds.map(id => {
+                const isActive = id === activeDocId;
+                const isStreaming =
+                  state.documents[id]?.isStreaming ?? false;
+                const title = deriveDocumentTitle(
+                  id,
+                  specDocuments,
+                  locale
+                );
+                return (
+                  <button
+                    key={id}
+                    type="button"
+                    onClick={() => handleSelectDoc(id)}
+                    className={cn(
+                      "flex w-full items-center gap-1.5 border-l-2 py-1 pl-2 pr-2 text-left text-[10px] transition",
+                      isActive
+                        ? "border-indigo-500 bg-indigo-50 text-indigo-900"
+                        : "border-transparent text-slate-600 hover:bg-slate-50"
+                    )}
+                    data-testid={`streaming-doc-sidebar-streaming-${id}`}
+                    data-active={isActive ? "true" : "false"}
+                    title={title}
+                  >
+                    {isStreaming && (
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-blue-400"
+                        aria-label="streaming"
+                      />
+                    )}
+                    <span
+                      className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap"
+                      style={{ minWidth: 0 }}
+                    >
+                      {title}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 节点分组列表 */}
+          {filteredGroups.length === 0 && streamingOnlyIds.length === 0 ? (
+            <div className="px-3 py-6 text-center text-[10px] text-slate-400">
+              {searchQuery.trim().length > 0
+                ? isZh
+                  ? "无匹配文档"
+                  : "No matching docs"
+                : isZh
+                  ? "等待文档生成…"
+                  : "Waiting for documents…"}
+            </div>
+          ) : (
+            filteredGroups.map(group => {
+              const isExpanded = effectiveExpandedIds.has(group.nodeId);
+              const hasActive = group.documents.some(
+                d => d.id === activeDocId
+              );
+              const hasStreaming = group.documents.some(
+                d => state.documents[d.id]?.isStreaming
+              );
+              return (
+                <div
+                  key={group.nodeId}
+                  className="border-b border-slate-100 last:border-b-0"
+                  data-testid={`streaming-doc-sidebar-group-${group.nodeId}`}
+                >
+                  <button
+                    type="button"
+                    onClick={() => toggleNode(group.nodeId)}
+                    className={cn(
+                      "flex w-full items-center gap-1.5 px-2 py-1.5 text-left transition",
+                      hasActive ? "bg-slate-50" : "hover:bg-slate-50"
+                    )}
+                    data-testid={`streaming-doc-sidebar-group-toggle-${group.nodeId}`}
+                    aria-expanded={isExpanded}
+                    title={group.nodeTitle}
+                  >
+                    <span
+                      className="w-2 shrink-0 text-center font-mono text-[9px] text-slate-400"
+                      aria-hidden="true"
+                    >
+                      {isExpanded ? "▼" : "▶"}
+                    </span>
+                    <span
+                      className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[10px] font-semibold text-slate-700"
+                      style={{ minWidth: 0 }}
+                    >
+                      {group.nodeTitle}
+                    </span>
+                    {hasStreaming && (
+                      <span
+                        className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-blue-400"
+                        aria-label="streaming"
+                      />
+                    )}
+                    <span className="shrink-0 font-mono text-[9px] text-slate-400">
+                      {group.documents.length}
+                    </span>
+                  </button>
+                  {isExpanded && (
+                    <div className="pb-1">
+                      {group.documents.map(doc => {
+                        const isActive = doc.id === activeDocId;
+                        const isStreaming =
+                          state.documents[doc.id]?.isStreaming ?? false;
+                        const badge = getTypeBadge(doc.type, locale);
+                        return (
+                          <button
+                            key={doc.id}
+                            type="button"
+                            onClick={() => handleSelectDoc(doc.id)}
+                            className={cn(
+                              "flex w-full items-center gap-1.5 border-l-2 py-1 pl-5 pr-2 text-left transition",
+                              isActive
+                                ? "border-indigo-500 bg-indigo-50 text-indigo-900"
+                                : "border-transparent text-slate-600 hover:bg-slate-50"
+                            )}
+                            data-testid={`streaming-doc-sidebar-doc-${doc.id}`}
+                            data-active={isActive ? "true" : "false"}
+                            data-streaming={isStreaming ? "true" : "false"}
+                            title={`${badge.fullLabel}: ${doc.title}`}
+                          >
+                            <span
+                              className={cn(
+                                "shrink-0 rounded px-1 py-0 text-[9px] font-bold",
+                                badge.className
+                              )}
+                              aria-label={badge.fullLabel}
+                            >
+                              {badge.shortLabel}
+                            </span>
+                            <span
+                              className="flex-1 overflow-hidden text-ellipsis whitespace-nowrap text-[10px]"
+                              style={{ minWidth: 0 }}
+                            >
+                              {doc.title}
+                            </span>
+                            {isStreaming && (
+                              <span
+                                className="h-1.5 w-1.5 shrink-0 animate-pulse rounded-full bg-blue-400"
+                                aria-label="streaming"
+                              />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })
+          )}
+        </div>
+      </aside>
+
+      {/* 右侧：文档主区 */}
+      <main
+        className="flex flex-1 flex-col bg-slate-50"
+        data-testid="streaming-doc-main"
+        style={{
+          minWidth: 0,
+          maxWidth: "100%",
+          boxSizing: "border-box",
+        }}
+      >
+        {/* 头部：当前文档标题 + 类型徽章 + 流式状态 */}
+        {activeDocMeta && (
+          <header
+            className="flex items-center gap-2 border-b border-slate-200 bg-white px-3 py-2"
+            data-testid="streaming-doc-main-header"
+            style={{ minWidth: 0 }}
+          >
+            {activeDocMeta.type && (
+              <span
+                className={cn(
+                  "shrink-0 rounded px-1.5 py-0.5 text-[10px] font-bold",
+                  getTypeBadge(activeDocMeta.type, locale).className
+                )}
+              >
+                {getTypeBadge(activeDocMeta.type, locale).fullLabel}
+              </span>
+            )}
+            <div
+              className="flex flex-1 items-center gap-1.5 overflow-hidden"
+              style={{ minWidth: 0 }}
+            >
+              {activeDocMeta.nodeTitle && (
+                <>
+                  <span
+                    className="overflow-hidden text-ellipsis whitespace-nowrap text-[10px] text-slate-400"
+                    title={activeDocMeta.nodeTitle}
+                  >
+                    {activeDocMeta.nodeTitle}
+                  </span>
+                  <span className="shrink-0 text-[10px] text-slate-300">
+                    /
+                  </span>
+                </>
+              )}
+              <h3
+                className="overflow-hidden text-ellipsis whitespace-nowrap text-xs font-semibold text-slate-800"
+                title={activeDocMeta.title}
+                style={{ minWidth: 0 }}
+              >
+                {activeDocMeta.title}
+              </h3>
+            </div>
+            {activeDocMeta.isStreaming && (
+              <span
+                className="flex shrink-0 items-center gap-1 text-[10px] font-medium text-blue-600"
+                aria-label={isZh ? "生成中" : "Streaming"}
+              >
+                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-blue-400" />
+                {isZh ? "生成中" : "Streaming"}
+              </span>
+            )}
+          </header>
+        )}
+
+        {/* 滚动容器：markdown 主区 */}
+        <div
+          ref={scrollRef}
+          className="relative flex-1 overflow-y-auto overflow-x-hidden"
+          data-testid="streaming-doc-scroll"
+          data-active-doc-id={activeDocId ?? ""}
+          data-scroll-position={
+            activeDocId !== null ? scrollPositions[activeDocId] ?? 0 : 0
+          }
+          onScroll={handleScroll}
+          style={{
+            width: "100%",
+            maxWidth: "100%",
+            minWidth: 0,
+            minHeight: 0,
+            boxSizing: "border-box",
+          }}
+        >
+          {isEmpty ? (
+            <div
+              className="flex h-full items-center justify-center px-4 text-xs text-slate-500"
+              data-testid="streaming-doc-empty"
+            >
+              {emptyHint}
+            </div>
+          ) : (
+            <div
+              className="px-4 py-4 text-xs leading-relaxed text-slate-700"
+              data-testid="streaming-doc-body"
+              data-streaming-doc-body
+              data-is-streaming={
+                activeDocState.isStreaming ? "true" : "false"
+              }
+              data-raw-length={activeDocState.rawMarkdown.length}
               style={{
                 width: "100%",
                 maxWidth: "100%",
                 minWidth: 0,
+                boxSizing: "border-box",
                 wordBreak: "break-word",
                 overflowWrap: "anywhere",
               }}
             >
-              {/*
-                Task 2.1 已落地：使用 MarkdownRenderer 把累积 rawMarkdown 渲染
-                为格式化 HTML；尾部叠加 StreamCursor，让用户在流式过程中看到
-                闪烁光标。当 isStreaming=false 时 StreamCursor 自动返回 null。
-              */}
               <MarkdownRenderer
                 markdown={activeDocState.rawMarkdown}
                 isStreaming={activeDocState.isStreaming}
@@ -615,11 +951,9 @@ export const StreamingDocRenderer: FC<StreamingDocRendererProps> = ({
               />
               <StreamCursor visible={activeDocState.isStreaming} />
             </div>
-            {/* clear floats so streaming-doc-body height contains the outline */}
-            <div className="clear-both" aria-hidden="true" />
-          </div>
-        )}
-      </div>
+          )}
+        </div>
+      </main>
     </div>
   );
 };
@@ -628,9 +962,6 @@ export default StreamingDocRenderer;
 
 /**
  * 仅供测试导入；正常代码路径不应直接调这些纯函数。
- *
- * Task 7.x 的 SSR / 增量渲染测试需要直接驱动 reducer 与字段提取函数，
- * 这里以 `__testing__` 命名空间暴露最小集合，避免污染公共 API。
  */
 export const __testing__ = {
   streamingDocsReducer,
@@ -639,6 +970,8 @@ export const __testing__ = {
   pickDocumentId,
   pickChunk,
   deriveDocumentTitle,
+  groupDocumentsByNode,
+  getTypeBadge,
   INITIAL_REDUCER_STATE,
   EMPTY_DOC_STATE,
 };
