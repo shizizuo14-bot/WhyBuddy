@@ -1,8 +1,12 @@
 <p align="center">
-  <img src="./docs/assets/banner.png" alt="Cube Pets Office 横幅" width="100%" />
+  <img src="./docs/assets/banner.png" alt="Cube Pets Office banner" width="100%" />
 </p>
 
-<h1 align="center">Cube Pets Office</h1>
+<h1 align="center"><img src="./docs/assets/logo.png" alt="端云" height="44" align="absmiddle" />&nbsp;&nbsp;|&nbsp;&nbsp;Cube Pets Office</h1>
+
+<p align="center">
+  <strong>输入一个想法，推演出一个完整的产品。私有部署、全程可见、证据留痕。</strong>
+</p>
 
 <p align="center">
   <a href="./README.md"><strong>English</strong></a> |
@@ -10,432 +14,253 @@
 </p>
 
 <p align="center">
-  <strong>面向 AI Agent 的任务自动驾驶平台</strong><br/>
-  Cube Pets Office 是一个面向复杂任务的任务自动驾驶平台：用户输入目标、查看路线，让系统执行安全部分，并在人类判断必需时接管。
-</p>
-
-<p align="center">
-  <a href="https://opencroc.github.io/cube-pets-office/"><strong>在线演示</strong></a>
-</p>
-
-<p align="center">
-  <img alt="license" src="https://img.shields.io/badge/license-MIT-111827" />
-  <img alt="frontend" src="https://img.shields.io/badge/frontend-React%2019%20%2B%20Vite-2563eb" />
-  <img alt="server" src="https://img.shields.io/badge/server-Node%20%2B%20Express-0f766e" />
-  <img alt="executor" src="https://img.shields.io/badge/executor-Lobster-7c3aed" />
+  <img alt="status" src="https://img.shields.io/badge/状态-早期测试-orange" />
+  <img alt="license" src="https://img.shields.io/badge/协议-MIT-111827" />
+  <img alt="stars" src="https://img.shields.io/github/stars/opencroc/cube-pets-office?style=flat" />
+  <img alt="version" src="https://img.shields.io/badge/版本-v1.0.0-2563eb" />
+  <img alt="frontend" src="https://img.shields.io/badge/React%2019-Vite-2563eb" />
   <img alt="3d" src="https://img.shields.io/badge/3D-Three.js-f97316" />
-  <img alt="autopilot%20specs" src="https://img.shields.io/badge/task--autopilot-602%2F602%20tasks-0f766e" />
-  <img alt="pages" src="https://img.shields.io/badge/demo-GitHub%20Pages-0ea5e9" />
+  <img alt="executor" src="https://img.shields.io/badge/执行器-Docker-7c3aed" />
 </p>
 
----
+<p align="center">
+  <img alt="project files" src="https://img.shields.io/badge/项目文件-4,707-111827" />
+  <img alt="typescript scale" src="https://img.shields.io/badge/TS%2FTSX-1,837%20files%20%7C%20486,932%20lines-2563eb" />
+  <img alt="test scale" src="https://img.shields.io/badge/测试-723%20files%20%7C%207,771%20cases-0f766e" />
+  <img alt="spec markdown scale" src="https://img.shields.io/badge/specs-273%20dirs%20%7C%20879%20md-7c3aed" />
+</p>
 
-## 它是什么
+<p align="center">
+  <img alt="web aigc specs" src="https://img.shields.io/badge/Web--AIGC-58%20specs-f97316" />
+  <img alt="web aigc node specs" src="https://img.shields.io/badge/节点规格-52-f97316" />
+  <img alt="web aigc platform specs" src="https://img.shields.io/badge/平台族-6-f97316" />
+  <img alt="autopilot specs" src="https://img.shields.io/badge/Autopilot%20family-88%20specs-0ea5e9" />
+  <img alt="autopilot prefix specs" src="https://img.shields.io/badge/autopilot-61-0ea5e9" />
+  <img alt="blueprint prefix specs" src="https://img.shields.io/badge/blueprint-13-0ea5e9" />
+  <img alt="project prefix specs" src="https://img.shields.io/badge/project-10-0ea5e9" />
+  <img alt="task autopilot prefix specs" src="https://img.shields.io/badge/task--autopilot-4-0ea5e9" />
+</p>
 
-Cube Pets Office 的主叙事正在从“任务操作系统”升级为“任务自动驾驶平台”。
+<p align="center">
+  <img alt="tasks checked" src="https://img.shields.io/badge/tasks.md-7,093%2F8,165%20checked-16a34a" />
+  <img alt="unchecked tasks" src="https://img.shields.io/badge/未勾选-1,072-f97316" />
+  <img alt="top level tasks" src="https://img.shields.io/badge/顶层任务-2,463%2F2,794-84cc16" />
+  <img alt="complete specs" src="https://img.shields.io/badge/完成规格-204%2F273-f59e0b" />
+  <img alt="missing tasks file" src="https://img.shields.io/badge/缺%20tasks.md-1-64748b" />
+</p>
 
-用户不再只是输入 prompt 等待一段回答，而是给出一个想要到达的目标。系统围绕这个目标完成理解、规划、编队、执行、澄清、复核和交付，并在风险、权限、预算、上下文不足或结果不确定时请求人类接管。
+<p align="center">
+  <a href="https://opencroc.github.io/cube-pets-office/">在线演示</a> •
+  <a href="./docs/">文档</a> •
+  <a href="./ROADMAP.md">路线图</a> •
+  <a href="./CONTRIBUTING.md">贡献指南</a> •
+  <a href="./CODE_OF_CONDUCT.md">行为准则</a> •
+  <a href="./SECURITY.md">安全政策</a> •
+  <a href="./LICENSE">MIT 协议</a>
+</p>
 
-它也不是以展示 Agent、工具和插件清单为主的能力市场。Agent、工具和节点仍然重要，但它们应被收敛到路线执行、接管治理和结果送达之下，而不是成为对外产品中心。
+> **早期测试版**：正在积极开发中，可能存在粗糙之处。
 
-这个方向不是要把当前系统包装成已经完全实现的开放域 L4 / L5 自动驾驶。更准确地说，Cube Pets Office 当前已经具备 mission-first 的运行底座，任务自动驾驶是建立在这套底座之上的产品语义层和后续工程演进方向。
+访问 [在线演示](https://opencroc.github.io/cube-pets-office/) 或本地运行：
 
-它重点解决的是：
-
-- 把用户目标从一句自然语言整理成可执行的任务目的地。
-- 把执行过程从黑盒回答变成可观察的路线、阶段和状态。
-- 把 Agent、工具、节点和执行器组织成面向结果的角色车队。
-- 把澄清、审批、权限、预算和异常恢复统一成接管机制。
-- 把日志、产物、审计、血缘和回放串成可复盘的证据链。
-
-它不承诺的是：
-
-- 不承诺所有开放域复杂任务都能无人值守完成。
-- 不承诺绕过人工确认执行高风险、外部副作用或权限敏感动作。
-- 不把底层 `mission / workflow / runtime` 立即大规模改名为新词汇。
-- 不把“自动驾驶”用作纯营销词，而是要求能落到对象、界面、运行时和治理链路上。
-
----
-
-## Mission-First 底座
-
-任务自动驾驶不是对现有 mission-first 方向的推翻，而是它的上位产品表达。
-
-当前仓库已经形成的基础能力包括：
-
-- 办公室主壳与 `/tasks` 任务工作台，用于发起、观察和管理任务。
-- Mission Runtime 与工作流引擎，用于承载任务状态、阶段推进和执行控制。
-- Lobster Executor 与 mock / native / real 三种执行模式，用于连接真实或本地可用的执行链路。
-- human-in-the-loop、wait / resume、review、audit、revision、verify 等协作和治理能力。
-- replay、lineage、evidence、telemetry 等可观察与复盘能力。
-- Web-AIGC 主线 specs 与 adapters，为内容生产、检索问答、Office、MCP 和高风险动作治理提供能力基础。
-
-因此，新的自动驾驶语言会优先作为“产品语义投影层”出现：
-
-| 产品语义 | 工程底座 | 含义 |
-| ---- | ---- | ---- |
-| Destination | Mission | 用户真正想送达的目标、约束、成功标准和预期交付物 |
-| Route | Workflow | 系统建议或选择的执行路线、阶段、风险点和接管点 |
-| Drive State | Runtime State | 当前任务处于理解、规划、执行、复核、阻塞、重规划或已交付等状态 |
-| Fleet | Agent / Skill / Node / Executor | 为当前路线临时组织起来的角色编队和能力组合 |
-| Takeover | Decision / HITL / Approval | 需要用户确认、补充上下文、授权、审批或恢复执行的关键点 |
-
-这意味着工程层可以继续保持稳定，产品层逐步提供更清晰的用户态表达。后续是否进行更深层的领域重构，需要基于实际使用和代码落地效果判断。
+```bash
+# 三条命令启动
+git clone https://github.com/opencroc/cube-pets-office.git && cd cube-pets-office
+pnpm install
+pnpm run dev:all        # 全栈：前端 + 服务端 + 执行器
+# 或者：pnpm run dev:frontend  (纯浏览器模式，无需 .env)
+```
 
 ---
+
+## 产品界面一览
+
+<table>
+  <tr>
+    <td width="50%"><img src="./docs/assets/A.png" alt="Cube Pets Office 界面截图 A" /></td>
+    <td width="50%"><img src="./docs/assets/B.png" alt="Cube Pets Office 界面截图 B" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="./docs/assets/C.png" alt="Cube Pets Office 界面截图 C" /></td>
+    <td width="50%"><img src="./docs/assets/D.png" alt="Cube Pets Office 界面截图 D" /></td>
+  </tr>
+    <tr>
+    <td width="50%"><img src="./docs/assets/E.png" alt="Cube Pets Office 界面截图 E" /></td>
+    <td width="50%"><img src="./docs/assets/F.png" alt="Cube Pets Office 界面截图 F" /></td>
+  </tr>
+</table>
+
+---
+
+# 它是什么？
+
+Cube Pets Office 是一个开源的 **AI 产品预演引擎**。输入一句话想法，它为你推演出完整的产品方案 —— 规格文档、系统架构、路线规划、提示词包、效果预览 —— 全程可见、全部可导出、全部有证据留痕。
+
+- **一句话输入，完整产品输出。** 不用写 PRD，不用画流程图。输入"AI 漫剧平台"，得到一份完整的产品预演：需求文档、设计文档、系统架构、任务拆解、提示词包。每份预演都是可分享的 Markdown 文档包，可直接用于立项评审、博客发布或投资人沟通。
+
+- **[FSD 角色车队](./docs/)**：一组专业化的 AI 角色 —— 规划师、澄清师、研究员、生成器、执行者、审阅者、审计员 —— 在每次预演中协作。每个角色拥有独立的能力范围（50+ AIGC 节点、Docker 沙箱、MCP 工具、Skills）。你可以通过 3D 办公室场景和流式卡片流实时观看它们思考、讨论和产出。
+
+- **[全流程可观测](./docs/)**：右侧工作台展示每一步：哪些角色正在活跃、哪些能力正在被调用、LLM 在 ReAct 循环的哪个阶段（思考 → 选工具 → 执行 → 观察 → 下一步）、已经产出了哪些产物。没有黑盒。
+
+- **[多路线规划与对比](./docs/)**：系统推荐多条可执行路线（快速 / 标准 / 深度 / 保守），每条都有风险评估、成本预估和接管点。你在任何东西运行之前做出选择。
+
+- **[边界处人工接管](./docs/)**：澄清、审批、风险确认、预算确认、交付审查都是明确的接管点。系统会暂停并询问 —— 它永远不会静默失败或失控运行。
+
+- **[证据与回放](./docs/)**：每次预演都产出可导出的产物、审计日志和回放时间线。你可以检查为什么做了某个决策、调用了哪些工具、LLM 在任何时刻在想什么。支持导出为 Markdown、ZIP 或在线浏览。
+
+---
+
+## 项目现状
+
+这份 README.new 保持和当前代码、spec 和运行能力一致。
+
+已具备的基础：
+
+- mission-first 的 office shell 和 `/tasks` 工作台，负责启动、监控和回看任务执行。
+- Node + Express + Socket.IO 服务端，协调 mission 状态、workflow 进度、事件、回放和 API。
+- Lobster executor 提供 `mock`、`native`、`real` 三种执行模式，并兼容本地 Docker 行为。
+- wait/resume、decision、approval、manual recovery 等人工接管路径。
+- review、audit、replay、lineage、evidence、runtime observability 等概念已经在现有 specs 和主线里出现。
+- Web-AIGC 主线、Task Autopilot 基线和 Project-first 方向已经形成可追溯的基础。
+
+不在这份 README.new 里承诺的事：
+
+- 不是 open-domain L5 全自动操作员。
+- 不是不需要人工审查的万能执行器。
+- 高风险副作用、权限变更、外部写入、预算敏感动作和模糊目标仍然需要人工接管。
+- 现有 `mission / workflow / runtime` 不需要马上整体重命名。
 
 ## 核心概念
 
-### Destination
-
-Destination 是用户想要送达的结果，而不只是原始输入。它包含目标概述、背景、约束、成功标准、预期交付物和缺失信息。系统后续会围绕 Destination 做解析、澄清和任务建模。
-
-### Route
-
-Route 是系统为到达 Destination 生成的执行路线。它不是简单的 DAG 展示，而是面向用户解释“系统打算如何完成任务”：有哪些阶段、哪些步骤可以并行、哪些风险需要注意、哪些位置可能需要接管。
-
-### Fleet
-
-Fleet 是围绕 Route 自动组织起来的角色编队。底层可以由 Agent、技能、Web-AIGC 节点、工具、执行器和治理模块组成；对用户而言，它呈现为 Planner、Researcher、Generator、Reviewer、Auditor、Operator 等可理解的角色分工。
-
-### Drive State
-
-Drive State 是任务当前所处的驾驶状态。它把分散的 mission 状态、workflow 阶段、node run、review、audit 和 replay 信号，投影为更容易理解的状态，例如 understanding、planning、executing、reviewing、takeover-required、replanning、delivered。
-
-### Takeover
-
-Takeover 是人类接管点。它统一承接澄清问题、路线选择、预算确认、权限授权、风险审批、输出验收和异常恢复。自动驾驶不是无人黑盒，接管能力是平台可信运行的一部分。
-
----
-
-## 如何触发任务自动驾驶
-
-最小可用输入不是一句泛化 prompt，而是一句“目的地”：说明想要的结果、关键约束，以及什么样的交付算成功。当前前端发起区的六类示例 chips 与这个心智保持一致：
-
-| 示例类型 | 最小目的地输入示例 |
-| ---- | ---- |
-| 分析 | 分析本周客服问题，周五前交付根因、约束和成功标准。 |
-| 生成 | 起草一份中英双语伙伴发布简报，包含 rollout checklist 和审批标准。 |
-| 实现 | 实现受保护的 checkout banner 改动，明确回滚路径和测试要求。 |
-| 研究 | 调研三种定价方案，汇总证据、风险和推荐结论。 |
-| 附件处理 | 基于附件需求文档生成排期、风险清单和验收标准。 |
-| 高级执行 | 打开沙箱或浏览器验证支付流程，收集日志，并给出回滚建议。 |
-
-Destination parser / projection 层比前端卡片更丰富：`sourceInput`、`normalizedGoal`、结构化 `constraints`、结构化 `successCriteria`、`missingInformation`、`suggestedClarifications`、`evidence`、mission/workflow 映射和版本元数据用于审计、投影和运行时对齐。前端 summary 更轻：发起预览主要展示 `goal`、`deliverable`、`constraints`、`timeline`、`successCriteria`、`missingFields`、`confidence`、`attachmentInfluence` 和 `route`；驾驶舱目标卡片主要展示 `goal`、`request`、`subGoals`、`constraints`、`successCriteria`、`deliverables`、`fieldSources`、`lockState` 和 `routeImpact`。因此不能把所有 parser 字段都理解为已经在每张卡片中展示或已持久化为锁定目标。
-
-桌面端可以呈现更完整的三栏驾驶舱：左侧 Destination / Route，中间 Drive / Fleet / Outputs，右侧在有数据时呈现 Takeover / Evidence / Cost / Risk。平板和移动端保留同一组核心对象，但通过双栏、分段导航、压缩卡片和 bottom sheet 访问，不承诺同时展示所有高密度桌面面板。GitHub Pages 预览仍是 browser-only，不包含 Node 服务端或 executor。
-
-这些示例是用户态定位示例，不是后端能力承诺。它们描述用户想送达的状态：快速分析、生成交付材料、带回滚的实现、有证据的研究、基于附件的规划，或受保护的高级执行。
-
----
-
-## 自动化等级边界
-
-任务自动驾驶 specs 已定义 L1 到 L5 的分级语言，用于防止过度承诺：
-
-| 等级 | 定位 | 当前口径 |
-| ---- | ---- | ---- |
-| L1 | 路线建议级 | 系统理解目标、推荐路线和角色编组，用户确认后再执行 |
-| L2 | 部分自动执行级 | 系统自动推进低风险步骤，关键节点、权限、预算和外部副作用需要接管 |
-| L3 | 标准任务自动闭环级 | 在中低风险、可审计、可回放的标准任务中，系统可完成较多自动闭环 |
-| L4 | 限定任务域高自动化级 | 只适用于白名单场景和强治理边界内的未来目标 |
-| L5 | 开放任务域全自动级 | 远期概念和研究目标，当前仓库不宣称已具备 |
-
-当前 README 中的“任务自动驾驶平台”指的是产品方向、对象模型、交互主线和运行时演进目标。近期更现实的落地重点是 L1 到 L3：路线建议、部分自动执行、标准任务中的可控闭环，以及清晰的接管和证据链。
-
----
-
-## 第一阶段 Specs 状态
-
-截至 2026-04-26，任务自动驾驶第一阶段已经从“首轮文档建模”推进到可追踪闭环基线：
-
-- specs：`18 / 18`
-- markdown 文件：`54 / 54`
-- 顶层核心任务项：`345 / 345`
-- raw checklist 任务项：`602 / 602`
-- 进度总览：[`docs/task-autopilot-18-spec-progress-overview-2026-04-24.svg`](./docs/task-autopilot-18-spec-progress-overview-2026-04-24.svg)
-
-这批 specs 均位于 `.kiro/specs/` 下，并且每份都包含 `requirements.md`、`design.md`、`tasks.md`。
-
-已完成的 18 份 specs 覆盖六组主题：
-
-- 产品定义：`task-autopilot-platform-positioning`、`task-autopilot-core-concepts`、`task-autopilot-levels-l1-to-l5`、`task-autopilot-success-metrics`
-- 任务对象与路线：`destination-model-and-parser`、`route-planner-and-route-model`、`drive-state-and-replan-state-machine`、`fleet-organization-and-role-packaging`
-- 驾驶舱交互：`autopilot-cockpit-information-architecture`、`destination-card-and-goal-summary`、`route-recommendation-and-selection`、`fleet-status-and-live-execution-view`、`takeover-panel-and-decision-points`
-- Runtime 与执行引擎：`autopilot-runtime-orchestration`、`autopilot-explainability-and-telemetry`、`autopilot-recovery-and-human-takeover-governance`
-- 治理与证据链：`autopilot-evidence-replay-and-trust-chain`
-- 兼容与迁移：`mission-model-to-autopilot-model-mapping`
-
-这批 specs 的意义是先稳定产品对象、语义边界、交互框架、运行时映射和治理原则；本轮同时已经落下一条 compatibility-first 的最小代码纵切：shared Destination parser / projection 合同、server autopilot projection 字段、client store 归一化，以及 `TaskAutopilotPanel` 驾驶舱消费面。
-
-需要强调的是：`602 / 602` 表示第一阶段规格与任务跟踪闭合，不表示系统已经具备开放域 L5 无人值守自动驾驶。下一步重点会转向真实 runtime 深化：parser 版本化、clarification merge、route planner 自动编队、fleet orchestration、证据回放信任链和成功指标观测。
-
----
-
-## 后续代码落地方向
-
-后续代码实现继续遵循 compatibility-first，不先做大规模底层重命名，而是通过 projection、view model 和可验证的垂直切片逐步深化。
-
-近期更适合推进的方向包括：
-
-- 新增 Destination / Route / Drive State / Takeover 的投影或 view model，让现有 mission、workflow、runtime、decision 能被自动驾驶界面消费。
-- 改造办公室主壳和 `/tasks` 工作台的信息架构，让目的地、路线、车队、接管点和证据链成为主工作面的一等对象。
-- 在运行时记录任务自动化等级、路线选择、接管原因、降级 / 重规划事件和关键证据，供 replay、audit、telemetry 消费。
-- 把 Web-AIGC 节点和 adapters 逐步归类为 Fleet 角色包，而不是直接把 50+ 节点暴露给用户。
-- 建立路线推荐、风险点标记、接管策略和结果复核的最小闭环，优先覆盖低风险、标准化、可审计任务。
-- 用成功指标观察真实效果，包括任务送达率、接管率、重规划率、偏航率、确认次数、路线完成时长和复核通过率。
-
-更深层的命名收敛、runtime 重构或 L4 级限定场景自动化，应在上述投影层和驾驶舱闭环稳定之后再评估。
-
----
-
-## 核心界面
-
-- `/` 是默认办公室主控台，把任务队列、3D 办公室、统一发起区和右侧上下文收在同一个桌面壳里。后续会逐步承担自动驾驶驾驶舱入口。
-- `/tasks` 是全屏任务工作台，用于专注执行、监控、接管和复盘。
-- `/tasks/:taskId` 保留任务深链详情页能力。
-- `/replay/:missionId` 用于任务完成后的回放与证据复盘，后续会承接驾驶时间线和接管证据。
-- `/debug` 是低频内部诊断与辅助工具入口。
-
-当前产品方向仍是 mission-first：办公室主壳和 `/tasks` 是高频主工作面，回放和 debug 保留，但不与主执行流竞争。
-
----
-
-## 架构
-
-<p align="center">
-  <img src="./docs/assets/diagram.png" alt="Cube Pets Office 架构概览" width="100%" />
-</p>
-
-<p align="center">
-  <img src="./docs/architecture.svg" alt="Cube Pets Office 架构主图" width="100%" />
-</p>
-
-整体上，仓库分为四层：
-
-- `client/`：React 19 + Vite 前端，包括办公室主壳、任务工作台、回放页面和 3D 场景。
-- `server/`：Node.js + Express + Socket.IO 后端，负责 mission、工作流状态、事件、回放和 API。
-- `services/lobster-executor/`：执行服务，支持 mock、native 和 real 三种执行方式。
-- `shared/`：前端、后端和执行器共享的契约与类型定义。
-
-任务自动驾驶视觉方向也遵循同一套投影模型：Destination、Route、Fleet、Drive State、Takeover 和 Evidence 应作为稳定的驾驶舱对象呈现，保持状态色语义一致、动效克制，并提供 reduced-motion 降级。路线 reveal、路线选择 glow、驾驶状态 rail advance、接管提示和证据 timeline append 应用于解释进度与风险，而不是暗示尚未支持的无人自治能力。
-
-运行时架构 SVG 也可直接查看：
-
-- [docs/architecture.svg](./docs/architecture.svg)
-- [docs/architecture-runtime-2026-04-21.svg](./docs/architecture-runtime-2026-04-21.svg)
-
----
-
-## Web-AIGC 主线基线
-
-`web-aigc` 是任务自动驾驶底座中的重要能力来源之一。它不直接等同于自动驾驶平台，但为路线执行、内容生产、检索问答、Office 能力、MCP、向量操作和高风险动作治理提供了节点与适配器基础。
-
-当前基线：
-
-- `58 / 58` 份 Web-AIGC specs 已完成，`238 / 238` 个顶层任务已收口；其中包含 `52` 个节点 specs 和 `6` 个平台 specs。
-- 主服务入口已经挂载多类 Web-AIGC routes，包括搜索问答、Office / 内容生产、MCP、`transaction_flow`、`orchestration_recognition_jump`，以及向量更新 / 删除等能力。
-- runtime 主线已经具备 built-in adapters、Web-AIGC extra adapters、wait / resume 控制面，以及 replay / audit observability bridge。
-- 后续重点不是继续累积 spec 数量，而是把节点能力归并到 Route、Fleet、Takeover 和 Evidence 的自动驾驶语义下。
-
----
-
-## 运行模式
-
-当前仓库有三类实际运行目标：
-
-| 环境 | 前端 | 服务端 | 执行行为 |
-| ---- | ---- | ------ | -------- |
-| GitHub Pages 预览 | 有 | 无 | 仅浏览器预览运行时 |
-| 本地且 Docker 可用 | 有 | 有 | `real` 执行模式 |
-| 本地但 Docker 不可用 | 有 | 有 | 自动回退到 `native` |
-
-几个关键边界：
-
-- GitHub Pages 是静态预览目标，不包含 Node 服务端，也不包含 Lobster Executor。
-- `pnpm run dev:all` 会优先使用 `real`，当 Docker 不可用时自动回退到 `native`。
-- 如果你显式设置 `LOBSTER_EXECUTION_MODE=mock` 或 `LOBSTER_EXECUTION_MODE=native`，会保留你的选择。
-
-执行器更多说明见 [docs/executor/lobster-executor.md](./docs/executor/lobster-executor.md)。
-
----
-
-## 快速开始
-
-本仓库以 `pnpm` 为主。如果你的机器没有全局安装 `pnpm`，可以把下面命令替换成 `corepack pnpm`。
-
-### 1. 只预览前端
-
-浏览器预览流不需要 API Key。
-
-```bash
-pnpm install --frozen-lockfile
-pnpm run dev:frontend
-```
-
-适合快速查看办公室主壳、3D 场景和演示体验。
-
-### 2. 启动完整本地栈
-
-先创建本地环境文件：
-
-```bash
-cp .env.example .env
-```
-
-PowerShell 可用：
-
-```powershell
-Copy-Item .env.example .env
-```
-
-然后补全 `.env` 里你需要的值，再启动：
-
-```bash
-pnpm run dev:all
-```
-
-常用 AI 相关环境变量：
-
-```dotenv
-LLM_API_KEY=your_api_key_here
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_MODEL=gpt-5.4
-LLM_WIRE_API=responses
-```
-
-### 3. 分开启动各个服务
-
-适合你单独调试前端、后端或执行器。
-
-```bash
-pnpm run dev:server
-pnpm run dev:frontend
-```
-
-显式指定执行模式启动执行器：
-
-```bash
-LOBSTER_EXECUTION_MODE=real pnpm exec tsx services/lobster-executor/src/index.ts
-```
-
-PowerShell 示例：
-
-```powershell
-$env:LOBSTER_EXECUTION_MODE='native'
-pnpm exec tsx services/lobster-executor/src/index.ts
-```
-
----
-
-## 发布护栏
-
-常用命令：
-
-- `pnpm run lint`：检查发布相关文档和工作流文件的格式。
-- `pnpm run typecheck`：执行 TypeScript no-emit 类型检查。
-- `pnpm run test`：运行 client、server、executor 的聚合测试入口。
-- `pnpm run build`：构建前端与服务端产物。
-- `pnpm run test:guardrails`：运行较轻量的决策和 socket 重连回归。
-- `pnpm run test:release`：执行发布前聚合检查。
-- `pnpm run build:pages`：构建 GitHub Pages 产物。
-
-对于发布敏感改动，最小建议检查集是：
-
-```bash
-pnpm run lint
-pnpm run typecheck
-pnpm run test
-pnpm run build
-```
-
----
-
-## 仓库结构
+任务自动驾驶围绕几个产品对象展开。
+
+| 概念 | 产品含义 | 当前实现锚点 |
+| --- | --- | --- |
+| `Destination` | 用户想达到的目标，包含约束、成功标准、缺失信息和交付物预期 | mission metadata、runtime context、workflow config |
+| `Route` | 可执行路径，包含阶段、候选路线、风险、接管点和可能的重规划 | workflow definition、route family、workflow phase |
+| `Drive State` | 解释系统当前在做什么的高层状态机 | mission runtime state、workflow state、wait/resume、review state |
+| `Fleet` | 由 Planner、Clarifier、Researcher、Operator、Generator、Reviewer、Auditor 等组成的能力编队 | agents、skills、tools、Web-AIGC nodes、executors |
+| `Takeover Point` | 让用户介入的决策点，包括澄清、路线确认、权限、预算、风险和交付审查 | HITL、MissionDecision、approval、`WAITING_INPUT`、`resume()` |
+| `Replan` | 因为新约束、低置信度、风险、工具失败、质量差或用户覆盖而发生的路线变化 | workflow revision、retry/escalate、reroute records |
+| `Confidence` | 系统对目标理解、路线可行性、执行完成度和结果质量的把握程度 | runtime projection、review signals、evidence completeness |
+| `Risk` | 对歧义、缺失信息、工具失败、权限、成本、副作用和质量的结构化观察 | governance、audit、permission checks、runtime risk actions |
+
+主链路可以简写成：
 
 ```text
-cube-pets-office/
-|-- client/                    # 前端应用：办公室主壳、任务页、回放、3D 场景
-|-- server/                    # 后端 API、工作流状态、事件、回放
-|-- shared/                    # 共享契约与类型
-|-- services/lobster-executor/ # 执行服务：mock / native / real
-|-- docs/                      # 架构图、执行器说明、参考文档
-|-- scripts/                   # 本地开发、构建、smoke、工具脚本
-|-- data/                      # 本地数据与持久化运行文件
-`-- .kiro/                     # specs、steering 与执行规划文档
+Destination -> Route -> Fleet -> Drive State -> Result
 ```
 
-如果你想直接从关键入口开始看，建议先读这些文件：
+`Takeover`、`Replan`、`Confidence`、`Risk` 和 `Evidence` 让这条链路不是黑盒。
 
-- [client/src/App.tsx](./client/src/App.tsx)
-- [client/src/pages/Home.tsx](./client/src/pages/Home.tsx)
-- [client/src/pages/tasks/TasksPage.tsx](./client/src/pages/tasks/TasksPage.tsx)
-- [client/src/components/office/OfficeTaskCockpit.tsx](./client/src/components/office/OfficeTaskCockpit.tsx)
-- [server/index.ts](./server/index.ts)
-- [server/core/workflow-engine.ts](./server/core/workflow-engine.ts)
-- [services/lobster-executor/src/index.ts](./services/lobster-executor/src/index.ts)
+## 自动驾驶等级
 
----
+Task Autopilot 的 L1-L5 是执行承诺模型，不是营销口号。README.new 这里不把项目写成全局 L5。
 
-## 文档入口
+| 等级 | 含义 | 当前位置 |
+| --- | --- | --- |
+| `L1` | 路线建议层，帮用户理解目标并推荐路线 | 可产品化的近端基线 |
+| `L2` | 部分自动执行，低风险步骤可自动前进，关键决策需要接管 | 适合当前 mission-first + HITL 基础 |
+| `L3` | 标准任务自动闭环，标准化任务在受控风险、审查和恢复约束下大部分可自动完成 | 面向精选任务族的近期设计目标 |
+| `L4` | 限定任务域内的高自动化，需要白名单式策略约束 | 未来限定域方向，不是当前通用承诺 |
+| `L5` | 开放域全自动 | 研究与长期概念，当前不宣称已实现 |
 
-- [ROADMAP.md](./ROADMAP.md)
-- [CHANGELOG.md](./CHANGELOG.md)
-- [docs/architecture.svg](./docs/architecture.svg)
-- [docs/architecture-runtime-2026-04-21.svg](./docs/architecture-runtime-2026-04-21.svg)
-- [docs/executor/lobster-executor.md](./docs/executor/lobster-executor.md)
-- [.kiro/steering/task-autopilot-spec-roadmap-2026-04-23.md](./.kiro/steering/task-autopilot-spec-roadmap-2026-04-23.md)
-- [.kiro/steering/execution-plan.md](./.kiro/steering/execution-plan.md)
-- [.kiro/steering/spec-execution-roadmap.md](./.kiro/steering/spec-execution-roadmap.md)
-- [.kiro/steering/web-aigc-58-plan-progress-summary-2026-04-22.md](./.kiro/steering/web-aigc-58-plan-progress-summary-2026-04-22.md)
-- [.kiro/steering/web-aigc-runtime-mainline-checkpoints-2026-04-23.md](./.kiro/steering/web-aigc-runtime-mainline-checkpoints-2026-04-23.md)
-- [.kiro/steering/web-aigc-phase-2-integration-plan.md](./.kiro/steering/web-aigc-phase-2-integration-plan.md)
-- [.kiro/steering/web-aigc-next-phase-mainline-plan-2026-04-22.md](./.kiro/steering/web-aigc-next-phase-mainline-plan-2026-04-22.md)
-- [.kiro/specs/task-autopilot-platform-positioning/](./.kiro/specs/task-autopilot-platform-positioning/)
-- [.kiro/specs/task-autopilot-core-concepts/](./.kiro/specs/task-autopilot-core-concepts/)
-- [.kiro/specs/task-autopilot-levels-l1-to-l5/](./.kiro/specs/task-autopilot-levels-l1-to-l5/)
-- [.kiro/specs/](./.kiro/specs/)
-
-`README.md` 与 `README.zh-CN.md` 保持为 GitHub 首页稳定产品文档。滚动进度、进行中的实现细节和带日期的执行记录应放在 `ROADMAP.md`、`.kiro/steering/` 和 spec 档案中。
+一个 mission 可以先按某个目标等级启动，遇到风险、缺失上下文、外部副作用或治理边界时再降级。
 
 ---
 
-## 友链
+## 工作流程
 
-- [LINUX DO](https://linux.do/) - 认可社区。
-
----
-
-## 常见问题
-
-### 我没有安装 `pnpm`
-
-可以直接把 `pnpm` 换成 `corepack pnpm`，例如：
-
-```bash
-corepack pnpm install --frozen-lockfile
-corepack pnpm run test:release
+```
+输入想法（一句话）
+  ↓
+① 智能澄清 — 补全目标、约束、用户画像、成功标准
+  ↓
+② 路线规划 — 主路线 + 备选路线 + 风险评估 + 成本预估
+  ↓
+③ SPEC 树 — 拆解为模块化规格文档树
+  ↓
+④ 规格文档 — 流式生成 requirements / design / tasks（实时可见）
+  ↓
+⑤ 效果预览 — 系统架构图 + 提示词包 + 可执行的下一步
+  ↓
+导出 → Markdown / ZIP / 在线预览
 ```
 
-### 为什么 GitHub Pages 不等于 `native` 模式？
+全程实时可见：3D 场景展示 Agent 车队协作状态，右侧工作台展示流式生成过程与阶段进度指示器。
 
-因为 GitHub Pages 是静态部署目标，没有本地后端进程，也没有本地执行器。Pages 上展示的是浏览器预览运行时，不是宿主机进程执行。
+---
 
-### 现在已经是 L4 / L5 自动驾驶了吗？
+## 预演示例
 
-不是。当前 README 使用“任务自动驾驶平台”作为产品方向和系统抽象，但不宣称已经实现开放域无人值守自动驾驶。现在已经完成第一阶段 `18` 份 specs、`345 / 345` 顶层任务和 `602 / 602` raw checklist 的闭合，并落下 shared / server / client 的最小纵切；近期落地重点仍是 L1 到 L3：路线建议、部分自动执行、标准任务中的可控闭环、清晰接管和完整证据链。
+每一个预演都是一篇可传播的内容。50 个预演 = 50 次传播机会。
 
-### 提交 PR 前最少要跑哪些命令？
+| 输入 | 预演产出 |
+|------|----------|
+| "AI 漫剧平台" | 6 个 SPEC 模块 · 内容生产流水线设计 · 变现模型 · 系统架构 |
+| "权限管理 SaaS" | 8 个 SPEC 模块 · RBAC 架构 · 多租户设计 · API 契约 |
+| "舆情分析工具" | 5 个 SPEC 模块 · 数据采集管道 · 情感分析模型选型 · 告警规则引擎 |
+| "独立开发者记账 App" | 4 个 SPEC 模块 · 本地优先架构 · 同步方案 · 隐私合规 |
+| "企业知识库" | 7 个 SPEC 模块 · RAG 管道设计 · 权限模型 · 增量索引策略 |
+| "跨境电商选品工具" | 6 个 SPEC 模块 · 数据源集成 · 评分算法 · 竞品分析 |
 
-至少建议跑：
+每份产出都是完整的、可导出的文档包 —— 可用于项目启动、团队对齐、博客内容或视频素材。
+
+---
+
+## 几分钟获得上下文，而不是几周
+
+大多数产品工具从零开始。你花几天写 PRD，花几周对齐团队，花几个月才能看到方向是否正确。
+
+Cube Pets Office 跳过等待。输入你的想法，让 FSD 车队在 5 分钟内完成预演，在投入任何工程资源之前看到全貌。
+
+**传统做法**：想法 → 2 周写 PRD → 1 周画架构 → 3 天对齐 → 发现方向不对 → 重来。
+
+**Cube Pets Office**：想法 → 5 分钟 → 完整预演 → 判断值不值得做 → 不值得就换下一个。
+
+---
+
+## 与其他平台对比
+
+| 特性 | Dify | n8n | CrewAI | LangGraph | **Cube Pets Office** |
+|------|:---:|:---:|:---:|:---:|:---:|
+| 开源 | ✅ | ✅ | ✅ | ✅ | ✅ MIT |
+| 一句话到完整产品 | 🚫 | 🚫 | 🚫 | 🚫 | ✅ |
+| SPEC 文档生成 | 🚫 | 🚫 | 🚫 | 🚫 | ✅ 需求 + 设计 + 任务 |
+| 路线规划与备选 | 🚫 | 🚫 | 🚫 | ⚠️ | ✅ |
+| 多角色 Agent 车队 | 🚫 | 🚫 | ✅ | ✅ | ✅ FSD 7 角色 |
+| 实时可观测性 | ⚠️ | ⚠️ | 🚫 | 🚫 | ✅ 3D + 流式 |
+| 人工接管治理 | ⚠️ | ⚠️ | 🚫 | 🚫 | ✅ |
+| 执行回放与审计 | 🚫 | 🚫 | 🚫 | 🚫 | ✅ |
+| Docker 沙箱执行 | 🚫 | ⚠️ | 🚫 | 🚫 | ✅ |
+| 50+ AIGC 节点族 | ✅ | ✅ | 🚫 | 🚫 | ✅ 58 份 specs |
+| 导出 Markdown/ZIP | 🚫 | 🚫 | 🚫 | 🚫 | ✅ |
+| 纯浏览器演示模式 | 🚫 | 🚫 | 🚫 | 🚫 | ✅ GitHub Pages |
+
+---
+
+## 从源码贡献
+
+新贡献者？快速路径：
+
+1. 安装 Node.js 22+、pnpm，可选安装 Docker 以获得完整执行器模式。
+2. Fork 并克隆仓库，然后 `pnpm install`。
+3. 使用 `pnpm run dev:frontend` 进行纯 UI 开发（无需 `.env`），或 `pnpm run dev:all` 启动全栈。
+4. 提交 PR 前：`node --run check`（TypeScript）+ `pnpm run test`（Vitest）。
+
+详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
+
+## 发布前检查
+
+对需要发 PR 的改动，至少跑：
 
 ```bash
 pnpm run lint
-pnpm run typecheck
+node --run typecheck
 pnpm run test
 ```
 
-如果你的改动影响打包、部署或端到端运行行为，再补：
+如果改动影响打包、部署或端到端运行，再加：
 
 ```bash
 pnpm run build
@@ -444,31 +269,42 @@ pnpm run test:release
 
 ---
 
-## Project-first next phase
+## 技术栈
 
-Task Autopilot Phase 1 stabilized Destination, Route, Drive State, Fleet, and Takeover as the product language for mission execution. The next phase moves the primary product line from task-launch-first to Project-first:
-
-```text
-Project -> Clarification -> Spec -> Route -> Execution -> Evidence
-```
-
-- `Project` is the first durable product object. It owns intent, messages, specs, routes, missions, artifacts, and evidence.
-- `Clarification` is project-scoped. It resolves missing context, constraints, permissions, acceptance criteria, and risk boundaries before execution is treated as committed.
-- `Spec` turns clarified project intent into an inspectable and versioned contract for scope, deliverables, acceptance criteria, and evidence expectations.
-- `Route` is planned through FSD role packages, including the main route, conservative route, fallback route, and takeover points.
-- `Execution` continues to run through the existing Mission / Workflow / Runtime / Executor stack. Project-first is not a parallel runtime.
-- `Evidence` writes artifacts, logs, decisions, replay records, audit facts, and delivery review back to the project context.
-
-The 50+ AIGC nodes are internal capabilities inside FSD roles such as Planner, Clarifier, Researcher, Generator, Operator, Reviewer, and Auditor. They should not become the user's primary entrypoint. Users should work through Project, Clarification, Spec, Route, Execution, and Evidence instead of managing a node catalog directly.
+| 层 | 技术 |
+|----|------|
+| 前端 | React 19 + Vite + TypeScript + Zustand + Three.js (R3F) + Framer Motion |
+| 服务端 | Express + Socket.IO + TypeScript |
+| AI | OpenAI 兼容接口（任意提供商） |
+| 执行 | Docker (dockerode) + 浏览器运行时 + 原生运行时 |
+| 测试 | Vitest + fast-check (PBT) |
+| 存储 | IndexedDB（浏览器端）/ JSON（服务端） |
 
 ---
 
-## License
+## 项目规模
 
-MIT
+统计口径：按当前 Git 已跟踪文件 + 待提交的非忽略文件统计，不包含 `node_modules`、`.git`、构建缓存和本地临时目录。
+
+- **4,707 个项目文件**，覆盖源码、规格文档、设计素材、脚本和工作流配置
+- **1,837 个 TypeScript / TSX 文件**，共 **486,932 行 TypeScript**
+- **723 个测试文件**，静态统计 **7,771 个 `it` / `test` 用例调用**
+- **273 份 `.kiro/specs` 规格目录**，包含 **879 个规格 Markdown 文件**
+- **58 份 Web-AIGC specs**（52 个节点规格 + 6 个平台族规格）
+- **88 份 Autopilot / Blueprint / Project-first specs**（`autopilot-*` 61 + `blueprint-*` 13 + `project-*` 10 + `task-autopilot-*` 4）
+- **8,165 个规格任务检查项**（`tasks.md` 全量复选框：**7,093** 已勾选 / **1,072** 未勾选；顶层任务 **2,463 / 2,794**）
+- **204 / 273 份规格目录** 的 `tasks.md` 已全量勾选；另有 1 个规格目录暂未提供 `tasks.md`
 
 ---
 
-## Star History
+## 在 GitHub 上给我们 Star
+
+引擎产出的每一份预演都是一篇帮助他人发现可能性的内容。Star 这个仓库，帮助更多人找到它。
 
 [![Star History Chart](https://api.star-history.com/svg?repos=opencroc/cube-pets-office&type=Date)](https://star-history.com/#opencroc/cube-pets-office&Date)
+
+---
+
+## 协议
+
+[MIT](./LICENSE)

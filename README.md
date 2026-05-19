@@ -2,524 +2,265 @@
   <img src="./docs/assets/banner.png" alt="Cube Pets Office banner" width="100%" />
 </p>
 
-<h1 align="center">Cube Pets Office</h1>
+<h1 align="center"><img src="./docs/assets/logo.png" alt="端云" height="44" align="absmiddle" />&nbsp;&nbsp;|&nbsp;&nbsp;Cube Pets Office</h1>
+
+<p align="center">
+  <strong>输入一个想法，推演出一个完整的产品。私有部署、全程可见、证据留痕。</strong>
+</p>
 
 <p align="center">
   <a href="./README.md"><strong>English</strong></a> |
-  <a href="./README.zh-CN.md"><strong>Simplified Chinese</strong></a>
+  <a href="./README.zh-CN.md"><strong>简体中文</strong></a>
 </p>
 
 <p align="center">
-  <strong>Task Autopilot / 任务自动驾驶平台 for AI agents</strong><br/>
-  Cube Pets Office is a Task Autopilot platform for complex work: enter a destination, inspect the route, let the system execute what is safe, and take over when human judgment is required.
-</p>
-
-<p align="center">
-  <a href="https://opencroc.github.io/cube-pets-office/"><strong>Live Demo</strong></a>
-</p>
-
-<p align="center">
-  <img alt="license" src="https://img.shields.io/badge/license-MIT-111827" />
-  <img alt="frontend" src="https://img.shields.io/badge/frontend-React%2019%20%2B%20Vite-2563eb" />
-  <img alt="server" src="https://img.shields.io/badge/server-Node%20%2B%20Express-0f766e" />
-  <img alt="executor" src="https://img.shields.io/badge/executor-Lobster-7c3aed" />
+  <img alt="status" src="https://img.shields.io/badge/状态-早期测试-orange" />
+  <img alt="license" src="https://img.shields.io/badge/协议-MIT-111827" />
+  <img alt="stars" src="https://img.shields.io/github/stars/opencroc/cube-pets-office?style=flat" />
+  <img alt="version" src="https://img.shields.io/badge/版本-v1.0.0-2563eb" />
+  <img alt="frontend" src="https://img.shields.io/badge/React%2019-Vite-2563eb" />
   <img alt="3d" src="https://img.shields.io/badge/3D-Three.js-f97316" />
-  <img alt="autopilot" src="https://img.shields.io/badge/task%20autopilot-602%2F602%20tasks-0f766e" />
-  <img alt="pages" src="https://img.shields.io/badge/demo-GitHub%20Pages-0ea5e9" />
+  <img alt="executor" src="https://img.shields.io/badge/执行器-Docker-7c3aed" />
 </p>
 
----
+<p align="center">
+  <img alt="project files" src="https://img.shields.io/badge/项目文件-4,707-111827" />
+  <img alt="typescript scale" src="https://img.shields.io/badge/TS%2FTSX-1,837%20files%20%7C%20486,932%20lines-2563eb" />
+  <img alt="test scale" src="https://img.shields.io/badge/测试-723%20files%20%7C%207,771%20cases-0f766e" />
+  <img alt="spec markdown scale" src="https://img.shields.io/badge/specs-273%20dirs%20%7C%20879%20md-7c3aed" />
+</p>
 
-## What It Is
+<p align="center">
+  <img alt="web aigc specs" src="https://img.shields.io/badge/Web--AIGC-58%20specs-f97316" />
+  <img alt="web aigc node specs" src="https://img.shields.io/badge/节点规格-52-f97316" />
+  <img alt="web aigc platform specs" src="https://img.shields.io/badge/平台族-6-f97316" />
+  <img alt="autopilot specs" src="https://img.shields.io/badge/Autopilot%20family-88%20specs-0ea5e9" />
+  <img alt="autopilot prefix specs" src="https://img.shields.io/badge/autopilot-61-0ea5e9" />
+  <img alt="blueprint prefix specs" src="https://img.shields.io/badge/blueprint-13-0ea5e9" />
+  <img alt="project prefix specs" src="https://img.shields.io/badge/project-10-0ea5e9" />
+  <img alt="task autopilot prefix specs" src="https://img.shields.io/badge/task--autopilot-4-0ea5e9" />
+</p>
 
-Cube Pets Office is evolving from a mission-first task operating system into a Project-first Task Autopilot platform.
+<p align="center">
+  <img alt="tasks checked" src="https://img.shields.io/badge/tasks.md-7,093%2F8,165%20checked-16a34a" />
+  <img alt="unchecked tasks" src="https://img.shields.io/badge/未勾选-1,072-f97316" />
+  <img alt="top level tasks" src="https://img.shields.io/badge/顶层任务-2,463%2F2,794-84cc16" />
+  <img alt="complete specs" src="https://img.shields.io/badge/完成规格-204%2F273-f59e0b" />
+  <img alt="missing tasks file" src="https://img.shields.io/badge/缺%20tasks.md-1-64748b" />
+</p>
 
-It is not a chat playground where the main artifact is an answer. It is not only a workflow builder where users must manually draw every node. It is also not an agent platform whose main value is browsing agent, tool, or plugin catalogs. The product direction is to let a user state a goal, then make the task lifecycle visible and controllable:
+<p align="center">
+  <a href="https://opencroc.github.io/cube-pets-office/">在线演示</a> •
+  <a href="./docs/">文档</a> •
+  <a href="./ROADMAP.md">路线图</a> •
+  <a href="./CONTRIBUTING.md">贡献指南</a> •
+  <a href="./CODE_OF_CONDUCT.md">行为准则</a> •
+  <a href="./SECURITY.md">安全政策</a> •
+  <a href="./LICENSE">MIT 协议</a>
+</p>
 
-- understand the intended destination and missing context
-- recommend an executable route instead of exposing every low-level node first
-- organize a role-based agent fleet around the route
-- run work through the existing mission runtime, workflow engine, and executor stack
-- surface drive state, logs, artifacts, evidence, audit records, and replay
-- pause for clarification, approval, risk acceptance, budget, permission, or delivery review when needed
-- replan when the current route is no longer safe, complete, or useful
+> **早期测试版**：正在积极开发中，可能存在粗糙之处。
 
-The current engineering foundation remains mission-first, but the next product entrypoint is Project-first. A `Project` becomes the user's durable workspace for intent, clarification, specs, routes, execution, artifacts, and evidence. `mission / workflow / runtime / task` continue to be the implementation vocabulary, while `Project / Clarification / Spec / Route / Execution / Evidence` become the next user-facing mainline.
+访问 [在线演示](https://opencroc.github.io/cube-pets-office/) 或本地运行：
 
----
-
-## Current Reality
-
-This README intentionally keeps the product story aligned with the codebase and specs that exist today.
-
-What is already present as foundation:
-
-- A mission-first office shell and `/tasks` workbench for launching, monitoring, and reviewing task execution.
-- A Node + Express + Socket.IO server that coordinates mission state, workflow progress, events, replay, and APIs.
-- A Lobster executor service with `mock`, `native`, and `real` execution modes, including Docker-aware local behavior.
-- Human-in-the-loop control paths such as wait/resume, decision handling, approvals, and manual recovery hooks.
-- Review, audit, replay, lineage, evidence, and runtime observability concepts across existing specs and mainline integration.
-- A Web-AIGC mainline baseline where `58 / 58` specs have been closed and multiple node/route families have been integrated into the server mainline.
-- A closed first-phase Task Autopilot baseline: `18` specs, `54` markdown files, `345 / 345` top-level task items, and `602 / 602` raw task checklist items.
-- A first implementation slice for Task Autopilot projections: shared Destination parsing contracts, server projection/orchestration fields, client store normalization, and a cockpit-facing `TaskAutopilotPanel`.
-- A Project-first architecture track that defines `Project` as the first product object above missions, with clarification, spec, route, execution, and evidence attached to the project context.
-
-What is not being claimed:
-
-- The project is not an open-domain L5 fully autonomous operator.
-- The system does not promise to complete every complex task without human review.
-- High-risk side effects, permission changes, external writes, budget-sensitive actions, and ambiguous goals still require explicit governance and takeover.
-- The new product language does not require an immediate large-scale rename of the existing `mission / workflow / runtime` code.
-- The closed first-phase Task Autopilot checklist does not mean open-domain L5 autonomy; it means the product model, spec backlog, and first shared/server/client projection slice now have a traceable baseline for the next runtime deepening work.
-
----
-
-## From Mission-First To Project-First Autopilot
-
-The previous product center was mission-first:
-
-- A user launches a mission instead of asking for a one-off reply.
-- The system tracks workflow stages, runtime state, artifacts, and decisions.
-- Replay and audit preserve enough evidence to inspect what happened.
-- `/` and `/tasks` are the high-frequency execution surfaces.
-
-Task Autopilot keeps that foundation and adds a clearer product model. The first phase used Destination, Route, Drive State, Fleet, and Takeover to explain task execution. The next phase lifts that model into a Project-first workspace:
-
-```text
-Project -> Clarification -> Spec -> Route -> Execution -> Evidence
+```bash
+# 三条命令启动
+git clone https://github.com/opencroc/cube-pets-office.git && cd cube-pets-office
+pnpm install
+pnpm run dev:all        # 全栈：前端 + 服务端 + 执行器
+# 或者：pnpm run dev:frontend  (纯浏览器模式，无需 .env)
 ```
 
-That chain means:
+---
 
-- `Project` is the durable product object the user returns to, not a transient launch form.
-- `Clarification` captures missing intent, constraints, permissions, acceptance criteria, and risk boundaries before execution is treated as safe.
-- `Spec` turns the clarified project goal into an inspectable contract for scope, deliverables, route constraints, and evidence expectations.
-- `Route` is the selected execution plan, including fallback and conservative paths.
-- `Execution` still runs through the existing mission, workflow, runtime, and executor stack.
-- `Evidence` closes the loop with artifacts, logs, decisions, replay records, and delivery review.
+## 产品界面一览
 
-The compatibility mapping remains:
-
-| Mission-first foundation            | Task Autopilot product layer | Meaning                                                   |
-| ----------------------------------- | ---------------------------- | --------------------------------------------------------- |
-| `mission`                           | `Destination`                | The outcome the user wants to reach                       |
-| `workflow`                          | `Route`                      | The planned path toward the destination                   |
-| runtime / phase state               | `Drive State`                | The user-readable state of the task journey               |
-| agents / skills / nodes / executors | `Fleet`                      | The role-based capability group assembled for the route   |
-| HITL / decision / approval          | `Takeover Point`             | A moment where the system gives control back to the user  |
-| retry / revision / reroute          | `Replan`                     | A formal route change after risk, failure, or new context |
-
-This is a compatibility-first evolution. The product layer should be implemented through bindings, projections, view models, and server-side aggregation before any deep rename or schema rewrite is considered.
+<table>
+  <tr>
+    <td width="50%"><img src="./docs/assets/A.png" alt="Cube Pets Office 界面截图 A" /></td>
+    <td width="50%"><img src="./docs/assets/B.png" alt="Cube Pets Office 界面截图 B" /></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="./docs/assets/C.png" alt="Cube Pets Office 界面截图 C" /></td>
+    <td width="50%"><img src="./docs/assets/D.png" alt="Cube Pets Office 界面截图 D" /></td>
+  </tr>
+    <tr>
+    <td width="50%"><img src="./docs/assets/E.png" alt="Cube Pets Office 界面截图 E" /></td>
+    <td width="50%"><img src="./docs/assets/F.png" alt="Cube Pets Office 界面截图 F" /></td>
+  </tr>
+</table>
 
 ---
 
-## Core Concepts
+# 它是什么？
 
-Task Autopilot is organized around a small set of product objects.
+Cube Pets Office 是一个开源的 **AI 产品预演引擎**。输入一句话想法，它为你推演出完整的产品方案 —— 规格文档、系统架构、路线规划、提示词包、效果预览 —— 全程可见、全部可导出、全部有证据留痕。
 
-| Concept          | Product meaning                                                                                                                                  | Current implementation anchor                                                      |
-| ---------------- | ------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------- |
-| `Destination`    | A structured form of the user's intended outcome, including goal, constraints, missing information, success criteria, and expected deliverables. | Mission metadata, mission summary, runtime context, workflow config                |
-| `Route`          | A recommended executable path with stages, candidate routes, risks, takeover points, expected artifacts, and possible replans.                   | Workflow definition, workflow instance, route family, workflow phase               |
-| `Drive State`    | A high-level state machine that explains what the system is doing now.                                                                           | Mission runtime state, workflow state, node state, wait/resume state, review state |
-| `Fleet`          | A role-oriented capability group such as Planner, Clarifier, Researcher, Operator, Generator, Reviewer, Auditor, and Coordinator.                | Agents, skills, tools, Web-AIGC nodes, MCP tools, executors, adapters              |
-| `Takeover Point` | A user decision point for clarification, route selection, permission, budget, risk acceptance, delivery acceptance, or exception handling.       | HITL, MissionDecision, approval, `WAITING_INPUT`, `resume()`, `escalate()`         |
-| `Replan`         | A route-level change caused by new constraints, lower confidence, elevated risk, failed tools, poor intermediate results, or user override.      | Workflow revision, retry/escalate paths, reroute records, runtime events           |
-| `Confidence`     | The system's confidence in goal understanding, route feasibility, execution completion, and result quality.                                      | Runtime projection, review signals, evidence completeness, UI explanation layer    |
-| `Risk`           | A structured view of ambiguity, missing data, tool failure, permissions, cost, compliance, external side effects, and result quality.            | Runtime governance, audit, permission checks, risk actions, replay evidence        |
+- **一句话输入，完整产品输出。** 不用写 PRD，不用画流程图。输入"AI 漫剧平台"，得到一份完整的产品预演：需求文档、设计文档、系统架构、任务拆解、提示词包。每份预演都是可分享的 Markdown 文档包，可直接用于立项评审、博客发布或投资人沟通。
 
-The main chain is:
+- **[FSD 角色车队](./docs/)**：一组专业化的 AI 角色 —— 规划师、澄清师、研究员、生成器、执行者、审阅者、审计员 —— 在每次预演中协作。每个角色拥有独立的能力范围（50+ AIGC 节点、Docker 沙箱、MCP 工具、Skills）。你可以通过 3D 办公室场景和流式卡片流实时观看它们思考、讨论和产出。
+
+- **[全流程可观测](./docs/)**：右侧工作台展示每一步：哪些角色正在活跃、哪些能力正在被调用、LLM 在 ReAct 循环的哪个阶段（思考 → 选工具 → 执行 → 观察 → 下一步）、已经产出了哪些产物。没有黑盒。
+
+- **[多路线规划与对比](./docs/)**：系统推荐多条可执行路线（快速 / 标准 / 深度 / 保守），每条都有风险评估、成本预估和接管点。你在任何东西运行之前做出选择。
+
+- **[边界处人工接管](./docs/)**：澄清、审批、风险确认、预算确认、交付审查都是明确的接管点。系统会暂停并询问 —— 它永远不会静默失败或失控运行。
+
+- **[证据与回放](./docs/)**：每次预演都产出可导出的产物、审计日志和回放时间线。你可以检查为什么做了某个决策、调用了哪些工具、LLM 在任何时刻在想什么。支持导出为 Markdown、ZIP 或在线浏览。
+
+---
+
+## 项目现状
+
+这份 README.new 保持和当前代码、spec 和运行能力一致。
+
+已具备的基础：
+
+- mission-first 的 office shell 和 `/tasks` 工作台，负责启动、监控和回看任务执行。
+- Node + Express + Socket.IO 服务端，协调 mission 状态、workflow 进度、事件、回放和 API。
+- Lobster executor 提供 `mock`、`native`、`real` 三种执行模式，并兼容本地 Docker 行为。
+- wait/resume、decision、approval、manual recovery 等人工接管路径。
+- review、audit、replay、lineage、evidence、runtime observability 等概念已经在现有 specs 和主线里出现。
+- Web-AIGC 主线、Task Autopilot 基线和 Project-first 方向已经形成可追溯的基础。
+
+不在这份 README.new 里承诺的事：
+
+- 不是 open-domain L5 全自动操作员。
+- 不是不需要人工审查的万能执行器。
+- 高风险副作用、权限变更、外部写入、预算敏感动作和模糊目标仍然需要人工接管。
+- 现有 `mission / workflow / runtime` 不需要马上整体重命名。
+
+## 核心概念
+
+任务自动驾驶围绕几个产品对象展开。
+
+| 概念 | 产品含义 | 当前实现锚点 |
+| --- | --- | --- |
+| `Destination` | 用户想达到的目标，包含约束、成功标准、缺失信息和交付物预期 | mission metadata、runtime context、workflow config |
+| `Route` | 可执行路径，包含阶段、候选路线、风险、接管点和可能的重规划 | workflow definition、route family、workflow phase |
+| `Drive State` | 解释系统当前在做什么的高层状态机 | mission runtime state、workflow state、wait/resume、review state |
+| `Fleet` | 由 Planner、Clarifier、Researcher、Operator、Generator、Reviewer、Auditor 等组成的能力编队 | agents、skills、tools、Web-AIGC nodes、executors |
+| `Takeover Point` | 让用户介入的决策点，包括澄清、路线确认、权限、预算、风险和交付审查 | HITL、MissionDecision、approval、`WAITING_INPUT`、`resume()` |
+| `Replan` | 因为新约束、低置信度、风险、工具失败、质量差或用户覆盖而发生的路线变化 | workflow revision、retry/escalate、reroute records |
+| `Confidence` | 系统对目标理解、路线可行性、执行完成度和结果质量的把握程度 | runtime projection、review signals、evidence completeness |
+| `Risk` | 对歧义、缺失信息、工具失败、权限、成本、副作用和质量的结构化观察 | governance、audit、permission checks、runtime risk actions |
+
+主链路可以简写成：
 
 ```text
 Destination -> Route -> Fleet -> Drive State -> Result
 ```
 
-Takeover, replan, confidence, risk, evidence, audit, and replay make that chain inspectable rather than a black box.
+`Takeover`、`Replan`、`Confidence`、`Risk` 和 `Evidence` 让这条链路不是黑盒。
+
+## 自动驾驶等级
+
+Task Autopilot 的 L1-L5 是执行承诺模型，不是营销口号。README.new 这里不把项目写成全局 L5。
+
+| 等级 | 含义 | 当前位置 |
+| --- | --- | --- |
+| `L1` | 路线建议层，帮用户理解目标并推荐路线 | 可产品化的近端基线 |
+| `L2` | 部分自动执行，低风险步骤可自动前进，关键决策需要接管 | 适合当前 mission-first + HITL 基础 |
+| `L3` | 标准任务自动闭环，标准化任务在受控风险、审查和恢复约束下大部分可自动完成 | 面向精选任务族的近期设计目标 |
+| `L4` | 限定任务域内的高自动化，需要白名单式策略约束 | 未来限定域方向，不是当前通用承诺 |
+| `L5` | 开放域全自动 | 研究与长期概念，当前不宣称已实现 |
+
+一个 mission 可以先按某个目标等级启动，遇到风险、缺失上下文、外部副作用或治理边界时再降级。
 
 ---
 
-## Triggering Task Autopilot
+## 工作流程
 
-The smallest useful trigger is a destination-oriented sentence: state the outcome, the constraints, and what a good delivery should look like. The launch surface currently keeps six example chips aligned to the frontend view model:
+```
+输入想法（一句话）
+  ↓
+① 智能澄清 — 补全目标、约束、用户画像、成功标准
+  ↓
+② 路线规划 — 主路线 + 备选路线 + 风险评估 + 成本预估
+  ↓
+③ SPEC 树 — 拆解为模块化规格文档树
+  ↓
+④ 规格文档 — 流式生成 requirements / design / tasks（实时可见）
+  ↓
+⑤ 效果预览 — 系统架构图 + 提示词包 + 可执行的下一步
+  ↓
+导出 → Markdown / ZIP / 在线预览
+```
 
-| Chip | Minimal destination example |
-| ---- | --------------------------- |
-| Analysis | Analyze this week's support incidents by Friday; deliver root causes, constraints, and success criteria. |
-| Generation | Draft a bilingual partner launch brief with a rollout checklist and approval criteria. |
-| Implementation | Implement a guarded checkout banner change; keep rollback path and tests explicit. |
-| Research | Research three pricing options and summarize evidence, risks, and recommendation. |
-| Attachment | Use the attached requirements doc to produce schedule, risk register, and acceptance criteria. |
-| Advanced execution | Open the sandbox/browser, verify the payment flow, collect logs, and provide a rollback recommendation. |
-
-The Destination parser/projection layer is intentionally richer than the launch preview and goal card. Parser-facing fields such as `sourceInput`, `normalizedGoal`, structured `constraints`, structured `successCriteria`, `missingInformation`, `suggestedClarifications`, `evidence`, mission/workflow mapping, and version metadata support audit and runtime projection. The frontend summary is lighter: launch preview focuses on `goal`, `deliverable`, `constraints`, `timeline`, `successCriteria`, `missingFields`, `confidence`, `attachmentInfluence`, and `route`; the cockpit goal card focuses on `goal`, `request`, `subGoals`, `constraints`, `successCriteria`, `deliverables`, `fieldSources`, `lockState`, and `routeImpact`. Not every parser field is shown in every card or persisted as a locked goal yet.
-
-On desktop, the cockpit can present the richer three-column structure: Destination/Route on the left, Drive/Fleet/Outputs in the center, and Takeover/Evidence/Cost/Risk on the right when data is available. Tablet and mobile keep the same core objects reachable through two-column, segmented, compressed-card, and bottom-sheet patterns, but they do not show every dense desktop panel at the same time. The GitHub Pages preview remains browser-only and does not include the Node server or executor.
-
-These examples are user-state positioning examples, not backend capability promises. They describe what the user is trying to reach: quick analysis, generated delivery material, implementation with rollback, evidence-backed research, attachment-grounded planning, or guarded advanced execution.
+全程实时可见：3D 场景展示 Agent 车队协作状态，右侧工作台展示流式生成过程与阶段进度指示器。
 
 ---
 
-## Autopilot Levels
+## 预演示例
 
-The Task Autopilot specs define L1-L5 as an execution commitment model, not as marketing shorthand. The repository should not be described as globally L5.
+每一个预演都是一篇可传播的内容。50 个预演 = 50 次传播机会。
 
-| Level | Meaning                                                                                                                                             | Current positioning                                                    |
-| ----- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `L1`  | Route suggestion level. The system helps interpret the destination and recommend a route, while the user remains in control of execution.           | A practical near-term baseline for productization.                     |
-| `L2`  | Partial automatic execution. Low-risk steps may progress automatically, while key decisions require takeover.                                       | A realistic target for current mission-first + HITL foundations.       |
-| `L3`  | Standard task automatic closure. Standardized tasks can mostly complete automatically inside bounded risk, review, audit, and recovery constraints. | A near-term design target for selected, well-governed task families.   |
-| `L4`  | High automation inside limited task domains. Requires whitelist policies for task domain, permissions, budget, and evidence.                        | Future limited-domain direction, not a blanket current claim.          |
-| `L5`  | Open-domain full automation.                                                                                                                        | Research and long-term concept only; not implemented or claimed today. |
+| 输入 | 预演产出 |
+|------|----------|
+| "AI 漫剧平台" | 6 个 SPEC 模块 · 内容生产流水线设计 · 变现模型 · 系统架构 |
+| "权限管理 SaaS" | 8 个 SPEC 模块 · RBAC 架构 · 多租户设计 · API 契约 |
+| "舆情分析工具" | 5 个 SPEC 模块 · 数据采集管道 · 情感分析模型选型 · 告警规则引擎 |
+| "独立开发者记账 App" | 4 个 SPEC 模块 · 本地优先架构 · 同步方案 · 隐私合规 |
+| "企业知识库" | 7 个 SPEC 模块 · RAG 管道设计 · 权限模型 · 增量索引策略 |
+| "跨境电商选品工具" | 6 个 SPEC 模块 · 数据源集成 · 评分算法 · 竞品分析 |
 
-The intended implementation model is task-level and phase-level. A mission may start with a target level, then downgrade when it hits risk, missing context, external side effects, or governance boundaries.
-
----
-
-## Phase-1 Task Autopilot Specs
-
-The first Task Autopilot phase is now closed as a tracked baseline: `18` specs across `54` markdown files. Each spec has:
-
-- `requirements.md`
-- `design.md`
-- `tasks.md`
-
-As of the 2026-04-26 refresh, the phase-1 tracking view is:
-
-- Specs: `18 / 18`
-- Markdown files: `54 / 54`
-- Core top-level task items: `345 / 345`
-- Raw task checklist items: `602 / 602`
-- Progress overview: [`docs/task-autopilot-18-spec-progress-overview-2026-04-24.svg`](./docs/task-autopilot-18-spec-progress-overview-2026-04-24.svg)
-
-The corresponding first implementation slice is intentionally compatibility-first. It adds shared `Destination` parser/projection contracts, server autopilot projection fields, client store normalization, and cockpit-facing destination/route/takeover/evidence presentation without renaming the underlying `mission / workflow / runtime` backbone.
-
-### P0: Product Definition And Object Model
-
-- `task-autopilot-platform-positioning`: defines Task Autopilot as the next product layer above mission-first.
-- `task-autopilot-core-concepts`: defines Destination, Route, Drive State, Fleet, Takeover, Replan, Confidence, and Risk.
-- `task-autopilot-levels-l1-to-l5`: defines automation levels and prevents overclaiming open-domain autonomy.
-- `destination-model-and-parser`: defines how user input becomes a structured destination.
-- `route-planner-and-route-model`: defines route sets, candidate routes, stages, risks, and takeover points.
-- `mission-model-to-autopilot-model-mapping`: defines the compatibility bridge from `mission / workflow / runtime` to the autopilot product model.
-
-### P1: Cockpit And Operator Experience
-
-- `autopilot-cockpit-information-architecture`: defines the cockpit IA for destination, route, execution, takeover, evidence, and audit.
-- `destination-card-and-goal-summary`: defines the destination card and stable goal summary.
-- `route-recommendation-and-selection`: defines fastest, safest, and deepest route recommendation semantics.
-- `fleet-status-and-live-execution-view`: defines the live fleet execution view above agents, nodes, executors, logs, and artifacts.
-- `takeover-panel-and-decision-points`: defines unified takeover experiences for clarification, route confirmation, budget, permission, risk, delivery, and exceptions.
-- `drive-state-and-replan-state-machine`: defines the high-level drive states and replan semantics.
-
-### P2: Runtime, Governance, Evidence, And Metrics
-
-- `fleet-organization-and-role-packaging`: defines role packaging and maps agents, skills, nodes, tools, MCP, and executors into fleet roles.
-- `autopilot-runtime-orchestration`: defines how Destination, Route, Fleet, and Takeover bind into Mission Runtime, workflow runtime, decisions, and executor signals.
-- `autopilot-explainability-and-telemetry`: defines explanations, telemetry signals, confidence, risk, remaining steps, and evidence hints.
-- `autopilot-recovery-and-human-takeover-governance`: defines recovery, downgrade, escalation, and human takeover governance.
-- `autopilot-evidence-replay-and-trust-chain`: defines the driving timeline, evidence chain, replay chain, and trust chain.
-- `task-autopilot-success-metrics`: defines delivery rate, takeover rate, replan rate, deviation rate, completion time, review pass rate, and drill-down evidence.
-
-The next implementation direction is no longer to create more phase-1 Task Autopilot specs. It is to execute the Project-first mainline: project domain state, project-scoped clarification, spec generation/versioning, FSD route planning, project-scoped execution, and evidence/artifact replay that can be reviewed from the project context.
+每份产出都是完整的、可导出的文档包 —— 可用于项目启动、团队对齐、博客内容或视频素材。
 
 ---
 
-## Core Surfaces
+## 几分钟获得上下文，而不是几周
 
-- `/` is the default office cockpit. It brings the task queue, 3D office scene, unified launch surface, and right-side context into one desktop shell.
-- `/tasks` is the full-screen task workbench for focused execution and monitoring.
-- `/tasks/:taskId` keeps deep-linked task detail pages available.
-- `/replay/:missionId` is the replay surface for completed runs and evidence review.
-- `/debug` remains a lower-frequency internal surface for diagnostics and supporting tools.
+大多数产品工具从零开始。你花几天写 PRD，花几周对齐团队，花几个月才能看到方向是否正确。
 
-The current surface strategy is to keep the office cockpit and `/tasks` as the main operator work areas. Replay, audit, lineage, debug, and lower-level node views remain available without becoming the first thing a user must understand.
+Cube Pets Office 跳过等待。输入你的想法，让 FSD 车队在 5 分钟内完成预演，在投入任何工程资源之前看到全貌。
 
----
+**传统做法**：想法 → 2 周写 PRD → 1 周画架构 → 3 天对齐 → 发现方向不对 → 重来。
 
-## Architecture
-
-<p align="center">
-  <img src="./docs/assets/diagram.png" alt="Cube Pets Office architecture overview" width="100%" />
-</p>
-
-<p align="center">
-  <img src="./docs/architecture.svg" alt="Cube Pets Office architecture map" width="100%" />
-</p>
-
-At a high level, the repository is organized around four layers:
-
-- `client/`: React 19 + Vite frontend, including the office shell, task workbench, replay views, 3D scene, launch surfaces, and cockpit components.
-- `server/`: Node.js + Express + Socket.IO backend for missions, workflow state, events, replay, Web-AIGC routes, and APIs.
-- `services/lobster-executor/`: execution service for mock, native, and real task execution.
-- `shared/`: contracts and shared types used across frontend, backend, and executor.
-
-The Task Autopilot architecture should be added as a product/projection layer above these foundations:
-
-```text
-Product layer:   Destination / Route / Drive State / Fleet / Takeover / Evidence
-Projection layer: bindings, view models, server aggregation, event normalization
-Runtime layer:   Mission Runtime / workflow engine / HITL / review / audit / replay
-Execution layer: Lobster executor / adapters / tools / Web-AIGC nodes / external services
-```
-
-The visual direction follows the same projection model: Destination, Route, Fleet, Drive State, Takeover, and Evidence should read as stable cockpit objects with consistent status color semantics, restrained motion, and reduced-motion fallbacks. Route reveal, route selection glow, drive-state rail advance, takeover alerts, and evidence timeline append should explain progress and risk without implying unsupported autonomy.
-
-The runtime architecture SVG is available here:
-
-- [docs/architecture.svg](./docs/architecture.svg)
-- [docs/architecture-runtime-2026-04-21.svg](./docs/architecture-runtime-2026-04-21.svg)
+**Cube Pets Office**：想法 → 5 分钟 → 完整预演 → 判断值不值得做 → 不值得就换下一个。
 
 ---
 
-## Web-AIGC Mainline
+## 与其他平台对比
 
-The Web-AIGC spec delivery baseline is closed at `58 / 58` completed specs and `238 / 238` checked top-level tasks, spanning `52` node specs and `6` platform specs. The project has moved from spec-count tracking into mainline integration, runtime hardening, and governance closure.
-
-This matters for Task Autopilot because the Web-AIGC work supplies much of the lower-level route and fleet substrate:
-
-- Built-in adapters, installed extra adapters, wait/resume control flow, and replay/audit observability are already part of the runtime mainline.
-- The main server entry mounts multiple Web-AIGC route families, including MCP, Office/content nodes, search and QA, `transaction_flow`, `orchestration_recognition_jump`, and vector update/delete endpoints.
-- Runtime coverage includes search/QA adapters, Office/content production nodes such as `ai_ppt`, `excel_read`, `dynamic_chart`, `file_slicing`, `file_generation`, and `file_translation`, plus governed execution paths such as `transaction_flow` and `orchestration_recognition_jump`.
-
-Project-first Autopilot should not expose all of those nodes as the primary product mental model. The 50+ AIGC nodes are internal capabilities inside FSD role packages such as Planner, Clarifier, Researcher, Generator, Operator, Reviewer, and Auditor. Users should choose projects, clarify specs, inspect routes, approve execution, and review evidence; they should not be asked to manage the node catalog as the main flow.
-
-For dated status snapshots and integration planning, see the steering docs linked in the documentation section below.
-
----
-
-## Runtime Modes
-
-The repo currently has three practical runtime targets:
-
-| Environment                 | Frontend | Server | Executor behavior               |
-| --------------------------- | -------- | ------ | ------------------------------- |
-| GitHub Pages preview        | Yes      | No     | Browser-only preview runtime    |
-| Local with Docker available | Yes      | Yes    | `real` executor mode            |
-| Local without Docker        | Yes      | Yes    | `native` executor mode fallback |
-
-Important boundaries:
-
-- GitHub Pages is a static preview target. It does not include the Node server or Lobster Executor.
-- `pnpm run dev:all` prefers `real` execution and automatically falls back to `native` when Docker is unavailable.
-- If you explicitly set `LOBSTER_EXECUTION_MODE=mock` or `LOBSTER_EXECUTION_MODE=native`, that choice is preserved.
-
-For executor details, see [docs/executor/lobster-executor.md](./docs/executor/lobster-executor.md).
+| 特性 | Dify | n8n | CrewAI | LangGraph | **Cube Pets Office** |
+|------|:---:|:---:|:---:|:---:|:---:|
+| 开源 | ✅ | ✅ | ✅ | ✅ | ✅ MIT |
+| 一句话到完整产品 | 🚫 | 🚫 | 🚫 | 🚫 | ✅ |
+| SPEC 文档生成 | 🚫 | 🚫 | 🚫 | 🚫 | ✅ 需求 + 设计 + 任务 |
+| 路线规划与备选 | 🚫 | 🚫 | 🚫 | ⚠️ | ✅ |
+| 多角色 Agent 车队 | 🚫 | 🚫 | ✅ | ✅ | ✅ FSD 7 角色 |
+| 实时可观测性 | ⚠️ | ⚠️ | 🚫 | 🚫 | ✅ 3D + 流式 |
+| 人工接管治理 | ⚠️ | ⚠️ | 🚫 | 🚫 | ✅ |
+| 执行回放与审计 | 🚫 | 🚫 | 🚫 | 🚫 | ✅ |
+| Docker 沙箱执行 | 🚫 | ⚠️ | 🚫 | 🚫 | ✅ |
+| 50+ AIGC 节点族 | ✅ | ✅ | 🚫 | 🚫 | ✅ 58 份 specs |
+| 导出 Markdown/ZIP | 🚫 | 🚫 | 🚫 | 🚫 | ✅ |
+| 纯浏览器演示模式 | 🚫 | 🚫 | 🚫 | 🚫 | ✅ GitHub Pages |
 
 ---
 
-## Implementation Direction
+## 从源码贡献
 
-The next implementation work should stay incremental and compatibility-first, but the product mainline is now Project-first rather than task-launch-first.
+新贡献者？快速路径：
 
-Recommended sequence:
+1. 安装 Node.js 22+、pnpm，可选安装 Docker 以获得完整执行器模式。
+2. Fork 并克隆仓库，然后 `pnpm install`。
+3. 使用 `pnpm run dev:frontend` 进行纯 UI 开发（无需 `.env`），或 `pnpm run dev:all` 启动全栈。
+4. 提交 PR 前：`node --run check`（TypeScript）+ `pnpm run test`（Vitest）。
 
-1. Make `Project` the first product object and attach launches, messages, specs, routes, missions, artifacts, and evidence to a project context.
-2. Turn clarification into a project-scoped step that resolves missing intent before route selection or execution is treated as committed.
-3. Generate and version inspectable `Spec` records from clarified project intent, including scope, constraints, deliverables, acceptance criteria, and evidence expectations.
-4. Plan `Route` through FSD role packages, with conservative and fallback paths, while keeping 50+ AIGC nodes internal to those roles instead of exposing them as the user entrypoint.
-5. Run `Execution` through the existing mission/workflow/runtime/executor stack and write back project-scoped state rather than creating a parallel runtime.
-6. Normalize runtime, decision, audit, replay, artifact, and lineage events into project-scoped `Evidence` that can explain why the route moved the way it did.
-7. Add success metrics only where the required source-of-truth data exists, and mark partial or conflicted samples explicitly.
+详见 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
-Guardrails:
+## 发布前检查
 
-- Do not turn Task Autopilot into a UI-only rebrand; every visible state should point back to runtime facts or clearly marked inference.
-- Do not make tasks, workflows, Docker, browser runtime, native runtime, or node catalogs the first user entrypoint; they are execution carriers below the project mainline.
-- Do not force users to manage 50+ nodes as the main flow; package capabilities into FSD roles, route stages, takeover points, and evidence trails.
-- Do not hide governance behind "automation"; high-risk actions must remain auditable and interruptible.
-- Do not treat replay as the source of truth when mission/runtime/audit facts disagree; replay is primarily a reconstruction and review surface.
-
----
-
-## Quick Start
-
-This repository uses `pnpm`. If `pnpm` is not installed globally, you can replace commands below with `corepack pnpm`.
-
-### 1. Preview the frontend only
-
-No API key is required for the browser-only preview flow.
-
-```bash
-pnpm install --frozen-lockfile
-pnpm run dev:frontend
-```
-
-Use this when you want to explore the office shell, the 3D scene, and the demo experience quickly.
-
-### 2. Start the full local stack
-
-Create a local environment file first:
-
-```bash
-cp .env.example .env
-```
-
-PowerShell alternative:
-
-```powershell
-Copy-Item .env.example .env
-```
-
-Then fill the values you need in `.env` and start the stack:
-
-```bash
-pnpm run dev:all
-```
-
-Common AI-related variables:
-
-```dotenv
-LLM_API_KEY=your_api_key_here
-LLM_BASE_URL=https://api.openai.com/v1
-LLM_MODEL=gpt-5.4
-LLM_WIRE_API=responses
-```
-
-### 3. Run services separately
-
-This is useful when you want to debug the frontend, server, and executor independently.
-
-```bash
-pnpm run dev:server
-pnpm run dev:frontend
-```
-
-Start the executor with an explicit mode:
-
-```bash
-LOBSTER_EXECUTION_MODE=real pnpm exec tsx services/lobster-executor/src/index.ts
-```
-
-Build and smoke the stronger Docker agent image when browser/document/media tooling is needed:
-
-```bash
-pnpm run build:agent-image
-pnpm run smoke:agent-image
-LOBSTER_AGENT_IMAGE=cube-ai-agent-sandbox:latest LOBSTER_EXECUTION_MODE=real pnpm exec tsx services/lobster-executor/src/index.ts
-```
-
-PowerShell example:
-
-```powershell
-$env:LOBSTER_EXECUTION_MODE='native'
-pnpm exec tsx services/lobster-executor/src/index.ts
-```
-
----
-
-## Release Guardrails
-
-Useful commands:
-
-- `pnpm run lint`: check the guarded formatting targets used by release docs and workflows.
-- `pnpm run typecheck`: run the TypeScript no-emit check.
-- `pnpm run test`: run client, server, and executor test entrypoints.
-- `pnpm run build`: build the frontend and server bundle.
-- `pnpm run test:guardrails`: run the lighter decision and socket reconnect regression path.
-- `pnpm run test:release`: run the pre-release aggregate check.
-- `pnpm run build:pages`: build the GitHub Pages artifact.
-
-For release-sensitive changes, the practical minimum is:
+对需要发 PR 的改动，至少跑：
 
 ```bash
 pnpm run lint
-pnpm run typecheck
-pnpm run test
-pnpm run build
-```
-
----
-
-## Repository Layout
-
-```text
-cube-pets-office/
-|-- client/                    # frontend app: office shell, tasks, replay, 3D scene
-|-- server/                    # backend APIs, workflow state, events, replay
-|-- shared/                    # shared contracts and types
-|-- services/lobster-executor/ # executor service: mock / native / real
-|-- docs/                      # architecture, executor notes, reference docs
-|-- scripts/                   # local dev, build, smoke, and utility scripts
-|-- data/                      # local data and persisted runtime files
-`-- .kiro/                     # specs, steering, and execution planning artifacts
-```
-
-If you want to start from key entrypoints, read these first:
-
-- [client/src/App.tsx](./client/src/App.tsx)
-- [client/src/pages/Home.tsx](./client/src/pages/Home.tsx)
-- [client/src/pages/tasks/TasksPage.tsx](./client/src/pages/tasks/TasksPage.tsx)
-- [client/src/components/office/OfficeTaskCockpit.tsx](./client/src/components/office/OfficeTaskCockpit.tsx)
-- [server/index.ts](./server/index.ts)
-- [server/core/workflow-engine.ts](./server/core/workflow-engine.ts)
-- [services/lobster-executor/src/index.ts](./services/lobster-executor/src/index.ts)
-
----
-
-## Documentation
-
-- [ROADMAP.md](./ROADMAP.md)
-- [CHANGELOG.md](./CHANGELOG.md)
-- [docs/architecture.svg](./docs/architecture.svg)
-- [docs/architecture-runtime-2026-04-21.svg](./docs/architecture-runtime-2026-04-21.svg)
-- [docs/executor/lobster-executor.md](./docs/executor/lobster-executor.md)
-- [.kiro/steering/task-autopilot-spec-roadmap-2026-04-23.md](./.kiro/steering/task-autopilot-spec-roadmap-2026-04-23.md)
-- [.kiro/steering/execution-plan.md](./.kiro/steering/execution-plan.md)
-- [.kiro/steering/spec-execution-roadmap.md](./.kiro/steering/spec-execution-roadmap.md)
-- [.kiro/steering/web-aigc-58-plan-progress-summary-2026-04-22.md](./.kiro/steering/web-aigc-58-plan-progress-summary-2026-04-22.md)
-- [.kiro/steering/web-aigc-runtime-mainline-checkpoints-2026-04-23.md](./.kiro/steering/web-aigc-runtime-mainline-checkpoints-2026-04-23.md)
-- [.kiro/steering/web-aigc-phase-2-integration-plan.md](./.kiro/steering/web-aigc-phase-2-integration-plan.md)
-- [.kiro/steering/web-aigc-next-phase-mainline-plan-2026-04-22.md](./.kiro/steering/web-aigc-next-phase-mainline-plan-2026-04-22.md)
-- [.kiro/specs/task-autopilot-platform-positioning/](./.kiro/specs/task-autopilot-platform-positioning/)
-- [.kiro/specs/task-autopilot-core-concepts/](./.kiro/specs/task-autopilot-core-concepts/)
-- [.kiro/specs/task-autopilot-levels-l1-to-l5/](./.kiro/specs/task-autopilot-levels-l1-to-l5/)
-- [.kiro/specs/mission-model-to-autopilot-model-mapping/](./.kiro/specs/mission-model-to-autopilot-model-mapping/)
-- [.kiro/specs/](./.kiro/specs/)
-
-`README.md` is kept as stable product documentation for GitHub. Rolling progress, active implementation details, and dated execution notes belong in `ROADMAP.md`, `.kiro/steering/`, and the spec archives.
-
----
-
-## Friendly Links
-
-- [LINUX DO](https://linux.do/) - Recognized community / 认可社区.
-
----
-
-## FAQ
-
-### I do not have `pnpm` installed
-
-Use `corepack pnpm` in place of `pnpm`, for example:
-
-```bash
-corepack pnpm install --frozen-lockfile
-corepack pnpm run test:release
-```
-
-### Why is GitHub Pages not the same as `native` mode?
-
-Because GitHub Pages is a static deployment target. It has no local backend process and no local executor. The Pages demo is browser-only preview runtime, not host-process execution.
-
-### Is Task Autopilot already fully implemented?
-
-Not as open-domain L5 autonomy. The mission-first runtime foundation exists, the Web-AIGC mainline is integrated, the first `18` Task Autopilot specs are closed as a tracked baseline, and the first shared/server/client projection slice is in code. The next work is to deepen runtime behavior behind that slice: route planning automation, fleet orchestration, takeover governance, evidence replay, parser versioning, and metrics measured from live mission facts.
-
-### Does Task Autopilot require renaming all existing mission code?
-
-No. The specs explicitly recommend compatibility first. Keep `mission / workflow / runtime / task` as the engineering layer, then add `Destination / Route / Drive State / Fleet / Takeover` as product-facing projections and shared vocabulary.
-
-### What should I run before opening a PR?
-
-At minimum:
-
-```bash
-pnpm run lint
-pnpm run typecheck
+node --run typecheck
 pnpm run test
 ```
 
-If your change affects packaging, deployment, or end-to-end runtime behavior, also run:
+如果改动影响打包、部署或端到端运行，再加：
 
 ```bash
 pnpm run build
@@ -528,12 +269,42 @@ pnpm run test:release
 
 ---
 
-## License
+## 技术栈
 
-MIT
+| 层 | 技术 |
+|----|------|
+| 前端 | React 19 + Vite + TypeScript + Zustand + Three.js (R3F) + Framer Motion |
+| 服务端 | Express + Socket.IO + TypeScript |
+| AI | OpenAI 兼容接口（任意提供商） |
+| 执行 | Docker (dockerode) + 浏览器运行时 + 原生运行时 |
+| 测试 | Vitest + fast-check (PBT) |
+| 存储 | IndexedDB（浏览器端）/ JSON（服务端） |
 
 ---
 
-## Star History
+## 项目规模
+
+统计口径：按当前 Git 已跟踪文件 + 待提交的非忽略文件统计，不包含 `node_modules`、`.git`、构建缓存和本地临时目录。
+
+- **4,707 个项目文件**，覆盖源码、规格文档、设计素材、脚本和工作流配置
+- **1,837 个 TypeScript / TSX 文件**，共 **486,932 行 TypeScript**
+- **723 个测试文件**，静态统计 **7,771 个 `it` / `test` 用例调用**
+- **273 份 `.kiro/specs` 规格目录**，包含 **879 个规格 Markdown 文件**
+- **58 份 Web-AIGC specs**（52 个节点规格 + 6 个平台族规格）
+- **88 份 Autopilot / Blueprint / Project-first specs**（`autopilot-*` 61 + `blueprint-*` 13 + `project-*` 10 + `task-autopilot-*` 4）
+- **8,165 个规格任务检查项**（`tasks.md` 全量复选框：**7,093** 已勾选 / **1,072** 未勾选；顶层任务 **2,463 / 2,794**）
+- **204 / 273 份规格目录** 的 `tasks.md` 已全量勾选；另有 1 个规格目录暂未提供 `tasks.md`
+
+---
+
+## 在 GitHub 上给我们 Star
+
+引擎产出的每一份预演都是一篇帮助他人发现可能性的内容。Star 这个仓库，帮助更多人找到它。
 
 [![Star History Chart](https://api.star-history.com/svg?repos=opencroc/cube-pets-office&type=Date)](https://star-history.com/#opencroc/cube-pets-office&Date)
+
+---
+
+## 协议
+
+[MIT](./LICENSE)

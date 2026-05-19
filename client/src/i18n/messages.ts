@@ -813,6 +813,32 @@ export const messages = {
       sectionError: "此区域加载失败",
       retry: "重试",
     },
+    /**
+     * Autopilot 右栏底部叙事 Swiper 文案
+     * - aria.* 用于无障碍标签（role=region 与左右切换按钮）
+     * - lane.{stage}.empty 是 6 个阶段在队列为空时的占位文案，
+     *   阶段枚举与 STAGE_ORDER 一致：input / clarify / route / spec-tree / spec-doc / preview
+     * - reducedMotionHint 在 prefers-reduced-motion 命中时引导用户去左下控制台查看完整流水
+     * - position 用于 "{current} / {total}" 位置指示器
+     * - prompt 字面量与 promptId 保持英文，不进入 i18n 资源
+     */
+    narrativeSwiper: {
+      aria: {
+        region: "当前阶段叙事流",
+        prevButton: "上一张叙事卡片",
+        nextButton: "下一张叙事卡片",
+      },
+      lane: {
+        input: { empty: "等待新的输入单据投入柜台" },
+        clarify: { empty: "圆桌已就位，等待澄清开始" },
+        route: { empty: "调度台空闲，等待路线候选" },
+        "spec-tree": { empty: "图书馆静默，等待 SPEC 索引" },
+        "spec-doc": { empty: "写作工坊就绪，等待文档落笔" },
+        preview: { empty: "小剧场暗场，等待谢幕" },
+      },
+      reducedMotionHint: "查看完整流水请展开左下控制台",
+      position: "{current} / {total}",
+    },
   },
   "en-US": {
     common: {
@@ -1695,6 +1721,32 @@ export const messages = {
       tasksDone: "Tasks Done",
       sectionError: "Failed to load this section",
       retry: "Retry",
+    },
+    /**
+     * Autopilot right-rail narrative swiper copy.
+     * - aria.* is used for accessible labels (role=region and prev/next buttons)
+     * - lane.{stage}.empty is the placeholder copy when the queue is empty in each stage,
+     *   stages match STAGE_ORDER: input / clarify / route / spec-tree / spec-doc / preview
+     * - reducedMotionHint nudges users to expand the bottom-left console under reduced motion
+     * - position drives the "{current} / {total}" indicator
+     * - prompt literals and promptId stay in English and never enter the i18n resources
+     */
+    narrativeSwiper: {
+      aria: {
+        region: "Current stage narrative",
+        prevButton: "Previous narrative card",
+        nextButton: "Next narrative card",
+      },
+      lane: {
+        input: { empty: "Waiting for new intake at the counter" },
+        clarify: { empty: "Round table is set, waiting for clarification" },
+        route: { empty: "Dispatch desk idle, waiting for route candidates" },
+        "spec-tree": { empty: "Library silent, waiting for SPEC index" },
+        "spec-doc": { empty: "Writing studio ready, waiting for the draft" },
+        preview: { empty: "Showroom is dim, waiting for the curtain call" },
+      },
+      reducedMotionHint: "Expand the bottom-left console for the full stream",
+      position: "{current} / {total}",
     },
   },
 } as const;

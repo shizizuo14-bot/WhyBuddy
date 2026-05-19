@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { ErrorInfo, ReactNode as ReactNodeType } from "react";
 import {
   Bot,
   CheckCircle2,
@@ -77,6 +78,7 @@ import { TimelineNode } from "./right-rail/timeline";
 import { AgentReasoningSubTimeline } from "./right-rail/AgentReasoningSubTimeline";
 import { AgentReasoningTimeline } from "@/components/blueprint/AgentReasoningTimeline";
 import { useBlueprintRealtimeStore } from "@/lib/blueprint-realtime-store";
+import { MiniConsoleBar } from "./right-rail/mini-console/MiniConsoleBar";
 
 const GITHUB_URL_PATTERN = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+/i;
 
@@ -128,7 +130,19 @@ interface FlowStep {
   icon: LucideIcon;
 }
 
-interface ConsoleLine {
+/**
+ * Autopilot 控制台单行日志契约。
+ *
+ * 由 `buildConsoleLines(...)` 派生并被 `<AutopilotConsolePanel>` 渲染；同时也是
+ * `right-rail/right-rail-console-routing.ts` 中 `routeConsoleLine()` 的输入类型。
+ *
+ * 导出动机（autopilot-right-rail-narrative-swiper / Task 1.2）：
+ * 共享路由模块需要按 `channel` 字段决定一条控制台线属于"左下系统流水"
+ * 还是"右下叙事卡片"还是"双侧"。为避免在路由模块里再造一份平行类型，
+ * 这里把 `ConsoleLine` 提升为 page-level export，路由模块以 `import type`
+ * 形式引用即可，不引入运行时依赖也不形成循环引用。
+ */
+export interface ConsoleLine {
   id: string;
   channel: string;
   message: string;
@@ -754,6 +768,48 @@ function AutopilotMissionHud({
   );
 }
 
+/**
+ * ConsoleErrorBoundary — 带 fallback 的轻量 ErrorBoundary。
+ *
+ * 当 `<MiniConsoleBar>` 渲染失败时退化到直接渲染 `<AutopilotConsolePanel>` 完整态
+ * （Req 5.9）。不引入新依赖，不修改既有全局 ErrorBoundary。
+ */
+interface ConsoleErrorBoundaryProps {
+  children: ReactNodeType;
+  fallback: ReactNodeType;
+}
+
+interface ConsoleErrorBoundaryState {
+  hasError: boolean;
+}
+
+class ConsoleErrorBoundary extends Component<
+  ConsoleErrorBoundaryProps,
+  ConsoleErrorBoundaryState
+> {
+  constructor(props: ConsoleErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): ConsoleErrorBoundaryState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, info: ErrorInfo): void {
+    // 仅在开发环境打印，不阻塞生产渲染。
+    // eslint-disable-next-line no-console
+    console.error("[ConsoleErrorBoundary] MiniConsoleBar render failed:", error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return this.props.fallback;
+    }
+    return this.props.children;
+  }
+}
+
 function AutopilotVisualStage({
   locale,
   currentProjectId,
@@ -803,13 +859,34 @@ function AutopilotVisualStage({
 
       {/* Console panel 独立 stacked section，xl 模式 flex-1 填高。
           embedded 保留让内部 overflow-y-auto；className 去掉 rounded
-          实现与 visual stage 紧贴。 */}
-      <AutopilotConsolePanel
-        locale={locale}
-        lines={consoleLines}
-        embedded
-        className="!bg-slate-950 backdrop-blur-0 xl:flex-1 xl:min-h-0"
-      />
+          实现与 visual stage 紧贴。
+          Task 7.5：用 MiniConsoleBar 包裹 AutopilotConsolePanel，默认折叠为
+          mini bar；ErrorBoundary 兜底渲染失败时退化到完整态（Req 5.9）。
+          Stage_Transition 不清空 Expanded_Console_Panel 历史日志（Req 6.6）：
+          consoleLines 由上层持有，stage 切换不重置。 */}
+      <ConsoleErrorBoundary
+        fallback={
+          <AutopilotConsolePanel
+            locale={locale}
+            lines={consoleLines}
+            embedded
+            className="!bg-slate-950 backdrop-blur-0 xl:flex-1 xl:min-h-0"
+          />
+        }
+      >
+        <MiniConsoleBar
+          locale={locale}
+          consoleLines={consoleLines}
+          renderExpanded={() => (
+            <AutopilotConsolePanel
+              locale={locale}
+              lines={consoleLines}
+              embedded
+              className="!bg-slate-950 backdrop-blur-0"
+            />
+          )}
+        />
+      </ConsoleErrorBoundary>
     </div>
   );
 }
