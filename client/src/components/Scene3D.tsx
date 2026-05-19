@@ -3,6 +3,8 @@ import { Canvas } from "@react-three/fiber";
 import { Suspense, useEffect, useRef, useState } from "react";
 import { ACESFilmicToneMapping } from "three";
 
+import type { BlueprintGenerationJob } from "@shared/blueprint/contracts";
+
 import { useContainerWidth } from "@/hooks/useContainerWidth";
 import { useIdleActivation } from "@/hooks/useIdleActivation";
 import { useViewportTier } from "@/hooks/useViewportTier";
@@ -22,6 +24,7 @@ import { MissionIsland } from "./three/MissionIsland";
 import { OfficeRoom } from "./three/OfficeRoom";
 import { PetWorkers } from "./three/PetWorkers";
 import { SandboxMonitor } from "./three/SandboxMonitor";
+import type { SceneFusionMode } from "./three/scene-fusion/role-id-bridge";
 import { SceneStageFlow } from "./three/SceneStageFlow";
 import { WaitingDecisionBubble } from "./three/WaitingDecisionBubble";
 
@@ -51,6 +54,17 @@ const SECONDARY_SCENE_MODELS = [
 
 export type ScenePerformanceProfile = "balanced" | "resizing";
 
+/**
+ * 自动驾驶 3D 场景融合模式判别。
+ * - "blueprint"：蓝图页（/autopilot），3D 场景跟随 BlueprintRealtimeStore。
+ * - "mission-first"：mission-first 任务壳（/tasks 等），3D 场景跟随 mission 信号。
+ *
+ * Wave B：正式定义已升级到 scene-fusion/role-id-bridge.ts，本文件统一从
+ * 该模块 re-export，确保所有 mode 透传链路（Scene3D → PetWorkers /
+ * MissionIsland / SceneStageFlow）共享同一份类型来源。
+ */
+export type { SceneFusionMode };
+
 export interface Scene3DProps {
   performanceProfile?: ScenePerformanceProfile;
   /** Current sidebar width in pixels, used for camera compensation. Default 0. */
@@ -59,6 +73,18 @@ export interface Scene3DProps {
   hidden?: boolean;
   /** Optional project scope for task overlays rendered inside the scene. */
   projectId?: string | null;
+  /**
+   * 场景融合模式，默认 "mission-first"。
+   * 蓝图页（/autopilot）应显式传入 "blueprint"，让 MissionIsland 在蓝图页隐藏，
+   * PetWorkers 走 FSD roleId 映射桥，SceneStageFlow 用 blueprintJob 派生 9 阶段流线。
+   */
+  mode?: SceneFusionMode;
+  /**
+   * 蓝图模式下的当前 BlueprintGenerationJob，可选。
+   * 由 page-level 调用方（AutopilotRoutePage）传入，SceneStageFlow 据此
+   * 派生场景流线信号。mission-first 模式下应保持 null（默认）。
+   */
+  blueprintJob?: BlueprintGenerationJob | null;
 }
 
 export function Scene3D({
@@ -66,6 +92,8 @@ export function Scene3D({
   sidebarWidth = 0,
   hidden = false,
   projectId = null,
+  mode = "mission-first",
+  blueprintJob = null,
 }: Scene3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { isMobile, isTablet, tier } = useViewportTier();
@@ -154,21 +182,27 @@ export function Scene3D({
 
   const camera = isMobile
     ? {
-        position: [0, 8.4, 16.2] as [number, number, number],
-        fov: 46,
+        // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v9 拉近）：v7/v8 锁定
+        // canvas aspect 后，画面里 3D 场景偏小且上方留白。把相机距离从 z=14.5
+        // 拉近到 z=12.0，fov 50 不变，让 3D 几何填满 16:10 canvas 上下边界。
+        position: [0, 7.5, 13.0] as [number, number, number],
+        fov: 50,
         near: 0.1,
         far: 100,
       }
     : isTablet
       ? {
-          position: [0, 7.8, 14.6] as [number, number, number],
-          fov: 43,
+          position: [0, 7.0, 12.5] as [number, number, number],
+          fov: 50,
           near: 0.1,
           far: 100,
         }
       : {
-          position: [0, 7.3, 13.8] as [number, number, number],
-          fov: 40,
+          // desktop v9：[0, 6.5, 11.5] / fov 50。相机距离后墙 16.4m，fov 50°
+          // 视野横向 ~15.3m / 纵向 ~9.6m，配合 16:10 canvas（视角比 1.6）
+          // 完全贴合，3D 场景填满 canvas 上下边界。
+          position: [0, 6.5, 11.5] as [number, number, number],
+          fov: 50,
           near: 0.1,
           far: 100,
         };
@@ -196,7 +230,10 @@ export function Scene3D({
           gl.setClearColor(FUTURE_OFFICE_COLORS.sceneBackground);
           gl.toneMapping = ACESFilmicToneMapping;
           gl.toneMappingExposure = isMobile ? 1.04 : 1;
-          sceneCamera.lookAt(0, isMobile ? 1.6 : 1.35, 0);
+          // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v7 aspect 锁定）：
+          // canvas aspect-[16/10] 后场景几何与视野匹配，lookAt 回到 1.0 中庸
+          // （地板线落在 canvas ~75%，墙面 SandboxMonitor 占上 25%）。
+          sceneCamera.lookAt(0, isMobile ? 1.2 : 1.0, 0);
         }}
       >
         <CameraController effectiveWidth={effectiveWidth} tier={tier} />
@@ -251,12 +288,17 @@ export function Scene3D({
             showSecondaryDecor={deferredDetailsReady && !reducedSceneEffects}
             reducedEffects={reducedSceneEffects}
           />
-          <SceneStageFlow projectId={projectId} />
+          <SceneStageFlow
+            projectId={projectId}
+            mode={mode}
+            blueprintJob={blueprintJob}
+          />
           <PetWorkers
             projectId={projectId}
             reducedOverlays={!deferredDetailsReady || reducedSceneEffects}
+            mode={mode}
           />
-          <MissionIsland projectId={projectId} />
+          <MissionIsland projectId={projectId} mode={mode} />
           <SandboxMonitor projectId={projectId} />
           <WaitingDecisionBubble projectId={projectId} />
           {!reducedSceneEffects && deferredDetailsReady ? (

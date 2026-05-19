@@ -65,6 +65,12 @@ export const AGENT_VISUAL_CONFIGS: AgentVisualConfig[] = [
     role: 'ceo',
     emoji: '🐱',
     animal: 'cat',
+    // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v2）：
+    // CEO 应站在 mission zone ring 中心 [0, 0, -2.45]（参考
+    // SCENE_FLOW_ZONES.mission.floorPosition）。原坐标 [0, 0, -2.45] 本来就对，
+    // v1 误把 CEO 前推到 -1.95 反而离开 mission ring，看起来更挤。还原。
+    // chair 在 z=-2.33 与 mission ring z=-2.45 重叠 ~0.12m，但 mission ring 是
+    // 设计上 CEO 的 anchor，pet 站在 ring 上就近 chair 是预期视觉。
     position: [0, 0, -2.45],
     rotation: [0, Math.PI, 0],
     scale: 0.38,
@@ -87,7 +93,12 @@ export const AGENT_VISUAL_CONFIGS: AgentVisualConfig[] = [
     role: 'manager',
     emoji: '🐯',
     animal: 'tiger',
-    position: [-3.2, 0, -1.8],
+    // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v2）：
+    // tiger 应站在 podA zone ring 中心 [-3.5, 0, -1.8]（参考
+    // SCENE_FLOW_ZONES.podA.floorPosition）。原坐标 [-3.2, 0, -1.8] 已经
+    // 接近 ring 中心；v1 误改成 [-2.7, 0, -1.4] 反而把 tiger 拖离 ring 跑到
+    // 中央 desk 区，看起来更挤。还原到 ring 中心。
+    position: [-3.5, 0, -1.8],
     rotation: [0, Math.PI * 0.92, 0],
     scale: 0.34,
     animationType: 'reading',
@@ -197,7 +208,12 @@ export const AGENT_VISUAL_CONFIGS: AgentVisualConfig[] = [
     role: 'manager',
     emoji: '🦁',
     animal: 'lion',
-    position: [3.2, 0, -1.8],
+    // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v2）：
+    // lion 应站在 podB zone ring 中心 [3.35, 0, -1.72]（参考
+    // SCENE_FLOW_ZONES.podB.floorPosition）。原坐标 [3.2, 0, -1.8] 已经
+    // 接近 ring 中心；v1 误改成 [2.7, 0, -1.4] 反而把 lion 拖离 ring 跑到
+    // 中央 desk 区，看起来更挤。还原到 ring 中心。
+    position: [3.35, 0, -1.72],
     rotation: [0, Math.PI, 0],
     scale: 0.34,
     animationType: 'reading',
@@ -219,7 +235,11 @@ export const AGENT_VISUAL_CONFIGS: AgentVisualConfig[] = [
     role: 'worker',
     emoji: '🦒',
     animal: 'giraffe',
-    position: [2.15, 0, -2.6],
+    // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v3 perimeter）：
+    // flux 原坐标 [2.15, 0, -2.6] 与 podB 区 TaskCart [2.05, 0, -2.52] 几乎重合
+    // （0.13m），pet 站推车上。内移到 podB ring 偏前安全位 [2.15, 0, -1.05]，
+    // 离 TaskCart 1.5m，仍属 podB 区。
+    position: [2.15, 0, -1.05],
     rotation: [0, Math.PI * 0.95, 0],
     scale: 0.29,
     animationType: 'typing',
@@ -329,7 +349,11 @@ export const AGENT_VISUAL_CONFIGS: AgentVisualConfig[] = [
     role: 'worker',
     emoji: '🐰',
     animal: 'bunny',
-    position: [-4.25, 0, 3.2],
+    // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v3 perimeter）：
+    // zen 原坐标 [-4.25, 0, 3.2] 与 LaptopDesk [-5.3, 0, 2.9] / MeetingSet
+    // [-3.55, 0, 2.28] 几何冲突。外推到 podC 后侧靠墙位置 [-5.5, 0, 3.6]，
+    // 离 LaptopDesk 0.7m，避开 MeetingSet 圆桌椅子簇。
+    position: [-5.5, 0, 3.6],
     rotation: [0, -Math.PI / 12, 0],
     scale: 0.24,
     animationType: 'reading',
@@ -373,7 +397,11 @@ export const AGENT_VISUAL_CONFIGS: AgentVisualConfig[] = [
     role: 'manager',
     emoji: '🐗',
     animal: 'hog',
-    position: [2.9, 0, 2.2],
+    // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v3 perimeter）：
+    // warden 原坐标 [2.9, 0, 2.2] 与 podD 区 tableCoffeeSquare [3.05, 0, 2.42]
+    // / loungeChair [2.02, 0, 2.08] 几何重叠（pet 站咖啡桌正上方）。外推到
+    // podD ring 中心 + 偏前侧 [3.35, 0, 1.6]，避开 coffee 桌簇，仍属 podD。
+    position: [3.35, 0, 1.6],
     rotation: [0, Math.PI + Math.PI / 6, 0],
     scale: 0.32,
     animationType: 'discussing',
@@ -417,7 +445,11 @@ export const AGENT_VISUAL_CONFIGS: AgentVisualConfig[] = [
     role: 'worker',
     emoji: '🐛',
     animal: 'caterpillar',
-    position: [3.25, 0, 3.3],
+    // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v3 perimeter）：
+    // prism 原坐标 [3.25, 0, 3.3] 与 podD 区 tableCoffeeSquare / loungeChair
+    // [4.18, 0, 2.12] / 后排 LaptopDesk [5.25, 0, 2.26] 几何冲突。外推到 podD
+    // 后侧靠墙 [4.6, 0, 3.6]，离 loungeChair 1.5m，避开后排桌椅。
+    position: [4.6, 0, 3.6],
     rotation: [0, Math.PI + Math.PI / 18, 0],
     scale: 0.23,
     animationType: 'noting',

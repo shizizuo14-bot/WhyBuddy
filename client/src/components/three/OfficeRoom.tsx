@@ -1164,7 +1164,12 @@ export function OfficeRoom({
         />
       ) : null}
 
-      <DesktopDesk position={[0, 0, -3.15]} withLamp />
+      <DesktopDesk position={[0, 0, -3.55]} withLamp />
+      {/* 自动驾驶 3D 场景融合 follow-up（2026-05-13）：CEO desk 由 z=-3.15
+          后移到 z=-3.55，腾出 mission ring (z=-2.45) 与 desk front 之间的距离
+          到 ~1.1m，避免 CEO（站在 mission ring 上）视觉穿桌。chair 在
+          desk z 后再 +0.82 = -2.73，与 mission ring 间距 0.28m，仍是预期视觉
+          （CEO 坐在桌前 ring 上，chair 在身后）。 */}
       <FurnitureModel
         url={FURNITURE_MODELS.rugRounded}
         position={[0, 0.01, -3.15]}

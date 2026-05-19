@@ -1,0 +1,557 @@
+<svg
+  width="1440"
+  height="900"
+  viewBox="0 0 1440 900"
+  xmlns="http://www.w3.org/2000/svg"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">Cube Pets Office Architecture</title>
+  <desc id="desc">
+    Product architecture overview for Cube Pets Office updated on 2026-04-26.
+    This 1440 by 900 landscape version preserves the original detailed labels
+    and pastel card style while adding the Web-AIGC 58/58 spec mainline wiring,
+    route mounting, runtime adapters, workflow governance, RAG vector governance,
+    MCP tooling, HITL/Office closure, observability context, and the Task
+    Autopilot Phase 1 closure: 18/18 specs, 345/345 core tasks, 602/602 raw
+    checklist items, plus the shared/server/client projection slice.
+  </desc>
+
+  <style>
+    .ts {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      font-size: 12px;
+      fill: #0f172a;
+    }
+    .th {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      font-weight: 700;
+      fill: #0f172a;
+    }
+    .sm {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      font-size: 10px;
+      fill: #475569;
+    }
+    .xs {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      font-size: 9px;
+      fill: #64748b;
+    }
+    .fl {
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", system-ui, -apple-system, sans-serif;
+      font-size: 8.5px;
+      letter-spacing: 0.02em;
+      fill: #475569;
+    }
+  </style>
+
+  <defs>
+    <marker
+      id="a"
+      viewBox="0 0 10 10"
+      refX="8"
+      refY="5"
+      markerWidth="6"
+      markerHeight="6"
+      orient="auto-start-reverse"
+    >
+      <path
+        d="M2 1L8 5L2 9"
+        fill="none"
+        stroke="context-stroke"
+        stroke-width="1.5"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      />
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1440" height="900" fill="#f8fafc" />
+
+  <!-- ==================== ROW 0: ENTRY + FRONTEND + WEB-AIGC SNAPSHOT ==================== -->
+
+  <rect x="20" y="20" width="160" height="92" rx="14" fill="#f8fafc" stroke="#d4d4d8" stroke-width="0.8" />
+  <text class="th" x="100" y="42" text-anchor="middle" fill="#52525b">Entry</text>
+  <circle cx="58" cy="68" r="10" fill="none" stroke="#534ab7" stroke-width="1.2" />
+  <circle cx="58" cy="62" r="4" fill="none" stroke="#534ab7" stroke-width="1" />
+  <path d="M46 78Q58 86 70 78" fill="none" stroke="#534ab7" stroke-width="1" />
+  <text class="ts" x="58" y="98" text-anchor="middle" fill="#3c3489">User query</text>
+  <rect x="106" y="54" width="54" height="24" rx="6" fill="#eeedfe" stroke="#534ab7" stroke-width="0.6" />
+  <text class="ts" x="133" y="70" text-anchor="middle" fill="#3c3489">Feishu</text>
+  <text class="xs" x="133" y="92" text-anchor="middle" fill="#7c3aed">Relay</text>
+  <line x1="180" y1="66" x2="198" y2="66" stroke="#534ab7" stroke-width="1" marker-end="url(#a)" />
+
+  <rect x="200" y="20" width="900" height="92" rx="14" fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.8" />
+  <text class="th" x="650" y="42" text-anchor="middle" fill="#0c447c">
+    Frontend - office shell + mission-first cockpit + single primary launch dock + overlays
+  </text>
+
+  <rect x="214" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="258" y="69" text-anchor="middle" fill="#0c447c">Office shell</text>
+  <text class="sm" x="258" y="84" text-anchor="middle" fill="#185fa5">desktop default</text>
+
+  <rect x="312" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="356" y="69" text-anchor="middle" fill="#0c447c">Task queue</text>
+  <text class="sm" x="356" y="84" text-anchor="middle" fill="#185fa5">mission list + live</text>
+
+  <rect x="410" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="454" y="69" text-anchor="middle" fill="#0c447c">Unified launch</text>
+  <text class="sm" x="454" y="84" text-anchor="middle" fill="#185fa5">bottom primary input</text>
+
+  <rect x="508" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="552" y="69" text-anchor="middle" fill="#0c447c">Detail + drive</text>
+  <text class="sm" x="552" y="84" text-anchor="middle" fill="#185fa5">autopilot panel</text>
+
+  <rect x="606" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="650" y="69" text-anchor="middle" fill="#0c447c">Scene3D</text>
+  <text class="sm" x="650" y="84" text-anchor="middle" fill="#185fa5">main scene + wall HUD</text>
+
+  <rect x="704" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="748" y="69" text-anchor="middle" fill="#0c447c">History</text>
+  <text class="sm" x="748" y="84" text-anchor="middle" fill="#185fa5">sessions + DAG</text>
+
+  <rect x="802" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="846" y="69" text-anchor="middle" fill="#0c447c">Reports</text>
+  <text class="sm" x="846" y="84" text-anchor="middle" fill="#185fa5">memory + audit</text>
+
+  <rect x="900" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="944" y="69" text-anchor="middle" fill="#0c447c">Overlays</text>
+  <text class="sm" x="944" y="84" text-anchor="middle" fill="#185fa5">chat + telemetry</text>
+
+  <rect x="998" y="54" width="88" height="38" rx="8" fill="#ffffff" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="1042" y="69" text-anchor="middle" fill="#0c447c">Browser RT</text>
+  <text class="sm" x="1042" y="84" text-anchor="middle" fill="#185fa5">IndexedDB + preview</text>
+
+  <rect x="1120" y="20" width="300" height="92" rx="14" fill="#eef2ff" stroke="#818cf8" stroke-width="0.8" />
+  <text class="th" x="1270" y="42" text-anchor="middle" fill="#3730a3">Web-AIGC + Task Autopilot snapshot</text>
+  <rect x="1130" y="54" width="66" height="38" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
+  <text class="ts" x="1163" y="69" text-anchor="middle" fill="#3730a3">58/58</text>
+  <text class="sm" x="1163" y="84" text-anchor="middle" fill="#4f46e5">Web-AIGC</text>
+  <rect x="1204" y="54" width="66" height="38" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
+  <text class="ts" x="1237" y="69" text-anchor="middle" fill="#3730a3">18/18</text>
+  <text class="sm" x="1237" y="84" text-anchor="middle" fill="#4f46e5">autopilot</text>
+  <rect x="1278" y="54" width="66" height="38" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
+  <text class="ts" x="1311" y="69" text-anchor="middle" fill="#3730a3">345/345</text>
+  <text class="sm" x="1311" y="84" text-anchor="middle" fill="#4f46e5">core tasks</text>
+  <rect x="1352" y="54" width="58" height="38" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
+  <text class="ts" x="1381" y="69" text-anchor="middle" fill="#3730a3">602</text>
+  <text class="sm" x="1381" y="84" text-anchor="middle" fill="#4f46e5">raw tasks</text>
+
+  <path d="M454 92 L454 122 L392 122 L392 132" fill="none" stroke="#185fa5" stroke-width="1" marker-end="url(#a)" />
+  <rect x="394" y="114" width="96" height="14" rx="4" fill="#e6f1fb" />
+  <text class="fl" x="442" y="124" text-anchor="middle" fill="#185fa5">① primary launch cmd</text>
+
+  <path d="M258 92 L258 122 L300 122 L300 132" fill="none" stroke="#3b6d11" stroke-width="1" marker-end="url(#a)" />
+  <rect x="220" y="114" width="82" height="14" rx="4" fill="#eaf3de" />
+  <text class="fl" x="261" y="124" text-anchor="middle" fill="#3b6d11">② cockpit sync</text>
+
+  <path d="M552 92 L552 122 L490 122 L490 132" fill="none" stroke="#185fa5" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <rect x="528" y="114" width="96" height="14" rx="4" fill="#e6f1fb" />
+  <text class="fl" x="576" y="124" text-anchor="middle" fill="#185fa5">③ drive panel sync</text>
+
+  <!-- ==================== ROW 1: CONTRACTS + CUBE BRAIN + INTELLIGENCE + TASK AUTOPILOT ==================== -->
+
+  <rect x="20" y="132" width="160" height="418" rx="14" fill="#fbeaf0" stroke="#ed93b1" stroke-width="0.8" />
+  <text class="th" x="100" y="158" text-anchor="middle" fill="#4b1528">Shared contracts</text>
+  <text class="ts" x="34" y="188" fill="#72243e">cost.ts</text>
+  <text class="ts" x="34" y="208" fill="#72243e">cost-governance.ts</text>
+  <text class="ts" x="34" y="228" fill="#72243e">llm/contracts.ts</text>
+  <text class="ts" x="34" y="248" fill="#72243e">rag/contracts.ts</text>
+  <text class="ts" x="34" y="268" fill="#72243e">skill/contracts.ts</text>
+  <text class="ts" x="34" y="288" fill="#72243e">export/contracts.ts</text>
+  <text class="ts" x="34" y="308" fill="#72243e">audit/contracts.ts</text>
+  <text class="ts" x="34" y="328" fill="#72243e">lineage/contracts.ts</text>
+  <text class="ts" x="34" y="348" fill="#72243e">a2a-protocol.ts</text>
+  <text class="ts" x="34" y="368" fill="#72243e">mission/contracts.ts</text>
+  <text class="ts" x="34" y="388" fill="#72243e">mission/autopilot.ts</text>
+  <text class="ts" x="34" y="408" fill="#72243e">mission/api.ts</text>
+  <text class="ts" x="34" y="428" fill="#72243e">swarm.ts</text>
+  <text class="ts" x="34" y="448" fill="#72243e">guest-agent-utils.ts</text>
+  <text class="sm" x="100" y="508" text-anchor="middle" fill="#993556">contract modules</text>
+  <text class="sm" x="100" y="524" text-anchor="middle" fill="#993556">representative examples shown</text>
+  <line x1="180" y1="248" x2="218" y2="248" stroke="#ed93b1" stroke-width="0.5" stroke-dasharray="3 3" />
+  <line x1="180" y1="328" x2="218" y2="328" stroke="#ed93b1" stroke-width="0.5" stroke-dasharray="3 3" />
+  <line x1="180" y1="388" x2="218" y2="388" stroke="#ed93b1" stroke-width="0.5" stroke-dasharray="3 3" />
+  <line x1="180" y1="408" x2="218" y2="408" stroke="#ed93b1" stroke-width="0.5" stroke-dasharray="3 3" />
+
+  <rect x="200" y="132" width="390" height="418" rx="16" fill="#eaf3de" stroke="#97c459" stroke-width="0.8" />
+  <text class="th" x="395" y="158" text-anchor="middle" fill="#27500a">Cube brain (server)</text>
+
+  <rect x="220" y="178" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="300" y="198" text-anchor="middle" fill="#27500a">Express API</text>
+  <text class="sm" x="300" y="216" text-anchor="middle" fill="#3b6d11">REST + Socket.IO</text>
+
+  <rect x="410" y="178" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="490" y="198" text-anchor="middle" fill="#27500a">Skill system</text>
+  <text class="sm" x="490" y="216" text-anchor="middle" fill="#3b6d11">hot-plug registry</text>
+
+  <rect x="220" y="240" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="300" y="260" text-anchor="middle" fill="#27500a">Dynamic org</text>
+  <text class="sm" x="300" y="278" text-anchor="middle" fill="#3b6d11">CEO / manager / worker</text>
+
+  <rect x="410" y="240" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="490" y="260" text-anchor="middle" fill="#27500a">Role system</text>
+  <text class="sm" x="490" y="278" text-anchor="middle" fill="#3b6d11">dynamic switch</text>
+
+  <rect x="220" y="302" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="300" y="322" text-anchor="middle" fill="#27500a">10-stage engine</text>
+  <text class="sm" x="300" y="340" text-anchor="middle" fill="#3b6d11">workflow pipeline</text>
+
+  <rect x="410" y="302" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="490" y="322" text-anchor="middle" fill="#27500a">Cost governance</text>
+  <text class="sm" x="490" y="340" text-anchor="middle" fill="#3b6d11">budget + alert ladder</text>
+
+  <rect x="220" y="364" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="300" y="384" text-anchor="middle" fill="#27500a">Mission runtime</text>
+  <text class="sm" x="300" y="402" text-anchor="middle" fill="#3b6d11">FSM + Drive State + Takeover</text>
+
+  <rect x="410" y="364" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="490" y="384" text-anchor="middle" fill="#27500a">Review system</text>
+  <text class="sm" x="490" y="402" text-anchor="middle" fill="#3b6d11">score + revise loop</text>
+
+  <rect x="220" y="426" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="300" y="446" text-anchor="middle" fill="#27500a">Executor bridge</text>
+  <text class="sm" x="300" y="464" text-anchor="middle" fill="#3b6d11">dispatch + callbacks + evidence</text>
+
+  <rect x="410" y="426" width="160" height="48" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="490" y="446" text-anchor="middle" fill="#27500a">Permission</text>
+  <text class="sm" x="490" y="464" text-anchor="middle" fill="#3b6d11">RBAC + capability checks</text>
+
+  <rect x="220" y="488" width="350" height="38" rx="8" fill="#ffffff" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="395" y="504" text-anchor="middle" fill="#27500a">Task Autopilot projection slice</text>
+  <text class="sm" x="395" y="518" text-anchor="middle" fill="#3b6d11">Mission → Destination / Route / Drive / Fleet / Takeover</text>
+
+  <path d="M570 507 L958 507 L958 223 L978 223" fill="none" stroke="#97c459" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <rect x="738" y="499" width="116" height="14" rx="4" fill="#eaf3de" />
+  <text class="fl" x="796" y="509" text-anchor="middle" fill="#3b6d11">autopilot projection</text>
+
+  <line x1="380" y1="326" x2="408" y2="326" stroke="#97c459" stroke-width="0.9" marker-end="url(#a)" />
+  <path d="M490 364 L490 356 L380 356 L380 350" fill="none" stroke="#3b6d11" stroke-width="0.8" stroke-dasharray="3 2" marker-end="url(#a)" />
+  <text class="fl" x="438" y="354" text-anchor="middle" fill="#3b6d11">score feedback</text>
+
+  <rect x="610" y="132" width="330" height="236" rx="16" fill="#faeeda" stroke="#fac775" stroke-width="0.8" />
+  <text class="th" x="775" y="158" text-anchor="middle" fill="#412402">Intelligence layer</text>
+
+  <rect x="628" y="178" width="120" height="48" rx="8" fill="#ffffff" stroke="#fac775" stroke-width="0.6" />
+  <text class="ts" x="688" y="198" text-anchor="middle" fill="#633806">3-tier memory</text>
+  <text class="sm" x="688" y="216" text-anchor="middle" fill="#854f0b">short / mid / long</text>
+
+  <rect x="628" y="240" width="120" height="48" rx="8" fill="#ffffff" stroke="#fac775" stroke-width="0.6" />
+  <text class="ts" x="688" y="260" text-anchor="middle" fill="#633806">Knowledge graph</text>
+  <text class="sm" x="688" y="278" text-anchor="middle" fill="#854f0b">entity + relation</text>
+
+  <rect x="628" y="302" width="120" height="48" rx="8" fill="#ffffff" stroke="#fac775" stroke-width="0.6" />
+  <text class="ts" x="688" y="322" text-anchor="middle" fill="#633806">Vector DB + RAG</text>
+  <text class="sm" x="688" y="340" text-anchor="middle" fill="#854f0b">context retrieval</text>
+
+  <rect x="766" y="178" width="120" height="48" rx="8" fill="#ffffff" stroke="#fac775" stroke-width="0.6" />
+  <text class="ts" x="826" y="198" text-anchor="middle" fill="#633806">Self-evolution</text>
+  <text class="sm" x="826" y="216" text-anchor="middle" fill="#854f0b">persona refinement</text>
+
+  <rect x="766" y="240" width="120" height="48" rx="8" fill="#ffffff" stroke="#fac775" stroke-width="0.6" />
+  <text class="ts" x="826" y="260" text-anchor="middle" fill="#633806">Reputation</text>
+  <text class="sm" x="826" y="278" text-anchor="middle" fill="#854f0b">score + decay</text>
+
+  <rect x="766" y="302" width="120" height="48" rx="8" fill="#ffffff" stroke="#fac775" stroke-width="0.6" />
+  <text class="ts" x="826" y="322" text-anchor="middle" fill="#633806">Autonomy</text>
+  <text class="sm" x="826" y="340" text-anchor="middle" fill="#854f0b">self-eval + compete</text>
+
+  <rect x="890" y="178" width="40" height="172" rx="8" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.6" />
+  <text class="sm" x="910" y="196" text-anchor="middle" fill="#3c3489">LLM</text>
+  <text class="sm" x="910" y="210" text-anchor="middle" fill="#3c3489">provider</text>
+  <text class="xs" x="910" y="248" text-anchor="middle" fill="#534ab7">OpenAI</text>
+  <text class="xs" x="910" y="260" text-anchor="middle" fill="#534ab7">compatible</text>
+  <text class="xs" x="910" y="292" text-anchor="middle" fill="#534ab7">multi-</text>
+  <text class="xs" x="910" y="304" text-anchor="middle" fill="#534ab7">provider</text>
+
+  <line x1="590" y1="202" x2="626" y2="202" stroke="#ba7517" stroke-width="1" marker-end="url(#a)" />
+  <rect x="592" y="190" width="62" height="14" rx="4" fill="#faeeda" />
+  <text class="fl" x="623" y="200" text-anchor="middle" fill="#854f0b">④ context</text>
+
+  <line x1="590" y1="326" x2="626" y2="326" stroke="#ba7517" stroke-width="1" marker-end="url(#a)" />
+  <rect x="592" y="314" width="70" height="14" rx="4" fill="#faeeda" />
+  <text class="fl" x="627" y="324" text-anchor="middle" fill="#854f0b">⑤ RAG enrich</text>
+
+  <line x1="886" y1="264" x2="890" y2="264" stroke="#534ab7" stroke-width="0.8" marker-end="url(#a)" />
+  <text class="fl" x="858" y="258" fill="#534ab7">LLM calls</text>
+
+  <path d="M826 226 L826 234 L748 234 L748 226" fill="none" stroke="#ba7517" stroke-width="0.8" marker-end="url(#a)" />
+  <text class="fl" x="787" y="232" text-anchor="middle" fill="#854f0b">persona update</text>
+
+  <rect x="610" y="392" width="330" height="158" rx="16" fill="#f0e6ff" stroke="#b794f4" stroke-width="0.8" />
+  <text class="th" x="775" y="420" text-anchor="middle" fill="#44337a">Trust and compliance</text>
+
+  <rect x="628" y="454" width="90" height="56" rx="8" fill="#ffffff" stroke="#b794f4" stroke-width="0.6" />
+  <text class="ts" x="673" y="476" text-anchor="middle" fill="#44337a">Audit chain</text>
+  <text class="sm" x="673" y="494" text-anchor="middle" fill="#6b46c1">hash-linked log</text>
+
+  <rect x="730" y="454" width="90" height="56" rx="8" fill="#ffffff" stroke="#b794f4" stroke-width="0.6" />
+  <text class="ts" x="775" y="476" text-anchor="middle" fill="#44337a">Data lineage</text>
+  <text class="sm" x="775" y="494" text-anchor="middle" fill="#6b46c1">DAG tracking</text>
+
+  <rect x="832" y="454" width="90" height="56" rx="8" fill="#ffffff" stroke="#b794f4" stroke-width="0.6" />
+  <text class="ts" x="877" y="476" text-anchor="middle" fill="#44337a">Anomaly detect</text>
+  <text class="sm" x="877" y="494" text-anchor="middle" fill="#6b46c1">compliance map</text>
+
+  <path d="M590 446 L608 446 L608 482 L626 482" fill="none" stroke="#6b46c1" stroke-width="1" marker-end="url(#a)" />
+  <rect x="588" y="434" width="62" height="14" rx="4" fill="#f0e6ff" />
+  <text class="fl" x="619" y="444" text-anchor="middle" fill="#6b46c1">⑥ audit evt</text>
+
+  <path d="M590 470 L608 470 L608 482 L728 482" fill="none" stroke="#6b46c1" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <rect x="626" y="460" width="88" height="14" rx="4" fill="#f0e6ff" />
+  <text class="fl" x="670" y="470" text-anchor="middle" fill="#6b46c1">⑦ data mutations</text>
+
+  <path d="M673 454 L673 124 L846 124 L846 92" fill="none" stroke="#6b46c1" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <rect x="706" y="116" width="72" height="14" rx="4" fill="#f0e6ff" />
+  <text class="fl" x="742" y="126" text-anchor="middle" fill="#6b46c1">⑧ audit stream</text>
+
+  <path d="M775 454 L775 124 L748 124 L748 92" fill="none" stroke="#6b46c1" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <rect x="792" y="116" width="70" height="14" rx="4" fill="#f0e6ff" />
+  <text class="fl" x="827" y="126" text-anchor="middle" fill="#6b46c1">⑨ lineage DAG</text>
+
+  <rect x="960" y="132" width="460" height="418" rx="16" fill="#eef2ff" stroke="#818cf8" stroke-width="0.8" />
+  <text class="th" x="1190" y="158" text-anchor="middle" fill="#3730a3">Task Autopilot architecture</text>
+  <text class="sm" x="1190" y="176" text-anchor="middle" fill="#4f46e5">goal → route → fleet → drive state → takeover → evidence</text>
+
+  <rect x="980" y="198" width="196" height="50" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
+  <text class="ts" x="1078" y="218" text-anchor="middle" fill="#3730a3">Destination parser</text>
+  <text class="sm" x="1078" y="235" text-anchor="middle" fill="#4f46e5">goal · constraints · success</text>
+
+  <rect x="1208" y="198" width="196" height="50" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
+  <text class="ts" x="1306" y="218" text-anchor="middle" fill="#3730a3">Route planner</text>
+  <text class="sm" x="1306" y="235" text-anchor="middle" fill="#4f46e5">main route · candidates · risk</text>
+
+  <rect x="980" y="264" width="196" height="50" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
+  <text class="ts" x="1078" y="284" text-anchor="middle" fill="#3730a3">Fleet organizer</text>
+  <text class="sm" x="1078" y="301" text-anchor="middle" fill="#4f46e5">planner · researcher · reviewer</text>
+
+  <rect x="1208" y="264" width="196" height="50" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
+  <text class="ts" x="1306" y="284" text-anchor="middle" fill="#3730a3">Mission runtime</text>
+  <text class="sm" x="1306" y="301" text-anchor="middle" fill="#4f46e5">run · wait · resume · replan</text>
+
+  <rect x="980" y="330" width="196" height="50" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
+  <text class="ts" x="1078" y="350" text-anchor="middle" fill="#3730a3">Telemetry + explain</text>
+  <text class="sm" x="1078" y="367" text-anchor="middle" fill="#4f46e5">why · confidence · status</text>
+
+  <rect x="1208" y="330" width="196" height="50" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
+  <text class="ts" x="1306" y="350" text-anchor="middle" fill="#3730a3">Review + recovery</text>
+  <text class="sm" x="1306" y="367" text-anchor="middle" fill="#4f46e5">score · revise · fallback</text>
+
+  <rect x="980" y="396" width="196" height="50" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
+  <text class="ts" x="1078" y="416" text-anchor="middle" fill="#3730a3">Takeover bridge</text>
+  <text class="sm" x="1078" y="433" text-anchor="middle" fill="#4f46e5">decision · budget · permission</text>
+
+  <rect x="1208" y="396" width="196" height="50" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
+  <text class="ts" x="1306" y="416" text-anchor="middle" fill="#3730a3">Evidence trust chain</text>
+  <text class="sm" x="1306" y="433" text-anchor="middle" fill="#4f46e5">audit · replay · lineage</text>
+
+  <path d="M1176 223 L1206 223" fill="none" stroke="#818cf8" stroke-width="0.8" marker-end="url(#a)" />
+  <path d="M1306 248 L1306 262" fill="none" stroke="#818cf8" stroke-width="0.8" marker-end="url(#a)" />
+  <path d="M1208 289 L1178 289" fill="none" stroke="#818cf8" stroke-width="0.8" marker-end="url(#a)" />
+  <path d="M1078 314 L1078 328" fill="none" stroke="#818cf8" stroke-width="0.8" marker-end="url(#a)" />
+  <path d="M1176 355 L1206 355" fill="none" stroke="#818cf8" stroke-width="0.8" marker-end="url(#a)" />
+  <path d="M1306 380 L1306 394" fill="none" stroke="#818cf8" stroke-width="0.8" marker-end="url(#a)" />
+  <path d="M1208 421 L1178 421" fill="none" stroke="#818cf8" stroke-width="0.8" marker-end="url(#a)" />
+
+  <rect x="980" y="468" width="424" height="62" rx="8" fill="#ffffff" stroke="#818cf8" stroke-width="0.6" />
+  <text class="ts" x="1192" y="486" text-anchor="middle" fill="#3730a3">Phase 1 closed: 18/18 specs · 345/345 core · 602 raw</text>
+  <text class="sm" x="1192" y="502" text-anchor="middle" fill="#4f46e5">shared parser + server projection + tasks-store + cockpit panel</text>
+  <text class="sm" x="1192" y="518" text-anchor="middle" fill="#4f46e5">Web-AIGC 58/58 nodes stay as capability pool, not user-facing node list</text>
+
+  <path d="M940 326 L958 326" fill="none" stroke="#818cf8" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <rect x="920" y="314" width="52" height="14" rx="4" fill="#eef2ff" />
+  <text class="fl" x="946" y="324" text-anchor="middle" fill="#4f46e5">RAG deps</text>
+
+  <path d="M940 482 L958 482" fill="none" stroke="#818cf8" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <rect x="910" y="470" width="64" height="14" rx="4" fill="#eef2ff" />
+  <text class="fl" x="942" y="480" text-anchor="middle" fill="#4f46e5">audit mirror</text>
+
+  <!-- ==================== ROW 2: RUNNER + EXECUTION + INTEROP + DUAL RUNTIME ==================== -->
+
+  <rect x="20" y="575" width="160" height="150" rx="14" fill="#f8fafc" stroke="#d4d4d8" stroke-width="0.8" />
+  <text class="th" x="100" y="602" text-anchor="middle" fill="#3f3f46">Runner strategy</text>
+  <rect x="34" y="622" width="132" height="28" rx="6" fill="#eaf3de" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="100" y="641" text-anchor="middle" fill="#27500a">DockerRunner (real)</text>
+  <rect x="34" y="660" width="132" height="28" rx="6" fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="100" y="679" text-anchor="middle" fill="#0c447c">NativeRunner (native)</text>
+  <rect x="34" y="698" width="132" height="28" rx="6" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.6" />
+  <text class="ts" x="100" y="717" text-anchor="middle" fill="#3c3489">MockRunner (mock)</text>
+  <line x1="166" y1="636" x2="218" y2="636" stroke="#97c459" stroke-width="0.8" marker-end="url(#a)" />
+
+  <rect x="200" y="575" width="500" height="150" rx="16" fill="#faece7" stroke="#f0997b" stroke-width="0.8" />
+  <text class="th" x="450" y="602" text-anchor="middle" fill="#4a1b0c">Execution layer (real / native / mock)</text>
+
+  <rect x="220" y="620" width="106" height="44" rx="8" fill="#ffffff" stroke="#f0997b" stroke-width="0.6" />
+  <text class="ts" x="273" y="638" text-anchor="middle" fill="#712b13">Lobster exec</text>
+  <text class="sm" x="273" y="655" text-anchor="middle" fill="#993c1d">runner dispatch</text>
+
+  <rect x="336" y="620" width="106" height="44" rx="8" fill="#ffffff" stroke="#f0997b" stroke-width="0.6" />
+  <text class="ts" x="389" y="638" text-anchor="middle" fill="#712b13">HMAC callback</text>
+  <text class="sm" x="389" y="655" text-anchor="middle" fill="#993c1d">status + artifacts</text>
+
+  <rect x="452" y="620" width="106" height="44" rx="8" fill="#ffffff" stroke="#f0997b" stroke-width="0.6" />
+  <text class="ts" x="505" y="638" text-anchor="middle" fill="#712b13">Secure sandbox</text>
+  <text class="sm" x="505" y="655" text-anchor="middle" fill="#993c1d">seccomp + caps</text>
+
+  <rect x="568" y="620" width="112" height="44" rx="8" fill="#ffffff" stroke="#f0997b" stroke-width="0.6" />
+  <text class="ts" x="624" y="638" text-anchor="middle" fill="#712b13">Live preview</text>
+  <text class="sm" x="624" y="655" text-anchor="middle" fill="#993c1d">terminal + screenshot</text>
+
+  <rect x="220" y="680" width="132" height="28" rx="6" fill="#eaf3de" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="286" y="699" text-anchor="middle" fill="#27500a">DockerRunner</text>
+  <rect x="368" y="680" width="132" height="28" rx="6" fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="434" y="699" text-anchor="middle" fill="#0c447c">NativeRunner</text>
+  <rect x="516" y="680" width="82" height="28" rx="6" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.6" />
+  <text class="ts" x="557" y="699" text-anchor="middle" fill="#3c3489">MockRunner</text>
+  <rect x="608" y="680" width="72" height="28" rx="6" fill="#f8fafc" stroke="#d4d4d8" stroke-width="0.6" />
+  <text class="ts" x="644" y="699" text-anchor="middle" fill="#52525b">Docker probe</text>
+
+  <path d="M300 474 L300 573" fill="none" stroke="#d85a30" stroke-width="1" marker-end="url(#a)" />
+  <rect x="260" y="522" width="62" height="14" rx="4" fill="#faece7" />
+  <text class="fl" x="291" y="532" text-anchor="middle" fill="#993c1d">⑩ exec plan</text>
+
+  <path d="M389 620 L389 530 L490 530 L490 474" fill="none" stroke="#d85a30" stroke-width="0.9" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <rect x="404" y="522" width="78" height="14" rx="4" fill="#faece7" />
+  <text class="fl" x="443" y="532" text-anchor="middle" fill="#993c1d">⑪ status / cancel</text>
+
+  <path d="M624 620 L624 122 L1042 122 L1042 92" fill="none" stroke="#85b7eb" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <rect x="980" y="114" width="86" height="14" rx="4" fill="#e6f1fb" />
+  <text class="fl" x="1023" y="124" text-anchor="middle" fill="#185fa5">⑫ terminal / preview</text>
+
+  <path d="M505 620 L505 540 L628 540 L628 510" fill="none" stroke="#6b46c1" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <rect x="520" y="532" width="82" height="14" rx="4" fill="#f0e6ff" />
+  <text class="fl" x="561" y="542" text-anchor="middle" fill="#6b46c1">⑬ container audit</text>
+
+  <rect x="720" y="575" width="300" height="150" rx="16" fill="#e6fffa" stroke="#38b2ac" stroke-width="0.8" />
+  <text class="th" x="870" y="602" text-anchor="middle" fill="#234e52">Interop layer</text>
+  <rect x="740" y="620" width="260" height="44" rx="8" fill="#ffffff" stroke="#38b2ac" stroke-width="0.6" />
+  <text class="ts" x="870" y="638" text-anchor="middle" fill="#234e52">A2A protocol server + client</text>
+  <text class="sm" x="870" y="655" text-anchor="middle" fill="#2c7a7b">CrewAI / LangGraph / AutoGen adapters</text>
+  <rect x="740" y="684" width="124" height="30" rx="8" fill="#ffffff" stroke="#38b2ac" stroke-width="0.6" />
+  <text class="ts" x="802" y="699" text-anchor="middle" fill="#234e52">Swarm</text>
+  <text class="sm" x="802" y="711" text-anchor="middle" fill="#2c7a7b">cross-pod</text>
+  <rect x="876" y="684" width="124" height="30" rx="8" fill="#ffffff" stroke="#38b2ac" stroke-width="0.6" />
+  <text class="ts" x="938" y="699" text-anchor="middle" fill="#234e52">Guest agent</text>
+  <text class="sm" x="938" y="711" text-anchor="middle" fill="#2c7a7b">TTL sandbox</text>
+
+  <path d="M490 474 L490 552 L740 552 L740 630" fill="none" stroke="#38b2ac" stroke-width="1" marker-end="url(#a)" />
+  <rect x="574" y="544" width="132" height="14" rx="4" fill="#e6fffa" />
+  <text class="fl" x="640" y="554" text-anchor="middle" fill="#2c7a7b">⑭ A2A delegate + guest invite</text>
+
+  <path d="M740 650 L704 650 L704 552 L570 552 L570 474" fill="none" stroke="#38b2ac" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <rect x="600" y="544" width="108" height="14" rx="4" fill="#e6fffa" />
+  <text class="fl" x="654" y="554" text-anchor="middle" fill="#2c7a7b">⑮ external results</text>
+
+  <path d="M1208 289 L1192 289 L1192 552 L1000 552 L1000 630" fill="none" stroke="#38b2ac" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <rect x="1098" y="544" width="92" height="14" rx="4" fill="#e6fffa" />
+  <text class="fl" x="1144" y="554" text-anchor="middle" fill="#2c7a7b">capability calls</text>
+
+  <rect x="1040" y="575" width="380" height="150" rx="16" fill="#f8fafc" stroke="#d4d4d8" stroke-width="0.8" />
+  <text class="th" x="1230" y="602" text-anchor="middle" fill="#3f3f46">Dual runtime</text>
+  <rect x="1056" y="622" width="168" height="52" rx="8" fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="1140" y="640" text-anchor="middle" fill="#0c447c">Frontend runtime</text>
+  <text class="sm" x="1140" y="655" text-anchor="middle" fill="#185fa5">Frontend: Browser + IndexedDB</text>
+  <text class="sm" x="1140" y="668" text-anchor="middle" fill="#185fa5">+ preview runtime</text>
+  <rect x="1236" y="622" width="168" height="52" rx="8" fill="#eaf3de" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="1320" y="640" text-anchor="middle" fill="#27500a">Advanced runtime</text>
+  <text class="sm" x="1320" y="655" text-anchor="middle" fill="#3b6d11">Advanced: Express + real/native</text>
+  <text class="sm" x="1320" y="668" text-anchor="middle" fill="#3b6d11">executor + Socket.IO</text>
+  <rect x="1060" y="684" width="340" height="30" rx="6" fill="#ffffff" stroke="#d4d4d8" stroke-width="0.6" />
+  <text class="ts" x="1230" y="703" text-anchor="middle" fill="#52525b">Socket.IO telemetry + replay evidence + preview callbacks</text>
+
+  <!-- ==================== ROW 3: WORKFLOW PIPELINE ==================== -->
+
+  <rect x="20" y="742" width="1400" height="88" rx="16" fill="#f8fafc" stroke="#d4d4d8" stroke-width="0.8" />
+  <text class="th" x="720" y="766" text-anchor="middle" fill="#3f3f46">10-stage workflow pipeline</text>
+
+  <rect x="40" y="780" width="120" height="36" rx="8" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.6" />
+  <text class="ts" x="100" y="795" text-anchor="middle" fill="#3c3489">1. Assemble</text>
+  <text class="xs" x="100" y="809" text-anchor="middle" fill="#534ab7">dynamic org</text>
+  <line x1="160" y1="798" x2="173" y2="798" stroke="#afa9ec" stroke-width="0.8" marker-end="url(#a)" />
+
+  <rect x="175" y="780" width="120" height="36" rx="8" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.6" />
+  <text class="ts" x="235" y="795" text-anchor="middle" fill="#3c3489">2. CEO split</text>
+  <text class="xs" x="235" y="809" text-anchor="middle" fill="#534ab7">decompose</text>
+  <line x1="295" y1="798" x2="308" y2="798" stroke="#afa9ec" stroke-width="0.8" marker-end="url(#a)" />
+
+  <rect x="310" y="780" width="120" height="36" rx="8" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.6" />
+  <text class="ts" x="370" y="795" text-anchor="middle" fill="#3c3489">3. Mgr plan</text>
+  <text class="xs" x="370" y="809" text-anchor="middle" fill="#534ab7">assign work</text>
+  <line x1="430" y1="798" x2="443" y2="798" stroke="#afa9ec" stroke-width="0.8" marker-end="url(#a)" />
+
+  <rect x="445" y="780" width="120" height="36" rx="8" fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="505" y="795" text-anchor="middle" fill="#0c447c">4. Execute</text>
+  <text class="xs" x="505" y="809" text-anchor="middle" fill="#185fa5">parallel work</text>
+  <line x1="565" y1="798" x2="578" y2="798" stroke="#85b7eb" stroke-width="0.8" marker-end="url(#a)" />
+
+  <rect x="580" y="780" width="120" height="36" rx="8" fill="#eaf3de" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="640" y="795" text-anchor="middle" fill="#27500a">5. Review</text>
+  <text class="xs" x="640" y="809" text-anchor="middle" fill="#3b6d11">score quality</text>
+  <line x1="700" y1="798" x2="713" y2="798" stroke="#97c459" stroke-width="0.8" marker-end="url(#a)" />
+
+  <rect x="715" y="780" width="120" height="36" rx="8" fill="#faeeda" stroke="#fac775" stroke-width="0.6" />
+  <text class="ts" x="775" y="795" text-anchor="middle" fill="#633806">6. Audit</text>
+  <text class="xs" x="775" y="809" text-anchor="middle" fill="#854f0b">meta check</text>
+  <line x1="835" y1="798" x2="848" y2="798" stroke="#fac775" stroke-width="0.8" marker-end="url(#a)" />
+
+  <rect x="850" y="780" width="120" height="36" rx="8" fill="#faece7" stroke="#f0997b" stroke-width="0.6" />
+  <text class="ts" x="910" y="795" text-anchor="middle" fill="#712b13">7. Revise</text>
+  <text class="xs" x="910" y="809" text-anchor="middle" fill="#993c1d">fix gaps</text>
+  <line x1="970" y1="798" x2="983" y2="798" stroke="#f0997b" stroke-width="0.8" marker-end="url(#a)" />
+
+  <rect x="985" y="780" width="120" height="36" rx="8" fill="#eaf3de" stroke="#97c459" stroke-width="0.6" />
+  <text class="ts" x="1045" y="795" text-anchor="middle" fill="#27500a">8. Verify</text>
+  <text class="xs" x="1045" y="809" text-anchor="middle" fill="#3b6d11">confirm</text>
+  <line x1="1105" y1="798" x2="1118" y2="798" stroke="#97c459" stroke-width="0.8" marker-end="url(#a)" />
+
+  <rect x="1120" y="780" width="120" height="36" rx="8" fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.6" />
+  <text class="ts" x="1180" y="795" text-anchor="middle" fill="#0c447c">9. Summary</text>
+  <text class="xs" x="1180" y="809" text-anchor="middle" fill="#185fa5">aggregate</text>
+  <line x1="1240" y1="798" x2="1253" y2="798" stroke="#85b7eb" stroke-width="0.8" marker-end="url(#a)" />
+
+  <rect x="1255" y="780" width="120" height="36" rx="8" fill="#fbeaf0" stroke="#ed93b1" stroke-width="0.6" />
+  <text class="ts" x="1315" y="795" text-anchor="middle" fill="#72243e">10. Evolve</text>
+  <text class="xs" x="1315" y="809" text-anchor="middle" fill="#993556">learn + refine</text>
+
+  <path d="M910 816 L910 826 L505 826 L505 816" fill="none" stroke="#d85a30" stroke-width="0.7" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <text class="fl" x="706" y="824" text-anchor="middle" fill="#993c1d">Score below threshold - revise and re-execute</text>
+
+  <!-- ==================== FLOW LEGEND ==================== -->
+
+  <rect x="20" y="842" width="1400" height="48" rx="10" fill="#f8fafc" stroke="#d4d4d8" stroke-width="0.5" />
+  <circle cx="50" cy="858" r="5" fill="#eaf3de" stroke="#97c459" stroke-width="0.5" />
+  <text class="sm" x="60" y="862" fill="#52525b">Server</text>
+  <circle cx="124" cy="858" r="5" fill="#e6f1fb" stroke="#85b7eb" stroke-width="0.5" />
+  <text class="sm" x="134" y="862" fill="#52525b">Frontend</text>
+  <circle cx="214" cy="858" r="5" fill="#faeeda" stroke="#fac775" stroke-width="0.5" />
+  <text class="sm" x="224" y="862" fill="#52525b">Intelligence</text>
+  <circle cx="326" cy="858" r="5" fill="#faece7" stroke="#f0997b" stroke-width="0.5" />
+  <text class="sm" x="336" y="862" fill="#52525b">Execution</text>
+  <circle cx="426" cy="858" r="5" fill="#fbeaf0" stroke="#ed93b1" stroke-width="0.5" />
+  <text class="sm" x="436" y="862" fill="#52525b">Contracts</text>
+  <circle cx="526" cy="858" r="5" fill="#f0e6ff" stroke="#b794f4" stroke-width="0.5" />
+  <text class="sm" x="536" y="862" fill="#52525b">Trust</text>
+  <circle cx="604" cy="858" r="5" fill="#e6fffa" stroke="#38b2ac" stroke-width="0.5" />
+  <text class="sm" x="614" y="862" fill="#52525b">Interop</text>
+  <circle cx="686" cy="858" r="5" fill="#eeedfe" stroke="#afa9ec" stroke-width="0.5" />
+  <text class="sm" x="696" y="862" fill="#52525b">Workflow</text>
+  <circle cx="780" cy="858" r="5" fill="#eef2ff" stroke="#818cf8" stroke-width="0.5" />
+  <text class="sm" x="790" y="862" fill="#52525b">Web-AIGC / Autopilot</text>
+
+  <line x1="900" y1="858" x2="930" y2="858" stroke="#d85a30" stroke-width="1" marker-end="url(#a)" />
+  <text class="sm" x="940" y="862" fill="#52525b">Data flow</text>
+  <line x1="1018" y1="858" x2="1048" y2="858" stroke="#d85a30" stroke-width="0.8" stroke-dasharray="4 3" marker-end="url(#a)" />
+  <text class="sm" x="1058" y="862" fill="#52525b">Callback / async</text>
+  <line x1="1178" y1="858" x2="1208" y2="858" stroke="#ed93b1" stroke-width="0.5" stroke-dasharray="3 3" />
+  <text class="sm" x="1218" y="862" fill="#52525b">Contract dependency</text>
+
+  <text class="xs" x="250" y="881" fill="#52525b">
+    Numbered flows: ①-⑮ show the data path from user query to execution result
+  </text>
+
+  <text class="xs" x="720" y="887" text-anchor="middle" fill="#94a3b8">
+    2026-04-26 snapshot - Web-AIGC 58/58 sealed - Task Autopilot Phase 1 closed: 18/18 specs, 345/345 core, 602/602 raw - runtime deepening next
+  </text>
+</svg>

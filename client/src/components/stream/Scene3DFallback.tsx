@@ -37,6 +37,7 @@ export function Scene3DFallback({
   performanceProfile,
   sidebarWidth,
   hidden,
+  mode,
   ...rest
 }: Scene3DFallbackProps) {
   // Scene3D's own `hidden` prop controls CSS visibility and frameloop.
@@ -56,6 +57,7 @@ export function Scene3DFallback({
         performanceProfile={performanceProfile}
         sidebarWidth={sidebarWidth}
         hidden={effectiveHidden}
+        mode={mode}
         {...rest}
       />
     </div>

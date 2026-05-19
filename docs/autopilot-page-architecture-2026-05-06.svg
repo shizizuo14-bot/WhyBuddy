@@ -1,0 +1,657 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="2800" height="1900" viewBox="0 0 2800 1900" role="img" aria-labelledby="title desc">
+  <title id="title">Cube Pets Office SPEC 自动驾驶与未来效果推演整体架构图</title>
+  <desc id="desc">从想法或 GitHub 输入开始，经过澄清、自动驾驶路线规划、SPEC 树推导、规格文档、效果预演、实现提示词和工程落地，形成可保存、可预演、可执行的项目资产。</desc>
+
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#f8fbff"/>
+      <stop offset="45%" stop-color="#f6fbf7"/>
+      <stop offset="100%" stop-color="#fff8f1"/>
+    </linearGradient>
+    <linearGradient id="navy" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#06174f"/>
+      <stop offset="100%" stop-color="#123c9c"/>
+    </linearGradient>
+    <linearGradient id="blue" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#155eef"/>
+      <stop offset="100%" stop-color="#3b82f6"/>
+    </linearGradient>
+    <linearGradient id="teal" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#0f766e"/>
+      <stop offset="100%" stop-color="#14b8a6"/>
+    </linearGradient>
+    <linearGradient id="sky" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#075985"/>
+      <stop offset="100%" stop-color="#0ea5e9"/>
+    </linearGradient>
+    <linearGradient id="orange" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#b45309"/>
+      <stop offset="100%" stop-color="#f59e0b"/>
+    </linearGradient>
+
+    <marker id="arrow" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#1e3a8a"/>
+    </marker>
+    <marker id="arrow-soft" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b"/>
+    </marker>
+    <marker id="arrow-teal" viewBox="0 0 10 10" refX="8.5" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#0f766e"/>
+    </marker>
+
+    <filter id="shadow" x="-18%" y="-18%" width="136%" height="136%">
+      <feDropShadow dx="0" dy="14" stdDeviation="14" flood-color="#0f172a" flood-opacity="0.10"/>
+    </filter>
+    <filter id="softShadow" x="-14%" y="-14%" width="128%" height="128%">
+      <feDropShadow dx="0" dy="8" stdDeviation="9" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+
+    <style>
+      .page { fill: url(#bg); }
+      .title { font: 900 48px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; fill: #07164b; letter-spacing: 0; }
+      .subtitle { font: 700 21px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; fill: #1e293b; letter-spacing: 0; }
+      .slogan { font: 900 22px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; fill: #174ea6; letter-spacing: 0; }
+      .section { fill: rgba(255,255,255,0.72); stroke: #bdd3f5; stroke-width: 1.6; }
+      .section-dashed { fill: rgba(255,255,255,0.58); stroke: #bdd3f5; stroke-width: 1.6; stroke-dasharray: 9 8; }
+      .card { fill: #ffffff; stroke: #9ec5fe; stroke-width: 1.4; filter: url(#shadow); }
+      .card-soft { fill: #f8fbff; stroke: #cfe2ff; stroke-width: 1.2; filter: url(#softShadow); }
+      .card-warm { fill: #fff7ed; stroke: #fdba74; stroke-width: 1.3; filter: url(#softShadow); }
+      .card-green { fill: #ecfdf5; stroke: #86efac; stroke-width: 1.3; filter: url(#softShadow); }
+      .card-sky { fill: #e0f2fe; stroke: #7dd3fc; stroke-width: 1.3; filter: url(#softShadow); }
+      .card-muted { fill: #f1f5f9; stroke: #cbd5e1; stroke-width: 1.2; }
+      .chip { fill: #eef6ff; stroke: #bfdbfe; stroke-width: 1.1; }
+      .chip-warm { fill: #fff7ed; stroke: #fed7aa; stroke-width: 1.1; }
+      .chip-green { fill: #ecfdf5; stroke: #bbf7d0; stroke-width: 1.1; }
+      .line { fill: none; stroke: #1e3a8a; stroke-width: 2.4; marker-end: url(#arrow); }
+      .line-soft { fill: none; stroke: #64748b; stroke-width: 1.8; stroke-dasharray: 8 8; marker-end: url(#arrow-soft); }
+      .line-teal { fill: none; stroke: #0f766e; stroke-width: 2.6; marker-end: url(#arrow-teal); }
+      .tree-line { fill: none; stroke: #075985; stroke-width: 2; }
+      .step-circle { fill: url(#blue); filter: url(#softShadow); }
+      .step-num { font: 900 26px "Cascadia Code", Consolas, monospace; fill: #ffffff; letter-spacing: 0; }
+      .card-title { font: 900 24px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; fill: #0b2b7a; letter-spacing: 0; }
+      .card-title-white { font: 900 23px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; fill: #ffffff; letter-spacing: 0; }
+      .label { font: 800 17px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; fill: #0f172a; letter-spacing: 0; }
+      .label-blue { font: 900 17px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; fill: #174ea6; letter-spacing: 0; }
+      .label-white { font: 900 17px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; fill: #ffffff; letter-spacing: 0; }
+      .small { font: 700 14px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; fill: #334155; letter-spacing: 0; }
+      .small-blue { font: 800 14px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; fill: #174ea6; letter-spacing: 0; }
+      .tiny { font: 700 12px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; fill: #64748b; letter-spacing: 0; }
+      .tiny-blue { font: 800 12px "Microsoft YaHei", "PingFang SC", "Noto Sans CJK SC", Arial, sans-serif; fill: #1d4ed8; letter-spacing: 0; }
+      .code { font: 700 13px "Cascadia Code", Consolas, monospace; fill: #1e293b; letter-spacing: 0; }
+      .code-blue { font: 800 13px "Cascadia Code", Consolas, monospace; fill: #1d4ed8; letter-spacing: 0; }
+      .icon-stroke { fill: none; stroke: #174ea6; stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+      .icon-fill { fill: #174ea6; }
+    </style>
+  </defs>
+
+  <rect class="page" x="0" y="0" width="2800" height="1900"/>
+
+  <!-- Header -->
+  <g transform="translate(60 48)">
+    <text class="title" x="0" y="0">Cube Pets Office | SPEC 自动驾驶与未来效果推演整体架构图</text>
+    <text class="subtitle" x="40" y="44">输入想法 / GitHub -> 澄清 -> 自动驾驶路线集 -> 推导 SPEC 树 -> 规格文档 -> 效果预演 -> 实现提示词 -> 工程落地</text>
+    <g transform="translate(860 82)">
+      <rect x="0" y="0" rx="27" ry="27" width="610" height="54" fill="#ffffff" stroke="#3b82f6" stroke-width="1.6" filter="url(#softShadow)"/>
+      <circle cx="37" cy="27" r="17" fill="#e0f2fe" stroke="#174ea6" stroke-width="3"/>
+      <path class="icon-stroke" d="M26 27 L48 27 M37 16 C31 21 31 33 37 38 M37 16 C43 21 43 33 37 38"/>
+      <text class="slogan" x="70" y="35">像 FSD 一样：先看清路线，再决定怎么走</text>
+    </g>
+    <text class="small-blue" x="746" y="164">把模糊想法和仓库上下文，推演成可保存、可预演、可迁移、可执行的 SPEC 资产</text>
+  </g>
+
+  <!-- Flow timeline circles -->
+  <g transform="translate(60 220)">
+    <line x1="105" y1="0" x2="2145" y2="0" stroke="#8bb8ff" stroke-width="4"/>
+    <g transform="translate(105 0)"><circle class="step-circle" cx="0" cy="0" r="25"/><text class="step-num" x="-8" y="9">1</text></g>
+    <g transform="translate(340 0)"><circle class="step-circle" cx="0" cy="0" r="25"/><text class="step-num" x="-8" y="9">2</text></g>
+    <g transform="translate(665 0)"><circle class="step-circle" cx="0" cy="0" r="25"/><text class="step-num" x="-8" y="9">3</text></g>
+    <g transform="translate(1035 0)"><circle class="step-circle" cx="0" cy="0" r="25"/><text class="step-num" x="-8" y="9">4</text></g>
+    <g transform="translate(1330 0)"><circle class="step-circle" cx="0" cy="0" r="25"/><text class="step-num" x="-8" y="9">5</text></g>
+    <g transform="translate(1600 0)"><circle class="step-circle" cx="0" cy="0" r="25"/><text class="step-num" x="-8" y="9">6</text></g>
+    <g transform="translate(1880 0)"><circle class="step-circle" cx="0" cy="0" r="25"/><text class="step-num" x="-8" y="9">7</text></g>
+    <g transform="translate(2145 0)"><circle class="step-circle" cx="0" cy="0" r="25"/><text class="step-num" x="-8" y="9">8</text></g>
+  </g>
+
+  <!-- Main 8-step architecture -->
+  <g transform="translate(60 260)">
+    <!-- Step 1 -->
+    <g>
+      <rect class="card" x="0" y="0" rx="20" ry="20" width="210" height="560"/>
+      <text class="card-title" x="39" y="54">输入入口</text>
+      <g transform="translate(18 92)">
+        <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="174" height="82"/>
+        <path class="icon-stroke" d="M26 24 C26 16 36 14 40 20 C44 26 40 32 36 36 L36 46 M28 46 L44 46"/>
+        <text class="small" x="62" y="31">执行目的</text>
+        <text class="tiny" x="62" y="55">想法 / 目标</text>
+      </g>
+      <g transform="translate(18 204)">
+        <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="174" height="82"/>
+        <circle class="icon-fill" cx="36" cy="35" r="20"/>
+        <circle fill="#fff" cx="29" cy="30" r="4"/>
+        <circle fill="#fff" cx="43" cy="30" r="4"/>
+        <path d="M25 42 C30 48 42 48 47 42" fill="none" stroke="#fff" stroke-width="3" stroke-linecap="round"/>
+        <text class="small" x="70" y="31">GitHub</text>
+        <text class="tiny" x="70" y="55">一个或多个链接</text>
+      </g>
+      <g transform="translate(18 316)">
+        <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="174" height="82"/>
+        <path class="icon-stroke" d="M18 50 L18 24 L42 24 L50 32 L58 32 L58 58 L18 58 Z"/>
+        <text class="small" x="70" y="31">项目空间</text>
+        <text class="tiny" x="70" y="55">创建 / 选择项目</text>
+      </g>
+      <text class="small-blue" x="27" y="504">从一个想法或项目</text>
+      <text class="small-blue" x="39" y="528">上下文开始</text>
+    </g>
+
+    <!-- Step 2 -->
+    <g transform="translate(235 0)">
+      <rect class="card" x="0" y="0" rx="20" ry="20" width="210" height="560"/>
+      <text class="card-title" x="39" y="54">澄清问答</text>
+      <g transform="translate(18 92)">
+        <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="174" height="68"/>
+        <path class="icon-stroke" d="M27 38 L39 50 L60 24 M44 21 A24 24 0 1 0 61 38"/>
+        <text class="small" x="74" y="30">需求范围</text>
+        <text class="tiny" x="74" y="51">边界 / 用户</text>
+      </g>
+      <g transform="translate(18 184)">
+        <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="174" height="68"/>
+        <path class="icon-stroke" d="M22 24 L50 24 L58 34 L58 50 L22 50 Z M30 34 L42 44 L50 34"/>
+        <text class="small" x="74" y="30">技术栈</text>
+        <text class="tiny" x="74" y="51">约束 / 依赖</text>
+      </g>
+      <g transform="translate(18 276)">
+        <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="174" height="68"/>
+        <circle class="icon-stroke" cx="40" cy="36" r="21"/>
+        <path class="icon-stroke" d="M40 24 L40 38 L51 45"/>
+        <text class="small" x="74" y="30">优先级</text>
+        <text class="tiny" x="74" y="51">时间 / 成本</text>
+      </g>
+      <g transform="translate(18 368)">
+        <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="174" height="68"/>
+        <path class="icon-stroke" d="M22 26 Q40 12 58 26 L58 48 Q40 62 22 48 Z M31 37 L49 37"/>
+        <text class="small" x="74" y="30">多轮澄清</text>
+        <text class="tiny" x="74" y="51">直到目标清晰</text>
+      </g>
+      <text class="small-blue" x="37" y="504">先问清楚，</text>
+      <text class="small-blue" x="25" y="528">再进入推演</text>
+    </g>
+
+    <!-- Step 3 -->
+    <g transform="translate(470 0)">
+      <rect class="card" x="0" y="0" rx="20" ry="20" width="390" height="560"/>
+      <rect x="0" y="0" rx="20" ry="20" width="390" height="68" fill="url(#navy)"/>
+      <text class="card-title-white" x="78" y="43">自动驾驶路线生成</text>
+      <text class="tiny" x="140" y="88" fill="#174ea6">菜单一：FSD 路线集，不是直接写代码</text>
+
+      <g transform="translate(18 110)">
+        <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="170" height="238"/>
+        <text class="label-blue" x="18" y="32">能力编队</text>
+        <text class="small" x="18" y="68">AIGC 60+ 节点</text>
+        <text class="small" x="18" y="106">产品 / 架构 / 研发</text>
+        <text class="small" x="18" y="144">Docker 沙盒执行</text>
+        <text class="small" x="18" y="182">MCP / Skills</text>
+        <text class="tiny" x="18" y="218">多角色并行分析项目</text>
+      </g>
+
+      <g transform="translate(206 110)">
+        <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="166" height="238"/>
+        <text class="label-blue" x="18" y="32">路线输出</text>
+        <g transform="translate(16 50)">
+          <rect class="chip" x="0" y="0" rx="10" ry="10" width="134" height="34"/>
+          <text class="tiny-blue" x="16" y="23">主执行路径</text>
+        </g>
+        <g transform="translate(16 92)">
+          <rect class="chip" x="0" y="0" rx="10" ry="10" width="134" height="34"/>
+          <text class="tiny-blue" x="16" y="23">次选执行路径</text>
+        </g>
+        <g transform="translate(16 134)">
+          <rect class="chip-warm" x="0" y="0" rx="10" ry="10" width="134" height="34"/>
+          <text class="tiny-blue" x="16" y="23">风险 / 成本</text>
+        </g>
+        <g transform="translate(16 176)">
+          <rect class="chip-green" x="0" y="0" rx="10" ry="10" width="134" height="34"/>
+          <text class="tiny-blue" x="16" y="23">路线大纲</text>
+        </g>
+      </g>
+
+      <g transform="translate(18 382)">
+        <rect class="card-green" x="0" y="0" rx="16" ry="16" width="354" height="96"/>
+        <text class="label-blue" x="16" y="30">输出产物：Route Set</text>
+        <text class="tiny" x="16" y="56">SVG 架构图 / 路线说明 / 决策清单 / 分析报告</text>
+        <text class="tiny" x="16" y="78">用户确认主路或合并次路后，进入 SPEC 推导</text>
+      </g>
+      <text class="small-blue" x="50" y="522">先生成路线集，给 SPEC 树铺路</text>
+    </g>
+
+    <!-- Step 4 -->
+    <g transform="translate(885 0)">
+      <rect class="card" x="0" y="0" rx="20" ry="20" width="300" height="560"/>
+      <rect x="0" y="0" rx="20" ry="20" width="300" height="68" fill="url(#sky)"/>
+      <text class="card-title-white" x="38" y="43">推导 SPEC 树</text>
+      <text class="tiny" x="76" y="88" fill="#174ea6">菜单二：项目资产核心</text>
+
+      <g transform="translate(34 122)">
+        <rect class="card-sky" x="64" y="0" rx="14" ry="14" width="104" height="46"/>
+        <text class="label-blue" x="84" y="30">项目目标</text>
+        <path class="tree-line" d="M116 46 L116 84"/>
+        <path class="tree-line" d="M38 84 L194 84"/>
+        <path class="tree-line" d="M38 84 L38 112"/>
+        <path class="tree-line" d="M116 84 L116 112"/>
+        <path class="tree-line" d="M194 84 L194 112"/>
+
+        <rect class="card-soft" x="-4" y="112" rx="12" ry="12" width="84" height="62"/>
+        <text class="tiny-blue" x="16" y="137">用户</text>
+        <text class="tiny-blue" x="16" y="156">模块</text>
+        <rect class="card-soft" x="74" y="112" rx="12" ry="12" width="84" height="62"/>
+        <text class="tiny-blue" x="94" y="137">角色</text>
+        <text class="tiny-blue" x="94" y="156">模块</text>
+        <rect class="card-soft" x="152" y="112" rx="12" ry="12" width="84" height="62"/>
+        <text class="tiny-blue" x="172" y="137">菜单</text>
+        <text class="tiny-blue" x="172" y="156">模块</text>
+
+        <path class="tree-line" d="M38 174 C38 200 88 200 88 224"/>
+        <path class="tree-line" d="M116 174 L116 224"/>
+        <path class="tree-line" d="M194 174 C194 200 146 200 146 224"/>
+
+        <rect class="card-soft" x="28" y="224" rx="12" ry="12" width="180" height="62"/>
+        <text class="tiny-blue" x="54" y="249">权限树 / 审计 / 设置</text>
+        <text class="tiny" x="54" y="269">主路和次路可合并</text>
+      </g>
+
+      <g transform="translate(20 430)">
+        <rect class="chip" x="0" y="0" rx="10" ry="10" width="80" height="34"/>
+        <text class="tiny-blue" x="14" y="23">可微调</text>
+        <rect class="chip" x="92" y="0" rx="10" ry="10" width="82" height="34"/>
+        <text class="tiny-blue" x="106" y="23">可增删</text>
+        <rect class="chip" x="186" y="0" rx="10" ry="10" width="78" height="34"/>
+        <text class="tiny-blue" x="200" y="23">版本化</text>
+      </g>
+      <text class="small-blue" x="34" y="522">路线演化为可复用 SPEC 树资产</text>
+    </g>
+
+    <!-- Step 5 -->
+    <g transform="translate(1210 0)">
+      <rect class="card" x="0" y="0" rx="20" ry="20" width="240" height="560"/>
+      <text class="card-title" x="30" y="54">规格文档</text>
+      <text class="tiny" x="64" y="82">菜单三：节点展开</text>
+      <g transform="translate(20 112)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="200" height="52"/>
+        <text class="small" x="52" y="32">Requirements</text>
+      </g>
+      <g transform="translate(20 178)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="200" height="52"/>
+        <text class="small" x="74" y="32">Design</text>
+      </g>
+      <g transform="translate(20 244)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="200" height="52"/>
+        <text class="small" x="80" y="32">Tasks</text>
+      </g>
+      <g transform="translate(20 310)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="200" height="52"/>
+        <text class="small" x="64" y="32">验收标准</text>
+      </g>
+      <g transform="translate(20 376)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="200" height="52"/>
+        <text class="small" x="72" y="32">里程碑</text>
+      </g>
+      <g transform="translate(20 442)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="200" height="52"/>
+        <text class="small" x="64" y="32">状态追踪</text>
+      </g>
+      <text class="small-blue" x="34" y="528">每个节点都有文档</text>
+    </g>
+
+    <!-- Step 6 -->
+    <g transform="translate(1475 0)">
+      <rect class="card" x="0" y="0" rx="20" ry="20" width="250" height="560"/>
+      <text class="card-title" x="30" y="54">效果预演</text>
+      <text class="tiny" x="72" y="82">菜单四：未开发先看见</text>
+
+      <g transform="translate(20 112)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="210" height="60"/>
+        <path class="icon-stroke" d="M24 42 L24 24 L46 24 L46 42 M35 24 L35 16 M18 42 L52 42"/>
+        <text class="small" x="78" y="36">架构图</text>
+      </g>
+      <g transform="translate(20 188)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="210" height="60"/>
+        <rect x="22" y="18" width="42" height="30" rx="5" fill="#dbeafe" stroke="#174ea6" stroke-width="2"/>
+        <text class="small" x="78" y="36">页面原型 / UI</text>
+      </g>
+      <g transform="translate(20 264)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="210" height="60"/>
+        <rect x="22" y="18" width="42" height="30" rx="5" fill="#0f172a"/>
+        <text class="small" x="78" y="36">执行结果预览</text>
+      </g>
+      <g transform="translate(20 340)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="210" height="60"/>
+        <path class="icon-stroke" d="M22 43 L36 31 L48 38 L62 20"/>
+        <text class="small" x="78" y="36">进度规划</text>
+      </g>
+      <g transform="translate(20 430)">
+        <rect class="card-sky" x="0" y="0" rx="14" ry="14" width="210" height="60"/>
+        <text class="small-blue" x="26" y="26">基于 SPEC 树</text>
+        <text class="tiny" x="26" y="46">推演每一步完成后的状态</text>
+      </g>
+      <text class="small-blue" x="30" y="528">还没开工，也能看未来效果</text>
+    </g>
+
+    <!-- Step 7 -->
+    <g transform="translate(1750 0)">
+      <rect class="card" x="0" y="0" rx="20" ry="20" width="260" height="560"/>
+      <text class="card-title" x="30" y="54">实现提示词</text>
+      <text class="tiny" x="70" y="82">菜单五：跨平台资产</text>
+
+      <g transform="translate(20 112)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="220" height="58"/>
+        <text class="small" x="54" y="35">模块实现提示词</text>
+      </g>
+      <g transform="translate(20 186)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="220" height="58"/>
+        <text class="small" x="54" y="35">页面实现提示词</text>
+      </g>
+      <g transform="translate(20 260)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="220" height="58"/>
+        <text class="small" x="54" y="35">系统集成提示词</text>
+      </g>
+      <g transform="translate(20 348)">
+        <rect class="card-sky" x="0" y="0" rx="14" ry="14" width="220" height="118"/>
+        <text class="small-blue" x="24" y="30">可导出到</text>
+        <text class="tiny" x="24" y="58">Cursor / Kiro / Solo Trae</text>
+        <text class="tiny" x="24" y="80">Windsurf / Codex / Claude</text>
+        <text class="tiny" x="24" y="102">带上下文、验收、验证命令</text>
+      </g>
+      <text class="small-blue" x="22" y="528">把原型和文档转成可执行 prompt</text>
+    </g>
+
+    <!-- Step 8 -->
+    <g transform="translate(2035 0)">
+      <rect class="card" x="0" y="0" rx="20" ry="20" width="220" height="560"/>
+      <text class="card-title" x="42" y="54">工程落地</text>
+      <text class="tiny" x="70" y="82">菜单六：真正执行</text>
+      <g transform="translate(20 112)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="180" height="64"/>
+        <text class="small" x="48" y="28">Docker /</text>
+        <text class="small" x="40" y="49">Native Runner</text>
+      </g>
+      <g transform="translate(20 198)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="180" height="64"/>
+        <text class="small" x="46" y="39">执行代码任务</text>
+      </g>
+      <g transform="translate(20 284)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="180" height="64"/>
+        <text class="small" x="58" y="39">产物输出</text>
+      </g>
+      <g transform="translate(20 370)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="180" height="64"/>
+        <text class="small" x="52" y="39">日志 / 回放</text>
+      </g>
+      <g transform="translate(20 456)">
+        <rect class="card-soft" x="0" y="0" rx="13" ry="13" width="180" height="64"/>
+        <text class="small" x="58" y="39">继续迭代</text>
+      </g>
+    </g>
+
+    <path class="line" d="M210 280 L225 280"/>
+    <path class="line" d="M445 280 L460 280"/>
+    <path class="line-teal" d="M860 280 L875 280"/>
+    <path class="line-teal" d="M1185 280 L1200 280"/>
+    <path class="line" d="M1450 280 L1465 280"/>
+    <path class="line" d="M1725 280 L1740 280"/>
+    <path class="line" d="M2010 280 L2025 280"/>
+  </g>
+
+  <!-- Workbench menu -->
+  <g transform="translate(2365 238)">
+    <rect class="card" x="0" y="0" rx="22" ry="22" width="375" height="720"/>
+    <rect x="0" y="0" rx="22" ry="22" width="375" height="70" fill="url(#blue)"/>
+    <text class="card-title-white" x="106" y="44">工作台菜单</text>
+
+    <g transform="translate(24 102)">
+      <rect class="card-soft" x="0" y="0" rx="16" ry="16" width="327" height="76"/>
+      <circle cx="35" cy="38" r="20" fill="#e0f2fe" stroke="#174ea6" stroke-width="3"/>
+      <text class="label-blue" x="76" y="32">自动驾驶</text>
+      <text class="tiny" x="76" y="55">菜单一：主路 / 次路 / Route Set</text>
+    </g>
+    <path class="line-soft" d="M188 184 L188 218"/>
+
+    <g transform="translate(24 218)">
+      <rect class="card-sky" x="0" y="0" rx="16" ry="16" width="327" height="76"/>
+      <circle cx="35" cy="38" r="20" fill="#dff6ff" stroke="#075985" stroke-width="3"/>
+      <text class="label-blue" x="76" y="32">推导</text>
+      <text class="tiny" x="76" y="55">菜单二：SPEC 树编辑与保存</text>
+    </g>
+    <path class="line-soft" d="M188 300 L188 334"/>
+
+    <g transform="translate(24 334)">
+      <rect class="card-soft" x="0" y="0" rx="16" ry="16" width="327" height="76"/>
+      <circle cx="35" cy="38" r="20" fill="#e0f2fe" stroke="#174ea6" stroke-width="3"/>
+      <text class="label-blue" x="76" y="32">规格文档</text>
+      <text class="tiny" x="76" y="55">菜单三：Requirements / Design / Tasks</text>
+    </g>
+    <path class="line-soft" d="M188 416 L188 450"/>
+
+    <g transform="translate(24 450)">
+      <rect class="card-soft" x="0" y="0" rx="16" ry="16" width="327" height="76"/>
+      <circle cx="35" cy="38" r="20" fill="#e0f2fe" stroke="#174ea6" stroke-width="3"/>
+      <text class="label-blue" x="76" y="32">效果预演</text>
+      <text class="tiny" x="76" y="55">菜单四：架构图 / 原型 / UI / 进度</text>
+    </g>
+    <path class="line-soft" d="M188 532 L188 566"/>
+
+    <g transform="translate(24 566)">
+      <rect class="card-soft" x="0" y="0" rx="16" ry="16" width="327" height="76"/>
+      <circle cx="35" cy="38" r="20" fill="#e0f2fe" stroke="#174ea6" stroke-width="3"/>
+      <text class="label-blue" x="76" y="32">实现提示词</text>
+      <text class="tiny" x="76" y="55">菜单五：跨平台 Prompt Package</text>
+    </g>
+    <path class="line-soft" d="M188 648 L188 666"/>
+
+    <g transform="translate(24 662)">
+      <rect class="card-soft" x="0" y="0" rx="16" ry="16" width="327" height="76"/>
+      <circle cx="35" cy="38" r="20" fill="#e0f2fe" stroke="#174ea6" stroke-width="3"/>
+      <text class="label-blue" x="76" y="32">工程落地</text>
+      <text class="tiny" x="76" y="55">菜单六：执行、产物、日志、回放</text>
+    </g>
+
+    <text class="tiny-blue" x="34" y="690">所有菜单都绑定 SPEC 资产，不互相混放</text>
+  </g>
+
+  <!-- Stage gates -->
+  <g transform="translate(60 880)">
+    <rect class="section" x="0" y="0" rx="22" ry="22" width="2255" height="140"/>
+    <text class="card-title" x="34" y="45">阶段闸门：自动规划，但关键转向由用户确认</text>
+
+    <g transform="translate(34 72)">
+      <rect class="chip" x="0" y="0" rx="14" ry="14" width="288" height="44"/>
+      <text class="small-blue" x="18" y="28">澄清结束：是否进入路线生成</text>
+    </g>
+    <g transform="translate(360 72)">
+      <rect class="chip-green" x="0" y="0" rx="14" ry="14" width="318" height="44"/>
+      <text class="small-blue" x="18" y="28">自动驾驶结束：选择主路或次路</text>
+    </g>
+    <g transform="translate(716 72)">
+      <rect class="chip" x="0" y="0" rx="14" ry="14" width="300" height="44"/>
+      <text class="small-blue" x="18" y="28">推导结束：保存 SPEC 树版本</text>
+    </g>
+    <g transform="translate(1054 72)">
+      <rect class="chip" x="0" y="0" rx="14" ry="14" width="330" height="44"/>
+      <text class="small-blue" x="18" y="28">文档结束：接受需求设计任务</text>
+    </g>
+    <g transform="translate(1422 72)">
+      <rect class="chip-warm" x="0" y="0" rx="14" ry="14" width="330" height="44"/>
+      <text class="small-blue" x="18" y="28">预演结束：确认未来效果</text>
+    </g>
+    <g transform="translate(1790 72)">
+      <rect class="chip" x="0" y="0" rx="14" ry="14" width="395" height="44"/>
+      <text class="small-blue" x="18" y="28">落地前：选择平台 Prompt 并确认执行</text>
+    </g>
+  </g>
+
+  <!-- Asset base -->
+  <g transform="translate(60 1060)">
+    <rect class="section" x="0" y="0" rx="24" ry="24" width="2680" height="370"/>
+    <text class="card-title" x="1040" y="52">项目资产与运行底座</text>
+
+    <g transform="translate(32 92)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="220" height="76"/>
+      <text class="label-blue" x="78" y="33">项目空间</text>
+      <text class="tiny" x="62" y="56">Project / Goal</text>
+    </g>
+    <g transform="translate(282 92)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="220" height="76"/>
+      <text class="label-blue" x="72" y="33">GitHub 上下文</text>
+      <text class="tiny" x="64" y="56">Repo / Branch / Diff</text>
+    </g>
+    <g transform="translate(532 92)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="220" height="76"/>
+      <text class="label-blue" x="80" y="33">澄清记录</text>
+      <text class="tiny" x="58" y="56">Questions / Answers</text>
+    </g>
+    <g transform="translate(782 92)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="220" height="76"/>
+      <text class="label-blue" x="78" y="33">自动驾驶路线</text>
+      <text class="tiny" x="78" y="56">Route Set</text>
+    </g>
+    <g transform="translate(1032 92)">
+      <rect class="card-sky" x="0" y="0" rx="14" ry="14" width="220" height="76"/>
+      <text class="label-blue" x="82" y="33">SPEC 树</text>
+      <text class="tiny" x="56" y="56">Tree / Nodes / Version</text>
+    </g>
+    <g transform="translate(1282 92)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="220" height="76"/>
+      <text class="label-blue" x="78" y="33">规格文档</text>
+      <text class="tiny" x="48" y="56">Req / Design / Tasks</text>
+    </g>
+    <g transform="translate(1532 92)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="220" height="76"/>
+      <text class="label-blue" x="74" y="33">原型 / UI</text>
+      <text class="tiny" x="60" y="56">Preview / Diagram</text>
+    </g>
+    <g transform="translate(1782 92)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="220" height="76"/>
+      <text class="label-blue" x="76" y="33">提示词资产</text>
+      <text class="tiny" x="62" y="56">Prompt Package</text>
+    </g>
+    <g transform="translate(2032 92)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="260" height="76"/>
+      <text class="label-blue" x="60" y="33">工程产物 / 日志 / 回放</text>
+      <text class="tiny" x="82" y="56">Artifacts / Replay</text>
+    </g>
+    <g transform="translate(2322 92)">
+      <rect class="card-green" x="0" y="0" rx="14" ry="14" width="310" height="76"/>
+      <text class="label-blue" x="82" y="33">持续演化</text>
+      <text class="tiny" x="62" y="56">执行结果回填 SPEC 与路线</text>
+    </g>
+
+    <path class="line-teal" d="M252 130 L272 130"/>
+    <path class="line-teal" d="M502 130 L522 130"/>
+    <path class="line-teal" d="M752 130 L772 130"/>
+    <path class="line-teal" d="M1002 130 L1022 130"/>
+    <path class="line-teal" d="M1252 130 L1272 130"/>
+    <path class="line-teal" d="M1502 130 L1522 130"/>
+    <path class="line-teal" d="M1752 130 L1772 130"/>
+    <path class="line-teal" d="M2002 130 L2022 130"/>
+    <path class="line-teal" d="M2292 130 L2312 130"/>
+
+    <g transform="translate(170 226)">
+      <rect class="card-muted" x="0" y="0" rx="18" ry="18" width="2360" height="78"/>
+      <g transform="translate(60 18)">
+        <text class="label-blue" x="0" y="30">Docker 沙盒</text>
+      </g>
+      <line x1="330" y1="16" x2="330" y2="62" stroke="#cbd5e1"/>
+      <g transform="translate(410 18)">
+        <text class="label-blue" x="0" y="30">MCP</text>
+      </g>
+      <line x1="660" y1="16" x2="660" y2="62" stroke="#cbd5e1"/>
+      <g transform="translate(740 18)">
+        <text class="label-blue" x="0" y="30">Skills</text>
+      </g>
+      <line x1="990" y1="16" x2="990" y2="62" stroke="#cbd5e1"/>
+      <g transform="translate(1070 18)">
+        <text class="label-blue" x="0" y="30">AIGC 节点网络</text>
+      </g>
+      <line x1="1400" y1="16" x2="1400" y2="62" stroke="#cbd5e1"/>
+      <g transform="translate(1480 18)">
+        <text class="label-blue" x="0" y="30">多角色协同</text>
+      </g>
+      <line x1="1740" y1="16" x2="1740" y2="62" stroke="#cbd5e1"/>
+      <g transform="translate(1820 18)">
+        <text class="label-blue" x="0" y="30">可持续演化</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Core model row -->
+  <g transform="translate(60 1480)">
+    <rect class="section-dashed" x="0" y="0" rx="24" ry="24" width="2680" height="330"/>
+    <text class="card-title" x="34" y="50">核心资产模型：让每一步都能存储、版本化、追踪和回填</text>
+
+    <g transform="translate(34 82)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="270" height="86"/>
+      <text class="label-blue" x="22" y="33">Project</text>
+      <text class="tiny" x="22" y="58">name / goal / githubSources</text>
+    </g>
+    <g transform="translate(334 82)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="300" height="86"/>
+      <text class="label-blue" x="22" y="33">ClarificationSession</text>
+      <text class="tiny" x="22" y="58">questions / answers / assumptions</text>
+    </g>
+    <g transform="translate(664 82)">
+      <rect class="card-green" x="0" y="0" rx="14" ry="14" width="300" height="86"/>
+      <text class="label-blue" x="22" y="33">AutopilotRouteSet</text>
+      <text class="tiny" x="22" y="58">primaryRoute / alternativeRoutes</text>
+    </g>
+    <g transform="translate(994 82)">
+      <rect class="card-sky" x="0" y="0" rx="14" ry="14" width="260" height="86"/>
+      <text class="label-blue" x="22" y="33">SpecTree</text>
+      <text class="tiny" x="22" y="58">sourceRouteSetId / version</text>
+    </g>
+    <g transform="translate(1284 82)">
+      <rect class="card-sky" x="0" y="0" rx="14" ry="14" width="260" height="86"/>
+      <text class="label-blue" x="22" y="33">SpecNode</text>
+      <text class="tiny" x="22" y="58">module / feature / page / api</text>
+    </g>
+    <g transform="translate(1574 82)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="280" height="86"/>
+      <text class="label-blue" x="22" y="33">SpecDocument</text>
+      <text class="tiny" x="22" y="58">requirements / design / tasks</text>
+    </g>
+    <g transform="translate(1884 82)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="260" height="86"/>
+      <text class="label-blue" x="22" y="33">EffectPreview</text>
+      <text class="tiny" x="22" y="58">architecture / prototype / ui</text>
+    </g>
+    <g transform="translate(2174 82)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="280" height="86"/>
+      <text class="label-blue" x="22" y="33">PromptPackage</text>
+      <text class="tiny" x="22" y="58">platform / context / verification</text>
+    </g>
+    <g transform="translate(2354 202)">
+      <rect class="card-soft" x="0" y="0" rx="14" ry="14" width="280" height="86"/>
+      <text class="label-blue" x="22" y="33">EngineeringRun</text>
+      <text class="tiny" x="22" y="58">status / artifacts / logs</text>
+    </g>
+
+    <path class="line-soft" d="M304 125 L324 125"/>
+    <path class="line-soft" d="M634 125 L654 125"/>
+    <path class="line-teal" d="M964 125 L984 125"/>
+    <path class="line-teal" d="M1254 125 L1274 125"/>
+    <path class="line-soft" d="M1544 125 L1564 125"/>
+    <path class="line-soft" d="M1854 125 L1874 125"/>
+    <path class="line-soft" d="M2144 125 L2164 125"/>
+    <path class="line-soft" d="M2320 150 C2380 178 2440 178 2490 198"/>
+
+    <g transform="translate(34 212)">
+      <rect class="card-warm" x="0" y="0" rx="16" ry="16" width="1940" height="68"/>
+      <text class="label-blue" x="22" y="30">关键边界：</text>
+      <text class="small" x="118" y="30">自动驾驶负责生成路线集；推导负责把路线集变成 SPEC 树；后续菜单都消费并回填 SPEC 资产。</text>
+      <text class="tiny" x="22" y="54">工程落地只消费确认后的 SPEC、规格文档、效果预演和 Prompt Package，避免直接从模糊输入跳到写代码。</text>
+    </g>
+  </g>
+
+  <!-- Footer -->
+  <g transform="translate(60 1840)">
+    <text class="tiny" x="0" y="0">生成日期：2026-05-06。建议落地顺序：先补 AutopilotRouteSet 与 SpecTree/SpecNode 资产模型，再改 /autopilot 首屏为路线生成，最后让推导、规格文档、效果预演、实现提示词、工程落地各自成为独立菜单。</text>
+  </g>
+</svg>

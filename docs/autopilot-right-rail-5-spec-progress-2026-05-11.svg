@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 940" font-family="'Inter','Segoe UI',sans-serif">
+  <defs>
+    <linearGradient id="gSpec1" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="#0ea5e9"/><stop offset="100%" stop-color="#2563eb"/>
+    </linearGradient>
+    <linearGradient id="gSpec2" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="#14b8a6"/><stop offset="100%" stop-color="#0d9488"/>
+    </linearGradient>
+    <linearGradient id="gSpec3" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="#8b5cf6"/><stop offset="100%" stop-color="#7c3aed"/>
+    </linearGradient>
+    <linearGradient id="gSpec4" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="#f59e0b"/><stop offset="100%" stop-color="#d97706"/>
+    </linearGradient>
+    <linearGradient id="gSpec5" x1="0" x2="1" y1="0" y2="0">
+      <stop offset="0%" stop-color="#ec4899"/><stop offset="100%" stop-color="#be185d"/>
+    </linearGradient>
+    <linearGradient id="gHeader" x1="0" x2="0" y1="0" y2="1">
+      <stop offset="0%" stop-color="#0f172a"/><stop offset="100%" stop-color="#1e293b"/>
+    </linearGradient>
+    <filter id="shadow" x="-5%" y="-5%" width="110%" height="120%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-opacity="0.15"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1280" height="940" fill="#f8fafc"/>
+
+  <!-- Header -->
+  <rect x="0" y="0" width="1280" height="96" fill="url(#gHeader)"/>
+  <text x="40" y="44" fill="#f8fafc" font-size="24" font-weight="700">Autopilot 右栏改造 · 五轮 spec 执行进度</text>
+  <text x="40" y="72" fill="#94a3b8" font-size="14">2026-05-11 · 54/54 tasks · 253 tests · TS baseline 107 · pages/autopilot + pages/specs 全绿</text>
+  <g transform="translate(1040,24)">
+    <rect width="216" height="52" rx="8" fill="#10b981" filter="url(#shadow)"/>
+    <text x="108" y="23" fill="#ffffff" font-size="11" text-anchor="middle" font-weight="600">TOTAL COMPLETION</text>
+    <text x="108" y="44" fill="#ffffff" font-size="20" text-anchor="middle" font-weight="700">100% (54 / 54)</text>
+  </g>
+
+  <!-- Overall metrics strip -->
+  <g transform="translate(40,120)">
+    <g>
+      <rect width="280" height="72" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <text x="20" y="26" fill="#64748b" font-size="11" font-weight="600">SPECS</text>
+      <text x="20" y="56" fill="#0f172a" font-size="24" font-weight="700">5 / 5</text>
+      <text x="200" y="56" fill="#10b981" font-size="14" font-weight="700" text-anchor="end">✓ 全部完成</text>
+    </g>
+    <g transform="translate(300,0)">
+      <rect width="280" height="72" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <text x="20" y="26" fill="#64748b" font-size="11" font-weight="600">TASKS</text>
+      <text x="20" y="56" fill="#0f172a" font-size="24" font-weight="700">54 / 54</text>
+      <text x="260" y="56" fill="#10b981" font-size="14" font-weight="700" text-anchor="end">100%</text>
+    </g>
+    <g transform="translate(600,0)">
+      <rect width="280" height="72" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <text x="20" y="26" fill="#64748b" font-size="11" font-weight="600">TESTS</text>
+      <text x="20" y="56" fill="#0f172a" font-size="24" font-weight="700">253 passed</text>
+      <text x="260" y="56" fill="#f59e0b" font-size="14" font-weight="700" text-anchor="end">15 files</text>
+    </g>
+    <g transform="translate(900,0)">
+      <rect width="300" height="72" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+      <text x="20" y="26" fill="#64748b" font-size="11" font-weight="600">TS BASELINE</text>
+      <text x="20" y="56" fill="#0f172a" font-size="24" font-weight="700">107 errors</text>
+      <text x="280" y="56" fill="#10b981" font-size="14" font-weight="700" text-anchor="end">持平 不扩大</text>
+    </g>
+  </g>
+
+  <!-- Per-spec rows -->
+  <g transform="translate(40,220)">
+    <text x="0" y="0" fill="#0f172a" font-size="16" font-weight="700">逐 spec 任务分布</text>
+    <text x="0" y="20" fill="#94a3b8" font-size="12">每格代表一个顶层任务;鼠标可见 commit SHA</text>
+  </g>
+
+  <!-- Spec 1 -->
+  <g transform="translate(40,260)">
+    <rect width="1200" height="88" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="6" height="88" rx="3" fill="url(#gSpec1)"/>
+    <text x="24" y="28" fill="#0f172a" font-size="14" font-weight="700">Spec 1 · autopilot-cockpit-right-rail-convergence</text>
+    <text x="24" y="48" fill="#64748b" font-size="11">冻结 AutopilotRightRailProps / RAIL_SUB_STAGE_ORDER / resolveRailSubStage + &lt;AutopilotRightRail&gt; scaffolding</text>
+    <text x="24" y="68" fill="#334155" font-size="11" font-weight="600">10 / 10 · 3 resolver PBTs · scaffolding tests</text>
+    <!-- progress bar + 10 cells -->
+    <g transform="translate(600,28)">
+      <rect width="560" height="20" rx="4" fill="#f1f5f9"/>
+      <rect width="560" height="20" rx="4" fill="url(#gSpec1)"/>
+      <text x="280" y="15" fill="#ffffff" font-size="11" font-weight="700" text-anchor="middle">100%</text>
+    </g>
+    <g transform="translate(600,56)">
+      <g fill="#0ea5e9">
+        <rect x="0" width="52" height="14" rx="2"/><rect x="56" width="52" height="14" rx="2"/>
+        <rect x="112" width="52" height="14" rx="2"/><rect x="168" width="52" height="14" rx="2"/>
+        <rect x="224" width="52" height="14" rx="2"/><rect x="280" width="52" height="14" rx="2"/>
+        <rect x="336" width="52" height="14" rx="2"/><rect x="392" width="52" height="14" rx="2"/>
+        <rect x="448" width="52" height="14" rx="2"/><rect x="504" width="52" height="14" rx="2"/>
+      </g>
+    </g>
+  </g>
+
+  <!-- Spec 2 -->
+  <g transform="translate(40,362)">
+    <rect width="1200" height="88" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="6" height="88" rx="3" fill="url(#gSpec2)"/>
+    <text x="24" y="28" fill="#0f172a" font-size="14" font-weight="700">Spec 2 · autopilot-right-rail-stage-panels</text>
+    <text x="24" y="48" fill="#64748b" font-size="11">8 个 fabric 子阶段 canonical 面板物理抽离 · Pick&lt;props&gt; 精确 narrowing · shim 保持向后兼容</text>
+    <text x="24" y="68" fill="#334155" font-size="11" font-weight="600">12 / 12 · 32 props-narrowing PBTs · 10 shim-identity tests · 7 rendering-parity tests</text>
+    <g transform="translate(600,28)">
+      <rect width="560" height="20" rx="4" fill="#f1f5f9"/>
+      <rect width="560" height="20" rx="4" fill="url(#gSpec2)"/>
+      <text x="280" y="15" fill="#ffffff" font-size="11" font-weight="700" text-anchor="middle">100%</text>
+    </g>
+    <g transform="translate(600,56)" fill="#14b8a6">
+      <rect x="0" width="42" height="14" rx="2"/><rect x="46" width="42" height="14" rx="2"/>
+      <rect x="92" width="42" height="14" rx="2"/><rect x="138" width="42" height="14" rx="2"/>
+      <rect x="184" width="42" height="14" rx="2"/><rect x="230" width="42" height="14" rx="2"/>
+      <rect x="276" width="42" height="14" rx="2"/><rect x="322" width="42" height="14" rx="2"/>
+      <rect x="368" width="42" height="14" rx="2"/><rect x="414" width="42" height="14" rx="2"/>
+      <rect x="460" width="42" height="14" rx="2"/><rect x="506" width="42" height="14" rx="2"/>
+    </g>
+  </g>
+
+  <!-- Spec 3 -->
+  <g transform="translate(40,464)">
+    <rect width="1200" height="88" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="6" height="88" rx="3" fill="url(#gSpec3)"/>
+    <text x="24" y="28" fill="#0f172a" font-size="14" font-weight="700">Spec 3 · autopilot-advanced-workbench-inline</text>
+    <text x="24" y="48" fill="#64748b" font-size="11">删除 /autopilot 底部折叠区 · fabric 右列接管 · AutopilotSpecTreeHandoffPanel 次级链接</text>
+    <text x="24" y="68" fill="#334155" font-size="11" font-weight="600">8 / 8 · fabric-dispatch PBT (50 runs) · fold-removal snapshot · selection→fabric no-nav</text>
+    <g transform="translate(600,28)">
+      <rect width="560" height="20" rx="4" fill="#f1f5f9"/>
+      <rect width="560" height="20" rx="4" fill="url(#gSpec3)"/>
+      <text x="280" y="15" fill="#ffffff" font-size="11" font-weight="700" text-anchor="middle">100%</text>
+    </g>
+    <g transform="translate(600,56)" fill="#8b5cf6">
+      <rect x="0" width="66" height="14" rx="2"/><rect x="70" width="66" height="14" rx="2"/>
+      <rect x="140" width="66" height="14" rx="2"/><rect x="210" width="66" height="14" rx="2"/>
+      <rect x="280" width="66" height="14" rx="2"/><rect x="350" width="66" height="14" rx="2"/>
+      <rect x="420" width="66" height="14" rx="2"/><rect x="490" width="66" height="14" rx="2"/>
+    </g>
+  </g>
+
+  <!-- Spec 4 -->
+  <g transform="translate(40,566)">
+    <rect width="1200" height="88" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="6" height="88" rx="3" fill="url(#gSpec4)"/>
+    <text x="24" y="28" fill="#0f172a" font-size="14" font-weight="700">Spec 4 · autopilot-right-rail-data-hook</text>
+    <text x="24" y="48" fill="#64748b" font-size="11">useAutopilotRightRailData(jobId, options) · 9+6 fetch 合并 · currentSubStage lazy gate · SSE + polling + per-field retry</text>
+    <text x="24" y="68" fill="#334155" font-size="11" font-weight="600">12 / 12 · 96 unit tests · 5 reducer-level PBTs · /autopilot fabric + /specs Phase A 接入</text>
+    <g transform="translate(600,28)">
+      <rect width="560" height="20" rx="4" fill="#f1f5f9"/>
+      <rect width="560" height="20" rx="4" fill="url(#gSpec4)"/>
+      <text x="280" y="15" fill="#ffffff" font-size="11" font-weight="700" text-anchor="middle">100%</text>
+    </g>
+    <g transform="translate(600,56)" fill="#f59e0b">
+      <rect x="0" width="42" height="14" rx="2"/><rect x="46" width="42" height="14" rx="2"/>
+      <rect x="92" width="42" height="14" rx="2"/><rect x="138" width="42" height="14" rx="2"/>
+      <rect x="184" width="42" height="14" rx="2"/><rect x="230" width="42" height="14" rx="2"/>
+      <rect x="276" width="42" height="14" rx="2"/><rect x="322" width="42" height="14" rx="2"/>
+      <rect x="368" width="42" height="14" rx="2"/><rect x="414" width="42" height="14" rx="2"/>
+      <rect x="460" width="42" height="14" rx="2"/><rect x="506" width="42" height="14" rx="2"/>
+    </g>
+  </g>
+
+  <!-- Spec 5 -->
+  <g transform="translate(40,668)">
+    <rect width="1200" height="88" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+    <rect x="0" y="0" width="6" height="88" rx="3" fill="url(#gSpec5)"/>
+    <text x="24" y="28" fill="#0f172a" font-size="14" font-weight="700">Spec 5 · autopilot-step-driven-rail-navigation</text>
+    <text x="24" y="48" fill="#64748b" font-size="11">URL ?sub · sticky pin · 步骤驱动 scroll · 键盘快捷键 · Viewport_Tier 三档(drawer / side-collapsible / side-fixed)</text>
+    <text x="24" y="68" fill="#334155" font-size="11" font-weight="600">12 / 12 · 57 unit + 7 PBTs + 6 viewport + 13 sticky + 5 context-consumer 测试</text>
+    <g transform="translate(600,28)">
+      <rect width="560" height="20" rx="4" fill="#f1f5f9"/>
+      <rect width="560" height="20" rx="4" fill="url(#gSpec5)"/>
+      <text x="280" y="15" fill="#ffffff" font-size="11" font-weight="700" text-anchor="middle">100%</text>
+    </g>
+    <g transform="translate(600,56)" fill="#ec4899">
+      <rect x="0" width="42" height="14" rx="2"/><rect x="46" width="42" height="14" rx="2"/>
+      <rect x="92" width="42" height="14" rx="2"/><rect x="138" width="42" height="14" rx="2"/>
+      <rect x="184" width="42" height="14" rx="2"/><rect x="230" width="42" height="14" rx="2"/>
+      <rect x="276" width="42" height="14" rx="2"/><rect x="322" width="42" height="14" rx="2"/>
+      <rect x="368" width="42" height="14" rx="2"/><rect x="414" width="42" height="14" rx="2"/>
+      <rect x="460" width="42" height="14" rx="2"/><rect x="506" width="42" height="14" rx="2"/>
+    </g>
+  </g>
+
+  <!-- Dependency footer -->
+  <g transform="translate(40,780)">
+    <rect width="1200" height="120" rx="10" fill="#ffffff" stroke="#e2e8f0" filter="url(#shadow)"/>
+    <text x="24" y="28" fill="#0f172a" font-size="14" font-weight="700">依赖链 · 五轮顺序递进</text>
+    <g transform="translate(24,48)" font-size="12" fill="#334155">
+      <!-- 5 node chain -->
+      <g>
+        <circle cx="40" cy="28" r="22" fill="url(#gSpec1)"/>
+        <text x="40" y="32" fill="#ffffff" font-size="13" font-weight="700" text-anchor="middle">1</text>
+        <text x="40" y="72" text-anchor="middle" font-size="11" fill="#0f172a" font-weight="600">冻结契约</text>
+      </g>
+      <line x1="62" y1="28" x2="148" y2="28" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="4"/>
+      <g transform="translate(130,0)">
+        <circle cx="40" cy="28" r="22" fill="url(#gSpec2)"/>
+        <text x="40" y="32" fill="#ffffff" font-size="13" font-weight="700" text-anchor="middle">2</text>
+        <text x="40" y="72" text-anchor="middle" font-size="11" fill="#0f172a" font-weight="600">canonical 面板抽离</text>
+      </g>
+      <line x1="192" y1="28" x2="278" y2="28" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="4"/>
+      <g transform="translate(260,0)">
+        <circle cx="40" cy="28" r="22" fill="url(#gSpec3)"/>
+        <text x="40" y="32" fill="#ffffff" font-size="13" font-weight="700" text-anchor="middle">3</text>
+        <text x="40" y="72" text-anchor="middle" font-size="11" fill="#0f172a" font-weight="600">fabric 右列接管</text>
+      </g>
+      <line x1="322" y1="28" x2="408" y2="28" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="4"/>
+      <g transform="translate(390,0)">
+        <circle cx="40" cy="28" r="22" fill="url(#gSpec4)"/>
+        <text x="40" y="32" fill="#ffffff" font-size="13" font-weight="700" text-anchor="middle">4</text>
+        <text x="40" y="72" text-anchor="middle" font-size="11" fill="#0f172a" font-weight="600">数据 hook 统一</text>
+      </g>
+      <line x1="452" y1="28" x2="538" y2="28" stroke="#cbd5e1" stroke-width="2" stroke-dasharray="4"/>
+      <g transform="translate(520,0)">
+        <circle cx="40" cy="28" r="22" fill="url(#gSpec5)"/>
+        <text x="40" y="32" fill="#ffffff" font-size="13" font-weight="700" text-anchor="middle">5</text>
+        <text x="40" y="72" text-anchor="middle" font-size="11" fill="#0f172a" font-weight="600">步骤驱动导航</text>
+      </g>
+
+      <!-- Right column: coverage summary -->
+      <g transform="translate(640,0)" fill="#334155">
+        <text x="0" y="14" font-size="11" font-weight="700" fill="#0f172a">关键测试资产</text>
+        <text x="0" y="34" font-size="11">• PBT 总计 20 条 (3 resolver + 32 props + 1 fabric + 3 spec4 + 3 spec5 hook 等价)</text>
+        <text x="0" y="50" font-size="11">• unit + integration 233 条 (hooks / panels / pages / scaffolding)</text>
+        <text x="0" y="66" font-size="11">• SSR renderToStaticMarkup 占比 15 条, 无 jsdom/testing-library 依赖</text>
+        <text x="0" y="82" font-size="11">• fast-check numRuns 50-100, 自动 shrink 最小反例</text>
+      </g>
+    </g>
+  </g>
+
+  <!-- Footer -->
+  <text x="1240" y="924" fill="#94a3b8" font-size="10" text-anchor="end">cube-pets-office · autopilot right rail · generated 2026-05-11</text>
+</svg>

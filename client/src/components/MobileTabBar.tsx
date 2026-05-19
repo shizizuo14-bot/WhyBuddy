@@ -39,7 +39,7 @@ function MobileTabItem({
       }}
       className={cn(
         "flex flex-1 flex-col items-center justify-center gap-0.5 py-1 text-[10px] font-medium transition-colors",
-        isDisabled && "cursor-not-allowed opacity-50",
+        isDisabled && "cursor-not-allowed opacity-50"
       )}
       style={{
         color: active ? "var(--sidebar-primary)" : "var(--sidebar-foreground)",
@@ -53,7 +53,7 @@ function MobileTabItem({
 
 export function MobileTabBar() {
   const [location, setLocation] = useLocation();
-  const { copy } = useI18n();
+  const { copy, locale } = useI18n();
   const currentProjectId = useProjectStore(state => state.currentProjectId);
   const activeId = getActiveSidebarId(location);
   const items = getMobileTabItems(location);
@@ -61,6 +61,7 @@ export function MobileTabBar() {
 
   const labelMap: Record<string, string> = {
     autopilot: sidebarCopy.autopilot,
+    specs: locale === "zh-CN" ? "推导" : "Deduction",
     tasks: sidebarCopy.tasks,
     projects: sidebarCopy.projects,
     knowledge: sidebarCopy.knowledge,
@@ -80,7 +81,11 @@ export function MobileTabBar() {
         borderColor: "var(--sidebar-border)",
       }}
     >
-      <div className="flex h-14 items-center justify-around" role="tablist" aria-label="主导航">
+      <div
+        className="flex h-14 items-center justify-around"
+        role="tablist"
+        aria-label="主导航"
+      >
         {items.map(item => {
           const href = resolveSidebarHref(item, location, currentProjectId);
 

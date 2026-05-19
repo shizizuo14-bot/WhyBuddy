@@ -1,0 +1,7 @@
+{
+  "specType": "feature",
+  "workflowType": "requirements-first",
+  "createdAt": "2026-05-16",
+  "owner": "autopilot",
+  "summary": "把 fabric 阶段的 spec_tree 与 spec_documents 子阶段在前端合并为以树为中心的单一工作台：右栏只保留 spec_tree 主节点，文档状态实时挂在树节点 chip 上，整树批量生成由顶部 CTA 触发；后端 stage / API / 数据契约不变。"
+}

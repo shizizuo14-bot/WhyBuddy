@@ -1,0 +1,358 @@
+﻿<?xml version="1.0" encoding="UTF-8"?>
+<svg
+  xmlns="http://www.w3.org/2000/svg"
+  width="1600"
+  height="1120"
+  viewBox="0 0 1600 1120"
+  role="img"
+  aria-labelledby="title desc"
+>
+  <title id="title">Cube Pets Office Blueprint Execution Progress</title>
+  <desc id="desc">
+    Execution progress for blueprint specs on 2026-05-06. Current top-level task
+    progress is 60 of 60.
+  </desc>
+
+  <defs>
+    <filter id="shadow" x="-6%" y="-8%" width="112%" height="124%">
+      <feDropShadow
+        dx="0"
+        dy="12"
+        stdDeviation="16"
+        flood-color="#0f172a"
+        flood-opacity="0.10"
+      />
+    </filter>
+    <style>
+      .page {
+        fill: #f6f8fb;
+      }
+      .hero {
+        fill: #0f172a;
+      }
+      .panel {
+        fill: #ffffff;
+        stroke: #d8e3f0;
+        stroke-width: 1.2;
+        filter: url(#shadow);
+      }
+      .soft {
+        fill: #f8fafc;
+        stroke: #e2e8f0;
+        stroke-width: 1;
+      }
+      .ready {
+        fill: #ecfdf5;
+        stroke: #99f6e4;
+        stroke-width: 1;
+      }
+      .working {
+        fill: #eff6ff;
+        stroke: #bfdbfe;
+        stroke-width: 1;
+      }
+      .empty {
+        fill: #f1f5f9;
+        stroke: #cbd5e1;
+        stroke-width: 1;
+      }
+      .accent {
+        fill: #0f766e;
+      }
+      .blue {
+        fill: #2563eb;
+      }
+      .amber {
+        fill: #f59e0b;
+      }
+      .slate {
+        fill: #64748b;
+      }
+      .bar-bg {
+        fill: #e2e8f0;
+      }
+      .bar-fill {
+        fill: #0f766e;
+      }
+      .title {
+        font:
+          900 42px "Microsoft YaHei",
+          "PingFang SC",
+          "Noto Sans SC",
+          Arial,
+          sans-serif;
+        fill: #ffffff;
+        letter-spacing: 0;
+      }
+      .subtitle {
+        font:
+          700 17px "Microsoft YaHei",
+          "PingFang SC",
+          "Noto Sans SC",
+          Arial,
+          sans-serif;
+        fill: #cbd5e1;
+        letter-spacing: 0;
+      }
+      .kicker {
+        font:
+          800 13px "Cascadia Code",
+          Consolas,
+          monospace;
+        fill: #99f6e4;
+        letter-spacing: 0;
+      }
+      .metric-value {
+        font:
+          900 38px "Microsoft YaHei",
+          "PingFang SC",
+          "Noto Sans SC",
+          Arial,
+          sans-serif;
+        fill: #0f172a;
+        letter-spacing: 0;
+      }
+      .metric-label {
+        font:
+          800 13px "Microsoft YaHei",
+          "PingFang SC",
+          "Noto Sans SC",
+          Arial,
+          sans-serif;
+        fill: #64748b;
+        letter-spacing: 0;
+      }
+      .metric-note {
+        font:
+          700 13px "Microsoft YaHei",
+          "PingFang SC",
+          "Noto Sans SC",
+          Arial,
+          sans-serif;
+        fill: #475569;
+        letter-spacing: 0;
+      }
+      .section-title {
+        font:
+          900 24px "Microsoft YaHei",
+          "PingFang SC",
+          "Noto Sans SC",
+          Arial,
+          sans-serif;
+        fill: #0f172a;
+        letter-spacing: 0;
+      }
+      .section-note {
+        font:
+          700 14px "Microsoft YaHei",
+          "PingFang SC",
+          "Noto Sans SC",
+          Arial,
+          sans-serif;
+        fill: #64748b;
+        letter-spacing: 0;
+      }
+      .card-title {
+        font:
+          900 17px "Microsoft YaHei",
+          "PingFang SC",
+          "Noto Sans SC",
+          Arial,
+          sans-serif;
+        fill: #0f172a;
+        letter-spacing: 0;
+      }
+      .card-note {
+        font:
+          700 13px "Microsoft YaHei",
+          "PingFang SC",
+          "Noto Sans SC",
+          Arial,
+          sans-serif;
+        fill: #475569;
+        letter-spacing: 0;
+      }
+      .small {
+        font:
+          800 12px "Microsoft YaHei",
+          "PingFang SC",
+          "Noto Sans SC",
+          Arial,
+          sans-serif;
+        fill: #64748b;
+        letter-spacing: 0;
+      }
+      .tiny {
+        font:
+          800 11px "Cascadia Code",
+          Consolas,
+          monospace;
+        fill: #64748b;
+        letter-spacing: 0;
+      }
+      .done-text {
+        fill: #0f766e;
+      }
+      .muted-text {
+        fill: #94a3b8;
+      }
+    </style>
+  </defs>
+
+  <rect class="page" x="0" y="0" width="1600" height="1120" />
+
+  <g filter="url(#shadow)">
+    <rect class="hero" x="48" y="40" width="1504" height="190" rx="28" />
+  </g>
+  <text class="kicker" x="86" y="84">
+    BLUEPRINT EXECUTION PROGRESS / 2026-05-06
+  </text>
+  <text class="title" x="86" y="136">Cube Pets Office Blueprint Progress</text>
+  <text class="subtitle" x="86" y="174">
+    Autopilot now captures intake, GitHub sources, clarification readiness, and
+    project context before generating the RouteSet asset.
+  </text>
+  <text class="subtitle" x="86" y="204">
+    Current top-level task progress: 60 / 60. Document inventory: 48 / 48 files
+    across 12 blueprint folders.
+  </text>
+
+  <g transform="translate(1180 76)">
+    <rect
+      x="0"
+      y="0"
+      width="300"
+      height="112"
+      rx="22"
+      fill="#ffffff"
+      opacity="0.12"
+      stroke="#ffffff"
+      stroke-opacity="0.24"
+    />
+    <text x="22" y="34" class="subtitle">Overall Task Progress</text>
+    <text
+      x="22"
+      y="82"
+      font-family="Microsoft YaHei, Arial, sans-serif"
+      font-size="44"
+      font-weight="900"
+      fill="#ffffff"
+    >
+      100%
+    </text>
+    <rect
+      x="128"
+      y="63"
+      width="140"
+      height="10"
+      rx="5"
+      fill="#ffffff"
+      opacity="0.18"
+    />
+    <rect x="128" y="63" width="140" height="10" rx="5" fill="#99f6e4" />
+    <text x="128" y="94" class="subtitle">60 of 60 done</text>
+  </g>
+
+  <g transform="translate(60 270)">
+    <rect class="panel" x="0" y="0" width="350" height="132" rx="22" />
+    <rect class="blue" x="0" y="0" width="350" height="10" rx="5" />
+    <text class="metric-label" x="26" y="42">Spec Folders</text>
+    <text class="metric-value" x="26" y="88">12</text>
+    <text class="metric-note" x="112" y="86">12 ready / 0 empty</text>
+  </g>
+
+  <g transform="translate(436 270)">
+    <rect class="panel" x="0" y="0" width="350" height="132" rx="22" />
+    <rect class="accent" x="0" y="0" width="350" height="10" rx="5" />
+    <text class="metric-label" x="26" y="42">Spec Documents</text>
+    <text class="metric-value" x="26" y="88">48 / 48</text>
+    <text class="metric-note" x="192" y="86">
+      requirements / design / tasks / config
+    </text>
+  </g>
+
+  <g transform="translate(812 270)">
+    <rect class="panel" x="0" y="0" width="350" height="132" rx="22" />
+    <rect class="amber" x="0" y="0" width="350" height="10" rx="5" />
+    <text class="metric-label" x="26" y="42">Top-Level Tasks</text>
+    <text class="metric-value" x="26" y="88">60 / 60</text>
+    <text class="metric-note" x="172" y="86">
+      RouteSet + SPEC tree + docs + prompts + runtime + landing + memory
+    </text>
+  </g>
+
+  <g transform="translate(1188 270)">
+    <rect class="panel" x="0" y="0" width="350" height="132" rx="22" />
+    <rect class="slate" x="0" y="0" width="350" height="10" rx="5" />
+    <text class="metric-label" x="26" y="42">Live API</text>
+    <text class="metric-value" x="26" y="88">ON</text>
+    <text class="metric-note" x="104" y="86">/api/blueprint/jobs</text>
+  </g>
+
+  <g transform="translate(60 454)">
+    <text class="section-title" x="0" y="0">Phase Progress</text>
+    <text class="section-note" x="0" y="28">
+      Top-level Kiro task completion by blueprint phase.
+    </text>
+
+    <g transform="translate(0 58)">
+      <rect class="panel" x="0" y="0" width="1480" height="112" rx="20" />
+      <text class="card-title" x="28" y="36">Phase 1 / Intake</text>
+      <text class="card-note" x="28" y="64">
+        input-github-ingestion, clarification-workflow
+      </text>
+      <text class="metric-value" x="1190" y="58">10 / 10</text>
+      <rect class="bar-bg" x="28" y="82" width="1424" height="12" rx="6" />
+      <rect class="bar-fill" x="28" y="82" width="1424" height="12" rx="6" />
+    </g>
+
+    <g transform="translate(0 188)">
+      <rect class="panel" x="0" y="0" width="1480" height="112" rx="20" />
+      <text class="card-title" x="28" y="36">Phase 2 / Planning</text>
+      <text class="card-note" x="28" y="64">
+        autopilot-route-orchestrator, domain-and-asset-store,
+        spec-tree-workbench, spec-document-generator
+      </text>
+      <text class="metric-value" x="1190" y="58">20 / 20</text>
+      <rect class="bar-bg" x="28" y="82" width="1424" height="12" rx="6" />
+      <rect class="bar-fill" x="28" y="82" width="1424" height="12" rx="6" />
+    </g>
+
+    <g transform="translate(0 318)">
+      <rect class="panel" x="0" y="0" width="1480" height="112" rx="20" />
+      <text class="card-title" x="28" y="36">Phase 3 / Generation</text>
+      <text class="card-note" x="28" y="64">
+        effect-preview-generator, implementation-prompt-packager,
+        generation-api-and-job-contract
+      </text>
+      <text class="metric-value" x="1190" y="58">15 / 15</text>
+      <rect class="bar-bg" x="28" y="82" width="1424" height="12" rx="6" />
+      <rect class="bar-fill" x="28" y="82" width="1424" height="12" rx="6" />
+    </g>
+
+    <g transform="translate(0 448)">
+      <rect class="panel" x="0" y="0" width="1480" height="112" rx="20" />
+      <text class="card-title" x="28" y="36">
+        Phase 4 / Execution And Memory
+      </text>
+      <text class="card-note" x="28" y="64">
+        artifact-memory-and-replay, runtime-capability-bridge,
+        engineering-landing-bridge
+      </text>
+      <text class="metric-value" x="1190" y="58">15 / 15</text>
+      <rect class="bar-bg" x="28" y="82" width="1424" height="12" rx="6" />
+      <rect class="bar-fill" x="28" y="82" width="1424" height="12" rx="6" />
+    </g>
+  </g>
+
+  <g transform="translate(60 1040)">
+    <rect class="working" x="0" y="-48" width="1480" height="72" rx="18" />
+    <circle class="accent" cx="32" cy="-12" r="9" />
+    <text class="card-title" x="54" y="-18">Latest Completed Slice</text>
+    <text class="card-note" x="54" y="8">
+      All blueprint slices are complete: intake, clarification, RouteSet,
+      SPEC tree, documents, previews, prompts, runtime, landing, memory, and
+      focused tests.
+    </text>
+  </g>
+</svg>

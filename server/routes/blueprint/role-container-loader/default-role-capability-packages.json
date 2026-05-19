@@ -1,0 +1,134 @@
+{
+  "_version": "role-capability-packages/v1",
+  "_comment": "autopilot-role-container-loader spec Task 10: 默认角色能力包目录。覆盖 6 个 AgentRoleGroup 各一个示例：decision / planning / execution / audit / presentation / memory。真实 role id 若与 blueprint-agent-crew-fabric 静态目录冲突，以 role 侧显式声明的 capabilityPackage 为准（见 resolveCapabilityPackage 优先级）。",
+  "packages": {
+    "decision-coordinator": {
+      "alwaysBound": [
+        { "kind": "mcp", "id": "github" },
+        { "kind": "skill", "id": "decision-brief" }
+      ],
+      "onDemand": {
+        "aigcNodes": [
+          { "kind": "aigc_node", "id": "mission-decomposer" }
+        ]
+      },
+      "shared": [
+        { "kind": "mcp", "id": "organization-directory" }
+      ],
+      "resourceBudget": {
+        "memoryMiB": 512,
+        "cpuCores": 1,
+        "provisionTimeoutMs": 30000,
+        "orchestrationMode": "serial"
+      },
+      "containerImage": "lobster-executor:ai",
+      "allowlistDomains": ["api.github.com"]
+    },
+    "planning-architect": {
+      "alwaysBound": [
+        { "kind": "mcp", "id": "github" },
+        { "kind": "skill", "id": "blueprint-architecture" }
+      ],
+      "onDemand": {
+        "aigcNodes": [
+          { "kind": "aigc_node", "id": "subsystem-decompose" },
+          { "kind": "aigc_node", "id": "risk-evaluate" }
+        ]
+      },
+      "shared": [],
+      "resourceBudget": {
+        "memoryMiB": 1024,
+        "cpuCores": 1.5,
+        "provisionTimeoutMs": 45000,
+        "maxConcurrentAigcNodes": 2,
+        "orchestrationMode": "serial"
+      },
+      "containerImage": "lobster-executor:ai",
+      "allowlistDomains": ["api.github.com"]
+    },
+    "execution-engineer": {
+      "alwaysBound": [
+        { "kind": "skill", "id": "impl-toolbox" }
+      ],
+      "onDemand": {
+        "mcps": [
+          { "kind": "mcp", "id": "github" }
+        ],
+        "aigcNodes": [
+          { "kind": "aigc_node", "id": "code-synthesis" }
+        ]
+      },
+      "shared": [],
+      "resourceBudget": {
+        "memoryMiB": 2048,
+        "cpuCores": 2,
+        "provisionTimeoutMs": 60000,
+        "orchestrationMode": "parallel",
+        "maxConcurrentAigcNodes": 2
+      },
+      "containerImage": "lobster-executor:ai",
+      "allowlistDomains": ["api.github.com", "registry.npmjs.org"]
+    },
+    "audit-reviewer": {
+      "alwaysBound": [
+        { "kind": "skill", "id": "review-rubric" }
+      ],
+      "onDemand": {
+        "aigcNodes": [
+          { "kind": "aigc_node", "id": "risk-evaluate" }
+        ]
+      },
+      "shared": [
+        { "kind": "mcp", "id": "audit-chain" }
+      ],
+      "resourceBudget": {
+        "memoryMiB": 512,
+        "cpuCores": 1,
+        "provisionTimeoutMs": 30000,
+        "orchestrationMode": "serial"
+      },
+      "containerImage": "lobster-executor:default",
+      "allowlistDomains": []
+    },
+    "presentation-designer": {
+      "alwaysBound": [
+        { "kind": "skill", "id": "narrative-designer" }
+      ],
+      "onDemand": {
+        "aigcNodes": [
+          { "kind": "aigc_node", "id": "effect-preview-generator" }
+        ]
+      },
+      "shared": [],
+      "resourceBudget": {
+        "memoryMiB": 512,
+        "cpuCores": 1,
+        "provisionTimeoutMs": 30000,
+        "orchestrationMode": "serial"
+      },
+      "containerImage": "lobster-executor:ai",
+      "allowlistDomains": []
+    },
+    "memory-librarian": {
+      "alwaysBound": [
+        { "kind": "mcp", "id": "vector-store" },
+        { "kind": "skill", "id": "lineage-recall" }
+      ],
+      "onDemand": {
+        "aigcNodes": []
+      },
+      "shared": [
+        { "kind": "mcp", "id": "knowledge-graph" }
+      ],
+      "resourceBudget": {
+        "memoryMiB": 1024,
+        "cpuCores": 1,
+        "provisionTimeoutMs": 30000,
+        "orchestrationMode": "serial",
+        "mcpProbeTimeoutMs": 5000
+      },
+      "containerImage": "lobster-executor:default",
+      "allowlistDomains": []
+    }
+  }
+}

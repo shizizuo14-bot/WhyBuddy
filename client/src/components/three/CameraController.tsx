@@ -13,11 +13,17 @@ export interface CameraControllerProps {
   tier: ViewportTier;
 }
 
-/** Base FOV presets matching the existing Scene3D camera config. */
+/**
+ * Base FOV presets matching the existing Scene3D camera config.
+ *
+ * 自动驾驶 3D 场景融合 follow-up（2026-05-13）：FOV 由 mobile 46 / tablet 43 /
+ * desktop 40 统一抬高到 48，配合 Scene3D.tsx 中相机 position 后撤，让 1280-1440
+ * 桌面 + 右栏占用场景宽度时左右 zone 标签与后墙 SandboxMonitor 仍能完整显示。
+ */
 const BASE_FOV: Record<ViewportTier, number> = {
-  mobile: 46,
-  tablet: 43,
-  desktop: 40,
+  mobile: 48,
+  tablet: 48,
+  desktop: 48,
 };
 
 /**

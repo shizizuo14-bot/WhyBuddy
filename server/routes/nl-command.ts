@@ -19,6 +19,7 @@ import type {
   ClarificationPreviewResponse,
   GenerateCommandListRequest,
   SelectCommandListCandidateRequest,
+  ApplySuggestionRequest,
 } from "../../shared/nl-command/api.js";
 import type { ClarificationQuestion } from "../../shared/nl-command/contracts.js";
 import {
@@ -242,6 +243,32 @@ function buildPreviewPrompts(
   return { systemPrompt, userPrompt };
 }
 
+/**
+ * 生成澄清预览响应（judge / questions / repair 三种模式之一）。
+ *
+ * 该函数为 `defaultPreviewClarificationQuestions(...)` 的内部子调用，每次最多被
+ * 触发 3 次（judge -> questions/repair -> repair）。当主 LLM 提供商不可用（如返
+ * 回 500）时，必须在合理时间内抛错，外层的 `try/catch` 才能命中并回退到
+ * `buildFallbackClarificationQuestions(...)` 的确定性兜底问题。
+ *
+ * 关键约束（autopilot-streaming-experience integration-gap-2026-05-16 P0#5）：
+ *
+ * - `timeoutMs` 默认为 30 秒；这把 `defaultPreviewClarificationQuestions` 的
+ *   总壁钟时间从原来最坏 ~30 分钟（3 × `LLM_TIMEOUT_MS = 600000`）压到约 90 秒
+ *   （3 × 30s）以内。客户端超时窗口 60-120 秒，因此即便三次 LLM 调用都打满，
+ *   外层的确定性兜底也能在客户端放弃前返回。
+ * - `retryAttempts: 1` 表示单次 LLM 调用不再重试；上层已经有“judge ->
+ *   questions/repair -> repair”三段重试，再叠加底层重试只会无谓拉长 wall time。
+ * - 运维可通过环境变量 `NL_COMMAND_PREVIEW_LLM_TIMEOUT_MS` 调整该 timeout
+ *   （ms），用于在主 LLM 提供商已知偏慢但仍可用时延长窗口；该开关为 opt-in，
+ *   默认仍为 30 秒。
+ *
+ * 详见 `.kiro/specs/autopilot-streaming-experience/integration-gap-2026-05-16.md`
+ * 「C. LLM 调用没有兜底超时」一节与 P0#5 收口建议。
+ *
+ * 本函数不直接处理 LLM 失败：抛出的错误由 `defaultPreviewClarificationQuestions`
+ * 的 `try/catch` 接住并兜底成 deterministic fallback 问题。
+ */
 async function generatePreviewResponse(
   request: ClarificationPreviewRequest,
   mode: PreviewGenerationMode,
@@ -264,6 +291,10 @@ async function generatePreviewResponse(
       model: process.env.LLM_MODEL,
       temperature: mode === "judge" ? 0.2 : 0.1,
       maxTokens: mode === "judge" ? 800 : 1200,
+      // autopilot-streaming-experience integration-gap-2026-05-16 P0#5：
+      // 缩短 per-call timeout，避免在主 LLM 不可用时整条澄清主线 hang 10 分钟。
+      timeoutMs: Number(process.env.NL_COMMAND_PREVIEW_LLM_TIMEOUT_MS || 30000),
+      retryAttempts: 1,
     },
   );
 
@@ -352,36 +383,41 @@ function buildFallbackClarificationQuestions(
   return questions.slice(0, 3);
 }
 
-async function defaultPreviewClarificationQuestions(
+export async function defaultPreviewClarificationQuestions(
   request: ClarificationPreviewRequest,
 ): Promise<ClarificationPreviewResponse> {
-  const firstPass = await generatePreviewResponse(request, "judge");
-  if (!firstPass.needsClarification) {
-    return firstPass;
-  }
-  if (!needsChoiceRepair(firstPass)) {
-    return firstPass;
-  }
-
-  const secondPass =
-    firstPass.questions.length === 0
-      ? await generatePreviewResponse(request, "questions")
-      : await generatePreviewResponse(request, "repair", firstPass.questions);
-  if (!needsChoiceRepair(secondPass)) {
-    return secondPass;
-  }
-
-  const repairSource =
-    secondPass.questions.length > 0 ? secondPass.questions : firstPass.questions;
-  if (repairSource.length > 0) {
-    const thirdPass = await generatePreviewResponse(
-      request,
-      "repair",
-      repairSource,
-    );
-    if (!needsChoiceRepair(thirdPass)) {
-      return thirdPass;
+  try {
+    const firstPass = await generatePreviewResponse(request, "judge");
+    if (!firstPass.needsClarification) {
+      return firstPass;
     }
+    if (!needsChoiceRepair(firstPass)) {
+      return firstPass;
+    }
+
+    const secondPass =
+      firstPass.questions.length === 0
+        ? await generatePreviewResponse(request, "questions")
+        : await generatePreviewResponse(request, "repair", firstPass.questions);
+    if (!needsChoiceRepair(secondPass)) {
+      return secondPass;
+    }
+
+    const repairSource =
+      secondPass.questions.length > 0 ? secondPass.questions : firstPass.questions;
+    if (repairSource.length > 0) {
+      const thirdPass = await generatePreviewResponse(
+        request,
+        "repair",
+        repairSource,
+      );
+      if (!needsChoiceRepair(thirdPass)) {
+        return thirdPass;
+      }
+    }
+  } catch {
+    // Match the older task-hub behavior: LLM preview failures should not block
+    // clarification, because deterministic fallback questions are still useful.
   }
 
   return {
@@ -713,7 +749,7 @@ export function createNLCommandRouter(
   router.post("/plans/:id/apply-suggestion", (req, res) => {
     try {
       const { id } = req.params;
-      const body = req.body as { suggestionId?: string };
+      const body = req.body as ApplySuggestionRequest;
       if (!id) {
         res.status(400).json({
           error: "Bad request",

@@ -46,6 +46,7 @@ export const LEGACY_LINEAGE_PATH = "/lineage";
 export const OFFICE_PATH = "/";
 export const PROJECTS_PATH = "/projects";
 export const AUTOPILOT_PATH = "/autopilot";
+export const SPECS_PATH = "/specs";
 export const REPLAY_PATH_PREFIX = "/replay";
 
 export function getReplayPath(missionId: string): string {
@@ -60,7 +61,9 @@ export function getProjectTaskPath(
   projectId: string | null | undefined,
   taskId: string
 ): string {
-  return projectId ? `${getProjectTasksPath(projectId)}/${taskId}` : `/tasks/${taskId}`;
+  return projectId
+    ? `${getProjectTasksPath(projectId)}/${taskId}`
+    : `/tasks/${taskId}`;
 }
 
 function normalizeNavigationPath(path: string): string {
@@ -189,6 +192,7 @@ export function getPrimaryNavigationId(path: string): PrimaryNavigationId {
 
 export type SidebarNavigationId =
   | "autopilot"
+  | "specs"
   | "tasks"
   | "projects"
   | "knowledge"
@@ -219,7 +223,13 @@ export const SIDEBAR_NAV_ITEMS: SidebarNavigationItem[] = [
   {
     id: "autopilot",
     icon: Navigation,
-    href: PROJECTS_PATH,
+    href: AUTOPILOT_PATH,
+    mobileVisible: true,
+  },
+  {
+    id: "specs",
+    icon: FileSearch,
+    href: SPECS_PATH,
     mobileVisible: true,
   },
   {
@@ -289,20 +299,17 @@ export function getMobileTabItems(path?: string): SidebarNavigationItem[] {
 
 export function resolveSidebarHref(
   item: SidebarNavigationItem,
-  path: string,
+  _path: string,
   currentProjectId?: string | null
 ): string | undefined {
-  const pathname = normalizeNavigationPath(path);
   if (item.disabled) return undefined;
 
   if (item.id === "autopilot") {
-    if (currentProjectId) {
-      return AUTOPILOT_PATH;
-    }
-    if (pathname === AUTOPILOT_PATH) {
-      return AUTOPILOT_PATH;
-    }
-    return PROJECTS_PATH;
+    return AUTOPILOT_PATH;
+  }
+
+  if (item.id === "specs") {
+    return SPECS_PATH;
   }
 
   if (item.id === "projects") {
@@ -320,6 +327,7 @@ export function getActiveSidebarId(path: string): SidebarNavigationId {
   const pathname = normalizeNavigationPath(path);
   if (pathname === "/" || pathname === PROJECTS_PATH) return "projects";
   if (pathname === AUTOPILOT_PATH) return "autopilot";
+  if (matchesPathPrefix(pathname, SPECS_PATH)) return "specs";
   if (isProjectTasksPath(pathname)) return "tasks";
   if (matchesPathPrefix(pathname, "/tasks")) return "tasks";
   if (matchesPathPrefix(pathname, PROJECTS_PATH)) return "autopilot";

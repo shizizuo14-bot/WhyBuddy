@@ -17,6 +17,7 @@ import {
   PRIMARY_NAV_ITEMS,
   PROJECTS_PATH,
   REPLAY_PATH_PREFIX,
+  SPECS_PATH,
   getCompatibilityRedirect,
   getActiveSidebarId,
   getDebugPath,
@@ -143,6 +144,7 @@ describe("navigation convergence config", () => {
 
     expect(items.map(item => item.id)).toEqual([
       "autopilot",
+      "specs",
       "tasks",
       "knowledge",
       "datasource",
@@ -153,6 +155,7 @@ describe("navigation convergence config", () => {
     ]);
     expect(getMobileTabItems(projectPath).map(item => item.id)).toEqual([
       "autopilot",
+      "specs",
       "tasks",
       "knowledge",
       "settings",
@@ -161,6 +164,9 @@ describe("navigation convergence config", () => {
     expect(isProjectDetailPath(projectPath)).toBe(true);
     expect(resolveSidebarHref(items[0], projectPath, "project-1")).toBe(
       AUTOPILOT_PATH
+    );
+    expect(resolveSidebarHref(items[1], projectPath, "project-1")).toBe(
+      SPECS_PATH
     );
     expect(items.some(item => item.id === "projects")).toBe(false);
   });
@@ -172,6 +178,7 @@ describe("navigation convergence config", () => {
 
     expect(items.map(item => item.id)).toEqual([
       "autopilot",
+      "specs",
       "tasks",
       "knowledge",
       "datasource",
@@ -182,8 +189,18 @@ describe("navigation convergence config", () => {
     ]);
     expect(getActiveSidebarId(projectTasksPath)).toBe("tasks");
     expect(getActiveSidebarId(projectTaskDetailPath)).toBe("tasks");
-    expect(resolveSidebarHref(items[1], projectTasksPath, "project-1")).toBe(
+    expect(resolveSidebarHref(items[2], projectTasksPath, "project-1")).toBe(
       projectTasksPath
+    );
+  });
+
+  it("marks the SPEC deduction route as the specs workbench", () => {
+    const items = getSidebarNavItems(SPECS_PATH);
+
+    expect(items.map(item => item.id)).toContain("specs");
+    expect(getActiveSidebarId(SPECS_PATH)).toBe("specs");
+    expect(resolveSidebarHref(items[1], SPECS_PATH, "project-1")).toBe(
+      SPECS_PATH
     );
   });
 

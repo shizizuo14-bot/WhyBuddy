@@ -30,6 +30,10 @@ function normalizeNumber(value: unknown, fallback: number): number {
   return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
 }
 
+function firstConfigured(...values: Array<string | undefined>): string | undefined {
+  return values.find(value => typeof value === 'string' && value.length > 0);
+}
+
 function deriveProviderName(baseUrl: string): string {
   try {
     return new URL(baseUrl).host || baseUrl;
@@ -39,31 +43,45 @@ function deriveProviderName(baseUrl: string): string {
 }
 
 export function getAIConfig(): AIConfig {
-  const apiKey = process.env.OPENAI_API_KEY || process.env.LLM_API_KEY || '';
-  const baseUrl = process.env.OPENAI_API_KEY
-    ? (process.env.OPENAI_BASE_URL || 'https://api.openai.com/v1')
-    : (process.env.LLM_BASE_URL || 'https://api.openai.com/v1');
+  const preferProjectLlmConfig = Boolean(
+    firstConfigured(process.env.LLM_API_KEY, process.env.LLM_BASE_URL, process.env.LLM_MODEL)
+  );
+  const pickProviderValue = (llmValue?: string, openAIValue?: string) =>
+    preferProjectLlmConfig
+      ? firstConfigured(llmValue, openAIValue)
+      : firstConfigured(openAIValue, llmValue);
+
+  const apiKey = pickProviderValue(process.env.LLM_API_KEY, process.env.OPENAI_API_KEY) || '';
+  const baseUrl =
+    pickProviderValue(process.env.LLM_BASE_URL, process.env.OPENAI_BASE_URL) ||
+    'https://api.openai.com/v1';
   const model =
-    process.env.OPENAI_MODEL ||
-    process.env.LLM_MODEL ||
-    (process.env.OPENAI_API_KEY ? 'gpt-4.1-mini' : 'gpt-4o-mini');
+    pickProviderValue(process.env.LLM_MODEL, process.env.OPENAI_MODEL) ||
+    (preferProjectLlmConfig || !firstConfigured(process.env.OPENAI_API_KEY)
+      ? 'gpt-4o-mini'
+      : 'gpt-4.1-mini');
 
   return {
     apiKey,
     baseUrl,
     model,
     modelReasoningEffort:
-      process.env.OPENAI_REASONING_EFFORT ||
-      process.env.LLM_REASONING_EFFORT ||
+      pickProviderValue(process.env.LLM_REASONING_EFFORT, process.env.OPENAI_REASONING_EFFORT) ||
       'medium',
     maxContext: normalizeNumber(process.env.LLM_MAX_CONTEXT, 1_000_000),
     providerName: deriveProviderName(baseUrl),
-    wireApi: normalizeWireApi(process.env.OPENAI_WIRE_API || process.env.LLM_WIRE_API),
-    timeoutMs: normalizeNumber(process.env.OPENAI_TIMEOUT_MS || process.env.LLM_TIMEOUT_MS, 600000),
-    stream: normalizeBoolean(process.env.OPENAI_STREAM || process.env.LLM_STREAM, true),
-    chatThinkingType:
-      process.env.OPENAI_CHAT_THINKING_TYPE ||
-      process.env.LLM_CHAT_THINKING_TYPE ||
-      undefined,
+    wireApi: normalizeWireApi(pickProviderValue(process.env.LLM_WIRE_API, process.env.OPENAI_WIRE_API)),
+    timeoutMs: normalizeNumber(
+      pickProviderValue(process.env.LLM_TIMEOUT_MS, process.env.OPENAI_TIMEOUT_MS),
+      600000
+    ),
+    stream: normalizeBoolean(
+      pickProviderValue(process.env.LLM_STREAM, process.env.OPENAI_STREAM),
+      false
+    ),
+    chatThinkingType: pickProviderValue(
+      process.env.LLM_CHAT_THINKING_TYPE,
+      process.env.OPENAI_CHAT_THINKING_TYPE
+    ),
   };
 }

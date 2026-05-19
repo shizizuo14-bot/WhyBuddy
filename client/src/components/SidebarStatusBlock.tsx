@@ -75,6 +75,12 @@ export function SidebarStatusBlock({
   const statusLabel = locale.startsWith("en")
     ? statusMapping.labelEn
     : statusMapping.labelZh;
+  const autopilotControlTitle = locale.startsWith("en")
+    ? "Autopilot Control"
+    : "自动驾驶控制";
+  const missionControlTitle = locale.startsWith("en")
+    ? "Mission Control"
+    : "任务控制";
 
   const sidebarCopy = copy.sidebar;
   const modeLabel =
@@ -98,11 +104,11 @@ export function SidebarStatusBlock({
                 "block h-2.5 w-2.5 shrink-0 cursor-default rounded-full",
                 statusMapping.dotClass
               )}
-              aria-label={`Autopilot Control: ${statusLabel}`}
+              aria-label={`${autopilotControlTitle}: ${statusLabel}`}
             />
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={8}>
-            <span className="font-semibold">Autopilot Control</span>
+            <span className="font-semibold">{autopilotControlTitle}</span>
             <br />
             <span className="text-xs opacity-80">{statusLabel}</span>
           </TooltipContent>
@@ -112,7 +118,7 @@ export function SidebarStatusBlock({
           <TooltipTrigger asChild>
             <span
               className="cursor-default"
-              aria-label={`Mission Control: ${modeLabel}`}
+              aria-label={`${missionControlTitle}: ${modeLabel}`}
             >
               {runtimeMode === "advanced" ? (
                 <Server
@@ -130,7 +136,7 @@ export function SidebarStatusBlock({
             </span>
           </TooltipTrigger>
           <TooltipContent side="right" sideOffset={8}>
-            <span className="font-semibold">Mission Control</span>
+            <span className="font-semibold">{missionControlTitle}</span>
             <br />
             <span className="text-xs opacity-80">{modeLabel}</span>
           </TooltipContent>
@@ -157,7 +163,7 @@ export function SidebarStatusBlock({
         />
         <div className="min-w-0">
           <div className="font-semibold" style={STATUS_TITLE_STYLE}>
-            Autopilot Control
+            {autopilotControlTitle}
           </div>
           <div className="truncate opacity-80" style={STATUS_META_STYLE}>
             {statusLabel}
@@ -188,7 +194,7 @@ export function SidebarStatusBlock({
         )}
         <div className="min-w-0">
           <div className="font-semibold" style={STATUS_TITLE_STYLE}>
-            Mission Control
+            {missionControlTitle}
           </div>
           <div className="truncate opacity-80" style={STATUS_META_STYLE}>
             {modeLabel}

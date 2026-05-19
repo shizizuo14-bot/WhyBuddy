@@ -294,4 +294,31 @@ describe("NL command clarification preview retry", () => {
     expect(questions[0]?.type).toBe("single_choice");
     expect((questions[0]?.options ?? []).length).toBeGreaterThan(1);
   });
+
+  it("returns fallback choice questions when the LLM preview call fails", async () => {
+    callLLMJson.mockRejectedValueOnce(
+      new Error("LLM rate limited or out of quota on www.su8.codes."),
+    );
+
+    const res = await request("POST", "/api/nl-command/clarification-preview", {
+      commandText: "Optimize the office home page and launch it as soon as possible.",
+      userId: "u1",
+      locale: "zh-CN",
+    });
+
+    expect(res.status).toBe(200);
+    expect(callLLMJson).toHaveBeenCalledTimes(1);
+    expect((res.body as { needsClarification: boolean }).needsClarification).toBe(
+      true,
+    );
+    const questions =
+      (
+        res.body as {
+          questions?: Array<{ type: string; options?: string[] }>;
+        }
+      ).questions ?? [];
+    expect(questions.length).toBeGreaterThan(0);
+    expect(questions[0]?.type).toBe("single_choice");
+    expect((questions[0]?.options ?? []).length).toBeGreaterThan(1);
+  });
 });

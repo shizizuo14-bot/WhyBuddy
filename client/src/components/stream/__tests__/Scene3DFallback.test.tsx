@@ -57,6 +57,23 @@ describe('Scene3DFallback', () => {
       render({ visible: true, sidebarWidth: 280 });
       expect(lastScene3DProps.sidebarWidth).toBe(280);
     });
+
+    // Wave A：自动驾驶 3D 场景融合 mode prop 透传回归。
+    // 验证 Scene3DFallback 把 mode 透传给内部 Scene3D，且默认 mode 为 undefined（由 Scene3D 默认值兜底）。
+    it('passes mode through to Scene3D when mode="blueprint"', () => {
+      render({ visible: true, mode: 'blueprint' });
+      expect(lastScene3DProps.mode).toBe('blueprint');
+    });
+
+    it('passes mode through to Scene3D when mode="mission-first"', () => {
+      render({ visible: true, mode: 'mission-first' });
+      expect(lastScene3DProps.mode).toBe('mission-first');
+    });
+
+    it('omits mode when not provided so Scene3D uses its default', () => {
+      render({ visible: true });
+      expect(lastScene3DProps.mode).toBeUndefined();
+    });
   });
 
   // -- 4.2 Flicker-free switching via CSS ------------------------------------

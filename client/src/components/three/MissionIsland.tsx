@@ -21,6 +21,7 @@ import {
   getIslandScale,
   selectDisplayMission,
 } from "../tasks/mission-island-helpers";
+import type { SceneFusionMode } from "../Scene3D";
 
 /* ── Constants ── */
 const ISLAND_POSITION: [number, number, number] = [0, 0, -2.5];
@@ -59,7 +60,13 @@ function useMissionIslandData(projectId: string | null) {
 }
 
 /* ── Main Component ── */
-export function MissionIsland({ projectId = null }: { projectId?: string | null }) {
+export function MissionIsland({
+  projectId = null,
+  mode = "mission-first",
+}: {
+  projectId?: string | null;
+  mode?: SceneFusionMode;
+}) {
   const { selectedMission, missionDetail, isRunning } =
     useMissionIslandData(projectId);
   const [expanded, setExpanded] = useState(false);
@@ -121,6 +128,11 @@ export function MissionIsland({ projectId = null }: { projectId?: string | null 
   const handleCreateMission = useCallback(() => {
     setLocation(`${getProjectTasksPath(projectId)}?new=1`);
   }, [projectId, setLocation]);
+
+  // 蓝图模式（/autopilot）下不渲染 mission-first 的任务岛，
+  // 由后墙中区 MissionWallTaskPanel 独占任务概要承接位。
+  // 必须在所有 hooks 调用之后再返回 null，避免破坏 React hooks 顺序。
+  if (mode === "blueprint") return null;
 
   return (
     <group

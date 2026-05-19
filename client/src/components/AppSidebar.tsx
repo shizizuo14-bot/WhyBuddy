@@ -309,6 +309,7 @@ export function AppSidebar({
 
   const labelMap: Record<string, string> = {
     autopilot: isZh ? "自动驾驶" : sidebarCopy.autopilot,
+    specs: isZh ? "推导" : "Deduction",
     tasks: isZh ? "任务中心" : sidebarCopy.tasks,
     projects: isZh ? "项目空间" : sidebarCopy.projects,
     knowledge: isZh ? "知识库" : sidebarCopy.knowledge,

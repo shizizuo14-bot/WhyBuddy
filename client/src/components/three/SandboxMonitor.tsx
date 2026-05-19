@@ -29,10 +29,30 @@ import {
   resolveSandboxMonitorMission,
 } from "./sandbox-monitor-helpers";
 
-const WALL_MONITOR_POSITION: [number, number, number] = [0, 1.5, -4.79];
-const DEVICE_WIDTH = 988;
-const DEVICE_HEIGHT = 190;
-const DEVICE_DISTANCE_FACTOR = 5.2;
+const WALL_MONITOR_POSITION: [number, number, number] = [0, 1.5, -4.88];
+// 自动驾驶 3D 场景融合 wave-D 后续微调（2026-05-13 v4）：
+// 原 988 × 190 在 1280 / 1440 桌面下，左 terminal pane（grid 1fr/1.55fr/1fr）
+// 物理像素只剩 ~270 × 190，xterm fontSize=11 仅能容下 ~30 字符 / ~12 行，
+// timestamp 前缀 + 日志内容很容易横向截断。
+//
+// drei <Html transform> 像素 ↔ world 换算（经 v0 / v1 / v2 / v3 反推校准）：
+//   world_m ≈ px / DEVICE_DISTANCE_FACTOR / 25.3
+// 所以同 factor 下，要让 device 横竖等比放大就必须 width / height 同步乘
+// 相同系数；v3 单独把 width 翻 1.8 而 height 不变 → aspect 从 5.2:1 拉到
+// 10.5:1，视觉变成"狭长一条"而且左右溢出墙边。
+//
+// 当前参数（v4，等比放大到铺满后墙）：
+// - 后墙宽 15.42m，目标 device 占 ~14m（两端各留 0.7m 安全间距）；
+// - 后墙公告板下沿 ~1.44m / device 中心 y=1.5m → 半高 ≤ 1.2m，
+//   目标 device world 高 ~2.4m；
+// - factor 保持 4.0：
+//     DEVICE_WIDTH  = 14   × 4.0 × 25.3 ≈ 1416
+//     DEVICE_HEIGHT = 2.4  × 4.0 × 25.3 ≈ 243
+// - 比例 1416/243 ≈ 5.83，与原 988/190 = 5.2 接近，xterm wallVariant 字号
+//   不变（fontSize 11）即可显示更多行（~17 行）与字符（~50 字符）。
+const DEVICE_WIDTH = 1416;
+const DEVICE_HEIGHT = 243;
+const DEVICE_DISTANCE_FACTOR = 4.0;
 const DEVICE_PANEL_Z = 0.008;
 
 function t(locale: string, zh: string, en: string) {

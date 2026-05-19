@@ -29,6 +29,30 @@ Project -> Clarification -> Spec -> Route -> Execution -> Evidence
 
 The 50+ AIGC nodes are internal capabilities inside FSD roles such as Planner, Clarifier, Researcher, Generator, Operator, Reviewer, and Auditor. They are not the primary user entrypoint. Tasks, workflows, Docker, browser runtime, and native runtime remain execution carriers below the Project-first product line.
 
+## 2026-05-12 增补：Autopilot Capability Runtime 默认开启
+
+本节只记录 `.kiro/specs/autopilot-capability-runtime-enablement` 的落地事实，不重写上文 Project-first / Task Autopilot 口径。
+
+- Autopilot 5 条 capability bridge（`docker-analysis-sandbox` / `mcp-github-source` / `role-system-architecture` / `aigc-spec-node` / `agent-crew-stage-activation`）默认装配已从 opt-in off 翻转为 opt-out on，由新增的主开关 `AUTOPILOT_REAL_RUNTIME` 驱动；`dev:all` 脚本默认注入 `"true"`，5 条桥在依赖就位时走真实 executor / MCP / LLM 调用。
+- `BUILD_TARGET=test` 仍然硬锁 5 条桥为 fallback，保留既有 5140+ 测试的默认兼容性；任一测试显式 `vi.stubEnv("BLUEPRINT_*_ENABLED", "true")` 可继续单独打开。
+- `GET /api/blueprint/diagnostics` 新增为只读诊断端点，返回每条桥当前的 `real / fallback / enabled / disabled` 状态摘要（`enabledByConfig` / `dependencyReady` / `lastMode` / `lastError` / 计数器）。
+- Docker 不可达、MCP 初始化失败、`apiKey` 缺失等依赖缺失场景一律走 simulated fallback，不阻塞服务器启动、也不改变 `POST /api/blueprint/jobs` / `/generations` 的响应形态；诊断端点会如实反映 fallback 原因。
+
+## 2026-05-13 增补：Autopilot Role Container Loader
+
+本节记录 `.kiro/specs/autopilot-role-container-loader` 的落地事实。
+
+- `autopilot-role-container-loader` 把角色从静态目录推进为运行时复合代理：当 stage activation driver 把某 role 标记为 `active` 时，loader 为其装配一个 Docker 容器（或 lite-mode 进程沙箱）并绑定声明的 MCP / Skill / AIGC 节点；当 role 进入 `sleeping` 时释放容器并生成 stage handoff 快照。
+- Real / Lite 双模式：Docker 可达时走真实容器（`dispatchPlan` + HMAC 回调），否则 lite mode 在宿主进程内执行，向上层 LLM 路径透明。
+- 三级 graceful degradation：Tier 1 env gate（`BLUEPRINT_ROLE_CONTAINER_LOADER_ENABLED`）/ Tier 2 依赖缺失（executor / mcpToolAdapter / skillRegistry）/ Tier 3 运行期错误（probe 失败 / skill load 失败 / AIGC 节点 invoke 失败）均不抛错，单项跳过整体仍 ready。
+- 诊断端点扩展：`GET /api/blueprint/diagnostics` 新增第 6 条 entry `roleContainerLoader`，含 `realProvisions` / `liteProvisions` / `teardownCount` / `orphanContainerWarning` 计数。
+- 4 条新事件：`role.container.provisioning` / `role.container.ready` / `role.container.teardown` / `role.container.failed`，归入 `role` 家族，不扩展 12 家族目录。
+
+详见：
+
+- `.kiro/specs/autopilot-role-container-loader/requirements.md`
+- `.kiro/specs/autopilot-role-container-loader/design.md`
+
 ## 2026-04-26 增补：Task Autopilot Phase 1 闭环
 
 本页已经同步到 2026-04-26 的主线口径，旧阶段性文档继续保留用于历史追溯。当前需要优先记住以下事实：

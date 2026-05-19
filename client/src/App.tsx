@@ -38,6 +38,7 @@ import {
   AdminRunsPage,
   AdminUsersPage,
 } from "./pages/admin/AdminLayout";
+import AutopilotRoutePage from "./pages/autopilot/AutopilotRoutePage";
 import AuthPage from "./pages/auth/AuthPage";
 import SpecCenterPage from "./pages/specs/SpecCenterPage";
 import { TaskDetailPage, TasksPage } from "./pages/tasks";
@@ -52,7 +53,7 @@ function Router() {
     <Switch>
       <Route path={"/"}>{() => <RedirectRoute to={PROJECTS_PATH} />}</Route>
       <Route path={PROJECTS_PATH}>{() => <Home />}</Route>
-      <Route path={AUTOPILOT_PATH}>{() => <Home mode="autopilot" />}</Route>
+      <Route path={AUTOPILOT_PATH} component={AutopilotRoutePage} />
       <Route path={`${PROJECTS_PATH}/:projectId/tasks/:taskId`}>
         {params => (
           <ProjectTaskRoute

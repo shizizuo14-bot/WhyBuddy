@@ -1,0 +1,233 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1680 1240" font-family="'Inter','SF Pro Text','Helvetica Neue',Arial,sans-serif">
+  <!-- ================== styles ================== -->
+  <defs>
+    <style>
+      .bg { fill: #0b1220; }
+      .title { font-size: 28px; font-weight: 700; fill: #f1f5f9; }
+      .subtitle { font-size: 14px; fill: #94a3b8; }
+      .section-title { font-size: 18px; font-weight: 600; fill: #e2e8f0; }
+      .wave-label { font-size: 15px; font-weight: 600; fill: #cbd5f5; letter-spacing: 0.3px; }
+      .wave-hint { font-size: 12px; fill: #64748b; }
+      .card-title { font-size: 14px; font-weight: 600; fill: #f8fafc; }
+      .card-sub { font-size: 11px; fill: #94a3b8; }
+      .card-stage { font-size: 10px; fill: #cbd5f5; letter-spacing: 0.5px; }
+      .legend-text { font-size: 12px; fill: #cbd5f5; }
+      .note-text { font-size: 12px; fill: #94a3b8; }
+      .note-strong { font-size: 13px; font-weight: 600; fill: #e2e8f0; }
+      .foot-text { font-size: 11px; fill: #64748b; }
+      .emoji { font-size: 14px; }
+
+      .wave-chip { fill: #1e293b; stroke: #334155; }
+      .card { stroke-width: 1.5; rx: 10; ry: 10; }
+
+      /* status colors */
+      .s-done { fill: #064e3b; stroke: #10b981; }
+      .s-done-text { fill: #6ee7b7; }
+      .s-req { fill: #1e3a8a; stroke: #60a5fa; }
+      .s-req-text { fill: #bfdbfe; }
+      .s-tasks { fill: #5b21b6; stroke: #a78bfa; }
+      .s-tasks-text { fill: #ddd6fe; }
+      .s-design { fill: #78350f; stroke: #fbbf24; }
+      .s-design-text { fill: #fde68a; }
+
+      /* arrow */
+      .dep-arrow { stroke: #64748b; stroke-width: 1.5; fill: none; stroke-dasharray: 4 4; }
+      .dep-arrow-solid { stroke: #94a3b8; stroke-width: 2; fill: none; }
+    </style>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#94a3b8" />
+    </marker>
+    <marker id="arrow-dashed" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 0 L 10 5 L 0 10 z" fill="#64748b" />
+    </marker>
+  </defs>
+
+  <rect class="bg" width="1680" height="1240" />
+
+  <!-- ================== header ================== -->
+  <text class="title" x="60" y="60">Autopilot Spec 执行进度图</text>
+  <text class="subtitle" x="60" y="86">2026-05-08 快照 · 9 个 spec · 按依赖与并行度组织执行 · feat/project-autopilot-blueprint</text>
+
+  <!-- ================== legend ================== -->
+  <g transform="translate(1060, 46)">
+    <rect class="card s-done" x="0" y="0" width="14" height="14" />
+    <text class="legend-text" x="22" y="12">tasks.md 已就绪</text>
+
+    <rect class="card s-tasks" x="130" y="0" width="14" height="14" />
+    <text class="legend-text" x="152" y="12">design.md 已就绪</text>
+
+    <rect class="card s-design" x="260" y="0" width="14" height="14" />
+    <text class="legend-text" x="282" y="12">requirements.md 已就绪</text>
+
+    <rect class="card s-req" x="430" y="0" width="14" height="14" />
+    <text class="legend-text" x="452" y="12">尚未开始</text>
+  </g>
+  <g transform="translate(1060, 68)">
+    <line class="dep-arrow-solid" x1="0" y1="8" x2="40" y2="8" marker-end="url(#arrow)" />
+    <text class="legend-text" x="50" y="12">强依赖 (须先完成)</text>
+
+    <line class="dep-arrow" x1="230" y1="8" x2="270" y2="8" marker-end="url(#arrow-dashed)" />
+    <text class="legend-text" x="280" y="12">弱依赖 (可并行推进)</text>
+  </g>
+
+  <!-- ================== Wave 0 header ================== -->
+  <g transform="translate(60, 130)">
+    <rect class="wave-chip" x="0" y="0" width="1560" height="40" rx="8" ry="8" />
+    <text class="wave-label" x="20" y="26">Wave 0 · 已封板入口 (既有主线)</text>
+    <text class="wave-hint" x="380" y="26">这里是之前已经跑通的 spec,新 8 份在它之上扩建</text>
+  </g>
+
+  <!-- Wave 0 card: routeset-llm-generation -->
+  <g transform="translate(60, 186)">
+    <rect class="card s-done" x="0" y="0" width="340" height="90" />
+    <text class="card-stage s-done-text" x="16" y="22">■ TASKS 就绪 · 可实施</text>
+    <text class="card-title" x="16" y="44">autopilot-routeset-llm-generation</text>
+    <text class="card-sub" x="16" y="62">RouteSet 硬编码 → LLM 驱动 (主线祖先)</text>
+    <text class="card-sub" x="16" y="78">15 tasks · +2 E2E · strict zod · D5=A · D6=A</text>
+  </g>
+
+  <!-- ================== Wave 1 header ================== -->
+  <g transform="translate(60, 300)">
+    <rect class="wave-chip" x="0" y="0" width="1560" height="40" rx="8" ry="8" />
+    <text class="wave-label" x="20" y="26">Wave 1 · Capability Bridges (4 条桥 · 全并行 · 无内部依赖)</text>
+    <text class="wave-hint" x="630" y="26">把 sandbox derivation 的 4 个模板 capability 接到真实执行</text>
+  </g>
+
+  <!-- Wave 1 cards: 4 capability bridges, all side by side -->
+  <g transform="translate(60, 356)">
+    <!-- Docker bridge -->
+    <rect class="card s-design" x="0" y="0" width="370" height="108" />
+    <text class="card-stage s-design-text" x="16" y="22">● REQ 就绪 · 待 design</text>
+    <text class="card-title" x="16" y="44">autopilot-capability-bridge-docker</text>
+    <text class="card-sub" x="16" y="62">docker-analysis-sandbox →</text>
+    <text class="card-sub" x="16" y="76">services/lobster-executor 真跑 Docker</text>
+    <text class="card-sub" x="16" y="94">9 reqs · executionMode · security allow-list</text>
+
+    <!-- MCP bridge -->
+    <rect class="card s-design" x="395" y="0" width="370" height="108" />
+    <text class="card-stage s-design-text" x="411" y="22">● REQ 就绪 · 待 design</text>
+    <text class="card-title" x="411" y="44">autopilot-capability-bridge-mcp</text>
+    <text class="card-sub" x="411" y="62">mcp-github-source →</text>
+    <text class="card-sub" x="411" y="76">真 MCP 或 HTTP fetch(github.com)</text>
+    <text class="card-sub" x="411" y="94">9 reqs · 三段式降级 · https allow-list</text>
+
+    <!-- AIGC-node bridge -->
+    <rect class="card s-design" x="790" y="0" width="370" height="108" />
+    <text class="card-stage s-design-text" x="806" y="22">● REQ 就绪 · 待 design</text>
+    <text class="card-title" x="806" y="44">autopilot-capability-bridge-aigc-node</text>
+    <text class="card-sub" x="806" y="62">aigc-spec-node →</text>
+    <text class="card-sub" x="806" y="76">ctx.llm.callJson 结构化 spec 证据</text>
+    <text class="card-sub" x="806" y="94">9 reqs · strict zod · subsystems/risks</text>
+
+    <!-- Role bridge -->
+    <rect class="card s-design" x="1185" y="0" width="370" height="108" />
+    <text class="card-stage s-design-text" x="1201" y="22">● REQ 就绪 · 待 design</text>
+    <text class="card-title" x="1201" y="44">autopilot-capability-bridge-role</text>
+    <text class="card-sub" x="1201" y="62">role-system-architecture →</text>
+    <text class="card-sub" x="1201" y="76">LLM 结构化角色 JSON → evidence store</text>
+    <text class="card-sub" x="1201" y="94">9 reqs · 为 Wave 2 输出可检索证据</text>
+  </g>
+
+  <!-- ================== Wave 2 header ================== -->
+  <g transform="translate(60, 500)">
+    <rect class="wave-chip" x="0" y="0" width="1560" height="40" rx="8" ry="8" />
+    <text class="wave-label" x="20" y="26">Wave 2 · 伴随式 Agent Crew (依赖 role bridge)</text>
+    <text class="wave-hint" x="480" y="26">消费 role JSON,按 stage 真实发 role.activated / watching / reviewing / sleeping</text>
+  </g>
+
+  <!-- Wave 2 card: stage activation -->
+  <g transform="translate(60, 556)">
+    <rect class="card s-design" x="0" y="0" width="560" height="108" />
+    <text class="card-stage s-design-text" x="16" y="22">● REQ 就绪 · 待 design</text>
+    <text class="card-title" x="16" y="44">autopilot-agent-crew-stage-activation</text>
+    <text class="card-sub" x="16" y="62">全流程 role 伴随事件 · 替代今天的一次性 snapshot</text>
+    <text class="card-sub" x="16" y="78">9 reqs · 允许扩展 BlueprintEventName.RoleSleeping</text>
+    <text class="card-sub" x="16" y="94">依赖 role-bridge 的结构化角色 JSON (R3.1 / R3.6 / R4.6 / R9.3)</text>
+  </g>
+
+  <!-- arrow from role-bridge to stage-activation -->
+  <path class="dep-arrow-solid" d="M 1370 464 C 1370 520 900 520 900 556" marker-end="url(#arrow)" />
+
+  <!-- ================== Wave 3 header ================== -->
+  <g transform="translate(60, 700)">
+    <rect class="wave-chip" x="0" y="0" width="1560" height="40" rx="8" ry="8" />
+    <text class="wave-label" x="20" y="26">Wave 3 · Downstream LLM 生成 (5 条 · 全并行 · 只弱依赖 Wave 0 的 RouteSet)</text>
+    <text class="wave-hint" x="700" y="26">把 SPEC Tree / Documents / Preview / PromptPackage / Handoff 从模板升级为 LLM</text>
+  </g>
+
+  <!-- Wave 3 cards: 5 downstream LLM specs, 3 on row 1, 2 on row 2 -->
+  <g transform="translate(60, 756)">
+    <!-- spec-tree -->
+    <rect class="card s-design" x="0" y="0" width="500" height="108" />
+    <text class="card-stage s-design-text" x="16" y="22">● REQ 就绪 · 待 design</text>
+    <text class="card-title" x="16" y="44">autopilot-spec-tree-llm</text>
+    <text class="card-sub" x="16" y="62">buildSpecTreeFromRouteSet() + 下游菜单节点 → LLM</text>
+    <text class="card-sub" x="16" y="78">9 reqs · strict zod (id 唯一 / 深度≤4 / 节点 3..50)</text>
+    <text class="card-sub" x="16" y="94">promptId: blueprint.spec-tree.v1</text>
+
+    <!-- spec-documents -->
+    <rect class="card s-design" x="525" y="0" width="500" height="108" />
+    <text class="card-stage s-design-text" x="541" y="22">● REQ 就绪 · 待 design</text>
+    <text class="card-title" x="541" y="44">autopilot-spec-documents-llm</text>
+    <text class="card-sub" x="541" y="62">generateSpecDocuments() / buildSpecDocument() → LLM</text>
+    <text class="card-sub" x="541" y="78">9 reqs · 每份文档独立走 LLM · sections 2..20</text>
+    <text class="card-sub" x="541" y="94">promptId: blueprint.spec-document.v1</text>
+
+    <!-- effect-preview -->
+    <rect class="card s-design" x="1050" y="0" width="500" height="108" />
+    <text class="card-stage s-design-text" x="1066" y="22">● REQ 就绪 · 待 design</text>
+    <text class="card-title" x="1066" y="44">autopilot-effect-preview-llm</text>
+    <text class="card-sub" x="1066" y="62">generateEffectPreviews() / buildEffectPreview() → LLM</text>
+    <text class="card-sub" x="1066" y="78">9 reqs · HUD / console / log timeline 结构化</text>
+    <text class="card-sub" x="1066" y="94">promptId: blueprint.effect-preview.v1</text>
+  </g>
+
+  <!-- row 2 of wave 3 -->
+  <g transform="translate(60, 884)">
+    <!-- prompt-package -->
+    <rect class="card s-design" x="262" y="0" width="500" height="108" />
+    <text class="card-stage s-design-text" x="278" y="22">● REQ 就绪 · 待 design</text>
+    <text class="card-title" x="278" y="44">autopilot-prompt-package-llm</text>
+    <text class="card-sub" x="278" y="62">generateImplementationPromptPackages() → LLM</text>
+    <text class="card-sub" x="278" y="78">9 reqs · prompts 结构化 · 含 variables / examples</text>
+    <text class="card-sub" x="278" y="94">promptId: blueprint.prompt-package.v1</text>
+
+    <!-- engineering-handoff -->
+    <rect class="card s-design" x="788" y="0" width="500" height="108" />
+    <text class="card-stage s-design-text" x="804" y="22">● REQ 就绪 · 待 design</text>
+    <text class="card-title" x="804" y="44">autopilot-engineering-handoff-llm</text>
+    <text class="card-sub" x="804" y="62">generateEngineeringLandingPlans() → LLM</text>
+    <text class="card-sub" x="804" y="78">9 reqs · mission.handoff payload 扩展</text>
+    <text class="card-sub" x="804" y="94">promptId: blueprint.engineering-handoff.v1</text>
+  </g>
+
+  <!-- ================== parallel execution plan ================== -->
+  <g transform="translate(60, 1030)">
+    <rect class="wave-chip" x="0" y="0" width="1560" height="180" rx="8" ry="8" />
+    <text class="section-title" x="20" y="28">并行执行建议 (从当前快照向后推进)</text>
+
+    <text class="note-strong" x="20" y="58">🟢 Agent A — Wave 0 实施</text>
+    <text class="note-text" x="20" y="76">执行 autopilot-routeset-llm-generation/tasks.md 的 15 个任务 (已就绪,可直接开干)</text>
+
+    <text class="note-strong" x="20" y="102">🟡 Agent B–E — Wave 1 四条桥 design → tasks → 实施 (彼此无依赖,完全并行)</text>
+    <text class="note-text" x="20" y="120">docker / mcp / aigc-node / role 分别开 worktree; role 最好率先完工,以便解锁 Wave 2</text>
+
+    <text class="note-strong" x="20" y="146">🟣 Agent F — Wave 2 在 role-bridge 完工后启动</text>
+    <text class="note-text" x="20" y="164">stage-activation driver 依赖 role-bridge 写入 evidence store 的结构化角色 JSON; 也可以先做 design</text>
+
+    <text class="note-strong" x="820" y="58">🔵 Agent G–K — Wave 3 五条 downstream (彼此无依赖,全并行)</text>
+    <text class="note-text" x="820" y="76">spec-tree / spec-documents / effect-preview / prompt-package / engineering-handoff</text>
+    <text class="note-text" x="820" y="92">只要 Wave 0 的 routeset LLM 走通、有真实路线数据喂下去即可</text>
+
+    <text class="note-strong" x="820" y="120">⚪ 强约束 (每份 spec 共享)</text>
+    <text class="note-text" x="820" y="138">· 既有 47 E2E + 48 subdomain + 9 SDK smoke 全部继续通过 (禁止改写)</text>
+    <text class="note-text" x="820" y="154">· strict zod + fallback + executionMode / generationSource / promptId / model</text>
+    <text class="note-text" x="820" y="170">· 禁止 PBT · 禁止裸字符串事件名 · 禁止 import callLLMJson 模块级单例</text>
+  </g>
+
+  <!-- ================== footer ================== -->
+  <text class="foot-text" x="60" y="1228">
+    生成于 2026-05-08 · 依赖: Wave 0 → Wave 1 (强并行) → Wave 2 (依赖 role-bridge) ∥ Wave 3 (独立) · 源: .kiro/specs/autopilot-*/requirements.md
+  </text>
+</svg>
