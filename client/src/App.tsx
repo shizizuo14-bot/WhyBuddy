@@ -42,6 +42,7 @@ import AutopilotRoutePage from "./pages/autopilot/AutopilotRoutePage";
 import AuthPage from "./pages/auth/AuthPage";
 import SpecCenterPage from "./pages/specs/SpecCenterPage";
 import { TaskDetailPage, TasksPage } from "./pages/tasks";
+import AutopilotSpecDocumentsWorkbenchFixturePage from "./pages/autopilot/right-rail/streaming-doc/workbench/WorkbenchFixturePage";
 
 const routerBase =
   import.meta.env.BASE_URL === "/"
@@ -123,6 +124,10 @@ function Router() {
       <Route path={`${REPLAY_PATH_PREFIX}/:missionId`}>
         {params => <ReplayPage missionId={params.missionId || ""} />}
       </Route>
+      <Route
+        path={"/debug/autopilot-spec-documents-workbench"}
+        component={AutopilotSpecDocumentsWorkbenchFixturePage}
+      />
       <Route path={"/debug"} component={DebugPage} />
       <Route path={"/debug/:section"} component={DebugPage} />
       <Route path={"/command-center/legacy"}>

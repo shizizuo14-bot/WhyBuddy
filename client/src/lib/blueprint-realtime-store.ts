@@ -467,17 +467,16 @@ export const useBlueprintRealtimeStore = create<
 
     const s = getOrCreateSocket();
 
-    // `autopilot-agent-reasoning-stream` spec Task 8.6：
-    // 当 jobId 变化时清空 agentReasoning 切片回到初始态，保证 Mystery Policy
-    // 在每个新 job 开始时成立；jobId 不变（Socket 重连）路径由前面的早返回兜底，
-    // 不会进入此处，因此既有 entries 不会被重置。
+    // 当 jobId 变化时保留历史 agentReasoning entries，避免阶段切换
+    // （intake.id → job.id）时丢失之前的执行步骤。entries 的 stageId
+    // 字段已标记每条 entry 属于哪个阶段，MiroFishCardStream 可按需过滤。
     set({
       subscribedJobId: jobId,
       connectionState: "connecting",
       agentReasoning: {
         jobId,
-        entries: [],
-        currentIteration: 0,
+        entries: state.agentReasoning.entries,
+        currentIteration: state.agentReasoning.currentIteration,
         status: "idle",
       },
     });

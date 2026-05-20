@@ -1,5 +1,4 @@
-import { Component, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { ErrorInfo, ReactNode as ReactNodeType } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Bot,
   CheckCircle2,
@@ -71,14 +70,16 @@ import {
   type RightRailSubStageContextValue,
   type ViewportTier,
 } from "./right-rail";
-import { useAutoAdvance } from "./right-rail/hooks/use-auto-advance";
+import {
+  selectAutoAdvanceSubStage,
+  useAutoAdvance,
+} from "./right-rail/hooks/use-auto-advance";
 
 import { useAutopilotSandboxBridge } from "./hooks/useAutopilotSandboxBridge";
 import { TimelineNode } from "./right-rail/timeline";
 import { AgentReasoningSubTimeline } from "./right-rail/AgentReasoningSubTimeline";
 import { AgentReasoningTimeline } from "@/components/blueprint/AgentReasoningTimeline";
 import { useBlueprintRealtimeStore } from "@/lib/blueprint-realtime-store";
-import { MiniConsoleBar } from "./right-rail/mini-console/MiniConsoleBar";
 
 const GITHUB_URL_PATTERN = /^https:\/\/github\.com\/[^/\s]+\/[^/\s]+/i;
 
@@ -136,9 +137,8 @@ interface FlowStep {
  * 由 `buildConsoleLines(...)` 派生并被 `<AutopilotConsolePanel>` 渲染；同时也是
  * `right-rail/right-rail-console-routing.ts` 中 `routeConsoleLine()` 的输入类型。
  *
- * 导出动机（autopilot-right-rail-narrative-swiper / Task 1.2）：
- * 共享路由模块需要按 `channel` 字段决定一条控制台线属于"左下系统流水"
- * 还是"右下叙事卡片"还是"双侧"。为避免在路由模块里再造一份平行类型，
+ * 导出动机：共享路由模块需要按 `channel` 字段决定一条控制台线属于
+ * 系统流水、右栏补充流，还是双侧消费。为避免在路由模块里再造一份平行类型，
  * 这里把 `ConsoleLine` 提升为 page-level export，路由模块以 `import type`
  * 形式引用即可，不引入运行时依赖也不形成循环引用。
  */
@@ -768,48 +768,6 @@ function AutopilotMissionHud({
   );
 }
 
-/**
- * ConsoleErrorBoundary — 带 fallback 的轻量 ErrorBoundary。
- *
- * 当 `<MiniConsoleBar>` 渲染失败时退化到直接渲染 `<AutopilotConsolePanel>` 完整态
- * （Req 5.9）。不引入新依赖，不修改既有全局 ErrorBoundary。
- */
-interface ConsoleErrorBoundaryProps {
-  children: ReactNodeType;
-  fallback: ReactNodeType;
-}
-
-interface ConsoleErrorBoundaryState {
-  hasError: boolean;
-}
-
-class ConsoleErrorBoundary extends Component<
-  ConsoleErrorBoundaryProps,
-  ConsoleErrorBoundaryState
-> {
-  constructor(props: ConsoleErrorBoundaryProps) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(): ConsoleErrorBoundaryState {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, info: ErrorInfo): void {
-    // 仅在开发环境打印，不阻塞生产渲染。
-    // eslint-disable-next-line no-console
-    console.error("[ConsoleErrorBoundary] MiniConsoleBar render failed:", error, info);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return this.props.fallback;
-    }
-    return this.props.children;
-  }
-}
-
 function AutopilotVisualStage({
   locale,
   currentProjectId,
@@ -837,13 +795,13 @@ function AutopilotVisualStage({
     // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v10 去边框去边距）：
     // visual stage / console panel / 外包 div 移除 rounded / border / gap，
     // 让 3D 场景与 console 紧贴页面边缘 + 列边界，最大化可视面积。
-    <div className="grid xl:flex xl:h-full xl:flex-col">
+    <div className="grid xl:flex xl:h-full xl:min-h-0 xl:flex-col">
       <section
-        className="overflow-hidden bg-slate-950"
+        className="min-h-0 overflow-hidden bg-slate-950 xl:flex-1"
         data-testid="autopilot-visual-stage"
       >
         <div
-          className="relative min-h-[760px] overflow-hidden bg-slate-950 xl:aspect-[16/10] xl:min-h-0"
+          className="relative min-h-[520px] overflow-hidden bg-slate-950 xl:h-full xl:min-h-0"
           data-testid="autopilot-scene-visual"
           data-autopilot-stage={job?.stage ?? "input"}
           data-autopilot-route-state={
@@ -857,36 +815,14 @@ function AutopilotVisualStage({
         </div>
       </section>
 
-      {/* Console panel 独立 stacked section，xl 模式 flex-1 填高。
-          embedded 保留让内部 overflow-y-auto；className 去掉 rounded
-          实现与 visual stage 紧贴。
-          Task 7.5：用 MiniConsoleBar 包裹 AutopilotConsolePanel，默认折叠为
-          mini bar；ErrorBoundary 兜底渲染失败时退化到完整态（Req 5.9）。
-          Stage_Transition 不清空 Expanded_Console_Panel 历史日志（Req 6.6）：
-          consoleLines 由上层持有，stage 切换不重置。 */}
-      <ConsoleErrorBoundary
-        fallback={
-          <AutopilotConsolePanel
-            locale={locale}
-            lines={consoleLines}
-            embedded
-            className="!bg-slate-950 backdrop-blur-0 xl:flex-1 xl:min-h-0"
-          />
-        }
-      >
-        <MiniConsoleBar
-          locale={locale}
-          consoleLines={consoleLines}
-          renderExpanded={() => (
-            <AutopilotConsolePanel
-              locale={locale}
-              lines={consoleLines}
-              embedded
-              className="!bg-slate-950 backdrop-blur-0"
-            />
-          )}
-        />
-      </ConsoleErrorBoundary>
+      {/* Console panel occupies the left-stage bottom area directly:
+          no mini fold, no floating rounded wrapper, and no stage-switch reset. */}
+      <AutopilotConsolePanel
+        locale={locale}
+        lines={consoleLines}
+        embedded
+        className="h-[320px] w-full shrink-0 !bg-slate-950 shadow-none backdrop-blur-0"
+      />
     </div>
   );
 }
@@ -1271,6 +1207,7 @@ function AutopilotWorkflowRail({
   onRightRailCollapsedChange,
   onForceAdvance,
   autoAdvancing,
+  autoAdvancingTo,
   onSpecDocumentsGenerated,
 }: {
   locale: AppLocale;
@@ -1361,6 +1298,7 @@ function AutopilotWorkflowRail({
   onRightRailCollapsedChange: (collapsed: boolean) => void;
   onForceAdvance: () => void;
   autoAdvancing: boolean;
+  autoAdvancingTo: string | null;
   /**
    * autopilot-spec-tree-workbench（2026-05-17）：
    * SpecTreeWorkbench 在 spec_tree 卡片内部成功调
@@ -1613,12 +1551,19 @@ function AutopilotWorkflowRail({
         // - side-fixed（≥xl）：Spec 3 现状，不显示 trigger / toggle
         const tier = viewportTier;
         const drawerCopy = DRAWER_TIER_COPY[locale] ?? DRAWER_TIER_COPY["en-US"];
+        const autoAdvanceSubStage = selectAutoAdvanceSubStage(
+          autoAdvancingTo ?? ""
+        );
         const railElement = (
           <RightRailSubStageContext.Provider value={subStageContext}>
             <AutopilotRightRail
               jobId={rightRailView.job.data?.id ?? latestJob?.id ?? ""}
               currentStage="fabric"
-              currentSubStage={subStageContext.effectiveSubStage ?? fabricSubStage}
+              currentSubStage={
+                autoAdvanceSubStage ??
+                subStageContext.effectiveSubStage ??
+                fabricSubStage
+              }
               job={rightRailView.job.data}
               routeSet={rightRailView.routeSet.data}
               selection={rightRailView.selection.data}
@@ -1949,7 +1894,7 @@ function AutopilotConsolePanel({
   embedded?: boolean;
   className?: string;
 }) {
-  const visibleLines = lines.slice(embedded ? -8 : -12);
+  const visibleLines = lines.slice(embedded ? -16 : -12);
 
   return (
     // 2026-05-13 v11 视觉收尾：去除 console panel 自身圆角、边框；
@@ -1957,6 +1902,7 @@ function AutopilotConsolePanel({
     <section
       className={cn(
         "text-white",
+        embedded ? "flex min-h-0 flex-col" : "",
         embedded
           ? "bg-slate-950/82 shadow-[0_24px_64px_rgba(2,6,23,0.34)] backdrop-blur-xl"
           : "bg-slate-950",
@@ -1964,7 +1910,7 @@ function AutopilotConsolePanel({
       )}
       data-testid="autopilot-runtime-console"
     >
-      <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-3">
+      <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 py-3">
         <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-white/65">
           <Terminal className="size-3.5" aria-hidden="true" />
           {t(locale, "自动驾驶控制台", "Autopilot console")}
@@ -1987,7 +1933,7 @@ function AutopilotConsolePanel({
           // 之前 max-h-32（128px）在只有 1-2 行 console line 时仍占满 128px，
           // 视觉上 panel 下方留出大段 dim 浮层空白挡住 3D scene 底部。改成只
           // 设上限不强制最低高，短消息时 panel 自然变低，不再遮挡底部地面。
-          embedded ? "max-h-[256px] overflow-y-auto" : "overflow-hidden"
+          embedded ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "overflow-hidden"
         )}
       >
         {visibleLines.map(line => (
@@ -2735,8 +2681,8 @@ export default function AutopilotRoutePage() {
         </div>
       </header>
 
-      <div className="grid w-full px-0 py-0 xl:flex-1 xl:overflow-hidden">
-        <div className="grid xl:h-full xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:overflow-hidden">
+      <div className="grid w-full px-0 py-0 xl:flex-1 xl:min-h-0 xl:overflow-hidden">
+        <div className="grid xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:overflow-hidden">
           <AutopilotVisualStage
             locale={locale}
             currentProjectId={currentProjectId}
@@ -2797,6 +2743,7 @@ export default function AutopilotRoutePage() {
             onRightRailCollapsedChange={setRightRailCollapsed}
             onForceAdvance={autoAdvance.forceAdvance}
             autoAdvancing={autoAdvance.advancing}
+            autoAdvancingTo={autoAdvance.advancingTo}
             onSpecDocumentsGenerated={response => {
               // autopilot-spec-tree-workbench（2026-05-17）：把 SpecTreeWorkbench
               // 从右栏发出的响应回写到 latestJob，让 rightRailView 的派生层
