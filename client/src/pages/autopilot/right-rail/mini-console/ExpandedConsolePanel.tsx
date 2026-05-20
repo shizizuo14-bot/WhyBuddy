@@ -4,7 +4,7 @@
  * 对应 spec：`.kiro/specs/autopilot-right-rail-narrative-swiper/`
  * - Requirement 5.6：展开态复用既有 `<AutopilotConsolePanel>` 的滚动日志、筛选与连接
  *   状态展示，不重新实现日志渲染。
- * - Requirement 5.7：以左下浮层定位避开右栏区域，保证 NarrativeSwiper 不被遮挡；
+ * - Requirement 5.7：以左下浮层定位避开右栏主区域，避免遮挡核心工作台；
  *   不通过撑开布局的方式让出空间。
  *
  * 设计约束：
@@ -59,7 +59,7 @@ export interface ExpandedConsolePanelProps {
  * 左下浮层定位策略说明：
  *
  * - 桌面 1280+：`fixed bottom-4 left-4`，宽度上限 `min(720px, 50vw)`，
- *   `right` 留出右栏所需空间，避免遮挡 NarrativeSwiper（Req 5.7）。
+ *   `right` 留出右栏所需空间，避免遮挡右栏主内容（Req 5.7）。
  *   通过 `max-width` 控制即可，不需要硬绑定具体右栏宽度变量。
  * - 768-1280px：缩为 `min(560px, 70vw)`，仍保持左下定位。
  * - <768px：`left-2 right-2 bottom-2`，几乎全宽，承接窄屏 drawer 兜底。

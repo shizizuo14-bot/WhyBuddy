@@ -104,11 +104,26 @@ describe("AutopilotRoutePage", () => {
     // section，xl 模式 flex-1 填高。原断言 "absolute bottom-4 left-4 right-4 z-10"
     // / "bg-slate-950/82" 不再适用，改为断言 stack 语义关键 class。
     expect(markup).toContain('data-testid="autopilot-visual-stage"');
-    expect(markup).toContain("xl:aspect-[16/10]");
     expect(markup).toContain("xl:flex-1 xl:min-h-0");
+    expect(markup).toContain("xl:h-full");
     expect(markup).not.toContain("radial-gradient");
     expect(markup).not.toContain("linear-gradient(180deg");
     expect(markup).not.toContain("opacity-35");
+  });
+
+  it("renders the autopilot console as a fixed-height full-width bottom panel without mini fold or rounded overlay", () => {
+    const markup = renderToStaticMarkup(<AutopilotRoutePage />);
+
+    expect(markup).toContain('data-testid="autopilot-runtime-console"');
+    expect(markup).toContain("w-full");
+    expect(markup).toContain("h-[320px]");
+    expect(markup).toContain("shrink-0");
+    expect(markup).not.toContain('data-testid="autopilot-runtime-console-mini"');
+    expect(markup).not.toContain('data-testid="autopilot-runtime-console-expanded"');
+    expect(markup).not.toContain("Expand runtime console");
+    expect(markup).not.toContain("Collapse runtime console");
+    expect(markup).not.toContain("rounded-[10px]");
+    expect(markup).not.toContain("rounded-[12px]");
   });
 
   it("switches the core chrome to English without mixing the main labels", () => {

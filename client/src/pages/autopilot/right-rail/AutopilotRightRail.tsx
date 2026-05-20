@@ -25,7 +25,6 @@
  */
 
 import { useCallback, useEffect, useRef, useState, type FC } from "react";
-import { Component, type ErrorInfo, type ReactNode as ReactNodeType2 } from "react";
 
 import type { AppLocale } from "@/lib/locale";
 import { SPECS_PATH } from "@/components/navigation-config";
@@ -44,7 +43,6 @@ import { useBlueprintRealtimeStore } from "@/lib/blueprint-realtime-store";
 import { AgentReasoningSubTimeline } from "./AgentReasoningSubTimeline";
 import { CapabilityRail } from "./CapabilityRail";
 import { FleetActivationLog } from "./FleetActivationLog";
-import { NarrativeSwiper } from "./narrative-swiper/NarrativeSwiper";
 import { resolveRailSubStage } from "./resolve-rail-sub-stage";
 import { RoleStatusStrip } from "./RoleStatusStrip";
 import { SpecTreeWorkbench } from "./spec-tree-workbench/SpecTreeWorkbench";
@@ -237,42 +235,6 @@ function ActiveNodeContent({
   );
 }
 
-/**
- * NarrativeSwiperErrorBoundary — 带 fallback={null} 的轻量 ErrorBoundary。
- *
- * 当 `<NarrativeSwiper>` 渲染异常时不显示 swiper，不影响主壳与右栏主区（Req 9.6）。
- * 不引入新依赖，不修改既有全局 ErrorBoundary。
- */
-interface NarrativeSwiperErrorBoundaryState {
-  hasError: boolean;
-}
-
-class NarrativeSwiperErrorBoundary extends Component<
-  { children: ReactNodeType2 },
-  NarrativeSwiperErrorBoundaryState
-> {
-  constructor(props: { children: ReactNodeType2 }) {
-    super(props);
-    this.state = { hasError: false };
-  }
-
-  static getDerivedStateFromError(): NarrativeSwiperErrorBoundaryState {
-    return { hasError: true };
-  }
-
-  componentDidCatch(error: Error, info: ErrorInfo): void {
-    // eslint-disable-next-line no-console
-    console.error("[NarrativeSwiperErrorBoundary] render failed:", error, info);
-  }
-
-  render() {
-    if (this.state.hasError) {
-      return null;
-    }
-    return this.props.children;
-  }
-}
-
 export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
   const {
     currentStage,
@@ -318,7 +280,8 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
   const baseStageIndex = activeSubStage !== undefined
     ? mapSubStageToStageIndex(activeSubStage)
     : 0;
-  const isSpecDocumentsStage = job?.stage === "spec_docs";
+  const isSpecDocumentsStage =
+    job?.stage === "spec_docs" && activeSubStage === "spec_tree";
   const activeStageIndex = isSpecDocumentsStage
     ? STAGE_ORDER.indexOf("spec_documents")
     : baseStageIndex;
@@ -588,7 +551,9 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
 
               data-sub-stage-placeholder / data-timeline-status / aria-current 等
               既有断点保留，避免破坏 fabric-dispatch.property.test.tsx 等回归。 */}
-          {activeStageKey === "spec_documents" ? (
+          {/* spec_tree 与 spec_documents 合并为同一界面：
+              左侧节点导航 + 右侧文档渲染，由 StreamingDocRenderer 统一承载。 */}
+          {(activeStageKey === "spec_documents" || activeStageKey === "spec_tree") ? (
             <div
               data-sub-stage-placeholder={activeSubStage ?? ""}
               data-timeline-status="active"
@@ -600,6 +565,11 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
                 specDocuments={extractSpecDocuments(props.job)}
                 specTree={props.specTree}
                 locale={locale}
+                onGenerateAll={handleGenerateAllSpecDocs}
+                onGenerateNode={handleGenerateNodeSpecDocs}
+                generating={specDocsGenerating}
+                jobId={props.jobId}
+                job={props.job}
               />
             </div>
           ) : (
@@ -645,11 +615,6 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
       {/* autopilot-streaming-experience integration-gap-2026-05-16 UI 消费面 Step 3：激活日志 */}
       <FleetActivationLog />
 
-      {/* autopilot-right-rail-narrative-swiper：右栏底部叙事 Swiper（Req 10.1 / 10.3 / 10.8）
-          ErrorBoundary 兜底：渲染异常时不显示 swiper，不影响主壳与右栏主区（Req 9.6） */}
-      <NarrativeSwiperErrorBoundary>
-        <NarrativeSwiper stage={activeStageKey} job={job ?? null} locale={locale} />
-      </NarrativeSwiperErrorBoundary>
     </aside>
   );
 };

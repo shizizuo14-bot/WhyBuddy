@@ -55,7 +55,11 @@ vi.mock("wouter", () => ({
         current.endsWith("/tasks")) ||
       (path === "/projects/:projectId" && current.startsWith("/projects/")) ||
       (path === "/tasks/:taskId" && current.startsWith("/tasks/")) ||
-      (path === "/debug/:section" && current.startsWith("/debug/")) ||
+      (path === "/debug/autopilot-spec-documents-workbench" &&
+        current === "/debug/autopilot-spec-documents-workbench") ||
+      (path === "/debug/:section" &&
+        current.startsWith("/debug/") &&
+        current !== "/debug/autopilot-spec-documents-workbench") ||
       (!path && current === "/404");
 
     if (!matches) return null;
@@ -137,6 +141,10 @@ vi.mock("./pages/admin/AdminLayout", () => ({
   AdminAuditPage: () => <section data-testid="admin-audit-page" />,
 }));
 
+vi.mock("./pages/autopilot/AutopilotRoutePage", () => ({
+  default: () => <main data-testid="autopilot-route-page" />,
+}));
+
 vi.mock("./pages/tasks", () => ({
   TasksPage: () => <main data-testid="tasks-page" />,
   TaskDetailPage: () => <main data-testid="task-detail-page" />,
@@ -145,6 +153,13 @@ vi.mock("./pages/tasks", () => ({
 vi.mock("./pages/debug/DebugPage", () => ({
   default: () => <main data-testid="debug-page" />,
 }));
+
+vi.mock(
+  "./pages/autopilot/right-rail/streaming-doc/workbench/WorkbenchFixturePage",
+  () => ({
+    default: () => <main data-testid="workbench-fixture-page" />,
+  })
+);
 
 vi.mock("./pages/nl-command/LegacyCommandCenterPage", () => ({
   default: () => <main data-testid="legacy-command-page" />,
@@ -278,6 +293,18 @@ describe("AppShell fixed sidebar layout", () => {
     expect(isProjectWorkspaceLocation("/login")).toBe(false);
     expect(isProjectWorkspaceLocation("/admin")).toBe(false);
     expect(isProjectWorkspaceLocation("/debug")).toBe(false);
+  });
+
+  it("mounts the direct spec documents workbench fixture route before debug sections", () => {
+    signInForShell();
+    locationState.current = "/debug/autopilot-spec-documents-workbench";
+    viewportState.isMobile = false;
+    viewportState.isTablet = false;
+
+    const markup = renderToStaticMarkup(<AppShell />);
+
+    expect(markup).toContain('data-testid="workbench-fixture-page"');
+    expect(markup).not.toContain('data-testid="debug-page"');
   });
 
   it("keeps authenticated project workspace access in place", () => {

@@ -142,19 +142,42 @@ describe("AutopilotRightRail streaming timeline", () => {
 
     // 锁定 activeStageKey === "spec_documents" 分支
     expect(markup).toContain('data-stage-key="spec_documents"');
-    // StreamingDocRenderer 占据 StageContent 主区域
+    // StreamingDocRenderer 占据 StageContent 主区域，并委托到四区工作台。
     expect(markup).toContain('data-testid="streaming-doc-renderer"');
-    // 重构后侧边栏分组按 nodeId 渲染（替代旧的 DocTabBar 横向 tab），
-    // 每份 SpecDocument 在分组展开后通过 streaming-doc-sidebar-doc-* 暴露
+    expect(markup).toContain('data-testid="autopilot-spec-documents-workbench"');
+    // 重构后左侧 Spec 树按 nodeId 渲染，每份 SpecDocument 通过
+    // autopilot-workbench-spec-tree-doc-* 暴露。
     expect(markup).toContain(
-      'data-testid="streaming-doc-sidebar-group-node-root"'
+      'data-testid="autopilot-workbench-spec-tree-node-node-root"'
     );
-    expect(markup).toContain('data-testid="streaming-doc-sidebar-doc-doc-req"');
+    expect(markup).toContain('data-testid="autopilot-workbench-spec-tree-doc-doc-req"');
     expect(markup).toContain(
-      'data-testid="streaming-doc-sidebar-doc-doc-design"'
+      'data-testid="autopilot-workbench-spec-tree-doc-doc-design"'
     );
     // 不再走 SpecTreeWorkbench 分支
     expect(markup).not.toContain('data-testid="spec-tree-workbench"');
+  });
+
+  it("lets an explicit next sub-stage override stale spec_docs job state while the next step is being generated", () => {
+    const markup = renderToStaticMarkup(
+      <AutopilotRightRail
+        {...makeProps({
+          currentSubStage: "effect_preview",
+          job: {
+            id: "job-test",
+            stage: "spec_docs",
+            status: "completed",
+            artifacts: [],
+          } as unknown as BlueprintGenerationJob,
+          specTree: EMPTY_SPEC_TREE,
+          agentCrew: EMPTY_AGENT_CREW,
+        })}
+      />,
+    );
+
+    expect(markup).toContain('data-stage-key="effect_preview"');
+    expect(markup).toContain('data-sub-stage-placeholder="effect_preview"');
+    expect(markup).not.toContain('data-stage-key="spec_documents"');
   });
 
   it("case 2: renders awaiting state when specTree is null", () => {
@@ -172,8 +195,10 @@ describe("AutopilotRightRail streaming timeline", () => {
     expect(markup).toContain('data-stage-key="spec_tree"');
     // 活跃阶段有 data-timeline-status="active" 标记
     expect(markup).toContain('data-timeline-status="active"');
-    // 等待上游数据提示
-    expect(markup).toContain("Awaiting upstream data");
+    // spec_tree 阶段同样挂载四区工作台；无树数据时由左侧 Spec 树空态承载。
+    expect(markup).toContain('data-testid="autopilot-spec-documents-workbench"');
+    expect(markup).toContain('data-testid="autopilot-workbench-spec-tree-empty"');
+    expect(markup).toContain("No SPEC nodes yet");
     // sub-stage placeholder 保留
     expect(markup).toContain('data-sub-stage-placeholder="spec_tree"');
   });
@@ -220,5 +245,29 @@ describe("AutopilotRightRail streaming timeline", () => {
     // 2026-05-19：StageCTA 已被移除（CTA 由 SpecTreeWorkbench 顶部双按钮承担）。
     // 改为断言 StageHeader 内的 STEP 编号 + 中文标题仍存在。
     expect(markup).toContain("STEP 04");
+  });
+
+  it("does not mount the bottom NarrativeSwiper in the fabric right rail", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "../AutopilotRightRail.tsx"),
+      "utf8"
+    );
+
+    expect(source).not.toMatch(/NarrativeSwiper/);
+    expect(source).not.toMatch(/narrative-swiper/);
+  });
+
+  it("does not re-export the removed bottom NarrativeSwiper from the right-rail barrel", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "../index.ts"),
+      "utf8"
+    );
+
+    expect(source).not.toMatch(/NarrativeSwiper/);
+    expect(source).not.toMatch(/narrative-swiper/);
   });
 });

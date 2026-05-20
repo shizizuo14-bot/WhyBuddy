@@ -57,7 +57,7 @@ const StageViewport: FC<StageViewportProps> = ({
 }) => {
   return (
     <div
-      className="flex flex-col h-full"
+      className="flex h-full min-h-0 flex-col"
       data-stage-index={stageIndex}
       data-stage-key={stageKey}
       style={{
