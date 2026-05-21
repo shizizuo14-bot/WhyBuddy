@@ -1167,6 +1167,12 @@ async function startServer() {
   const { callLLM: callLLMForTranslation } = await import(
     "./core/llm-client.js"
   );
+  const { transcribeAudio } = await import(
+    "./core/audio-transcription-provider.js"
+  );
+  const { generateDeckViaLLM } = await import(
+    "./core/ai-ppt-generation-provider.js"
+  );
   const mcpToolAdapter = new McpToolAdapter({
     invoker: new InternalMcpToolInvoker(),
     permissionEngine: permCheckEngine,
@@ -1589,6 +1595,12 @@ async function startServer() {
     orchestrationRecognitionJumpRuntime: {
       permissionEngine: permCheckEngine,
       auditLogger: permAuditLogger,
+    },
+    audioRecognitionRuntime: {
+      recognizeAudio: transcribeAudio,
+    },
+    aiPptRuntime: {
+      generateDeck: generateDeckViaLLM,
     },
     ocrRecognitionRuntime: {},
     deviceRuntime: {
