@@ -72,17 +72,17 @@
     - 仅在 RAF flush 时触发一次批量更新
     - _需求: 4.3_
 
-- [ ] 6. 编写测试
-  - [~] 6.1 编写 StreamTokenBuffer 批量合并测试
+- [x] 6. 编写测试
+  - [x] 6.1 编写 StreamTokenBuffer 批量合并测试
     - 验证高频 token 被正确批量合并
     - 验证 maxBufferSize 溢出时丢弃最旧 token
     - _需求: 4.1_
-  - [~] 6.2 编写 StreamInterruptionDetector 中断检测测试
+  - [x] 6.2 编写 StreamInterruptionDetector 中断检测测试
     - 验证 500ms 无 token 触发 isInterrupted
     - 验证 10s 无 token 触发 isReconnecting
     - 验证 token 恢复后清除中断状态
     - _需求: 3.1, 3.2, 3.3_
-  - [~] 6.3 编写 StreamingProgressOverlay SSR 渲染测试
+  - [x] 6.3 编写 StreamingProgressOverlay SSR 渲染测试
     - 使用 `react-dom/server` 的 `renderToString` 验证无报错
     - 验证 3 种状态（正常/中断/重连）的 className 正确
     - _需求: 1.1, 3.1, 3.3_

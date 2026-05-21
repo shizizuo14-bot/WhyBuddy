@@ -66,11 +66,11 @@
   - [x] 11.2 mission-routes.test.ts：REST API 测试
   - [x] 11.3 mission-orchestrator.test.ts：编排器测试
   - [x] 11.4 mission-storage.test.ts：快照持久化测试
-- [ ] 12. Docker 真实容器生命周期（开发中）
-  - [ ] 12.1 lobster-executor 从 mock runner 升级为真实 Docker API 调用
-  - [ ] 12.2 容器创建、启动、超时、退出码判断、日志采集
-  - [ ] 12.3 工件目录挂载和回收
-  - [ ] 12.4 执行器主动回调到 Cube /api/executor/events（含签名）
-- [ ] 13. /api/planets 路由实现（契约已定义，路由未实现）
-  - [ ] 13.1 GET /api/planets：Mission 列表的星球视图
-  - [ ] 13.2 GET /api/planets/:id/interior：星球内部视图数据
+- [x] 12. Docker 真实容器生命周期（开发中）
+  - [x] 12.1 lobster-executor 从 mock runner 升级为真实 Docker API 调用
+  - [x] 12.2 容器创建、启动、超时、退出码判断、日志采集
+  - [x] 12.3 工件目录挂载和回收
+  - [x] 12.4 执行器主动回调到 Cube /api/executor/events（含签名）
+- [x] 13. /api/planets 路由实现（契约已定义，路由未实现）
+  - [x] 13.1 GET /api/planets：Mission 列表的星球视图
+  - [x] 13.2 GET /api/planets/:id/interior：星球内部视图数据

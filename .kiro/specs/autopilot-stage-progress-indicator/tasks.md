@@ -77,29 +77,29 @@
     - 与 StageHeader 的步骤标识和中文标题协调布局
     - _需求: 3.1_
 
-- [ ] 7. 检查点 — 确保所有测试通过
+- [x] 7. 检查点 — 确保所有测试通过
   - 确保所有测试通过，ask the user if questions arise.
 
-- [ ]* 7.1 编写 StageProgressIndicator SSR 渲染测试
+- [x]* 7.1 编写 StageProgressIndicator SSR 渲染测试
   - 使用 `react-dom/server` 的 `renderToString` 验证服务端渲染无报错
   - _需求: 3.1_
 
-- [ ]* 7.2 编写 computeStageProgress 进度计算测试
+- [x]* 7.2 编写 computeStageProgress 进度计算测试
   - **Property 1: 进度值范围约束**
   - 验证任意输入下 progress 在 [0, 100] 闭区间内
   - **验证: 需求 2.3, 4.2**
 
-- [ ]* 7.3 编写阶段状态互斥性测试
+- [x]* 7.3 编写阶段状态互斥性测试
   - **Property 2: 阶段状态互斥性**
   - 验证恰好 1 个 active，0-5 个 completed，其余 pending，且 completed index < active index
   - **验证: 需求 1.2**
 
-- [ ]* 7.4 编写对数增长单调递增测试
+- [x]* 7.4 编写对数增长单调递增测试
   - **Property 3: 对数增长单调递增**
   - 验证不确定态下 entries 增加时 progress 严格递增
   - **验证: 需求 4.3**
 
-- [ ]* 7.5 编写阶段完成触发 100% 测试
+- [x]* 7.5 编写阶段完成触发 100% 测试
   - **Property 4: 阶段完成触发 100%**
   - 验证阶段从 active 变为 completed 时 progress 达到 100
   - **验证: 需求 2.5**

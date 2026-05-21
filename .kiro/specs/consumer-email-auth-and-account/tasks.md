@@ -12,5 +12,5 @@
 - [x] 新增前端 auth store，支持登录态恢复、登录、注册、登出、`isAdmin` 派生状态和 401/403 统一处理
 - [x] 新增登录/注册入口，未登录访问个人项目时跳转登录
 - [x] 为旧 localStorage 项目归属迁移预留用户绑定流程
-- [ ] 补充认证单元测试和接口测试，覆盖注册、登录、me、logout、session 撤销、Redis miss 回查 MySQL、禁用用户和错误响应
-- [ ] 审核并记录不迁移 web-main 的 tenant、department、position、user-group、dynamic menu 能力
+- [x] 补充认证单元测试和接口测试，覆盖注册、登录、me、logout、session 撤销、Redis miss 回查 MySQL、禁用用户和错误响应
+- [x] 审核并记录不迁移 web-main 的 tenant、department、position、user-group、dynamic menu 能力

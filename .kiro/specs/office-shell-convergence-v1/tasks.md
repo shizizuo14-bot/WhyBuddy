@@ -24,7 +24,7 @@
   - [x] 1.2 记录 `Toolbar` 和 `navigation-config` 现有主导航语义
   - [x] 1.3 记录首页、任务页、命令中心页各自承担的职责
 
-- [ ] 2. 收敛主路由结构
+- [x] 2. 收敛主路由结构
   - [x] 2.1 保留 `/`
   - [x] 2.2 明确 `/tasks` 为全屏工作台与跟进页，而非发起入口
   - [x] 2.3 保留 `/tasks/:taskId`
@@ -33,7 +33,7 @@
   - [x] 2.6 让 `/command-center` redirect 到 `/`
   - [x] 2.7 让 `/command-center/legacy` 退场或仅保留跳转
 
-- [ ] 3. 调整导航心智
+- [x] 3. 调整导航心智
   - [x] 3.1 `Toolbar` 不再突出 `/tasks` 为并列主入口
   - [x] 3.2 `navigation-config` 不再把 `/lineage` 视为普通入口
   - [x] 3.3 锁定 `/debug` 的隐藏入口策略与 ownership 边界
@@ -45,11 +45,11 @@
   - [x] 4.2 任务页明确为“查看 / 跟进 / 深度处理”而非“发起”
   - [x] 4.3 命令中心页不再继续演进为独立主页面
 
-- [ ] 5. 完成兼容与回归
+- [x] 5. 完成兼容与回归
   - [x] 5.1 验证旧链接打开后不会让用户迷路
   - [x] 5.2 验证任务详情与回放深链无回归
   - [x] 5.3 验证主导航文案与页面文案已经统一
   - [x] 5.4 验证 `/tasks` 在路由、入口和页面文案上不再承担“发起”语义
-  - [ ] 5.5 补一轮 `/debug/*` 子路径与兼容跳转的人工回归
+  - [x] 5.5 补一轮 `/debug/*` 子路径与兼容跳转的人工回归
     - 收窄为真实访问 `/debug`、`/debug/config`、`/debug/permissions`、`/debug/audit`、`/debug/lineage`、`/debug/help`，确认对应分区可见、More 抽屉不会把用户带回高频主流程
     - 收窄为真实访问 `/lineage`、`/command-center`、`/command-center/legacy`，确认兼容跳转生效且无明显闪烁或迷路

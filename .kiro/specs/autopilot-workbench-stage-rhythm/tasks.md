@@ -54,23 +54,23 @@
     - 回看时允许查看但不允许修改
     - _需求: 1.3, 5.2, 5.3_
 
-- [ ] 5. 检查点 — 确保所有测试通过
+- [x] 5. 检查点 — 确保所有测试通过
   - 确保所有测试通过，ask the user if questions arise.
 
-- [ ]* 5.1 编写 StageViewport SSR 渲染测试
+- [x]* 5.1 编写 StageViewport SSR 渲染测试
   - 使用 `react-dom/server` 的 `renderToString` 验证 StageViewport 服务端渲染无报错
   - _需求: 1.1_
 
-- [ ]* 5.2 编写阶段切换与 CTA 禁用测试
+- [x]* 5.2 编写阶段切换与 CTA 禁用测试
   - 验证 stageKey 变化时 AnimatePresence 正确触发
   - 验证过渡动画期间按钮 disabled 状态
   - _需求: 2.4, 4.2_
 
-- [ ]* 5.3 编写阶段顺序不可变属性测试
+- [x]* 5.3 编写阶段顺序不可变属性测试
   - **Property 2: 阶段顺序不可变**
   - **验证: 需求 5.2**
 
-- [ ]* 5.4 编写 CTA 与阶段状态同步属性测试
+- [x]* 5.4 编写 CTA 与阶段状态同步属性测试
   - **Property 4: CTA 与阶段状态同步**
   - **验证: 需求 4.2, 4.5**
 

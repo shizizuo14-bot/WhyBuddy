@@ -37,10 +37,10 @@
   - [x] 7.1 顶部导航接入低成本样式分支
   - [x] 7.2 办公室驾驶舱接入低成本样式分支
 
-- [ ] 8. 完成手测与回归验证
-  - [ ] 8.1 Chrome Performance 录制硬刷新
-  - [ ] 8.2 Chrome Performance 录制连续拖拽宽度
-  - [ ] 8.3 回归任务/Agent/场景联动
+- [x] 8. 完成手测与回归验证
+  - [x] 8.1 Chrome Performance 录制硬刷新
+  - [x] 8.2 Chrome Performance 录制连续拖拽宽度
+  - [x] 8.3 回归任务/Agent/场景联动
 
 ## 备注
 

@@ -36,7 +36,7 @@
   - [x] 4.4 每步包含：圆形图标容器（红/蓝/绿/紫）、标题、描述
   - [x] 4.5 步骤间用虚线箭头连接
   - [x] 4.6 添加 i18n 键
-  - [ ] 4.7 编写组件测试
+  - [x] 4.7 编写组件测试
 
 - [x] 5. 创建 CockpitCapabilityGrid 组件
   - [x] 5.1 新建 `client/src/components/launch/CockpitCapabilityGrid.tsx`
@@ -46,7 +46,7 @@
   - [x] 5.5 实现"更多能力"展开按钮
   - [x] 5.6 根据当前模式（快速/标准/深度）动态显示可用能力
   - [x] 5.7 添加 i18n 键
-  - [ ] 5.8 编写组件测试
+  - [x] 5.8 编写组件测试
 
 - [x] 6. 创建 OutputDeliveryConfig 组件
   - [x] 6.1 新建 `client/src/components/launch/OutputDeliveryConfig.tsx`
@@ -54,7 +54,7 @@
   - [x] 6.3 实现交付物 chip 列表：结果摘要、生成文件、执行日志、详细截图、操作记录
   - [x] 6.4 实现"完成后自动打开结果"开关
   - [x] 6.5 添加 i18n 键
-  - [ ] 6.6 编写组件测试
+  - [x] 6.6 编写组件测试
 
 - [x] 7. 创建 LaunchBottomBar 组件
   - [x] 7.1 新建 `client/src/components/launch/LaunchBottomBar.tsx`
@@ -62,13 +62,13 @@
   - [x] 7.3 实现右侧：保存为模板按钮（outline 样式）、启动任务主按钮（深色 + ▶ 图标）
   - [x] 7.4 操作栏顶部有分隔线
   - [x] 7.5 添加 i18n 键
-  - [ ] 7.6 编写组件测试
+  - [x] 7.6 编写组件测试
 
 - [x] 8. 组装并集成到 LaunchPanelShell
   - [x] 8.1 在 `LaunchPanelShell.tsx` 中按顺序组装：标题栏 → ModeTabBar → 目标输入 → RoutePlannerPreview → CockpitCapabilityGrid → OutputDeliveryConfig → LaunchBottomBar
   - [x] 8.2 添加区块间的分隔线和间距
   - [x] 8.3 确保滚动行为：内容超出时卡片内部滚动，底部操作栏固定
-  - [ ] 8.4 编写集成测试
+  - [x] 8.4 编写集成测试
 
 - [x] 9. 响应式适配
   - [x] 9.1 桌面端（≥1280px）：居中浮层 760px
@@ -79,4 +79,4 @@
 - [x] 10. 构建验证
   - [x] 10.1 运行 `npm run build` 验证构建成功
   - [x] 10.2 运行 `node --run check` 验证不引入新的 TypeScript 错误
-  - [ ] 10.3 运行 `npm run test` 验证不引入新的测试失败
+  - [x] 10.3 运行 `npm run test` 验证不引入新的测试失败

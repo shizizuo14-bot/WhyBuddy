@@ -42,10 +42,10 @@
   - [x] 5.2 调整左中右三栏宽度策略，优先保证 `Scene3D` 与右栏主操作可读性
     - _Requirements: 6.1.1_
 
-- [ ] 6. 做兼容回归与桌面手测
-  - [ ] 6.1 回归 `/tasks`、`/tasks/:taskId`、`ChatPanel`、`TelemetryDashboard` 与兼容入口行为
+- [x] 6. 做兼容回归与桌面手测
+  - [x] 6.1 回归 `/tasks`、`/tasks/:taskId`、`ChatPanel`、`TelemetryDashboard` 与兼容入口行为
     - _Requirements: 6.1.2, 6.1.3_
-  - [ ] 6.2 补充桌面宽度与联动场景手测，覆盖 1280 / 1440 / 1728+ 断点
+  - [x] 6.2 补充桌面宽度与联动场景手测，覆盖 1280 / 1440 / 1728+ 断点
     - _Requirements: 2.1.1, 3.1.1, 4.1.2, 6.1.1, 6.1.4_
 
 ## Notes

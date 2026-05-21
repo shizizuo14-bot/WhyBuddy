@@ -8,8 +8,8 @@
 - [x] 4. 修复前端可达链路中的真实运行问题
 - [x] 5. 修复执行器与回调链路中的真实阻塞问题
 - [x] 6. 跑通 `check / build / test:client / test:server / test:executor / smoke:prod`
-- [ ] 7. 对 Feishu、Knowledge/RAG、Replay、Lineage、Permission、A2A 做分组冒烟验证
-- [ ] 8. 完成 Linux 生产启动与全链路手测留痕
+- [x] 7. 对 Feishu、Knowledge/RAG、Replay、Lineage、Permission、A2A 做分组冒烟验证
+- [x] 8. 完成 Linux 生产启动与全链路手测留痕
 
 ## 当前完成情况
 

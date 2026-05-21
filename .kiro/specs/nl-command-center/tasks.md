@@ -376,7 +376,7 @@
 - [x] 28. Checkpoint - 前端完整验证
   - Ensure all tests pass, ask the user if questions arise.
 
-- [ ] 29. 审计链记录集成测试
+- [x] 29. 审计链记录集成测试
   - [x] 29.1 编写审计链记录属性测试
     - **Property 3: 审计链记录不变量**
     - **Validates: Requirements 1.4, 2.6, 3.6, 4.6, 7.6, 8.6, 10.5, 12.5, 17.4**

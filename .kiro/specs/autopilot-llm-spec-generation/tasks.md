@@ -31,7 +31,7 @@
     - 通过 `safeParse` 后失败返回 `{ ok: false, reason: "schema validation failed: <issue.message>" }`
     - 成功返回 `{ ok: true, data }`，全部不抛错
     - _Implements Req 1.6, 1.7, 2.6, 6.2_
-  - [ ]* 1.6 编写 prompt 模块单元测试（`server/routes/blueprint/__tests__/llm-spec-prompts.test.ts`）
+  - [x]* 1.6 编写 prompt 模块单元测试（`server/routes/blueprint/__tests__/llm-spec-prompts.test.ts`）
     - 覆盖 fingerprint 稳定性、schema 接受合法样例、schema 拒绝越界 / 缺字段 / 非 JSON
     - 使用 vitest，无任何外部依赖 mock
     - _Implements Req 1.6, 1.7, 2.6, 6.3_
@@ -111,7 +111,7 @@
     - 确认 `recordBridgeInvocation(bridgeId, { mode, error? })` 与 `recordBridgeConfiguration(bridgeId, { enabledByConfig, dependencyReady })` 无需新增方法即可承载
     - 不修改 `BridgeDiagnosticEntry` 字段，确保 `snapshot()` 自动按新 `BRIDGE_IDS` 输出新两条 entry
     - _Implements Req 1.6, 2.6, 6.3_
-  - [ ]* 4.3 补充 diagnostics-store 单元测试
+  - [x]* 4.3 补充 diagnostics-store 单元测试
     - 在既有 `diagnostics-store.test.ts`（或新增 `diagnostics-store.spec-llm.test.ts`）追加：调用 `recordBridgeConfiguration("specTreeLlm", ...)` 与 `recordBridgeInvocation("specTreeLlm", { mode: "real" })` 后 `snapshot()` 中能看到对应 entry，计数正确
     - 同样覆盖 `"specDocsLlm"`
     - _Implements Req 1.6, 2.6, 6.3_
@@ -227,8 +227,8 @@
     - _Implements Req 6.3_
   - [x] 10.3 ensure all tests pass, ask the user if questions arise
 
-- [ ]* 11. 手动集成 smoke 备忘（仅在具备真实 LLM key 与 Docker 环境时执行）
-  - [ ]* 11.1 在 `.kiro/specs/autopilot-llm-spec-generation/` 内整理一份 `manual-smoke.md`
+- [x]* 11. 手动集成 smoke 备忘（仅在具备真实 LLM key 与 Docker 环境时执行）
+  - [x]* 11.1 在 `.kiro/specs/autopilot-llm-spec-generation/` 内整理一份 `manual-smoke.md`
     - 复制 design 中“集成测试（既有 agent-reasoning-bridge.test.ts 扩展）”小节的手动验证条目，附上可执行命令与期望事件序列
     - 保留为可选文档任务，便于后续真实环境复核
     - _Implements Req 3.1, 3.2, 3.3, 3.4, 3.5, 3.6_

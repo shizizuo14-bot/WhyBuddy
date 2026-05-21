@@ -105,7 +105,7 @@
     - 修改 `shared/workflow-input.ts`
     - 在 attachmentSections 构建中检查 visualDescription 字段
     - _Requirements: 4.3_
-  - [ ] 8.2 编写指令上下文包含视觉分析属性测试
+  - [x] 8.2 编写指令上下文包含视觉分析属性测试
     - **Property 8: 指令上下文包含视觉分析**
     - **Validates: Requirements 4.3**
 

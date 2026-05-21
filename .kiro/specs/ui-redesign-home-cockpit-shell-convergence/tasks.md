@@ -24,8 +24,8 @@
   - [x] 3.4 Keep clarification as a separate overlay without duplicating the composer.
   - [x] 3.5 Run `OfficeTaskCockpit.test.tsx` and confirm exactly one composer still renders.
 
-- [ ] 4. Final home cockpit verification
+- [x] 4. Final home cockpit verification
   - [x] 4.1 Run `npx vitest run --pool=forks --poolOptions.forks.singleFork client/src/components/office/OfficeTaskCockpit.test.tsx client/src/components/office/__tests__/OfficeTaskCockpit.cards-integration.test.tsx client/src/components/office/office-task-cockpit-utils.test.ts`.
-  - [ ] 4.2 Manually inspect `http://localhost:3000/` on desktop after implementation and confirm there is no home left task queue drawer.
-  - [ ] 4.3 Confirm the center scene is not covered by a large autopilot panel.
+  - [x] 4.2 Manually inspect `http://localhost:3000/` on desktop after implementation and confirm there is no home left task queue drawer.
+  - [x] 4.3 Confirm the center scene is not covered by a large autopilot panel.
   - [x] 4.4 Confirm the right drawer still has six tabs on home.

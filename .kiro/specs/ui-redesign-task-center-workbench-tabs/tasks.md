@@ -31,7 +31,7 @@
   - [x] 4.2 Keep the `TasksCockpitDetail` full-detail dialog behavior.
   - [x] 4.3 Run `client/src/components/tasks/__tests__/TasksCockpitDetail.test.tsx` and `client/src/components/tasks/__tests__/RightInfoPanel.test.tsx`.
 
-- [ ] 5. Verify task center
+- [x] 5. Verify task center
   - [x] 5.1 Run the new `/tasks` tests.
   - [x] 5.2 Run the UI targeted suite that covers `TasksQueueRail`, `TasksCockpitDetail`, `RightInfoPanel`, and `App.shell-layout`.
-  - [ ] 5.3 Manually inspect `http://localhost:3000/tasks` and confirm no `发起` tab is visible.
+  - [x] 5.3 Manually inspect `http://localhost:3000/tasks` and confirm no `发起` tab is visible.

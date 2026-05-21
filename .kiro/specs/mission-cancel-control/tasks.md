@@ -127,11 +127,11 @@
     - 取消后状态回写
     - _Requirements: 5.1.3, 5.1.4, 5.2.1, 5.2.2_
 
-- [ ] 8. 最终验证
+- [x] 8. 最终验证
   - [x] 8.1 运行 server 相关测试
   - [x] 8.2 运行 executor 相关测试
   - [x] 8.3 运行前端任务面板相关测试
-  - [ ] 8.4 手动验证 queued / running / waiting 三种取消路径
+  - [x] 8.4 手动验证 queued / running / waiting 三种取消路径
 
 ## Notes
 

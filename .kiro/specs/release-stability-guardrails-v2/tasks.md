@@ -15,7 +15,7 @@
 
 ## Tasks
 
-- [ ] 1. 收口仓库脚本
+- [x] 1. 收口仓库脚本
   - [x] 1.1 盘点现有脚本与 package manager 口径
   - [x] 1.2 统一 `lint`
   - [x] 1.3 统一 `typecheck`
@@ -23,35 +23,35 @@
   - [x] 1.5 统一 `build`
   - [x] 1.6 保留历史拆分命令兼容性，并通过聚合入口对外收口
 
-- [ ] 2. 建立最小 CI
+- [x] 2. 建立最小 CI
   - [x] 2.1 新增 GitHub Actions
   - [x] 2.2 按仓库声明的 package manager 串联 install / lint / typecheck / test / build
 
-- [ ] 3. 补齐关键链路测试
+- [x] 3. 补齐关键链路测试
   - [x] 3.1 任务状态机测试
   - [x] 3.2 executor 成功 / 超时 / 失败测试
   - [x] 3.3 decision approve / reject / modify 测试
 
-- [ ] 4. 补齐错误恢复
+- [x] 4. 补齐错误恢复
   - [x] 4.1 websocket 自动重连
   - [x] 4.2 executor 超时 fail
-  - [ ] 4.3 任务重新 attach
+  - [x] 4.3 任务重新 attach
     - [x] 4.3.1 刷新 / socket 重连后保留当前任务焦点
     - [x] 4.3.1a 当前内存焦点失效时回退到持久化任务焦点
     - [x] 4.3.2 已加载任务详情的 socket 运行态即时同步
     - [x] 4.3.3 SandboxMonitor 跟随恢复后的任务焦点回挂 active mission 并重拉日志历史
-    - [ ] 4.3.4 完整工作上下文 re-attach
+    - [x] 4.3.4 完整工作上下文 re-attach
   - [x] 4.4 server 重启后最小状态恢复
 
-- [ ] 5. 补齐 README
+- [x] 5. 补齐 README
   - [x] 5.1 Quick Start
   - [x] 5.2 环境变量说明
   - [x] 5.3 可选 executor 启动说明
   - [x] 5.4 package manager 与命令口径说明
   - [x] 5.5 常见问题
 
-- [ ] 6. 发布门禁回归
+- [x] 6. 发布门禁回归
   - [x] 6.1 本地跑通 lint
   - [x] 6.2 本地跑通 typecheck
-  - [ ] 6.3 本地跑通 test
-  - [ ] 6.4 本地跑通 build
+  - [x] 6.3 本地跑通 test
+  - [x] 6.4 本地跑通 build

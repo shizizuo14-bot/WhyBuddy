@@ -64,12 +64,12 @@
     - framer-motion 动画 duration 设为 0
     - _需求: 无障碍隐含要求_
 
-- [ ] 7. 编写测试
-  - [~] 7.1 编写 CapabilityBridgePanel SSR 渲染测试
+- [x] 7. 编写测试
+  - [x] 7.1 编写 CapabilityBridgePanel SSR 渲染测试
     - 使用 `react-dom/server` 的 `renderToString` 验证无报错
     - 验证 4 种 bridge 类型的 className 正确
     - _需求: 3.1, 3.2, 3.3, 3.4_
-  - [~] 7.2 编写 useCapabilityBridgeState 状态更新测试
+  - [x] 7.2 编写 useCapabilityBridgeState 状态更新测试
     - 验证事件消费后调用列表正确更新
     - 验证超过 20 条时折叠逻辑
     - _需求: 1.1, 1.5_

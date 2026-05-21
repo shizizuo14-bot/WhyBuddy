@@ -37,9 +37,9 @@
   - [x] 5.5 Keep the compact `UnifiedLaunchComposer` in the lower Splitter panel.
   - [x] 5.6 Remove the separate standalone bottom support/runtime panel below the composer.
 
-- [ ] 6. Verify composer-centered control area
+- [x] 6. Verify composer-centered control area
   - [x] 6.1 Run `npx vitest run --pool=forks --poolOptions.forks.singleFork client/src/components/office/OfficeTaskCockpit.test.tsx client/src/components/launch/__tests__/LaunchPanelShell.test.tsx client/src/components/launch/__tests__/LaunchPanelIntegration.test.tsx`.
   - [x] 6.2 Run `npx vitest run --pool=forks --poolOptions.forks.singleFork client/src/components/launch/__tests__/UnifiedLaunchComposer.test.ts client/src/components/office/OfficeTaskCockpit.test.tsx`.
-  - [ ] 6.3 Manually inspect home desktop and confirm the central Splitter shows support/runtime content above the compact composer.
-  - [ ] 6.4 Manually inspect a draft destination and confirm the central Support tab shows destination preview and route planning.
+  - [x] 6.3 Manually inspect home desktop and confirm the central Splitter shows support/runtime content above the compact composer.
+  - [x] 6.4 Manually inspect a draft destination and confirm the central Support tab shows destination preview and route planning.
   - [x] 6.5 Update the UI progress SVG after implementation.

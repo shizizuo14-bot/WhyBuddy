@@ -6,7 +6,7 @@
 
 ## 任务
 
-- [ ] 1. 扩展数据层：SnapshotRecord 类型与 SnapshotStore
+- [x] 1. 扩展数据层：SnapshotRecord 类型与 SnapshotStore
   - [x] 1.1 在 `shared/mission/contracts.ts` 中新增 SnapshotRecord、SnapshotPayload 及相关接口类型
     - 新增 SnapshotRecord、SnapshotPayload、AgentMemorySummary、SceneLayoutState、MissionDecisionEntry、AttachmentIndexEntry、ZustandRecoverySlice 接口
     - 新增 SNAPSHOT_VERSION 常量
@@ -19,15 +19,15 @@
     - 实现 saveSnapshot、getSnapshot、getLatestSnapshot、listSnapshots、deleteSnapshot、pruneSnapshots 函数
     - _Requirements: 1.5, 1.6_
 
-  - [ ]* 1.3 为 SnapshotStore 编写属性测试
+  - [x]* 1.3 为 SnapshotStore 编写属性测试
     - **Property 3: 快照修剪不变量**
     - **Validates: Requirements 1.5**
 
-  - [ ]* 1.4 为 SnapshotStore 编写属性测试
+  - [x]* 1.4 为 SnapshotStore 编写属性测试
     - **Property 7: 丢弃操作移除快照**
     - **Validates: Requirements 2.4**
 
-- [ ] 2. 实现快照序列化与校验
+- [x] 2. 实现快照序列化与校验
   - [x] 2.1 创建 `client/src/workers/snapshot-worker.ts`，实现 Web Worker 中的序列化和 SHA-256 校验和计算
     - 接收 WorkerRequest 消息，序列化 payload 为 JSON，计算 SHA-256 checksum
     - 构建完整 SnapshotRecord 并通过 WorkerResponse 返回
@@ -40,18 +40,18 @@
     - 提供 validateChecksum(record) → boolean 校验函数
     - _Requirements: 5.1, 5.2, 5.3, 8.1_
 
-  - [ ]* 2.3 为快照序列化编写属性测试
+  - [x]* 2.3 为快照序列化编写属性测试
     - **Property 1: 快照序列化往返一致性**
     - **Validates: Requirements 5.3**
 
-  - [ ]* 2.4 为快照结构编写属性测试
+  - [x]* 2.4 为快照结构编写属性测试
     - **Property 2: 快照结构完整性**
     - **Validates: Requirements 1.3, 1.4**
 
 - [x] 3. Checkpoint - 确保数据层测试通过
   - 确保所有测试通过，如有问题请向用户确认。
 
-- [ ] 4. 实现快照调度器
+- [x] 4. 实现快照调度器
   - [x] 4.1 创建 `client/src/lib/snapshot-scheduler.ts`，实现定时和事件驱动的快照触发
     - createSnapshotScheduler 工厂函数，接收 intervalMs、collectState、onError 参数
     - start(missionId) 启动 30 秒定时器
@@ -66,11 +66,11 @@
     - 监听 MissionStage 状态变更事件，调用 triggerImmediate()
     - _Requirements: 1.1, 1.2, 1.3_
 
-  - [ ]* 4.3 为快照错误韧性编写属性测试
+  - [x]* 4.3 为快照错误韧性编写属性测试
     - **Property 12: 快照错误不中断任务**
     - **Validates: Requirements 8.2**
 
-- [ ] 5. 实现自动恢复检测与恢复逻辑
+- [x] 5. 实现自动恢复检测与恢复逻辑
   - [x] 5.1 创建 `client/src/lib/recovery-detector.ts`，实现启动时恢复检测
     - detectRecoveryCandidate()：读取最新快照，校验 checksum 和 version，返回 RecoveryCandidate 或 null
     - restoreFromSnapshot(snapshot)：从快照恢复 Zustand store、3D 场景布局、Agent 状态
@@ -82,16 +82,16 @@
     - 根据 runtimeMode 决定恢复源优先级（Advanced 模式服务端优先）
     - _Requirements: 6.1, 6.2, 6.3_
 
-  - [ ]* 5.3 为恢复检测编写属性测试
+  - [x]* 5.3 为恢复检测编写属性测试
     - **Property 4: 损坏/不兼容快照检测**
     - **Property 5: 恢复候选检测正确性**
     - **Validates: Requirements 2.1, 2.5, 2.6**
 
-  - [ ]* 5.4 为状态恢复编写属性测试
+  - [x]* 5.4 为状态恢复编写属性测试
     - **Property 6: 状态恢复正确性**
     - **Validates: Requirements 2.3**
 
-  - [ ]* 5.5 为恢复源优先级编写属性测试
+  - [x]* 5.5 为恢复源优先级编写属性测试
     - **Property 10: 恢复源优先级**
     - **Property 11: 模式切换保留快照**
     - **Validates: Requirements 6.1, 6.2, 6.3**
@@ -99,7 +99,7 @@
 - [x] 6. Checkpoint - 确保恢复逻辑测试通过
   - 确保所有测试通过，如有问题请向用户确认。
 
-- [ ] 7. 实现会话导出/导入
+- [x] 7. 实现会话导出/导入
   - [x] 7.1 创建 `client/src/lib/session-export.ts`，实现导出功能
     - exportSession(missionId?)：读取最新快照，使用 JSZip 打包为 ZIP（manifest.json + snapshot.json + attachments/）
     - 触发浏览器文件下载
@@ -110,15 +110,15 @@
     - importSessionFromBase64(encoded)：解码 URL 参数并触发导入
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-  - [ ]* 7.3 为导出包编写属性测试
+  - [x]* 7.3 为导出包编写属性测试
     - **Property 8: 导出包完整性**
     - **Validates: Requirements 3.1, 3.3**
 
-  - [ ]* 7.4 为导入验证编写属性测试
+  - [x]* 7.4 为导入验证编写属性测试
     - **Property 9: 导入验证与存储**
     - **Validates: Requirements 4.1, 4.4**
 
-- [ ] 8. 实现 UI 组件
+- [x] 8. 实现 UI 组件
   - [x] 8.1 创建 `client/src/components/RecoveryDialog.tsx` 恢复对话框组件
     - 显示 Mission 标题、保存时间、进度信息
     - Resume 和 Discard 按钮
@@ -140,7 +140,7 @@
     - 选择快照后显示 RecoveryDialog（Resume/Delete）
     - _Requirements: 9.1, 9.2, 9.3_
 
-- [ ] 9. 集成与连接
+- [x] 9. 集成与连接
   - [x] 9.1 在 App 启动流程中集成恢复检测
     - App.tsx 或 main.tsx 中，在 React 渲染前调用 detectRecoveryCandidate()
     - 检测到候选时渲染 RecoveryDialog

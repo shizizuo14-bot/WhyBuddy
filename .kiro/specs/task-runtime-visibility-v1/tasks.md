@@ -175,7 +175,7 @@
     - [x] 移除重复的 `focusTitle / focusSignal` 二次展示
     - [x] 移除重复的“当前步骤 + 当前摘要 + 当前进度”二次展示
 
-- [ ] 2. 建立运行证据 tab 区
+- [x] 2. 建立运行证据 tab 区
   - [x] 2.1 建立 `Logs` 区
   - [x] 2.2 建立 `Artifacts` 区
   - [x] 2.3 建立 `Runtime` 区
@@ -201,11 +201,11 @@
     - [x] runtime tab 不再混入 `logSummary / instanceInfo` 充当日志摘要卡
     - [x] 不再在任务详情顶部保留与首页 runtime dock 并列竞争的日志主入口
 
-- [ ] 4. 收口 artifact 能力
+- [x] 4. 收口 artifact 能力
   - [x] 4.1 统一 artifact 列表
   - [x] 4.2 统一预览 / 下载入口
   - [x] 4.3 让截图与输出结果进入统一 runtime dock
-  - [ ] 4.4 移除首页和详情页中重复散落的 artifact 主入口
+  - [x] 4.4 移除首页和详情页中重复散落的 artifact 主入口
     - [x] 移除 cockpit 右栏外层 `Artifacts and attachments` 预览块
     - [x] 修复 `ArtifactPreviewDialog` 乱码与类型报错，恢复稳定预览
     - [x] 独立详情页工作包中的 deliverable 预览已降级为归口提示，不再直接铺开完整交付正文
@@ -281,7 +281,7 @@
   - [x] `current owner`
   - [x] `pending launch`
   - [x] `clarification context`
-- [ ] runtime dock 成为运行证据唯一主出口后，需要移除重复主入口
+- [x] runtime dock 成为运行证据唯一主出口后，需要移除重复主入口
   - 状态：进行中
   - 进展说明：`Deep workspace` 内嵌完整详情已不再重复渲染 runtime snapshot / executor / terminal / timeline / artifacts / failure 面板；`TasksCockpitDetail` 外层 artifacts / timeline / failure / cadence 摘要也已收口；独立任务详情页 `overview` 的 runtime snapshot 预览和 `execution` 中的 executor / terminal / timeline 主面板也已移除；独立详情页默认 `Artifacts` 主 tab 本轮也已移除；`ArtifactPreviewDialog`、`TasksCockpitDetail`、`MissionWallTaskPanel` 的乱码与类型问题已清理；首页与墙屏现已开始共用 `MissionStepFlow` 作为步骤流来源，当前编译通过，但首页主视图仍有少量主入口待继续收口
   - 进展说明补充：`TasksCockpitDetail` 顶部不再保留 `Artifacts / Signals` 仪表，Deep workspace 头部也不再重复显示 `artifacts / events` 计数；独立详情页 `Artifacts` tab 不再顺带承载 `failure` 面板，进一步把运行证据归回折叠 dock tabs 与对应主语义 tab

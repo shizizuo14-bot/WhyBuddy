@@ -6,7 +6,7 @@
 
 ## 任务
 
-- [ ] 1. 创建 StreamingDocRenderer 主容器与数据层
+- [x] 1. 创建 StreamingDocRenderer 主容器与数据层
   - [x] 1.1 创建 `right-rail/streaming-doc/StreamingDocRenderer.tsx` 主容器
     - 管理多文档状态 `Map<documentId, { chunks, isStreaming }>`
     - 管理 activeDocId 与 scrollPositions
@@ -70,29 +70,29 @@
     - StageCTA 在此阶段为只读提示
     - _需求: 1.1, 2.1_
 
-- [ ] 7. 检查点 — 确保所有测试通过
+- [x] 7. 检查点 — 确保所有测试通过
   - 确保所有测试通过，ask the user if questions arise.
 
-- [ ]* 7.1 编写 StreamingDocRenderer SSR 渲染测试
+- [x]* 7.1 编写 StreamingDocRenderer SSR 渲染测试
   - 使用 `react-dom/server` 的 `renderToString` 验证空态和有内容态均可服务端渲染
   - _需求: 1.5, 2.5_
 
-- [ ]* 7.2 编写增量渲染正确性测试
+- [x]* 7.2 编写增量渲染正确性测试
   - **Property 1: Markdown 增量追加幂等性**
   - 验证逐个 chunk 追加渲染的最终结果等价于一次性渲染
   - **验证: 需求 2.1, 2.2**
 
-- [ ]* 7.3 编写大纲同步测试
+- [x]* 7.3 编写大纲同步测试
   - **Property 2: 大纲与标题同步**
   - 验证 DocOutline 条目数量等于内容中 h1-h3 标题数量且顺序一致
   - **验证: 需求 3.2, 3.4**
 
-- [ ]* 7.4 编写多文档滚动位置保留测试
+- [x]* 7.4 编写多文档滚动位置保留测试
   - **Property 3: 文档滚动位置保留**
   - 验证文档切换后滚动位置恢复
   - **验证: 需求 4.3**
 
-- [ ]* 7.5 编写代码块语法高亮覆盖测试
+- [x]* 7.5 编写代码块语法高亮覆盖测试
   - **Property 4: 代码块语法高亮语言覆盖**
   - 验证支持的语言应用高亮，不支持的使用纯文本
   - **验证: 需求 5.1**

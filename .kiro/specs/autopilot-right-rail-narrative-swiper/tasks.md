@@ -34,7 +34,7 @@
     - 实现固定路由表：reasoning / capability / agentProgress → `narrative-only`，`route_decision` / `artifact_created` → `both`，`system_note` / `scheduler` → `console-only`
     - _Requirements: 4.1, 4.2, 4.3, 4.4, 4.5_
 
-  - [ ]* 1.3 为 `right-rail-console-routing.ts` 编写单元测试
+  - [x]* 1.3 为 `right-rail-console-routing.ts` 编写单元测试
     - 新建 `client/src/pages/autopilot/right-rail/__tests__/right-rail-console-routing.test.ts`
     - 表驱动断言每种 `MiroFishStreamEntry.kind` 与 `ConsoleLine.channel` 的 `RoutingDecision`
     - 沿用 `vi.mock` 模式
@@ -50,7 +50,7 @@
     - 单路 derive 失败用 `try/catch` 包裹，不影响其他来源
     - _Requirements: 3.1, 3.2, 3.4, 3.6, 9.2, 9.3, 9.5_
 
-  - [ ]* 1.5 为 `useNarrativeCardStream` 编写单元测试
+  - [x]* 1.5 为 `useNarrativeCardStream` 编写单元测试
     - 新建 `client/src/pages/autopilot/right-rail/narrative-swiper/__tests__/use-narrative-card-stream.test.ts`
     - 断言 6 路 source 合并去重；同 `sourceEntryId` 走原地更新
     - 断言容量满时 FIFO 出队头
@@ -71,7 +71,7 @@
     - `dwellPerCard?: (card: NarrativeCard) => number` 可按 source / severity 调整
     - _Requirements: 2.3, 8.5, 9.1, 9.5_
 
-  - [ ]* 3.2 为 `useAutoRotation` 编写单元测试
+  - [x]* 3.2 为 `useAutoRotation` 编写单元测试
     - 新建 `client/src/pages/autopilot/right-rail/narrative-swiper/__tests__/use-auto-rotation.test.ts`
     - 用 `vi.useFakeTimers()` 推进 `dwellMs`，断言 `activeIndex` 步进
     - 断言 `paused = true` 不步进；恢复后正常步进
@@ -109,7 +109,7 @@
     - 修改 `client/src/pages/autopilot/right-rail/index.ts` 导出 `NarrativeSwiper`
     - _Requirements: 10.1, 10.3, 10.8_
 
-  - [ ]* 3.6 为 `<NarrativeSwiper>` 骨架编写 SSR 契约测试
+  - [x]* 3.6 为 `<NarrativeSwiper>` 骨架编写 SSR 契约测试
     - 新建 `client/src/pages/autopilot/right-rail/narrative-swiper/__tests__/NarrativeSwiper.test.tsx`
     - 沿用 `react-dom/server renderToStaticMarkup + vi.mock` 模式
     - 断言队列为空时渲染 `<EmptyLanePlaceholder>`，不出现旧黑底字样
@@ -155,7 +155,7 @@
     - 渲染异常时不显示 swiper，不影响主壳与右栏主区
     - _Requirements: 9.6_
 
-  - [ ]* 5.5 为 lane / echo / 响应式编写 SSR 测试
+  - [x]* 5.5 为 lane / echo / 响应式编写 SSR 测试
     - 扩展 `__tests__/NarrativeSwiper.test.tsx`
     - 表驱动断言 6 个 stage 分别 mock 后，`data-stage` 与对应 lane 装饰图标的 `<svg>` 出现
     - 断言 stage 切换后队列前 2 张应有 `data-echo="true"`
@@ -179,7 +179,7 @@
     - sessionStorage 不可用时（隐私模式）通过 `try/catch` 退化为内存态
     - _Requirements: 5.3, 5.4, 5.5, 5.8, 9.5_
 
-  - [ ]* 7.2 为 `use-console-collapse-state` 编写单元测试
+  - [x]* 7.2 为 `use-console-collapse-state` 编写单元测试
     - 新建 `client/src/pages/autopilot/right-rail/mini-console/__tests__/use-console-collapse-state.test.ts`
     - 用 `vi.useFakeTimers()` 测试 hover 250ms 阈值
     - 断言点击展开后保持 `expanded` 直到手动折叠
@@ -210,7 +210,7 @@
     - Stage_Transition 不清空 Expanded_Console_Panel 历史日志
     - _Requirements: 5.7, 5.9, 6.6_
 
-  - [ ]* 7.6 为 `<MiniConsoleBar>` 编写 SSR 契约测试
+  - [x]* 7.6 为 `<MiniConsoleBar>` 编写 SSR 契约测试
     - 新建 `client/src/pages/autopilot/right-rail/mini-console/__tests__/MiniConsoleBar.test.tsx`
     - 默认折叠态：仅展示最近 1-2 行 + 展开按钮，不渲染完整滚动日志
     - 通过 `expanded={true}` prop 强制展开，断言包含 `<AutopilotConsolePanel>` 完整 markup
@@ -241,7 +241,7 @@
     - Tab 聚焦容器时暂停轮播，blur 后恢复
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.6, 8.7_
 
-  - [ ]* 9.3 编写可访问性回归测试
+  - [x]* 9.3 编写可访问性回归测试
     - 扩展 `__tests__/NarrativeSwiper.test.tsx`
     - 断言 `role="region"` 与 `aria-label` 输出
     - 断言左右按钮的 `aria-label` 中英文 i18n
@@ -250,7 +250,7 @@
     - 断言 aria-live 文本随 `activeIndex` 变化
     - _Requirements: 8.1, 8.2, 8.3, 8.4, 8.5, 8.7_
 
-  - [ ]* 9.4 编写性能节流验收测试
+  - [x]* 9.4 编写性能节流验收测试
     - 扩展 `__tests__/use-narrative-card-stream.test.ts`
     - 用 `vi.useFakeTimers()` 模拟后端 1 秒内推送 20 条 entry
     - 断言同 source 1 秒桶内仅最新 1 条入队，Capacity_Limit 不被瞬时打满

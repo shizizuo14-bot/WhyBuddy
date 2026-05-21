@@ -50,25 +50,25 @@
     - 超过 3 次循环时折叠中间循环，显示"展开 N 个循环"
     - _需求: 3.1, 3.2_
 
-- [ ] 5. 集成到现有组件
-  - [~] 5.1 增强 `client/src/components/right-rail/cards/reasoning-card.tsx`
+- [x] 5. 集成到现有组件
+  - [x] 5.1 增强 `client/src/components/right-rail/cards/reasoning-card.tsx`
     - 在 reasoning-card 内部使用 ReActPhaseBlock 替代纯文本展示
     - 保持与现有 reasoning-card 的 variant 和 data-testid 兼容
     - _需求: 4.1_
-  - [~] 5.2 增强 `client/src/components/right-rail/AgentReasoningSubTimeline.tsx`（如存在）
+  - [x] 5.2 增强 `client/src/components/right-rail/AgentReasoningSubTimeline.tsx`（如存在）
     - 在展开详情时使用 ReActLoopIterator 展示完整循环
     - _需求: 4.2_
-  - [~] 5.3 实现自动滚动到最新条目
+  - [x] 5.3 实现自动滚动到最新条目
     - 使用 `scrollIntoView({ behavior: 'smooth', block: 'end' })` 
     - 仅在用户未手动滚动时触发
     - _需求: 4.3_
 
-- [ ] 6. 编写测试
-  - [~] 6.1 编写 ReActPhaseBlock SSR 渲染测试
+- [x] 6. 编写测试
+  - [x] 6.1 编写 ReActPhaseBlock SSR 渲染测试
     - 使用 `react-dom/server` 的 `renderToString` 验证 5 种阶段渲染无报错
     - 验证各阶段的 border-l 颜色 className 正确
     - _需求: 1.1, 1.2, 1.3, 1.4, 1.5_
-  - [~] 6.2 编写 StreamingText 折叠逻辑测试
+  - [x] 6.2 编写 StreamingText 折叠逻辑测试
     - 验证超过 maxLines 时显示折叠按钮
     - 验证 isStreaming 时光标元素存在
     - _需求: 2.2, 2.4_

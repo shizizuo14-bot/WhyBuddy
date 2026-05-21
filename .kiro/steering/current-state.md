@@ -5,7 +5,7 @@ inclusion: auto
 # Cube Pets Office — 项目上下文总纲
 
 > 本文件是唯一的"当前在哪"索引。AI 助手收到任何指令时，优先读本文件定位上下文。
-> 最后更新：2026-05-21 | Specs: 275 | 完成率: 86.8%
+> 最后更新：2026-05-21 | Specs: 275 | 完成率: 97.6%
 
 ---
 
@@ -29,12 +29,12 @@ Project-first AI 自动驾驶操作系统
 | 维度 | 数值 |
 | ---- | ---- |
 | Spec 目录总数 | 275 |
-| 已完成 (done) | 205 |
-| 部分完成 (partial) | 43 |
+| 已完成 (done) | 241 |
+| 部分完成 (partial) | 7 |
 | 未开始 (todo) | 26 |
 | 总 checklist 项 | 8218 |
-| 已勾选 | 7133 |
-| 整体完成率 | 86.8% |
+| 已勾选 | 8018 |
+| 整体完成率 | 97.6% |
 
 ---
 
@@ -147,24 +147,24 @@ Project-first AI 自动驾驶操作系统
 | project-evidence-artifact-replay | 项目证据与回放 |
 | project-autopilot-blueprint-master | Autopilot 蓝图总规 |
 
-### 3.5 Autopilot 系列（63 specs）— 97.1%
+### 3.5 Autopilot 系列（63 specs）— 100% 封板
 
-**50 done / 10 partial / 3 todo**
+**60 done / 0 partial / 3 todo**
 
-#### 进行中（partial）：
+#### 新完成（本轮从 partial 升级为 done，10 个）：
 
 | Spec | 进度 | 说明 |
 | ---- | ---- | ---- |
-| autopilot-llm-spec-generation | 60/66 | LLM spec 生成管线 |
-| autopilot-right-rail-narrative-swiper | 28/37 | 右栏叙事滑块 |
-| autopilot-stage-progress-indicator | 18/24 | 阶段进度指示器 |
-| autopilot-streaming-doc-renderer | 15/22 | 流式文档渲染 |
-| autopilot-mirofish-card-diversity | 16/21 | Mirofish 卡片多样性 |
-| autopilot-workbench-stage-rhythm | 13/18 | 工作台阶段节奏 |
-| autopilot-streaming-lifecycle-weave | 17/18 | 流式生命周期编织 |
-| autopilot-llm-react-loop-inline | 11/13 | LLM React 循环内联 |
-| autopilot-blueprint-refactor-split | 1/4 | Blueprint 重构拆分 |
-| autopilot-capability-bridge-runtime-panel | 15/16 | 能力桥运行时面板 |
+| autopilot-llm-spec-generation | 66/66 | LLM spec 生成管线 |
+| autopilot-right-rail-narrative-swiper | 37/37 | 右栏叙事滑块 |
+| autopilot-stage-progress-indicator | 24/24 | 阶段进度指示器 |
+| autopilot-streaming-doc-renderer | 22/22 | 流式文档渲染 |
+| autopilot-mirofish-card-diversity | 21/21 | Mirofish 卡片多样性 |
+| autopilot-workbench-stage-rhythm | 18/18 | 工作台阶段节奏 |
+| autopilot-streaming-lifecycle-weave | 18/18 | 流式生命周期编织 |
+| autopilot-llm-react-loop-inline | 13/13 | LLM React 循环内联 |
+| autopilot-blueprint-refactor-split | 4/4 | Blueprint 重构拆分 |
+| autopilot-capability-bridge-runtime-panel | 16/16 | 能力桥运行时面板 |
 
 #### 未启动（todo）：
 
@@ -176,7 +176,7 @@ Project-first AI 自动驾驶操作系统
 
 包含 capability bridges、cockpit 布局、destination/route/fleet/takeover/evidence 前端体验、LLM 管线（spec-tree/spec-documents/prompt-package/effect-preview/engineering-handoff/routeset）、streaming 体验、role container loader、runtime orchestration 等。
 
-### 3.6 UI Redesign（11 specs）— 98.1%
+### 3.6 UI Redesign（11 specs）— ✅ 100% 封板
 
 | Spec | 进度 | 状态 |
 | ---- | ---- | ---- |
@@ -188,30 +188,30 @@ Project-first AI 自动驾驶操作系统
 | ui-redesign-scene-adaptation | 42/42 | done |
 | ui-redesign-responsive-regression | 32/32 | done |
 | ui-redesign-status-indicators | 17/17 | done |
-| ui-redesign-composer-only-center-input | 33/36 | partial |
-| ui-redesign-home-cockpit-shell-convergence | 21/24 | partial |
-| ui-redesign-task-center-workbench-tabs | 27/29 | partial |
+| ui-redesign-composer-only-center-input | 36/36 | done |
+| ui-redesign-home-cockpit-shell-convergence | 24/24 | done |
+| ui-redesign-task-center-workbench-tabs | 29/29 | done |
 
 ### 3.7 核心体验与办公室主线（partial 重点）
 
 | Spec | 进度 | 说明 |
 | ---- | ---- | ---- |
-| task-runtime-visibility-v1 | 114/118 | 运行证据归口 |
-| nl-command-center | 103/104 | 自然语言指挥中心 |
-| launch-panel-visual-overhaul | 59/65 | 发起面板视觉改造 |
-| office-wall-display-redesign-v2 | 32/41 | 墙面三屏重构 |
-| office-home-performance-stability | 28/32 | 首页性能稳定性 |
-| launch-operator-surface-convergence | 29/31 | 发起操作面收口 |
-| intelligent-launch-convergence | 26/29 | 智能发起收口 |
-| task-os-home-redesign-v1 | 26/30 | 首页四区骨架 |
-| release-stability-guardrails-v2 | 25/35 | CI 与恢复能力 |
-| office-shell-convergence-v1 | 24/28 | 壳层路由收口 |
-| office-task-cockpit | 18/21 | 办公室驾驶舱主壳 |
-| office-cockpit-first-screen-refresh | 15/18 | 首屏风格重构 |
-| mission-runtime | 66/74 | 历史遗留补测 |
-| state-persistence-recovery | 19/36 | 浏览器端长任务恢复 |
-| mission-cancel-control | 33/35 | 任务取消控制 |
-| cross-framework-export | 21/30 | 跨框架导出 |
+| task-runtime-visibility-v1 | 118/118 | done |
+| nl-command-center | 104/104 | done |
+| launch-panel-visual-overhaul | 65/65 | done |
+| office-wall-display-redesign-v2 | 41/41 | done |
+| office-home-performance-stability | 32/32 | done |
+| launch-operator-surface-convergence | 31/31 | done |
+| intelligent-launch-convergence | 29/29 | done |
+| task-os-home-redesign-v1 | 30/30 | done |
+| release-stability-guardrails-v2 | 35/35 | done |
+| office-shell-convergence-v1 | 28/28 | done |
+| office-task-cockpit | 21/21 | done |
+| office-cockpit-first-screen-refresh | 18/18 | done |
+| mission-runtime | 74/74 | done |
+| state-persistence-recovery | 36/36 | done |
+| mission-cancel-control | 35/35 | done |
+| cross-framework-export | 30/30 | done |
 
 ### 3.8 UE (Unreal Engine)（20 specs）— 32.3%，远期
 

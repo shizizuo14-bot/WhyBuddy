@@ -34,8 +34,8 @@
   - [x] 5.3 Expose replay artifacts under mission detail
   - _Requirements: 4_
 
-- [ ] 6. Evaluate noVNC slice
-  - [ ] 6.1 Prototype Xvfb + VNC + noVNC inside strong image
+- [x] 6. Evaluate noVNC slice
+  - [x] 6.1 Prototype Xvfb + VNC + noVNC inside strong image
   - [x] 6.2 Design server proxy and authorization model
   - [x] 6.3 Add explicit go/no-go note before implementing production noVNC
   - _Requirements: 2, 5_

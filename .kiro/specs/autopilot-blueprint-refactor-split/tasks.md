@@ -41,7 +41,7 @@
   - 运行客户端冒烟 `vitest run client/src/pages/autopilot client/src/pages/specs client/src/pages/Home.tsx`，全部通过。
   - _Requirements: 7.1, 7.2, 7.5, 8.1, 8.2, 8.3_
 
-- [ ]* 2. 删除 SDK 与 lib 兜底 re-export 文件
+- [x]* 2. 删除 SDK 与 lib 兜底 re-export 文件
   - 删除 `client/src/lib/blueprint-api.ts` 旧文件，以及 `client/src/lib/autopilot-*.ts` / `use-autopilot-*.ts` / `launch-router.ts` / `blueprint-copy.ts` 的兜底 re-export。
   - 建议等一轮观察期后再执行。删除后应再跑一轮 `node --run check` 与相关前端单测。
   - _Requirements: 1.1, 6.5_
