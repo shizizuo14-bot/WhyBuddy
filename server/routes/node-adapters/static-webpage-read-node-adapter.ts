@@ -5,6 +5,7 @@ import type {
   StaticWebpageReadNodeInput,
   StaticWebpageReadNodeType,
 } from "../../../shared/static-webpage-read.js";
+import { parseHtml } from "./html-parser.js";
 
 export interface StaticWebpageReadNodeAdapterDeps {
   fetchHtml?: (url: string) => Promise<string>;
@@ -35,6 +36,10 @@ function normalizeMaxChars(value: unknown): number {
   return Math.max(120, Math.min(6000, Math.floor(value)));
 }
 
+/**
+ * Legacy stripHtml — kept as internal fallback for edge cases.
+ * The main path now uses parseHtml() from html-parser.ts.
+ */
 function stripHtml(html: string): string {
   return html
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
@@ -64,9 +69,9 @@ function truncateText(value: string, maxChars: number): string {
 }
 
 function extractTitle(html: string, titleHint?: string): string {
-  const matched = html.match(/<title[^>]*>([\s\S]*?)<\/title>/i)?.[1];
+  const parsed = parseHtml(html, { maxLinks: 0 });
   return (
-    normalizeString(stripHtml(matched ?? "")) ||
+    normalizeString(parsed.metadata.title) ||
     normalizeString(titleHint) ||
     DEFAULT_TITLE
   );
@@ -77,25 +82,11 @@ function extractLinks(html: string, includeLinks: boolean): StaticWebpageReadLin
     return [];
   }
 
-  const links: StaticWebpageReadLink[] = [];
-  const matcher = /<a\b[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi;
-
-  let matched: RegExpExecArray | null = matcher.exec(html);
-  while (matched) {
-    const href = normalizeString(matched[1]);
-    const label = normalizeString(stripHtml(matched[2] ?? ""));
-
-    if (href) {
-      links.push({
-        href,
-        label: label ?? href,
-      });
-    }
-
-    matched = matcher.exec(html);
-  }
-
-  return links.slice(0, 20);
+  const parsed = parseHtml(html, { maxLinks: 20 });
+  return parsed.links.map(link => ({
+    href: link.href,
+    label: link.text,
+  }));
 }
 
 function buildSnippet(content: string): string {
@@ -316,7 +307,8 @@ export async function executeStaticWebpageReadNode(
 
   const title = extractTitle(html, normalized.titleHint);
   const links = extractLinks(html, normalized.includeLinks);
-  const content = truncateText(stripHtml(html), normalized.maxChars);
+  const parsed = parseHtml(html);
+  const content = truncateText(parsed.content, normalized.maxChars);
 
   if (!content) {
     warnings.push("网页正文提取结果为空，已输出最小摘要占位内容。");
