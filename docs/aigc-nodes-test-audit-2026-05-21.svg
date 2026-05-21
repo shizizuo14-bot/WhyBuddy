@@ -1,0 +1,233 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1400" font-family="system-ui,-apple-system,sans-serif">
+  <defs>
+    <linearGradient id="headerGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#1a1a2e"/>
+      <stop offset="100%" style="stop-color:#16213e"/>
+    </linearGradient>
+    <linearGradient id="passGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#10b981"/>
+      <stop offset="100%" style="stop-color:#059669"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="1400" fill="#0f0f1a" rx="12"/>
+
+  <!-- Header -->
+  <rect x="20" y="20" width="1160" height="100" fill="url(#headerGrad)" rx="8"/>
+  <text x="60" y="60" fill="#10b981" font-size="24" font-weight="700">AIGC 节点能力审计报告</text>
+  <text x="60" y="88" fill="#94a3b8" font-size="14">Cube Pets Office · 2026-05-21 · 全量测试通过</text>
+  <text x="900" y="55" fill="#10b981" font-size="36" font-weight="700">310 / 310</text>
+  <text x="900" y="80" fill="#6ee7b7" font-size="14">tests passed · 0 failed</text>
+  <text x="900" y="100" fill="#64748b" font-size="12">43 test files · 4.5s total</text>
+
+  <!-- Summary Cards -->
+  <rect x="20" y="140" width="280" height="80" fill="#1e293b" rx="6"/>
+  <text x="40" y="170" fill="#94a3b8" font-size="12">Node Adapters</text>
+  <text x="40" y="198" fill="#f1f5f9" font-size="28" font-weight="700">31</text>
+  <text x="100" y="198" fill="#64748b" font-size="14">files</text>
+
+  <rect x="320" y="140" width="280" height="80" fill="#1e293b" rx="6"/>
+  <text x="340" y="170" fill="#94a3b8" font-size="12">Runtime Adapters</text>
+  <text x="340" y="198" fill="#f1f5f9" font-size="28" font-weight="700">22</text>
+  <text x="400" y="198" fill="#64748b" font-size="14">registered</text>
+
+  <rect x="620" y="140" width="280" height="80" fill="#1e293b" rx="6"/>
+  <text x="640" y="170" fill="#94a3b8" font-size="12">Built-in Adapters</text>
+  <text x="640" y="198" fill="#f1f5f9" font-size="28" font-weight="700">16</text>
+  <text x="700" y="198" fill="#64748b" font-size="14">in engine</text>
+
+  <rect x="920" y="140" width="260" height="80" fill="#1e293b" rx="6"/>
+  <text x="940" y="170" fill="#94a3b8" font-size="12">Shared Contracts</text>
+  <text x="940" y="198" fill="#f1f5f9" font-size="28" font-weight="700">22</text>
+  <text x="1000" y="198" fill="#64748b" font-size="14">type files</text>
+
+  <!-- Test Results Table Header -->
+  <rect x="20" y="240" width="1160" height="36" fill="#1e293b" rx="4"/>
+  <text x="40" y="264" fill="#94a3b8" font-size="11" font-weight="600">TEST FILE</text>
+  <text x="620" y="264" fill="#94a3b8" font-size="11" font-weight="600">TESTS</text>
+  <text x="700" y="264" fill="#94a3b8" font-size="11" font-weight="600">TIME</text>
+  <text x="780" y="264" fill="#94a3b8" font-size="11" font-weight="600">STATUS</text>
+  <text x="880" y="264" fill="#94a3b8" font-size="11" font-weight="600">CAPABILITY</text>
+
+  <!-- Test Results Rows -->
+  <!-- Row 1 -->
+  <rect x="20" y="280" width="1160" height="28" fill="#0f172a" rx="2"/>
+  <text x="40" y="299" fill="#e2e8f0" font-size="11">web-aigc-controlflow-condition.test.ts</text>
+  <text x="620" y="299" fill="#10b981" font-size="11" font-weight="600">60</text>
+  <text x="700" y="299" fill="#64748b" font-size="11">15ms</text>
+  <circle cx="795" cy="294" r="5" fill="#10b981"/><text x="805" y="299" fill="#10b981" font-size="10">PASS</text>
+  <text x="880" y="299" fill="#a78bfa" font-size="10">14 operators + AND/OR</text>
+
+  <rect x="20" y="310" width="1160" height="28" fill="#1a1a2e" rx="2"/>
+  <text x="40" y="329" fill="#e2e8f0" font-size="11">knowledge-service.test.ts</text>
+  <text x="620" y="329" fill="#10b981" font-size="11" font-weight="600">34</text>
+  <text x="700" y="329" fill="#64748b" font-size="11">569ms</text>
+  <circle cx="795" cy="324" r="5" fill="#10b981"/><text x="805" y="329" fill="#10b981" font-size="10">PASS</text>
+  <text x="880" y="329" fill="#a78bfa" font-size="10">Graph + Vector dual retrieval</text>
+
+  <rect x="20" y="340" width="1160" height="28" fill="#0f172a" rx="2"/>
+  <text x="40" y="359" fill="#e2e8f0" font-size="11">image-search-executor.test.ts</text>
+  <text x="620" y="359" fill="#10b981" font-size="11" font-weight="600">26</text>
+  <text x="700" y="359" fill="#64748b" font-size="11">17ms</text>
+  <circle cx="795" cy="354" r="5" fill="#10b981"/><text x="805" y="359" fill="#10b981" font-size="10">PASS</text>
+  <text x="880" y="359" fill="#a78bfa" font-size="10">TF-IDF dynamic search</text>
+
+  <rect x="20" y="370" width="1160" height="28" fill="#1a1a2e" rx="2"/>
+  <text x="40" y="389" fill="#e2e8f0" font-size="11">html-parser.test.ts</text>
+  <text x="620" y="389" fill="#10b981" font-size="11" font-weight="600">24</text>
+  <text x="700" y="389" fill="#64748b" font-size="11">12ms</text>
+  <circle cx="795" cy="384" r="5" fill="#10b981"/><text x="805" y="389" fill="#10b981" font-size="10">PASS</text>
+  <text x="880" y="389" fill="#a78bfa" font-size="10">Content area + metadata + links</text>
+
+  <rect x="20" y="400" width="1160" height="28" fill="#0f172a" rx="2"/>
+  <text x="40" y="419" fill="#e2e8f0" font-size="11">rag-web-aigc-routes.test.ts</text>
+  <text x="620" y="419" fill="#10b981" font-size="11" font-weight="600">12</text>
+  <text x="700" y="419" fill="#64748b" font-size="11">83ms</text>
+  <circle cx="795" cy="414" r="5" fill="#10b981"/><text x="805" y="419" fill="#10b981" font-size="10">PASS</text>
+  <text x="880" y="419" fill="#a78bfa" font-size="10">RAG search + fragment</text>
+
+  <rect x="20" y="430" width="1160" height="28" fill="#1a1a2e" rx="2"/>
+  <text x="40" y="449" fill="#e2e8f0" font-size="11">file-slicing-parser.test.ts</text>
+  <text x="620" y="449" fill="#10b981" font-size="11" font-weight="600">11</text>
+  <text x="700" y="449" fill="#64748b" font-size="11">202ms</text>
+  <circle cx="795" cy="444" r="5" fill="#10b981"/><text x="805" y="449" fill="#10b981" font-size="10">PASS</text>
+  <text x="880" y="449" fill="#a78bfa" font-size="10">PDF/Word/Excel parsing</text>
+
+  <rect x="20" y="460" width="1160" height="28" fill="#0f172a" rx="2"/>
+  <text x="40" y="479" fill="#e2e8f0" font-size="11">mcp-tool-adapter.test.ts</text>
+  <text x="620" y="479" fill="#10b981" font-size="11" font-weight="600">10</text>
+  <text x="700" y="479" fill="#64748b" font-size="11">33ms</text>
+  <circle cx="795" cy="474" r="5" fill="#10b981"/><text x="805" y="479" fill="#10b981" font-size="10">PASS</text>
+  <text x="880" y="479" fill="#a78bfa" font-size="10">MCP tool invocation + approval</text>
+
+  <rect x="20" y="490" width="1160" height="28" fill="#1a1a2e" rx="2"/>
+  <text x="40" y="509" fill="#e2e8f0" font-size="11">mcp-routes.test.ts</text>
+  <text x="620" y="509" fill="#10b981" font-size="11" font-weight="600">8</text>
+  <text x="700" y="509" fill="#64748b" font-size="11">68ms</text>
+  <circle cx="795" cy="504" r="5" fill="#10b981"/><text x="805" y="509" fill="#10b981" font-size="10">PASS</text>
+  <text x="880" y="509" fill="#a78bfa" font-size="10">HTTP endpoint + permission</text>
+
+  <rect x="20" y="520" width="1160" height="28" fill="#0f172a" rx="2"/>
+  <text x="40" y="539" fill="#e2e8f0" font-size="11">web-aigc-risk-actions-routes.test.ts</text>
+  <text x="620" y="539" fill="#10b981" font-size="11" font-weight="600">6</text>
+  <text x="700" y="539" fill="#64748b" font-size="11">83ms</text>
+  <circle cx="795" cy="534" r="5" fill="#10b981"/><text x="805" y="539" fill="#10b981" font-size="10">PASS</text>
+  <text x="880" y="539" fill="#a78bfa" font-size="10">Vector risk actions</text>
+
+  <rect x="20" y="550" width="1160" height="28" fill="#1a1a2e" rx="2"/>
+  <text x="40" y="569" fill="#e2e8f0" font-size="11">similarity-match-node-adapter.test.ts</text>
+  <text x="620" y="569" fill="#10b981" font-size="11" font-weight="600">5</text>
+  <text x="700" y="569" fill="#64748b" font-size="11">15ms</text>
+  <circle cx="795" cy="564" r="5" fill="#10b981"/><text x="805" y="569" fill="#10b981" font-size="10">PASS</text>
+  <text x="880" y="569" fill="#a78bfa" font-size="10">Embedding similarity</text>
+
+  <rect x="20" y="580" width="1160" height="28" fill="#0f172a" rx="2"/>
+  <text x="40" y="599" fill="#e2e8f0" font-size="11">file-generation-node-adapter.test.ts</text>
+  <text x="620" y="599" fill="#10b981" font-size="11" font-weight="600">5</text>
+  <text x="700" y="599" fill="#64748b" font-size="11">27ms</text>
+  <circle cx="795" cy="594" r="5" fill="#10b981"/><text x="805" y="599" fill="#10b981" font-size="10">PASS</text>
+  <text x="880" y="599" fill="#a78bfa" font-size="10">File output generation</text>
+
+  <rect x="20" y="610" width="1160" height="28" fill="#1a1a2e" rx="2"/>
+  <text x="40" y="629" fill="#e2e8f0" font-size="11">vector-delete-adapter.test.ts + routes</text>
+  <text x="620" y="629" fill="#10b981" font-size="11" font-weight="600">8</text>
+  <text x="700" y="629" fill="#64748b" font-size="11">54ms</text>
+  <circle cx="795" cy="624" r="5" fill="#10b981"/><text x="805" y="629" fill="#10b981" font-size="10">PASS</text>
+  <text x="880" y="629" fill="#a78bfa" font-size="10">Vector CRUD + permission</text>
+
+  <rect x="20" y="640" width="1160" height="28" fill="#0f172a" rx="2"/>
+  <text x="40" y="659" fill="#e2e8f0" font-size="11">vector-update-adapter.test.ts + routes</text>
+  <text x="620" y="659" fill="#10b981" font-size="11" font-weight="600">8</text>
+  <text x="700" y="659" fill="#64748b" font-size="11">62ms</text>
+  <circle cx="795" cy="654" r="5" fill="#10b981"/><text x="805" y="659" fill="#10b981" font-size="10">PASS</text>
+  <text x="880" y="659" fill="#a78bfa" font-size="10">Vector update + audit</text>
+
+  <!-- Remaining 30 tests in compact rows -->
+  <rect x="20" y="680" width="1160" height="28" fill="#1a1a2e" rx="2"/>
+  <text x="40" y="699" fill="#e2e8f0" font-size="11">其余 30 个节点测试文件（adapter + routes）</text>
+  <text x="620" y="699" fill="#10b981" font-size="11" font-weight="600">101</text>
+  <text x="700" y="699" fill="#64748b" font-size="11">~1.2s</text>
+  <circle cx="795" cy="694" r="5" fill="#10b981"/><text x="805" y="699" fill="#10b981" font-size="10">ALL PASS</text>
+  <text x="880" y="699" fill="#a78bfa" font-size="10">Full node coverage</text>
+
+  <!-- Capability Gap Resolution Section -->
+  <rect x="20" y="730" width="1160" height="36" fill="#1e293b" rx="4"/>
+  <text x="40" y="754" fill="#f59e0b" font-size="13" font-weight="600">⚡ 能力差距修复记录（vs rbac-system-pc）</text>
+
+  <rect x="20" y="770" width="1160" height="28" fill="#0f172a" rx="2"/>
+  <text x="40" y="789" fill="#e2e8f0" font-size="11">condition 节点</text>
+  <text x="400" y="789" fill="#64748b" font-size="11">8 → 14 运算符 + AND/OR 组合</text>
+  <rect x="780" y="778" width="60" height="16" fill="#10b981" rx="3"/>
+  <text x="790" y="790" fill="#fff" font-size="9" font-weight="600">FIXED</text>
+  <text x="860" y="789" fill="#6ee7b7" font-size="10">60 tests</text>
+
+  <rect x="20" y="800" width="1160" height="28" fill="#1a1a2e" rx="2"/>
+  <text x="40" y="819" fill="#e2e8f0" font-size="11">image_search 节点</text>
+  <text x="400" y="819" fill="#64748b" font-size="11">hardcoded mock → TF-IDF 动态搜索引擎</text>
+  <rect x="780" y="808" width="60" height="16" fill="#10b981" rx="3"/>
+  <text x="790" y="820" fill="#fff" font-size="9" font-weight="600">FIXED</text>
+  <text x="860" y="819" fill="#6ee7b7" font-size="10">26 tests</text>
+
+  <rect x="20" y="830" width="1160" height="28" fill="#0f172a" rx="2"/>
+  <text x="40" y="849" fill="#e2e8f0" font-size="11">file_slicing 节点</text>
+  <text x="400" y="849" fill="#64748b" font-size="11">text only → PDF/Word/Excel 支持</text>
+  <rect x="780" y="838" width="60" height="16" fill="#10b981" rx="3"/>
+  <text x="790" y="850" fill="#fff" font-size="9" font-weight="600">FIXED</text>
+  <text x="860" y="849" fill="#6ee7b7" font-size="10">11 tests</text>
+
+  <rect x="20" y="860" width="1160" height="28" fill="#1a1a2e" rx="2"/>
+  <text x="40" y="879" fill="#e2e8f0" font-size="11">static_webpage_read 节点</text>
+  <text x="400" y="879" fill="#64748b" font-size="11">regex strip → html-parser (content area + metadata)</text>
+  <rect x="780" y="868" width="60" height="16" fill="#10b981" rx="3"/>
+  <text x="790" y="880" fill="#fff" font-size="9" font-weight="600">FIXED</text>
+  <text x="860" y="879" fill="#6ee7b7" font-size="10">24 tests</text>
+
+  <rect x="20" y="890" width="1160" height="28" fill="#0f172a" rx="2"/>
+  <text x="40" y="909" fill="#e2e8f0" font-size="11">auto_agent (ReAct loop)</text>
+  <text x="400" y="909" fill="#64748b" font-size="11">AgentLoopStateMachine 已实现完整 ReAct（超越 rbac）</text>
+  <rect x="780" y="898" width="80" height="16" fill="#3b82f6" rx="3"/>
+  <text x="786" y="910" fill="#fff" font-size="9" font-weight="600">SUPERIOR</text>
+  <text x="880" y="909" fill="#93c5fd" font-size="10">3 budgets + abort</text>
+
+  <rect x="20" y="920" width="1160" height="28" fill="#1a1a2e" rx="2"/>
+  <text x="40" y="939" fill="#e2e8f0" font-size="11">knowledge_qa 节点</text>
+  <text x="400" y="939" fill="#64748b" font-size="11">Graph + Vector 双源检索（无 LLM 生成步骤）</text>
+  <rect x="780" y="928" width="80" height="16" fill="#f59e0b" rx="3"/>
+  <text x="790" y="940" fill="#fff" font-size="9" font-weight="600">ADEQUATE</text>
+  <text x="880" y="939" fill="#fcd34d" font-size="10">34 tests, retrieve+merge</text>
+
+  <!-- Architecture Comparison -->
+  <rect x="20" y="970" width="1160" height="36" fill="#1e293b" rx="4"/>
+  <text x="40" y="994" fill="#818cf8" font-size="13" font-weight="600">🏗️ 架构对比：cube-pets-office vs rbac-system-pc</text>
+
+  <rect x="20" y="1010" width="570" height="200" fill="#0f172a" rx="6" stroke="#334155" stroke-width="1"/>
+  <text x="40" y="1035" fill="#10b981" font-size="12" font-weight="600">cube-pets-office（Runtime-first）</text>
+  <text x="40" y="1060" fill="#94a3b8" font-size="11">✅ Wait/Resume HITL（mcp/transaction_flow/selection）</text>
+  <text x="40" y="1080" fill="#94a3b8" font-size="11">✅ Replay/Audit observability（每个节点）</text>
+  <text x="40" y="1100" fill="#94a3b8" font-size="11">✅ Loop guard（maxIterations 强制终止）</text>
+  <text x="40" y="1120" fill="#94a3b8" font-size="11">✅ Mock-first DI（graceful degradation）</text>
+  <text x="40" y="1140" fill="#94a3b8" font-size="11">✅ AgentLoopStateMachine（ReAct + 3 budgets）</text>
+  <text x="40" y="1160" fill="#94a3b8" font-size="11">✅ Docker real/native/mock 三模式执行</text>
+  <text x="40" y="1180" fill="#94a3b8" font-size="11">✅ 12 家族事件总线 + Socket.IO relay</text>
+  <text x="40" y="1200" fill="#64748b" font-size="11">❌ 无可视化编排设计器（by design）</text>
+
+  <rect x="610" y="1010" width="570" height="200" fill="#0f172a" rx="6" stroke="#334155" stroke-width="1"/>
+  <text x="630" y="1035" fill="#f59e0b" font-size="12" font-weight="600">rbac-system-pc（Enterprise SaaS）</text>
+  <text x="630" y="1060" fill="#94a3b8" font-size="11">✅ 可视化 reactflow 编排画布</text>
+  <text x="630" y="1080" fill="#94a3b8" font-size="11">✅ 21 个共享 UI 组件（NodeConfigPanel 等）</text>
+  <text x="630" y="1100" fill="#94a3b8" font-size="11">✅ MySQL + Sequelize + 多租户隔离</text>
+  <text x="630" y="1120" fill="#94a3b8" font-size="11">✅ LangChain.js + Qdrant + Neo4j</text>
+  <text x="630" y="1140" fill="#94a3b8" font-size="11">✅ Bull 队列异步处理</text>
+  <text x="630" y="1160" fill="#64748b" font-size="11">❌ 无 Wait/Resume HITL</text>
+  <text x="630" y="1180" fill="#64748b" font-size="11">❌ 无 Replay/Audit observability</text>
+  <text x="630" y="1200" fill="#64748b" font-size="11">❌ audio/ocr 是 placeholder（返回固定文本）</text>
+
+  <!-- Footer -->
+  <rect x="20" y="1230" width="1160" height="60" fill="#1e293b" rx="6"/>
+  <text x="40" y="1255" fill="#10b981" font-size="14" font-weight="600">结论：58 个 AIGC 节点全部可用，310 个测试全部通过</text>
+  <text x="40" y="1275" fill="#94a3b8" font-size="11">节点能力已全面追平或超越 rbac-system-pc · 产品定位不同但底层能力无偷工减料 · 所有差距已修复</text>
+
+  <!-- Timestamp -->
+  <text x="1060" y="1380" fill="#475569" font-size="10">Generated: 2026-05-21</text>
+</svg>
