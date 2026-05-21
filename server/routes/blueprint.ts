@@ -3200,14 +3200,20 @@ async function createRouteGenerationSandboxDerivation(
       route.capabilities.map(capability => capability.id)
     )
   );
+  // 当 LLM 生成的 routes 未填充 capabilities 字段时（常见于 RouteSet LLM 输出
+  // capabilities 为空字符串的情况），注入默认 capability set 以确保 sandbox
+  // derivation 的 Docker / MCP / AIGC / Role bridges 能被正常触发。
+  const defaultCapabilitySet = [
+    ...(input.request.githubUrls?.length ? ["mcp-github-source"] : []),
+    "docker-analysis-sandbox",
+    "aigc-spec-node",
+    "role-system-architecture",
+    "skill-svg-architecture",
+  ];
   const selectedCapabilityIds = uniqueStrings(
-    [
-      ...(input.request.githubUrls?.length ? ["mcp-github-source"] : []),
-      "docker-analysis-sandbox",
-      "aigc-spec-node",
-      "role-system-architecture",
-      "skill-svg-architecture",
-    ].filter(id => capabilityIds.includes(id))
+    capabilityIds.length > 0
+      ? defaultCapabilitySet.filter(id => capabilityIds.includes(id))
+      : defaultCapabilitySet
   );
   const routeGenerationCapabilities = selectedCapabilityIds
     .map(capabilityId =>

@@ -414,6 +414,11 @@ export function createDockerCapabilityBridge(
           jobId: input.jobId,
         }
       );
+      // 记录 fallback 到 diagnostics，让 /api/blueprint/diagnostics 能看到调用痕迹
+      ctx.runtimeDiagnostics?.recordBridgeInvocation?.("docker", {
+        mode: "simulated_fallback",
+        error: "capability bridge not configured",
+      });
       return buildFallbackOutput(input, {
         reason: "capability bridge not configured",
       });
