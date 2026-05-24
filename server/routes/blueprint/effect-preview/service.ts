@@ -59,7 +59,10 @@ import {
   createDefaultEffectPreviewLlmPolicy,
   type EffectPreviewLlmPolicy,
 } from "./policy.js";
-import { normalizeEffectPreviewResponse } from "./normalize.js";
+import {
+  normalizeEffectPreviewResponse,
+  type NormalizeEffectPreviewOutput,
+} from "./normalize.js";
 import { EffectPreviewLlmResponseSchema } from "./schema.js";
 import {
   buildEffectPreviewPrompt,
@@ -124,16 +127,7 @@ export interface EffectPreviewLlmServiceOutput {
   architectureNotes?: string[];
   prototypeNotes?: string[];
   progressPlan?: BlueprintEffectPreviewMilestone[];
-  renderedHudState?: Pick<
-    BlueprintEffectPreviewHudState,
-    | "title"
-    | "summary"
-    | "status"
-    | "stage"
-    | "progressPercent"
-    | "activeNodeId"
-    | "badges"
-  >;
+  renderedHudState?: NormalizeEffectPreviewOutput["renderedHudState"];
   renderedConsoleLines?: string[];
   renderedLogTimeline?: Array<
     Pick<

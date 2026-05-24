@@ -18,7 +18,7 @@ import type { BlueprintServiceContext } from "../context.js";
 export interface JobService {
   listJobs(): BlueprintGenerationJob[];
   getJob(jobId: string): BlueprintGenerationJob | null;
-  getLatestJob(): BlueprintGenerationJob | null;
+  getLatestJob(options?: { projectId?: string }): BlueprintGenerationJob | null;
   emitJobEvent(event: BlueprintGenerationEvent): void;
 }
 
@@ -30,8 +30,8 @@ export function createJobService(ctx: BlueprintServiceContext): JobService {
     getJob(jobId) {
       return ctx.jobStore.get(jobId);
     },
-    getLatestJob() {
-      return ctx.jobStore.latest();
+    getLatestJob(options) {
+      return ctx.jobStore.latest(options);
     },
     emitJobEvent(event) {
       ctx.eventBus.emit(event);

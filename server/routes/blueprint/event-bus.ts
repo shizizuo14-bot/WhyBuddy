@@ -27,6 +27,8 @@ import type {
   BlueprintLogger,
 } from "./context.js";
 
+export type { BlueprintEventBus } from "./context.js";
+
 /**
  * `BlueprintEventName` 常量所允许的全部事件字符串。
  *

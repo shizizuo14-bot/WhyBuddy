@@ -42,6 +42,18 @@ import {
   createFileBlueprintJobStore,
   type BlueprintJobStore,
 } from "./blueprint/job-store.js";
+import { createFamilyHandler } from "./blueprint/family/family-route.js";
+import { createReplanHandler } from "./blueprint/replan/replan-route.js";
+import { createStaleArtifactsHandler } from "./blueprint/staleness/stale-artifacts-route.js";
+import { runAutoInvalidationHook } from "./blueprint/stage-edit/auto-invalidation-hook.js";
+import { isClarificationAnswersNoop } from "./blueprint/stage-edit/clarification-noop-detector.js";
+import { detectRunningDownstreamForEdit } from "./blueprint/stage-edit/conflict-detection.js";
+import { createIntakePatchHandler } from "./blueprint/stage-edit/intake-patch-route.js";
+import {
+  findJobsByClarificationSessionId,
+  findJobsByIntakeId,
+} from "./blueprint/stage-edit/job-locator.js";
+import { logStageEditBlocked } from "./blueprint/stage-edit/stage-edit-logger.js";
 import {
   buildCapabilityOutputSummary as fallbackBuildCapabilityOutputSummary,
   buildCapabilityInvocationLogs as fallbackBuildCapabilityInvocationLogs,
@@ -396,6 +408,35 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     clarificationSessions: new Map<string, BlueprintClarificationSession>(),
     projectContexts: new Map<string, BlueprintProjectDomainContext>(),
   };
+  const hydrateBlueprintStoresForJob = (job: BlueprintGenerationJob): void => {
+    hydrateBlueprintStoresFromJob(job, blueprintStores);
+  };
+  const resolveStoredOrPersistedIntake = (
+    intakeId: string
+  ): BlueprintIntake | undefined => {
+    const stored = blueprintStores.intakes.get(intakeId);
+    if (stored) return stored;
+
+    const job = findJobsByIntakeId(jobStore, intakeId)[0];
+    if (job) {
+      hydrateBlueprintStoresForJob(job);
+    }
+
+    return blueprintStores.intakes.get(intakeId);
+  };
+  const resolveStoredOrPersistedClarificationSession = (
+    sessionId: string
+  ): BlueprintClarificationSession | undefined => {
+    const stored = blueprintStores.clarificationSessions.get(sessionId);
+    if (stored) return stored;
+
+    const job = findJobsByClarificationSessionId(jobStore, sessionId)[0];
+    if (job) {
+      hydrateBlueprintStoresForJob(job);
+    }
+
+    return blueprintStores.clarificationSessions.get(sessionId);
+  };
   // Resolution order for `routeSetLlmGenerator` (design sections 4.3 + 4.6):
   // 1. Prefer `deps.routeSetLlmGenerator` so tests can inject a mock that
   //    completely short-circuits LLM calls.
@@ -533,7 +574,7 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
   });
 
   router.get("/intake/:intakeId", (req, res) => {
-    const intake = blueprintStores.intakes.get(req.params.intakeId);
+    const intake = resolveStoredOrPersistedIntake(req.params.intakeId);
     if (!intake) {
       res.status(404).json({
         error: "Blueprint intake not found.",
@@ -548,8 +589,21 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     res.json({ intake, projectContext });
   });
 
+  const intakePatchHandler = createIntakePatchHandler({
+    blueprintStores,
+    jobStore,
+    ctx: blueprintServiceContext,
+  });
+  router.patch(
+    "/intake/:intakeId",
+    (req, res, next) => {
+      resolveStoredOrPersistedIntake(req.params.intakeId);
+      return intakePatchHandler(req, res, next);
+    },
+  );
+
   router.post("/intake/:intakeId/clarifications", async (req, res) => {
-    const intake = blueprintStores.intakes.get(req.params.intakeId);
+    const intake = resolveStoredOrPersistedIntake(req.params.intakeId);
     if (!intake) {
       res.status(404).json({
         error: "Blueprint intake not found.",
@@ -635,7 +689,9 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
   });
 
   router.get("/clarifications/:sessionId", (req, res) => {
-    const session = blueprintStores.clarificationSessions.get(req.params.sessionId);
+    const session = resolveStoredOrPersistedClarificationSession(
+      req.params.sessionId
+    );
     if (!session) {
       res.status(404).json({
         error: "Blueprint clarification session not found.",
@@ -648,7 +704,9 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
   });
 
   const handleClarificationAnswers = (req: Request, res: Response) => {
-    const session = blueprintStores.clarificationSessions.get(req.params.sessionId);
+    const session = resolveStoredOrPersistedClarificationSession(
+      req.params.sessionId
+    );
     if (!session) {
       res.status(404).json({
         error: "Blueprint clarification session not found.",
@@ -666,10 +724,84 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       return;
     }
 
+    const matchingJobs = findJobsByClarificationSessionId(
+      jobStore,
+      req.params.sessionId,
+    );
+    for (const job of matchingJobs) {
+      const runningStage = detectRunningDownstreamForEdit(job, "clarification");
+      if (runningStage) {
+        logStageEditBlocked(blueprintServiceContext, {
+          jobId: job.id,
+          fromStage: "clarification",
+          triggeringEndpoint: "clarification_answers",
+          runningStage,
+        });
+        res.status(409).json({
+          error: "downstream_running",
+          runningStage,
+        });
+        return;
+      }
+    }
+
+    const previousAnswers = session.answers;
     const updated = updateClarificationSession(session, parsed.request.answers, {
       now: deps.now,
       stores: blueprintStores,
     });
+
+    const staleArtifactIds = new Set<string>();
+    const staleArtifactIdsSnapshot = new Set<string>();
+    const isNoop = isClarificationAnswersNoop(
+      previousAnswers,
+      parsed.request.answers,
+    );
+
+    if (!isNoop) {
+      for (const job of matchingJobs) {
+        const jobWithUpdatedSession = replaceClarificationSessionArtifact(
+          job,
+          updated
+        );
+        const triggeringArtifact = jobWithUpdatedSession.artifacts.find(
+          artifact => artifact.type === "clarification_session"
+        );
+        const result = runAutoInvalidationHook({
+          job: jobWithUpdatedSession,
+          fromStage: "clarification",
+          reason: "upstream_clarification_changed",
+          triggeringEndpoint: "clarification_answers",
+          triggeringArtifactId: triggeringArtifact?.id ?? req.params.sessionId,
+          triggeringArtifactType: "clarification_session",
+          jobStore,
+          ctx: blueprintServiceContext,
+        });
+        if (jobWithUpdatedSession !== job && result.job === jobWithUpdatedSession) {
+          jobStore.save(jobWithUpdatedSession);
+        }
+
+        for (const artifactId of result.newlyStaleArtifactIds) {
+          staleArtifactIds.add(artifactId);
+        }
+        for (const artifactId of result.job.staleArtifactIds ?? []) {
+          staleArtifactIdsSnapshot.add(artifactId);
+        }
+      }
+    }
+
+    if (staleArtifactIds.size > 0) {
+      res.json({
+        session: updated,
+        staleEdit: {
+          fromStage: "clarification",
+          newlyStaleArtifactIds: [...staleArtifactIds],
+          newlyStaleArtifactCount: staleArtifactIds.size,
+          staleArtifactIdsSnapshot: [...staleArtifactIdsSnapshot],
+        },
+      });
+      return;
+    }
 
     res.json({ session: updated });
   };
@@ -921,8 +1053,9 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     res.json({ jobs: jobStore.list() });
   });
 
-  router.get("/jobs/latest", (_req, res) => {
-    const job = jobStore.latest();
+  router.get("/jobs/latest", (req, res) => {
+    const projectId = readOptionalQueryString(req.query.projectId);
+    const job = jobStore.latest({ projectId });
     res.json(createJobDetailsPayload(job, blueprintStores));
   });
 
@@ -1147,6 +1280,28 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       return;
     }
 
+    const existingSelection = extractRouteSelection(job);
+    const isReselection = Boolean(existingSelection);
+    if (isReselection) {
+      const runningStage = detectRunningDownstreamForEdit(
+        job,
+        "route_generation",
+      );
+      if (runningStage) {
+        logStageEditBlocked(blueprintServiceContext, {
+          jobId: job.id,
+          fromStage: "route_generation",
+          triggeringEndpoint: "route_reselection",
+          runningStage,
+        });
+        res.status(409).json({
+          error: "downstream_running",
+          runningStage,
+        });
+        return;
+      }
+    }
+
     const route = routeSet.routes.find(
       item => item.id === parsed.request.routeId
     );
@@ -1226,14 +1381,53 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     }
 
     // Task 14.4: Hook point — stage transition to spec_tree after route selection.
+    let responseJob = response.job;
+    let routeReselectionStaleEdit:
+      | {
+          fromStage: "route_generation";
+          newlyStaleArtifactIds: string[];
+          newlyStaleArtifactCount: number;
+          staleArtifactIdsSnapshot: string[];
+        }
+      | undefined;
+    if (isReselection) {
+      const latestJob = jobStore.get(response.job.id) ?? response.job;
+      const invalidation = runAutoInvalidationHook({
+        job: latestJob,
+        fromStage: "route_generation",
+        reason: "upstream_route_selection_changed",
+        triggeringEndpoint: "route_reselection",
+        triggeringArtifactId: response.selection.id,
+        triggeringArtifactType: "route_selection",
+        jobStore,
+        ctx: blueprintServiceContext,
+      });
+
+      responseJob = invalidation.job;
+      if (invalidation.newlyStaleArtifactCount > 0) {
+        routeReselectionStaleEdit = {
+          fromStage: "route_generation",
+          newlyStaleArtifactIds: invalidation.newlyStaleArtifactIds,
+          newlyStaleArtifactCount: invalidation.newlyStaleArtifactCount,
+          staleArtifactIdsSnapshot: invalidation.job.staleArtifactIds ?? [],
+        };
+      }
+    }
+
     blueprintServiceContext.agentCrewStageActivationDriver?.onStageTransition({
       jobId: response.job.id,
       stageId: "spec_tree",
       transition: "stage_started",
-      job: response.job,
+      job: responseJob,
     });
 
-    res.status(201).json(response);
+    res.status(201).json({
+      ...response,
+      job: responseJob,
+      ...(routeReselectionStaleEdit
+        ? { staleEdit: routeReselectionStaleEdit }
+        : {}),
+    });
   });
 
   router.get("/jobs/:jobId/spec-tree", (req, res) => {
@@ -1761,6 +1955,21 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       entries: buildArtifactLedger(job),
     } satisfies BlueprintArtifactLedgerResponse);
   });
+
+  router.get(
+    "/jobs/:jobId/stale-artifacts",
+    createStaleArtifactsHandler({ jobStore, ctx: blueprintServiceContext }),
+  );
+
+  router.post(
+    "/jobs/:jobId/replan",
+    createReplanHandler({ jobStore, ctx: blueprintServiceContext }),
+  );
+
+  router.get(
+    "/jobs/:jobId/family",
+    createFamilyHandler({ jobStore, ctx: blueprintServiceContext }),
+  );
 
   router.post("/jobs/:jobId/artifact-replay", (req, res) => {
     const job = jobStore.get(req.params.jobId);
@@ -4762,6 +4971,144 @@ function extractRouteSelection(
   return artifact?.payload as BlueprintRouteSelection | undefined;
 }
 
+function isIntakePayload(
+  payload: unknown,
+  expectedIntakeId?: string
+): payload is BlueprintIntake {
+  if (!isPlainRecord(payload) || typeof payload.id !== "string") {
+    return false;
+  }
+  if (expectedIntakeId && payload.id !== expectedIntakeId) {
+    return false;
+  }
+  return typeof payload.targetText === "string";
+}
+
+function extractIntake(
+  job: BlueprintGenerationJob,
+  stores?: BlueprintIntakeStores
+): BlueprintIntake | undefined {
+  const intakeId = job.request.intakeId;
+  const storedIntake = intakeId ? stores?.intakes.get(intakeId) : undefined;
+  if (storedIntake) {
+    return storedIntake;
+  }
+
+  const embeddedIntake = (job as { intake?: BlueprintIntake }).intake;
+  if (isIntakePayload(embeddedIntake, intakeId)) {
+    return embeddedIntake;
+  }
+
+  const artifact = job.artifacts.find(
+    item => item.type === "intake" && isIntakePayload(item.payload, intakeId)
+  );
+  return artifact?.payload as BlueprintIntake | undefined;
+}
+
+function isClarificationSessionPayload(
+  payload: unknown,
+  expectedSessionId?: string
+): payload is BlueprintClarificationSession {
+  if (!isPlainRecord(payload) || typeof payload.id !== "string") {
+    return false;
+  }
+  if (expectedSessionId && payload.id !== expectedSessionId) {
+    return false;
+  }
+  return Array.isArray(payload.questions) && Array.isArray(payload.answers);
+}
+
+function extractClarificationSession(
+  job: BlueprintGenerationJob,
+  stores?: BlueprintIntakeStores
+): BlueprintClarificationSession | undefined {
+  const sessionId = job.request.clarificationSessionId;
+  const storedSession = sessionId
+    ? stores?.clarificationSessions.get(sessionId)
+    : undefined;
+  if (storedSession) {
+    return storedSession;
+  }
+
+  const embeddedSession = (job as {
+    clarificationSession?: BlueprintClarificationSession;
+  }).clarificationSession;
+  if (isClarificationSessionPayload(embeddedSession, sessionId)) {
+    return embeddedSession;
+  }
+
+  const artifact = job.artifacts.find(
+    item =>
+      item.type === "clarification_session" &&
+      isClarificationSessionPayload(item.payload, sessionId)
+  );
+  return artifact?.payload as BlueprintClarificationSession | undefined;
+}
+
+function isProjectContextPayload(
+  payload: unknown,
+  expectedProjectId?: string
+): payload is BlueprintProjectDomainContext {
+  if (!isPlainRecord(payload) || typeof payload.projectId !== "string") {
+    return false;
+  }
+  return !expectedProjectId || payload.projectId === expectedProjectId;
+}
+
+function extractProjectContext(
+  job: BlueprintGenerationJob,
+  intake?: BlueprintIntake,
+  stores?: BlueprintIntakeStores
+): BlueprintProjectDomainContext | undefined {
+  const projectId = intake?.projectId ?? job.projectId ?? job.request.projectId;
+  const storedContext = projectId
+    ? stores?.projectContexts.get(projectId)
+    : undefined;
+  if (storedContext) {
+    return storedContext;
+  }
+
+  const embeddedContext = (job as {
+    projectContext?: BlueprintProjectDomainContext;
+  }).projectContext;
+  if (isProjectContextPayload(embeddedContext, projectId)) {
+    return embeddedContext;
+  }
+
+  const artifact = job.artifacts.find(
+    item =>
+      item.type === "project_context" &&
+      isProjectContextPayload(item.payload, projectId)
+  );
+  return artifact?.payload as BlueprintProjectDomainContext | undefined;
+}
+
+function hydrateBlueprintStoresFromJob(
+  job: BlueprintGenerationJob,
+  stores: BlueprintIntakeStores
+): void {
+  const intake = extractIntake(job);
+  if (intake && !stores.intakes.has(intake.id)) {
+    stores.intakes.set(intake.id, intake);
+  }
+
+  const clarificationSession = extractClarificationSession(job);
+  if (
+    clarificationSession &&
+    !stores.clarificationSessions.has(clarificationSession.id)
+  ) {
+    stores.clarificationSessions.set(
+      clarificationSession.id,
+      clarificationSession
+    );
+  }
+
+  const projectContext = extractProjectContext(job, intake);
+  if (projectContext && !stores.projectContexts.has(projectContext.projectId)) {
+    stores.projectContexts.set(projectContext.projectId, projectContext);
+  }
+}
+
 function extractSpecTree(
   job: BlueprintGenerationJob
 ): BlueprintSpecTree | undefined {
@@ -6519,13 +6866,13 @@ function createJobDetailsPayload(
     return { job: null };
   }
 
-  const intake = job.request.intakeId
-    ? stores?.intakes.get(job.request.intakeId)
-    : undefined;
-  const projectContextProjectId = intake?.projectId ?? job.projectId;
-  const projectContext = projectContextProjectId
-    ? stores?.projectContexts.get(projectContextProjectId)
-    : undefined;
+  if (stores) {
+    hydrateBlueprintStoresFromJob(job, stores);
+  }
+
+  const intake = extractIntake(job, stores);
+  const clarificationSession = extractClarificationSession(job, stores);
+  const projectContext = extractProjectContext(job, intake, stores);
 
   const engineeringLandingPlans = extractEngineeringLandingPlans(job);
 
@@ -6535,6 +6882,7 @@ function createJobDetailsPayload(
     selection: extractRouteSelection(job),
     specTree: extractSpecTree(job),
     intake,
+    clarificationSession,
     projectContext,
     specDocuments: extractSpecDocuments(job),
     specDocumentVersions: extractSpecDocumentVersions(job),
@@ -6554,6 +6902,17 @@ function createJobDetailsPayload(
     artifactReplays: extractArtifactReplays(job),
     artifactFeedback: extractArtifactFeedback(job),
   };
+}
+
+function readOptionalQueryString(value: unknown): string | undefined {
+  if (typeof value === "string") {
+    const trimmed = value.trim();
+    return trimmed ? trimmed : undefined;
+  }
+  if (Array.isArray(value)) {
+    return readOptionalQueryString(value[0]);
+  }
+  return undefined;
 }
 
 function formatServerSentEvent(
@@ -13895,6 +14254,40 @@ function normalizeSpecDocumentStatus(
   status: BlueprintSpecDocument["status"]
 ): BlueprintSpecDocumentStatus {
   return status ?? "draft";
+}
+
+function replaceClarificationSessionArtifact(
+  job: BlueprintGenerationJob,
+  session: BlueprintClarificationSession
+): BlueprintGenerationJob {
+  let replaced = false;
+  const artifacts = job.artifacts.map(artifact => {
+    if (
+      artifact.type === "clarification_session" &&
+      isClarificationSessionPayload(artifact.payload, session.id)
+    ) {
+      replaced = true;
+      return {
+        ...artifact,
+        summary:
+          session.routeReadySummary ??
+          `${session.readiness.answeredRequired}/${session.readiness.requiredTotal} required clarification answers recorded.`,
+        payload: session,
+      };
+    }
+
+    return artifact;
+  });
+
+  if (!replaced) {
+    return job;
+  }
+
+  return {
+    ...job,
+    updatedAt: session.updatedAt,
+    artifacts,
+  };
 }
 
 function replaceSpecTreeArtifact(

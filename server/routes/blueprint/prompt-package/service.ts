@@ -220,9 +220,11 @@ function resolveLocale(
  * Format the zod safeParse error into a compact single-line summary of
  * `path: message; path: message; ...` entries.
  */
-function formatZodError(issues: readonly { path: (string | number)[]; message: string }[]): string {
+function formatZodError(
+  issues: readonly { path: PropertyKey[]; message: string }[],
+): string {
   return issues
-    .map((issue) => `${issue.path.join(".")}: ${issue.message}`)
+    .map((issue) => `${issue.path.map(String).join(".")}: ${issue.message}`)
     .join("; ");
 }
 

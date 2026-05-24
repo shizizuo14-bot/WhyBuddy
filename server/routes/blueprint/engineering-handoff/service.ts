@@ -190,8 +190,12 @@ function redactMeta(
 
 function resolveLocale(ctx: BlueprintServiceContext): string {
   try {
-    const config = ctx.llm.getConfig() as { locale?: string } & Record<string, unknown>;
-    if (typeof config.locale === "string" && config.locale.length > 0) {
+    const config = ctx.llm.getConfig();
+    if (
+      "locale" in config &&
+      typeof config.locale === "string" &&
+      config.locale.length > 0
+    ) {
       return config.locale;
     }
   } catch {

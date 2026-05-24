@@ -14,7 +14,16 @@
  * ```
  */
 
+import type { BlueprintGenerationStage } from "../../../shared/blueprint/index.js";
 import type { BlueprintEventBus } from "./event-bus.js";
+
+type StageProgressEmitterStageId = BlueprintGenerationStage | "intake_created";
+
+function resolveEventStage(
+  stageId: StageProgressEmitterStageId,
+): BlueprintGenerationStage {
+  return stageId === "intake_created" ? "input" : stageId;
+}
 
 /** 进度事件发射器接口。 */
 export interface StageProgressEmitter {
@@ -45,10 +54,11 @@ export interface StageProgressEmitter {
 export function createStageProgressEmitter(
   eventBus: BlueprintEventBus,
   jobId: string,
-  stageId: string,
+  stageId: StageProgressEmitterStageId,
   roleId: string,
 ): StageProgressEmitter {
   let currentIteration = 1;
+  const eventStage = resolveEventStage(stageId);
 
   function emit(type: string, payload: Record<string, unknown>): void {
     try {
@@ -57,11 +67,12 @@ export function createStageProgressEmitter(
         jobId,
         type: type as never,
         family: "role",
-        stage: stageId,
+        stage: eventStage,
         status: "running",
         message: "",
         occurredAt: new Date().toISOString(),
         roleId,
+        stageId,
         payload: {
           ...payload,
           iteration: currentIteration,

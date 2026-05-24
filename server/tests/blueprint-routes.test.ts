@@ -320,6 +320,58 @@ describe("blueprint specs route", () => {
     });
   });
 
+  it("scopes latest blueprint generation job by project id", async () => {
+    const jobStore = createMemoryBlueprintJobStore([
+      {
+        id: "job-old-project",
+        request: { projectId: "project-old" },
+        status: "completed",
+        stage: "engineering_landing",
+        projectId: "project-old",
+        version: "blueprint-generation/v1",
+        createdAt: "2026-05-24T00:00:00.000Z",
+        updatedAt: "2026-05-24T00:00:00.000Z",
+        artifacts: [],
+        events: [],
+      },
+      {
+        id: "job-new-project",
+        request: { projectId: "project-new" },
+        status: "completed",
+        stage: "spec_tree",
+        projectId: "project-new",
+        version: "blueprint-generation/v1",
+        createdAt: "2026-05-23T00:00:00.000Z",
+        updatedAt: "2026-05-23T00:00:00.000Z",
+        artifacts: [],
+        events: [],
+      },
+    ]);
+
+    await withServer(tempRoot, async baseUrl => {
+      const scopedResponse = await fetch(
+        `${baseUrl}/api/blueprint/jobs/latest?projectId=project-new`
+      );
+      expect(scopedResponse.status).toBe(200);
+      const scoped = (await scopedResponse.json()) as Record<string, any>;
+      expect(scoped.job.id).toBe("job-new-project");
+
+      const emptyResponse = await fetch(
+        `${baseUrl}/api/blueprint/jobs/latest?projectId=project-empty`
+      );
+      expect(emptyResponse.status).toBe(200);
+      const empty = (await emptyResponse.json()) as Record<string, any>;
+      expect(empty.job).toBeNull();
+
+      const globalResponse = await fetch(
+        `${baseUrl}/api/blueprint/jobs/latest`
+      );
+      expect(globalResponse.status).toBe(200);
+      const global = (await globalResponse.json()) as Record<string, any>;
+      expect(global.job.id).toBe("job-old-project");
+    }, jobStore);
+  });
+
   it("creates and reads a blueprint generation job with a RouteSet artifact", async () => {
     await withServer(tempRoot, async baseUrl => {
       const createResponse = await fetch(`${baseUrl}/api/blueprint/jobs`, {
@@ -1472,6 +1524,18 @@ describe("blueprint specs route", () => {
         projectId: "project-context-job",
         sourceIds: ["blueprint-source-example-context-job"],
       });
+      const latestResponse = await fetch(
+        `${baseUrl}/api/blueprint/jobs/latest`
+      );
+      expect(latestResponse.status).toBe(200);
+      const latest = (await latestResponse.json()) as Record<string, any>;
+      expect(latest.clarificationSession).toMatchObject({
+        id: answered.id,
+        intakeId: intake.id,
+      });
+      expect(latest.clarificationSession.answers).toHaveLength(
+        answered.answers.length
+      );
       expect(created.job.artifacts.map((artifact: any) => artifact.type)).toEqual(
         expect.arrayContaining([
           "intake",
@@ -1497,6 +1561,181 @@ describe("blueprint specs route", () => {
         githubUrls: ["https://github.com/example/context-job"],
       });
     });
+  });
+
+  it("restores upstream context from persisted job artifacts after router restart", async () => {
+    const storageFile = path.join(
+      tempRoot,
+      "assets",
+      "clarification-session-reload-jobs.json"
+    );
+    const jobStore = createFileBlueprintJobStore(storageFile);
+    let intakeId = "";
+    let clarificationSessionId = "";
+    let answerCount = 0;
+    let editedQuestionId = "";
+    const editedAnswer = "Edited after file-backed router reload.";
+
+    await withServer(
+      tempRoot,
+      async baseUrl => {
+        const intakeResponse = await fetch(`${baseUrl}/api/blueprint/intake`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            projectId: "project-context-job-reload",
+            sourceId: "source-context-job-reload",
+            targetText: "Persist clarification session in job artifact.",
+            githubUrls: ["https://github.com/example/context-job-reload"],
+          }),
+        });
+        const intake = ((await intakeResponse.json()) as Record<string, any>)
+          .intake;
+        intakeId = intake.id;
+
+        const sessionResponse = await fetch(
+          `${baseUrl}/api/blueprint/intake/${intake.id}/clarifications`,
+          { method: "POST" }
+        );
+        const session = ((await sessionResponse.json()) as Record<string, any>)
+          .session;
+        const answers = session.questions
+          .filter((question: any) => question.required)
+          .map((question: any) => ({
+            questionId: question.id,
+            answer: `Reloaded ${question.kind}`,
+          }));
+        const answerResponse = await fetch(
+          `${baseUrl}/api/blueprint/clarifications/${session.id}/answers`,
+          {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ answers }),
+          }
+        );
+        const answered = ((await answerResponse.json()) as Record<string, any>)
+          .session;
+        clarificationSessionId = answered.id;
+        answerCount = answered.answers.length;
+
+        const createResponse = await fetch(`${baseUrl}/api/blueprint/jobs`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            intakeId: intake.id,
+            clarificationSessionId: answered.id,
+          }),
+        });
+        expect(createResponse.status).toBe(201);
+        const created = (await createResponse.json()) as Record<string, any>;
+        const terminalNextAction = {
+          type: "none",
+          label: "No pending downstream action.",
+          stage: "engineering_landing",
+          required: false,
+        };
+        jobStore.save({
+          ...created.job,
+          status: "completed",
+          stage: "engineering_landing",
+          handoffState: "confirmed",
+          nextAction: terminalNextAction,
+          stageState: {
+            ...(created.job.stageState ?? {}),
+            stage: "engineering_landing",
+            status: "completed",
+            payloadKind: "engineering_landing",
+            nextAction: terminalNextAction,
+          },
+        });
+      },
+      jobStore
+    );
+
+    await withServer(
+      tempRoot,
+      async baseUrl => {
+        const latestResponse = await fetch(
+          `${baseUrl}/api/blueprint/jobs/latest`
+        );
+        expect(latestResponse.status).toBe(200);
+        const latest = (await latestResponse.json()) as Record<string, any>;
+        expect(latest.job.request.clarificationSessionId).toBe(
+          clarificationSessionId
+        );
+        expect(latest.intake).toMatchObject({
+          id: intakeId,
+        });
+        expect(latest.clarificationSession).toMatchObject({
+          id: clarificationSessionId,
+          intakeId,
+        });
+        expect(latest.clarificationSession.answers).toHaveLength(answerCount);
+        editedQuestionId = latest.clarificationSession.questions[0].id;
+
+        const intakeReloadResponse = await fetch(
+          `${baseUrl}/api/blueprint/intake/${intakeId}`
+        );
+        expect(intakeReloadResponse.status).toBe(200);
+
+        const patchResponse = await fetch(
+          `${baseUrl}/api/blueprint/clarifications/${clarificationSessionId}/answers`,
+          {
+            method: "PATCH",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              answers: [
+                {
+                  questionId: editedQuestionId,
+                  answer: editedAnswer,
+                },
+              ],
+              answeredBy: "autopilot",
+            }),
+          }
+        );
+        expect(patchResponse.status).toBe(200);
+        const patched = (await patchResponse.json()) as Record<string, any>;
+        const patchedSession = patched.clarificationSession ?? patched.session;
+        expect(
+          patchedSession.answers.find(
+            (answer: any) => answer.questionId === editedQuestionId
+          )?.answer
+        ).toBe(editedAnswer);
+
+        const patchedLatestResponse = await fetch(
+          `${baseUrl}/api/blueprint/jobs/latest`
+        );
+        expect(patchedLatestResponse.status).toBe(200);
+        const patchedLatest = (await patchedLatestResponse.json()) as Record<
+          string,
+          any
+        >;
+        expect(
+          patchedLatest.clarificationSession.answers.find(
+            (answer: any) => answer.questionId === editedQuestionId
+          )?.answer
+        ).toBe(editedAnswer);
+      },
+      createFileBlueprintJobStore(storageFile)
+    );
+
+    await withServer(
+      tempRoot,
+      async baseUrl => {
+        const latestResponse = await fetch(
+          `${baseUrl}/api/blueprint/jobs/latest`
+        );
+        expect(latestResponse.status).toBe(200);
+        const latest = (await latestResponse.json()) as Record<string, any>;
+        expect(
+          latest.clarificationSession.answers.find(
+            (answer: any) => answer.questionId === editedQuestionId
+          )?.answer
+        ).toBe(editedAnswer);
+      },
+      createFileBlueprintJobStore(storageFile)
+    );
   });
 
   it("carries structured clarification strategy into RouteSet generation", async () => {

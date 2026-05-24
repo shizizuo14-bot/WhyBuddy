@@ -161,7 +161,8 @@ function readRouteSet(value: unknown): DriverRouteSet | undefined {
 }
 
 function resolveRouteSet(job: BlueprintGenerationJob): DriverRouteSet | undefined {
-  const direct = readRouteSet((job as Record<string, unknown>).routeSet);
+  const jobWithRouteSet = job as unknown as { routeSet?: unknown };
+  const direct = readRouteSet(jobWithRouteSet.routeSet);
   if (direct) {
     return direct;
   }
@@ -183,10 +184,7 @@ function resolvePrimaryRouteId(
   job: BlueprintGenerationJob,
   routeSet: DriverRouteSet | undefined,
 ): string | undefined {
-  const stageState = (job as Record<string, unknown>).stageState;
-  const nextAction = isRecord(stageState)
-    ? stageState.nextAction
-    : undefined;
+  const nextAction = job.stageState?.nextAction;
   const stageRouteId = isRecord(nextAction)
     ? nextAction.routeId
     : undefined;

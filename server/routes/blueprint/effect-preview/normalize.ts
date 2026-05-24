@@ -51,6 +51,7 @@ import type {
   BlueprintEffectPreviewHudState,
   BlueprintEffectPreviewLogEntry,
   BlueprintEffectPreviewMilestone,
+  BlueprintGenerationStage,
 } from "../../../../shared/blueprint/index.js";
 
 import type { EffectPreviewLlmPolicy } from "./policy.js";
@@ -114,14 +115,11 @@ export interface NormalizeEffectPreviewOutput {
   progressPlan: BlueprintEffectPreviewMilestone[];
   renderedHudState: Pick<
     BlueprintEffectPreviewHudState,
-    | "title"
-    | "summary"
-    | "status"
-    | "stage"
-    | "progressPercent"
-    | "activeNodeId"
-    | "badges"
-  >;
+    "title" | "summary" | "progressPercent" | "activeNodeId"
+  > &
+    Partial<
+      Pick<BlueprintEffectPreviewHudState, "status" | "stage" | "badges">
+    >;
   renderedConsoleLines: string[];
   renderedLogTimeline: Array<
     Pick<
@@ -164,6 +162,29 @@ function resolveOptionalString(
     }
   }
   return fallback;
+}
+
+function normalizeHudStage(
+  stage: EffectPreviewLlmResponse["runtimeProjection"]["hudState"]["stage"],
+): BlueprintGenerationStage | undefined {
+  switch (stage) {
+    case "intake":
+      return "input";
+    case "routeset":
+      return "route_generation";
+    case "spec_tree":
+      return "spec_tree";
+    case "spec_document":
+      return "spec_docs";
+    case "effect_preview":
+      return "effect_preview";
+    case "prompt_package":
+      return "prompt_packaging";
+    case "engineering_handoff":
+      return "engineering_handoff";
+    case undefined:
+      return undefined;
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -226,8 +247,9 @@ export function normalizeEffectPreviewResponse(
   if (hud.status !== undefined) {
     renderedHudState.status = hud.status;
   }
-  if (hud.stage !== undefined) {
-    renderedHudState.stage = hud.stage;
+  const normalizedStage = normalizeHudStage(hud.stage);
+  if (normalizedStage !== undefined) {
+    renderedHudState.stage = normalizedStage;
   }
   if (Array.isArray(hud.badges)) {
     const clamped = hud.badges

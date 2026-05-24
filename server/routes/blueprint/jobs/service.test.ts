@@ -10,10 +10,13 @@ import { createMemoryBlueprintJobStore } from "../../blueprint.js";
 import { buildBlueprintServiceContext } from "../context.js";
 import { createJobService } from "./service.js";
 
-function makeJob(id: string): BlueprintGenerationJob {
+function makeJob(
+  id: string,
+  overrides: Partial<BlueprintGenerationJob> = {},
+): BlueprintGenerationJob {
   return {
     id,
-    request: {},
+    request: overrides.request ?? {},
     status: "pending",
     stage: "input",
     version: "v1",
@@ -21,6 +24,7 @@ function makeJob(id: string): BlueprintGenerationJob {
     updatedAt: "2026-05-07T00:00:00.000Z",
     artifacts: [],
     events: [],
+    ...overrides,
   };
 }
 
@@ -49,6 +53,29 @@ describe("createJobService (shell)", () => {
     expect(service.getJob("job-1")?.id).toBe("job-1");
     expect(service.getJob("unknown")).toBeNull();
     expect(service.getLatestJob()?.id).toBeDefined();
+  });
+
+  it("getLatestJob can scope the latest job by project id", () => {
+    const jobStore = createMemoryBlueprintJobStore([
+      makeJob("job-old", {
+        projectId: "project-old",
+        request: { projectId: "project-old" },
+        createdAt: "2026-05-08T00:00:00.000Z",
+      }),
+      makeJob("job-new", {
+        projectId: "project-new",
+        request: { projectId: "project-new" },
+        createdAt: "2026-05-07T00:00:00.000Z",
+      }),
+    ]);
+    const ctx = buildBlueprintServiceContext({ jobStore });
+    const service = createJobService(ctx);
+
+    expect(service.getLatestJob({ projectId: "project-new" })?.id).toBe(
+      "job-new",
+    );
+    expect(service.getLatestJob({ projectId: "project-empty" })).toBeNull();
+    expect(service.getLatestJob()?.id).toBe("job-old");
   });
 
   it("emitJobEvent 通过 ctx.eventBus 走同一条管线", () => {

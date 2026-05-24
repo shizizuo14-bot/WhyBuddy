@@ -19,9 +19,11 @@ import type {
   BlueprintIntake,
   BlueprintIntakeRequest,
   BlueprintProjectDomainContext,
-  BlueprintSpecsResponse,
 } from "../../../../shared/blueprint/index.js";
-import { collectBlueprintSpecs } from "../../blueprint.js";
+import {
+  collectBlueprintSpecs,
+  type BlueprintSpecsResponse,
+} from "../../blueprint.js";
 
 import type { BlueprintServiceContext } from "../context.js";
 

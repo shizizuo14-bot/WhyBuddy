@@ -22,7 +22,7 @@ export interface BlueprintJobStore {
   list(): BlueprintGenerationJob[];
   get(jobId: string): BlueprintGenerationJob | null;
   save(job: BlueprintGenerationJob): void;
-  latest(): BlueprintGenerationJob | null;
+  latest(options?: { projectId?: string }): BlueprintGenerationJob | null;
 }
 
 function isPlainRecord(value: unknown): value is Record<string, unknown> {
@@ -57,8 +57,15 @@ export function createMemoryBlueprintJobStore(
     save(job) {
       jobs.set(job.id, job);
     },
-    latest() {
-      return this.list()[0] ?? null;
+    latest(options) {
+      const projectId = options?.projectId?.trim();
+      const jobs = projectId
+        ? this.list().filter(
+            (job) =>
+              job.projectId === projectId || job.request.projectId === projectId,
+          )
+        : this.list();
+      return jobs[0] ?? null;
     },
   };
 }
@@ -119,8 +126,15 @@ export function createFileBlueprintJobStore(
         : jobs.concat(job);
       writeJobs(nextJobs);
     },
-    latest() {
-      return this.list()[0] ?? null;
+    latest(options) {
+      const projectId = options?.projectId?.trim();
+      const jobs = projectId
+        ? this.list().filter(
+            (job) =>
+              job.projectId === projectId || job.request.projectId === projectId,
+          )
+        : this.list();
+      return jobs[0] ?? null;
     },
   };
 }
