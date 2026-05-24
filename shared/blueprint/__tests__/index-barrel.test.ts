@@ -8,12 +8,15 @@ import type {
   BlueprintEffectPreview,
   BlueprintGenerationEvent,
   BlueprintGenerationJob,
+  BlueprintFamilyResponse,
   BlueprintImplementationPromptPackage,
   BlueprintIntake,
+  BlueprintIntakePatchRequest,
   BlueprintReviewSpecDocumentResponse,
   BlueprintRouteSet,
   BlueprintSpecDocument,
   BlueprintSpecTree,
+  BlueprintStaleEditResultSummary,
 } from "../index.js";
 
 /**
@@ -29,6 +32,7 @@ describe("shared/blueprint/index.ts barrel", () => {
     expect(BlueprintEventName.JobCreated).toBe("job.created");
     expect(BlueprintEventName.RouteSelected).toBe("route.selected");
     expect(BlueprintEventName.SpecTreeUpdated).toBe("spec.tree.updated");
+    expect(BlueprintEventName.ReplanTriggered).toBe("replan.triggered");
   });
 
   it("can be used to type-annotate representative subdomain objects", () => {
@@ -46,6 +50,10 @@ describe("shared/blueprint/index.ts barrel", () => {
     const preview = undefined as unknown as BlueprintEffectPreview;
     const prompt = undefined as unknown as BlueprintImplementationPromptPackage;
     const ledger = undefined as unknown as BlueprintArtifactMemoryEntry;
+    const family = undefined as unknown as BlueprintFamilyResponse;
+    const intakePatch = undefined as unknown as BlueprintIntakePatchRequest;
+    const staleEdit =
+      undefined as unknown as BlueprintStaleEditResultSummary;
 
     expect(
       [
@@ -61,8 +69,43 @@ describe("shared/blueprint/index.ts barrel", () => {
         preview,
         prompt,
         ledger,
+        family,
+        intakePatch,
+        staleEdit,
       ].every(value => value === undefined)
     ).toBe(true);
+  });
+
+  it("allows branch metadata and stale edit summaries on generation jobs", () => {
+    const job = {
+      id: "job-branch",
+      request: {
+        intakeId: "intake-1",
+        clarificationSessionId: "clarification-1",
+        routeSetId: "route-set-1",
+        mode: "autopilot_route",
+      },
+      status: "pending",
+      stage: "spec_tree",
+      version: "v1",
+      createdAt: "2026-05-23T00:00:00.000Z",
+      updatedAt: "2026-05-23T00:00:00.000Z",
+      artifacts: [],
+      events: [],
+      parentJobId: "job-parent",
+      branchedAt: "2026-05-23T00:01:00.000Z",
+      branchedFromStage: "route_generation",
+      staleArtifactIds: [],
+    } satisfies BlueprintGenerationJob;
+    const summary = {
+      fromStage: "input",
+      newlyStaleArtifactIds: ["artifact-spec"],
+      newlyStaleArtifactCount: 1,
+      staleArtifactIdsSnapshot: ["artifact-spec"],
+    } satisfies BlueprintStaleEditResultSummary;
+
+    expect(job.parentJobId).toBe("job-parent");
+    expect(summary.newlyStaleArtifactCount).toBe(1);
   });
 });
 

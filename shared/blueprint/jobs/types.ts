@@ -33,8 +33,13 @@ export type {
   BlueprintGenerationEventFamily,
   BlueprintGenerationEventFilters,
   BlueprintGenerationEventType,
+  BlueprintStaleReason,
+  BlueprintStaleSource,
+  BlueprintStaleEditResultSummary,
   // 响应
   BlueprintCreateGenerationJobResponse,
+  BlueprintFamilyResponse,
   BlueprintGenerationEventsResponse,
+  BlueprintIntakePatchRequest,
   BlueprintLatestGenerationJobResponse,
 } from "../contracts.js";

@@ -54,6 +54,7 @@ export type BlueprintGenerationEventType =
   | "job.stage"
   | "job.completed"
   | "job.failed"
+  | "replan.triggered"
   // Clarification
   | "clarification.ready"
   | "clarification.answered"
@@ -136,6 +137,7 @@ export const BlueprintEventName = {
   JobStage: "job.stage",
   JobCompleted: "job.completed",
   JobFailed: "job.failed",
+  ReplanTriggered: "replan.triggered",
   // Clarification
   ClarificationReady: "clarification.ready",
   ClarificationAnswered: "clarification.answered",
@@ -213,6 +215,9 @@ export type BlueprintEventNameKey = keyof typeof BlueprintEventName;
 export function resolveBlueprintEventFamily(
   eventType: BlueprintGenerationEventType
 ): BlueprintGenerationEventFamily {
+  if (eventType === BlueprintEventName.ReplanTriggered) {
+    return "job";
+  }
   const [family] = eventType.split(".", 1);
   return family as BlueprintGenerationEventFamily;
 }

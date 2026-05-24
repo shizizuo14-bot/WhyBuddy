@@ -43,7 +43,7 @@ describe("BlueprintEventName", () => {
 
     expect(uniqueValues.size).toBe(values.length);
     for (const value of values) {
-      const family = value.split(".")[0] as BlueprintGenerationEventFamily;
+      const family = resolveBlueprintEventFamily(value);
       expect(KNOWN_FAMILIES.has(family)).toBe(true);
     }
   });
@@ -57,6 +57,13 @@ describe("BlueprintEventName", () => {
 
   it("exposes RoleSleeping constant matching role.sleeping", () => {
     expect(BlueprintEventName.RoleSleeping).toBe("role.sleeping");
+  });
+
+  it("exposes ReplanTriggered constant in the job lifecycle family", () => {
+    expect(BlueprintEventName.ReplanTriggered).toBe("replan.triggered");
+    expect(resolveBlueprintEventFamily(BlueprintEventName.ReplanTriggered)).toBe(
+      "job",
+    );
   });
 
   it("`role.agent.thinking` 仍按首段 `.` 归入 role 家族", () => {
@@ -74,6 +81,7 @@ describe("BlueprintEventName", () => {
       { type: BlueprintEventName.RouteSelected, family: "route" },
       { type: BlueprintEventName.SpecTreeVersioned, family: "spec" },
       { type: BlueprintEventName.SpecDocumentReviewed, family: "spec" },
+      { type: BlueprintEventName.ReplanTriggered, family: "job" },
       { type: BlueprintEventName.PreviewGenerated, family: "preview" },
       { type: BlueprintEventName.PromptPackaged, family: "prompt" },
       { type: BlueprintEventName.MissionHandoff, family: "mission" },

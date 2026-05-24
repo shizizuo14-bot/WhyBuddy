@@ -22,6 +22,13 @@ export type BlueprintGenerationStage =
   | "engineering_handoff"
   | "engineering_landing";
 
+export type BlueprintStaleReason =
+  | "upstream_target_changed"
+  | "upstream_clarification_changed"
+  | "upstream_route_changed"
+  | "upstream_route_selection_changed"
+  | "upstream_explicit_invalidation";
+
 export type BlueprintGenerationStatus =
   | "pending"
   | "running"
@@ -1644,6 +1651,29 @@ export interface BlueprintGenerationArtifact {
   summary: string;
   createdAt: string;
   payload?: unknown;
+  staleSince?: string;
+  invalidatedBy?: BlueprintStaleSource;
+}
+
+export interface BlueprintStaleSource {
+  stage: BlueprintGenerationStage;
+  artifactId: string;
+  artifactType: BlueprintGenerationArtifactType;
+  reason: BlueprintStaleReason;
+  triggeredAt: string;
+}
+
+export interface BlueprintIntakePatchRequest {
+  targetText?: string;
+  githubUrls?: string[];
+  reason?: string;
+}
+
+export interface BlueprintStaleEditResultSummary {
+  fromStage: BlueprintGenerationStage;
+  newlyStaleArtifactIds: string[];
+  newlyStaleArtifactCount: number;
+  staleArtifactIdsSnapshot: string[];
 }
 
 export interface BlueprintGenerationArtifactLink {
@@ -1840,6 +1870,9 @@ export interface BlueprintGenerationJob {
   events: BlueprintGenerationEvent[];
   stageState?: BlueprintGenerationStageState;
   nextAction?: BlueprintGenerationNextAction;
+  parentJobId?: string;
+  branchedAt?: string;
+  branchedFromStage?: BlueprintGenerationStage;
   /**
    * 显式作业级交接态。默认值 `undefined`（即 `idle`），在 reviewing / confirmed / reset / failed
    * 路径上由服务端显式写入，避免前端需要根据"一段时间无下一步事件"去推断。
@@ -1851,6 +1884,13 @@ export interface BlueprintGenerationJob {
     message: string;
     stage: BlueprintGenerationStage;
   };
+  staleArtifactIds?: string[];
+}
+
+export interface BlueprintFamilyResponse {
+  rootJobId: string;
+  jobs: BlueprintGenerationJob[];
+  replanEvents: BlueprintGenerationEvent[];
 }
 
 export type BlueprintArtifactMemoryType =
@@ -2350,6 +2390,7 @@ export interface BlueprintLatestGenerationJobResponse {
   selection?: BlueprintRouteSelection;
   specTree?: BlueprintSpecTree;
   intake?: BlueprintIntake;
+  clarificationSession?: BlueprintClarificationSession;
   projectContext?: BlueprintProjectDomainContext;
   specTreeVersions?: BlueprintSpecTreeVersionSnapshot[];
   specDocuments?: BlueprintSpecDocument[];
