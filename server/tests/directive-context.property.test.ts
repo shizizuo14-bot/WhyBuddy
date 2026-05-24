@@ -49,6 +49,17 @@ const arbAttachment: fc.Arbitrary<WorkflowInputAttachment> = fc.oneof(
 
 const arbDirective = fc.string({ minLength: 1, maxLength: 200 });
 
+function buildNonVisionName(index: number, visionNames: Set<string>): string {
+  let suffix = 0;
+  while (true) {
+    const candidate = `__without_vision_${index}_${suffix}__`;
+    if (![...visionNames].some((name) => name.startsWith(candidate))) {
+      return candidate;
+    }
+    suffix += 1;
+  }
+}
+
 /* ─── Property 8: 指令上下文包含视觉分析 ─── */
 /* **Validates: Requirements 4.3** */
 
@@ -98,16 +109,12 @@ describe('Feature: multi-modal-vision, Property 8: 指令上下文包含视觉�
         fc.array(arbAttachmentWithoutVision, { minLength: 1, maxLength: 2 }),
         (directive, withVision, withoutVision) => {
           // Ensure non-vision attachment names are unique and don't collide
-          // with vision attachment names (substring matches cause false positives)
+          // with vision attachment marker prefixes (prefix matches cause false positives)
           const visionNames = new Set(withVision.map((a) => a.name.trim()));
-          const safeWithoutVision = withoutVision.map((att, i) => {
-            let safeName = `novision_${i}_${att.name}`;
-            // Ensure the safe name doesn't appear as a substring of any vision name
-            while ([...visionNames].some((vn) => vn.includes(safeName) || safeName.includes(vn))) {
-              safeName = `__nv${i}__${Date.now()}`;
-            }
-            return { ...att, name: safeName };
-          });
+          const safeWithoutVision = withoutVision.map((att, i) => ({
+            ...att,
+            name: buildNonVisionName(i, visionNames),
+          }));
 
           const attachments = [...withVision, ...safeWithoutVision];
           const result = buildWorkflowDirectiveContext(directive, attachments);

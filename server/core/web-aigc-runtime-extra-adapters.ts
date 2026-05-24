@@ -1,6 +1,7 @@
-import { getAIConfig } from "./ai-config.js";
+﻿import { getAIConfig } from "./ai-config.js";
 import { webAigcRuntimeEngine } from "./workflow-runtime-engine.js";
 import { serverRuntime } from "../runtime/server-runtime.js";
+import type { KnowledgeService } from "../knowledge/knowledge-service.js";
 import {
   executeAiPptNode,
   type AiPptNodeAdapterDeps,
@@ -85,6 +86,7 @@ import {
 } from "../routes/node-adapters/web-search-node-adapter.js";
 import type {
   WorkflowNodeAdapter,
+  WorkflowNodeAdapterResult,
   WorkflowNodeExecutionContext,
 } from "../../shared/workflow-runtime-engine.js";
 import type {
@@ -96,6 +98,12 @@ import type {
   WebAigcDocumentSearchResponse,
   WebAigcSearchRequest,
 } from "../../shared/rag/web-aigc-search.js";
+import type { TransactionFlowAction } from "../../shared/web-aigc-transaction-flow.js";
+import type {
+  WebAigcOrchestrationRecognitionJumpCandidate,
+  WebAigcOrchestrationRecognitionJumpFallbackTarget,
+} from "../../shared/web-aigc-orchestration-recognition-jump.js";
+import type { WebAigcOcrRecognitionImageInput } from "../../shared/web-aigc-ocr-recognition.js";
 
 type RuntimeDocumentSearch = (
   request: WebAigcSearchRequest,
@@ -335,7 +343,7 @@ class WebSearchRuntimeAdapter implements WorkflowNodeAdapter {
     private readonly deps: Pick<WebSearchNodeAdapterDeps, "executeWebSearch"> = {},
   ) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const options = normalizeObject(pickRuntimeNodeField(context, "options"));
     const runtimeContext = buildRuntimeContext(context);
     const result = await executeWebSearchNode(
@@ -389,7 +397,7 @@ class WebQaRuntimeAdapter implements WorkflowNodeAdapter {
 
   constructor(private readonly deps: InstallWebAigcRuntimeExtraAdaptersDeps) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const runtimeContext = buildRuntimeContext(context);
     const search = mergeSearchScopeProjectId(
       context,
@@ -480,7 +488,7 @@ class WebQaRuntimeAdapter implements WorkflowNodeAdapter {
 class GetLocationInfoRuntimeAdapter implements WorkflowNodeAdapter {
   readonly type = "get_location_info";
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const coarseLocation = pickRuntimeNodeField(context, "coarseLocation");
     const authorization = pickRuntimeNodeField(context, "authorization");
     const privacy = pickRuntimeNodeField(context, "privacy");
@@ -520,7 +528,7 @@ class GetDeviceInfoRuntimeAdapter implements WorkflowNodeAdapter {
     private readonly deps: Pick<InstallWebAigcRuntimeExtraAdaptersDeps, "deviceRuntime"> = {},
   ) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const clientHints = pickRuntimeNodeField(context, "clientHints");
     const privacy = pickRuntimeNodeField(context, "privacy");
     const result = await executeGetDeviceInfoNode(
@@ -556,7 +564,7 @@ class AudioRecognitionRuntimeAdapter implements WorkflowNodeAdapter {
     > = {},
   ) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const source = pickRuntimeNodeField(context, "source");
     const writeback = pickRuntimeNodeField(context, "writeback");
     const result = await executeAudioRecognitionNode(
@@ -584,7 +592,7 @@ class GraphSearchRuntimeAdapter implements WorkflowNodeAdapter {
 
   constructor(private readonly deps: InstallWebAigcRuntimeExtraAdaptersDeps) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     if (!this.deps.queryService) {
       throw new Error("Graph search runtime adapter requires queryService.");
     }
@@ -623,7 +631,7 @@ class GraphSearchRuntimeAdapter implements WorkflowNodeAdapter {
       },
       {
         queryService: this.deps.queryService,
-        knowledgeService: this.deps.knowledgeService,
+        knowledgeService: this.deps.knowledgeService as unknown as KnowledgeService,
       },
     );
 
@@ -643,7 +651,7 @@ class KnowledgeRuntimeAdapter implements WorkflowNodeAdapter {
     >,
   ) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     if (!this.deps.knowledgeService) {
       throw new Error(
         `Knowledge runtime adapter requires knowledgeService for ${this.type}.`,
@@ -667,7 +675,7 @@ class KnowledgeRuntimeAdapter implements WorkflowNodeAdapter {
         },
       },
       {
-        knowledgeService: this.deps.knowledgeService,
+        knowledgeService: this.deps.knowledgeService as unknown as KnowledgeService,
       },
     );
 
@@ -694,7 +702,7 @@ class McpRuntimeAdapter implements WorkflowNodeAdapter {
     private readonly deps: Pick<InstallWebAigcRuntimeExtraAdaptersDeps, "executeMcp">,
   ) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     if (!this.deps.executeMcp) {
       throw new Error("MCP runtime adapter requires executeMcp.");
     }
@@ -724,26 +732,26 @@ class McpRuntimeAdapter implements WorkflowNodeAdapter {
         inputSchema: [
           {
             key: "decision",
-            label: "审批决策",
+            label: "Approval decision",
             valueType: "string",
             required: true,
-            description: "填写 approved 或 rejected",
+            description: "Enter approved or rejected",
           },
           {
             key: "actorId",
-            label: "审批人",
+            label: "Approver",
             valueType: "string",
             required: true,
           },
           {
             key: "comment",
-            label: "审批备注",
+            label: "Approval comment",
             valueType: "string",
             required: false,
           },
           {
             key: "ticketId",
-            label: "审批单号",
+            label: "Approval ticket",
             valueType: "string",
             required: false,
           },
@@ -789,7 +797,7 @@ class McpRuntimeAdapter implements WorkflowNodeAdapter {
     };
   }
 
-  async resume(context: WorkflowNodeExecutionContext) {
+  async resume(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     if (!this.deps.executeMcp) {
       throw new Error("MCP runtime adapter requires executeMcp.");
     }
@@ -803,7 +811,7 @@ class McpRuntimeAdapter implements WorkflowNodeAdapter {
     const targetLabel =
       normalizeString(checkpoint.targetLabel) ||
       normalizeString(checkpointRequest.targetLabel) ||
-      "MCP 工具调用";
+      "MCP 宸ュ叿璋冪敤";
     const escalationId = normalizeString(checkpoint.escalationId);
 
     if (decision === "rejected") {
@@ -971,7 +979,7 @@ class StaticWebpageReadRuntimeAdapter implements WorkflowNodeAdapter {
     > = {},
   ) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const extraction = pickRuntimeNodeField(context, "extraction");
     const fallback = pickRuntimeNodeField(context, "fallback");
     const result = await executeStaticWebpageReadNode(
@@ -1001,7 +1009,7 @@ class StaticWebpageReadRuntimeAdapter implements WorkflowNodeAdapter {
 class IntentRecognitionRuntimeAdapter implements WorkflowNodeAdapter {
   readonly type = "intent_recognition";
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const timeframe = pickRuntimeNodeField(context, "timeframe");
     const constraints = pickRuntimeNodeField(context, "constraints");
     const objectives = pickRuntimeNodeField(context, "objectives");
@@ -1041,7 +1049,7 @@ class IntentRecognitionRuntimeAdapter implements WorkflowNodeAdapter {
 class LongTextExtractionRuntimeAdapter implements WorkflowNodeAdapter {
   readonly type = "long_text_extraction";
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const result = await executeLongTextExtractionNode({
       nodeType: "long_text_extraction",
       input: {
@@ -1082,7 +1090,7 @@ class AiPptRuntimeAdapter implements WorkflowNodeAdapter {
     > = {},
   ) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const artifact = pickRuntimeNodeField(context, "artifact");
     const result = await executeAiPptNode(
       {
@@ -1111,7 +1119,7 @@ class AiPptRuntimeAdapter implements WorkflowNodeAdapter {
 class ExcelReadRuntimeAdapter implements WorkflowNodeAdapter {
   readonly type = "excel_read";
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const result = await executeExcelReadNode({
       nodeType: "excel_read",
       input: {
@@ -1148,7 +1156,7 @@ class TransactionFlowRuntimeAdapter implements WorkflowNodeAdapter {
     > = {},
   ) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const transaction = pickRuntimeNodeField(context, "transaction");
     const compensation = pickRuntimeNodeField(context, "compensation");
     const metadata = pickRuntimeNodeField(context, "metadata");
@@ -1158,7 +1166,9 @@ class TransactionFlowRuntimeAdapter implements WorkflowNodeAdapter {
         input: {
           agentId: normalizeString(pickRuntimeNodeField(context, "agentId")),
           token: normalizeString(pickRuntimeNodeField(context, "token")),
-          transaction: isRecord(transaction) ? cloneValue(transaction) : undefined,
+          transaction: isRecord(transaction)
+            ? (cloneValue(transaction) as unknown as TransactionFlowAction)
+            : undefined,
           compensation: isRecord(compensation) ? cloneValue(compensation) : undefined,
           metadata: isRecord(metadata) ? cloneValue(metadata) : undefined,
           requireApproval:
@@ -1179,26 +1189,26 @@ class TransactionFlowRuntimeAdapter implements WorkflowNodeAdapter {
         inputSchema: [
           {
             key: "decision",
-            label: "审批决策",
+            label: "Approval decision",
             valueType: "string",
             required: true,
-            description: "填写 approved 或 rejected",
+            description: "Enter approved or rejected",
           },
           {
             key: "actorId",
-            label: "审批人",
+            label: "Approver",
             valueType: "string",
             required: true,
           },
           {
             key: "comment",
-            label: "审批备注",
+            label: "Approval comment",
             valueType: "string",
             required: false,
           },
           {
             key: "ticketId",
-            label: "审批单号",
+            label: "Approval ticket",
             valueType: "string",
             required: false,
           },
@@ -1227,7 +1237,7 @@ class TransactionFlowRuntimeAdapter implements WorkflowNodeAdapter {
     };
   }
 
-  async resume(context: WorkflowNodeExecutionContext) {
+  async resume(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const checkpoint = normalizeObject(context.instance.checkpoint?.payload);
     const transaction = pickRuntimeNodeField(context, "transaction");
     const compensation = pickRuntimeNodeField(context, "compensation");
@@ -1240,7 +1250,7 @@ class TransactionFlowRuntimeAdapter implements WorkflowNodeAdapter {
           agentId: normalizeString(pickRuntimeNodeField(context, "agentId")),
           token: normalizeString(pickRuntimeNodeField(context, "token")),
           transaction: isRecord(transaction)
-            ? cloneValue(transaction)
+            ? (cloneValue(transaction) as unknown as TransactionFlowAction)
             : undefined,
           compensation: isRecord(compensation)
             ? cloneValue(compensation)
@@ -1283,7 +1293,7 @@ class TransactionFlowRuntimeAdapter implements WorkflowNodeAdapter {
 class DynamicChartRuntimeAdapter implements WorkflowNodeAdapter {
   readonly type = "dynamic_chart";
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const dataset = pickRuntimeNodeField(context, "dataset");
     const artifact = pickRuntimeNodeField(context, "artifact");
     const result = await executeDynamicChartNode({
@@ -1321,7 +1331,7 @@ class ImageSearchRuntimeAdapter implements WorkflowNodeAdapter {
     > = {},
   ) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const referenceImage = pickRuntimeNodeField(context, "referenceImage");
     const options = pickRuntimeNodeField(context, "options");
     const result = await executeImageSearchNode(
@@ -1359,7 +1369,7 @@ class OrchestrationRecognitionJumpRuntimeAdapter implements WorkflowNodeAdapter 
     > = {},
   ) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const candidates = pickRuntimeNodeField(context, "candidates");
     const fallbackTarget = pickRuntimeNodeField(context, "fallbackTarget");
     const result = await executeOrchestrationRecognitionJumpNode(
@@ -1375,10 +1385,14 @@ class OrchestrationRecognitionJumpRuntimeAdapter implements WorkflowNodeAdapter 
             normalizeString(pickRuntimeNodeField(context, "agentId")),
           token: normalizeString(pickRuntimeNodeField(context, "token")),
           candidates: Array.isArray(candidates)
-            ? cloneValue(candidates as Array<Record<string, unknown>>)
+            ? (cloneValue(
+                candidates as Array<Record<string, unknown>>,
+              ) as unknown as WebAigcOrchestrationRecognitionJumpCandidate[])
             : undefined,
           fallbackTarget: isRecord(fallbackTarget)
-            ? cloneValue(fallbackTarget)
+            ? (cloneValue(
+                fallbackTarget,
+              ) as unknown as WebAigcOrchestrationRecognitionJumpFallbackTarget)
             : undefined,
           context: buildRuntimeContext(context),
         },
@@ -1441,7 +1455,7 @@ class OrchestrationRecognitionJumpRuntimeAdapter implements WorkflowNodeAdapter 
 class FileSlicingRuntimeAdapter implements WorkflowNodeAdapter {
   readonly type = "file_slicing";
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const strategy = pickRuntimeNodeField(context, "strategy");
     const metadata = pickRuntimeNodeField(context, "metadata");
     const result = await executeFileSlicingNode({
@@ -1488,7 +1502,7 @@ class FileTranslationRuntimeAdapter implements WorkflowNodeAdapter {
     > = {},
   ) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const file = pickRuntimeNodeField(context, "file");
     const document = pickRuntimeNodeField(context, "document");
     const artifact = pickRuntimeNodeField(context, "artifact");
@@ -1535,7 +1549,7 @@ class FileGenerationRuntimeAdapter implements WorkflowNodeAdapter {
     > = {},
   ) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const structuredContent = pickRuntimeNodeField(context, "structuredContent");
     const result = await executeFileGenerationNode(
       {
@@ -1576,7 +1590,7 @@ class OcrRecognitionRuntimeAdapter implements WorkflowNodeAdapter {
     > = {},
   ) {}
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const artifact = pickRuntimeNodeField(context, "artifact");
     const images = pickRuntimeNodeField(context, "images");
     const result = await executeOcrRecognitionNode(
@@ -1584,7 +1598,9 @@ class OcrRecognitionRuntimeAdapter implements WorkflowNodeAdapter {
         nodeType: "ocr_recognition",
         input: {
           images: Array.isArray(images)
-            ? cloneValue(images as Array<Record<string, unknown>>)
+            ? (cloneValue(
+                images as Array<Record<string, unknown>>,
+              ) as unknown as WebAigcOcrRecognitionImageInput[])
             : undefined,
           prompt: normalizeString(pickRuntimeNodeField(context, "prompt")),
           artifact: isRecord(artifact) ? cloneValue(artifact) : undefined,
@@ -1604,7 +1620,7 @@ class OcrRecognitionRuntimeAdapter implements WorkflowNodeAdapter {
 class SimilarityMatchRuntimeAdapter implements WorkflowNodeAdapter {
   readonly type = "similarity_match";
 
-  async execute(context: WorkflowNodeExecutionContext) {
+  async execute(context: WorkflowNodeExecutionContext): Promise<WorkflowNodeAdapterResult> {
     const candidates = pickRuntimeNodeField(context, "candidates");
     const options = pickRuntimeNodeField(context, "options");
     const result = await executeSimilarityMatchNode({

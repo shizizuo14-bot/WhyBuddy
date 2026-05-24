@@ -3606,7 +3606,7 @@ export class WorkflowRuntimeEngine {
         return;
       }
 
-      const startedAtValue = loopTracker.entry.startedAt;
+      const startedAtValue = normalizeOptionalString(loopTracker.entry.startedAt);
       const startedAtMs = startedAtValue ? Date.parse(startedAtValue) : Number.NaN;
       const maxDurationMs = readLoopEdgeLimitNumber(transitionEdge, "maxDurationMs");
       const elapsedMs =
@@ -3852,6 +3852,12 @@ export class WorkflowRuntimeEngine {
     state.instance.checkpoint = undefined;
     state.instance.variables = {
       ...governanceRecorded.variables,
+      runtimeAutoRetry: {
+        ...(isRecord(governanceRecorded.variables.runtimeAutoRetry)
+          ? governanceRecorded.variables.runtimeAutoRetry
+          : {}),
+        [node.id]: nextAttempt,
+      },
       runtimeRetry: {
         requestedBy: "runtime.auto_retry",
         reason: `Automatic retry ${nextAttempt}/${retryBudget} for ${node.id}`,

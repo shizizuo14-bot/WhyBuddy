@@ -10,6 +10,9 @@
 
 import * as XLSX from "xlsx";
 
+type PdfParseFn = (buf: Buffer) => Promise<{ text?: string }>;
+type PdfParseModule = { default?: PdfParseFn } | PdfParseFn;
+
 /**
  * Parse an Excel (.xlsx/.xls) buffer into plain text.
  * Each sheet is rendered as tab-separated rows, sheets separated by double newlines.
@@ -37,11 +40,15 @@ export function parseXlsxToText(buffer: Buffer): string {
  * Requires the optional `pdf-parse` package.
  */
 export async function parsePdfToText(buffer: Buffer): Promise<string> {
-  let pdfParse: (buf: Buffer) => Promise<{ text: string }>;
+  let pdfParse: PdfParseFn;
   try {
     // Dynamic import for optional dependency
-    const mod = await import("pdf-parse");
-    pdfParse = mod.default ?? mod;
+    const mod = (await import("pdf-parse")) as unknown as PdfParseModule;
+    const resolvedPdfParse = typeof mod === "function" ? mod : mod.default;
+    if (!resolvedPdfParse) {
+      throw new Error("pdf-parse default export is unavailable");
+    }
+    pdfParse = resolvedPdfParse;
   } catch {
     throw new Error(
       "PDF parsing requires the 'pdf-parse' package. Install it with: pnpm add pdf-parse",

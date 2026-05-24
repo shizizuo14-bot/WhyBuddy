@@ -429,13 +429,14 @@ export class McpToolAdapter {
   async execute(request: McpToolExecutionRequest): Promise<McpToolExecutionResult> {
     const normalized = normalizeRequest(request, this.defaultTimeoutMs);
     const access = this.enforceAccessControl(normalized);
-    const governanceOutcome = resolveGovernanceOutcome(access.permission);
+    const permission = access.permission;
+    const governanceOutcome = resolveGovernanceOutcome(permission);
 
     if (governanceOutcome === "approval_required") {
       return this.buildApprovalRequiredResult(
         normalized,
         access,
-        access.permission.reason ?? "MCP tool call requires manual approval",
+        permission?.reason ?? "MCP tool call requires manual approval",
         "governance_policy",
       );
     }

@@ -7,6 +7,7 @@ import {
   type CommandListNodeExecutionResult,
   type CommandListSelectionRequest,
   type CommandListSelectionResult,
+  type CommandListSelectionBridge,
   type CommandListSnapshot,
 } from "../../../shared/nl-command/command-list.js";
 import type { CommandPriority } from "../../../shared/nl-command/contracts.js";
@@ -245,7 +246,7 @@ export async function executeCommandListNode(
     candidates,
   });
   const recommendedCandidateId = candidates.find(candidate => candidate.recommended)?.candidateId;
-  const selectionBridge = {
+  const selectionBridge: CommandListSelectionBridge = {
     nodeType: "selection" as const,
     decision: selectionDecision,
     ...(recommendedCandidateId

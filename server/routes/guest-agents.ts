@@ -18,6 +18,7 @@ import {
   getAutoAgentExecutor,
   mapAutoAgentErrorToStatusCode,
   normalizeAutoAgentContextInput,
+  type AutoAgentExecutionResult,
 } from "../tool/api/auto-agent-adapter.js";
 
 const router = Router();
@@ -122,10 +123,12 @@ function normalizeGuestAgentExecutionEnvelope(body: unknown): {
 }
 
 function enrichGuestAgentExecutionResult(
-  result: Record<string, unknown>,
+  result: AutoAgentExecutionResult,
   governance: GuestAgentExecutionGovernance,
 ): Record<string, unknown> {
-  const metadata = isRecord(result.metadata) ? { ...result.metadata } : {};
+  const metadata: JsonRecord = isRecord(result.metadata)
+    ? { ...result.metadata }
+    : {};
   const requestMetadata = isRecord(metadata.requestMetadata)
     ? { ...metadata.requestMetadata }
     : {};
@@ -299,7 +302,10 @@ router.post("/:id/execute", async (req: Request, res: Response) => {
     const result = await executor.execute({
       kind: "guest_agent",
       targetId: req.params.id,
-      input: normalized.body.input,
+      input:
+        typeof normalized.body.input === "string"
+          ? normalized.body.input
+          : "",
       context: normalizeAutoAgentContextInput(normalized.body.context),
       workflowId: normalized.workflowId,
       stage: normalized.stage,

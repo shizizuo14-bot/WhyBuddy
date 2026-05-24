@@ -13,6 +13,7 @@ import type {
   AdjustmentImpact,
   AuditEntry,
   NLExecutionPlan,
+  PlanAdjustment,
 } from "../../../shared/nl-command/contracts.js";
 import type {
   CostOptimizationSuggestion,
@@ -152,6 +153,69 @@ function applyChanges(
 
   nextPlan.updatedAt = updatedAt;
   return nextPlan;
+}
+
+type SuggestedAdjustmentChange = Suggestion["changes"][number];
+
+function readCurrentAdjustmentValue(
+  plan: NLExecutionPlan | undefined,
+  change: SuggestedAdjustmentChange,
+): unknown {
+  if (!plan) {
+    return undefined;
+  }
+
+  if (change.entityType === "task") {
+    const target = plan.tasks.find(task => task.taskId === change.entityId);
+    return target
+      ? (target as unknown as Record<string, unknown>)[change.field]
+      : undefined;
+  }
+
+  if (change.entityType === "mission") {
+    const target = plan.missions.find(
+      mission => mission.missionId === change.entityId,
+    );
+    return target
+      ? (target as unknown as Record<string, unknown>)[change.field]
+      : undefined;
+  }
+
+  if (change.entityType === "resource") {
+    const target = plan.resourceAllocation.entries.find(
+      entry => entry.taskId === change.entityId,
+    );
+    return target
+      ? (target as unknown as Record<string, unknown>)[change.field]
+      : undefined;
+  }
+
+  const target = plan.timeline.entries.find(
+    entry => entry.entityId === change.entityId,
+  );
+  return target
+    ? (target as unknown as Record<string, unknown>)[change.field]
+    : undefined;
+}
+
+function materializeAdjustmentChanges(
+  changes: SuggestedAdjustmentChange[],
+  plan: NLExecutionPlan | undefined,
+): AdjustmentChange[] {
+  return changes.map((change) => {
+    const maybeOldValue = change as SuggestedAdjustmentChange & {
+      oldValue?: unknown;
+    };
+    return {
+      ...change,
+      oldValue: Object.prototype.hasOwnProperty.call(
+        maybeOldValue,
+        "oldValue",
+      )
+        ? maybeOldValue.oldValue
+        : readCurrentAdjustmentValue(plan, change),
+    };
+  });
 }
 
 function buildSelectionOptions(
@@ -441,11 +505,16 @@ export class RecommendedCommandsAdapter
     }
 
     const appliedAt = this.now();
-    const adjustment = {
+    const livePlan = (await this.getPlan?.(planId)) ?? batch.plan;
+    const adjustmentChanges = materializeAdjustmentChanges(
+      suggestion.changes,
+      livePlan,
+    );
+    const adjustment: PlanAdjustment = {
       adjustmentId: this.idFactory(),
       planId,
       reason: `采纳推荐命令：${suggestion.title}`,
-      changes: suggestion.changes,
+      changes: adjustmentChanges,
       impact: suggestion.estimatedImpact,
       approvalRequired: false,
       status: "applied" as const,
@@ -453,10 +522,9 @@ export class RecommendedCommandsAdapter
     };
     const auditEntryId = this.idFactory();
     const operator = asNonEmptyString(request.operator) ?? "system";
-    const livePlan = (await this.getPlan?.(planId)) ?? batch.plan;
     const updatedPlan =
-      livePlan && suggestion.changes.length > 0
-        ? applyChanges(livePlan, suggestion.changes, appliedAt)
+      livePlan && adjustmentChanges.length > 0
+        ? applyChanges(livePlan, adjustmentChanges, appliedAt)
         : livePlan
           ? { ...clonePlan(livePlan), updatedAt: appliedAt }
           : undefined;

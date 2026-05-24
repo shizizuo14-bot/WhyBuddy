@@ -189,7 +189,7 @@ describe("Integration: mock 模式完整桥接流程", () => {
       expect(firstJob.payload.runner.steps).toBe(3);
     });
 
-    it("injects real mode payload when executionMode is 'real'", async () => {
+    it("injects deterministic scan payload when executionMode is 'real'", async () => {
       const { bridge, calls } = createIntegrationBridge({ executionMode: "real" });
 
       await bridge.bridge("mission-real-1", EXECUTABLE_DELIVERABLE);
@@ -197,17 +197,20 @@ describe("Integration: mock 模式完整桥接流程", () => {
       const createJobCall = calls.find((c) => c.url.endsWith("/api/executor/jobs"));
       const jobRequest = JSON.parse(createJobCall!.init.body as string);
       const firstJob = jobRequest.plan.jobs[0];
-      expect(firstJob.payload.aiEnabled).toBe(true);
-      expect(firstJob.payload.aiTaskType).toBe("text-generation");
+      expect(firstJob).toBeDefined();
+      expect(firstJob.payload.aiEnabled).toBeUndefined();
+      expect(firstJob.payload.aiTaskType).toBeUndefined();
       expect(firstJob.payload.image).toBeUndefined();
+      expect(firstJob.payload.runner).toBeUndefined();
       expect(firstJob.payload.command).toBeDefined();
       expect(Array.isArray(firstJob.payload.command)).toBe(true);
-      expect(firstJob.payload.command).toHaveLength(0);
+      expect(firstJob.payload.command.length).toBeGreaterThan(0);
       expect(firstJob.payload.env).toMatchObject({
         MISSION_ID: "mission-real-1",
+        EXECUTION_BRIDGE_MODE: "deterministic",
       });
-      expect(typeof firstJob.payload.env.TASK_CONTENT).toBe("string");
-      expect(firstJob.payload.env.TASK_CONTENT).toContain("pytest");
+      expect(typeof firstJob.payload.env.EXECUTION_TASK_CONTENT).toBe("string");
+      expect(firstJob.payload.env.EXECUTION_TASK_CONTENT).toContain("pytest");
     });
   });
 

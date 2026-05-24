@@ -5,7 +5,11 @@ import type { VectorInsertAdapter } from "../web-aigc/vector-insert-adapter.js";
 import type { VectorDeleteAdapter } from "../web-aigc/vector-delete-adapter.js";
 import type { VectorUpdateAdapter } from "../web-aigc/vector-update-adapter.js";
 import type { VectorDeleteActionInput } from "../../shared/web-aigc-vector-delete.js";
-import type { VectorUpdateActionInput } from "../../shared/web-aigc-vector-update.js";
+import type {
+  VectorUpdateActionInput,
+  VectorUpdateMetadataPatch,
+  VectorUpdateSelection,
+} from "../../shared/web-aigc-vector-update.js";
 
 export interface WebAigcRiskActionRouterDeps {
   vectorInsertAdapter: VectorInsertAdapter;
@@ -15,6 +19,27 @@ export interface WebAigcRiskActionRouterDeps {
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Unknown error";
+}
+
+function isVectorUpdateSelection(value: unknown): value is VectorUpdateSelection {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return false;
+  }
+  const selection = value as {
+    ids?: unknown;
+    sourceId?: unknown;
+  };
+  return (
+    (Array.isArray(selection.ids) && selection.ids.length > 0) ||
+    (typeof selection.sourceId === "string" &&
+      selection.sourceId.trim().length > 0)
+  );
+}
+
+function isVectorUpdateMetadataPatch(
+  value: unknown,
+): value is VectorUpdateMetadataPatch {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
 }
 
 export function createWebAigcRiskActionRouter(
@@ -87,24 +112,13 @@ export function createWebAigcRiskActionRouter(
       }
 
       const body = (req.body ?? {}) as Partial<VectorUpdateActionInput>;
-      const hasSelection =
-        body.selection &&
-        typeof body.selection === "object" &&
-        !Array.isArray(body.selection) &&
-        ((Array.isArray((body.selection as { ids?: unknown }).ids) &&
-          (body.selection as { ids?: unknown[] }).ids!.length > 0) ||
-          (typeof (body.selection as { sourceId?: unknown }).sourceId === "string" &&
-            (body.selection as { sourceId?: string }).sourceId!.trim().length > 0));
-
       if (
         !body.agentId ||
         !body.token ||
         !body.namespace ||
         !body.projectId ||
-        !hasSelection ||
-        !body.metadataPatch ||
-        typeof body.metadataPatch !== "object" ||
-        Array.isArray(body.metadataPatch)
+        !isVectorUpdateSelection(body.selection) ||
+        !isVectorUpdateMetadataPatch(body.metadataPatch)
       ) {
         return res.status(400).json({
           ok: false,
