@@ -10,6 +10,7 @@ import {
 import { AnimatePresence, motion } from "framer-motion";
 import {
   ArrowLeft,
+  ArrowRight,
   Bot,
   CheckCircle2,
   FileSearch,
@@ -3805,6 +3806,27 @@ export default function AutopilotRoutePage() {
             >
               {readAutopilotJobStatus(pageProjection.visualJob, locale)}
             </Badge>
+            {workflowStageOverride !== null && selection !== null ? (
+              <button
+                type="button"
+                onClick={() => setWorkflowStageOverride(null)}
+                aria-label={t(
+                  locale,
+                  "返回最新阶段",
+                  "Return to latest stage"
+                )}
+                title={t(
+                  locale,
+                  "返回最新阶段",
+                  "Return to latest stage"
+                )}
+                className="inline-flex items-center gap-1 rounded-[6px] border border-slate-200 bg-white px-2 py-1 text-xs font-black text-slate-700 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-slate-400/30"
+                data-testid="autopilot-forward-to-latest-stage"
+              >
+                <span>{t(locale, "继续下一步", "Continue")}</span>
+                <ArrowRight className="size-3" aria-hidden="true" />
+              </button>
+            ) : null}
             <AutopilotLanguageSwitch
               locale={locale}
               onLocaleChange={setLocale}

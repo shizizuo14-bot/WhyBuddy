@@ -150,6 +150,39 @@ describe("AutopilotRoutePage", () => {
     ).toBe(1);
   });
 
+  it("renders a topbar forward button that lets the user return to the latest stage after backtracking past page boundaries", async () => {
+    // Regression for "从规格文档回上一级后无法前进":
+    //
+    // When user clicks "返回上一步" on spec_documents (page 2), the right rail
+    // resolves the previous nav target to workflow-stage:"input" — pinning the
+    // page back to AutopilotPage 1. There is no in-rail forward control on
+    // page 1, so without the topbar button the user becomes stranded.
+    //
+    // The fix exposes a topbar-level forward button visible whenever
+    // workflowStageOverride !== null AND a route selection exists, which
+    // simply clears the override and lets resolveActiveAutopilotPage fall
+    // back to the natural (downstream) page.
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const routeSource = await fs.readFile(
+      path.resolve(__dirname, "./AutopilotRoutePage.tsx"),
+      "utf8"
+    );
+
+    // The forward button must be gated on (override !== null && selection)
+    expect(routeSource).toMatch(
+      /workflowStageOverride !== null && selection !== null/
+    );
+    // Click handler must clear the override (no jumping by stage)
+    expect(routeSource).toMatch(
+      /setWorkflowStageOverride\(null\)/
+    );
+    // Test ID must be exposed
+    expect(routeSource).toMatch(
+      /data-testid="autopilot-forward-to-latest-stage"/
+    );
+  });
+
   it("projects downstream runtime state back to the input / clarification / route page without leaking later artifacts", () => {
     const runtimeJob = {
       id: "job-runtime",
