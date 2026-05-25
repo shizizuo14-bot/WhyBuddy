@@ -212,31 +212,18 @@ describe("StoreObservabilityHud", () => {
     // 引用 <StoreObservabilityHud />。
     expect(source).not.toMatch(/<StoreObservabilityHud\b/);
 
-    // <AgentReasoningSubTimeline /> 挂在 intake_created / clarification /
-    // route 三个阶段的卡片中（target_input 是用户填写阶段，没有 LLM 调用，
-    // 因此不挂载）。每个挂载点都通过 stageFilter 限定只显示属于自身阶段
-    // 的事件，避免阶段间事件互相污染。其中 "route" 卡片是路线生成 + 路线
-    // 选择 + spec_tree 派生三段后端 stage 在前端的合并视图，stageFilter 用
-    // 数组形态同时承接这三个 stageId。
-    // 总计预期：3 个 isActive + 3 个 isCompleted = 6 处。
-    const jsxMatches = source.match(/<AgentReasoningSubTimeline\b/g) ?? [];
-    expect(jsxMatches.length).toBeGreaterThanOrEqual(6);
+    // After Batch 3.8 migration, the page uses <StageSplitMount> +
+    // deriveStageSplitDescriptor instead of direct <ProcessArtifactSplitPanel>
+    // JSX with buildPreflightArtifactEntries callsites.
+    // Verify the source imports/contains the unified mount surface:
+    expect(source).toMatch(/StageSplitMount/);
+    expect(source).toMatch(/deriveStageSplitDescriptor/);
 
-    // 关键事实：clarification / route / intake_created 在 isActive 分支体内
-    // 都紧跟一个 AgentReasoningSubTimeline 引用，并通过 stageFilter 限定
-    // 该阶段只显示属于自身的事件。其中 intake_created 承接的是仓库扫描的
-    // thinking / observing 流（stageId="intake_created"），让"输入时的执行
-    // 过程"挂在"输入记录"卡片下；route 卡片合并 route_generation /
-    // route_selection / spec_tree 三段事件，让用户从"看路线"到"选路线"再到
-    // "系统派生 SPEC"都能在同一卡片底部看到对应事件流，不会出现断层。
-    expect(source).toMatch(
-      /isActive\s*&&\s*sub\s*===\s*"intake_created"[\s\S]*?<AgentReasoningSubTimeline\b[\s\S]*?stageFilter=\{?["']intake_created["']\}?/
-    );
-    expect(source).toMatch(
-      /isActive\s*&&\s*sub\s*===\s*"clarification"[\s\S]*?<AgentReasoningSubTimeline\b/
-    );
-    expect(source).toMatch(
-      /isActive\s*&&\s*sub\s*===\s*"route"[\s\S]*?<AgentReasoningSubTimeline\b[\s\S]*?stageFilter=\{[\s\S]*?spec_tree[\s\S]*?\}/
-    );
+    // Verify that the descriptor computation references each preflight sub-stage
+    // name, ensuring all 4 preflight subs are wired through the unified surface:
+    expect(source).toMatch(/sub:\s*"intake_created"/);
+    expect(source).toMatch(/sub:\s*"clarification"/);
+    expect(source).toMatch(/sub:\s*"route"/);
+    expect(source).toMatch(/sub:\s*"target_input"/);
   });
 });

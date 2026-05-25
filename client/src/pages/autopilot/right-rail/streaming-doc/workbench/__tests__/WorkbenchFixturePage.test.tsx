@@ -40,10 +40,13 @@ describe("AutopilotSpecDocumentsWorkbenchFixturePage", () => {
       /data-testid="autopilot-workbench-stat-tasks"[^>]*>2 \/ 3</
     );
     expect(markup).toContain(
-      'data-testid="autopilot-workbench-execution-artifact-cards"'
+      'data-testid="autopilot-process-artifact-split-panel"'
     );
     expect(markup).toContain(
-      'data-testid="autopilot-workbench-execution-reasoning-cards"'
+      'data-testid="autopilot-process-execution-lane"'
     );
+    expect(markup).toContain('data-testid="autopilot-process-artifact-lane"');
+    expect(markup).toContain('data-testid="mirofish-card-reasoning"');
+    expect(markup).toContain('data-testid="mirofish-card-artifact"');
   });
 });

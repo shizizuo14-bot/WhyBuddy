@@ -93,7 +93,9 @@ import {
 } from "./right-rail/hooks/use-auto-advance";
 import { useAutopilotSandboxBridge } from "./hooks/useAutopilotSandboxBridge";
 import { TimelineNode } from "./right-rail/timeline";
-import { AgentReasoningSubTimeline } from "./right-rail/AgentReasoningSubTimeline";
+import { StageSplitMount } from "./right-rail/StageSplitMount";
+import { deriveStageSplitDescriptor } from "./right-rail/stage-split-descriptor/derive-stage-split-descriptor";
+import { copyDynamic } from "./copy-dynamic";
 import { AgentReasoningTimeline } from "@/components/blueprint/AgentReasoningTimeline";
 import { useBlueprintRealtimeStore } from "@/lib/blueprint-realtime-store";
 import {
@@ -597,62 +599,6 @@ function parseGithubInput(value: string): {
     });
 
   return { urls, duplicates };
-}
-
-const DYNAMIC_ZH_COPY: Record<string, string> = {
-  "Primary SPEC asset route": "主路线：SPEC 资产路线",
-  "Documentation-first conservative route": "备选路线：文档优先稳态路线",
-  "Preview-first exploratory route": "备选路线：效果预演探索路线",
-  "Primary and alternative routes prepared for SPEC tree derivation.":
-    "已为 SPEC 树推导准备主路线与备选路线。",
-  "Clarify execution intent": "澄清执行意图",
-  "Scan GitHub source": "扫描 GitHub 源码",
-  "Map capability pool": "映射能力池",
-  "Derive SPEC tree seed": "推导 SPEC 树种子",
-  "Plan previews and prompts": "规划效果预演与提示词",
-  "Collect target users and boundaries.": "收集目标用户与边界条件。",
-  "Inspect repositories and extract technology stack, module boundaries, and reusable assets.":
-    "检查仓库并提取技术栈、模块边界与可复用资产。",
-  "Choose Docker, MCP, skills, AIGC nodes, and specialist roles for analysis coverage.":
-    "选择 Docker、MCP、Skills、AIGC 节点与专业角色来覆盖分析任务。",
-  "Transform primary and alternative route nodes into an editable SPEC tree asset.":
-    "将主路线与备选路线节点转成可编辑的 SPEC 树资产。",
-  "Prepare the downstream effect preview, architecture diagram, and implementation prompt package.":
-    "准备下游效果预演、架构图与实现提示词包。",
-  "Clarify the requested product direction, derive the durable SPEC tree, then expand documents, preview, and implementation prompts.":
-    "澄清产品方向，推导可沉淀的 SPEC 树，再扩展规格文档、效果预演和实现提示词。",
-  "Create a narrower SPEC tree first, freeze requirements/design/tasks, then preview and package prompts after review.":
-    "先创建更收敛的 SPEC 树，评审后冻结 requirements / design / tasks，再生成预演和提示词。",
-  "Push route analysis toward effect preview early, then backfill SPEC documents from the selected prototype direction.":
-    "更早进入效果预演，再从选定的原型方向回填 SPEC 文档。",
-  "Analyze source safely in an isolated runtime.":
-    "在隔离运行时中安全分析源码。",
-  "Build RBAC with audit evidence.": "构建带审计证据的 RBAC。",
-};
-
-function copyDynamic(locale: AppLocale, value: string | undefined): string {
-  if (!value) return "";
-  if (locale === "en-US") return value;
-
-  const direct = DYNAMIC_ZH_COPY[value] ?? DYNAMIC_ZH_COPY[value.trim()];
-  if (direct) return direct;
-
-  const selectedRoute = value.match(/^Selected route:\s*(.+)$/);
-  if (selectedRoute) {
-    return `已选择路线：${copyDynamic(locale, selectedRoute[1])}`;
-  }
-
-  const specAssetTree = value.match(/^SPEC asset tree:\s*(.+)$/);
-  if (specAssetTree) {
-    return `SPEC 资产树：${copyDynamic(locale, specAssetTree[1])}`;
-  }
-
-  const effectPreview = value.match(/^Effect preview:\s*(.+)$/);
-  if (effectPreview) {
-    return `效果预演：${copyDynamic(locale, effectPreview[1])}`;
-  }
-
-  return value;
 }
 
 function stageLabel(value: string | undefined, locale: AppLocale): string {
@@ -2085,7 +2031,25 @@ function AutopilotWorkflowRail({
                         挂载子时间线，让用户在历史卡片里看到当时仓库扫描的
                         thinking / observing 流。
                       */}
-                      <AgentReasoningSubTimeline locale={locale} job={latestJob} stageFilter="intake_created" />
+                      <StageSplitMount
+                        descriptor={deriveStageSplitDescriptor({
+                          sub: "intake_created",
+                          locale,
+                          isActive: false,
+                          isCompleted: true,
+                          intake,
+                          projectContext,
+                          clarificationSession,
+                          readiness,
+                          routeSet,
+                          selection,
+                          specTree,
+                          job: latestJob,
+                        })}
+                        job={latestJob}
+                        locale={locale}
+                        variant="completed"
+                      />
                     </div>
                   )}
                   {isCompleted && sub === "clarification" && (
@@ -2106,7 +2070,25 @@ function AutopilotWorkflowRail({
                           isViewingCompletedStage: Boolean(selection),
                         }}
                       />
-                      <AgentReasoningSubTimeline locale={locale} job={latestJob} stageFilter="clarification" />
+                      <StageSplitMount
+                        descriptor={deriveStageSplitDescriptor({
+                          sub: "clarification",
+                          locale,
+                          isActive: false,
+                          isCompleted: true,
+                          intake,
+                          projectContext,
+                          clarificationSession,
+                          readiness,
+                          routeSet,
+                          selection,
+                          specTree,
+                          job: latestJob,
+                        })}
+                        job={latestJob}
+                        locale={locale}
+                        variant="completed"
+                      />
                     </div>
                   )}
                   {isCompleted && sub === "route" && routeSet && (
@@ -2128,7 +2110,25 @@ function AutopilotWorkflowRail({
                           - spec_tree：选完路线后系统派生 SPEC 树的 thinking / observing
                         让历史卡片与 active 状态一致地展示完整执行流。
                       */}
-                      <AgentReasoningSubTimeline locale={locale} job={latestJob} stageFilter={["route_generation", "route_selection", "spec_tree"]} />
+                      <StageSplitMount
+                        descriptor={deriveStageSplitDescriptor({
+                          sub: "route",
+                          locale,
+                          isActive: false,
+                          isCompleted: true,
+                          intake,
+                          projectContext,
+                          clarificationSession,
+                          readiness,
+                          routeSet,
+                          selection,
+                          specTree,
+                          job: latestJob,
+                        })}
+                        job={latestJob}
+                        locale={locale}
+                        variant="completed"
+                      />
                     </div>
                   )}
 
@@ -2143,6 +2143,27 @@ function AutopilotWorkflowRail({
                         {creatingIntake ? <RefreshCw className="size-4 animate-spin" aria-hidden="true" /> : <Link2 className="size-4" aria-hidden="true" />}
                         {intake ? t(locale, "刷新输入记录", "Refresh intake") : t(locale, "创建输入记录", "Create intake")}
                       </Button>
+                      {/* Requirement 2.1: target_input active-state mount — ensures
+                          the two-column split panel is visible even before intake exists */}
+                      <StageSplitMount
+                        descriptor={deriveStageSplitDescriptor({
+                          sub: "target_input",
+                          locale,
+                          isActive: true,
+                          isCompleted: false,
+                          intake,
+                          projectContext,
+                          clarificationSession,
+                          readiness,
+                          routeSet,
+                          selection,
+                          specTree,
+                          job: latestJob,
+                        })}
+                        job={latestJob}
+                        locale={locale}
+                        variant="active"
+                      />
                     </div>
                   )}
 
@@ -2156,7 +2177,25 @@ function AutopilotWorkflowRail({
                         被实际执行（仓库扫描发生在生成澄清问题之前），因此 active
                         时也要挂子时间线，让用户实时看到仓库扫描进度。
                       */}
-                      <AgentReasoningSubTimeline locale={locale} job={latestJob} stageFilter="intake_created" />
+                      <StageSplitMount
+                        descriptor={deriveStageSplitDescriptor({
+                          sub: "intake_created",
+                          locale,
+                          isActive: true,
+                          isCompleted: false,
+                          intake,
+                          projectContext,
+                          clarificationSession,
+                          readiness,
+                          routeSet,
+                          selection,
+                          specTree,
+                          job: latestJob,
+                        })}
+                        job={latestJob}
+                        locale={locale}
+                        variant="active"
+                      />
                     </div>
                   )}
 
@@ -2184,7 +2223,25 @@ function AutopilotWorkflowRail({
                           isViewingCompletedStage: Boolean(selection),
                         }}
                       />
-                      <AgentReasoningSubTimeline locale={locale} job={latestJob} stageFilter="clarification" />
+                      <StageSplitMount
+                        descriptor={deriveStageSplitDescriptor({
+                          sub: "clarification",
+                          locale,
+                          isActive: true,
+                          isCompleted: false,
+                          intake,
+                          projectContext,
+                          clarificationSession,
+                          readiness,
+                          routeSet,
+                          selection,
+                          specTree,
+                          job: latestJob,
+                        })}
+                        job={latestJob}
+                        locale={locale}
+                        variant="active"
+                      />
                     </div>
                   )}
 
@@ -2223,7 +2280,25 @@ function AutopilotWorkflowRail({
                         因此 active 状态下用户从"看路线"到"选路线"再到"系统派生 SPEC"
                         都能在同一卡片底部看到对应的事件流，不会出现断层。
                       */}
-                      <AgentReasoningSubTimeline locale={locale} job={latestJob} stageFilter={["route_generation", "route_selection", "spec_tree"]} />
+                      <StageSplitMount
+                        descriptor={deriveStageSplitDescriptor({
+                          sub: "route",
+                          locale,
+                          isActive: true,
+                          isCompleted: false,
+                          intake,
+                          projectContext,
+                          clarificationSession,
+                          readiness,
+                          routeSet,
+                          selection,
+                          specTree,
+                          job: latestJob,
+                        })}
+                        job={latestJob}
+                        locale={locale}
+                        variant="active"
+                      />
                     </div>
                   )}
                 </TimelineNode>
@@ -2354,6 +2429,161 @@ function AutopilotWorkflowRail({
                 {railElement}
               </div>
             ) : null}
+
+            {/* Batch 5: fabric sub-stage unified split mounts */}
+            {(subStageContext.effectiveSubStage ?? fabricSubStage) === "spec_tree" && (
+              <StageSplitMount
+                descriptor={deriveStageSplitDescriptor({
+                  sub: "spec_tree",
+                  locale,
+                  isActive: true,
+                  isCompleted: false,
+                  intake,
+                  projectContext,
+                  clarificationSession,
+                  readiness,
+                  routeSet,
+                  selection,
+                  specTree,
+                  job: rightRailView.job.data ?? latestJob,
+                })}
+                job={rightRailView.job.data ?? latestJob}
+                locale={locale}
+                variant="active"
+              />
+            )}
+
+            {(subStageContext.effectiveSubStage ?? fabricSubStage) === "effect_preview" && (
+              <StageSplitMount
+                descriptor={deriveStageSplitDescriptor({
+                  sub: "effect_preview",
+                  locale,
+                  isActive: true,
+                  isCompleted: false,
+                  intake,
+                  projectContext,
+                  clarificationSession,
+                  readiness,
+                  routeSet,
+                  selection,
+                  specTree,
+                  job: rightRailView.job.data ?? latestJob,
+                })}
+                job={rightRailView.job.data ?? latestJob}
+                locale={locale}
+                variant="active"
+              />
+            )}
+
+            {(subStageContext.effectiveSubStage ?? fabricSubStage) === "prompt_package" && (
+              <StageSplitMount
+                descriptor={deriveStageSplitDescriptor({
+                  sub: "prompt_package",
+                  locale,
+                  isActive: true,
+                  isCompleted: false,
+                  intake,
+                  projectContext,
+                  clarificationSession,
+                  readiness,
+                  routeSet,
+                  selection,
+                  specTree,
+                  job: rightRailView.job.data ?? latestJob,
+                })}
+                job={rightRailView.job.data ?? latestJob}
+                locale={locale}
+                variant="active"
+              />
+            )}
+
+            {(subStageContext.effectiveSubStage ?? fabricSubStage) === "runtime_capability" && (
+              <StageSplitMount
+                descriptor={deriveStageSplitDescriptor({
+                  sub: "runtime_capability",
+                  locale,
+                  isActive: true,
+                  isCompleted: false,
+                  intake,
+                  projectContext,
+                  clarificationSession,
+                  readiness,
+                  routeSet,
+                  selection,
+                  specTree,
+                  job: rightRailView.job.data ?? latestJob,
+                })}
+                job={rightRailView.job.data ?? latestJob}
+                locale={locale}
+                variant="active"
+              />
+            )}
+
+            {(subStageContext.effectiveSubStage ?? fabricSubStage) === "engineering_handoff" && (
+              <StageSplitMount
+                descriptor={deriveStageSplitDescriptor({
+                  sub: "engineering_handoff",
+                  locale,
+                  isActive: true,
+                  isCompleted: false,
+                  intake,
+                  projectContext,
+                  clarificationSession,
+                  readiness,
+                  routeSet,
+                  selection,
+                  specTree,
+                  job: rightRailView.job.data ?? latestJob,
+                })}
+                job={rightRailView.job.data ?? latestJob}
+                locale={locale}
+                variant="active"
+              />
+            )}
+
+            {(subStageContext.effectiveSubStage ?? fabricSubStage) === "artifact_memory" && (
+              <StageSplitMount
+                descriptor={deriveStageSplitDescriptor({
+                  sub: "artifact_memory",
+                  locale,
+                  isActive: true,
+                  isCompleted: false,
+                  intake,
+                  projectContext,
+                  clarificationSession,
+                  readiness,
+                  routeSet,
+                  selection,
+                  specTree,
+                  job: rightRailView.job.data ?? latestJob,
+                })}
+                job={rightRailView.job.data ?? latestJob}
+                locale={locale}
+                variant="active"
+              />
+            )}
+
+            {(subStageContext.effectiveSubStage ?? fabricSubStage) === "agent_crew_fabric" && (
+              <StageSplitMount
+                descriptor={deriveStageSplitDescriptor({
+                  sub: "agent_crew_fabric",
+                  locale,
+                  isActive: true,
+                  isCompleted: false,
+                  intake,
+                  projectContext,
+                  clarificationSession,
+                  readiness,
+                  routeSet,
+                  selection,
+                  specTree,
+                  job: rightRailView.job.data ?? latestJob,
+                })}
+                job={rightRailView.job.data ?? latestJob}
+                locale={locale}
+                variant="active"
+              />
+            )}
           </div>
         );
       }

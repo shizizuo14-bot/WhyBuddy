@@ -515,6 +515,17 @@ function buildLogEntry(event: BlueprintRelayedEvent): BlueprintLogEntry {
   };
 }
 
+function buildRelayedEventFromHistoricalEvent(
+  event: BlueprintGenerationEvent
+): BlueprintRelayedEvent {
+  return {
+    type: event.type as BlueprintGenerationEventType,
+    jobId: event.jobId,
+    timestamp: event.occurredAt,
+    payload: (event.payload ?? {}) as Record<string, unknown>,
+  };
+}
+
 /**
  * `autopilot-agent-reasoning-stream` spec Task 8.3 辅助函数。
  *
@@ -778,50 +789,10 @@ export const useBlueprintRealtimeStore = create<
       const currentState = get();
       if (currentState.subscribedJobId !== jobId) return;
 
-      const seedEntries: AgentReasoningEntry[] = [];
-      let maxIteration = currentState.agentReasoning.currentIteration;
       for (const event of historicalEvents) {
-        // 持久化事件把 iteration / thought / stageId 等字段写在 payload 里
-        // （见 server/routes/blueprint/stage-progress-emitter.ts），与实时
-        // socket relay 事件相同。先做一次与 buildAgentReasoningEvent() 等价
-        // 的扁平化，让 buildEntryFromSocketEvent 能正确读到字段。
-        const flattened = flattenHistoricalAgentEvent(event);
-        const entry = buildEntryFromSocketEvent(flattened);
-        if (entry === null) continue;
-        seedEntries.push(entry);
-        if (
-          event.type === "role.agent.iteration_started" &&
-          typeof entry.iteration === "number" &&
-          entry.iteration > maxIteration
-        ) {
-          maxIteration = entry.iteration;
-        }
+        if (get().subscribedJobId !== jobId) return;
+        get().dispatchEvent(buildRelayedEventFromHistoricalEvent(event));
       }
-      if (seedEntries.length === 0) return;
-
-      // 与 dispatchEvent 收到的实时事件按 entry.id 去重：相同 id 优先保留
-      // 历史事件版本（更稳定），实时增量只补充新 id。
-      const dedup = new Map<string, AgentReasoningEntry>();
-      for (const entry of seedEntries) dedup.set(entry.id, entry);
-      for (const entry of currentState.agentReasoning.entries) {
-        if (!dedup.has(entry.id)) dedup.set(entry.id, entry);
-      }
-      let next = Array.from(dedup.values());
-      if (next.length > MAX_AGENT_REASONING_ENTRIES) {
-        next = next.slice(-MAX_AGENT_REASONING_ENTRIES);
-      }
-
-      set((latest) => {
-        if (latest.subscribedJobId !== jobId) return {};
-        return {
-          agentReasoning: {
-            jobId,
-            entries: next,
-            currentIteration: maxIteration,
-            status: latest.agentReasoning.status,
-          },
-        };
-      });
     });
 
     function handleConnect() {
@@ -1031,11 +1002,11 @@ export const useBlueprintRealtimeStore = create<
       // Agent progress 鏇存柊锛坖ob.stage 浜嬩欢锛?
       if (type === "job.stage" && payload) {
         const entry: AgentProgressEntry = {
-          id: `progress-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          id: `progress-${lastUpdated}-${Math.random().toString(36).slice(2, 8)}`,
           roleId: (payload.roleId as string) ?? "system",
           type: "acting",
           message: (payload.message as string) ?? type,
-          timestamp: Date.now(),
+          timestamp: lastUpdated,
         };
         let nextProgress = [...state.agentProgress, entry];
         if (nextProgress.length > MAX_AGENT_PROGRESS) {
