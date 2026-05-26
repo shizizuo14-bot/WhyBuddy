@@ -476,6 +476,7 @@ export const AutopilotSpecDocumentsWorkbench: FC<
           onExport={handleExport}
           onReview={handleReview}
           onRefresh={handleRefresh}
+          onGenerateAll={props.onGenerateAll}
           exportDisabled={exportDisabled}
           docStats={docStats}
         />

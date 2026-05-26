@@ -9,6 +9,9 @@
  * - loading 态：按钮脉冲动画 + 进度文案，不可点击
  * - readOnly 态：展示只读提示文案，无按钮交互（用于自动流式生成中）
  *
+ * MiroFish 变体：
+ * - 全宽黑底白字等宽字体按钮，无圆角，hover 仅 translateY(-2px)
+ *
  * @example
  * ```tsx
  * <StageCTA
@@ -19,10 +22,11 @@
  * />
  * ```
  *
- * 对应需求: 4.1, 4.2, 4.3, 4.4, 4.5
+ * 对应需求: 4.1, 4.2, 4.3, 4.4, 4.5, 8.5
  */
 
 import type { FC } from "react";
+import { useMirofishTheme } from "@/hooks/useMirofishTheme";
 
 /** StageCTA 组件 Props */
 export interface StageCTAProps {
@@ -47,6 +51,9 @@ export interface StageCTAProps {
  *
  * 使用 sticky bottom-0 定位，深色毛玻璃背景（bg-black/30 backdrop-blur-md），
  * 顶部细线分隔（border-t border-white/5）与内容区形成视觉层次。
+ *
+ * 在 MiroFish 主题作用域内，按钮渲染为全宽黑底白字等宽字体，无圆角，
+ * hover 仅有 translateY(-2px) 效果。
  */
 const StageCTA: FC<StageCTAProps> = ({
   label,
@@ -57,6 +64,8 @@ const StageCTA: FC<StageCTAProps> = ({
   onAction,
   testId = "autopilot-stage-cta",
 }) => {
+  const isMirofish = useMirofishTheme();
+
   // readOnly 态：展示只读提示文案，不渲染可点击按钮
   if (readOnly) {
     return (
@@ -64,6 +73,26 @@ const StageCTA: FC<StageCTAProps> = ({
         <p className="w-full text-center text-slate-400 text-xs py-2.5">
           {readOnlyHint || label}
         </p>
+      </div>
+    );
+  }
+
+  // MiroFish 变体：全宽黑底白字等宽字体，无圆角，hover translateY(-2px)
+  if (isMirofish) {
+    return (
+      <div className="sticky bottom-0 z-10 bg-[--mf-color-bg] border-t border-[--mf-color-border] px-4 py-3">
+        <button
+          type="button"
+          data-testid={testId}
+          data-mf-button="primary"
+          className={`w-full bg-black text-white font-[family-name:var(--mf-font-mono)] text-xs font-bold py-2.5 rounded-none hover:-translate-y-0.5 transition-transform ${
+            loading ? "opacity-50" : ""
+          } ${disabled || loading ? "pointer-events-none opacity-50" : ""}`}
+          disabled={disabled || loading}
+          onClick={onAction}
+        >
+          {loading ? `${label}...` : label}
+        </button>
       </div>
     );
   }

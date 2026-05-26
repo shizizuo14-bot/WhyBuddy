@@ -285,7 +285,7 @@ export const SpecTreeWorkbench: FC<SpecTreeWorkbenchProps> = ({
       {/* 节点行列表 */}
       <ul
         data-testid="spec-tree-workbench-list"
-        className="space-y-1 rounded-lg border border-slate-100 bg-white p-1.5"
+        className="space-y-1 p-1.5"
       >
         {specTree.nodes.map(node => (
           <SpecTreeNodeRow

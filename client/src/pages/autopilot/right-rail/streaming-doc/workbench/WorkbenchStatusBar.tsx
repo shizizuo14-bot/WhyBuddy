@@ -48,6 +48,8 @@ export interface WorkbenchStatusBarProps {
   onExport: () => void;
   onReview: () => void;
   onRefresh: () => void;
+  /** 一键生成全部规格文档。缺失时不渲染按钮。 */
+  onGenerateAll?: () => void;
   /**
    * 导出按钮额外禁用条件。容器在 `props.jobId === undefined` 或
    * `generating !== null` 时设为 `true`。
@@ -158,6 +160,7 @@ export const WorkbenchStatusBar: FC<WorkbenchStatusBarProps> = ({
   onExport,
   onReview,
   onRefresh,
+  onGenerateAll,
   exportDisabled,
   docStats,
   locale,
@@ -204,6 +207,18 @@ export const WorkbenchStatusBar: FC<WorkbenchStatusBarProps> = ({
           </p>
         </div>
         <div className="flex max-w-full flex-wrap items-center gap-1">
+          {onGenerateAll ? (
+            <button
+              type="button"
+              data-testid="autopilot-workbench-action-generate-all"
+              onClick={onGenerateAll}
+              disabled={baseDisabled}
+              aria-disabled={baseDisabled}
+              className="inline-flex h-7 items-center gap-1 rounded-md bg-slate-900 px-2 text-[10px] font-bold text-white shadow-sm transition hover:bg-slate-700 disabled:cursor-not-allowed disabled:bg-slate-400"
+            >
+              <span className="truncate">{generating === "all" ? (locale === "zh-CN" ? "生成中..." : "Generating...") : (locale === "zh-CN" ? "生成全部" : "Generate All")}</span>
+            </button>
+          ) : null}
           <button
             type="button"
             data-testid="autopilot-workbench-action-export"

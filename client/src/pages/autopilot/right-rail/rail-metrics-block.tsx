@@ -14,6 +14,7 @@
 
 import type { FC } from "react";
 
+import { useMirofishTheme } from "@/hooks/useMirofishTheme";
 import type { AppLocale } from "@/lib/locale";
 import type {
   BlueprintCapabilityEvidence,
@@ -78,6 +79,24 @@ function MetricBox({
   tone?: "neutral" | "good" | "warn";
   dark?: boolean;
 }) {
+  const isMirofish = useMirofishTheme();
+
+  if (isMirofish) {
+    return (
+      <div
+        data-mf-card
+        className="min-w-0 border border-[--mf-color-border] bg-[--mf-color-bg] px-3 py-2"
+      >
+        <div className="truncate font-[family-name:var(--mf-font-mono)] text-[10px] font-bold uppercase tracking-widest opacity-70">
+          {label}
+        </div>
+        <div className="mt-1 truncate font-[family-name:var(--mf-font-mono)] text-sm font-bold">
+          {value}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={cn(

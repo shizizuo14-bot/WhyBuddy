@@ -14,6 +14,7 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import { useEffect, useRef, useState, type FC, type ReactNode } from "react";
+import { useMirofishMotionProps } from "@/hooks/useMirofishMotionProps";
 
 /**
  * StageTransitionWrapper 组件 Props
@@ -84,6 +85,10 @@ const StageTransitionWrapper: FC<StageTransitionWrapperProps> = ({
   onTransitionStart,
   onTransitionEnd,
 }) => {
+  /** Is animation reduced (MiroFish scope or prefers-reduced-motion) */
+  const motionOverrides = useMirofishMotionProps();
+  const isReduced = Object.keys(motionOverrides).length > 0;
+
   /** 是否正在过渡动画中 */
   const [isTransitioning, setIsTransitioning] = useState(false);
 
@@ -93,23 +98,31 @@ const StageTransitionWrapper: FC<StageTransitionWrapperProps> = ({
   /**
    * 当 stageKey 变化时，标记过渡开始并通知父组件。
    * 首次渲染不触发（prevStageKeyRef 初始值等于当前 stageKey）。
+   *
+   * Since exit animations are intentionally omitted (to avoid blocking the next
+   * stage), onExitComplete will not fire. Instead, we fire onTransitionEnd after
+   * the enter animation duration (350ms) completes.
    */
   useEffect(() => {
     if (prevStageKeyRef.current !== stageKey) {
       prevStageKeyRef.current = stageKey;
-      setIsTransitioning(true);
-      onTransitionStart?.();
+      if (isReduced) {
+        // When animations are disabled, fire start+end immediately
+        onTransitionStart?.();
+        onTransitionEnd?.();
+      } else {
+        setIsTransitioning(true);
+        onTransitionStart?.();
+        // No exit animation means onExitComplete won't fire.
+        // End the transition lock after the enter animation duration.
+        const timer = setTimeout(() => {
+          setIsTransitioning(false);
+          onTransitionEnd?.();
+        }, 350);
+        return () => clearTimeout(timer);
+      }
     }
-  }, [stageKey, onTransitionStart]);
-
-  /**
-   * AnimatePresence 退出动画完成后的回调。
-   * 重置过渡状态并通知父组件恢复交互。
-   */
-  const handleExitComplete = () => {
-    setIsTransitioning(false);
-    onTransitionEnd?.();
-  };
+  }, [stageKey, onTransitionStart, onTransitionEnd, isReduced]);
 
   return (
     <div
@@ -125,15 +138,14 @@ const StageTransitionWrapper: FC<StageTransitionWrapperProps> = ({
         mode="sync"
         initial={false}
         custom={direction}
-        onExitComplete={handleExitComplete}
       >
         <motion.div
           key={stageKey}
           custom={direction}
-          variants={variants}
+          variants={isReduced ? undefined : variants}
           initial={false}
-          animate="center"
-          transition={transition}
+          animate={isReduced ? false : "center"}
+          transition={isReduced ? { duration: 0 } : transition}
           className="col-start-1 row-start-1 h-full min-h-0"
           style={{
             width: "100%",

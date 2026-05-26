@@ -162,7 +162,7 @@ export const ProcessArtifactSplitPanel: FC<ProcessArtifactSplitPanelProps> = ({
   return (
     <section
       data-testid="autopilot-process-artifact-split-panel"
-      className="grid h-full min-h-0 min-w-0 gap-2 overflow-hidden rounded-lg border border-slate-200 bg-white p-2 shadow-sm lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]"
+      className="grid min-h-0 min-w-0 gap-2 overflow-hidden rounded-lg border border-slate-200 bg-white p-2 shadow-sm lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)] lg:items-start"
     >
       <div
         data-testid="autopilot-process-execution-lane"
