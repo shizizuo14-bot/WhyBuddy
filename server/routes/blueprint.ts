@@ -305,6 +305,8 @@ interface BlueprintClarificationQuestionGeneratorInput {
   strategy: BlueprintClarificationStrategyTemplate;
   templateQuestions: BlueprintClarificationQuestion[];
   now: string;
+  /** User's preferred locale for generated questions. Defaults to "en-US". */
+  locale?: "zh-CN" | "en-US";
 }
 
 interface BlueprintClarificationQuestionGenerationResult {
@@ -674,6 +676,7 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
         now: deps.now,
         stores: blueprintStores,
         request: parsed.request,
+        locale: parsed.request.locale,
         generateQuestions:
           deps.generateClarificationQuestions ??
           generateClarificationQuestionsWithLlm,
@@ -881,6 +884,8 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       routeEmitter?.thinking("正在基于仓库分析和澄清答案，规划候选路线...");
       routeEmitter?.acting("llm.route_generation");
 
+      const requestLocale = resolveRequestLocale(req.body);
+
       const result = await createGenerationJob(resolved.request, {
         now: deps.now,
         store: jobStore,
@@ -889,6 +894,7 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
         clarificationSession: resolved.clarificationSession,
         routeSetLlmGenerator: resolveRouteSetLlmGenerator(),
         ctx: blueprintServiceContext,
+        locale: requestLocale,
       });
 
       routeEmitter?.observing(true, `路线规划完成：生成了 ${result.routeSet?.routes?.length ?? 0} 条候选路线`);
@@ -1504,6 +1510,7 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       {
         now: deps.now,
         store: jobStore,
+        locale: parsed.request.locale ?? resolveRequestLocale(req.body),
       }
     );
 
@@ -2449,6 +2456,8 @@ interface CreateGenerationJobOptions {
    * ctx 未提供时所有 capability 分支继续走模板化 simulated 路径（design §D10 兼容基线）。
    */
   ctx?: BlueprintServiceContext;
+  /** User's preferred locale for LLM-generated content. Defaults to "en-US". */
+  locale?: "zh-CN" | "en-US";
 }
 
 /**
@@ -2461,6 +2470,8 @@ interface CreateGenerationJobOptions {
 interface CreateGenerationJobHelperOptions {
   now?: () => Date;
   store: BlueprintJobStore;
+  /** User's preferred locale for LLM-generated content. Defaults to "en-US". */
+  locale?: "zh-CN" | "en-US";
 }
 
 type ParseIntakeRequestResult =
@@ -2479,6 +2490,8 @@ interface BlueprintClarificationSessionRequest {
   strategyId?: BlueprintClarificationStrategyId;
   templateId?: string;
   forceNew?: boolean;
+  /** User's preferred locale for LLM-generated clarification questions. Defaults to "en-US". */
+  locale?: "zh-CN" | "en-US";
 }
 
 type ResolveGenerationRequestResult =
@@ -2561,6 +2574,7 @@ async function createClarificationSession(
     now?: () => Date;
     stores: BlueprintIntakeStores;
     request?: BlueprintClarificationSessionRequest;
+    locale?: "zh-CN" | "en-US";
     generateQuestions?: BlueprintClarificationQuestionGenerator;
   }
 ): Promise<BlueprintClarificationSession> {
@@ -2580,6 +2594,7 @@ async function createClarificationSession(
         strategy,
         templateQuestions,
         now: createdAt,
+        locale: options.locale ?? options.request?.locale ?? "en-US",
       })
     : {
         questions: templateQuestions,
@@ -2633,6 +2648,23 @@ function findReusableClarificationSession(
   return sessions[0];
 }
 
+// ---------------------------------------------------------------------------
+// Locale resolution — autopilot-i18n-consistency Task 5.1
+// ---------------------------------------------------------------------------
+
+/**
+ * Resolve the user's preferred locale from a request body.
+ * Returns "zh-CN" only when explicitly set; defaults to "en-US" for backward
+ * compatibility.
+ */
+function resolveRequestLocale(body: unknown): "zh-CN" | "en-US" {
+  if (body && typeof body === "object" && "locale" in body) {
+    const locale = (body as { locale?: unknown }).locale;
+    if (locale === "zh-CN") return "zh-CN";
+  }
+  return "en-US";
+}
+
 function parseClarificationSessionRequest(
   body: unknown
 ): ParseClarificationSessionRequestResult {
@@ -2667,6 +2699,7 @@ function parseClarificationSessionRequest(
       strategyId,
       templateId: readString(body.templateId ?? body.template_id),
       forceNew: readBoolean(body.forceNew ?? body.force_new),
+      locale: resolveRequestLocale(body),
     },
   };
 }
@@ -2870,6 +2903,7 @@ function parseGenerationRequest(body: unknown): ParseGenerationRequestResult {
       targetText,
       githubUrls,
       clarifications: normalizeClarifications(body.clarifications),
+      locale: resolveRequestLocale(body),
     },
   };
 }
@@ -2965,7 +2999,8 @@ export async function createGenerationJob(
       options.clarificationSession,
       options.routeSetLlmGenerator,
       options.intake,
-      options.context
+      options.context,
+      options.locale
     );
   }
   const routeArtifact: BlueprintGenerationArtifact = {
@@ -3249,7 +3284,8 @@ async function buildRouteSet(
   clarificationSession: BlueprintClarificationSession | undefined,
   generator: RouteSetLlmGenerator,
   intake?: BlueprintIntake,
-  projectContext?: BlueprintProjectDomainContext
+  projectContext?: BlueprintProjectDomainContext,
+  locale?: "zh-CN" | "en-US"
 ): Promise<BlueprintRouteSet> {
   const routeSetId = createId("blueprint-routeset");
   const primaryRouteId = `${routeSetId}:primary`;
@@ -3269,6 +3305,7 @@ async function buildRouteSet(
     routeSetId,
     primaryRouteId,
     createdAt,
+    locale,
   });
 
   return {
@@ -7469,6 +7506,9 @@ function parseGenerateSpecDocumentsRequest(
 
     request.types = types;
   }
+
+  // Preserve locale for downstream LLM generation
+  request.locale = resolveRequestLocale(body);
 
   return { ok: true, request };
 }
@@ -15643,7 +15683,7 @@ async function generateClarificationQuestionsWithLlm(
       commandText: buildBlueprintClarificationPreviewCommand(input),
       userId: "blueprint-autopilot",
       priority: input.strategy.id === "fast_execution" ? "high" : "medium",
-      locale: "zh-CN",
+      locale: input.locale ?? "en-US",
     });
     const previewQuestions = mapPreviewClarificationQuestionsToBlueprint(
       preview,
@@ -15664,12 +15704,16 @@ async function generateClarificationQuestionsWithLlm(
       };
     }
 
+    const clarificationLocale = input.locale ?? "en-US";
+    const systemContent = clarificationLocale === "zh-CN"
+      ? "你是 /autopilot 澄清规划器。遵循现有的启动澄清行为：仅以 JSON 格式返回 1 到 3 个简洁、高信号的问题。优先使用 single_choice 或 multi_choice 并提供 2 到 4 个简短选项。每个问题必须关联提供的模板 id、路线维度和就绪信号。不要重复提问。用中文撰写问题文本。"
+      : "You are the /autopilot clarification planner. Follow the existing launch clarification behavior: return 1 to 3 concise, clickable, high-signal questions as JSON only. Prefer single_choice or multi_choice with 2 to 4 short options. Keep every question tied to the provided template ids, route dimensions, and readiness signals. Do not ask duplicate questions.";
+
     const payload = await callLLMJson<LlmClarificationQuestionsPayload>(
       [
         {
           role: "system",
-          content:
-            "You are the /autopilot clarification planner. Follow the existing launch clarification behavior: return 1 to 3 concise, clickable, high-signal questions as JSON only. Prefer single_choice or multi_choice with 2 to 4 short options. Keep every question tied to the provided template ids, route dimensions, and readiness signals. Do not ask duplicate questions.",
+          content: systemContent,
         },
         {
           role: "user",

@@ -426,6 +426,8 @@ export interface BlueprintGenerationRequest {
   githubUrls?: string[];
   clarifications?: BlueprintClarificationAnswer[];
   domainContext?: BlueprintProjectDomainContext;
+  /** User's preferred locale for LLM-generated content. Defaults to "en-US" on the backend. */
+  locale?: "zh-CN" | "en-US";
 }
 
 export interface BlueprintRouteStep {
@@ -2350,6 +2352,8 @@ export interface BlueprintRecordEngineeringRunResponse {
 export interface BlueprintGenerateSpecDocumentsRequest {
   nodeId?: string;
   types?: BlueprintSpecDocumentType[];
+  /** User's preferred locale for LLM-generated content. Defaults to "en-US" on the backend. */
+  locale?: "zh-CN" | "en-US";
 }
 
 export interface BlueprintGenerateEffectPreviewsRequest {

@@ -64,6 +64,8 @@ export interface RouteSetLlmGeneratorInput {
   primaryRouteId: string;
   /** 与调用方 `buildRouteSet` 共享的 ISO 时间戳；当前仅用于测试可预测性，暂未写入路线字段。 */
   createdAt: string;
+  /** User's preferred locale for LLM-generated content. Takes precedence over session-derived locale. */
+  locale?: "zh-CN" | "en-US";
 }
 
 export interface RouteSetLlmProvenanceExtras {
@@ -128,16 +130,16 @@ function resolveTimeoutMs(): number {
 }
 
 /**
- * 从 clarificationSession 派生 prompt locale。
+ * 从 input.locale 或 clarificationSession 派生 prompt locale。
  *
- * `BlueprintClarificationSession` 当前在 `shared/blueprint/contracts.ts` 里没有 `locale`
- * 字段，但我们采用兼容性读取：若 session 上出现 `locale === "zh-CN"`，走中文 prompt；
- * 其他情况默认英文 prompt（与 design §2.D6 选项 A 对齐）。这一兼容读取保证未来 clarification
- * 侧显式挂载 `locale` 时 RouteSet 侧无需再做签名变更。
+ * 优先使用 input.locale（由前端 request 直接传入）；若未提供，
+ * 回退到 clarificationSession 上的兼容性读取。
  */
 function resolveLocale(
-  session: BlueprintClarificationSession | undefined,
+  input: RouteSetLlmGeneratorInput,
 ): RouteSetPromptLocale {
+  if (input.locale === "zh-CN") return "zh-CN";
+  const session = input.clarificationSession;
   if (!session) return "en-US";
   const raw = (session as { locale?: unknown }).locale;
   return raw === "zh-CN" ? "zh-CN" : "en-US";
@@ -389,7 +391,7 @@ export function createRouteSetLlmGenerator(
         intake: input.intake,
         clarificationSession: input.clarificationSession,
         projectContext: input.projectContext,
-        locale: resolveLocale(input.clarificationSession),
+        locale: resolveLocale(input),
       });
 
       const payload = await ctx.llm.callJson(

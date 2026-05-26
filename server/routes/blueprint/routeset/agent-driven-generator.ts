@@ -73,7 +73,7 @@ export function createAgentDrivenRouteSetGenerator(
         stageId: "route_generation",
         jobId: input.jobId,
         goal: buildPlannerGoal(input.request, input.intake),
-        systemPrompt: buildPlannerSystemPrompt("en"),
+        systemPrompt: buildPlannerSystemPrompt(input.request.locale === "zh-CN" ? "zh" : "en"),
         context: {
           request: input.request,
           intake: input.intake,
@@ -128,6 +128,7 @@ export function createAgentDrivenRouteSetGenerator(
         routeSetId,
         primaryRouteId,
         createdAt: input.createdAt,
+        locale: input.request.locale,
       });
 
       // 构建 fallback RouteSet（复用 buildRouteSet 的逻辑）
