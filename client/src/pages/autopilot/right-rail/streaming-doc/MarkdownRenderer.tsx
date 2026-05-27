@@ -34,6 +34,7 @@ import { useMemo, type FC, type ReactNode } from "react";
 import type { AppLocale } from "@/lib/locale";
 
 import { CodeBlock } from "./CodeBlock";
+import { MermaidBlock } from "./MermaidBlock";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -443,7 +444,50 @@ function renderToken(
           ))}
         </ol>
       );
-    case "code":
+    case "code": {
+      // Mermaid detection: route mermaid-annotated code blocks to MermaidBlock.
+      // Primary: language annotation is "mermaid" (case-insensitive).
+      // Fallback: code content starts with "mermaid" (handles LLM-generated
+      // blocks where "mermaid" is inside the fence rather than on the fence
+      // line, including the case where the entire diagram is collapsed onto
+      // one line: "mermaid graph TD A[...] --> B[...]").
+      const langLower = token.language?.toLowerCase().trim();
+      const trimmedCode = token.code.trimStart();
+      const startsWithMermaidKeyword = /^mermaid[\s\b]/i.test(trimmedCode) ||
+        trimmedCode.toLowerCase() === "mermaid";
+      const isMermaid = langLower === "mermaid" ||
+        (!langLower && startsWithMermaidKeyword);
+
+      if (isMermaid) {
+        // Strip leading "mermaid" keyword when detected via content fallback.
+        // - "```\nmermaid\ngraph TD\n..." → "graph TD\n..."
+        // - "```\nmermaid graph TD A --> B" → "graph TD A --> B"
+        let mermaidCode = langLower === "mermaid"
+          ? token.code
+          : trimmedCode.replace(/^mermaid[\s\b]+/i, "");
+
+        // Heuristic: if mermaid code is collapsed onto one line (LLMs sometimes
+        // emit malformed blocks like "graph TD A --> B B --> C"), insert
+        // newlines before edges and node declarations to give mermaid parser
+        // a fighting chance. Only apply when the entire code is one line and
+        // contains mermaid edge syntax.
+        if (!mermaidCode.includes("\n") && /-->|---|==>/.test(mermaidCode)) {
+          // Split before edge arrows and capitalized node identifiers that
+          // follow whitespace — common pattern in flattened LLM output.
+          mermaidCode = mermaidCode
+            .replace(/\s+(-->|---|==>)/g, "\n  $1")
+            .replace(/(\])\s+([A-Z][A-Za-z0-9_]*\[)/g, "$1\n  $2");
+        }
+
+        return (
+          <MermaidBlock
+            key={key}
+            code={mermaidCode}
+            isStreaming={isStreaming && !token.closed && isLast}
+            closed={token.closed}
+          />
+        );
+      }
       // 仅在文档整体仍处于流式状态、并且该代码块尚未闭合且位于末尾时，
       // 才把 isStreaming 透传给子组件。这样可以让 CodeBlock 的 data-attr
       // 准确反映"当前正在写入"，而不是"文档随便哪里在流式"。
@@ -455,6 +499,7 @@ function renderToken(
           isStreaming={isStreaming && !token.closed && isLast}
         />
       );
+    }
     case "table":
       return (
         <div key={key} className="overflow-x-auto">
