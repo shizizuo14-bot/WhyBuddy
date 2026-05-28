@@ -197,7 +197,7 @@ manifest:
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
   <rect width="100%" height="100%" fill="#0d1117"/>
-  <text x="40" y="40" font-family="Space Grotesk, sans-serif" font-size="22" font-weight="700" fill="#f0f6fc">D4 — Domain Map (11 domains, 969 modules)</text>
+  <text x="40" y="40" font-family="DM Sans, Noto Sans SC, system-ui, sans-serif" font-size="22" font-weight="700" fill="#f0f6fc">D4 — Domain Map (11 domains, 969 modules)</text>
   <text x="40" y="64" font-family="JetBrains Mono, monospace" font-size="12" fill="#8b949e">★ = TRUNK domain on the Mission Execution Main Loop · blue=TRUNK · green=BRANCH · gray=infrastructure (off-enum)</text>${body}
   <g transform="translate(40,${h - 50})">
     <rect width="20" height="14" fill="#1f6feb" fill-opacity="0.15" stroke="#1f6feb" stroke-width="2"/><text x="28" y="12" font-family="JetBrains Mono" font-size="11" fill="#c9d1d9">TRUNK</text>
@@ -364,7 +364,7 @@ manifest:
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
   <rect width="100%" height="100%" fill="#0d1117"/>
-  <text x="40" y="40" font-family="Space Grotesk, sans-serif" font-size="22" font-weight="700" fill="#f0f6fc">D5 — Frontend Navigation Map</text>
+  <text x="40" y="40" font-family="DM Sans, Noto Sans SC, system-ui, sans-serif" font-size="22" font-weight="700" fill="#f0f6fc">D5 — Frontend Navigation Map</text>
   <text x="40" y="62" font-family="JetBrains Mono, monospace" font-size="12" fill="#8b949e">routes → pages → panels → stores · counts from module-inventory.md</text>
 
   <!-- Routes layer -->
@@ -629,7 +629,7 @@ manifest:
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${w} ${h}" width="${w}" height="${h}">
   <rect width="100%" height="100%" fill="#0d1117"/>
-  <text x="40" y="40" font-family="Space Grotesk, sans-serif" font-size="22" font-weight="700" fill="#f0f6fc">D6 — Backend Capability Map</text>
+  <text x="40" y="40" font-family="DM Sans, Noto Sans SC, system-ui, sans-serif" font-size="22" font-weight="700" fill="#f0f6fc">D6 — Backend Capability Map</text>
   <text x="40" y="64" font-family="JetBrains Mono" font-size="12" fill="#8b949e">routes + core_modules + executor by domain · ★ = TRUNK domain on the Mission Execution Main Loop</text>
   <text x="40" y="86" font-family="JetBrains Mono" font-size="12" fill="#8b949e">total routes=${Object.values(routesByDomain).reduce((a,b)=>a+b,0)} · total core_modules=${Object.values(coresByDomain).reduce((a,b)=>a+b,0)} · executor modules=${executorTotal}</text>${body}
   <text x="40" y="${h - 20}" font-family="JetBrains Mono" font-size="11" fill="#8b949e">snapshot=2026-05-28 · HEAD=d181be2f · derived from module-inventory.md</text>

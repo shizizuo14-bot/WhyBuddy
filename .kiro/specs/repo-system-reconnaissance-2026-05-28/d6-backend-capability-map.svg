@@ -9,7 +9,7 @@ manifest:
 -->
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720">
   <rect width="100%" height="100%" fill="#0d1117"/>
-  <text x="40" y="40" font-family="Space Grotesk, sans-serif" font-size="22" font-weight="700" fill="#f0f6fc">D6 — Backend Capability Map</text>
+  <text x="40" y="40" font-family="DM Sans, Noto Sans SC, system-ui, sans-serif" font-size="22" font-weight="700" fill="#f0f6fc">D6 — Backend Capability Map</text>
   <text x="40" y="64" font-family="JetBrains Mono" font-size="12" fill="#8b949e">routes + core_modules + executor by domain · ★ = TRUNK domain on the Mission Execution Main Loop</text>
   <text x="40" y="86" font-family="JetBrains Mono" font-size="12" fill="#8b949e">total routes=236 · total core_modules=100 · executor modules=26</text>
   <g>
