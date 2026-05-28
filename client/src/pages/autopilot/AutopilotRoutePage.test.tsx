@@ -66,6 +66,9 @@ describe("AutopilotRoutePage", () => {
     expect(markup).toContain('data-testid="autopilot-route-page"');
     expect(markup).toContain('data-testid="autopilot-topbar"');
     expect(markup).toContain('data-testid="autopilot-visual-stage"');
+    expect(markup).toContain(
+      "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+    );
     expect(markup).toContain('data-testid="autopilot-scene-visual"');
     expect(markup).toContain('data-testid="mock-scene-3d"');
     expect(markup).toContain('data-project-id="project-1"');

@@ -2716,7 +2716,7 @@ function AutopilotWorkflowRail({
       data-testid="autopilot-workflow-rail"
       data-mf-surface
       style={{
-        // 硬约束 aside 宽度。父级 grid track 是 minmax(0, 2fr)，但 grid item
+        // 硬约束 aside 宽度。父级 grid track 是 minmax(0, 1fr)，但 grid item
         // 的 min-width: auto 默认会让 item 的最小宽度 = min-content。当内部
         // markdown 长行 / 多 tab 等内容存在时，min-content 会把整个 aside
         // 撑大到内容总宽度（曾出现过 15364px）。
@@ -4222,7 +4222,7 @@ export default function AutopilotRoutePage() {
       </header>
 
       <div className="grid w-full px-0 py-0 xl:flex-1 xl:min-h-0 xl:overflow-hidden">
-        <div className="grid xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:overflow-hidden">
+        <div className="grid xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden">
           <AutopilotVisualStage
             locale={locale}
             currentProjectId={currentProjectId}

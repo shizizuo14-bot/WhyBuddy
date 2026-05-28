@@ -182,26 +182,22 @@ export function Scene3D({
 
   const camera = isMobile
     ? {
-        // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v9 拉近）：v7/v8 锁定
-        // canvas aspect 后，画面里 3D 场景偏小且上方留白。把相机距离从 z=14.5
-        // 拉近到 z=12.0，fov 50 不变，让 3D 几何填满 16:10 canvas 上下边界。
-        position: [0, 7.5, 13.0] as [number, number, number],
+        // Keep the stage readable in the 50/50 autopilot split without leaving
+        // too much empty floor in the lower viewport.
+        position: [0, 7.7, 14.3] as [number, number, number],
         fov: 50,
         near: 0.1,
         far: 100,
       }
     : isTablet
       ? {
-          position: [0, 7.0, 12.5] as [number, number, number],
+          position: [0, 7.2, 13.2] as [number, number, number],
           fov: 50,
           near: 0.1,
           far: 100,
         }
       : {
-          // desktop v9：[0, 6.5, 11.5] / fov 50。相机距离后墙 16.4m，fov 50°
-          // 视野横向 ~15.3m / 纵向 ~9.6m，配合 16:10 canvas（视角比 1.6）
-          // 完全贴合，3D 场景填满 canvas 上下边界。
-          position: [0, 6.5, 11.5] as [number, number, number],
+          position: [0, 5, 10.5] as [number, number, number],
           fov: 50,
           near: 0.1,
           far: 100,
