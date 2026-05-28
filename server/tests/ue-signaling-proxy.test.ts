@@ -4,12 +4,6 @@ import { SignalingProxy } from "../core/ue-signaling-proxy.js";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
-/** Find an available port by letting the OS assign one. */
-function getTestPort(): number {
-  // Use a random high port to avoid collisions in parallel test runs
-  return 30000 + Math.floor(Math.random() * 20000);
-}
-
 /** Wait for a WebSocket to reach OPEN state. */
 function waitForOpen(ws: WebSocket): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -88,10 +82,9 @@ describe("SignalingProxy", () => {
     return ws;
   }
 
-  beforeEach(() => {
-    port = getTestPort();
+  beforeEach(async () => {
     proxy = new SignalingProxy();
-    proxy.listen(port);
+    port = await proxy.listen(0, "127.0.0.1");
   });
 
   afterEach(async () => {

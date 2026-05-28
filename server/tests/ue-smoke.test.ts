@@ -27,10 +27,6 @@ import type { UEProcessConfig } from "../../shared/ue/contracts.js";
 
 // ── Helpers ─────────────────────────────────────────────────────
 
-function getTestPort(): number {
-  return 30000 + Math.floor(Math.random() * 20000);
-}
-
 function makeConfig(): UEProcessConfig {
   return {
     ueEditorPath: "/opt/ue5/Engine/Binaries/Linux/UnrealEditor",
@@ -157,9 +153,6 @@ describe("6.1 Full pipeline: start → UE ready → browser connect → signalin
   }
 
   beforeEach(async () => {
-    signalingPort = getTestPort();
-    apiPort = getTestPort();
-
     // 1. Create UEProcessManager with mocked spawn
     processManager = new UEProcessManager({
       startupTimeoutMs: 5000,
@@ -168,7 +161,7 @@ describe("6.1 Full pipeline: start → UE ready → browser connect → signalin
 
     // 2. Create SignalingProxy on a random port
     signalingProxy = new SignalingProxy();
-    signalingProxy.listen(signalingPort);
+    signalingPort = await signalingProxy.listen(0, "127.0.0.1");
 
     // 3. Create UEDebugService wired to both
     debugService = new UEDebugService(processManager, signalingProxy);
@@ -179,8 +172,13 @@ describe("6.1 Full pipeline: start → UE ready → browser connect → signalin
     app.use("/api/ue", createUERouter({ debugService }));
 
     httpServer = createServer(app);
-    await new Promise<void>((resolve) => {
-      httpServer.listen(apiPort, "127.0.0.1", () => resolve());
+    await new Promise<void>((resolve, reject) => {
+      httpServer.once("error", reject);
+      httpServer.listen(0, "127.0.0.1", () => {
+        const address = httpServer.address() as AddressInfo;
+        apiPort = address.port;
+        resolve();
+      });
     });
   });
 
@@ -286,10 +284,9 @@ describe("6.2 Reconnection and degradation paths", () => {
     return ws;
   }
 
-  beforeEach(() => {
-    signalingPort = getTestPort();
+  beforeEach(async () => {
     signalingProxy = new SignalingProxy();
-    signalingProxy.listen(signalingPort);
+    signalingPort = await signalingProxy.listen(0, "127.0.0.1");
   });
 
   afterEach(async () => {

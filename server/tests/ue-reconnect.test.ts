@@ -443,10 +443,6 @@ describe("SignalingProxy reconnect message handling", () => {
   let port: number;
   const openSockets: WebSocket[] = [];
 
-  function getTestPort(): number {
-    return 30000 + Math.floor(Math.random() * 20000);
-  }
-
   function createWs(path: string): WebSocket {
     const ws = new WebSocket(`ws://127.0.0.1:${port}${path}`);
     openSockets.push(ws);
@@ -482,10 +478,9 @@ describe("SignalingProxy reconnect message handling", () => {
     });
   }
 
-  beforeEach(() => {
-    port = getTestPort();
+  beforeEach(async () => {
     proxy = new SignalingProxy();
-    proxy.listen(port);
+    port = await proxy.listen(0, "127.0.0.1");
   });
 
   afterEach(async () => {

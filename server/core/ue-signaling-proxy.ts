@@ -18,6 +18,7 @@
 import { EventEmitter } from "node:events";
 import { createServer, type Server as HttpServer } from "node:http";
 import { randomUUID } from "node:crypto";
+import type { AddressInfo } from "node:net";
 
 // Use ws from socket.io's transitive dependency
 // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -87,10 +88,37 @@ export class SignalingProxy extends EventEmitter {
   /**
    * Start listening on the given port.
    */
-  listen(port: number): void {
-    if (this.listening) return;
-    this.listening = true;
-    this.httpServer.listen(port);
+  listen(port: number, host?: string): Promise<number> {
+    if (this.listening) {
+      const address = this.httpServer.address();
+      return Promise.resolve(
+        typeof address === "object" && address !== null ? address.port : port,
+      );
+    }
+
+    return new Promise<number>((resolve, reject) => {
+      const cleanup = () => {
+        this.httpServer.off("error", onError);
+      };
+      const onError = (error: Error) => {
+        cleanup();
+        this.listening = false;
+        reject(error);
+      };
+      const onListening = () => {
+        cleanup();
+        this.listening = true;
+        const address = this.httpServer.address() as AddressInfo | string | null;
+        resolve(typeof address === "object" && address !== null ? address.port : port);
+      };
+
+      this.httpServer.once("error", onError);
+      if (host) {
+        this.httpServer.listen(port, host, onListening);
+      } else {
+        this.httpServer.listen(port, onListening);
+      }
+    });
   }
 
   /**
