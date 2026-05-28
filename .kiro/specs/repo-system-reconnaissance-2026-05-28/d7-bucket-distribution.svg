@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  manifest: spec-audit-table.md (289 rows)
+  source: .kiro/specs/repo-system-reconnaissance-2026-05-28/spec-audit-table.md § Distribution
+  snapshot: .kiro/steering/project-overview.md § 项目规模 (2026-05-28, 287 specs baseline)
+  frozen-head: d181be2f
+  derived-by: Stage 3 Classifier output (design.md § 3. Classifier)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 600 400" role="img" aria-labelledby="d7-title d7-desc">
+  <title id="d7-title">Spec Audit Distribution — 289 specs, 2026-05-28</title>
+  <desc id="d7-desc">Horizontal bar chart of the five Spec_Audit_Five_Buckets across 289 spec dirs. IMPLEMENTED_AND_VALID 157 (54.33%), DESIGNED_NEVER_BUILT 122 (42.21%), PARTIALLY_IMPLEMENTED 9 (3.11%), DUPLICATE 1 (0.35%), DRIFTED 0 (0.00%).</desc>
+
+  <rect x="0" y="0" width="600" height="400" fill="#0f172a"/>
+
+  <text x="20" y="28" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#f8fafc">
+    Spec Audit Distribution — 289 specs, 2026-05-28
+  </text>
+  <text x="20" y="48" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#94a3b8">
+    frozen HEAD d181be2f · 287 baseline + 2 post-snapshot rows
+  </text>
+
+  <!-- chart axis baseline -->
+  <line x1="200" y1="70" x2="200" y2="345" stroke="#334155" stroke-width="1"/>
+
+  <!-- Bar 1: IMPLEMENTED_AND_VALID 157 -> width 380 (max) -->
+  <g>
+    <text x="195" y="93" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#e2e8f0">IMPLEMENTED_AND_VALID</text>
+    <rect x="200" y="78" width="380" height="28" fill="#16a34a" stroke="#22c55e" stroke-width="1"/>
+    <text x="588" y="97" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#f8fafc">157 · 54.33%</text>
+  </g>
+
+  <!-- Bar 2: DESIGNED_NEVER_BUILT 122 -> width 295.4 -->
+  <g>
+    <text x="195" y="138" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#e2e8f0">DESIGNED_NEVER_BUILT</text>
+    <rect x="200" y="123" width="295.4" height="28" fill="#c2410c" stroke="#f97316" stroke-width="1"/>
+    <text x="503" y="142" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#f8fafc">122 · 42.21%</text>
+  </g>
+
+  <!-- Bar 3: PARTIALLY_IMPLEMENTED 9 -> width 21.8 -->
+  <g>
+    <text x="195" y="183" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#e2e8f0">PARTIALLY_IMPLEMENTED</text>
+    <rect x="200" y="168" width="21.8" height="28" fill="#475569" stroke="#94a3b8" stroke-width="1"/>
+    <text x="230" y="187" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#cbd5e1">9 · 3.11%</text>
+  </g>
+
+  <!-- Bar 4: DUPLICATE 1 -> width 2.42 (rendered as 4 for visibility) -->
+  <g>
+    <text x="195" y="228" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#e2e8f0">DUPLICATE</text>
+    <rect x="200" y="213" width="4" height="28" fill="#475569" stroke="#94a3b8" stroke-width="1"/>
+    <text x="212" y="232" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#cbd5e1">1 · 0.35%</text>
+  </g>
+
+  <!-- Bar 5: DRIFTED 0 -> outline only -->
+  <g>
+    <text x="195" y="273" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#e2e8f0">DRIFTED</text>
+    <rect x="200" y="258" width="0.5" height="28" fill="none" stroke="#94a3b8" stroke-width="1" stroke-dasharray="3 3"/>
+    <text x="208" y="277" font-family="Helvetica, Arial, sans-serif" font-size="12" fill="#94a3b8">0 · 0.00%</text>
+  </g>
+
+  <!-- legend -->
+  <g transform="translate(20,310)">
+    <rect x="0" y="0" width="12" height="12" fill="#16a34a"/>
+    <text x="18" y="10" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#cbd5e1">production code anchor</text>
+    <rect x="170" y="0" width="12" height="12" fill="#c2410c"/>
+    <text x="188" y="10" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#cbd5e1">concept / planning surface</text>
+    <rect x="370" y="0" width="12" height="12" fill="#475569"/>
+    <text x="388" y="10" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#cbd5e1">small bucket (B-tier review)</text>
+  </g>
+
+  <!-- headline finding -->
+  <text x="20" y="350" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#f8fafc">
+    Headline: 122 / 289 (42.21%) DESIGNED_NEVER_BUILT — the dominant signal.
+  </text>
+
+  <!-- footer -->
+  <text x="20" y="385" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748b">
+    manifest: spec-audit-table.md
+  </text>
+  <text x="580" y="385" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748b">
+    SVG D7 · Phase 1 A+ Reconnaissance
+  </text>
+</svg>

@@ -105,7 +105,17 @@ Cube Pets Office 当前对内定义为：建立在 `mission-first` 底座上的 
 
 ## 项目规模
 
-- 850+ 文件 / ~180,000 行 TypeScript
+> 体量快照时点：`2026-05-28`
+
+- `2,130` 文件 / `~545,000` 行 TypeScript / TSX
+  - server：`1,004` 文件 / `290K` 行（routes 391 / core 100 / tests 362 / feishu 13 / audit 12 / lineage 7 / tasks 7）
+  - client/src：`916` 文件 / `217K` 行（components 342 / pages 314 / lib 209）
+  - shared：`139` 文件 / `26K` 行
+  - services：`68` 文件 / `12K` 行
+- Markdown 文件 `1,074` 份；测试文件（`.test` / `.spec`）`866` 份，其中 `server/tests 362` 份
+- `.kiro/specs/` 目录 `287` 个：`requirements.md 285` / `design.md 286` / `tasks.md 286` / `bugfix.md 3`
+- Tasks checkbox `7,887 / 8,806`（`89.6%`），未勾选 `919`
+- Git 跟踪文件 `5,152` 份，Git 提交 `748` 次
 - `web-aigc` 当前形成 `58 / 58` specs 封板基线，其中包含 `52` 个节点 specs 与 `6` 个平台 specs
 - `web-aigc` 顶层任务已完成 `238 / 238`，后续不再以“继续补 specs”作为主线推进指标
 - `task-autopilot` 第一阶段 `18 / 18` 份 specs 已完成并收口，覆盖产品定位、核心概念、L1-L5 分级、Destination / Route、驾驶舱 IA、接管点、Drive State、runtime 编排、可解释性、恢复治理、证据回放与成功度量

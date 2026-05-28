@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  manifest: spec-audit-table.md (4+ IMPLEMENTED_AND_VALID rows cited)
+  cited-rows: destination-model-and-parser, mission-runtime, workflow-engine,
+              mission-native-projection, mission-operator-actions,
+              workflow-artifacts-display (PARTIALLY_IMPLEMENTED, last gate),
+              collaboration-replay, project-domain-model, project-evidence-artifact-replay
+  source: .kiro/specs/repo-system-reconnaissance-2026-05-28/spec-audit-table.md
+  snapshot: .kiro/steering/project-overview.md § 系统架构 / § 核心数据流 (2026-05-28)
+  frozen-head: d181be2f
+  derived-by: Stage 3 Classifier output filtered to IMPLEMENTED_AND_VALID
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 500" role="img" aria-labelledby="d2-title d2-desc">
+  <title id="d2-title">Core Object Model — Goal / Spec / Run / Task / Artifact / Replay</title>
+  <desc id="d2-desc">Entity-relationship diagram showing the six core runtime objects and the relationships among them, derived only from IMPLEMENTED_AND_VALID rows of spec-audit-table.md.</desc>
+
+  <defs>
+    <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#cbd5e1"/>
+    </marker>
+    <marker id="arrow-mute" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#64748b"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="800" height="500" fill="#0f172a"/>
+
+  <text x="20" y="28" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#f8fafc">
+    Core Object Model — Goal / Spec / Run / Task / Artifact / Replay
+  </text>
+  <text x="20" y="48" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#94a3b8">
+    derived from IMPLEMENTED_AND_VALID rows · frozen HEAD d181be2f
+  </text>
+
+  <!-- Goal -->
+  <g>
+    <rect x="40" y="80" width="180" height="90" rx="8" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+    <text x="130" y="105" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#f8fafc">Goal</text>
+    <text x="130" y="125" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#cbd5e1">user destination</text>
+    <text x="130" y="143" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">shared/mission/autopilot.ts</text>
+    <text x="130" y="158" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">destination-model-and-parser</text>
+  </g>
+
+  <!-- Spec -->
+  <g>
+    <rect x="290" y="80" width="180" height="90" rx="8" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+    <text x="380" y="105" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#f8fafc">Spec</text>
+    <text x="380" y="125" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#cbd5e1">.kiro/specs/&lt;dir&gt;/</text>
+    <text x="380" y="143" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">client/src/lib/project-store.ts</text>
+    <text x="380" y="158" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">project-domain-model</text>
+  </g>
+
+  <!-- Run -->
+  <g>
+    <rect x="540" y="80" width="220" height="90" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <text x="650" y="105" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#f8fafc">Run</text>
+    <text x="650" y="125" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#cbd5e1">Mission + Workflow instance</text>
+    <text x="650" y="143" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">server/tasks/mission-store.ts</text>
+    <text x="650" y="158" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">mission-runtime + workflow-engine</text>
+  </g>
+
+  <!-- Task -->
+  <g>
+    <rect x="290" y="240" width="220" height="90" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <text x="400" y="265" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#f8fafc">Task</text>
+    <text x="400" y="285" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#cbd5e1">decomposed step / checkbox</text>
+    <text x="400" y="303" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">shared/mission/contracts.ts</text>
+    <text x="400" y="318" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">mission-operator-actions</text>
+  </g>
+
+  <!-- Artifact -->
+  <g>
+    <rect x="540" y="240" width="220" height="90" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+    <text x="650" y="265" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#f8fafc">Artifact</text>
+    <text x="650" y="285" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#cbd5e1">deliverable / report / file</text>
+    <text x="650" y="303" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">shared/mission/contracts.ts</text>
+    <text x="650" y="318" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">workflow-artifacts-display *</text>
+  </g>
+
+  <!-- Replay -->
+  <g>
+    <rect x="290" y="380" width="470" height="80" rx="8" fill="#1e293b" stroke="#a855f7" stroke-width="2"/>
+    <text x="525" y="405" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#f8fafc">Replay</text>
+    <text x="525" y="425" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#cbd5e1">append-only event stream · reconstructs Run state</text>
+    <text x="525" y="443" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">shared/replay/contracts.ts · collaboration-replay</text>
+  </g>
+
+  <!-- arrows -->
+  <!-- Goal -> Spec -->
+  <line x1="220" y1="125" x2="290" y2="125" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="255" y="118" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#cbd5e1">clarify (1..n)</text>
+
+  <!-- Spec -> Run -->
+  <line x1="470" y1="125" x2="540" y2="125" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="505" y="118" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#cbd5e1">start (1..n)</text>
+
+  <!-- Run -> Task -->
+  <line x1="600" y1="170" x2="450" y2="240" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="495" y="200" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#cbd5e1">decompose (1..n)</text>
+
+  <!-- Run -> Artifact -->
+  <line x1="650" y1="170" x2="650" y2="240" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="695" y="208" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#cbd5e1">emit (1..n)</text>
+
+  <!-- Artifact -> Run (belongs-to) -->
+  <line x1="600" y1="240" x2="600" y2="170" stroke="#64748b" stroke-width="1" stroke-dasharray="4 3" marker-end="url(#arrow-mute)"/>
+  <text x="555" y="208" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">belongs-to</text>
+
+  <!-- Task -> Replay -->
+  <line x1="400" y1="330" x2="430" y2="380" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="370" y="365" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#cbd5e1">record (0..n)</text>
+
+  <!-- Artifact -> Replay -->
+  <line x1="650" y1="330" x2="620" y2="380" stroke="#cbd5e1" stroke-width="1.5" marker-end="url(#arrow)"/>
+  <text x="680" y="365" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#cbd5e1">record</text>
+
+  <!-- Replay -> Run (reconstruct) -->
+  <path d="M 290 405 Q 130 405 130 200 Q 130 170 540 170" fill="none" stroke="#a855f7" stroke-width="1.2" stroke-dasharray="6 4" marker-end="url(#arrow)"/>
+  <text x="160" y="285" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#c4b5fd">reconstruct Run state</text>
+
+  <!-- footer -->
+  <text x="20" y="478" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748b">
+    manifest: spec-audit-table.md (4+ IMPLEMENTED_AND_VALID specs cited)
+  </text>
+  <text x="780" y="478" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748b">
+    SVG D2 · Phase 1 A+ Reconnaissance
+  </text>
+  <text x="20" y="494" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#64748b">
+    * workflow-artifacts-display is PARTIALLY_IMPLEMENTED (96%, final-verification gate); all other cited specs are IMPLEMENTED_AND_VALID.
+  </text>
+</svg>

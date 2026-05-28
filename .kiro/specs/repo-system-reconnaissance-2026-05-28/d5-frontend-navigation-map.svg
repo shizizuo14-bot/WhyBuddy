@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+manifest:
+  source: module-inventory.md (rows where kind ∈ {page, panel, component, store})
+  filtered-rows: 382 (page=129, panel=34, component=194, store=25)
+  upstream: .tmp/deduped_findings.jsonl
+  audit-rows: spec-audit-table.md (mission-native-projection, office-task-cockpit, task-hub-convergence, navigation-convergence, frontend-3d, browser-runtime)
+  derived-by: .tmp/build-domain-docs.mjs
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720">
+  <rect width="100%" height="100%" fill="#0d1117"/>
+  <text x="40" y="40" font-family="Space Grotesk, sans-serif" font-size="22" font-weight="700" fill="#f0f6fc">D5 — Frontend Navigation Map</text>
+  <text x="40" y="62" font-family="JetBrains Mono, monospace" font-size="12" fill="#8b949e">routes → pages → panels → stores · counts from module-inventory.md</text>
+
+  <!-- Routes layer -->
+  <g transform="translate(40,100)">
+    <rect width="1120" height="80" rx="10" fill="#1f6feb" fill-opacity="0.12" stroke="#1f6feb" stroke-width="2"/>
+    <text x="20" y="24" font-family="JetBrains Mono" font-size="14" font-weight="700" fill="#1f6feb">Routes (top-level)</text>
+    <text x="20" y="48" font-family="JetBrains Mono" font-size="12" fill="#c9d1d9">/ · /tasks · /tasks/:id · /replay/:missionId · /lineage · /debug · /debug/help · /admin/* · /nl-command · /autopilot/route</text>
+    <text x="20" y="68" font-family="JetBrains Mono" font-size="11" fill="#8b949e">Source: client/src/App.tsx route table; verified by directory scan</text>
+  </g>
+
+  <!-- Pages layer -->
+  <g transform="translate(40,210)">
+    <rect width="1120" height="100" rx="10" fill="#3fb950" fill-opacity="0.12" stroke="#3fb950" stroke-width="2"/>
+    <text x="20" y="24" font-family="JetBrains Mono" font-size="14" font-weight="700" fill="#3fb950">Pages (129)</text>
+    <text x="20" y="48" font-family="JetBrains Mono" font-size="12" fill="#c9d1d9">client/src/pages/{Home, tasks/, replay/, lineage/, debug/, admin/, nl-command/, AutopilotRoutePage, …}</text>
+    <text x="20" y="70" font-family="JetBrains Mono" font-size="11" fill="#8b949e">Top user routes: Home, TasksPage, TaskDetailPage, ReplayPage, LineagePage</text>
+    <text x="20" y="88" font-family="JetBrains Mono" font-size="11" fill="#8b949e">Long tail = admin / debug / blueprint sub-pages</text>
+  </g>
+
+  <!-- Panels layer -->
+  <g transform="translate(40,340)">
+    <rect width="1120" height="120" rx="10" fill="#d29922" fill-opacity="0.12" stroke="#d29922" stroke-width="2"/>
+    <text x="20" y="24" font-family="JetBrains Mono" font-size="14" font-weight="700" fill="#d29922">Panels (34)</text>
+    <text x="20" y="48" font-family="JetBrains Mono" font-size="12" fill="#c9d1d9">Cockpit · Tasks · Audit · Lineage · Replay · Knowledge · RAG · NL-Command · Sandbox · A2A · Swarm</text>
+    <text x="20" y="70" font-family="JetBrains Mono" font-size="11" fill="#8b949e">Anchor specs: office-task-cockpit, audit-chain, data-lineage-tracking, knowledge-graph, vector-db-rag-pipeline, sandbox-live-preview, a2a-protocol</text>
+    <text x="20" y="90" font-family="JetBrains Mono" font-size="11" fill="#8b949e">All panels render against shared/* boundary contracts; no panel imports from server/* directly</text>
+    <text x="20" y="110" font-family="JetBrains Mono" font-size="11" fill="#8b949e">Cockpit panels live under client/src/components/office/, tasks/, launch/</text>
+  </g>
+
+  <!-- Stores layer -->
+  <g transform="translate(40,490)">
+    <rect width="1120" height="100" rx="10" fill="#a371f7" fill-opacity="0.12" stroke="#a371f7" stroke-width="2"/>
+    <text x="20" y="24" font-family="JetBrains Mono" font-size="14" font-weight="700" fill="#a371f7">Stores (25)</text>
+    <text x="20" y="48" font-family="JetBrains Mono" font-size="12" fill="#c9d1d9">tasks-store · workflow-store · audit-store · lineage-store · sandbox-store · swarm-store · a2a-store · store (global UI)</text>
+    <text x="20" y="70" font-family="JetBrains Mono" font-size="11" fill="#8b949e">Mission truth-source: tasks-store (mission-native-projection, IMPLEMENTED, 33/33 tasks)</text>
+    <text x="20" y="88" font-family="JetBrains Mono" font-size="11" fill="#8b949e">Stores feed the Pages and Panels layers above; only stores subscribe to Socket events</text>
+  </g>
+
+  <!-- Components layer -->
+  <g transform="translate(40,620)">
+    <rect width="1120" height="60" rx="10" fill="#6e7681" fill-opacity="0.12" stroke="#6e7681" stroke-width="2"/>
+    <text x="20" y="22" font-family="JetBrains Mono" font-size="14" font-weight="700" fill="#6e7681">Components (194)</text>
+    <text x="20" y="42" font-family="JetBrains Mono" font-size="12" fill="#c9d1d9">UI primitives (ui/), Three.js leaves (three/), per-feature leaves (knowledge/, rag/, replay/, nl-command/, …)</text>
+  </g>
+
+  <text x="40" y="700" font-family="JetBrains Mono" font-size="11" fill="#8b949e">snapshot=2026-05-28 · HEAD=d181be2f · arrow direction implicit: routes ▼ pages ▼ panels ▼ stores ▼ components</text>
+</svg>

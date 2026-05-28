@@ -1,0 +1,93 @@
+{"subject":"admin-audit-and-support-operations","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"admin-console-and-global-role-gate","evidence":"access.ts","severity":"informational"}
+{"subject":"api-fallback-empty-states","evidence":"manual-verification.md","severity":"informational"}
+{"subject":"autopilot-3d-hud-workbench-sync","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"autopilot-agent-crew-stage-activation","evidence":"right-rail/RoleStatusStrip.tsx; right-rail/FleetActivationLog.tsx; client/src/components/right-rail/crew-activation/useRoleCrewState.ts","severity":"informational"}
+{"subject":"autopilot-capability-bridge-runtime-panel","evidence":"right-rail/CapabilityRail.tsx; client/src/components/right-rail/capability-panel/useCapabilityBridgeState.ts; client/src/components/right-rail/capability-panel/types.ts","severity":"informational"}
+{"subject":"autopilot-cockpit-three-column-layout","evidence":"AutopilotCockpitLayout.test.tsx","severity":"informational"}
+{"subject":"autopilot-destination-card-and-goal-lock","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"autopilot-drive-state-timeline-and-replan","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"autopilot-empty-state-and-onboarding","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"autopilot-evidence-driving-recorder","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"autopilot-frontend-state-model-and-store","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"autopilot-input-streaming-timeline","evidence":"AutopilotRoutePage.test.tsx; AutopilotRoutePage.tsx","severity":"informational"}
+{"subject":"autopilot-llm-react-loop-inline","evidence":"client/src/components/right-rail/react-loop/useReActLoopState.ts; client/src/components/right-rail/react-loop/types.ts; client/src/components/right-rail/react-loop/ReActPhaseBlock.tsx","severity":"informational"}
+{"subject":"autopilot-mirofish-card-diversity","evidence":"cards/index.tsx; cards/card-shell.tsx; card-shell.tsx","severity":"informational"}
+{"subject":"autopilot-mobile-and-responsive-cockpit","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"autopilot-stage-progress-indicator","evidence":"right-rail/stage-progress/StageProgressIndicator.tsx; right-rail/stage-progress/StepIndicator.tsx; right-rail/stage-progress/StepDot.tsx","severity":"informational"}
+{"subject":"autopilot-streaming-doc-renderer","evidence":"right-rail/streaming-doc/StreamingDocRenderer.tsx; right-rail/streaming-doc/DocTabBar.tsx; right-rail/streaming-doc/MarkdownRenderer.tsx","severity":"informational"}
+{"subject":"autopilot-streaming-lifecycle-weave","evidence":"client/src/components/right-rail/streaming-weave/useStreamingWeave.ts; client/src/components/right-rail/streaming-weave/StreamTokenBuffer.ts; client/src/components/right-rail/streaming-weave/types.ts","severity":"informational"}
+{"subject":"autopilot-sub-stage-panel-wrapping","evidence":"SpecTreeWorkbenchPanel.tsx; SpecDocumentWorkbenchPanel.tsx; render-sub-stage-panel.tsx","severity":"informational"}
+{"subject":"autopilot-takeover-control-panel","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"autopilot-visual-language-and-motion-system","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"autopilot-workbench-stage-rhythm","evidence":"AutopilotRightRail.tsx; right-rail/stage-viewport/StageViewport.tsx; right-rail/stage-viewport/StageHeader.tsx","severity":"informational"}
+{"subject":"blueprint-agent-crew-fabric","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"blueprint-artifact-memory-and-replay","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"blueprint-autopilot-route-orchestrator","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"blueprint-clarification-workflow","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"blueprint-domain-and-asset-store","evidence":"project-store.ts; tasks-store.ts","severity":"informational"}
+{"subject":"blueprint-effect-preview-generator","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"blueprint-engineering-landing-bridge","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"blueprint-generation-api-and-job-contract","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"blueprint-implementation-prompt-packager","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"blueprint-input-github-ingestion","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"blueprint-runtime-capability-bridge","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"blueprint-spec-document-generator","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"blueprint-spec-tree-workbench","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"browser-artifact-preview-runtime","evidence":"agent-image/browser-runner.js","severity":"informational"}
+{"subject":"consumer-email-auth-and-account","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"cube-ai-agent-sandbox-image","evidence":"Node.js; /opt/cube-agent/self-check.js; self-check.js","severity":"informational"}
+{"subject":"docker-live-preview-workstation","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"k8s-agent-operator","evidence":"SOUL.md; src/types/agent-deployment.ts; src/controller/controller.ts","severity":"informational"}
+{"subject":"lightweight-mysql-redis-persistence-strategy","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"mission-ui-polish","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"office-cockpit-first-screen-refresh","evidence":"Home.tsx; OfficeTaskCockpit.tsx; TasksQueueRail.tsx","severity":"informational"}
+{"subject":"office-home-performance-stability","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"office-wall-display-redesign-v2","evidence":"manual-verification.md","severity":"informational"}
+{"subject":"personal-project-ownership-and-isolation","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"project-autopilot-blueprint-master","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"project-clarification-conversation","evidence":"Node.js; project-store.test.ts","severity":"informational"}
+{"subject":"project-cockpit-home","evidence":"Home.tsx","severity":"informational"}
+{"subject":"project-execution-center","evidence":"TasksPage.test.tsx","severity":"informational"}
+{"subject":"project-fsd-route-planner","evidence":"TasksPage.test.tsx","severity":"informational"}
+{"subject":"project-scoped-composer","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"project-spec-center","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"release-stability-guardrails-v2","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"skill-aware-agent-sandbox","evidence":"run.js; /run.js","severity":"informational"}
+{"subject":"ue-camera-system","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"ue-director-prompt-system","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"ue-event-callback-system","evidence":"Node.js","severity":"informational"}
+{"subject":"ue-fallback-and-degradation","evidence":"Three.js","severity":"informational"}
+{"subject":"ue-interaction-passthrough","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"ue-local-resource-and-session-governance","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"ue-local-streaming-runtime","evidence":"Three.js; Node.js","severity":"informational"}
+{"subject":"ue-mobile-lite-viewer","evidence":"Hammer.js; HLS.js","severity":"informational"}
+{"subject":"ue-multi-user-session-isolation","evidence":"Three.js","severity":"informational"}
+{"subject":"ue-office-scene-build","evidence":"Three.js","severity":"informational"}
+{"subject":"ue-overlay-ui-integration","evidence":"Three.js","severity":"informational"}
+{"subject":"ue-performance-profiling-and-quality-tier","evidence":"Node.js","severity":"informational"}
+{"subject":"ue-realtime-narration","evidence":"Node.js","severity":"informational"}
+{"subject":"ue-recording-and-replay-export","evidence":"Node.js","severity":"informational"}
+{"subject":"ue-scene-asset-pipeline","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"ue-scene-command-protocol","evidence":"Node.js","severity":"informational"}
+{"subject":"ue-shot-list-planner","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"ue-state-sync-bridge","evidence":"Node.js","severity":"informational"}
+{"subject":"ue-video-stream-player","evidence":"Three.js","severity":"informational"}
+{"subject":"ui-redesign-color-and-tokens","evidence":"LoadingScreen.tsx","severity":"informational"}
+{"subject":"web-aigc-node-condition","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-dialogue","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-excel_read","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-flow_jump","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-format_output","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-fragment_search","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-get_location_info","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-long_text_extraction","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-loop","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-open_page","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-orchestration_recognition_jump","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-passthrough_api","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-qa_search","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-robot_reply","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-transaction_flow","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-web_qa","evidence":"(no concrete file paths mentioned)","severity":"informational"}
+{"subject":"web-aigc-node-web_search","evidence":"(no concrete file paths mentioned)","severity":"informational"}

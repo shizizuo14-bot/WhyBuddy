@@ -16,7 +16,7 @@ inclusion: auto
 
 ## 总览
 
-截至 2026-04-21，`.kiro/specs` 共 77 个目录。前三层主线与补充 spec `holographic-ui` 已基本落地，`workflow-artifacts-display` 已完成功能开发、待最终检查点；任务控制台补完主线与信息架构收口主线已完成，办公室主壳与统一智能发起入口已进入收口阶段，`launch-operator-surface-convergence` 已完成开发与自动化验证、仅剩桌面手测，最新一轮已补中央底部统一发起框回归、右侧 `Launch` 说明位收束与墙面 `Mission Control` HUD 遮挡修复，当前新增规划重点继续转向桌面端首屏体验收束与后墙场景化监控设备推进，平台层能力（L31-L38）仍待环境就绪。
+截至 2026-05-28，`.kiro/specs` 共 287 个目录（`requirements.md 285` / `design.md 286` / `tasks.md 286` / `bugfix.md 3`），Tasks checkbox 勾选率 `7,887 / 8,806`（`89.6%`）。前三层主线与补充 spec `holographic-ui` 已基本落地，`workflow-artifacts-display` 已完成功能开发、待最终检查点；任务控制台补完主线与信息架构收口主线已完成，办公室主壳与统一智能发起入口已进入收口阶段，`launch-operator-surface-convergence` 已完成开发与自动化验证、仅剩桌面手测，最新一轮已补中央底部统一发起框回归、右侧 `Launch` 说明位收束与墙面 `Mission Control` HUD 遮挡修复，当前新增规划重点继续转向桌面端首屏体验收束与后墙场景化监控设备推进，平台层能力（L31-L38）仍待环境就绪。
 
 > **维护说明**：本文件保留原始执行顺序与依赖分析，供追溯和继续排期使用；若与旧段落的历史口径冲突，以本节快照为准。
 
@@ -33,6 +33,7 @@ inclusion: auto
 
 ## 当前维护快照（2026-04-15）
 
+- 体量快照（`2026-05-28`）：TypeScript / TSX `2,130` 文件 / `~545,000` 行；Markdown `1,074` 份；测试文件 `866` 份，其中 `server/tests 362` 份；Git 跟踪文件 `5,152` 份，Git 提交 `748` 次。
 - 已合并主线：阶段 0、第一层、第二层和第三层链路均已实现并合并。
 - 已完成补充 spec：`ai-enabled-sandbox`、`executor-integration`、`holographic-ui`。
 - `workflow-artifacts-display` 已完成功能开发：Artifact API、`tasks-store` 扩展、ArtifactListBlock / ArtifactPreviewDialog、WorkflowPanel / TaskDetailView 集成与 Socket 联动均已落地；当前仅剩 `tasks.md` 中最终检查点未勾选。

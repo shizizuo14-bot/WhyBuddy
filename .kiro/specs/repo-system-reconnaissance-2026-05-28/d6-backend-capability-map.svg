@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+manifest:
+  source: module-inventory.md (rows where kind ∈ {route, core_module, executor})
+  filtered-rows: 362
+  upstream: .tmp/deduped_findings.jsonl
+  audit-rows: spec-audit-table.md (mission-runtime, workflow-engine, executor-integration, audit-chain, data-lineage-tracking, feishu-bridge, a2a-protocol, vector-db-rag-pipeline, knowledge-graph, nl-command-center)
+  derived-by: .tmp/build-domain-docs.mjs
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 720" width="1200" height="720">
+  <rect width="100%" height="100%" fill="#0d1117"/>
+  <text x="40" y="40" font-family="Space Grotesk, sans-serif" font-size="22" font-weight="700" fill="#f0f6fc">D6 — Backend Capability Map</text>
+  <text x="40" y="64" font-family="JetBrains Mono" font-size="12" fill="#8b949e">routes + core_modules + executor by domain · ★ = TRUNK domain on the Mission Execution Main Loop</text>
+  <text x="40" y="86" font-family="JetBrains Mono" font-size="12" fill="#8b949e">total routes=236 · total core_modules=100 · executor modules=26</text>
+  <g>
+    <rect x="50" y="130" width="260" height="110" rx="10" fill="#6e7681" fill-opacity="0.15" stroke="#6e7681" stroke-width="2"/>
+    <text x="64" y="154" font-family="JetBrains Mono" font-size="16" font-weight="700" fill="#6e7681">infrastructure</text>
+    <text x="64" y="180" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">routes: 229</text>
+    <text x="64" y="200" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">core_modules: 79</text>
+  </g>
+  <g>
+    <rect x="330" y="130" width="260" height="110" rx="10" fill="#3fb950" fill-opacity="0.15" stroke="#3fb950" stroke-width="2"/>
+    <text x="344" y="154" font-family="JetBrains Mono" font-size="16" font-weight="700" fill="#3fb950">interop</text>
+    <text x="344" y="180" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">routes: 1</text>
+    <text x="344" y="200" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">core_modules: 11</text>
+  </g>
+  <g>
+    <rect x="610" y="130" width="260" height="110" rx="10" fill="#1f6feb" fill-opacity="0.15" stroke="#1f6feb" stroke-width="2"/>
+    <text x="624" y="154" font-family="JetBrains Mono" font-size="16" font-weight="700" fill="#1f6feb">mission ★</text>
+    <text x="624" y="180" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">routes: 2</text>
+    <text x="624" y="200" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">core_modules: 2</text>
+  </g>
+  <g>
+    <rect x="890" y="130" width="260" height="110" rx="10" fill="#1f6feb" fill-opacity="0.15" stroke="#1f6feb" stroke-width="2"/>
+    <text x="904" y="154" font-family="JetBrains Mono" font-size="16" font-weight="700" fill="#1f6feb">workflow ★</text>
+    <text x="904" y="180" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">routes: 1</text>
+    <text x="904" y="200" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">core_modules: 3</text>
+  </g>
+  <g>
+    <rect x="50" y="260" width="260" height="110" rx="10" fill="#1f6feb" fill-opacity="0.15" stroke="#1f6feb" stroke-width="2"/>
+    <text x="64" y="284" font-family="JetBrains Mono" font-size="16" font-weight="700" fill="#1f6feb">executor ★</text>
+    <text x="64" y="310" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">routes: 0</text>
+    <text x="64" y="330" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">core_modules: 3</text>
+    <text x="64" y="350" font-family="JetBrains Mono" font-size="11" fill="#8b949e">+ 26 executor modules under services/</text>
+  </g>
+  <g>
+    <rect x="330" y="260" width="260" height="110" rx="10" fill="#3fb950" fill-opacity="0.15" stroke="#3fb950" stroke-width="2"/>
+    <text x="344" y="284" font-family="JetBrains Mono" font-size="16" font-weight="700" fill="#3fb950">memory</text>
+    <text x="344" y="310" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">routes: 0</text>
+    <text x="344" y="330" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">core_modules: 2</text>
+  </g>
+  <g>
+    <rect x="610" y="260" width="260" height="110" rx="10" fill="#1f6feb" fill-opacity="0.15" stroke="#1f6feb" stroke-width="2"/>
+    <text x="624" y="284" font-family="JetBrains Mono" font-size="16" font-weight="700" fill="#1f6feb">audit ★</text>
+    <text x="624" y="310" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">routes: 1</text>
+    <text x="624" y="330" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">core_modules: 0</text>
+  </g>
+  <g>
+    <rect x="890" y="260" width="260" height="110" rx="10" fill="#1f6feb" fill-opacity="0.15" stroke="#1f6feb" stroke-width="2"/>
+    <text x="904" y="284" font-family="JetBrains Mono" font-size="16" font-weight="700" fill="#1f6feb">lineage ★</text>
+    <text x="904" y="310" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">routes: 1</text>
+    <text x="904" y="330" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">core_modules: 0</text>
+  </g>
+  <g>
+    <rect x="50" y="390" width="260" height="110" rx="10" fill="#1f6feb" fill-opacity="0.15" stroke="#1f6feb" stroke-width="2"/>
+    <text x="64" y="414" font-family="JetBrains Mono" font-size="16" font-weight="700" fill="#1f6feb">feishu ★</text>
+    <text x="64" y="440" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">routes: 1</text>
+    <text x="64" y="460" font-family="JetBrains Mono" font-size="13" fill="#c9d1d9">core_modules: 0</text>
+  </g>
+  <text x="40" y="700" font-family="JetBrains Mono" font-size="11" fill="#8b949e">snapshot=2026-05-28 · HEAD=d181be2f · derived from module-inventory.md</text>
+</svg>

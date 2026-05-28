@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  manifest: spec-audit-table.md (per-layer IMPLEMENTED_AND_VALID rows cited) + steering source-tree summary
+  cited-rows: mission-native-projection, frontend-3d, browser-runtime, holographic-ui,
+              mission-runtime, audit-chain, data-lineage-tracking, collaboration-replay,
+              destination-model-and-parser, vector-db-rag-pipeline, cross-framework-export,
+              a2a-protocol, mission-operator-actions, mission-cancel-control,
+              workflow-engine, executor-integration, feishu-bridge,
+              lobster-executor-real, secure-sandbox, sandbox-live-preview, ai-enabled-sandbox
+  source: .kiro/steering/project-overview.md § 项目规模 / § 项目目录结构 (2026-05-28)
+          + .kiro/steering/execution-plan.md § 当前维护快照
+  snapshot: 2,130 ts/tsx files · client 916/217K · server 1004/290K · shared 139/26K · services 68/12K
+  frozen-head: d181be2f
+  derived-by: Stage 4 Main_Loop_Identifier (layer view of the canonical loop)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 600" role="img" aria-labelledby="d3-title d3-desc">
+  <title id="d3-title">System Layering — client / shared / server / executor / docs</title>
+  <desc id="d3-desc">Five-layer stacked architecture: client (916 files, 217K lines), shared boundary contract (139/26K), server (1004/290K), executor service (68/12K), and .kiro/ docs (287 spec dirs). The Main Business Loop crosses all five layers in order; shared/ holds the boundary types.</desc>
+
+  <rect x="0" y="0" width="800" height="600" fill="#0f172a"/>
+
+  <text x="20" y="28" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#f8fafc">
+    System Layering — five layers · boundary in shared/
+  </text>
+  <text x="20" y="48" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#94a3b8">
+    snapshot 2026-05-28 · 2,130 ts/tsx · 545K lines · 287 spec dirs · frozen HEAD d181be2f
+  </text>
+
+  <!-- Layer 1: Client (top) -->
+  <g>
+    <rect x="40" y="80" width="720" height="86" rx="10" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+    <text x="60" y="108" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#f8fafc">1 · Client — client/src/</text>
+    <text x="60" y="128" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1">cockpit · 3D scene · stores · browser-only runtime</text>
+    <text x="60" y="146" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">specs: mission-native-projection · frontend-3d · browser-runtime · holographic-ui · office-task-cockpit</text>
+    <text x="740" y="108" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#38bdf8">916 files · 217K lines</text>
+    <text x="740" y="126" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#94a3b8">components 342 · pages 314 · lib 209</text>
+    <text x="740" y="156" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">consumes shared/ types · no direct server/ import</text>
+  </g>
+
+  <!-- Layer 2: Shared (boundary) -->
+  <g>
+    <rect x="40" y="186" width="720" height="76" rx="10" fill="#0c1f33" stroke="#a855f7" stroke-width="2.5" stroke-dasharray="6 3"/>
+    <text x="60" y="212" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#f8fafc">2 · Shared — shared/  ▌  boundary contract</text>
+    <text x="60" y="232" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1">14 contract modules · every type that crosses HTTP / Socket / executor / IndexedDB</text>
+    <text x="60" y="250" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">specs: mission-runtime · destination-model-and-parser · audit-chain · data-lineage-tracking · collaboration-replay · vector-db-rag-pipeline · cross-framework-export · a2a-protocol</text>
+    <text x="740" y="212" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#a855f7">139 files · 26K lines</text>
+    <text x="740" y="230" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#94a3b8">imported by both client/ and server/</text>
+  </g>
+
+  <!-- Layer 3: Server -->
+  <g>
+    <rect x="40" y="282" width="720" height="100" rx="10" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <text x="60" y="310" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#f8fafc">3 · Server — server/</text>
+    <text x="60" y="330" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1">truth source · Mission FSM · workflow engine · audit chain · lineage DAG · Feishu · A2A · executor callback</text>
+    <text x="60" y="348" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">specs: mission-runtime · mission-operator-actions · mission-cancel-control · workflow-engine · executor-integration · audit-chain · data-lineage-tracking · feishu-bridge · a2a-protocol · autonomous-swarm</text>
+    <text x="60" y="364" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">also: nl-command-center · vector-db-rag-pipeline · knowledge-graph</text>
+    <text x="740" y="310" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#22c55e">1,004 files · 290K lines</text>
+    <text x="740" y="328" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#94a3b8">routes 391 · core 100 · tests 362</text>
+    <text x="740" y="346" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#94a3b8">feishu 13 · audit 12 · lineage 7 · tasks 7</text>
+  </g>
+
+  <!-- Layer 4: Executor / services -->
+  <g>
+    <rect x="40" y="402" width="720" height="86" rx="10" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+    <text x="60" y="430" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#f8fafc">4 · Executor — services/lobster-executor/</text>
+    <text x="60" y="450" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1">real Docker container lifecycle · seccomp / AppArmor sandbox · AI credential injection · HMAC callback</text>
+    <text x="60" y="468" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">specs: lobster-executor-real · secure-sandbox · sandbox-live-preview · ai-enabled-sandbox · (executor-integration bridge lives in server/core/)</text>
+    <text x="740" y="430" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#f59e0b">68 files · 12K lines</text>
+    <text x="740" y="450" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#94a3b8">native fallback when Docker unreachable</text>
+    <text x="740" y="478" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">speaks the contract on the wire — no shared/ import</text>
+  </g>
+
+  <!-- Layer 5: Docs -->
+  <g>
+    <rect x="40" y="508" width="720" height="76" rx="10" fill="#1e293b" stroke="#94a3b8" stroke-width="2"/>
+    <text x="60" y="534" font-family="Helvetica, Arial, sans-serif" font-size="14" font-weight="700" fill="#f8fafc">5 · Docs — .kiro/</text>
+    <text x="60" y="554" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1">versioned contract · steering · specs · per-spec requirements / design / tasks</text>
+    <text x="60" y="572" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">not loaded by runtime — system stays running if removed, but becomes uninspectable</text>
+    <text x="740" y="534" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="12" font-weight="600" fill="#cbd5e1">287 spec dirs</text>
+    <text x="740" y="552" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#94a3b8">tasks 7,887 / 8,806 (89.6%)</text>
+    <text x="740" y="570" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#94a3b8">repo-wide markdown 1,074</text>
+  </g>
+
+  <!-- Side annotation: Main Business Loop crosses all 5 layers -->
+  <g>
+    <line x1="20" y1="123" x2="20" y2="546" stroke="#a855f7" stroke-width="2" stroke-dasharray="4 3"/>
+    <text x="14" y="335" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#c4b5fd" transform="rotate(-90 14 335)">
+      Main Business Loop crosses all 5 layers in order (doc 01)
+    </text>
+  </g>
+</svg>

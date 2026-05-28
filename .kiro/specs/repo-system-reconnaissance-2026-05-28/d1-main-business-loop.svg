@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  manifest: spec-audit-table.md (9 IMPLEMENTED_AND_VALID rows cited) + .tmp/deduped_findings.jsonl
+  cited-rows: mission-runtime, executor-integration, workflow-engine,
+              audit-chain, data-lineage-tracking, feishu-bridge,
+              mission-native-projection, mission-operator-actions, mission-cancel-control
+  cited-scan-rows: server/routes/tasks.ts, server/tasks/mission-store.ts,
+                   server/core/mission-orchestrator.ts, server/core/workflow-engine.ts,
+                   server/core/execution-bridge.ts, server/feishu/bridge.ts,
+                   client/src/lib/tasks-store.ts
+  source: .kiro/specs/repo-system-reconnaissance-2026-05-28/spec-audit-table.md
+  snapshot: .kiro/steering/project-overview.md § 核心数据流 § Mission 执行链路 (2026-05-28)
+  frozen-head: d181be2f
+  derived-by: Stage 4 Main_Loop_Identifier (selection rule: most TRUNK domains touched)
+-->
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 500" role="img" aria-labelledby="d1-title d1-desc">
+  <title id="d1-title">Main Business Loop — Mission Execution chain</title>
+  <desc id="d1-desc">Eight-stage sequence diagram of the canonical Main_Business_Loop selected by Stage 4: User/Feishu hits POST /api/tasks, MissionStore creates the Mission, MissionOrchestrator starts it, ExecutionPlanBuilder builds the plan, ExecutorClient dispatches to the Docker executor, the executor calls back via /api/executor/events with HMAC, MissionStore updates and emits a socket mission_event consumed by the frontend cockpit, and FeishuProgressBridge mirrors the result back to the Feishu thread. Audit chain and lineage DAG attach as overlays.</desc>
+
+  <defs>
+    <marker id="d1-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#cbd5e1"/>
+    </marker>
+    <marker id="d1-arrow-overlay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#a855f7"/>
+    </marker>
+  </defs>
+
+  <rect x="0" y="0" width="1000" height="500" fill="#0f172a"/>
+
+  <text x="20" y="28" font-family="Helvetica, Arial, sans-serif" font-size="16" font-weight="600" fill="#f8fafc">
+    Main Business Loop — Mission Execution chain (8 hops)
+  </text>
+  <text x="20" y="48" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#94a3b8">
+    selected by Stage 4 · 6/6 provisional TRUNK domains touched · 9 IMPLEMENTED_AND_VALID specs cited · frozen HEAD d181be2f
+  </text>
+
+  <!-- 8 boxes laid out with wrap: 4 on row 1, 4 on row 2 -->
+  <!-- Row 1: hops 1-4 -->
+  <g>
+    <rect x="20"  y="90" width="220" height="92" rx="8" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+    <text x="130" y="113" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#f8fafc">1 · User / Feishu</text>
+    <text x="130" y="133" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1">POST /api/tasks</text>
+    <text x="130" y="151" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">server/routes/tasks.ts</text>
+    <text x="130" y="167" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">feishu-bridge · destination-model-and-parser</text>
+  </g>
+
+  <g>
+    <rect x="260" y="90" width="220" height="92" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <text x="370" y="113" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#f8fafc">2 · MissionStore.create()</text>
+    <text x="370" y="133" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1">persist + emit mission_event</text>
+    <text x="370" y="151" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">server/tasks/mission-store.ts</text>
+    <text x="370" y="167" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">mission-runtime (74/74)</text>
+  </g>
+
+  <g>
+    <rect x="500" y="90" width="220" height="92" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <text x="610" y="113" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#f8fafc">3 · MissionOrchestrator</text>
+    <text x="610" y="133" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1">startMission() / FSM driver</text>
+    <text x="610" y="151" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">server/core/mission-orchestrator.ts</text>
+    <text x="610" y="167" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">mission-cancel-control · mission-operator-actions</text>
+  </g>
+
+  <g>
+    <rect x="740" y="90" width="240" height="92" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <text x="860" y="113" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#f8fafc">4 · ExecutionPlanBuilder</text>
+    <text x="860" y="133" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1">build() → ExecutionPlan</text>
+    <text x="860" y="151" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">server/core/workflow-engine.ts</text>
+    <text x="860" y="167" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">workflow-engine (61/61)</text>
+  </g>
+
+  <!-- Row 2: hops 5-8 (right-to-left order so flow snakes back) -->
+  <g>
+    <rect x="740" y="280" width="240" height="92" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+    <text x="860" y="303" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#f8fafc">5 · ExecutorClient.dispatchPlan()</text>
+    <text x="860" y="323" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1">POST /api/executor/jobs · Docker</text>
+    <text x="860" y="341" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">server/core/execution-bridge.ts</text>
+    <text x="860" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">executor-integration (29/29)</text>
+  </g>
+
+  <g>
+    <rect x="500" y="280" width="220" height="92" rx="8" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+    <text x="610" y="303" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#f8fafc">6 · /api/executor/events</text>
+    <text x="610" y="323" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1">HMAC callback → store update</text>
+    <text x="610" y="341" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">server/routes/executor*.ts</text>
+    <text x="610" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">EXECUTOR_CALLBACK_SECRET</text>
+  </g>
+
+  <g>
+    <rect x="260" y="280" width="220" height="92" rx="8" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <text x="370" y="303" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#f8fafc">7 · Socket mission_event</text>
+    <text x="370" y="323" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1">→ frontend cockpit</text>
+    <text x="370" y="341" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">client/src/lib/tasks-store.ts</text>
+    <text x="370" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">mission-native-projection (33/33)</text>
+  </g>
+
+  <g>
+    <rect x="20"  y="280" width="220" height="92" rx="8" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+    <text x="130" y="303" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="13" font-weight="700" fill="#f8fafc">8 · FeishuProgressBridge</text>
+    <text x="130" y="323" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1">ACK / progress / done / fail 回传</text>
+    <text x="130" y="341" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">server/feishu/bridge.ts</text>
+    <text x="130" y="357" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9"  fill="#94a3b8">feishu-bridge (26/26)</text>
+  </g>
+
+  <!-- forward arrows: 1->2, 2->3, 3->4 -->
+  <line x1="240" y1="136" x2="260" y2="136" stroke="#cbd5e1" stroke-width="2" marker-end="url(#d1-arrow)"/>
+  <line x1="480" y1="136" x2="500" y2="136" stroke="#cbd5e1" stroke-width="2" marker-end="url(#d1-arrow)"/>
+  <line x1="720" y1="136" x2="740" y2="136" stroke="#cbd5e1" stroke-width="2" marker-end="url(#d1-arrow)"/>
+
+  <!-- 4 -> 5 (drop down on right edge) -->
+  <path d="M 860 182 L 860 280" fill="none" stroke="#cbd5e1" stroke-width="2" marker-end="url(#d1-arrow)"/>
+  <text x="870" y="232" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">dispatchPlan</text>
+
+  <!-- 5 -> 6 -->
+  <line x1="740" y1="326" x2="720" y2="326" stroke="#cbd5e1" stroke-width="2" marker-end="url(#d1-arrow)"/>
+  <text x="730" y="318" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="9" fill="#94a3b8">HMAC events</text>
+
+  <!-- 6 -> 7 -->
+  <line x1="500" y1="326" x2="480" y2="326" stroke="#cbd5e1" stroke-width="2" marker-end="url(#d1-arrow)"/>
+
+  <!-- 7 -> 8 -->
+  <line x1="260" y1="326" x2="240" y2="326" stroke="#cbd5e1" stroke-width="2" marker-end="url(#d1-arrow)"/>
+
+  <!-- audit + lineage overlay (purple dashed loop attaching to hops 2/3/6/7) -->
+  <path d="M 130 192 Q 130 230 370 230 Q 610 230 610 192" fill="none" stroke="#a855f7" stroke-width="1.2" stroke-dasharray="6 4"/>
+  <path d="M 610 270 Q 610 240 370 240 Q 130 240 130 270" fill="none" stroke="#a855f7" stroke-width="1.2" stroke-dasharray="6 4" marker-end="url(#d1-arrow-overlay)"/>
+  <text x="500" y="218" text-anchor="middle" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#c4b5fd" font-weight="600">
+    overlay · audit-chain (123/123) + data-lineage-tracking (82/82) attach to every hop
+  </text>
+
+  <!-- legend -->
+  <g>
+    <rect x="20" y="400" width="14" height="14" fill="#1e293b" stroke="#38bdf8" stroke-width="2"/>
+    <text x="42" y="412" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#cbd5e1">boundary (entry / mirror)</text>
+
+    <rect x="220" y="400" width="14" height="14" fill="#1e293b" stroke="#22c55e" stroke-width="2"/>
+    <text x="242" y="412" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#cbd5e1">mission / workflow runtime</text>
+
+    <rect x="430" y="400" width="14" height="14" fill="#1e293b" stroke="#f59e0b" stroke-width="2"/>
+    <text x="452" y="412" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#cbd5e1">executor boundary</text>
+
+    <line x1="630" y1="407" x2="660" y2="407" stroke="#a855f7" stroke-width="1.2" stroke-dasharray="6 4"/>
+    <text x="668" y="412" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#cbd5e1">audit + lineage overlays</text>
+  </g>
+
+  <text x="20" y="465" font-family="Helvetica, Arial, sans-serif" font-size="11" fill="#cbd5e1" font-weight="600">
+    Selection rule: most TRUNK domains touched (6/6); tie-breaker: most IMPLEMENTED_AND_VALID specs cited (9 vs ≤ 3).
+  </text>
+
+  <text x="20" y="488" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748b">
+    manifest: spec-audit-table.md (9 IMPLEMENTED rows) + .tmp/deduped_findings.jsonl
+  </text>
+  <text x="980" y="488" text-anchor="end" font-family="Helvetica, Arial, sans-serif" font-size="10" fill="#64748b">
+    SVG D1 · Phase 1 A+ Reconnaissance
+  </text>
+</svg>
