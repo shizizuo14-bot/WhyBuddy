@@ -102,5 +102,9 @@ describe("SpecCenterPage", () => {
 
     expect(markup).toContain("尚未选择项目");
     expect(markup).toContain("暂无规格草稿");
+    expect(markup).not.toContain('data-testid="blueprint-progress-panel"');
+    expect(markup).not.toContain(
+      'data-testid="blueprint-clarification-strategy-summary"'
+    );
   });
 });

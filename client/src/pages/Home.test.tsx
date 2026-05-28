@@ -415,6 +415,7 @@ describe("Home desktop shell", () => {
     expect(markup).toContain("Project Space");
     expect(markup).toContain("No projects yet");
     expect(markup).toContain("New Project");
+    expect(markup).toContain('data-testid="home-project-create-button"');
     expect(markup).not.toContain('data-testid="home-project-create-card"');
     expect(markup).toContain('aria-label="Import project materials"');
     expect(markup).toContain('data-testid="home-project-search"');

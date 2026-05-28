@@ -9,6 +9,7 @@ const { projectState } = vi.hoisted(() => ({
 }));
 
 import AutopilotRoutePage, {
+  ClarificationPanel,
   AutopilotSpecTreeHandoffPanel,
   resolveActiveAutopilotPage,
   resolveAutopilotPageProjection,
@@ -95,6 +96,84 @@ describe("AutopilotRoutePage", () => {
       'data-testid="autopilot-generate-routeset-button"'
     );
     expect(markup).not.toContain("RouteSet generation and selection");
+  });
+
+  it("keeps partially submitted clarifications in a missing-required state", () => {
+    const markup = renderToStaticMarkup(
+      <ClarificationPanel
+        locale="en-US"
+        session={{
+          id: "clarification-1",
+          intakeId: "intake-1",
+          strategyId: "repository_first",
+          strategyLabel: "Repository-first clarification",
+          templateId: "template-1",
+          routeReadySummary: "1/3 required answers recorded.",
+          readinessSignals: ["goal_defined", "audience_defined", "constraints_defined"],
+          questions: [
+            {
+              id: "goal",
+              kind: "goal",
+              prompt: "Goal?",
+              required: true,
+              sourceIds: [],
+              evidenceIds: [],
+              routeDimension: "goal",
+              readinessSignal: "goal_defined",
+            },
+            {
+              id: "audience",
+              kind: "audience",
+              prompt: "Audience?",
+              required: true,
+              sourceIds: [],
+              evidenceIds: [],
+              routeDimension: "audience",
+              readinessSignal: "audience_defined",
+            },
+            {
+              id: "constraints",
+              kind: "constraint",
+              prompt: "Constraints?",
+              required: true,
+              sourceIds: [],
+              evidenceIds: [],
+              routeDimension: "risk",
+              readinessSignal: "constraints_defined",
+            },
+          ],
+          answers: [
+            {
+              questionId: "goal",
+              answer: "Engineering landing",
+              answeredAt: "2026-05-28T00:00:00.000Z",
+              source: "user",
+            },
+          ],
+          readiness: {
+            status: "needs_answers",
+            score: 0.33,
+            answeredRequired: 1,
+            requiredTotal: 3,
+            missingQuestionIds: ["audience", "constraints"],
+          },
+          createdAt: "2026-05-28T00:00:00.000Z",
+          updatedAt: "2026-05-28T00:00:00.000Z",
+        } as any}
+        answerDrafts={{
+          goal: "Engineering landing",
+          audience: "",
+          constraints: "",
+        }}
+        onAnswerChange={() => undefined}
+        onSubmit={() => undefined}
+        saving={false}
+      />
+    );
+
+    expect(markup).toContain("2 required answers still needed");
+    expect(markup).toContain("Continue answering");
+    expect(markup).not.toContain("Clarifications submitted");
   });
 
   it("lets a page-level override return from fabric to the route-generation workflow page", () => {

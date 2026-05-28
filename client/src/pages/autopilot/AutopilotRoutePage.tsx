@@ -1400,7 +1400,7 @@ function IntakeSummary({
   );
 }
 
-function ClarificationPanel({
+export function ClarificationPanel({
   locale,
   session,
   answerDrafts,
@@ -1461,7 +1461,10 @@ function ClarificationPanel({
     const submitted = submittedAnswerByQuestionId.get(question.id) ?? "";
     return draft !== submitted;
   }).length;
+  const missingRequiredCount = Math.max(requiredTotal - requiredAnswered, 0);
   const canSubmit = draftAnswerCount > 0 && pendingChangeCount > 0 && !saving;
+  const isPartiallySubmitted =
+    session.answers.length > 0 && missingRequiredCount > 0;
 
   return (
     <div className="grid gap-3" data-testid="autopilot-clarification-list">
@@ -1550,7 +1553,13 @@ function ClarificationPanel({
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="min-w-0">
             <div className="text-sm font-black text-slate-900">
-              {pendingChangeCount > 0
+              {isPartiallySubmitted
+                ? t(
+                    locale,
+                    `还需回答 ${missingRequiredCount} 个必答问题`,
+                    `${missingRequiredCount} required answer${missingRequiredCount === 1 ? "" : "s"} still needed`
+                  )
+                : pendingChangeCount > 0
                 ? t(locale, "等待提交澄清", "Clarification changes pending")
                 : session.answers.length > 0
                   ? t(locale, "澄清已提交", "Clarifications submitted")
@@ -1580,6 +1589,8 @@ function ClarificationPanel({
             )}
             {saving
               ? t(locale, "提交中", "Submitting")
+              : isPartiallySubmitted
+                ? t(locale, "继续补充", "Continue answering")
               : pendingChangeCount === 0 && session.answers.length > 0
                 ? t(locale, "已提交", "Submitted")
                 : t(locale, "提交澄清", "Submit")}

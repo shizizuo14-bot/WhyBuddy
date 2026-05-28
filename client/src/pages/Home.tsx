@@ -1400,6 +1400,8 @@ export default function Home({
               <button
                 type="button"
                 onClick={() => handleCreateProjectFromTemplate()}
+                aria-label={isZh ? "新建项目" : "New Project"}
+                data-testid="home-project-create-button"
                 className="inline-flex h-11 items-center gap-2 rounded-xl bg-indigo-600 px-5 text-sm font-black text-white shadow-[0_14px_30px_rgba(79,70,229,0.28)] transition hover:bg-indigo-700"
               >
                 <Plus className="h-4 w-4" />
@@ -1897,6 +1899,8 @@ export default function Home({
                   <button
                     type="button"
                     onClick={() => handleCreateProjectFromTemplate()}
+                    aria-label={isZh ? "新建项目" : "New Project"}
+                    data-testid="home-project-empty-create-button"
                     className="mt-5 inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2 text-sm font-black text-white shadow-[0_14px_30px_rgba(79,70,229,0.24)] transition hover:bg-indigo-700"
                   >
                     <Plus className="h-4 w-4" />
@@ -2507,6 +2511,8 @@ export default function Home({
                       <button
                         type="button"
                         onClick={() => handleCreateProjectFromTemplate()}
+                        aria-label={isZh ? "新建项目" : "New Project"}
+                        data-testid="home-project-quick-create-button"
                         className="inline-flex max-w-[220px] items-center gap-2 rounded-full border border-white/80 bg-white/78 px-3.5 py-2 text-xs font-black text-slate-700 shadow-sm transition hover:bg-white hover:text-slate-950"
                       >
                         <Plus className="h-3.5 w-3.5 shrink-0 text-[#0f766e]" />

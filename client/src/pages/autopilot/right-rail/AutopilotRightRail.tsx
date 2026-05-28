@@ -52,6 +52,7 @@ import { FleetActivationLog } from "./FleetActivationLog";
 import { stepSubStage } from "./hooks/use-right-rail-sub-stage-state";
 import { resolveRailSubStage } from "./resolve-rail-sub-stage";
 import { RoleStatusStrip } from "./RoleStatusStrip";
+import { HistoryEntryPoint } from "../version-history";
 import { SpecDocsProgressPanel } from "./spec-docs-progress/SpecDocsProgressPanel";
 import { SpecTreeWorkbench } from "./spec-tree-workbench/SpecTreeWorkbench";
 import { StreamingDocRenderer } from "./streaming-doc/StreamingDocRenderer";
@@ -1103,6 +1104,21 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
     [handleGenerateAllSpecDocs, props.onStageAdvanced],
   );
 
+  const historyFamilyCount = resolveHistoryEntryFamilyCount({
+    familyJobCount: props.job?.parentJobId ? 2 : 1,
+    hasParentJob: Boolean(props.job?.parentJobId),
+  });
+  const handleOpenHistory = useCallback((jobId: string) => {
+    if (typeof window === "undefined") return;
+    const url = new URL(window.location.href);
+    url.searchParams.set("history", "1");
+    url.searchParams.set("activeJob", jobId);
+    window.history.pushState({}, "", url);
+    window.dispatchEvent(
+      new CustomEvent("autopilot:history-open", { detail: { jobId } }),
+    );
+  }, []);
+
   if (currentStage !== "fabric") {
     return (
       <aside
@@ -1163,6 +1179,15 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
           staticPreview={IS_GITHUB_PAGES}
           label={locale === "zh-CN" ? "从这里重新规划" : "Replan from here"}
           onOpen={() => setReplanOpen(true)}
+        />
+        <HistoryEntryPoint
+          jobId={props.jobId || null}
+          locale={locale}
+          familyCount={historyFamilyCount}
+          staleCount={props.job?.staleArtifactIds?.length ?? 0}
+          staticPreview={IS_GITHUB_PAGES}
+          disabled={IS_GITHUB_PAGES || !props.jobId}
+          onOpen={handleOpenHistory}
         />
       </div>
 

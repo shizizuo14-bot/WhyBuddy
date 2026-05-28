@@ -110,10 +110,13 @@ export default function SpecCenterPage() {
           </div>
         </header>
 
-        <BlueprintProgressPanel
-          showRouteGeneration={false}
-          showSpecProgress={false}
-        />
+        {currentProject ? (
+          <BlueprintProgressPanel
+            projectId={currentProject.id}
+            showRouteGeneration={false}
+            showSpecProgress={false}
+          />
+        ) : null}
 
         <section className="grid min-h-[560px] gap-4 lg:grid-cols-[320px_minmax(0,1fr)]">
           <aside className="rounded-[24px] border border-slate-200 bg-white p-3 shadow-[0_18px_42px_rgba(15,23,42,0.06)]">
