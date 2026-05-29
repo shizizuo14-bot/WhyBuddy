@@ -139,7 +139,7 @@ const StageHeader: FC<StageHeaderProps> = ({
         ) : null}
 
         <div className="min-w-0 flex-1">
-          {/* duanyun-rebrand-and-stage3-unblock-2026-05-28 §D.3:
+          {/* whybuddy-rebrand-and-stage3-unblock-2026-05-28 §D.3:
               eyebrow uses MiroFish mono token; title uses MiroFish display
               token. Color contrast is the only state-bearing change. */}
           <p

@@ -256,7 +256,7 @@ describe("AutopilotRightRail streaming timeline", () => {
     expect(markup).toContain("步骤 04");
   });
 
-  it("renders history and replan entry points in the fabric action strip", () => {
+  it("renders the replan entry point in the fabric action strip without duplicating header history", () => {
     const markup = renderToStaticMarkup(
       <AutopilotRightRail
         {...makeProps({
@@ -277,9 +277,8 @@ describe("AutopilotRightRail streaming timeline", () => {
     );
 
     expect(markup).toContain('data-testid="autopilot-right-rail-action-strip"');
-    expect(markup).toContain('data-testid="autopilot-history-entry"');
-    expect(markup).toContain('data-version-history-entry-point="true"');
-    expect(markup).toContain(">历史<");
+    expect(markup).not.toContain('data-testid="autopilot-history-entry"');
+    expect(markup).not.toContain('data-version-history-entry-point="true"');
     expect(markup).not.toContain(">History<");
     expect(markup).toContain(
       'data-testid="autopilot-replan-from-stage-divider"'
@@ -756,7 +755,7 @@ describe("AutopilotRightRail replan integration contract", () => {
       "utf8",
     );
     const handlerStart = source.indexOf("const handleConfirmReplan");
-    const handlerEnd = source.indexOf("const handleOpenHistory");
+    const handlerEnd = source.indexOf("const handleRegenerateStaleStage");
     const handlerSource = source.slice(handlerStart, handlerEnd);
 
     expect(handlerStart).toBeGreaterThanOrEqual(0);

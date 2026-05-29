@@ -3,11 +3,13 @@
  *
  * 独立的推理卡片组件，展示 Agent 思考/观察/行动过程。
  *
- * 视觉特征：
- * - 左侧 2px 渐变竖条（thinking=蓝紫, observing=青绿, acting=橙黄）
- * - font-mono text-[11px] 紧凑文本
- * - 流式光标闪烁（CSS @keyframes mirofish-blink）
- * - 进入动画：animate-mirofish-fade-in
+ * 视觉特征（whybuddy-rebrand-and-stage3-unblock-2026-05-28 §D refinement
+ * 2026-05-29，对齐 mirofish-demo/console 真实视觉语言）：
+ * - 卡片：白色背景 + 1px solid #E5E5E5 边框 + 0 radius + 无阴影
+ * - 左侧 2px 实色条：thinking → #FF4500，observing → #666666，acting → #000000
+ * - 标签行：JetBrains Mono 0.7rem (~11px)，#999 (gray-text)
+ * - 推理文本：JetBrains Mono 0.78rem (~12.5px)，#000，line-height 1.55
+ * - 进入动画：animate-mirofish-fade-in（保留）
  *
  * 流式增强（autopilot-streaming-lifecycle-weave / Task 4.1）：
  * - 可选 `streamingTokens` prop 接收来自 useStreamingWeave 的实时 token
@@ -31,11 +33,15 @@ import type { AppLocale } from "@/lib/locale";
 
 import type { MiroFishReasoningEntry } from "../mirofish-stream-types";
 
-/** 左侧渐变竖条色映射：phase → Tailwind gradient class */
-const REASONING_GRADIENT: Record<string, string> = {
-  thinking: "from-blue-500 to-purple-500",
-  observing: "from-cyan-400 to-emerald-400",
-  acting: "from-orange-400 to-yellow-400",
+/**
+ * 左侧 2px 实色条配色 — 替换原渐变方案。
+ * 对齐 mirofish-demo/console：单一 accent (#FF4500) + 中性灰 + 黑色，
+ * 不做多色渐变，保留 phase 区分度但让整体更克制。
+ */
+const REASONING_BAR: Record<string, string> = {
+  thinking: "bg-[#FF4500]",
+  observing: "bg-[#666666]",
+  acting: "bg-black",
 };
 
 export interface ReasoningCardProps {
@@ -71,7 +77,7 @@ export const ReasoningCard: FC<ReasoningCardProps> = ({
   streaming = false,
   streamingTokens,
 }) => {
-  const gradient = REASONING_GRADIENT[entry.phase] ?? REASONING_GRADIENT.thinking;
+  const bar = REASONING_BAR[entry.phase] ?? REASONING_BAR.thinking;
 
   // 流式 token 追加 ref — 避免每次 token 触发整个列表 re-render
   const streamingRef = useRef<HTMLSpanElement>(null);
@@ -104,22 +110,23 @@ export const ReasoningCard: FC<ReasoningCardProps> = ({
       data-tone={entry.tone}
       data-phase={entry.phase}
       data-iteration={entry.iterationLabel}
-      className="animate-mirofish-fade-in relative pl-3 py-2 bg-slate-50 rounded-md border border-slate-200"
+      className="animate-mirofish-fade-in relative pl-3 pr-3 py-2 bg-white border border-[#E5E5E5]"
+      style={{ borderRadius: "0px" }}
     >
-      {/* 左侧 2px 渐变竖条 */}
+      {/* 左侧 2px 实色条 — mirofish 单色 accent */}
       <div
-        className={`absolute left-0 top-0 bottom-0 w-[2px] rounded-full bg-gradient-to-b ${gradient}`}
+        className={`absolute left-0 top-0 bottom-0 w-[2px] ${bar}`}
         aria-hidden="true"
       />
 
-      {/* 迭代标签 */}
-      <div className="text-[9px] font-mono text-slate-400 mb-0.5">
+      {/* 迭代标签 — JetBrains Mono 0.7rem #999 */}
+      <div className="font-mono text-[10px] uppercase tracking-[0.06em] text-[#999] mb-1">
         {entry.phase} · {entry.iterationLabel}
       </div>
 
-      {/* 推理文本 */}
+      {/* 推理文本 — JetBrains Mono 0.78rem 黑色 */}
       {(text || streamingTokens) && (
-        <div className="font-mono text-[11px] text-slate-700 leading-relaxed break-all">
+        <div className="font-mono text-[12.5px] text-black leading-[1.55] break-all">
           {text}
           {/* 流式 token 追加区域 — 通过 ref 直接操作 DOM 避免 re-render */}
           {streamingTokens !== undefined && (
@@ -128,7 +135,7 @@ export const ReasoningCard: FC<ReasoningCardProps> = ({
           {/* 流式光标 */}
           {(streaming || streamingTokens) && (
             <span
-              className="animate-mirofish-blink inline-block w-[2px] h-3 bg-slate-500 ml-0.5 align-middle"
+              className="animate-mirofish-blink inline-block w-[2px] h-3 bg-[#FF4500] ml-0.5 align-middle"
               aria-hidden="true"
             />
           )}

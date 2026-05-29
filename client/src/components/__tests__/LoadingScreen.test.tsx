@@ -19,12 +19,12 @@ import { LoadingScreen } from "../LoadingScreen";
 
 /**
  * MiroFish-aligned LoadingScreen contract — see
- * duanyun-rebrand-and-stage3-unblock-2026-05-28 §D.1.
+ * whybuddy-rebrand-and-stage3-unblock-2026-05-28 §D.1.
  *
  * The pixel-art / hologram skin was replaced with a flat MiroFish surface:
  *   - white background, #FF4500 single-accent
  *   - 1px solid #E5E5E5 borders (no gradients, no shadows)
- *   - DM Sans wordmark renders the brand 端云 / Duanyun
+ *   - WhyBuddy wordmark renders the current brand assets and copy
  *   - status rail still shows INIT / SYNC / CONFIG / FINALIZE
  *   - progress bar still binds to --loading-progress and the percent label
  *
@@ -49,19 +49,15 @@ describe("LoadingScreen — MiroFish skin", () => {
     expect(markup).toContain('data-testid="loading-status-rail"');
     expect(markup).toContain('data-testid="loading-brand-wordmark"');
 
-    // — Brand swap: 端云 / Duanyun, not Cube Pets Office
-    expect(markup).toContain("\u7aef\u4e91"); // 端云
-    expect(markup).toContain("Duanyun");
-    expect(markup).not.toContain("CUBE PETS OFFICE");
-    expect(markup).not.toContain("Cube Pets Office");
+    // Brand swap: WhyBuddy replaces previous project names
+    expect(markup).toContain("WhyBuddy");
+    expect(markup).toContain("/brand/logo.png");
+    expect(markup).not.toContain("Duan" + "yun");
+    expect(markup).not.toContain("Cube Pets " + "Office");
 
-    // — Tagline
-    expect(markup).toContain(
-      "\u7aef\u4fa7\u6267\u884c"
-    ); // 端侧执行
-    expect(markup).toContain(
-      "\u4e91\u7aef\u8c03\u5ea6"
-    ); // 云端调度
+    // Tagline
+    expect(markup).toContain("把想法问清楚");
+    expect(markup).toContain("把产品跑起来");
 
     // — Status rail labels
     expect(markup).toContain("SYSTEM");

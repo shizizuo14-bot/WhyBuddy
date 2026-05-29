@@ -1314,7 +1314,7 @@ export default function Home({
   const utilityChipClass = resizeActive
     ? "border-slate-200/90 bg-[hsl(var(--background))]/96 shadow-[0_8px_20px_rgba(15,23,42,0.06)]"
     : "border-white/68 bg-[rgba(248,250,252,0.82)] shadow-[0_10px_24px_rgba(15,23,42,0.08)] backdrop-blur";
-  // duanyun-rebrand-and-stage3-unblock-2026-05-28 §D.2: project hub surfaces
+  // whybuddy-rebrand-and-stage3-unblock-2026-05-28 §D.2: project hub surfaces
   // adopt the MiroFish skin — flat white bg, 1px solid #E5E5E5 border, no
   // gradient, no shadow. Existing data-testid hooks are preserved so layout
   // and snapshot tests still match.

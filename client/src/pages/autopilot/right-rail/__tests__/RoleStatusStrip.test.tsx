@@ -142,7 +142,6 @@ describe("AutopilotRightRail mounts <RoleStatusStrip /> inside the fabric branch
       "utf8"
     );
 
-    // <RoleStatusStrip /> 至少出现一次
     const jsxMatches = source.match(/<RoleStatusStrip\b/g) ?? [];
     expect(jsxMatches.length).toBeGreaterThanOrEqual(1);
 

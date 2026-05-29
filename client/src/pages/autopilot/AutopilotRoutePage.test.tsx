@@ -398,18 +398,13 @@ describe("AutopilotRoutePage", () => {
     expect(source).toContain("onNavigateWorkflowStage={handleNavigateWorkflowStage}");
   });
 
-  it("wires the right-rail history entry into an actual version history panel", async () => {
+  it("wires the header history entry into an actual version history panel", async () => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
     const routeSource = await fs.readFile(
       path.resolve(__dirname, "./AutopilotRoutePage.tsx"),
       "utf8"
     );
-    const railSource = await fs.readFile(
-      path.resolve(__dirname, "./right-rail/AutopilotRightRail.tsx"),
-      "utf8"
-    );
-
     expect(routeSource).toMatch(/AUTOPILOT_HISTORY_OPEN_EVENT/);
     expect(routeSource).toMatch(/readAutopilotHistoryOpenFromLocation/);
     expect(routeSource).toMatch(/data-testid="autopilot-version-history-panel"/);
@@ -418,8 +413,9 @@ describe("AutopilotRoutePage", () => {
     expect(routeSource).toMatch(/<CompareView/);
     expect(routeSource).toMatch(/resolveHistoryUrlSelectedJob/);
     expect(routeSource).toMatch(/appliedHistoryJobIdRef/);
-    expect(railSource).toMatch(/autopilot:history-open/);
-    expect(railSource).toMatch(/window\.dispatchEvent/);
+    expect(routeSource).toMatch(/<HistoryEntryPoint/);
+    expect(routeSource).toMatch(/handleHeaderOpenHistory/);
+    expect(routeSource).toMatch(/window\.dispatchEvent/);
   });
 
   it("resolves a deep-linked active history job that differs from the current rail job", () => {

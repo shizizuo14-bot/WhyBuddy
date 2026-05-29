@@ -1,6 +1,6 @@
 /**
  * Regression contract tests for
- * `duanyun-rebrand-and-stage3-unblock-2026-05-28` Task A.
+ * `whybuddy-rebrand-and-stage3-unblock-2026-05-28` Task A.
  *
  * The bug being prevented: stage 2 (spec_docs) finishes but the cockpit never
  * advances to stage 3 (effect_preview). Three guards introduced by Task A:

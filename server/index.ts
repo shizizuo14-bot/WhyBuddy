@@ -1,5 +1,5 @@
 /**
- * Cube Pets Office - Server Entry Point
+ * WhyBuddy - Server Entry Point
  * Express + Socket.IO + REST API + Multi-Agent Orchestration
  */
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
@@ -1517,7 +1517,7 @@ async function startServer() {
         signal: controller.signal,
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (compatible; CubePetsOffice/1.0; +https://github.com/nicepkg/cube-pets-office)",
+            "Mozilla/5.0 (compatible; WhyBuddy/1.0; +https://github.com/nicepkg/whybuddy)",
           Accept: "text/html, text/*;q=0.9",
         },
       });

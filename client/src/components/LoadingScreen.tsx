@@ -6,14 +6,13 @@ import {
   BRAND_HEADLINE_EN,
   BRAND_HEADLINE_ZH,
   BRAND_NAME_DISPLAY,
-  BRAND_NAME_LATIN,
   BRAND_TAGLINE_EN,
   BRAND_TAGLINE_ZH,
 } from "@shared/brand";
 
 /**
  * MiroFish-aligned loading screen — replaces the pixel-art holographic
- * variant per duanyun-rebrand-and-stage3-unblock-2026-05-28 §D.1.
+ * variant per whybuddy-rebrand-and-stage3-unblock-2026-05-28 §D.1.
  *
  * Visual language (matches client/src/styles/mirofish-tokens.css):
  *   - bg: #FFFFFF
@@ -118,11 +117,11 @@ function BrandWordmark({ copy }: { copy: typeof CHINESE_COPY }) {
       className="relative mx-auto flex w-full flex-col items-start gap-3"
       data-testid="loading-brand-wordmark"
     >
-      <span
-        className="font-mono text-[11px] font-bold uppercase tracking-[0.32em] text-[#FF4500]"
-      >
-        {BRAND_NAME_LATIN}
-      </span>
+      <img
+        src="/brand/logo.png"
+        alt="WhyBuddy"
+        className="h-16 w-auto object-contain"
+      />
       <h1
         className="font-display text-[clamp(3.5rem,8vw,5.5rem)] font-medium leading-[0.95] tracking-tight text-black"
       >
@@ -206,7 +205,7 @@ export function LoadingScreen() {
           className="mt-6 flex items-center justify-between gap-5 border border-[#E5E5E5] bg-white px-5 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.32em] text-black/60"
           style={{ borderRadius: "2px" }}
         >
-          <span>{BRAND_NAME_LATIN}</span>
+          <span>WHYBUDDY</span>
           <span className="text-black/30">·</span>
           <span>{copy.brandHeadline}</span>
         </footer>

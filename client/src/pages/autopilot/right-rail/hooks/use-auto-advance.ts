@@ -124,7 +124,7 @@ export function useAutoAdvance({
   const advancedStagesRef = useRef<Set<string>>(new Set());
   const mountedRef = useRef(true);
   // 首次加载延迟：页面刚进入编组时不立即推进，给用户一个观察窗口。
-  // duanyun-rebrand-and-stage3-unblock-2026-05-28 §A.3：
+  // whybuddy-rebrand-and-stage3-unblock-2026-05-28 §A.3：
   //   - 默认 800ms（原 3000ms）。
   //   - 当挂载时 job.stage 已经超过 clarification（说明这次挂载不是第一次入场，
   //     而是 spec 阶段后的 re-attach），则跳过延迟，避免阻塞 spec_docs →
@@ -162,7 +162,7 @@ export function useAutoAdvance({
     setAdvancingTo(null);
   }, [jobId]);
 
-  // duanyun-rebrand-and-stage3-unblock-2026-05-28 §A.2：
+  // whybuddy-rebrand-and-stage3-unblock-2026-05-28 §A.2：
   // 当 job.stage 回退（例如用户从 effect_preview 回到 spec_docs 重生成），
   // advancedStagesRef 中的旧条目会让自动推进永久哑火。这里在 stage 回退时
   // 把比新 stage 更靠后的所有条目清空，让用户的二次推进重新生效。
@@ -342,7 +342,7 @@ export function useAutoAdvance({
     // 直接调用 API,不检查 advancedStagesRef(用户主动点击应该总是执行)
     if (stage === "spec_tree") {
       void advance("spec_docs", async () => {
-        // duanyun-rebrand-and-stage3-unblock-2026-05-28 §A.1：
+        // whybuddy-rebrand-and-stage3-unblock-2026-05-28 §A.1：
         // 用户明确要求 "你不要生成全部，这特别费时间，你只生成一份就好了"。
         // 默认只生成 requirements 文档以缩短关键路径。后端仍可一次受理 3 个
         // 文档类型；这里只是 client-side 的默认值，UI 入口（详情页或 worker）
