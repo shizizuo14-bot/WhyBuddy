@@ -1,11 +1,12 @@
 <p align="center">
-  <img src="./docs/assets/banner.png" alt="端云 Duanyun" width="100%" />
+  <img src="./docs/assets/banner.png" alt="WhyBuddy" width="100%" />
 </p>
 
-<h1 align="center">🌐 端云 / Duanyun</h1>
+<h1 align="center">🌐 WhyBuddy</h1>
 
 <p align="center">
-  <strong>端侧执行 · 云端调度 · 一句话生成完整产品规格</strong><br/>
+  <strong>
+WhyBuddy — an AI agent crew that questions your product idea and rehearses it before you build.</strong><br/>
   <em>Edge execution · Cloud orchestration · One sentence in, full spec out</em>
 </p>
 
@@ -15,7 +16,7 @@
 </p>
 
 <p align="center">
-  <a href="https://opencroc.github.io/cube-pets-office/"><img alt="demo" src="https://img.shields.io/badge/🌐_Live_Demo-blue?style=for-the-badge" /></a>
+  <a href="https://opencroc.github.io/whybuddy/"><img alt="demo" src="https://img.shields.io/badge/🌐_Live_Demo-blue?style=for-the-badge" /></a>
   <a href="./ROADMAP.md"><img alt="roadmap" src="https://img.shields.io/badge/🗺️_Roadmap-111827?style=for-the-badge" /></a>
   <a href="./CONTRIBUTING.md"><img alt="contribute" src="https://img.shields.io/badge/🤝_Contribute-16a34a?style=for-the-badge" /></a>
 </p>
@@ -29,11 +30,11 @@ cp .env.example .env       # then fill in LLM_API_KEY (see "MUST FILL" section)
 docker compose up
 ```
 
-Open <http://localhost:3000> and you're in. The Duanyun server (3001 internally) is published on host port **3000** so you can navigate directly without remembering port numbers.
+Open <http://localhost:3000> and you're in. The WhyBuddy server (3001 internally) is published on host port **3000** so you can navigate directly without remembering port numbers.
 
 > **Three ways to run** — pick whichever matches your environment:
-> 1. **Online demo** — <https://opencroc.github.io/cube-pets-office/> (browser-only mode, no install).
-> 2. **Docker compose** — the snippet above; one MySQL + one Duanyun container.
+> 1. **Online demo** — <https://opencroc.github.io/whybuddy/> (browser-only mode, no install).
+> 2. **Docker compose** — the snippet above; one MySQL + one WhyBuddy container.
 > 3. **Local dev** — `pnpm install && pnpm run dev:all` (full stack, hot reload, see [Local Dev](#-local-dev) below).
 
 ---
@@ -157,7 +158,7 @@ Markdown, ZIP, or online preview. Every rehearsal is a shareable document packag
 ## 🛠️ Local Dev
 
 ```bash
-git clone https://github.com/opencroc/cube-pets-office.git && cd cube-pets-office
+git clone https://github.com/opencroc/whybuddy.git && cd whybuddy
 pnpm install
 pnpm run dev:all          # Full stack: frontend + server + executor
 ```
@@ -169,7 +170,7 @@ pnpm run dev:all          # Full stack: frontend + server + executor
 pnpm run dev:frontend     # Opens at localhost:5173
 ```
 
-Or visit the [Live Demo](https://opencroc.github.io/cube-pets-office/) directly on GitHub Pages.
+Or visit the [Live Demo](https://opencroc.github.io/whybuddy/) directly on GitHub Pages.
 
 </details>
 
@@ -178,7 +179,7 @@ Or visit the [Live Demo](https://opencroc.github.io/cube-pets-office/) directly 
 
 - Node.js 22+
 - pnpm
-- Docker (optional, only required for full sandbox executor mode; Duanyun
+- Docker (optional, only required for full sandbox executor mode; WhyBuddy
   falls back to a native runner when Docker is unavailable)
 
 </details>
@@ -186,9 +187,9 @@ Or visit the [Live Demo](https://opencroc.github.io/cube-pets-office/) directly 
 <details>
 <summary>🐳 <strong>Notes on the Docker setup</strong></summary>
 
-- The compose file boots **two containers**: `duanyun-app` (the server +
-  bundled frontend) and `duanyun-mysql` (MySQL 8 with the
-  `cube_pets_office` schema kept for backward compat — the data shape is
+- The compose file boots **two containers**: `whybuddy-app` (the server +
+  bundled frontend) and `whybuddy-mysql` (MySQL 8 with the
+  `whybuddy` schema kept for backward compat — the data shape is
   unchanged, only the project brand changed).
 - The Lobster Executor sandbox is **not** in the compose file by default.
   Docker-in-Docker introduces extra surface area and isn't required for
@@ -296,7 +297,7 @@ Or visit the [Live Demo](https://opencroc.github.io/cube-pets-office/) directly 
 
 ## ⚔️ Comparison
 
-| Feature | Dify | n8n | CrewAI | LangGraph | **Duanyun** |
+| Feature | Dify | n8n | CrewAI | LangGraph | **WhyBuddy** |
 |:--------|:---:|:---:|:---:|:---:|:---:|
 | Open Source | ✅ | ✅ | ✅ | ✅ | ✅ |
 | One sentence → full product | ❌ | ❌ | ❌ | ❌ | ✅ |
@@ -326,17 +327,17 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
 ## 🪪 About the name
 
-**Duanyun (端云)** is two characters: 端 (edge / endpoint) and 云 (cloud).
+**WhyBuddy** is two characters: 端 (edge / endpoint) and 云 (cloud).
 Together they describe the model the project converges on — workloads execute
 **at the edge** when they can (browser runtime, native sandbox, your laptop's
 Docker), and **fall back to the cloud** when they need shared coordination
 (LLM, MCP servers, the Lobster Executor service). The codebase still carries
-the legacy package name `cube-pets-office` in some internal modules; that is
+the legacy package name `whybuddy` in some internal modules; that is
 intentional and tracked under
-[`duanyun-internal-rename`](./.kiro/specs/) for a future sweep, not the entry
+[`whybuddy-internal-rename`](./.kiro/specs/) for a future sweep, not the entry
 point you read first.
 
-The domain `duanyun.com` is reserved for the hosted edition.
+The domain `whybuddy.com` is reserved for the hosted edition.
 
 ---
 
@@ -345,4 +346,4 @@ The domain `duanyun.com` is reserved for the hosted edition.
 > Every rehearsal is content that helps others discover possibilities. Star
 > this repo to help more people find it.
 
-[![Star History Chart](https://api.star-history.com/svg?repos=opencroc/cube-pets-office&type=Date)](https://star-history.com/#opencroc/cube-pets-office&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=opencroc/whybuddy&type=Date)](https://star-history.com/#opencroc/whybuddy&Date)

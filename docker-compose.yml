@@ -1,12 +1,12 @@
-# 端云 / Duanyun — one-command bootstrap
+# WhyBuddy — one-command bootstrap
 #
 #   docker compose up
 #
 # This boots:
-#   - app   → the Duanyun server + bundled frontend on http://localhost:3000
+#   - app   → the WhyBuddy server + bundled frontend on http://localhost:3000
 #             (the container internally listens on 3001; we publish 3000:3001)
-#   - mysql → MySQL 8 with the cube_pets_office schema (legacy DB name kept
-#             for backward compatibility; project name is duanyun)
+#   - mysql → MySQL 8 with the whybuddy schema (legacy DB name kept
+#             for backward compatibility; project name is whybuddy)
 #
 # What is NOT included in this compose:
 #   - Lobster Executor (Docker-in-Docker is messy; opt in separately)
@@ -19,14 +19,14 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: duanyun-mysql
+    container_name: whybuddy-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-duanyun_root_change_me}
-      MYSQL_DATABASE: ${DB_NAME:-cube_pets_office}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-whybuddy_root_change_me}
+      MYSQL_DATABASE: ${DB_NAME:-whybuddy}
     ports:
       - "${DB_PORT:-3306}:3306"
     volumes:
-      - duanyun-mysql-data:/var/lib/mysql
+      - whybuddy-mysql-data:/var/lib/mysql
     healthcheck:
       test:
         [
@@ -36,7 +36,7 @@ services:
           "-h",
           "127.0.0.1",
           "-uroot",
-          "-p${DB_PASSWORD:-duanyun_root_change_me}",
+          "-p${DB_PASSWORD:-whybuddy_root_change_me}",
         ]
       interval: 5s
       timeout: 3s
@@ -48,8 +48,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: duanyun:local
-    container_name: duanyun-app
+    image: whybuddy:local
+    container_name: whybuddy-app
     depends_on:
       mysql:
         condition: service_healthy
@@ -60,14 +60,14 @@ services:
       PORT: 3001
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_NAME: ${DB_NAME:-cube_pets_office}
+      DB_NAME: ${DB_NAME:-whybuddy}
       DB_USER: ${DB_USER:-root}
-      DB_PASSWORD: ${DB_PASSWORD:-duanyun_root_change_me}
+      DB_PASSWORD: ${DB_PASSWORD:-whybuddy_root_change_me}
       CORS_ORIGIN: http://localhost:3000
     ports:
       - "3000:3001"
     restart: unless-stopped
 
 volumes:
-  duanyun-mysql-data:
-    name: duanyun-mysql-data
+  whybuddy-mysql-data:
+    name: whybuddy-mysql-data
