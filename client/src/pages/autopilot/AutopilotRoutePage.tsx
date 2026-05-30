@@ -23,10 +23,10 @@ import {
   Route,
   Send,
   Terminal,
-  Workflow,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 
+import autopilotHeaderLogoUrl from "../../../../docs/assets/logo.png";
 import { Scene3D } from "@/components/Scene3D";
 import { HoloDrawer } from "@/components/HoloDrawer";
 import { MirofishThemeProvider } from "@/contexts/MirofishThemeContext";
@@ -4220,11 +4220,14 @@ export default function AutopilotRoutePage() {
       >
         <div className="flex w-full flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
-            <div
-              className="flex size-9 items-center justify-center bg-black text-white"
-              style={{ borderRadius: "0px" }}
-            >
-              <Workflow className="size-4" aria-hidden="true" />
+            <div className="flex size-9 shrink-0 items-center justify-center overflow-hidden bg-white">
+              <img
+                src={autopilotHeaderLogoUrl}
+                alt=""
+                aria-hidden="true"
+                className="size-full object-contain"
+                draggable={false}
+              />
             </div>
             <div className="min-w-0">
               <div className="flex flex-wrap items-center gap-2 font-mono text-[11px] uppercase tracking-[0.06em] text-[#666]">
