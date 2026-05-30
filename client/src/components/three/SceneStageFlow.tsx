@@ -29,27 +29,30 @@ function StageFlowSegment({
   color,
   phase,
   opacity,
+  floorHugging = false,
 }: {
   from: [number, number, number];
   to: [number, number, number];
   color: string;
   phase: number;
   opacity: number;
+  floorHugging?: boolean;
 }) {
   const particleRefs = useRef<Array<THREE.Mesh | null>>([]);
 
   const curve = useMemo(() => {
-    const start = new THREE.Vector3(from[0], 0.24, from[2]);
-    const end = new THREE.Vector3(to[0], 0.24, to[2]);
+    const flowY = floorHugging ? 0.055 : 0.24;
+    const start = new THREE.Vector3(from[0], flowY, from[2]);
+    const end = new THREE.Vector3(to[0], flowY, to[2]);
     const mid = start.clone().add(end).multiplyScalar(0.5);
     const distance = start.distanceTo(end);
 
-    mid.y += Math.max(0.5, distance * 0.12);
+    mid.y += floorHugging ? 0.02 : Math.max(0.5, distance * 0.12);
     mid.x += (end.z - start.z) * 0.03;
     mid.z += (start.x - end.x) * 0.03;
 
     return new THREE.QuadraticBezierCurve3(start, mid, end);
-  }, [from, to]);
+  }, [floorHugging, from, to]);
 
   const points = useMemo(() => curve.getPoints(34), [curve]);
 
@@ -75,16 +78,16 @@ function StageFlowSegment({
       <Line
         points={points}
         color={color}
-        lineWidth={5.5}
+        lineWidth={floorHugging ? 3.2 : 5.5}
         transparent
-        opacity={Math.min(0.38, opacity * 0.7)}
+        opacity={floorHugging ? Math.min(0.18, opacity * 0.36) : Math.min(0.38, opacity * 0.7)}
       />
       <Line
         points={points}
         color={color}
-        lineWidth={2.6}
+        lineWidth={floorHugging ? 1.45 : 2.6}
         transparent
-        opacity={Math.min(0.92, opacity + 0.32)}
+        opacity={floorHugging ? Math.min(0.46, opacity * 0.7) : Math.min(0.92, opacity + 0.32)}
       />
       {[0, 1, 2].map(index => (
         <mesh
@@ -99,7 +102,7 @@ function StageFlowSegment({
             emissive={color}
             emissiveIntensity={1.4}
             transparent
-            opacity={Math.min(0.98, opacity + 0.28)}
+            opacity={floorHugging ? Math.min(0.6, opacity * 0.86) : Math.min(0.98, opacity + 0.28)}
           />
         </mesh>
       ))}
@@ -259,6 +262,7 @@ export function SceneStageFlow({
           // base 0.45 + 每段 0.08 提升，让首段也清晰可见，最深一段接近不透明
           opacity={0.45 + index * 0.08}
           phase={index * 0.18}
+          floorHugging={mode === "blueprint"}
         />
       ))}
 

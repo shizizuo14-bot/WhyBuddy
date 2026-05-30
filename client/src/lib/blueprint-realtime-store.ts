@@ -131,6 +131,26 @@ export interface AgentProgressEntry {
 export type CapabilityStatus = "idle" | "invoking" | "completed" | "failed";
 
 /**
+ * 能力调用的真实 owner 记录（whybuddy-3d-real-role-driven-scene-2026-05-29
+ * Requirement 12 修订）。
+ *
+ * 后端 `capability.*` 事件 payload 自带权威 `roleId`（见
+ * `server/routes/blueprint.ts` CapabilityInvoked 事件）。store 把它单独存进
+ * `capabilityOwners[capabilityId]`，让 3D 场景的 capability→role 绑定第一优先级
+ * 使用真实 owner，而不是靠 capability id 猜测（heuristic 仅作兜底）。
+ */
+// Latest-by-capability owner snapshot. This is intentionally not a full
+// invocation history; the right-rail audit surfaces retain detailed records.
+export interface CapabilityOwner {
+  /** 调用该能力的真实角色 id（来自事件 payload）。 */
+  roleId: string;
+  /** 调用记录 id（如有），用于右侧审计对账。 */
+  invocationId?: string;
+  /** 最近一次更新时间戳（ms）。 */
+  updatedAt: number;
+}
+
+/**
  * 流式日志条目。
  */
 export interface BlueprintLogEntry {
@@ -329,6 +349,13 @@ export interface BlueprintRealtimeState {
   /** 能力调用状态：capabilityId → status */
   capabilityStatuses: Record<string, CapabilityStatus>;
 
+  /**
+   * 能力调用真实 owner：capabilityId → { roleId, invocationId, updatedAt }。
+   * 仅由携带 `roleId` 的 `capability.*` 事件与 role-container loader 路径写入，
+   * 供 3D 场景 capability→role 绑定使用真实 owner（Requirement 12）。
+   */
+  capabilityOwners: Record<string, CapabilityOwner>;
+
   /** 流式日志条目（最近 200 条） */
   logEntries: BlueprintLogEntry[];
 
@@ -419,6 +446,27 @@ export function mapEventTypeToPhase(type: string): RolePhase | null {
       return "sleeping";
     case "role.container.failed":
       return "failed";
+    // whybuddy-3d-real-role-driven-scene-2026-05-29 Requirement 10 (Fix 1)：
+    // 把 7 个 `role.agent.*` 推理事件映射到 RolePhase，使角色推理循环
+    // （iteration → thinking → acting → observing）能流入 `rolePhases`，
+    // 由既有 `if (type.startsWith("role."))` 分支写入 `rolePhases[roleId]`。
+    // 注意：`iteration_completed` 故意映射到 `observing` 而非 `completed`——
+    // 多迭代角色否则会在两次迭代之间闪烁到 faded 的 `completed` tier 再弹回；
+    // `completed` tier 保留给终态 `role.agent.completed`。
+    case "role.agent.iteration_started":
+      return "activated";
+    case "role.agent.thinking":
+      return "thinking";
+    case "role.agent.acting":
+      return "acting";
+    case "role.agent.observing":
+      return "observing";
+    case "role.agent.iteration_completed":
+      return "observing";
+    case "role.agent.completed":
+      return "completed";
+    case "role.agent.error":
+      return "failed";
     default:
       return null;
   }
@@ -483,6 +531,19 @@ function readRoleIdFromPayload(
 
   const key = readNestedRecord(record, "key");
   return key ? readString(key.roleId) : undefined;
+}
+
+/**
+ * 公开、可复用的 payload roleId 读取器（spec task 6）。
+ *
+ * 这是 {@link readRoleIdFromPayload} 的薄包装，供 blueprint runtime 场景
+ * 事件观察器（BlueprintRuntimeAgents）在不触碰 store 内部状态的前提下，
+ * 从 BlueprintRelayedEvent 的 payload 中读取 roleId。纯函数、无副作用、不访问 store。
+ */
+export function readRoleIdFromBlueprintPayload(
+  payload: Record<string, unknown>
+): string | undefined {
+  return readRoleIdFromPayload(payload);
 }
 
 function readRoleContainerKey(
@@ -1066,6 +1127,41 @@ function handleSpecDocsProgressEvent(
 }
 
 // ---------------------------------------------------------------------------
+// Blueprint 实时事件观察者（module-level，非 store state）
+// ---------------------------------------------------------------------------
+
+/**
+ * `whybuddy-3d-real-role-driven-scene-2026-05-29` spec Task 5：
+ * Blueprint 实时事件监听器签名。监听器在 `dispatchEvent(event)` 的 reducer
+ * 完成后被同步通知一次，接收到的就是这次被分发的 `BlueprintRelayedEvent`。
+ */
+export type BlueprintRealtimeEventListener = (
+  event: BlueprintRelayedEvent
+) => void;
+
+/**
+ * 模块级监听器集合。刻意保持在 module scope 而非 `BlueprintRealtimeState`，
+ * 以满足 Requirements 2.15 / 5.2 / 6.6：本特性不向 store 顶层 state 增加字段。
+ */
+const blueprintRealtimeEventListeners = new Set<BlueprintRealtimeEventListener>();
+
+/**
+ * 订阅 blueprint 实时事件。每次 `dispatchEvent` 在 reducer 状态更新之后会把
+ * 该事件同步派发给所有当前注册的监听器（详见 design.md
+ * §「Event Observation and Line Priority」→「Event Observer」）。
+ *
+ * @returns 取消订阅函数；调用后该监听器不再收到后续事件。
+ */
+export function subscribeBlueprintRealtimeEvents(
+  listener: BlueprintRealtimeEventListener
+): () => void {
+  blueprintRealtimeEventListeners.add(listener);
+  return () => {
+    blueprintRealtimeEventListeners.delete(listener);
+  };
+}
+
+// ---------------------------------------------------------------------------
 // Store 创建
 // ---------------------------------------------------------------------------
 
@@ -1075,6 +1171,7 @@ const initialState: BlueprintRealtimeState = {
   roleRuntimeStates: {},
   agentProgress: [],
   capabilityStatuses: {},
+  capabilityOwners: {},
   logEntries: [],
   fleetRoleCards: [],
   connectionState: "disconnected",
@@ -1271,6 +1368,7 @@ export const useBlueprintRealtimeStore = create<
       roleRuntimeStates: {},
       agentProgress: [],
       capabilityStatuses: {},
+      capabilityOwners: {},
       fleetRoleCards: [],
       connectionState: s.connected ? "connected" : "disconnected",
       // `autopilot-agent-reasoning-stream` spec Task 8.6 / 8.7：
@@ -1384,6 +1482,22 @@ export const useBlueprintRealtimeStore = create<
             ...state.capabilityStatuses,
             [capId]: status,
           };
+
+          // Requirement 12 修订：保留事件里的真实 owner roleId，供 3D 绑定第一
+          // 优先级使用（不再靠 capability id 猜测）。仅当 payload 带 roleId 时写入。
+          const ownerRoleId = readRoleIdFromPayload(payload);
+          if (ownerRoleId) {
+            const invocationId =
+              (payload?.invocationId as string) ?? undefined;
+            updates.capabilityOwners = {
+              ...(updates.capabilityOwners ?? state.capabilityOwners),
+              [capId]: {
+                roleId: ownerRoleId,
+                invocationId,
+                updatedAt: lastUpdated,
+              },
+            };
+          }
         }
       }
 
@@ -1396,6 +1510,12 @@ export const useBlueprintRealtimeStore = create<
         updates.capabilityStatuses = {
           ...(updates.capabilityStatuses ?? state.capabilityStatuses),
           [capabilityId]: roleContainerCapabilityStatus,
+        };
+        // The loader capability id already encodes its owner role; record it as
+        // an authoritative owner so the 3D binding never has to guess for it.
+        updates.capabilityOwners = {
+          ...(updates.capabilityOwners ?? state.capabilityOwners),
+          [capabilityId]: { roleId, updatedAt: lastUpdated },
         };
         const runtimeState = buildRoleRuntimeState(event, roleId, lastUpdated);
         if (runtimeState) {
@@ -1432,6 +1552,24 @@ export const useBlueprintRealtimeStore = create<
 
       return updates;
     });
+
+    // `whybuddy-3d-real-role-driven-scene-2026-05-29` spec Task 5：
+    // reducer 状态更新完成后，同步通知所有模块级监听器一次。每个监听器调用都
+    // 包在 try/catch 中——一个 scene-bridge / observer 的 bug 绝不能破坏 reducer
+    // 或阻断其它监听器（Requirement 5.1 / 5.2）。
+    for (const listener of blueprintRealtimeEventListeners) {
+      try {
+        listener(event);
+      } catch (err) {
+        if (import.meta.env?.DEV) {
+          // eslint-disable-next-line no-console
+          console.error(
+            "[blueprint-realtime] event listener threw",
+            err
+          );
+        }
+      }
+    }
   },
 
   dismissSpecDocsProgress() {

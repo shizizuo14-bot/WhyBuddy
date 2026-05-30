@@ -11,6 +11,7 @@ const { projectState } = vi.hoisted(() => ({
 import AutopilotRoutePage, {
   ClarificationPanel,
   AutopilotSpecTreeHandoffPanel,
+  buildBlueprintRoleLabels,
   resolveActiveAutopilotPage,
   resolveAutopilotPageProjection,
   resolveHistoryActiveJobIdForCurrentJob,
@@ -50,6 +51,41 @@ describe("AutopilotRoutePage", () => {
     projectState.currentProjectId = null;
     projectState.projects = [];
     useAppStore.setState({ locale: "zh-CN" });
+  });
+
+  it("builds full 3D role labels from canonical names plus runtime displayName", () => {
+    const labels = buildBlueprintRoleLabels(
+      {
+        roleTimelines: [
+          {
+            roleId: "role-quality-auditor",
+            roleName: "role-quality-auditor",
+            displayName: "Quality Auditor",
+            displayLabel: "审计者",
+          },
+          {
+            roleId: "spec-architect",
+            roleName: "spec-architect",
+            displayName: "SPEC architect",
+            displayLabel: "spec-architect",
+          },
+          {
+            roleId: "repository-analyst",
+            roleName: "repository-analyst",
+            displayName: "repository-analyst",
+            displayLabel: "repository-analyst",
+          },
+        ],
+        presence: [],
+      } as any,
+      "zh-CN"
+    );
+
+    expect(labels).toEqual({
+      "role-quality-auditor": "Quality Auditor",
+      "spec-architect": "SPEC architect",
+      "repository-analyst": "Repository Analyst",
+    });
   });
 
   it("renders the 3D scene, scene HUD, and sequential workflow in Chinese", () => {
@@ -416,6 +452,20 @@ describe("AutopilotRoutePage", () => {
     expect(routeSource).toMatch(/<HistoryEntryPoint/);
     expect(routeSource).toMatch(/handleHeaderOpenHistory/);
     expect(routeSource).toMatch(/window\.dispatchEvent/);
+  });
+
+  it("passes distinct active/latest job ids into the 3D scene for history replay timing", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "./AutopilotRoutePage.tsx"),
+      "utf8"
+    );
+
+    expect(source).toMatch(/const\s+latestSceneJobIdRef\s*=\s*useRef/);
+    expect(source).toMatch(/latestSceneJobId=\{latestSceneJobIdRef\.current/);
+    expect(source).toMatch(/activeJobId=\{job\?\.id\}/);
+    expect(source).not.toMatch(/latestJobId=\{job\?\.id\}/);
   });
 
   it("resolves a deep-linked active history job that differs from the current rail job", () => {

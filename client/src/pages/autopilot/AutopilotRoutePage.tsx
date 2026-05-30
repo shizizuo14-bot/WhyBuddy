@@ -56,6 +56,7 @@ import {
   type BlueprintLatestGenerationJobSnapshot,
   type BlueprintRuntimeCapability,
 } from "@/lib/blueprint-api";
+import { blueprintCopy as translateBlueprintCopy } from "@/lib/blueprint-copy";
 import { patchBlueprintIntake } from "@/lib/blueprint-api/intake";
 import { IS_GITHUB_PAGES } from "@/lib/deploy-target";
 import type { AppLocale } from "@/lib/locale";
@@ -90,6 +91,7 @@ import {
   type RightRailSubStageContextValue,
   type ViewportTier,
 } from "./right-rail";
+import { resolveRoleLabel } from "./right-rail/role-labels";
 import {
   selectAutoAdvanceSubStage,
   useAutoAdvance,
@@ -576,6 +578,53 @@ function mapCoordinationStageToWorkflowStage(
 
 function t(locale: AppLocale, zh: string, en: string): string {
   return locale === "zh-CN" ? zh : en;
+}
+
+function normalizeRoleNamePart(value: string | undefined): string {
+  return value?.trim() ?? "";
+}
+
+function buildFullBlueprintRoleLabel(
+  role: BlueprintAgentCrewSnapshot["roleTimelines"][number],
+  locale: AppLocale
+): string {
+  const roleId = role.roleId.trim();
+  const canonical = resolveRoleLabel(roleId, locale).trim();
+  const englishCanonical = resolveRoleLabel(roleId, "en-US").trim();
+  const displayName = normalizeRoleNamePart(role.displayName || role.roleName);
+  const displayLabel = translateBlueprintCopy(
+    role.displayLabel || role.displayName || role.roleName,
+    locale
+  ).trim();
+
+  // The first nameplate row already shows the localized role type. The second
+  // row should therefore show only the concrete role name/detail, not
+  // "类型 / 名字" again.
+  if (displayName && displayName !== roleId) return displayName;
+  if (englishCanonical && englishCanonical !== roleId) return englishCanonical;
+  if (displayLabel && displayLabel !== roleId && displayLabel !== canonical) {
+    return displayLabel;
+  }
+  return canonical && canonical !== roleId ? canonical : roleId;
+}
+
+export function buildBlueprintRoleLabels(
+  agentCrew: BlueprintAgentCrewSnapshot | null,
+  locale: AppLocale
+): Record<string, string> | undefined {
+  const timelines = agentCrew?.roleTimelines ?? agentCrew?.presence ?? [];
+  if (timelines.length === 0) return undefined;
+
+  const labels: Record<string, string> = {};
+  for (const role of timelines) {
+    const roleId = role.roleId?.trim();
+    if (!roleId) continue;
+
+    const label = buildFullBlueprintRoleLabel(role, locale);
+    if (label) labels[roleId] = label;
+  }
+
+  return Object.keys(labels).length ? labels : undefined;
 }
 
 function normalizeGithubUrl(value: string): string {
@@ -1247,6 +1296,7 @@ function AutopilotVisualStage({
   locale,
   currentProjectId,
   job,
+  latestSceneJobId,
   routeSet,
   selection,
   specTree,
@@ -1258,6 +1308,7 @@ function AutopilotVisualStage({
   locale: AppLocale;
   currentProjectId: string | null;
   job: BlueprintGenerationJob | null;
+  latestSceneJobId?: string | null;
   routeSet: BlueprintRouteSet | null;
   selection: BlueprintRouteSelection | null;
   specTree: BlueprintSpecTree | null;
@@ -1266,6 +1317,11 @@ function AutopilotVisualStage({
   capabilityEvidence: BlueprintCapabilityEvidence[];
   consoleLines: ConsoleLine[];
 }) {
+  const blueprintRoleLabels = useMemo(
+    () => buildBlueprintRoleLabels(agentCrew, locale),
+    [agentCrew, locale]
+  );
+
   return (
     // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v10 去边框去边距）：
     // visual stage / console panel / 外包 div 移除 rounded / border / gap，
@@ -1285,7 +1341,16 @@ function AutopilotVisualStage({
           data-autopilot-crew-state={agentCrew ? "ready" : "pending"}
         >
           <div className="pointer-events-none absolute inset-0">
-            <Scene3D performanceProfile="balanced" projectId={currentProjectId} mode="blueprint" blueprintJob={job} />
+            <Scene3D
+              performanceProfile="balanced"
+              projectId={currentProjectId}
+              mode="blueprint"
+              blueprintJob={job}
+              activeJobId={job?.id}
+              latestJobId={latestSceneJobId ?? job?.id}
+              activeStage={job?.stage}
+              roleLabels={blueprintRoleLabels}
+            />
           </div>
         </div>
       </section>
@@ -1893,6 +1958,7 @@ function AutopilotWorkflowRail({
   workflowStageOverride,
   onNavigateWorkflowStage,
   onJobUpdated,
+  onHistoryJobSelected,
   onBranchJobActivated,
   onHistoryPanelClosed,
   onSpecDocumentsGenerated,
@@ -2000,6 +2066,7 @@ function AutopilotWorkflowRail({
   workflowStageOverride: AutopilotWorkflowStage | null;
   onNavigateWorkflowStage: (nextStage: AutopilotWorkflowStage) => void;
   onJobUpdated: (job: BlueprintGenerationJob) => void;
+  onHistoryJobSelected?: (job: BlueprintGenerationJob) => void;
   onBranchJobActivated?: (job: BlueprintGenerationJob) => void;
   onHistoryPanelClosed?: () => void | Promise<void>;
   /**
@@ -2501,7 +2568,7 @@ function AutopilotWorkflowRail({
                 coordinator={coordinator}
                 onJobSelected={selectedJob => {
                   onNavigateWorkflowStage("fabric");
-                  onJobUpdated(selectedJob);
+                  (onHistoryJobSelected ?? onJobUpdated)(selectedJob);
                 }}
               />
             ) : null}
@@ -3223,6 +3290,7 @@ export default function AutopilotRoutePage() {
   const [latestJob, setLatestJob] = useState<BlueprintGenerationJob | null>(
     null
   );
+  const latestSceneJobIdRef = useRef<string | undefined>(undefined);
   const [routeSet, setRouteSet] = useState<BlueprintRouteSet | null>(null);
   const [selection, setSelection] = useState<BlueprintRouteSelection | null>(
     null
@@ -3285,6 +3353,7 @@ export default function AutopilotRoutePage() {
   const [selectingRouteId, setSelectingRouteId] = useState<string | null>(null);
 
   const resetLatestGenerationSnapshot = useCallback(() => {
+    latestSceneJobIdRef.current = undefined;
     setLatestJob(null);
     setRouteSet(null);
     setSelection(null);
@@ -3304,6 +3373,7 @@ export default function AutopilotRoutePage() {
         return;
       }
 
+      latestSceneJobIdRef.current = snapshot.job.id;
       setLatestJob(snapshot.job);
       setRouteSet(snapshot.routeSet ?? null);
       setSelection(snapshot.selection ?? null);
@@ -3480,6 +3550,14 @@ export default function AutopilotRoutePage() {
     activeCoordinationStageRef.current = activeCoordinationStage;
   }, [activeCoordinationStage]);
   const handleCoordinationJobUpdated = useCallback(
+    (job: BlueprintGenerationJob) => {
+      activeCoordinationStageRef.current = job.stage;
+      latestSceneJobIdRef.current = job.id;
+      setLatestJob(job);
+    },
+    []
+  );
+  const handleHistoryJobSelected = useCallback(
     (job: BlueprintGenerationJob) => {
       activeCoordinationStageRef.current = job.stage;
       setLatestJob(job);
@@ -4004,6 +4082,7 @@ export default function AutopilotRoutePage() {
       if (!result) return;
 
       if (result.ok) {
+        latestSceneJobIdRef.current = result.data.job.id;
         setLatestJob(result.data.job);
         setRouteSet(result.data.routeSet ?? null);
         setSelection(null);
@@ -4101,6 +4180,7 @@ export default function AutopilotRoutePage() {
 
         if (result.ok) {
           setWorkflowStageOverride(null);
+          latestSceneJobIdRef.current = result.data.job.id;
           setLatestJob(result.data.job);
           setRouteSet(result.data.routeSet);
           setSelection(result.data.selection);
@@ -4226,6 +4306,7 @@ export default function AutopilotRoutePage() {
             locale={locale}
             currentProjectId={currentProjectId}
             job={pageProjection.visualJob}
+            latestSceneJobId={latestSceneJobIdRef.current}
             routeSet={routeSet}
             selection={selection}
             specTree={pageProjection.visualSpecTree}
@@ -4294,6 +4375,7 @@ export default function AutopilotRoutePage() {
             workflowStageOverride={workflowStageOverride}
             onNavigateWorkflowStage={handleNavigateWorkflowStage}
             onJobUpdated={handleCoordinationJobUpdated}
+            onHistoryJobSelected={handleHistoryJobSelected}
             onBranchJobActivated={handleReplanBranchJobActivated}
             onHistoryPanelClosed={async () => {
               await refreshLatestGenerationSnapshot();
