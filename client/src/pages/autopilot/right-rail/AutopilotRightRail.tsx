@@ -24,7 +24,15 @@
  *   做 CTA 适配；只读提示文案对应需求 1.1 / 2.1 中"StageCTA 在此阶段为只读"。
  */
 
-import { useCallback, useEffect, useMemo, useRef, useState, type FC } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FC,
+  type ReactNode,
+} from "react";
 import { toast as showToast } from "sonner";
 
 import type { AppLocale } from "@/lib/locale";
@@ -55,7 +63,6 @@ import { FleetActivationLog } from "./FleetActivationLog";
 import { deriveNodeStatusById } from "./spec-docs-progress/derive-node-status-by-id";
 import { stepSubStage } from "./hooks/use-right-rail-sub-stage-state";
 import { resolveRailSubStage } from "./resolve-rail-sub-stage";
-import { RoleStatusStrip } from "./RoleStatusStrip";
 import { SpecTreeWorkbench } from "./spec-tree-workbench/SpecTreeWorkbench";
 import { StreamingDocRenderer } from "./streaming-doc/StreamingDocRenderer";
 import { deriveSubStageSummary } from "./sub-stage-summary";
@@ -90,6 +97,14 @@ import {
   type AutopilotRightRailProps,
   type AutopilotTimelineStage,
 } from "./types";
+import {
+  AgentCrewFabricPanel,
+  ArtifactMemoryPanel,
+  EffectPreviewPanel,
+  EngineeringHandoffPanel,
+  PromptPackagePanel,
+  RuntimeCapabilityPanel,
+} from "./panels";
 
 const TIMELINE_STAGE_ORDER: readonly AutopilotTimelineStage[] = [
   "input",
@@ -103,6 +118,14 @@ type ReplannableGenerationStage = Extract<
   BlueprintGenerationStage,
   ReplanStage
 >;
+
+const EMPTY_FABRIC_SPEC_TREE = {
+  id: "empty-fabric-spec-tree",
+  rootNodeId: "empty-root",
+  version: 1,
+  nodes: [],
+  documents: [],
+} as unknown as BlueprintSpecTree;
 
 /**
  * 将 RAIL_SUB_STAGE_ORDER 中的子阶段映射到 STAGE_ORDER 中的阶段索引。
@@ -495,6 +518,71 @@ function extractSpecDocuments(
   return docs.length > 0 ? docs : undefined;
 }
 
+function renderFabricSubStageContent(
+  activeSubStage: AutopilotRailSubStage,
+  props: AutopilotRightRailProps,
+): ReactNode {
+  const specTree = props.specTree ?? EMPTY_FABRIC_SPEC_TREE;
+
+  switch (activeSubStage) {
+    case "agent_crew_fabric":
+      return (
+        <AgentCrewFabricPanel
+          jobId={props.jobId}
+          job={props.job}
+          agentCrew={props.agentCrew}
+          capabilities={props.capabilities}
+          capabilityInvocations={props.capabilityInvocations}
+          capabilityEvidence={props.capabilityEvidence}
+          locale={props.locale}
+        />
+      );
+    case "spec_tree":
+      return null;
+    case "effect_preview":
+      return (
+        <EffectPreviewPanel
+          jobId={props.jobId}
+          job={props.job}
+          specTree={specTree}
+          effectPreviews={props.effectPreviews}
+          initialPreviews={props.effectPreviews}
+          documents={extractSpecDocuments(props.job)}
+          agentCrew={props.agentCrew}
+          capabilityEvidence={props.capabilityEvidence}
+          locale={props.locale}
+        />
+      );
+    case "prompt_package":
+      return (
+        <PromptPackagePanel
+          jobId={props.jobId}
+          specTree={specTree}
+          effectPreviews={props.effectPreviews}
+          locale={props.locale}
+        />
+      );
+    case "runtime_capability":
+      return (
+        <RuntimeCapabilityPanel
+          jobId={props.jobId}
+          specTree={specTree}
+          capabilities={props.capabilities}
+          capabilityInvocations={props.capabilityInvocations}
+          capabilityEvidence={props.capabilityEvidence}
+          agentCrew={props.agentCrew}
+          locale={props.locale}
+        />
+      );
+    case "engineering_handoff":
+      return <EngineeringHandoffPanel jobId={props.jobId} locale={props.locale} />;
+    case "artifact_memory":
+      return <ArtifactMemoryPanel jobId={props.jobId} locale={props.locale} />;
+    default:
+      return activeSubStage satisfies never;
+  }
+}
+
 /**
  * 活跃节点的默认内容:显示 API path + 摘要文案。
  *
@@ -507,9 +595,6 @@ function ActiveNodeContent({
   summary,
   locale,
   subStage,
-  dataReady,
-  onConfirmAdvance,
-  advancing,
   specTree,
   job,
   jobId,
@@ -520,9 +605,6 @@ function ActiveNodeContent({
   summary: { apiPath: string; summary: string; dataReady: boolean };
   locale: AppLocale;
   subStage: string;
-  dataReady: boolean;
-  onConfirmAdvance?: () => void;
-  advancing?: boolean;
   specTree?: BlueprintSpecTree | null;
   job?: BlueprintGenerationJob | null;
   jobId: string;
@@ -585,31 +667,6 @@ function ActiveNodeContent({
           job prop 让流能合并 artifact / route / node_completed entry。 */}
       <AgentReasoningSubTimeline locale={locale} job={job} />
 
-      {/*
-        数据就绪时显示"确认并继续"按钮。
-        spec_tree 阶段下隐藏：CTA 由 SpecTreeWorkbench 顶部双按钮承担，
-        当用户点击"生成整棵树文档"完成后由父组件 onSpecDocumentsGenerated
-        回调推动后端 stage 前进，再由 useAutoAdvance 推到 effect_preview。
-      */}
-      {dataReady && onConfirmAdvance && !isSpecTreeStage && (
-        <button
-          type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-            console.log("[timeline] confirm advance clicked", { subStage, advancing });
-            onConfirmAdvance();
-          }}
-          disabled={advancing}
-          style={{ position: "relative", zIndex: 10 }}
-          className="w-full rounded-lg bg-slate-900 px-4 py-2.5 text-xs font-bold text-white transition hover:bg-slate-700 disabled:bg-slate-400 cursor-pointer"
-          data-testid="timeline-confirm-advance"
-        >
-          {advancing
-            ? (isZh ? "推进中..." : "Advancing...")
-            : (isZh ? "继续下一步" : "Continue")}
-        </button>
-      )}
     </div>
   );
 }
@@ -1218,8 +1275,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
       data-testid="autopilot-right-rail"
       data-autopilot-stage={currentStage}
       data-autopilot-sub-stage={activeSubStage ?? ""}
-      className="flex h-full flex-col p-2"
-      data-mf-card
+      className="flex h-full flex-col"
       style={{
         // 硬约束 aside 宽度。父级是 grid track minmax(0, 2fr)，正常情况下
         // 应该自然限制宽度，但右栏内部多层 flex / motion.div / overflow 嵌套
@@ -1287,9 +1343,10 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
         onRegenerate={handleRegenerateStaleStage}
       />
 
-      <div className="flex-shrink-0 overflow-x-auto pt-1">
-        <RoleStatusStrip />
-      </div>
+      {/* whybuddy-3d-real-role-driven-scene-2026-05-29: the role status strip
+          was removed from the right rail. Role identity / phase status is now
+          carried by the real 3D agents (pet body + nameplate + bob animation),
+          so a duplicate role chip strip here was redundant. */}
 
       {/* whybuddy-spec-tree-progress-merge-2026-05-29：原 <SpecDocsProgressPanel/>
           浮层已删除，其每节点进度状态合并进 WorkbenchSpecTree 节点行
@@ -1427,6 +1484,14 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
                 }
               />
             </div>
+          ) : currentStage === "fabric" && activeSubStage !== undefined ? (
+            <div
+              data-sub-stage-placeholder={activeSubStage}
+              data-timeline-status="active"
+              aria-current="step"
+            >
+              {renderFabricSubStageContent(activeSubStage, props)}
+            </div>
           ) : (
             /* 当前活跃阶段的内容 — 保留 data-sub-stage-placeholder 供测试断言 */
             activeSubStage !== undefined && (
@@ -1443,17 +1508,6 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
                   }
                   locale={locale}
                   subStage={activeSubStage}
-                  dataReady={
-                    completedStageSnapshotRef.current.has(activeSubStage)
-                      ? completedStageSnapshotRef.current.get(activeSubStage)!.summary.dataReady
-                      : deriveSubStageSummary(activeSubStage, props, locale).dataReady
-                  }
-                  onConfirmAdvance={
-                    manualAdvanceAction.type === "none"
-                      ? undefined
-                      : handleStageAdvance
-                  }
-                  advancing={false}
                   specTree={props.specTree}
                   job={props.job}
                   jobId={props.jobId}

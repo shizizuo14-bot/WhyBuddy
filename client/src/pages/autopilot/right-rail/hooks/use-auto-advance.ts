@@ -5,7 +5,8 @@
  * spec_tree → spec_docs → effect_preview → prompt_packaging →
  * runtime_capability → engineering_handoff → engineering_landing
  *
- * 每一步完成后自动触发下一步,用户无需手动点击。
+ * spec_docs 与 prompt_packaging 的下游阶段会自动触发；effect_preview →
+ * prompt_packaging 显式保留为用户手动推进，避免用户刚进入效果预览就被跳走。
  * 失败时停止推进,暴露 error + retry 给 UI。
  */
 
@@ -84,7 +85,7 @@ export function selectAutoAdvanceSubStage(
  * 阶段推进规则:
  * - spec_tree (reviewing) → 自动生成 spec_docs
  * - spec_docs (completed) → 自动生成 effect_preview
- * - effect_preview (completed) → 自动生成 prompt_packages
+ * - effect_preview (completed) → 仅由 forceAdvance 手动生成 prompt_packages
  * - prompt_packaging (completed) → 自动生成 engineering_landing
  *
  * 注:runtime_capability 和 engineering_handoff 目前由后端 SSE 事件驱动,
@@ -255,7 +256,7 @@ export function useAutoAdvance({
 
     /**
      * 契约（autopilot-streaming-experience 需求 5）：spec_tree 阶段只能由用户
-     * 点击 `timeline-confirm-advance` 按钮经 forceAdvance 推进；auto-advance
+     * 点击 StageViewport CTA 经 forceAdvance 推进；auto-advance
      * 严禁调用 generateBlueprintSpecDocuments，无论 status 是 running /
      * reviewing / completed。若未来重新启用此处自动推进，必须同步更新
      * `hooks/__tests__/use-auto-advance.spec-tree.test.ts` 的回归断言。
@@ -287,21 +288,9 @@ export function useAutoAdvance({
       return;
     }
 
-    // effect_preview + completed → 自动生成 prompt_packages
-    if (
-      (stage === "effect_preview" || stage === "preview") &&
-      status === "completed" &&
-      !advancedStagesRef.current.has("prompt_packaging")
-    ) {
-      void advance("prompt_packaging", async () => {
-        const result = await actions.generatePromptPackages(jobId, {
-          includeDrafts: true,
-          includePreviewDrafts: true,
-        });
-        return { ok: result.ok, error: result.ok ? undefined : result.error };
-      });
-      return;
-    }
+    // effect_preview + completed 不再自动生成 prompt_packages。
+    // autopilot-step-06-effect-preview-fix-2026-05-31：必须由用户点击
+    // StageViewport CTA 触发 forceAdvance()，让用户有时间审阅效果预演。
 
     // prompt_packaging + completed → 自动生成 engineering_landing
     if (

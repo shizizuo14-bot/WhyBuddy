@@ -222,7 +222,7 @@ describe("AgentReasoningSubTimeline render contract via AutopilotRightRail SSR",
     expect(markup).not.toContain('data-testid="mirofish-card-stream"');
   });
 
-  it("renders the subtimeline container when entries contain a thinking phase and status is streaming", () => {
+  it("renders the canonical agent crew panel instead of the legacy subtimeline for agent_crew_fabric", () => {
     setMockedAgentReasoning({
       jobId: "job-test",
       entries: [makeThinkingEntry()],
@@ -238,12 +238,9 @@ describe("AgentReasoningSubTimeline render contract via AutopilotRightRail SSR",
       />
     );
 
-    // autopilot-mirofish-stream 重构后：子时间线容器 testid 改为 mirofish-card-stream，
-    // 单纵向布局取代了原双轨 grid-cols-[1fr_2px_1fr]。
-    expect(markup).toContain('data-testid="mirofish-card-stream"');
-
-    // entry 的 thought 文本会被原样渲染到 reasoning 卡片中。
-    expect(markup).toContain("正在分析仓库目录结构");
+    expect(markup).toContain('data-testid="blueprint-agent-crew-surface"');
+    expect(markup).not.toContain('data-testid="mirofish-card-stream"');
+    expect(markup).not.toContain("正在分析仓库目录结构");
   });
 
   it("does not mount the subtimeline when currentStage !== 'fabric'", () => {
