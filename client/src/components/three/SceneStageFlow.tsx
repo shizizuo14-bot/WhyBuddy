@@ -13,7 +13,6 @@ import { useWorkflowStore } from "@/lib/workflow-store";
 import { FUTURE_OFFICE_COLORS } from "@/lib/scene-theme";
 import {
   getSceneStageSignal,
-  getSceneZoneLabel,
   SCENE_FLOW_ZONES,
 } from "@/lib/scene-stage-flow";
 
@@ -114,12 +113,10 @@ function StageZonePulse({
   position,
   color,
   emphasized,
-  label,
 }: {
   position: [number, number, number];
   color: string;
   emphasized: boolean;
-  label: string;
 }) {
   return (
     <group position={position}>
@@ -143,18 +140,6 @@ function StageZonePulse({
         distance={2.8}
         decay={2}
       />
-      {emphasized ? (
-        <Html
-          position={[0, 0.75, 0]}
-          center
-          distanceFactor={10}
-          style={{ pointerEvents: "none" }}
-        >
-          <div className="rounded-full border border-white/15 bg-slate-950/75 px-3 py-1 text-[10px] font-black text-white/80 shadow-[0_6px_16px_rgba(2,6,23,0.3)] backdrop-blur-md">
-            {label}
-          </div>
-        </Html>
-      ) : null}
     </group>
   );
 }
@@ -249,7 +234,6 @@ export function SceneStageFlow({
           position={zone.floorPosition}
           color={signal.color}
           emphasized={index === zoneTrail.length - 1}
-          label={getSceneZoneLabel(zoneId, locale)}
         />
       ))}
 
@@ -267,36 +251,56 @@ export function SceneStageFlow({
       ))}
 
       <Html
-        position={[focusZone.zone.position[0], 1.4, focusZone.zone.position[2]]}
+        position={[focusZone.zone.position[0], 1.22, focusZone.zone.position[2]]}
         center
-        distanceFactor={11}
+        distanceFactor={10}
         style={{ pointerEvents: "none" }}
       >
-        <div className="min-w-[160px] max-w-[220px] rounded-[12px] border border-white/10 bg-slate-950/82 px-4 py-3 text-center shadow-[0_14px_34px_rgba(2,6,23,0.4)] backdrop-blur-xl">
-          <div
-            className="text-[10px] font-black uppercase tracking-[0.15em]"
-            style={{ color: signal.color }}
-          >
-            {signal.statusLabel}
+        <div
+          className="max-w-[180px] rounded-full bg-slate-950/45 px-2.5 py-1.5 text-left shadow-[0_8px_18px_rgba(2,6,23,0.24)] ring-1 ring-white/8 backdrop-blur-sm"
+          data-testid="blueprint-stage-hud-compact"
+          title={signal.summary ?? `${signal.statusLabel} · ${signal.stageLabel}`}
+        >
+          <div className="flex min-w-0 items-center gap-1.5 whitespace-nowrap">
+            <span
+              className="inline-block size-1.5 shrink-0 rounded-full shadow-[0_0_10px_currentColor]"
+              style={{ backgroundColor: signal.color, color: signal.color }}
+              aria-hidden="true"
+            />
+            <span className="min-w-0 truncate text-[11px] font-black leading-4 text-white/92">
+              {signal.stageLabel}
+            </span>
+            <span className="shrink-0 text-[10px] font-bold leading-4 text-white/45">
+              ·
+            </span>
+            <span
+              className="min-w-0 truncate text-[10px] font-black leading-4"
+              style={{ color: signal.color }}
+            >
+              {signal.statusLabel}
+            </span>
           </div>
-          <div className="mt-1.5 text-[13px] font-black text-white">
-            {signal.stageLabel}
-          </div>
-          {signal.summary ? (
-            <div className="mt-1.5 line-clamp-2 text-[10px] leading-4 text-white/60">
-              {signal.summary}
-            </div>
-          ) : null}
           {signal.progress !== null ? (
-            <div className="mt-2.5 overflow-hidden rounded-full bg-white/10">
+            <div
+              className="mt-1 h-0.5 overflow-hidden rounded-full bg-white/10"
+              aria-hidden="true"
+            >
               <div
-                className="h-1 rounded-full transition-[width] duration-500"
+                className="h-0.5 rounded-full transition-[width] duration-500"
                 style={{
                   width: `${Math.max(0, Math.min(100, signal.progress))}%`,
                   backgroundColor: signal.color,
                 }}
               />
             </div>
+          ) : null}
+          {signal.summary ? (
+            <span
+              className="sr-only"
+              data-testid="blueprint-stage-hud-summary"
+            >
+              {signal.summary}
+            </span>
           ) : null}
         </div>
       </Html>

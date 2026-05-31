@@ -311,6 +311,7 @@ export function Scene3D({
           <OfficeRoom
             showSecondaryDecor={deferredDetailsReady && !reducedSceneEffects}
             reducedEffects={reducedSceneEffects}
+            mode={mode}
           />
           <SceneStageFlow
             projectId={projectId}

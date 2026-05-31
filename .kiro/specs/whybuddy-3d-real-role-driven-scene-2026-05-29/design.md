@@ -157,7 +157,12 @@ interface BlueprintRuntimeAgent {
   roleId: string
   label: string
   animal: string
-  color: string
+  // Accent color for NON-BODY scene UI only. Currently consumed by the
+  // nameplate role-type icon row (tinted from colorOverride ?? accentColor);
+  // reserved for ground ring / connection lines / capability chips. NEVER
+  // written to the pet GLB body material — Kenney Cube Pets keep their own
+  // authoritative colors.
+  accentColor: string
   zone: FunctionalZone
   position: [number, number, number]
   phaseTier: PhaseTier
@@ -276,34 +281,49 @@ function stableHash(roleId: string): number {
 ### Per-role Workstation (desk + computer)
 
 Each rendered role gets its own "hybrid" workstation — a desk with a monitor,
-laptop, keyboard, mouse, a desk lamp, and books — placed IN FRONT of the role
+laptop, keyboard, mouse, and books — placed IN FRONT of the role
 so the scene reads as an actual office of working agents rather than pets
 standing on bare floor.
 
 - The workstation reuses Kenney furniture GLBs (`FURNITURE_MODELS.desk`,
   `.computerScreen`, `.laptop`, `.computerKeyboard`, `.computerMouse`,
-  `.lampRoundTable`, `.books`), all preloaded by `Scene3D`, so no new asset
-  cost is added.
+  `.books`), all preloaded by `Scene3D`, so no new asset
+  cost is added. All props are positioned WITHIN the desk surface footprint
+  (≈±0.5 x, ±0.25 z after `centerXZ`) so nothing reads as sliding off the desk
+  edge.
 - `BlueprintRuntimeAgents` clones the GLBs with a local `WorkstationModel`
-  helper (floor-aligns the base, optional XZ-centre, clones + re-themes
-  materials via `rethemeFurnitureMaterial`) rather than importing
-  `OfficeRoom`'s non-exported `FurnitureModel`.
+  helper. Materials go through `preserveKenneyFurnitureMaterial` (the Kenney
+  furniture body-color LOCK in `scene-theme.ts`), NOT the cold-office
+  `rethemeFurnitureMaterial` repaint: the desk / monitor / keyboard / mouse /
+  lamp / books keep their authoritative Kenney GLB colors (warm wood, etc.).
+  The helper only tunes `roughness` / `metalness` and adds a narrow,
+  name-matched screen/lamp emissive; it NEVER writes a body `material.color`.
+  A source-level guard test asserts `WorkstationModel` uses the preserve helper
+  and never references `rethemeFurnitureMaterial`.
 - Scale + placement (this fixes the earlier "models floating in the air" /
   role-vs-desk misalignment). The workstation is composed as three nested
   groups:
   - **outer group** — WORLD anchor at the role's Grid_Position.
-  - **middle group** — pushed `DESK_FRONT_OFFSET_Z = 0.62 m` toward the camera
-    (+z) and scaled by `WORKSTATION_SCALE = BASE_AGENT_SCALE (0.5)`. Matching
-    the pet's resting scale is the key fix: the previous revision rendered the
-    desk at full scale 1.0 while the pet rendered at 0.5, so the desk dwarfed
-    the role and its surface (model-space y≈0.392) landed near the pet's head,
-    making the monitor read as floating. Because the group is floor-aligned at
-    y=0, scaling keeps the desk base on the floor.
+  - **middle group** — pushed `DESK_FRONT_OFFSET_Z = 0.55 m` toward the camera
+    (+z) and scaled by `WORKSTATION_SCALE = BASE_AGENT_SCALE * 2.1`. The desk is
+    rendered noticeably LARGER than the pet (a real desk is wider than the pet,
+    so a 1:1 pet scale read as a toy); it stays floor-aligned at y=0, so scaling
+    keeps the desk base on the floor and the surface at a believable height. The
+    offset is tuned so the desk's BACK edge sits at the role (the desk half-depth
+    at this scale is ≈0.5m), making the pet read as standing at its own desk
+    rather than with a gap behind it.
   - **inner group** — rotated 180° so the monitor faces back toward the role;
     the props sit on the desk surface at model-space `DESK_SURFACE_Y = 0.392`.
+    The desk GLB additionally gets an X-only stretch (`DESK_WIDTH_SCALE = 2`) so
+    it reads as a WIDE workstation; only the desk is stretched (props keep their
+    natural size and are spread across the wider top).
 - The workstation is rendered as a SIBLING of the bobbing pet group (not a
   child), so it keeps its scale and stays still while the role bobs. There is
   one workstation per currently-rendered agent.
+- The pet body clone is floor-aligned AND centred on XZ to the same origin the
+  desk uses (`centerXZ`), so the role sits directly behind its own desk. Without
+  the XZ centre, an off-centre Kenney GLB pivot makes the pet appear beside its
+  desk rather than aligned with it (the "未对齐" look).
 
 ## Capability→role Binding (capability chips)
 
@@ -389,6 +409,34 @@ failed       failed                                      1.00      1.00     1.2 
 ```
 
 The `emissive` and `opacity` columns remain part of the `phaseTierVisuals` view-model (consumed by tests, the DEV bridge snapshot, and reserved for future use), but the rendering layer (`BlueprintRuntimeAgents`) consumes ONLY the `amplitude` column for steady-state visuals. The role body shows its natural GLB material shading: there is no phase-driven emissive glow, no coloured self-lit film, no per-agent point light, and no bloom. `opacity` is reserved exclusively for the enter/exit lifecycle tween. This 2026-05-29 visual revision removed the body emissive overlay that read as a "发光蒙层" on every role.
+
+### Kenney body-color lock
+
+Kenney Cube Pets GLBs ship with their own authoritative per-animal material
+colors (red fox, yellow chick/giraffe, pink pig, white panda, etc.). The role
+ACCENT color (`accentColor`, from `pickAccentColor`) and the phase
+`colorOverride` are for non-body scene accents ONLY — currently the nameplate
+role-type icon row (tinted from `agent.colorOverride ?? agent.accentColor`),
+and reserved for the ground ring / connection lines / capability chips. They
+MUST NEVER be written into the pet body `material.color` or `material.emissive`;
+doing so produced the rejected "发光蒙层" and washed the pets away from their
+real colors. The renderer's per-mesh body loop only:
+
+- clones the material per instance (so two roles sharing an animal don't bleed),
+- lowers `roughness` (capped at ≈0.55) and zeroes `metalness` for toy-plastic
+  specular relief. The scene has NO environment map, so `envMapIntensity` is a
+  no-op — `roughness` is the lever that actually interacts with the existing
+  directional / spot / point lights, restoring the highlight/relief the matte
+  default washed out, WITHOUT touching `material.color` / `material.emissive`,
+- sets transparency / depth flags for the enter/exit tween.
+
+A source-level guard test (`blueprint-runtime-agents.harness.test.tsx`) slices
+the `RuntimeAgent` function body and asserts it contains NO body material color
+or emissive write of any kind (`.color =`, `.color.set(`, `.emissive =`,
+`.emissive.set(`, `.emissiveIntensity =`, …) — not just literal `agent.accentColor`
+writes — so an aliased re-dye can't slip past. Global tone mapping (ACES) and
+the office lighting are intentionally left unchanged to avoid disturbing the
+rest of the scene; only the pet material `roughness` / `metalness` are tuned.
 
 ## Event Observation and Line Priority
 
@@ -713,13 +761,13 @@ For any blueprint Effective_Role_Phases snapshot, rendered agent count equals th
 
 ### Property 2: Stable Placement
 
-For any roleId, zone, position, animal, and color are stable across re-renders in the same subscribed job.
+For any roleId, zone, position, animal, and accent color are stable across re-renders in the same subscribed job.
 
 **Validates: Requirements 2.13, 2.14, 4.2, 4.3**
 
 ### Property 3: Phase Visual Mapping
 
-Phase differentiation is expressed through per-agent bob (animation) amplitude only; the role body carries no phase-driven emissive glow. The amplitude for a role equals the `amplitude` value of `phaseTierVisuals(phaseTierOf(phase))`.
+Phase differentiation is expressed through per-agent bob (animation) amplitude only; the role body carries no phase-driven emissive glow and is never dyed with the role accent / override color (Kenney body-color lock). The amplitude for a role equals the `amplitude` value of `phaseTierVisuals(phaseTierOf(phase))`.
 
 **Validates: Requirements 2.5, 2.6, 2.7, 2.8, 2.9, 2.10**
 

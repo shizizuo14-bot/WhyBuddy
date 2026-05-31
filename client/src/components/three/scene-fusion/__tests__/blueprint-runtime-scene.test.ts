@@ -32,7 +32,7 @@ import {
   phaseTierOf,
   phaseTierVisuals,
   pickAnimal,
-  pickColor,
+  pickAccentColor,
   stableHash,
   type BlueprintObservedPhaseEvent,
   type FunctionalZone,
@@ -105,17 +105,17 @@ describe("stableHash", () => {
 });
 
 // ---------------------------------------------------------------------------
-// Animal / color stability (Requirement 2.13, 2.14)
+// Animal / accent color stability (Requirement 2.13, 2.14)
 // ---------------------------------------------------------------------------
 
-describe("pickAnimal / pickColor stability", () => {
-  it("returns the same animal and color across repeated calls", () => {
+describe("pickAnimal / pickAccentColor stability", () => {
+  it("returns the same animal and accent color across repeated calls", () => {
     const roleId = "role-runtime-executor";
     expect(pickAnimal(roleId)).toBe(pickAnimal(roleId));
-    expect(pickColor(roleId)).toBe(pickColor(roleId));
+    expect(pickAccentColor(roleId)).toBe(pickAccentColor(roleId));
   });
 
-  it("produces identical animal/color/position per roleId across factory runs", () => {
+  it("produces identical animal/accentColor/position per roleId across factory runs", () => {
     const rolePhases: Record<string, RolePhase> = {
       "intake-coordinator": "acting",
       "repository-analyst": "thinking",
@@ -133,7 +133,7 @@ describe("pickAnimal / pickColor stability", () => {
 
     for (const roleId of Object.keys(rolePhases)) {
       expect(secondByRole[roleId].animal).toBe(firstByRole[roleId].animal);
-      expect(secondByRole[roleId].color).toBe(firstByRole[roleId].color);
+      expect(secondByRole[roleId].accentColor).toBe(firstByRole[roleId].accentColor);
       expect(secondByRole[roleId].position).toEqual(firstByRole[roleId].position);
     }
   });

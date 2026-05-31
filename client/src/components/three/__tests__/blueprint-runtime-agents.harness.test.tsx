@@ -277,6 +277,195 @@ describe("P4 phase transitions", () => {
     expect(source).toMatch(/mat\.depthTest\s*=\s*true/);
     expect(source).not.toMatch(/mat\.transparent\s*=\s*true/);
   });
+
+  it("source-level: pet body material is never dyed (no color/emissive writes in RuntimeAgent)", async () => {
+    // Kenney Cube Pets ship with their own authoritative material colors. The
+    // role accentColor / phase colorOverride are for non-body accents only
+    // (lines / chips / rings). This guard prevents a future regression that
+    // re-dyes the GLB body (the rejected "发光蒙层"). Rather than matching only
+    // the literal `agent.accentColor` write (which an alias like
+    // `const tint = agent.accentColor; mat.color.set(tint)` would slip past),
+    // we slice the RuntimeAgent function body and assert it contains NO body
+    // material color / emissive write of ANY kind.
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "../BlueprintRuntimeAgents.tsx"),
+      "utf8"
+    );
+
+    // Extract the FULL RuntimeAgent function body via brace matching (a regex
+    // slice to "the next const/function" is too shallow — it can truncate at
+    // `const { scene } = useGLTF(...)` BEFORE the material loop, making the
+    // guard hollow). RuntimeAgent's params are themselves destructured objects
+    // (`({ agent, ... }: { ... })`), so we first walk the parameter parens to
+    // their match, THEN take the body `{` after the `)` and brace-match it.
+    const startIdx = source.indexOf("function RuntimeAgent(");
+    expect(startIdx).toBeGreaterThan(-1);
+    const parenOpen = source.indexOf("(", startIdx);
+    expect(parenOpen).toBeGreaterThan(-1);
+    let parenDepth = 0;
+    let parenClose = -1;
+    for (let i = parenOpen; i < source.length; i++) {
+      const ch = source[i];
+      if (ch === "(") parenDepth++;
+      else if (ch === ")") {
+        parenDepth--;
+        if (parenDepth === 0) {
+          parenClose = i;
+          break;
+        }
+      }
+    }
+    expect(parenClose).toBeGreaterThan(parenOpen);
+
+    const braceOpen = source.indexOf("{", parenClose);
+    expect(braceOpen).toBeGreaterThan(-1);
+    let depth = 0;
+    let endIdx = -1;
+    for (let i = braceOpen; i < source.length; i++) {
+      const ch = source[i];
+      if (ch === "{") depth++;
+      else if (ch === "}") {
+        depth--;
+        if (depth === 0) {
+          endIdx = i;
+          break;
+        }
+      }
+    }
+    expect(endIdx).toBeGreaterThan(braceOpen);
+    const runtimeAgentBody = source.slice(braceOpen, endIdx + 1);
+
+    // Sanity: the slice MUST reach the material loop, otherwise the guard is
+    // hollow. Assert a known token from the end-of-function body loop is present.
+    expect(runtimeAgentBody).toMatch(/mat\.transparent\s*=\s*shouldRenderTransparent/);
+
+    // No body material color writes (assignment OR .set()/.copy()) of any kind.
+    expect(runtimeAgentBody).not.toMatch(/\.color\s*=/);
+    expect(runtimeAgentBody).not.toMatch(/\.color\.set\(/);
+    expect(runtimeAgentBody).not.toMatch(/\.color\.copy\(/);
+    // No body emissive writes (assignment OR .set()/.copy()) of any kind.
+    expect(runtimeAgentBody).not.toMatch(/\.emissive\s*=/);
+    expect(runtimeAgentBody).not.toMatch(/\.emissive\.set\(/);
+    expect(runtimeAgentBody).not.toMatch(/\.emissive\.copy\(/);
+    expect(runtimeAgentBody).not.toMatch(/\.emissiveIntensity\s*=/);
+    // The body loop tunes only roughness/metalness (no-op envMap removed).
+    expect(runtimeAgentBody).toMatch(/mat\.roughness\s*=/);
+  });
+
+  it("source-level: the role workstation preserves Kenney furniture colors (no retheme repaint)", async () => {
+    // The desk / monitor / keyboard / mouse / lamp / books keep their
+    // authoritative Kenney GLB colors. WorkstationModel must use the
+    // body-color LOCK helper (preserveKenneyFurnitureMaterial), NOT the cold-
+    // office repaint (rethemeFurnitureMaterial).
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "../BlueprintRuntimeAgents.tsx"),
+      "utf8"
+    );
+    expect(source).toMatch(/preserveKenneyFurnitureMaterial\(material, mesh\.name, url\)/);
+    expect(source).not.toMatch(/rethemeFurnitureMaterial/);
+  });
+
+  it("source-level: desk body and desktop props use independent right offsets", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "../BlueprintRuntimeAgents.tsx"),
+      "utf8"
+    );
+
+    expect(source).toMatch(/const DESK_RIGHT_OFFSET_X\s*=\s*0\.7/);
+    expect(source).toMatch(/const DESKTOP_PROPS_RIGHT_OFFSET_X\s*=\s*0\.2/);
+    expect(source).toMatch(/url=\{FURNITURE_MODELS\.desk\}[\s\S]*position=\{\[-DESK_RIGHT_OFFSET_X, 0, 0\]\}/);
+    expect(source).toMatch(/url=\{FURNITURE_MODELS\.computerScreen\}[\s\S]*- DESKTOP_PROPS_RIGHT_OFFSET_X/);
+    expect(source).toMatch(/url=\{FURNITURE_MODELS\.computerKeyboard\}[\s\S]*- DESKTOP_PROPS_RIGHT_OFFSET_X/);
+    expect(source).toMatch(/url=\{FURNITURE_MODELS\.computerMouse\}[\s\S]*- DESKTOP_PROPS_RIGHT_OFFSET_X/);
+    expect(source).not.toMatch(/agent\.position\[0\]\s*\+\s*DESK_RIGHT_OFFSET_X/);
+    expect(source).toMatch(/<RuntimeAgent[\s\S]*agent=\{agent\}[\s\S]*locale=\{locale\}/);
+    expect(source).toMatch(/<RoleCapabilityChips[\s\S]*position=\{agent\.position\}/);
+    expect(source).toMatch(/<RoleWorkstation key=\{`desk-\$\{agent\.roleId\}`\} position=\{agent\.position\}/);
+  });
+
+  it("source-level: the nameplate icon row consumes agent.accentColor (non-body accent is wired)", async () => {
+    // accentColor must be a REAL non-body accent consumer, not just a snapshot
+    // field. The role-type icon row tints from agent.accentColor (with the
+    // failed colorOverride taking precedence), so the spec contract — accent
+    // color drives nameplate icon / accents, never the body — is actually true.
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "../BlueprintRuntimeAgents.tsx"),
+      "utf8"
+    );
+    expect(source).toMatch(/agent\.colorOverride\s*\?\?\s*agent\.accentColor/);
+  });
+
+  it("source-level: blueprint stage HUD is compact and does not use the old large card shell", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "../SceneStageFlow.tsx"),
+      "utf8"
+    );
+
+    expect(source).toContain('data-testid="blueprint-stage-hud-compact"');
+    expect(source).toMatch(/max-w-\[180px\]/);
+    expect(source).toMatch(/h-0\.5/);
+    expect(source).not.toContain("min-w-[160px] max-w-[220px]");
+    expect(source).not.toContain("px-4 py-3 text-center");
+    expect(source).not.toContain("shadow-[0_14px_34px_rgba(2,6,23,0.4)]");
+  });
+
+  it("source-level: stage zone focus no longer renders a floating tooltip", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "../SceneStageFlow.tsx"),
+      "utf8"
+    );
+
+    expect(source).not.toContain("getSceneZoneLabel");
+    expect(source).not.toContain("position={[0, 0.75, 0]}");
+    expect(source).not.toContain("rounded-full border border-white/15 bg-slate-950/75 px-3 py-1");
+  });
+});
+
+// ===========================================================================
+// Kenney furniture body-color lock (scene-theme preserve helper)
+// ===========================================================================
+
+describe("preserveKenneyFurnitureMaterial", () => {
+  it("never writes a body material.color, only roughness/metalness + screen/lamp emissive", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "../../../lib/scene-theme.ts"),
+      "utf8"
+    );
+
+    // Slice the preserveKenneyFurnitureMaterial function body.
+    const startIdx = source.indexOf(
+      "export function preserveKenneyFurnitureMaterial("
+    );
+    expect(startIdx).toBeGreaterThan(-1);
+    const afterStart = source.slice(startIdx);
+    const nextFnIdx = afterStart.slice(1).search(/\nexport function\s/);
+    const body =
+      nextFnIdx === -1 ? afterStart : afterStart.slice(0, nextFnIdx + 1);
+
+    // No body color writes of any kind (the whole point of the lock).
+    expect(body).not.toMatch(/\.color\.set\(/);
+    expect(body).not.toMatch(/setColor\(/);
+    // Allowed: roughness / metalness tuning.
+    expect(body).toMatch(/\.roughness\s*=/);
+    expect(body).toMatch(/\.metalness\s*=/);
+    // Allowed exception: screen / lamp emissive only.
+    expect(body).toMatch(/screen/);
+    expect(body).toMatch(/emissive/);
+  });
 });
 
 // ===========================================================================

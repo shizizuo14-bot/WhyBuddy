@@ -85,7 +85,7 @@ import {
   type BlueprintRelayedEvent,
 } from "@/lib/blueprint-realtime-store";
 import type { AppLocale } from "@/lib/locale";
-import { FUTURE_OFFICE_COLORS, rethemeFurnitureMaterial } from "@/lib/scene-theme";
+import { FUTURE_OFFICE_COLORS, preserveKenneyFurnitureMaterial } from "@/lib/scene-theme";
 import { useAppStore } from "@/lib/store";
 
 import { deriveConnectionLines } from "./scene-fusion/connection-line-priority";
@@ -440,39 +440,59 @@ function RoleCapabilityChips({
 const DESK_SURFACE_Y = 0.392;
 
 /**
- * Scale applied to the whole workstation so it matches the pet's resting scale
- * (`BASE_AGENT_SCALE`). The previous revision rendered the desk at full scale
- * 1.0 while the pet rendered at 0.5, so the desk dwarfed the role and its
- * surface landed near the pet's head — the monitors read as "floating" and the
- * role + desk looked misaligned. Matching the scale grounds everything and
- * keeps the role sitting at a correctly-proportioned desk.
+ * Scale applied to the whole workstation. It was previously locked to the pet's
+ * resting scale (`BASE_AGENT_SCALE = 0.5`), which read too SMALL — a real desk
+ * is wider than the pet, so a 1:1 scale made the workstation look like a toy in
+ * front of the role. We render it noticeably larger than the pet (but still
+ * floor-aligned, so the base stays on the floor and the surface sits at a
+ * believable desk height for a seated/standing pet).
  */
-const WORKSTATION_SCALE = BASE_AGENT_SCALE;
+const WORKSTATION_SCALE = BASE_AGENT_SCALE * 2.1;
 
 /**
- * Distance (metres, WORLD space) the desk sits IN FRONT of the role (toward the
- * camera, +z). Applied on the unscaled anchor group so it is independent of
- * `WORKSTATION_SCALE`; the grid spacing was widened so each role has room for
- * its own desk here without crowding the row in front of it.
+ * Distance (metres, WORLD space) the desk CENTRE sits IN FRONT of the role
+ * (toward the camera, +z). The desk's half-depth at `WORKSTATION_SCALE` is
+ * roughly 0.5m, so this offset places the desk's BACK edge right at the role —
+ * the pet reads as standing at its own desk rather than a gap behind it. Applied
+ * on the unscaled anchor group so it is independent of `WORKSTATION_SCALE`.
  */
-const DESK_FRONT_OFFSET_Z = 0.62;
+const DESK_FRONT_OFFSET_Z = 0.75;
+
+/** Move only the desk body to the right; props, roles, and chips stay put. */
+const DESK_RIGHT_OFFSET_X = 0.7;
+
+/** Move only desktop props to the right; independent from the desk body offset. */
+const DESKTOP_PROPS_RIGHT_OFFSET_X = 0.2;
 
 /**
- * Render one furniture GLB the same way `OfficeRoom.FurnitureModel` does:
- * clone the graph + materials, floor-align the base, optionally centre on XZ,
- * and re-theme the materials to the cool office palette. Kept local (rather
- * than imported) so the blueprint scene has no dependency on `OfficeRoom`'s
- * internal, non-exported helper.
+ * Horizontal (X-only) stretch applied to the desk top so it reads as a WIDE
+ * workstation. Only the desk GLB gets this non-uniform scale; the props keep
+ * their natural size and are spread across the wider surface. Depth and height
+ * stay at the desk's natural proportion.
+ */
+const DESK_WIDTH_SCALE = 2;
+
+/**
+ * Render one furniture GLB for a role's workstation: clone the graph +
+ * materials, floor-align the base, optionally centre on XZ. Materials go
+ * through `preserveKenneyFurnitureMaterial` — the Kenney body-color LOCK — so
+ * the desk / monitor / keyboard / mouse / lamp / books keep their authoritative
+ * Kenney GLB colors (warm wood, etc.) instead of being repainted into the cold
+ * office palette. Only roughness/metalness and a narrow screen/lamp emissive
+ * are tuned; no body `material.color` is ever written. Kept local so the
+ * blueprint scene has no dependency on `OfficeRoom`'s non-exported helper.
  */
 function WorkstationModel({
   url,
   position = [0, 0, 0],
   rotation = [0, 0, 0],
+  scale,
   centerXZ = false,
 }: {
   url: string;
   position?: [number, number, number];
   rotation?: [number, number, number];
+  scale?: number | [number, number, number];
   centerXZ?: boolean;
 }) {
   const { scene } = useGLTF(url);
@@ -502,7 +522,7 @@ function WorkstationModel({
         : [mesh.material];
       for (const material of materials) {
         if (!material) continue;
-        rethemeFurnitureMaterial(material, mesh.name, url);
+        preserveKenneyFurnitureMaterial(material, mesh.name, url);
       }
     });
     return next;
@@ -513,6 +533,7 @@ function WorkstationModel({
       object={cloned}
       position={position}
       rotation={rotation}
+      scale={scale ?? 1}
     />
   );
 }
@@ -546,36 +567,44 @@ function RoleWorkstation({
         scale={WORKSTATION_SCALE}
       >
         <group rotation={[0, Math.PI, 0]}>
-          <WorkstationModel url={FURNITURE_MODELS.desk} centerXZ />
+          {/* Desk top stretched 2x on X only (`DESK_WIDTH_SCALE`) so it reads
+              as a wide workstation; depth/height stay at the desk's natural
+              proportion. Props keep their own size and are spread across the
+              now-wider surface (their X offsets are scaled to match). */}
+          <WorkstationModel
+            url={FURNITURE_MODELS.desk}
+            position={[-DESK_RIGHT_OFFSET_X, 0, 0]}
+            scale={[DESK_WIDTH_SCALE, 1, 1]}
+            centerXZ
+          />
+          {/* All props sit WITHIN the widened Kenney desk surface footprint
+              (~±0.5*DESK_WIDTH_SCALE x, ~±0.25 z after centerXZ), so nothing
+              reads as sliding off the desk edge: monitor + laptop across the
+              back, keyboard/mouse front-centre, books in a back corner. */}
           <WorkstationModel
             url={FURNITURE_MODELS.computerScreen}
-            position={[-0.16, DESK_SURFACE_Y, -0.04]}
+            position={[-0.32 - DESKTOP_PROPS_RIGHT_OFFSET_X, DESK_SURFACE_Y, -0.08]}
             centerXZ
           />
           <WorkstationModel
             url={FURNITURE_MODELS.laptop}
-            position={[0.34, DESK_SURFACE_Y, 0.04]}
-            rotation={[0, -Math.PI / 6, 0]}
+            position={[0.52 - DESKTOP_PROPS_RIGHT_OFFSET_X, DESK_SURFACE_Y, 0.0]}
+            rotation={[0, -Math.PI / 7, 0]}
             centerXZ
           />
           <WorkstationModel
             url={FURNITURE_MODELS.computerKeyboard}
-            position={[-0.14, DESK_SURFACE_Y, 0.24]}
+            position={[-0.32 - DESKTOP_PROPS_RIGHT_OFFSET_X, DESK_SURFACE_Y, 0.12]}
             centerXZ
           />
           <WorkstationModel
             url={FURNITURE_MODELS.computerMouse}
-            position={[0.16, DESK_SURFACE_Y, 0.26]}
-            centerXZ
-          />
-          <WorkstationModel
-            url={FURNITURE_MODELS.lampRoundTable}
-            position={[-0.46, DESK_SURFACE_Y, -0.02]}
+            position={[-0.05 - DESKTOP_PROPS_RIGHT_OFFSET_X, DESK_SURFACE_Y, 0.14]}
             centerXZ
           />
           <WorkstationModel
             url={FURNITURE_MODELS.books}
-            position={[0.5, DESK_SURFACE_Y, -0.18]}
+            position={[0.72 - DESKTOP_PROPS_RIGHT_OFFSET_X, DESK_SURFACE_Y, -0.12]}
             rotation={[0, Math.PI / 5, 0]}
             centerXZ
           />
@@ -618,7 +647,14 @@ function RuntimeAgent({
     const next = scene.clone(true);
     const bounds = new THREE.Box3().setFromObject(next);
     const minY = Number.isFinite(bounds.min.y) ? bounds.min.y : 0;
+    const center = bounds.getCenter(new THREE.Vector3());
+    // Floor-align Y AND centre on XZ. The desk (`WorkstationModel`) is
+    // `centerXZ`-aligned to its own bounding box, so the pet must use the same
+    // centred origin — otherwise an off-centre GLB pivot makes the pet sit
+    // beside its desk instead of behind it (the "未对齐" look).
     next.position.y -= minY;
+    next.position.x -= center.x;
+    next.position.z -= center.z;
 
     next.traverse((child: THREE.Object3D) => {
       if (!("isMesh" in child) || !child.isMesh) return;
@@ -638,8 +674,23 @@ function RuntimeAgent({
         ? mesh.material
         : [mesh.material];
       for (const material of materials) {
-        if (material && "envMapIntensity" in material) {
-          (material as THREE.MeshStandardMaterial).envMapIntensity = 0.05;
+        const mat = material as THREE.MeshStandardMaterial | undefined;
+        if (!mat) continue;
+        // Kenney Cube Pets read best with a bit of specular relief. The scene
+        // has NO environment map, so `envMapIntensity` is a no-op here — the
+        // lever that actually interacts with the existing directional / spot /
+        // point lights is `roughness` (and keeping `metalness` low for a
+        // toy-plastic look). Lowering roughness restores the highlight/relief
+        // the matte 0.05 env path was missing, WITHOUT touching `material.color`
+        // / `material.emissive` (those stay the authoritative Kenney values).
+        if ("roughness" in mat) {
+          mat.roughness = Math.min(
+            typeof mat.roughness === "number" ? mat.roughness : 1,
+            0.55
+          );
+        }
+        if ("metalness" in mat) {
+          mat.metalness = 0;
         }
       }
     });
@@ -699,11 +750,13 @@ function RuntimeAgent({
 
     // Keep role bodies as their plain GLB material in steady state. Per the
     // 2026-05-29 visual revision the body no longer carries any phase-driven
-    // emissive glow — copying `agent.color` / `colorOverride` into the material
-    // `emissive` made every role look wrapped in a coloured self-lit film
-    // ("发光蒙层"). Phase differentiation is now expressed by bob amplitude
-    // ONLY (active roles bob noticeably, idle roles barely move). Opacity stays
-    // reserved exclusively for the enter/exit tween (`animOpacity`).
+    // emissive glow — copying `agent.accentColor` / `colorOverride` into the
+    // material `emissive` made every role look wrapped in a coloured self-lit
+    // film ("发光蒙层"). Kenney Cube Pets keep their own authoritative material
+    // colors; accents live on lines / chips / ground rings, NOT the body.
+    // Phase differentiation is now expressed by bob amplitude ONLY (active
+    // roles bob noticeably, idle roles barely move). Opacity stays reserved
+    // exclusively for the enter/exit tween (`animOpacity`).
     const targetOpacity = animOpacity;
     const shouldRenderTransparent = targetOpacity < 0.995;
     cloned.traverse((child: THREE.Object3D) => {
@@ -750,7 +803,10 @@ function RuntimeAgent({
           }}
           title={roleTypeLabel}
         >
-          <span className="flex max-w-full items-center gap-1 whitespace-nowrap text-[10px] font-black uppercase leading-none tracking-[0.06em] text-cyan-700">
+          <span
+            className="flex max-w-full items-center gap-1 whitespace-nowrap text-[10px] font-black uppercase leading-none tracking-[0.06em]"
+            style={{ color: agent.colorOverride ?? agent.accentColor }}
+          >
             <RoleTypeIcon className="size-3 shrink-0" aria-hidden="true" />
             {showRoleTypeText ? <span>{roleTypeLabel}</span> : null}
           </span>

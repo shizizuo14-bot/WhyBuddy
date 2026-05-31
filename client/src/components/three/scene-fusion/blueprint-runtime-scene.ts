@@ -93,13 +93,26 @@ export interface BlueprintRuntimeAgent {
   roleId: string;
   label: string;
   animal: string;
-  color: string;
+  /**
+   * Accent color for NON-BODY scene UI only — role-zone tint for the nameplate
+   * icon row, ground ring, connection lines, capability chips, and other
+   * markers. It MUST NOT be written into the pet GLB body `material.color` or
+   * `material.emissive`: Kenney Cube Pets ship with their own authoritative
+   * material colors, and dyeing the body produced the rejected "发光蒙层"
+   * look. The renderer keeps the body's natural GLB shading; this field exists
+   * purely for accents and DEV-bridge/test snapshots.
+   */
+  accentColor: string;
   zone: FunctionalZone;
   position: [number, number, number];
   phaseTier: PhaseTier;
   emissive: number;
   opacity: number;
   amplitude: number;
+  /**
+   * Phase-tier accent override (currently the `failed` red). Same constraint as
+   * `accentColor`: accents / markers only, never the pet body material.
+   */
   colorOverride?: string;
   enterDurationMs: number;
   wasReanimatedThisRender?: boolean;
@@ -297,12 +310,15 @@ export function assignRuntimeRoleSlots(
 const PET_ANIMAL_POOL: readonly string[] = Object.keys(PET_MODELS);
 
 /**
- * Stable ordered color pool. The first four entries are the existing
+ * Stable ordered ACCENT color pool. Used ONLY for non-body scene accents
+ * (nameplate icon row, ground ring, connection lines, capability chips). It is
+ * NEVER applied to the pet GLB body material — Kenney Cube Pets keep their own
+ * authoritative material colors. The first four entries are the existing
  * `FUTURE_DEPARTMENT_COLORS` (kept in their original order as a shared source
  * of truth); the remainder extends the palette with additional distinct
- * `FUTURE_OFFICE_COLORS` so that larger role sets get more colour variety.
+ * `FUTURE_OFFICE_COLORS` so that larger role sets get more accent variety.
  */
-const ROLE_COLOR_POOL: readonly string[] = [
+const ROLE_ACCENT_COLOR_POOL: readonly string[] = [
   ...FUTURE_DEPARTMENT_COLORS,
   FUTURE_OFFICE_COLORS.rose,
   FUTURE_OFFICE_COLORS.green,
@@ -319,11 +335,12 @@ export function pickAnimal(roleId: string): string {
 }
 
 /**
- * Deterministically pick a hex color string for a `roleId` from the role color
- * pool.
+ * Deterministically pick an ACCENT hex color string for a `roleId`. The result
+ * is for non-body scene accents only (see `BlueprintRuntimeAgent.accentColor`);
+ * it MUST NOT be written into the pet body material.
  */
-export function pickColor(roleId: string): string {
-  return ROLE_COLOR_POOL[stableHash(roleId) % ROLE_COLOR_POOL.length];
+export function pickAccentColor(roleId: string): string {
+  return ROLE_ACCENT_COLOR_POOL[stableHash(roleId) % ROLE_ACCENT_COLOR_POOL.length];
 }
 
 // ---------------------------------------------------------------------------
@@ -481,8 +498,9 @@ const REPLAY_ENTER_DURATION_MS = 333;
  *   hint. No CEO placeholder and no legacy fixed-slot layout are emitted.
  * - Non-empty (Requirement 2.1-2.14): one agent per unique `roleId` in
  *   Effective_Role_Phases, each with a stable zone + hash position (via
- *   `assignRuntimeRoleSlots`), a stable animal (`pickAnimal`) and color
- *   (`pickColor`), phase-tier visuals (`phaseTierVisuals(phaseTierOf(phase))`),
+ *   `assignRuntimeRoleSlots`), a stable animal (`pickAnimal`) and accent color
+ *   (`pickAccentColor`, non-body accents only), phase-tier visuals
+ *   (`phaseTierVisuals(phaseTierOf(phase))`),
  *   a unified display label (`displayLabel`, Requirement 3.1), and a
  *   replay-aware enter duration.
  * - Agent array order is deterministic: roles are emitted in canonical sorted
@@ -554,7 +572,7 @@ export function createBlueprintRuntimeSceneData(input: {
       roleId,
       label: resolveAgentLabel(roleId, input.locale, input.roleLabels),
       animal: pickAnimal(roleId),
-      color: pickColor(roleId),
+      accentColor: pickAccentColor(roleId),
       zone: slot.zone,
       position: slot.position,
       phaseTier: tier,

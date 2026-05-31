@@ -109,7 +109,7 @@ export {
   phaseTierOf,
   phaseTierVisuals,
   pickAnimal,
-  pickColor,
+  pickAccentColor,
   stableHash,
 } from "@/components/three/scene-fusion/blueprint-runtime-scene";
 
