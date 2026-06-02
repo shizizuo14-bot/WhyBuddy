@@ -1,0 +1,5 @@
+{
+  "name": "github-repository-context-grounding",
+  "status": "draft",
+  "description": "Ground GitHub-backed blueprint stages in typed repository context snapshots."
+}
