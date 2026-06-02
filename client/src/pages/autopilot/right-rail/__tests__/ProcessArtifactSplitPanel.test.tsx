@@ -274,6 +274,38 @@ describe("lane stability (P1)", () => {
     expect(markup).toContain('data-testid="autopilot-process-artifact-lane"');
   });
 
+  it("fills its parent height and scrolls each lane internally", () => {
+    const markup = renderToStaticMarkup(
+      <ProcessArtifactSplitPanel
+        locale="en-US"
+        job={null}
+        artifacts={[
+          {
+            id: "art-1",
+            type: "design",
+            title: "Design artifact",
+            summary: "Generated design document",
+            createdAt: "2026-05-25T08:00:00.000Z",
+            payload: {},
+          },
+        ]}
+        reasoningEntries={[
+          makeReasoning({
+            id: "r-1",
+            phase: "thinking",
+            stageId: "spec_docs",
+            thought: "Planning document generation",
+          }),
+        ]}
+      />
+    );
+
+    expect(markup).toContain('data-testid="autopilot-process-artifact-split-panel"');
+    expect(markup).toContain("h-full");
+    expect(markup).toContain("overflow-y-auto");
+    expect(markup).not.toContain("lg:items-start");
+  });
+
   it("both lanes present when artifacts=non-empty and reasoningEntries=[]", () => {
     const markup = renderToStaticMarkup(
       <ProcessArtifactSplitPanel

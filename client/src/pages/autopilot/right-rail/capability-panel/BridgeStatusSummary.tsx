@@ -40,22 +40,22 @@ const BADGES: BadgeConfig[] = [
   {
     label: "总计",
     key: "total",
-    className: "bg-slate-100 text-slate-600",
+    className: "bg-white/[0.08] text-white/70",
   },
   {
     label: "运行",
     key: "running",
-    className: "bg-blue-100 text-blue-700",
+    className: "bg-blue-500/20 text-blue-300",
   },
   {
     label: "完成",
     key: "completed",
-    className: "bg-emerald-100 text-emerald-700",
+    className: "bg-emerald-500/20 text-emerald-300",
   },
   {
     label: "失败",
     key: "failed",
-    className: "bg-red-100 text-red-700",
+    className: "bg-red-500/20 text-red-300",
   },
 ];
 

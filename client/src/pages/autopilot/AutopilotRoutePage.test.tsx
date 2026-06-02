@@ -17,6 +17,8 @@ import AutopilotRoutePage, {
   resolveHistoryActiveJobIdForCurrentJob,
   resolveHistoryUrlSelectedJob,
   resolveVisibleWorkflowStepId,
+  selectRightRailSpecTree,
+  waitForRouteSelectionSnapshot,
 } from "./AutopilotRoutePage";
 import { AutopilotRightRail } from "./right-rail";
 import { PROJECTS_PATH } from "@/components/navigation-config";
@@ -434,6 +436,53 @@ describe("AutopilotRoutePage", () => {
     expect(source).toContain("onNavigateWorkflowStage={handleNavigateWorkflowStage}");
   });
 
+  it("falls back to the page SPEC tree when the right-rail W1 tree is empty", () => {
+    const pageTree = {
+      id: "page-tree",
+      nodes: [{ id: "root", title: "Root" }],
+    } as any;
+    const emptyRailTree = { id: "rail-empty", nodes: [] } as any;
+    const populatedRailTree = {
+      id: "rail-tree",
+      nodes: [{ id: "rail-root", title: "Rail Root" }],
+    } as any;
+
+    expect(selectRightRailSpecTree(null, pageTree)).toBe(pageTree);
+    expect(selectRightRailSpecTree(emptyRailTree, pageTree)).toBe(pageTree);
+    expect(selectRightRailSpecTree(populatedRailTree, pageTree)).toBe(
+      populatedRailTree
+    );
+  });
+
+  it("polls the selected job until the async SPEC tree snapshot is available", async () => {
+    const snapshots = [
+      { job: { id: "job-1", stage: "route_generation" }, specTree: null },
+      { job: { id: "job-1", stage: "route_generation" }, specTree: null },
+      {
+        job: { id: "job-1", stage: "spec_tree" },
+        specTree: { id: "tree-1", nodes: [{ id: "root" }] },
+      },
+    ] as any[];
+    const fetchCalls: string[] = [];
+
+    const settled = await waitForRouteSelectionSnapshot({
+      jobId: "job-1",
+      maxAttempts: 5,
+      delay: () => Promise.resolve(),
+      fetchJob: async (jobId) => {
+        fetchCalls.push(jobId);
+        return {
+          ok: true,
+          data: snapshots[Math.min(fetchCalls.length - 1, snapshots.length - 1)],
+        } as any;
+      },
+    });
+
+    expect(fetchCalls).toEqual(["job-1", "job-1", "job-1"]);
+    expect(settled?.job.stage).toBe("spec_tree");
+    expect(settled?.specTree?.nodes).toHaveLength(1);
+  });
+
   it("wires the header history entry into an actual version history panel", async () => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
@@ -636,7 +685,7 @@ describe("AutopilotRoutePage", () => {
     // section，xl 模式 flex-1 填高。原断言 "absolute bottom-4 left-4 right-4 z-10"
     // / "bg-slate-950/82" 不再适用，改为断言 stack 语义关键 class。
     expect(markup).toContain('data-testid="autopilot-visual-stage"');
-    expect(markup).toContain("xl:flex-1 xl:min-h-0");
+    expect(markup).toContain("grid h-full min-h-0 w-full");
     expect(markup).toContain("xl:h-full");
     expect(markup).not.toContain("radial-gradient");
     expect(markup).not.toContain("linear-gradient(180deg");
@@ -648,7 +697,7 @@ describe("AutopilotRoutePage", () => {
 
     expect(markup).toContain('data-testid="autopilot-runtime-console"');
     expect(markup).toContain("w-full");
-    expect(markup).toContain("h-[320px]");
+    expect(markup).toContain("h-[240px]");
     expect(markup).toContain("shrink-0");
     expect(markup).not.toContain('data-testid="autopilot-runtime-console-mini"');
     expect(markup).not.toContain('data-testid="autopilot-runtime-console-expanded"');
@@ -656,6 +705,74 @@ describe("AutopilotRoutePage", () => {
     expect(markup).not.toContain("Collapse runtime console");
     expect(markup).not.toContain("rounded-[10px]");
     expect(markup).not.toContain("rounded-[12px]");
+  });
+
+  it("moves stage-2 observability logs into the autopilot console stage tab", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "./AutopilotRoutePage.tsx"),
+      "utf8"
+    );
+
+    expect(source).toContain("data-testid=\"autopilot-console-stage-tabs\"");
+    expect(source).toContain("data-testid=\"autopilot-console-stage-two-observability\"");
+    expect(source).toMatch(
+      /job\?\.stage\s*===\s*"spec_tree"[\s\S]*job\?\.stage\s*===\s*"spec_docs"/
+    );
+
+    const consoleMount = source.slice(
+      source.indexOf("<AutopilotConsolePanel"),
+      source.indexOf("</AutopilotConsolePanel>")
+    );
+    expect(consoleMount).toMatch(/stage=\{job\?\.stage \?\? null\}/);
+    expect(consoleMount).toMatch(/<CapabilityRail\s*\/>/);
+    expect(consoleMount).toMatch(/<FleetActivationLog\s*\/>/);
+  });
+
+  it("filters stage-2 console lines and keeps migrated logs inside the scroll container", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "./AutopilotRoutePage.tsx"),
+      "utf8"
+    );
+
+    expect(source).toContain("stageGroup?: \"stage-one\" | \"stage-two\" | \"later\"");
+    expect(source).toContain("line.stageGroup === \"stage-two\"");
+    expect(source).toContain('data-testid="autopilot-console-scroll"');
+
+    const consolePanel = source.slice(
+      source.indexOf("function AutopilotConsolePanel"),
+      source.indexOf("export function AutopilotSpecTreeHandoffPanel")
+    );
+    expect(consolePanel).toMatch(/min-h-0 flex-1 overflow-y-auto overscroll-contain/);
+    expect(consolePanel.indexOf("{children}")).toBeGreaterThan(
+      consolePanel.indexOf('data-testid="autopilot-console-scroll"')
+    );
+  });
+
+  it("lets the fabric right rail fill the available height so stage-2 content owns the remaining area", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "./AutopilotRoutePage.tsx"),
+      "utf8"
+    );
+
+    expect(source).toContain('className="grid h-full min-h-0 gap-3"');
+    expect(source).toContain(
+      '? "grid h-full min-h-0 min-w-0 overflow-hidden"'
+    );
+    expect(source).toContain(
+      '? "h-full min-h-0 min-w-0 overflow-hidden bg-white"'
+    );
+    expect(source).toContain(
+      'className="grid h-full min-h-0 w-full px-0 py-0 xl:flex-1 xl:overflow-hidden"'
+    );
+    expect(source).toContain(
+      'enabled className="h-full min-h-0 min-w-0 overflow-hidden"'
+    );
   });
 
   it("switches the core chrome to English without mixing the main labels", () => {
@@ -747,14 +864,40 @@ describe("AutopilotRoutePage", () => {
       "utf8"
     );
 
-    expect(source).toMatch(/if \(!IS_GITHUB_PAGES && !currentProjectId\) \{/);
+    expect(source).toMatch(
+      /if \(!IS_GITHUB_PAGES && !currentProjectId && !requestedHistoryJobId\) \{/
+    );
+
+    const latestFetchRegion = source.slice(
+      source.indexOf("if (!IS_GITHUB_PAGES && !currentProjectId"),
+      source.indexOf("const refreshPagesBlueprintSnapshot")
+    );
+    expect(latestFetchRegion).toMatch(/const latestProjectId = currentProjectId \?\? undefined/);
+    expect(latestFetchRegion).toMatch(/projectId:\s*latestProjectId/);
+  });
+
+  it("fetches an explicit active history job even when no project is selected", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "./AutopilotRoutePage.tsx"),
+      "utf8"
+    );
 
     const latestFetchRegion = source.slice(
       source.indexOf("const latestJobRequest ="),
       source.indexOf("const refreshPagesBlueprintSnapshot")
     );
-    expect(latestFetchRegion).toMatch(/const latestProjectId = currentProjectId \?\? undefined/);
-    expect(latestFetchRegion).toMatch(/projectId:\s*latestProjectId/);
+
+    expect(latestFetchRegion).toMatch(
+      /const requestedHistoryJobId = readActiveHistoryJobIdFromLocation\(\)/
+    );
+    expect(latestFetchRegion).toMatch(
+      /if \(!IS_GITHUB_PAGES && !currentProjectId && !requestedHistoryJobId\) \{/
+    );
+    expect(latestFetchRegion).toMatch(
+      /requestedHistoryJobId\s*\?\s*fetchBlueprintGenerationJob\(requestedHistoryJobId\)/
+    );
   });
 
   it("uses the GitHub Pages static blueprint runtime without remote right-rail fetches", async () => {

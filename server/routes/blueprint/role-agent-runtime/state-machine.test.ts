@@ -185,6 +185,63 @@ describe("AgentLoopStateMachine", () => {
     expect(output.trace[0]?.phase).toBe("thinking");
   });
 
+  it("passes context llmMaxTokens to each LLM thinking call", async () => {
+    const clock = buildAdvanceableClock(1_000);
+    const llmCall = vi.fn(async (): Promise<LlmCallOutput> => ({
+      type: "finish",
+      output: { ok: true },
+      thought: "done",
+      tokensUsed: 10,
+    }));
+
+    const machine = new AgentLoopStateMachine(
+      buildInput({
+        context: { repo: "x", llmMaxTokens: 16_000 },
+      }),
+      {
+        llmCall,
+        toolInvoker: scriptedToolInvoker([]),
+        progressEmitter: buildRecordingEmitter(),
+        logger: buildLogger(),
+        now: clock.now,
+      },
+    );
+
+    await machine.run();
+
+    expect(llmCall).toHaveBeenCalledWith(
+      expect.objectContaining({ maxTokens: 16_000 }),
+    );
+  });
+
+  it("passes context llmAcceptDirectOutput to each LLM thinking call", async () => {
+    const clock = buildAdvanceableClock(1_000);
+    const llmCall = vi.fn(async (): Promise<LlmCallOutput> => ({
+      type: "finish",
+      output: { ok: true },
+      tokensUsed: 10,
+    }));
+
+    const machine = new AgentLoopStateMachine(
+      buildInput({
+        context: { repo: "x", llmAcceptDirectOutput: true },
+      }),
+      {
+        llmCall,
+        toolInvoker: scriptedToolInvoker([]),
+        progressEmitter: buildRecordingEmitter(),
+        logger: buildLogger(),
+        now: clock.now,
+      },
+    );
+
+    await machine.run();
+
+    expect(llmCall).toHaveBeenCalledWith(
+      expect.objectContaining({ acceptDirectOutput: true }),
+    );
+  });
+
   it("LLM returning error transitions to failed with the error reason", async () => {
     const clock = buildAdvanceableClock(0);
     const llmCall = scriptedLlmCall([

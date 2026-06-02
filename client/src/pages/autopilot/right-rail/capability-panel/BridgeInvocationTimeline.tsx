@@ -137,14 +137,14 @@ export const BridgeInvocationTimeline: FC<BridgeInvocationTimelineProps> = ({
   return (
     <div className="relative pl-3">
       {/* 左侧连接线 */}
-      <div className="absolute left-1 top-1 bottom-1 w-px bg-slate-200" />
+      <div className="absolute left-1 top-1 bottom-1 w-px bg-white/[0.12]" />
 
       {/* 折叠摘要行 */}
       {collapsedCount > 0 && (
         <div className="relative flex items-center gap-1 py-1 pl-2">
           {/* 连接点 */}
-          <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-slate-300" />
-          <span className="text-[10px] text-slate-400 font-mono">
+          <div className="absolute left-[-8px] top-1/2 -translate-y-1/2 w-1.5 h-1.5 rounded-full bg-white/30" />
+          <span className="text-[10px] text-white/40 font-mono">
             {locale === "zh-CN"
               ? `… 已折叠 ${collapsedCount} 条记录`
               : `… ${collapsedCount} collapsed`}
@@ -164,7 +164,7 @@ export const BridgeInvocationTimeline: FC<BridgeInvocationTimelineProps> = ({
             className="relative"
           >
             {/* 连接点 */}
-            <div className="absolute left-[-8px] top-3 w-1.5 h-1.5 rounded-full bg-slate-300" />
+            <div className="absolute left-[-8px] top-3 w-1.5 h-1.5 rounded-full bg-white/30" />
 
             {/* 并行调用并排展示 */}
             {group.items.length === 1 ? (

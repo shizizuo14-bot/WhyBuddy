@@ -116,6 +116,18 @@ describe("nl-command.ts generatePreviewResponse timeout contract (P0#5)", () => 
     expect(body).toMatch(/retryAttempts:\s*1/);
   });
 
+  it("uses an env-overridable maxTokens budget for preview JSON generation", async () => {
+    const source = await loadSource();
+    const body = extractGeneratePreviewResponseBody(source);
+
+    expect(body).toMatch(
+      /maxTokens:\s*resolvePreviewMaxTokens\(\s*mode\s*\)/,
+    );
+    expect(source).toMatch(
+      /process\.env\.NL_COMMAND_PREVIEW_LLM_MAX_TOKENS/,
+    );
+  });
+
   it("documents the spec and integration-gap references in JSDoc above generatePreviewResponse", async () => {
     const source = await loadSource();
 

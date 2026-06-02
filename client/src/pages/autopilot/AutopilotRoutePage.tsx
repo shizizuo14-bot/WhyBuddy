@@ -40,6 +40,7 @@ import {
   createBlueprintClarificationSession,
   createBlueprintGenerationJob,
   createBlueprintIntake,
+  fetchBlueprintGenerationJob,
   fetchBlueprintProjectContext,
   fetchLatestBlueprintGenerationJob,
   normalizeBlueprintAgentCrew,
@@ -53,6 +54,7 @@ import {
   type BlueprintCapabilityEvidence,
   type BlueprintCapabilityInvocation,
   type BlueprintEffectPreviewSnapshot,
+  type FetchBlueprintGenerationJobResult,
   type BlueprintLatestGenerationJobSnapshot,
   type BlueprintRuntimeCapability,
 } from "@/lib/blueprint-api";
@@ -91,6 +93,8 @@ import {
   type RightRailSubStageContextValue,
   type ViewportTier,
 } from "./right-rail";
+import { CapabilityRail } from "./right-rail/CapabilityRail";
+import { FleetActivationLog } from "./right-rail/FleetActivationLog";
 import { resolveRoleLabel } from "./right-rail/role-labels";
 import {
   selectAutoAdvanceSubStage,
@@ -205,6 +209,48 @@ export function resolveHistoryActiveJobIdForCurrentJob(input: {
     return input.currentJobId;
   }
   return input.activeJobId ?? input.requestedJobId;
+}
+
+export function selectRightRailSpecTree(
+  railSpecTree: BlueprintSpecTree | null | undefined,
+  pageSpecTree: BlueprintSpecTree | null | undefined
+): BlueprintSpecTree | null {
+  if (railSpecTree?.nodes?.length) return railSpecTree;
+  if (pageSpecTree?.nodes?.length) return pageSpecTree;
+  return railSpecTree ?? pageSpecTree ?? null;
+}
+
+function hasPersistedSpecTree(
+  snapshot: BlueprintLatestGenerationJobSnapshot | null | undefined
+): boolean {
+  return Boolean(snapshot?.specTree?.nodes?.length);
+}
+
+export async function waitForRouteSelectionSnapshot({
+  jobId,
+  fetchJob = fetchBlueprintGenerationJob,
+  delay = (ms: number) =>
+    new Promise<void>((resolve) => globalThis.setTimeout(resolve, ms)),
+  maxAttempts = 24,
+  intervalMs = 1500,
+}: {
+  jobId: string;
+  fetchJob?: (jobId: string) => Promise<FetchBlueprintGenerationJobResult>;
+  delay?: (ms: number) => Promise<void>;
+  maxAttempts?: number;
+  intervalMs?: number;
+}): Promise<BlueprintLatestGenerationJobSnapshot | null> {
+  for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
+    const result = await fetchJob(jobId);
+    if (result.ok && hasPersistedSpecTree(result.data)) {
+      return result.data;
+    }
+    if (attempt < maxAttempts - 1) {
+      await delay(intervalMs);
+    }
+  }
+
+  return null;
 }
 
 function PageTransitionWrapper({
@@ -326,6 +372,7 @@ export interface ConsoleLine {
   message: string;
   tone?: "default" | "success" | "warning" | "danger";
   timestamp?: string;
+  stageGroup?: "stage-one" | "stage-two" | "later";
 }
 
 function isClarificationReady(
@@ -1340,6 +1387,8 @@ function AutopilotVisualStage({
   const wallAgentReasoningEntries = useBlueprintRealtimeStore(
     s => s.agentReasoning.entries
   );
+  const isStageTwoConsole =
+    job?.stage === "spec_tree" || job?.stage === "spec_docs";
 
   return (
     // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v10 去边框去边距）：
@@ -1398,9 +1447,20 @@ function AutopilotVisualStage({
       <AutopilotConsolePanel
         locale={locale}
         lines={consoleLines}
+        stage={job?.stage ?? null}
         embedded
-        className="h-[320px] w-full shrink-0 !bg-slate-950 shadow-none backdrop-blur-0"
-      />
+        className="h-[240px] w-full shrink-0 !bg-slate-950 shadow-none backdrop-blur-0"
+      >
+        {isStageTwoConsole ? (
+          <div
+            className="grid min-h-0 gap-px border-t border-white/[0.08] bg-white/[0.04] md:grid-cols-[minmax(0,0.95fr)_minmax(0,1.05fr)] [&>div]:min-h-0 [&>div]:max-h-[168px] [&>div]:overflow-y-auto [&>div]:bg-slate-900/60 [&>div]:px-3 [&>div]:py-2"
+            data-testid="autopilot-console-stage-two-observability"
+          >
+            <CapabilityRail />
+            <FleetActivationLog />
+          </div>
+        ) : null}
+      </AutopilotConsolePanel>
     </div>
   );
 }
@@ -2132,6 +2192,7 @@ function AutopilotWorkflowRail({
     flowSteps.findIndex(step => step.id === activeStepId),
     0
   );
+  const isFabricStep = activeStepId === "fabric";
   const [historyPanelOpen, setHistoryPanelOpen] = useState(() =>
     readAutopilotHistoryOpenFromLocation()
   );
@@ -2549,20 +2610,27 @@ function AutopilotWorkflowRail({
         const autoAdvanceSubStage = selectAutoAdvanceSubStage(
           autoAdvancingTo ?? ""
         );
+        const railJob = rightRailView.job.data ?? latestJob;
+        const railRouteSet = rightRailView.routeSet.data ?? routeSet;
+        const railSelection = rightRailView.selection.data ?? selection;
+        const railSpecTree = selectRightRailSpecTree(
+          rightRailView.specTree.data,
+          specTree
+        );
         const railElement = (
           <RightRailSubStageContext.Provider value={subStageContext}>
             <AutopilotRightRail
-              jobId={rightRailView.job.data?.id ?? latestJob?.id ?? ""}
+              jobId={railJob?.id ?? ""}
               currentStage="fabric"
               currentSubStage={
                 autoAdvanceSubStage ??
                 subStageContext.effectiveSubStage ??
                 fabricSubStage
               }
-              job={rightRailView.job.data}
-              routeSet={rightRailView.routeSet.data}
-              selection={rightRailView.selection.data}
-              specTree={rightRailView.specTree.data}
+              job={railJob}
+              routeSet={railRouteSet}
+              selection={railSelection}
+              specTree={railSpecTree}
               agentCrew={rightRailView.agentCrew.data}
               capabilities={rightRailView.capabilities.data ?? []}
               capabilityInvocations={
@@ -2596,7 +2664,7 @@ function AutopilotWorkflowRail({
           </RightRailSubStageContext.Provider>
         );
         return (
-          <div className="grid gap-3" data-testid="autopilot-fabric-step">
+          <div className="grid h-full min-h-0 gap-3" data-testid="autopilot-fabric-step">
             {historyPanelOpen && latestJob ? (
               <AutopilotVersionHistoryPanel
                 locale={locale}
@@ -2657,7 +2725,7 @@ function AutopilotWorkflowRail({
                 className={
                   tier === "side-collapsible" && rightRailCollapsed
                     ? "hidden"
-                    : undefined
+                    : "h-full min-h-0"
                 }
               >
                 {railElement}
@@ -2811,7 +2879,11 @@ function AutopilotWorkflowRail({
 
   return (
     <aside
-      className="grid min-w-0 content-start xl:h-full xl:max-h-full xl:overflow-y-auto xl:overflow-x-hidden"
+      className={
+        isFabricStep
+          ? "grid h-full min-h-0 min-w-0 overflow-hidden"
+          : "grid min-w-0 content-start xl:h-full xl:max-h-full xl:overflow-y-auto xl:overflow-x-hidden"
+      }
       data-testid="autopilot-workflow-rail"
       data-mf-surface
       style={{
@@ -2829,7 +2901,11 @@ function AutopilotWorkflowRail({
       }}
     >
       <section
-        className="min-w-0 h-full bg-white"
+        className={
+          isFabricStep
+            ? "h-full min-h-0 min-w-0 overflow-hidden bg-white"
+            : "min-w-0 h-full bg-white"
+        }
         data-testid="autopilot-workflow-steps"
         data-mf-card
         style={{ borderRadius: "0px" }}
@@ -2842,7 +2918,14 @@ function AutopilotWorkflowRail({
           / consoleLines 派生使用，不删除 useMemo 计算。
         */}
         <div
-          className="h-full p-2"
+          // Fabric 阶段（spec_tree / spec_docs / ...）右栏底部的「执行流 / 产物流」
+          // 双栏需要与左栏底部的「自动驾驶控制台」对齐为同一条 240px 底带：
+          // 控制台贴满列宽并紧贴视口底边，而 p-2（四边 8px）会把右栏整体内缩，
+          // 导致双栏比控制台窄 ~20px、且底边上浮 ~10px。fabric 阶段改为只保留
+          // 顶部和两侧的呼吸边距（pt-2 px-2），底部不留 padding，让执行流 /
+          // 产物流底带触底对齐控制台。
+          // 其它阶段（input / clarification 等表单态）保留 p-2 的四边呼吸边距。
+          className={isFabricStep ? "h-full min-h-0 px-2 pt-2" : "h-full p-2"}
           data-testid={`autopilot-step-${activeStepId}`}
         >
           <PageTransitionWrapper
@@ -2893,6 +2976,7 @@ function buildConsoleLines({
         "工作台已就绪，等待输入、澄清、路线和资产事件。",
         "Workbench is ready for input, clarification, route, and asset events."
       ),
+      stageGroup: "stage-one",
     },
   ];
 
@@ -2906,6 +2990,7 @@ function buildConsoleLines({
         `Recorded intake ${intake.id}, ${intake.sources.length} source(s), ${intake.evidence.length} evidence item(s).`
       ),
       tone: "success",
+      stageGroup: "stage-one",
     });
   }
 
@@ -2928,15 +3013,18 @@ function buildConsoleLines({
         clarificationSession.answers.length > 0 || clarificationSession.questions.length === 0
           ? "success"
           : "warning",
+      stageGroup: "stage-one",
     });
   }
 
   if (latestJob) {
+    const jobStageGroup = resolveConsoleLineStageGroup(latestJob.stage);
     lines.push({
       id: "job",
       channel: "job.stage",
       message: `${readAutopilotJobStatus(latestJob, locale)} · ${latestJob.id}`,
       tone: latestJob.status === "failed" ? "danger" : "default",
+      stageGroup: jobStageGroup,
     });
 
     latestJob.events.slice(-5).forEach(event => {
@@ -2946,6 +3034,7 @@ function buildConsoleLines({
         message: copyDynamic(locale, event.message),
         timestamp: event.occurredAt,
         tone: event.status === "failed" ? "danger" : undefined,
+        stageGroup: resolveConsoleLineStageGroup(event.stage),
       });
     });
   }
@@ -2960,6 +3049,7 @@ function buildConsoleLines({
         `RouteSet ${routeSet.id} generated with ${routeSet.routes.length} route candidates.`
       ),
       tone: "success",
+      stageGroup: "stage-one",
     });
   }
 
@@ -2973,6 +3063,7 @@ function buildConsoleLines({
         `Selected ${copyDynamic(locale, selection.routeTitle)} and entered SPEC tree review handoff.`
       ),
       tone: "success",
+      stageGroup: "stage-two",
     });
   }
 
@@ -2986,6 +3077,7 @@ function buildConsoleLines({
         `SPEC tree ${specTree.id} created with ${specTree.nodes.length} node(s).`
       ),
       tone: "success",
+      stageGroup: "stage-two",
     });
   }
 
@@ -3002,6 +3094,7 @@ function buildConsoleLines({
         `${invocation.capabilityLabel} · ${statusLabel(invocation.status, locale)}`
       ),
       tone: invocation.status === "failed" ? "danger" : "default",
+      stageGroup: "stage-two",
     });
   });
 
@@ -3015,6 +3108,7 @@ function buildConsoleLines({
         `${capabilityEvidence.length} runtime evidence item(s) recorded.`
       ),
       tone: "success",
+      stageGroup: "stage-two",
     });
   }
 
@@ -3029,6 +3123,7 @@ function buildConsoleLines({
         `HUD progress ${preview.runtimeProjection.hudState.progressPercent}%; ${preview.runtimeProjection.logTimeline.length} log item(s).`
       ),
       tone: "success",
+      stageGroup: "later",
     });
   }
 
@@ -3038,24 +3133,52 @@ function buildConsoleLines({
       channel: "api.error",
       message: `${apiError.message}: ${apiError.detail}`,
       tone: "danger",
+      stageGroup: resolveConsoleLineStageGroup(latestJob?.stage),
     });
   }
 
   return lines.slice(-16);
 }
 
+function resolveConsoleLineStageGroup(
+  stage: string | null | undefined
+): ConsoleLine["stageGroup"] {
+  if (stage === "spec_tree" || stage === "spec_docs") return "stage-two";
+  if (
+    stage === "effect_preview" ||
+    stage === "prompt_packaging" ||
+    stage === "runtime_capability" ||
+    stage === "engineering_handoff" ||
+    stage === "engineering_landing"
+  ) {
+    return "later";
+  }
+  return "stage-one";
+}
+
 function AutopilotConsolePanel({
   locale,
   lines,
+  stage,
   embedded = false,
   className,
+  children,
 }: {
   locale: AppLocale;
   lines: ConsoleLine[];
+  stage?: BlueprintGenerationStage | null;
   embedded?: boolean;
   className?: string;
+  children?: ReactNode;
 }) {
-  const visibleLines = lines.slice(embedded ? -16 : -12);
+  const activeConsoleStage =
+    stage === "spec_tree" || stage === "spec_docs" ? "stage-two" : "stage-one";
+  const scopedLines = lines.filter(line =>
+    activeConsoleStage === "stage-two"
+      ? line.stageGroup === "stage-two" || line.stageGroup === undefined
+      : line.stageGroup !== "stage-two"
+  );
+  const visibleLines = scopedLines.slice(embedded ? -16 : -12);
 
   return (
     // 2026-05-13 v11 视觉收尾：去除 console panel 自身圆角、边框；
@@ -3072,21 +3195,57 @@ function AutopilotConsolePanel({
       data-testid="autopilot-runtime-console"
     >
       <div className="flex shrink-0 flex-wrap items-center justify-between gap-3 px-4 py-3">
-        <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-white/65">
-          <Terminal className="size-3.5" aria-hidden="true" />
-          {t(locale, "自动驾驶控制台", "Autopilot console")}
+        <div className="flex min-w-0 flex-wrap items-center gap-3">
+          <div className="flex items-center gap-2 text-xs font-black uppercase tracking-normal text-white/65">
+            <Terminal className="size-3.5" aria-hidden="true" />
+            {t(locale, "自动驾驶控制台", "Autopilot console")}
+          </div>
+          <div
+            className="flex items-center border border-white/[0.08] bg-white/[0.04] p-0.5"
+            data-testid="autopilot-console-stage-tabs"
+          >
+            <span
+              className={cn(
+                "px-2.5 py-1 text-[10px] font-black tracking-normal transition-colors",
+                activeConsoleStage === "stage-one"
+                  ? "bg-cyan-300 text-slate-950"
+                  : "text-white/45"
+              )}
+              data-state={activeConsoleStage === "stage-one" ? "active" : "idle"}
+            >
+              {t(locale, "\u9636\u6bb51", "Stage 1")}
+            </span>
+            <span
+              className={cn(
+                "px-2.5 py-1 text-[10px] font-black tracking-normal transition-colors",
+                activeConsoleStage === "stage-two"
+                  ? "bg-emerald-300 text-slate-950"
+                  : "text-white/45"
+              )}
+              data-state={activeConsoleStage === "stage-two" ? "active" : "idle"}
+            >
+              {t(locale, "\u9636\u6bb52", "Stage 2")}
+            </span>
+          </div>
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <span className="bg-emerald-400/10 px-2 py-1 text-[10px] font-black text-emerald-200">
             {t(locale, "事件流", "Event stream")}
           </span>
           <span className="bg-white/5 px-2 py-1 text-[10px] font-black text-white/55">
-            {visibleLines.length}/{lines.length} {t(locale, "行", "lines")}
+            {visibleLines.length}/{scopedLines.length} {t(locale, "行", "lines")}
           </span>
         </div>
       </div>
       <div
         className={cn(
+          "min-h-0 flex-1 overflow-y-auto overscroll-contain",
+          activeConsoleStage === "stage-two" ? "space-y-3 pb-4" : ""
+        )}
+        data-testid="autopilot-console-scroll"
+      >
+        <div
+          className={cn(
           "px-4 py-3 font-mono text-[11px] leading-6",
           // Spec 5 布局校准:embedded 浮层限高 + 内滚,不遮挡 3D 场景。
           // 自动驾驶 3D 场景融合 follow-up（2026-05-13）：
@@ -3094,10 +3253,16 @@ function AutopilotConsolePanel({
           // 之前 max-h-32（128px）在只有 1-2 行 console line 时仍占满 128px，
           // 视觉上 panel 下方留出大段 dim 浮层空白挡住 3D scene 底部。改成只
           // 设上限不强制最低高，短消息时 panel 自然变低，不再遮挡底部地面。
-          embedded ? "min-h-0 flex-1 overflow-y-auto overscroll-contain" : "overflow-hidden"
+          embedded ? "" : "overflow-hidden"
         )}
       >
-        {visibleLines.map(line => (
+        {visibleLines.length === 0 ? (
+          <div className="py-2 text-white/45">
+            {activeConsoleStage === "stage-two"
+              ? t(locale, "阶段 2 暂无事件", "No stage 2 events yet")
+              : t(locale, "暂无事件", "No events yet")}
+          </div>
+        ) : visibleLines.map(line => (
           <div
             key={`${line.channel}-${line.id}`}
             className={cn(
@@ -3124,6 +3289,8 @@ function AutopilotConsolePanel({
             <span className="min-w-0 break-words">{line.message}</span>
           </div>
         ))}
+        </div>
+        {children}
       </div>
     </section>
   );
@@ -3447,8 +3614,9 @@ export default function AutopilotRoutePage() {
 
   useEffect(() => {
     let active = true;
+    const requestedHistoryJobId = readActiveHistoryJobIdFromLocation();
 
-    if (!IS_GITHUB_PAGES && !currentProjectId) {
+    if (!IS_GITHUB_PAGES && !currentProjectId && !requestedHistoryJobId) {
       resetLatestGenerationSnapshot();
       setApiError(null);
       return () => {
@@ -3460,6 +3628,8 @@ export default function AutopilotRoutePage() {
     const latestJobRequest =
       IS_GITHUB_PAGES && pagesBlueprintRuntime
         ? pagesBlueprintRuntime.fetchLatestGenerationJob()
+        : requestedHistoryJobId
+          ? fetchBlueprintGenerationJob(requestedHistoryJobId)
         : fetchLatestBlueprintGenerationJob({
             projectId: latestProjectId,
           });
@@ -3485,7 +3655,8 @@ export default function AutopilotRoutePage() {
   ]);
 
   const refreshLatestGenerationSnapshot = useCallback(async () => {
-    if (!IS_GITHUB_PAGES && !currentProjectId) {
+    const requestedHistoryJobId = readActiveHistoryJobIdFromLocation();
+    if (!IS_GITHUB_PAGES && !currentProjectId && !requestedHistoryJobId) {
       resetLatestGenerationSnapshot();
       setApiError(null);
       return false;
@@ -3495,6 +3666,8 @@ export default function AutopilotRoutePage() {
     const latestJobRequest =
       IS_GITHUB_PAGES && pagesBlueprintRuntime
         ? pagesBlueprintRuntime.fetchLatestGenerationJob()
+        : requestedHistoryJobId
+          ? fetchBlueprintGenerationJob(requestedHistoryJobId)
         : fetchLatestBlueprintGenerationJob({
             projectId: latestProjectId,
           });
@@ -4256,6 +4429,14 @@ export default function AutopilotRoutePage() {
           // job snapshot,这里主动 bump W1 retry trigger,促使 hook 重新
           // GET /api/blueprint/jobs/latest 并 dispatch FETCH_FULFILLED。
           rightRailView.job.retry();
+          void waitForRouteSelectionSnapshot({
+            jobId: result.data.job.id,
+          }).then(snapshot => {
+            if (!snapshot) return;
+            if (latestSceneJobIdRef.current !== snapshot.job.id) return;
+            applyLatestGenerationSnapshot(snapshot);
+            rightRailView.job.retry();
+          });
         } else {
           setApiError(result.error);
         }
@@ -4263,7 +4444,12 @@ export default function AutopilotRoutePage() {
         setSelectingRouteId(null);
       }
     },
-    [latestJob, pagesBlueprintRuntime, rightRailView.job.retry]
+    [
+      applyLatestGenerationSnapshot,
+      latestJob,
+      pagesBlueprintRuntime,
+      rightRailView.job.retry,
+    ]
   );
 
   const handleSubmitRouteSelectionEdit = useCallback(
@@ -4367,8 +4553,8 @@ export default function AutopilotRoutePage() {
         </div>
       </header>
 
-      <div className="grid w-full px-0 py-0 xl:flex-1 xl:min-h-0 xl:overflow-hidden">
-        <div className="grid xl:h-full xl:min-h-0 xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] xl:overflow-hidden">
+      <div className="grid h-full min-h-0 w-full px-0 py-0 xl:flex-1 xl:overflow-hidden">
+        <div className="grid h-full min-h-0 xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] xl:overflow-hidden">
           <AutopilotVisualStage
             locale={locale}
             currentProjectId={currentProjectId}
@@ -4383,7 +4569,7 @@ export default function AutopilotRoutePage() {
             consoleLines={consoleLines}
           />
 
-          <MirofishThemeProvider enabled className="min-w-0 xl:h-full xl:min-h-0" style={{ minWidth: 0, maxWidth: "100%" }}>
+          <MirofishThemeProvider enabled className="h-full min-h-0 min-w-0 overflow-hidden" style={{ minWidth: 0, maxWidth: "100%" }}>
           <AutopilotWorkflowRail
             locale={locale}
             targetText={targetText}

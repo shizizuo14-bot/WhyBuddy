@@ -61,7 +61,7 @@ export const CapabilityBridgePanel: FC<CapabilityBridgePanelProps> = ({
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: animationDuration }}
-      className="bg-white border border-slate-200 rounded-lg p-2 max-h-[240px] overflow-y-auto"
+      className="rounded border border-white/[0.08] bg-white/[0.03] p-2 max-h-[160px] overflow-y-auto"
     >
       <BridgeStatusSummary summary={summary} />
       <BridgeInvocationTimeline invocations={invocations} locale={locale} />

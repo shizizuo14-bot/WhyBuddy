@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   RuntimeAgent,
   type RuntimeAgentConfig,
@@ -41,6 +41,10 @@ function createMockDeps() {
 }
 
 describe("RuntimeAgent – analyzing_image event emission", () => {
+  afterEach(() => {
+    delete process.env.RUNTIME_AGENT_JSON_MAX_TOKENS;
+  });
+
   describe("invoke()", () => {
     it("emits analyzing_image then thinking when visionContexts are present", async () => {
       const { deps, events } = createMockDeps();
@@ -109,6 +113,31 @@ describe("RuntimeAgent – analyzing_image event emission", () => {
   });
 
   describe("invokeJson()", () => {
+    it("uses a larger JSON maxTokens budget by default", async () => {
+      const { deps } = createMockDeps();
+      const agent = new RuntimeAgent(baseConfig, deps);
+
+      await agent.invokeJson("Return a large JSON payload", []);
+
+      expect(deps.llmProvider.callJson).toHaveBeenCalledWith(
+        expect.any(Array),
+        expect.objectContaining({ maxTokens: 12000 }),
+      );
+    });
+
+    it("allows RUNTIME_AGENT_JSON_MAX_TOKENS to override the JSON budget", async () => {
+      process.env.RUNTIME_AGENT_JSON_MAX_TOKENS = "16000";
+      const { deps } = createMockDeps();
+      const agent = new RuntimeAgent(baseConfig, deps);
+
+      await agent.invokeJson("Return a larger JSON payload", []);
+
+      expect(deps.llmProvider.callJson).toHaveBeenCalledWith(
+        expect.any(Array),
+        expect.objectContaining({ maxTokens: 16000 }),
+      );
+    });
+
     it("emits analyzing_image then thinking when visionContexts are present", async () => {
       const { deps, events } = createMockDeps();
       const agent = new RuntimeAgent(baseConfig, deps);

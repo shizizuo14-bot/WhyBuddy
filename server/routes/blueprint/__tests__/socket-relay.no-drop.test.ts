@@ -240,6 +240,42 @@ describe("BlueprintSocketRelay 单条事件不丢事件回归（autopilot-stream
     relay.stop();
   });
 
+  it("includes job stage summary fields in the relayed payload", () => {
+    const jobId = "job-stage-summary";
+    const jobStore = createMemoryBlueprintJobStore([makeJob(jobId)]);
+    const eventBus = createBlueprintEventBus(jobStore);
+
+    const relay = createBlueprintSocketRelay({
+      eventBus,
+      io: sio.io as never,
+    });
+    relay.start();
+
+    eventBus.emit(
+      makeEvent({
+        id: "evt-stage-summary",
+        jobId,
+        type: "job.stage",
+        family: "job",
+        stage: "spec_tree",
+        status: "running",
+        message: "Selected route and started SPEC tree derivation.",
+      }),
+    );
+
+    expect(sio.emittedEvents[0].data).toMatchObject({
+      type: "job.stage",
+      jobId,
+      payload: {
+        stage: "spec_tree",
+        status: "running",
+        message: "Selected route and started SPEC tree derivation.",
+      },
+    });
+
+    relay.stop();
+  });
+
   it("场景 2：后到达 socket 仍能接收 join 之后到达的事件（不要求第一条被缓存/重放）", () => {
     const jobId = "job-late-join";
     const jobStore = createMemoryBlueprintJobStore([makeJob(jobId)]);

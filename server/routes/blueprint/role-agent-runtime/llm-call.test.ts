@@ -73,6 +73,56 @@ describe("createLlmCall", () => {
     expect(llm.callJson).toHaveBeenCalledTimes(1);
   });
 
+  it("passes explicit maxTokens through to the blueprint LLM client", async () => {
+    const llm = {
+      callJson: vi.fn(async () => ({
+        thought: "done",
+        finish: { output: { nodes: [] } },
+      })),
+      getConfig: vi.fn(),
+    };
+    const llmCall = createLlmCall({ llm: llm as never, logger: buildLogger() });
+
+    await llmCall({
+      systemPrompt: "derive a large spec tree",
+      history: [],
+      context: {},
+      tools: buildTools(),
+      maxTokens: 16_000,
+    });
+
+    expect(llm.callJson).toHaveBeenCalledWith(
+      expect.any(Array),
+      expect.objectContaining({ maxTokens: 16_000 }),
+    );
+  });
+
+  it("treats direct JSON as finish output only when explicitly allowed", async () => {
+    const directOutput = {
+      rootTitle: "Blueprint Root",
+      rootSummary: "Top-level spec tree root node.",
+      nodes: [{ id: "root-node", type: "root" }],
+    };
+    const llm = {
+      callJson: vi.fn(async () => directOutput),
+      getConfig: vi.fn(),
+    };
+    const llmCall = createLlmCall({ llm: llm as never, logger: buildLogger() });
+
+    const result = await llmCall({
+      systemPrompt: "derive a spec tree",
+      history: [],
+      context: {},
+      tools: buildTools(),
+      acceptDirectOutput: true,
+    });
+
+    expect(result.type).toBe("finish");
+    if (result.type === "finish") {
+      expect(result.output).toEqual(directOutput);
+    }
+  });
+
   it("parses action response (tool_call)", async () => {
     const llm = {
       callJson: vi.fn(async () => ({

@@ -75,6 +75,18 @@ export interface RuntimeAgentDependencies {
   eventEmitter: RuntimeEventEmitter;
 }
 
+const DEFAULT_RUNTIME_AGENT_JSON_MAX_TOKENS = 12000;
+
+function resolveRuntimeAgentJsonMaxTokens(): number {
+  const env = (globalThis as unknown as {
+    process?: { env?: Record<string, string | undefined> };
+  }).process?.env;
+  const parsed = Number(env?.RUNTIME_AGENT_JSON_MAX_TOKENS);
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : DEFAULT_RUNTIME_AGENT_JSON_MAX_TOKENS;
+}
+
 export function buildAgentSystemPrompt(
   config: RuntimeAgentConfig,
   memoryRepo: MemoryRepository,
@@ -365,7 +377,7 @@ export class RuntimeAgent implements AgentHandle {
     const llmOptions: LLMCallOptions = {
       model: this.config.model,
       temperature: 0.5,
-      maxTokens: 3000,
+      maxTokens: resolveRuntimeAgentJsonMaxTokens(),
     };
     if (options.visionContexts?.length) {
       llmOptions.maxTokens = (llmOptions.maxTokens || 3000) + 1000;

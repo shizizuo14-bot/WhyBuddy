@@ -136,10 +136,8 @@ export const WorkbenchDocMainView: FC<WorkbenchDocMainViewProps> = ({
   scrollRef,
   onScrollCapture,
   chapterChecklist,
-  relatedRefs,
   aiSummary,
   staleArtifact,
-  onSelectDocument,
   locale,
 }) => {
   const isZh = locale === "zh-CN";
@@ -367,46 +365,6 @@ export const WorkbenchDocMainView: FC<WorkbenchDocMainViewProps> = ({
                 )}
               </div>
 
-              {/* RelatedRef 区块 */}
-              {relatedRefs.length === 0 ? (
-                <p
-                  data-testid="autopilot-workbench-doc-related-refs"
-                  style={{ marginTop: "10px", fontSize: "12px", color: "#94a3b8" }}
-                >
-                  {isZh ? "暂无关联文档" : "No related documents"}
-                </p>
-              ) : (
-                <div
-                  data-testid="autopilot-workbench-doc-related-refs"
-                  style={{ marginTop: "10px", padding: "6px 0" }}
-                >
-                  {relatedRefs.map((ref) => (
-                    <button
-                      key={ref.documentId}
-                      type="button"
-                      data-testid={`autopilot-workbench-doc-related-ref-${ref.documentId}`}
-                      onClick={() => onSelectDocument(ref.documentId)}
-                      style={{
-                        display: "block",
-                        fontSize: "11px",
-                        padding: "3px 7px",
-                        margin: "2px 0",
-                        border: "1px solid #e2e8f0",
-                        borderRadius: "4px",
-                        background: "transparent",
-                        cursor: "pointer",
-                        textAlign: "left",
-                        width: "100%",
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {ref.title} ({ref.type})
-                    </button>
-                  ))}
-                </div>
-              )}
             </>
           )}
         </div>
@@ -433,10 +391,8 @@ export const WorkbenchDocMain: FC<WorkbenchDocMainProps> = ({
   scrollTop,
   onScroll,
   chapterChecklist,
-  relatedRefs,
   aiSummary,
   staleArtifact,
-  onSelectDocument,
   expanded: controlledExpanded,
   onExpandedChange,
   locale,
@@ -479,10 +435,8 @@ export const WorkbenchDocMain: FC<WorkbenchDocMainProps> = ({
       scrollRef={scrollRef}
       onScrollCapture={handleScrollCapture}
       chapterChecklist={chapterChecklist}
-      relatedRefs={relatedRefs}
       aiSummary={aiSummary}
       staleArtifact={staleArtifact}
-      onSelectDocument={onSelectDocument}
       locale={locale}
     />
   );

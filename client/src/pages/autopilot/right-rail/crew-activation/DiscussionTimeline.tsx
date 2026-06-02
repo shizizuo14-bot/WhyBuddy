@@ -76,29 +76,29 @@ function DiscussionTimelineEntry({
       <div className="flex flex-col items-center flex-shrink-0">
         <div
           className={`w-1.5 h-1.5 rounded-full mt-1 ${
-            isDecision ? "bg-emerald-500" : "bg-slate-300"
+            isDecision ? "bg-emerald-400" : "bg-white/30"
           }`}
         />
-        {!isLast && <div className="w-px flex-1 bg-slate-200 mt-0.5" />}
+        {!isLast && <div className="w-px flex-1 bg-white/[0.12] mt-0.5" />}
       </div>
 
       {/* 右侧：内容 */}
       <div
         className={`flex-1 min-w-0 pb-2 ${
           isDecision
-            ? "bg-emerald-50 border-l-2 border-emerald-400 pl-2 rounded-r"
+            ? "bg-emerald-500/10 border-l-2 border-emerald-400 pl-2 rounded-r"
             : ""
         }`}
       >
         <div className="flex items-baseline gap-1">
-          <span className="text-[11px] font-medium text-slate-600 truncate">
+          <span className="text-[11px] font-medium text-white/70 truncate">
             {entry.roleName}
           </span>
-          <span className="text-[10px] text-slate-400 flex-shrink-0">
+          <span className="text-[10px] text-white/35 flex-shrink-0">
             {formatTimestamp(entry.timestamp, locale)}
           </span>
         </div>
-        <p className="text-[11px] font-normal text-slate-700 leading-snug mt-0.5 line-clamp-2">
+        <p className="text-[11px] font-normal text-white/60 leading-snug mt-0.5 line-clamp-2">
           {entry.content}
         </p>
       </div>
@@ -160,7 +160,7 @@ function StageGroup({
       <button
         type="button"
         onClick={() => setExpanded((prev) => !prev)}
-        className="flex items-center gap-1 text-[10px] text-slate-400 hover:text-slate-600 transition-colors py-0.5 w-full text-left"
+        className="flex items-center gap-1 text-[10px] text-white/40 hover:text-white/70 transition-colors py-0.5 w-full text-left"
         aria-expanded={expanded}
       >
         <span className="text-[9px]">{expanded ? "▾" : "▸"}</span>
@@ -168,7 +168,7 @@ function StageGroup({
           {locale === "zh-CN" ? `阶段 ${stageIndex + 1}` : `Stage ${stageIndex + 1}`}
         </span>
         {!expanded && (
-          <span className="text-slate-400 ml-1">{summaryText}</span>
+          <span className="text-white/35 ml-1">{summaryText}</span>
         )}
       </button>
 

@@ -246,6 +246,49 @@ describe("createSpecTreeLlmDerivation", () => {
     expect(result.model).toBe("gpt-4o-mini");
   });
 
+  it("accepts direct workbench-style tree JSON without rootTitle/rootSummary", async () => {
+    const deps = makeDeps({
+      liteAgentRuntime: makeFakeLiteAgentRuntime({
+        output: {
+          nodes: [
+            {
+              id: "root-node",
+              title: "Root",
+              summary: "Root summary from direct SPEC tree JSON.",
+              type: "root",
+              status: "seed",
+              priority: 100,
+              dependencies: [],
+              outputs: [],
+              children: ["route-step"],
+            },
+            {
+              id: "route-step",
+              parentId: "root-node",
+              title: "Route Step",
+              summary: "Route step summary.",
+              type: "spec_document",
+              status: "seed",
+              priority: 80,
+              dependencies: [],
+              outputs: [],
+              children: [],
+            },
+          ],
+        },
+      }),
+    });
+    const derivation = createSpecTreeLlmDerivation(deps);
+
+    const result = await derivation.derive(makeRequest());
+
+    expect(result.generationSource).toBe("llm");
+    expect(result.tree?.nodes.map((node) => node.title)).toContain("Route Step");
+    expect(result.tree?.nodes.find((node) => node.title === "Route Step")?.type).toBe(
+      "spec_document",
+    );
+  });
+
   // ─── #2 旗标关闭 ──────────────────────────────────────────────────────
   it("#2 env 关闭：BLUEPRINT_SPEC_TREE_LLM_ENABLED=false → 早退 template", async () => {
     vi.stubEnv("BLUEPRINT_SPEC_TREE_LLM_ENABLED", "false");
@@ -519,5 +562,46 @@ describe("createSpecTreeLlmDerivation", () => {
     expect(result1.promptFingerprint).toBeDefined();
     expect(result2.promptFingerprint).toBeDefined();
     expect(result1.promptFingerprint).toBe(result2.promptFingerprint);
+  });
+
+  it("repairs multiple top-level route nodes by adding a synthetic root", async () => {
+    const deps = makeDeps({
+      liteAgentRuntime: makeFakeLiteAgentRuntime({
+        output: {
+          rootTitle: "Generated Routes",
+          rootSummary: "Route tree emitted with multiple top-level route nodes.",
+          nodes: [
+            {
+              id: "primary",
+              title: "Primary Route",
+              summary: "Primary route emitted without parentId.",
+              type: "route_step",
+              priority: 90,
+            },
+            {
+              id: "alternative-1",
+              title: "Alternative Route",
+              summary: "Alternative route emitted without parentId.",
+              type: "alternative_route",
+              priority: 60,
+            },
+          ],
+        },
+      }),
+    });
+    const derivation = createSpecTreeLlmDerivation(deps);
+
+    const result = await derivation.derive(makeRequest());
+
+    expect(result.generationSource).toBe("llm");
+    expect(result.fallbackReason).toBeUndefined();
+    const nodes = result.tree?.nodes ?? [];
+    const root = nodes.find((node) => node.type === "root");
+    const primary = nodes.find((node) => node.title === "Primary Route");
+    const alternative = nodes.find((node) => node.title === "Alternative Route");
+    expect(root).toBeDefined();
+    expect(primary?.parentId).toBe(root?.id);
+    expect(alternative?.parentId).toBe(root?.id);
+    expect(alternative?.type).toBe("alternative_route");
   });
 });

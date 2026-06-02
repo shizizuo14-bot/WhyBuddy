@@ -37,7 +37,6 @@ vi.mock("../../StreamCursor", () => ({
 import { WorkbenchDocMainView } from "../WorkbenchDocMain";
 import type { WorkbenchDocMainViewProps, ActiveDocMeta } from "../WorkbenchDocMain";
 import type { ChapterChecklistItem } from "../derive-chapter-checklist";
-import type { RelatedRef } from "../derive-related-refs";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -227,47 +226,41 @@ describe("WorkbenchDocMain.switching", () => {
     expect(markup).toContain("checked");
   });
 
-  it("(i) RelatedRef renders buttons for each ref; clicking calls onSelectDocument", () => {
-    const refs: RelatedRef[] = [
-      {
-        documentId: "doc-design-1",
-        nodeId: "node-1",
-        type: "design",
-        title: "Design Doc",
-        relation: "sibling-type",
-      },
-      {
-        documentId: "doc-tasks-1",
-        nodeId: "node-1",
-        type: "tasks",
-        title: "Tasks Doc",
-        relation: "sibling-type",
-      },
-    ];
+  it("(i) does not render related document shortcuts below long documents", () => {
     const markup = renderView({
-      relatedRefs: refs,
+      relatedRefs: [
+        {
+          documentId: "doc-design-1",
+          nodeId: "node-1",
+          type: "design",
+          title: "Design Doc",
+          relation: "sibling-type",
+        },
+        {
+          documentId: "doc-tasks-1",
+          nodeId: "node-1",
+          type: "tasks",
+          title: "Tasks Doc",
+          relation: "sibling-type",
+        },
+      ],
       renderedMarkdown: "## Section\nContent",
     });
-    expect(markup).toContain('data-testid="autopilot-workbench-doc-related-refs"');
-    expect(markup).toContain('data-testid="autopilot-workbench-doc-related-ref-doc-design-1"');
-    expect(markup).toContain('data-testid="autopilot-workbench-doc-related-ref-doc-tasks-1"');
-    expect(markup).toContain("Design Doc (design)");
-    expect(markup).toContain("Tasks Doc (tasks)");
+    expect(markup).not.toContain('data-testid="autopilot-workbench-doc-related-refs"');
+    expect(markup).not.toContain("autopilot-workbench-doc-related-ref-");
+    expect(markup).not.toContain("Design Doc (design)");
+    expect(markup).not.toContain("Tasks Doc (tasks)");
   });
 
-  it("(j) when relatedRefs is empty, only placeholder text appears — no list container", () => {
+  it("(j) does not render an empty related document placeholder", () => {
     const markup = renderView({
       relatedRefs: [],
       renderedMarkdown: "## Section\nContent",
     });
-    expect(markup).toContain('data-testid="autopilot-workbench-doc-related-refs"');
-    expect(markup).toContain("暂无关联文档");
-    // Should not contain any button elements for refs
+    expect(markup).not.toContain('data-testid="autopilot-workbench-doc-related-refs"');
+    expect(markup).not.toContain("暂无关联文档");
+    expect(markup).not.toContain("No related documents");
     expect(markup).not.toContain("autopilot-workbench-doc-related-ref-");
-    // The related-refs testid should be on a <p> tag, not a <div> with children
-    // Verify no <ul> or <ol> list containers
-    expect(markup).not.toContain("<ul");
-    expect(markup).not.toContain("<ol");
   });
 
   it("(k) when in empty state (activeDoc === null), none of the three sections render", () => {

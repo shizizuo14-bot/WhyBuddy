@@ -62,9 +62,9 @@ describe("BlueprintRealtimeStore refresh replay", () => {
         occurredAt: "2026-05-24T10:00:01.000Z",
         stage: "spec_tree",
         status: "running",
+        message: "Deriving SPEC tree",
         payload: {
           roleId: "planner",
-          message: "Deriving SPEC tree",
         },
       },
       {

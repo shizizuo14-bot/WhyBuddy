@@ -16,6 +16,7 @@ import {
   type MissionRecord,
 } from "../shared/mission/contracts.js";
 import type { ExecutorEvent } from "../shared/executor/contracts.js";
+import { isBlueprintExecutorMissionId } from "./core/executor-callback-routing.js";
 import type {
   ExecutorPreviewSession,
   ExecutorPreviewSessionStatus,
@@ -1811,7 +1812,7 @@ async function startServer() {
     }
 
     const missionId = event.missionId.trim();
-    if (missionId.startsWith("blueprint:")) {
+    if (isBlueprintExecutorMissionId(missionId)) {
       return response.status(202).json({
         ok: true,
         accepted: true,

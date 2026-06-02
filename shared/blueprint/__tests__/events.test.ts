@@ -12,7 +12,7 @@ import {
  *
  * 这里不追求语义行为覆盖，只做两件事：
  * 1. 锁定 `BlueprintEventName` 常量与 `BlueprintGenerationEventType` union 之间的同构关系。
- * 2. 验证 `resolveBlueprintEventFamily` 与 12 个家族定义一致。
+ * 2. 验证 `resolveBlueprintEventFamily` 与 13 个家族定义一致。
  *
  * 本文件是 example-based 断言，不是 PBT。
  */
@@ -30,11 +30,12 @@ const KNOWN_FAMILIES: ReadonlySet<BlueprintGenerationEventFamily> = new Set([
   "capability",
   "crew",
   "sandbox",
+  "brainstorm",
 ]);
 
 describe("BlueprintEventName", () => {
-  it("ships 12 families, matching the design inventory", () => {
-    expect(KNOWN_FAMILIES.size).toBe(12);
+  it("ships 13 families, matching the design inventory", () => {
+    expect(KNOWN_FAMILIES.size).toBe(13);
   });
 
   it("每个常量值都是合法的 BlueprintGenerationEventType", () => {
@@ -111,6 +112,17 @@ describe("BlueprintEventName", () => {
       { type: BlueprintEventName.RoleAgentIterationCompleted, family: "role" },
       { type: BlueprintEventName.RoleAgentError, family: "role" },
       { type: BlueprintEventName.RoleAgentCompleted, family: "role" },
+      // `autopilot-multi-agent-brainstorm` spec Task 1.2：新增 9 条 brainstorm
+      // 事件，引入第 13 个家族 `brainstorm`。
+      { type: BlueprintEventName.BrainstormSessionStarted, family: "brainstorm" },
+      { type: BlueprintEventName.BrainstormSessionCompleted, family: "brainstorm" },
+      { type: BlueprintEventName.BrainstormSessionFailed, family: "brainstorm" },
+      { type: BlueprintEventName.BrainstormModeSelected, family: "brainstorm" },
+      { type: BlueprintEventName.BrainstormNodeCreated, family: "brainstorm" },
+      { type: BlueprintEventName.BrainstormNodeUpdated, family: "brainstorm" },
+      { type: BlueprintEventName.BrainstormToolCompleted, family: "brainstorm" },
+      { type: BlueprintEventName.BrainstormToolFailed, family: "brainstorm" },
+      { type: BlueprintEventName.BrainstormDegraded, family: "brainstorm" },
     ];
 
     for (const sample of samples) {

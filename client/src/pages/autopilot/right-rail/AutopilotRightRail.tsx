@@ -36,7 +36,6 @@ import {
 import { toast as showToast } from "sonner";
 
 import type { AppLocale } from "@/lib/locale";
-import { SPECS_PATH } from "@/components/navigation-config";
 import type {
   BlueprintGenerationJob,
   BlueprintGenerationStage,
@@ -190,25 +189,7 @@ export function resolveManualAdvanceAction(input: {
   }
 
   if (input.activeSubStage === "spec_tree") {
-    const specTreeStageIndex = STAGE_ORDER.indexOf("spec_tree");
-    const specDocumentsStageIndex = STAGE_ORDER.indexOf("spec_documents");
-    // 用户停留在 spec_tree sub-stage（不论是初次评审还是从 spec_documents
-    // 退回回看），都应该让"下一步"指向 spec_documents：
-    //  - activeStageIndex === spec_tree（步骤 04）：初次评审 SPEC 树。
-    //  - activeStageIndex === spec_documents（步骤 05）：用户从 spec_documents
-    //    点了"返回上一步"回到 SPEC 树视图，但 backend job.stage 仍是 spec_docs。
-    //    此时"前进"按钮应该让用户能够回到 spec_documents（而不是停留在
-    //    spec_tree pin 永远走不动）。
-    if (
-      input.activeStageIndex === specTreeStageIndex ||
-      input.activeStageIndex === specDocumentsStageIndex
-    ) {
-      return {
-        type: "workbench-stage",
-        nextStage: "spec_documents",
-        nextSubStage: "spec_tree",
-      };
-    }
+    // SPEC tree and SPEC documents now share the same stage-2 workspace.
     return { type: "none" };
   }
 
@@ -518,11 +499,38 @@ function extractSpecDocuments(
   return docs.length > 0 ? docs : undefined;
 }
 
+type BlueprintSpecTreeWithDocuments = BlueprintSpecTree & {
+  documents?: BlueprintSpecDocument[];
+};
+
+function extractSpecTreeDocuments(
+  specTree: BlueprintSpecTree | null | undefined
+): BlueprintSpecDocument[] | undefined {
+  const documents = (specTree as BlueprintSpecTreeWithDocuments | null | undefined)
+    ?.documents;
+  return Array.isArray(documents) && documents.length > 0
+    ? documents
+    : undefined;
+}
+
+function resolvePersistedSpecDocuments(input: {
+  job: BlueprintGenerationJob | null | undefined;
+  specTree: BlueprintSpecTree | null | undefined;
+}): BlueprintSpecDocument[] | undefined {
+  return (
+    extractSpecDocuments(input.job) ?? extractSpecTreeDocuments(input.specTree)
+  );
+}
+
 function renderFabricSubStageContent(
   activeSubStage: AutopilotRailSubStage,
   props: AutopilotRightRailProps,
 ): ReactNode {
   const specTree = props.specTree ?? EMPTY_FABRIC_SPEC_TREE;
+  const persistedSpecDocuments = resolvePersistedSpecDocuments({
+    job: props.job,
+    specTree: props.specTree,
+  });
 
   switch (activeSubStage) {
     case "agent_crew_fabric":
@@ -547,7 +555,7 @@ function renderFabricSubStageContent(
           specTree={specTree}
           effectPreviews={props.effectPreviews}
           initialPreviews={props.effectPreviews}
-          documents={extractSpecDocuments(props.job)}
+          documents={persistedSpecDocuments}
           agentCrew={props.agentCrew}
           capabilityEvidence={props.capabilityEvidence}
           locale={props.locale}
@@ -739,6 +747,9 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
       : baseStageIndex;
   const activeStageKey: WorkbenchStage = STAGE_ORDER[activeStageIndex];
   const currentStageConfig = STAGE_CONFIG[activeStageKey];
+  const showFabricObservability =
+    activeStageKey !== "spec_tree" &&
+    activeStageKey !== "spec_documents";
   const currentGenerationStage =
     mapWorkbenchStageToGenerationStage(activeStageKey);
   const {
@@ -877,7 +888,14 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
   const specDocsBatchStatus = useBlueprintRealtimeStore(
     (state) => state.specDocsProgress.batchStatus
   );
-  const persistedSpecDocuments = extractSpecDocuments(props.job);
+  const persistedSpecDocuments = useMemo(
+    () =>
+      resolvePersistedSpecDocuments({
+        job: props.job,
+        specTree: props.specTree,
+      }),
+    [props.job, props.specTree]
+  );
   const nodeStatusById = useMemo(
     () =>
       deriveNodeStatusById({
@@ -1134,7 +1152,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
           props.onSpecDocumentsGenerated({
             job,
             specTree: props.specTree as BlueprintSpecTree,
-            documents: extractSpecDocuments(props.job),
+            documents: persistedSpecDocuments,
           } as unknown as Parameters<
             NonNullable<typeof props.onSpecDocumentsGenerated>
           >[0]);
@@ -1150,7 +1168,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
     props.jobId,
     props.onSpecDocumentsGenerated,
     props.specTree,
-    props.job,
+    persistedSpecDocuments,
     effectPreviewState,
   ]);
   // Reset the success/error state when the job advances out of the spec
@@ -1275,7 +1293,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
       data-testid="autopilot-right-rail"
       data-autopilot-stage={currentStage}
       data-autopilot-sub-stage={activeSubStage ?? ""}
-      className="flex h-full flex-col"
+      className="flex h-full min-h-0 flex-col overflow-hidden"
       style={{
         // 硬约束 aside 宽度。父级是 grid track minmax(0, 2fr)，正常情况下
         // 应该自然限制宽度，但右栏内部多层 flex / motion.div / overflow 嵌套
@@ -1429,15 +1447,11 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
               manualAdvanceAction.type !== "none" ? (
                 <StageCTA
                   label={
-                    manualAdvanceAction.type === "workbench-stage"
+                    manualAdvanceAction.type === "sub-stage"
                       ? locale === "zh-CN"
-                        ? "进入规格文档"
-                        : "Open spec documents"
-                      : manualAdvanceAction.type === "sub-stage"
-                        ? locale === "zh-CN"
-                          ? "继续下一步"
-                          : "Continue"
-                        : currentStageConfig.ctaLabel
+                        ? "继续下一步"
+                        : "Continue"
+                      : currentStageConfig.ctaLabel
                   }
                   loading={false}
                   disabled={false}
@@ -1467,7 +1481,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
             >
               <StreamingDocRenderer
                 entries={reasoningEntries}
-                specDocuments={extractSpecDocuments(props.job)}
+                specDocuments={persistedSpecDocuments}
                 specTree={props.specTree}
                 nodeStatusById={nodeStatusById}
                 locale={locale}
@@ -1480,7 +1494,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
                 effectPreviewState={effectPreviewState}
                 effectPreviewDisabled={
                   !props.jobId ||
-                  (extractSpecDocuments(props.job)?.length ?? 0) === 0
+                  (persistedSpecDocuments?.length ?? 0) === 0
                 }
               />
             </div>
@@ -1522,11 +1536,15 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
       </StageTransitionWrapper>
       </div>
 
-      {/* autopilot-streaming-experience integration-gap-2026-05-16 UI 消费面 Step 2：能力调用条 */}
-      <CapabilityRail />
+      {showFabricObservability ? (
+        <>
+          {/* autopilot-streaming-experience integration-gap-2026-05-16 UI 消费面 Step 2：能力调用条 */}
+          <CapabilityRail />
 
-      {/* autopilot-streaming-experience integration-gap-2026-05-16 UI 消费面 Step 3：激活日志 */}
-      <FleetActivationLog />
+          {/* autopilot-streaming-experience integration-gap-2026-05-16 UI 消费面 Step 3：激活日志 */}
+          <FleetActivationLog />
+        </>
+      ) : null}
 
     </aside>
   );

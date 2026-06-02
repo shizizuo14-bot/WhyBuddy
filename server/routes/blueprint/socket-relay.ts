@@ -97,6 +97,22 @@ interface BatchBuffer {
   timer: ReturnType<typeof setTimeout> | null;
 }
 
+function buildRelayedPayload(
+  event: BlueprintGenerationEvent
+): Record<string, unknown> {
+  const payload =
+    event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
+      ? { ...(event.payload as Record<string, unknown>) }
+      : {};
+
+  payload.stage ??= event.stage;
+  payload.status ??= event.status;
+  payload.message ??= event.message;
+  payload.roleId ??= event.roleId;
+
+  return payload;
+}
+
 // ---------------------------------------------------------------------------
 // 工厂函数
 // ---------------------------------------------------------------------------
@@ -204,7 +220,7 @@ export function createBlueprintSocketRelay(
       type: event.type,
       jobId: event.jobId,
       timestamp: event.occurredAt ?? new Date().toISOString(),
-      payload: event.payload as Record<string, unknown> | undefined,
+      payload: buildRelayedPayload(event),
     };
 
     // 5. 高频事件（capability 家族）使用批量推送

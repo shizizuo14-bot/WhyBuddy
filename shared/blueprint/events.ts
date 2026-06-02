@@ -10,7 +10,7 @@
  */
 
 /**
- * 事件家族（12 个）。
+ * 事件家族（13 个）。
  *
  * 顺序遵循 design.md §4「事件家族架构」：
  * - `job`：作业级生命周期（created / stage / completed / failed）。
@@ -25,6 +25,7 @@
  * - `capability`：Runtime Capability 调用生命周期。
  * - `crew`：Agent Crew 跨角色上下文更新。
  * - `sandbox`：沙箱推导作业生命周期。
+ * - `brainstorm`：多智能体协作决策会话生命周期（`autopilot-multi-agent-brainstorm` spec）。
  */
 export type BlueprintGenerationEventFamily =
   | "job"
@@ -38,7 +39,8 @@ export type BlueprintGenerationEventFamily =
   | "role"
   | "capability"
   | "crew"
-  | "sandbox";
+  | "sandbox"
+  | "brainstorm";
 
 /**
  * 所有 blueprint 运行时事件名的联合类型。
@@ -121,7 +123,20 @@ export type BlueprintGenerationEventType =
   // Sandbox 推导作业
   | "sandbox.job.started"
   | "sandbox.job.completed"
-  | "sandbox.job.failed";
+  | "sandbox.job.failed"
+  // Brainstorm session lifecycle（`autopilot-multi-agent-brainstorm` spec）
+  | "brainstorm.session.started"
+  | "brainstorm.session.completed"
+  | "brainstorm.session.failed"
+  | "brainstorm.mode.selected"
+  // Brainstorm node lifecycle
+  | "brainstorm.node.created"
+  | "brainstorm.node.updated"
+  // Brainstorm tool events
+  | "brainstorm.tool.completed"
+  | "brainstorm.tool.failed"
+  // Brainstorm degradation
+  | "brainstorm.degraded";
 
 /**
  * `BlueprintEventName` 事件常量命名空间。
@@ -196,6 +211,19 @@ export const BlueprintEventName = {
   SandboxJobStarted: "sandbox.job.started",
   SandboxJobCompleted: "sandbox.job.completed",
   SandboxJobFailed: "sandbox.job.failed",
+  // Brainstorm session lifecycle（`autopilot-multi-agent-brainstorm` spec）
+  BrainstormSessionStarted: "brainstorm.session.started",
+  BrainstormSessionCompleted: "brainstorm.session.completed",
+  BrainstormSessionFailed: "brainstorm.session.failed",
+  BrainstormModeSelected: "brainstorm.mode.selected",
+  // Brainstorm node lifecycle
+  BrainstormNodeCreated: "brainstorm.node.created",
+  BrainstormNodeUpdated: "brainstorm.node.updated",
+  // Brainstorm tool events
+  BrainstormToolCompleted: "brainstorm.tool.completed",
+  BrainstormToolFailed: "brainstorm.tool.failed",
+  // Brainstorm degradation
+  BrainstormDegraded: "brainstorm.degraded",
 } as const satisfies Record<string, BlueprintGenerationEventType>;
 
 /**
@@ -252,4 +280,104 @@ export interface BlueprintPreviewGeneratedEventPayload {
   }>;
   promptId?: string;
   model?: string;
+}
+
+
+// ---------------------------------------------------------------------------
+// Brainstorm event payload interfaces（`autopilot-multi-agent-brainstorm` spec）
+// ---------------------------------------------------------------------------
+
+/**
+ * Brainstorm 角色 ID。
+ *
+ * 在 `shared/blueprint/brainstorm-contracts.ts` 落地后，此处类型应与其保持一致。
+ * 独立声明以避免循环依赖并支持 task 1.1 / 1.2 并行开发。
+ */
+export type BrainstormEventRoleId =
+  | "decider"
+  | "planner"
+  | "architect"
+  | "executor"
+  | "auditor"
+  | "ui_previewer";
+
+/**
+ * Branch 节点类型。
+ */
+export type BrainstormEventNodeType =
+  | "decision"
+  | "thinking"
+  | "action"
+  | "observation"
+  | "synthesis"
+  | "error";
+
+/**
+ * Branch 节点状态。
+ */
+export type BrainstormEventNodeStatus =
+  | "pending"
+  | "active"
+  | "completed"
+  | "failed";
+
+/**
+ * Payload for `brainstorm.node.created` events.
+ *
+ * Emitted when a new branch node is created during collaboration.
+ * Validates: Requirements 5.3.
+ */
+export interface BrainstormNodeCreatedPayload {
+  sessionId: string;
+  nodeId: string;
+  parentNodeId: string | null;
+  roleId: BrainstormEventRoleId;
+  nodeType: BrainstormEventNodeType;
+  status: BrainstormEventNodeStatus;
+  title: string;
+  sequenceNumber: number;
+}
+
+/**
+ * Payload for `brainstorm.node.updated` events.
+ *
+ * Emitted when a branch node's status or content changes.
+ * Validates: Requirements 5.4.
+ */
+export interface BrainstormNodeUpdatedPayload {
+  sessionId: string;
+  nodeId: string;
+  status: BrainstormEventNodeStatus;
+  content?: string;
+  confidence?: number;
+  tokenUsage?: number;
+}
+
+/**
+ * Payload for `brainstorm.session.completed` events.
+ *
+ * Emitted when a brainstorm session reaches the synthesis phase and completes.
+ * Validates: Requirements 5.5.
+ */
+export interface BrainstormSessionCompletedPayload {
+  sessionId: string;
+  synthesisDecision: string;
+  synthesisConfidence: number;
+  totalTokenUsage: number;
+  totalDurationMs: number;
+  crewMemberCount: number;
+  nodeCount: number;
+}
+
+/**
+ * Payload for `brainstorm.degraded` events.
+ *
+ * Emitted whenever a fallback path is taken during brainstorm orchestration.
+ * Validates: Requirements 10.4.
+ */
+export interface BrainstormDegradedPayload {
+  sessionId: string;
+  reason: string;
+  affectedComponent: string;
+  fallbackAction: string;
 }

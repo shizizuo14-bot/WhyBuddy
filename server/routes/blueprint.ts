@@ -16228,6 +16228,11 @@ interface LlmClarificationQuestionsPayload {
   summary?: unknown;
 }
 
+function resolveBlueprintClarificationMaxTokens(): number {
+  const parsed = Number(process.env.BLUEPRINT_CLARIFICATION_LLM_MAX_TOKENS);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : 6000;
+}
+
 async function generateClarificationQuestionsWithLlm(
   input: BlueprintClarificationQuestionGeneratorInput
 ): Promise<BlueprintClarificationQuestionGenerationResult> {
@@ -16342,7 +16347,7 @@ async function generateClarificationQuestionsWithLlm(
       {
         model: aiConfig.model,
         temperature: 0.2,
-        maxTokens: 1200,
+        maxTokens: resolveBlueprintClarificationMaxTokens(),
         retryAttempts: 1,
         timeoutMs: Number(process.env.BLUEPRINT_CLARIFICATION_LLM_TIMEOUT_MS || 20000),
         sessionId: input.intake.id,

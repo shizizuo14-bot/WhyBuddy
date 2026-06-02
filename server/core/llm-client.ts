@@ -40,6 +40,7 @@ interface LLMResponse {
     completion_tokens: number;
     total_tokens: number;
   };
+  finishReason?: string;
 }
 
 interface SSEEvent {
@@ -537,6 +538,7 @@ function parseChatCompletionsStream(raw: string): LLMResponse {
   const events = parseSSE(raw);
   let content = "";
   let usage: LLMResponse["usage"];
+  let finishReason: string | undefined;
 
   for (const event of events) {
     if (event.data === "[DONE]") continue;
@@ -546,6 +548,9 @@ function parseChatCompletionsStream(raw: string): LLMResponse {
 
     if (typeof deltaText === "string") {
       content += deltaText;
+    }
+    if (typeof choice?.finish_reason === "string") {
+      finishReason = choice.finish_reason;
     }
 
     if (payload.usage) {
@@ -561,7 +566,7 @@ function parseChatCompletionsStream(raw: string): LLMResponse {
     throw malformedResponseError(raw.substring(0, 200));
   }
 
-  return { content: content.trim(), usage };
+  return { content: content.trim(), usage, finishReason };
 }
 
 async function withTimeout<T>(
@@ -643,9 +648,11 @@ async function createChatCompletion(
     }
 
     const data = parseJsonSafely(raw);
+    const choice = data.choices?.[0];
     return {
-      content: data.choices?.[0]?.message?.content || "",
+      content: choice?.message?.content || "",
       usage: data.usage,
+      finishReason: choice?.finish_reason,
     };
   });
 }
@@ -981,6 +988,11 @@ export async function callLLMJson<T = any>(
     const jsonMatch = response.content.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
       return JSON.parse(jsonMatch[0]);
+    }
+    if (response.finishReason === "length") {
+      throw new Error(
+        `LLM JSON response was truncated by the max token limit (${options.maxTokens ?? "default"}). Increase maxTokens or reduce the requested JSON size.`
+      );
     }
     console.error(
       "[LLM] Failed to parse JSON response:",

@@ -153,6 +153,43 @@ describe("callLLMJson provider fallback", () => {
     });
   });
 
+  it("reports truncated JSON when the provider stops at max tokens", async () => {
+    process.env.LLM_WIRE_API = "chat_completions";
+
+    const fetchMock = vi.fn().mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          choices: [
+            {
+              message: {
+                content: '[{"identity":"WhyBuddy (xiaojilele-',
+              },
+              finish_reason: "length",
+            },
+          ],
+          usage: {
+            prompt_tokens: 100,
+            completion_tokens: 3000,
+            total_tokens: 3100,
+          },
+        }),
+        {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        },
+      ),
+    );
+
+    globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+    await expect(
+      callLLMJson([{ role: "user", content: "Return agent identities." }], {
+        model: "gpt-5.4",
+        maxTokens: 3000,
+      }),
+    ).rejects.toThrow(/truncated.*max token/i);
+  });
+
   it("does not downgrade unlimited gpt-5.5 calls", async () => {
     process.env.LLM_MODEL = "gpt-5.5";
     process.env.LLM_UNLIMITED_MODELS = "gpt-5.5";

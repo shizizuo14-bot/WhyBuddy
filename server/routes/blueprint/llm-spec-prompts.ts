@@ -92,6 +92,10 @@ export const SpecTreeLlmResponseSchema = z.object({
           "submodule",
           "route_step",
           "alternative_route",
+          "spec_document",
+          "effect_preview",
+          "prompt_package",
+          "engineering_plan",
         ]),
         priority: z.number().int().min(0).max(100),
       }),
@@ -218,6 +222,8 @@ const SPEC_TREE_SYSTEM_MESSAGE =
   `You are the SPEC Tree reasoner inside the /autopilot pipeline.
 
 You MUST respond with a valid JSON object matching the schema described in the user message. Do NOT wrap your answer in Markdown code fences. Do NOT include any prose before or after the JSON.
+
+CRITICAL — top-level shape: the response MUST be a JSON OBJECT, NOT a JSON array. The "nodes" array MUST be nested inside the top-level object. Do NOT emit a bare array like \`[ {...}, {...} ]\` and do NOT wrap the response in extra fields like \`{"output": {...}}\` or \`{"result": {...}}\`.
 
 The JSON object MUST contain:
 - "rootTitle": 1..200 character string describing the root node title.
@@ -577,16 +583,441 @@ function normalizeRawForParsing(
   return { ok: true, value: raw };
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function normalizeSpecTreeNodeType(value: unknown): SpecTreeLlmResponse["nodes"][number]["type"] {
+  if (
+    value === "root" ||
+    value === "module" ||
+    value === "submodule" ||
+    value === "route_step" ||
+    value === "alternative_route" ||
+    value === "spec_document" ||
+    value === "effect_preview" ||
+    value === "prompt_package" ||
+    value === "engineering_plan"
+  ) {
+    return value;
+  }
+  return "module";
+}
+
+function readNonEmptyString(...values: unknown[]): string | undefined {
+  for (const value of values) {
+    if (typeof value !== "string") continue;
+    const trimmed = value.trim();
+    if (trimmed.length > 0) {
+      return trimmed;
+    }
+  }
+  return undefined;
+}
+
+function normalizeSpecTreePriority(value: unknown): number {
+  const parsed = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(parsed)) return 50;
+  return Math.max(0, Math.min(100, Math.round(parsed)));
+}
+
+function toSpecTreeNodeId(value: unknown, fallback: string): string {
+  const raw = readNonEmptyString(value) ?? fallback;
+  const slug = raw
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+  const normalized = /^[a-z]/.test(slug) ? slug : `node-${slug || fallback}`;
+  return normalized.slice(0, 64);
+}
+
+function isLikelySpecTreeNode(value: unknown): value is Record<string, unknown> {
+  if (!isRecord(value)) return false;
+  return (
+    readNonEmptyString(
+      value.id,
+      value.nodeId,
+      value.key,
+      value.title,
+      value.name,
+      value.label,
+      value.summary,
+      value.description,
+      value.type,
+    ) !== undefined || Array.isArray(value.children)
+  );
+}
+
+function readNestedChildNodes(value: Record<string, unknown>): Array<Record<string, unknown>> {
+  for (const key of ["children", "childNodes", "items", "steps", "subnodes", "subNodes"] as const) {
+    const candidate = value[key];
+    if (!Array.isArray(candidate)) continue;
+    const children = candidate.filter(isLikelySpecTreeNode);
+    if (children.length > 0) {
+      return children;
+    }
+  }
+  return [];
+}
+
+function flattenNestedSpecTreeNode(
+  node: Record<string, unknown>,
+  parentId: string | undefined,
+  fallbackId: string,
+): Array<Record<string, unknown>> {
+  const id = toSpecTreeNodeId(
+    readNonEmptyString(node.id, node.nodeId, node.key, node.slug, node.title, node.name, node.label),
+    fallbackId,
+  );
+  const normalized: Record<string, unknown> = {
+    ...node,
+    id,
+    ...(parentId ? { parentId } : {}),
+    type: node.type ?? (parentId ? "route_step" : "root"),
+  };
+  const children = readNestedChildNodes(node);
+  return [
+    normalized,
+    ...children.flatMap((child, index) =>
+      flattenNestedSpecTreeNode(child, id, `${id}-child-${index + 1}`),
+    ),
+  ];
+}
+
+function buildTreeLikeSpecTreeCandidate(value: Record<string, unknown>): unknown | undefined {
+  const root = [
+    value.root,
+    value.rootNode,
+    value.root_node,
+    value.specRoot,
+    value.spec_root,
+  ].find(isLikelySpecTreeNode);
+  if (root) {
+    return {
+      ...value,
+      nodes: flattenNestedSpecTreeNode(root, undefined, "root-node"),
+    };
+  }
+
+  const children = readNestedChildNodes(value);
+  if (children.length === 0) {
+    return undefined;
+  }
+
+  const rootNode: Record<string, unknown> = {
+    id: "root-node",
+    title: readNonEmptyString(value.rootTitle, value.title, value.name, value.label) ?? "Generated SPEC Tree",
+    summary:
+      readNonEmptyString(value.rootSummary, value.summary, value.description, value.overview) ??
+      "Generated SPEC tree summary inferred from node decomposition.",
+    type: "root",
+    priority: 100,
+  };
+  return {
+    ...value,
+    nodes: [
+      rootNode,
+      ...children.flatMap((child, index) =>
+        flattenNestedSpecTreeNode(child, "root-node", `root-node-child-${index + 1}`),
+      ),
+    ],
+  };
+}
+
+function findSpecTreePayload(value: unknown, depth = 0): unknown | undefined {
+  if (depth > 4) return undefined;
+  if (Array.isArray(value)) {
+    return value.some(isLikelySpecTreeNode) ? value : undefined;
+  }
+  if (!isRecord(value)) return undefined;
+  if (Array.isArray(value.nodes)) {
+    return value;
+  }
+
+  const treeLike = buildTreeLikeSpecTreeCandidate(value);
+  if (treeLike) {
+    return treeLike;
+  }
+
+  for (const key of [
+    "output",
+    "result",
+    "data",
+    "tree",
+    "specTree",
+    "spec_tree",
+    "response",
+    "payload",
+    "blueprint",
+  ] as const) {
+    const found = findSpecTreePayload(value[key], depth + 1);
+    if (found) return found;
+  }
+
+  for (const inner of Object.values(value)) {
+    const found = findSpecTreePayload(inner, depth + 1);
+    if (found) return found;
+  }
+  return undefined;
+}
+
+function readSpecTreeParentId(value: unknown): string | undefined {
+  return readNonEmptyString(value);
+}
+
+function hasNoSpecTreeParent(node: Record<string, unknown>): boolean {
+  return readSpecTreeParentId(node.parentId) === undefined;
+}
+
+function makeUniqueSpecTreeNodeId(
+  preferred: string,
+  nodes: ReadonlyArray<Record<string, unknown>>,
+): string {
+  return makeUniqueSpecTreeNodeIdFromUsed(
+    preferred,
+    new Set(
+      nodes
+        .map((node) => readNonEmptyString(node.id))
+        .filter((id): id is string => Boolean(id)),
+    ),
+  );
+}
+
+function makeUniqueSpecTreeNodeIdFromUsed(
+  preferred: string,
+  used: Set<string>,
+): string {
+  const base = toSpecTreeNodeId(preferred, "root-node");
+  let candidate = base;
+  let suffix = 2;
+  while (used.has(candidate)) {
+    const tail = `-${suffix}`;
+    candidate = `${base.slice(0, Math.max(1, 64 - tail.length))}${tail}`;
+    suffix += 1;
+  }
+  used.add(candidate);
+  return candidate;
+}
+
+function readSpecTreeNodeIdSeed(
+  node: Record<string, unknown>,
+  fallback: string,
+): string {
+  return (
+    readNonEmptyString(
+      node.id,
+      node.nodeId,
+      node.key,
+      node.slug,
+      node.title,
+      node.name,
+      node.label,
+    ) ?? fallback
+  );
+}
+
+function buildNormalizedSpecTreeNodeIdMaps(
+  nodes: ReadonlyArray<Record<string, unknown>>,
+): {
+  normalizedIdByNode: Map<Record<string, unknown>, string>;
+  normalizedIdByOriginal: Map<string, string>;
+} {
+  const used = new Set<string>();
+  const normalizedIdByNode = new Map<Record<string, unknown>, string>();
+  const normalizedIdByOriginal = new Map<string, string>();
+
+  nodes.forEach((node, index) => {
+    const originalId = readNonEmptyString(node.id);
+    const normalizedId = makeUniqueSpecTreeNodeIdFromUsed(
+      readSpecTreeNodeIdSeed(node, `node-${index + 1}`),
+      used,
+    );
+    normalizedIdByNode.set(node, normalizedId);
+    if (originalId) {
+      normalizedIdByOriginal.set(originalId, normalizedId);
+    }
+  });
+
+  return { normalizedIdByNode, normalizedIdByOriginal };
+}
+
+function resolveNormalizedSpecTreeParentId(
+  node: Record<string, unknown>,
+  rootNode: Record<string, unknown> | undefined,
+  rootNodeId: string | undefined,
+  normalizedIdByOriginal: ReadonlyMap<string, string>,
+): string | undefined {
+  if (node === rootNode) {
+    return undefined;
+  }
+  const rawParentId = readSpecTreeParentId(node.parentId);
+  if (rawParentId) {
+    return normalizedIdByOriginal.get(rawParentId) ?? toSpecTreeNodeId(rawParentId, rawParentId);
+  }
+  return rootNodeId;
+}
+
+function inferNonRootSpecTreeNodeType(
+  node: Record<string, unknown>,
+): SpecTreeLlmResponse["nodes"][number]["type"] {
+  const normalized = normalizeSpecTreeNodeType(node.type);
+  if (normalized !== "root") {
+    return normalized;
+  }
+  const label = readNonEmptyString(node.id, node.title, node.name, node.label) ?? "";
+  return /(^|[-_\s])alt(ernative)?($|[-_\s])|alternative/i.test(label)
+    ? "alternative_route"
+    : "route_step";
+}
+
+function normalizeSpecTreeLlmCandidate(value: unknown): unknown {
+  const extracted = findSpecTreePayload(value);
+  if (extracted && extracted !== value) {
+    return normalizeSpecTreeLlmCandidate(extracted);
+  }
+
+  // Reasoning / thinking 类模型（例如 `ouyi-5-preview-thinking`）在被要求严格
+  // JSON 输出时，常会"省略外层 wrapper"，直接把 nodes 数组当成最终 output
+  // 提交（顶层就是 `[...]`）。这里把这种漂移归一为标准 `{ nodes: [...] }`
+  // 再继续走原 normalize 逻辑，避免 zod 直接报 `expected object, received array`
+  // 触发不必要的模板回退。
+  if (Array.isArray(value)) {
+    return normalizeSpecTreeLlmCandidate({ nodes: value });
+  }
+
+  // 兼容 LLM 把响应再包一层 `output` / `result` / `tree` 字段的情况：
+  // 当外层只有这一个字段且其值能命中 nodes-array 形态时，剥一层再 normalize。
+  if (isRecord(value) && !Array.isArray(value.nodes)) {
+    for (const key of ["output", "result", "data", "tree", "specTree", "spec_tree"] as const) {
+      const inner = value[key];
+      if (Array.isArray(inner) || (isRecord(inner) && Array.isArray(inner.nodes))) {
+        return normalizeSpecTreeLlmCandidate(inner);
+      }
+    }
+  }
+
+  if (!isRecord(value) || !Array.isArray(value.nodes)) {
+    return value;
+  }
+
+  const rawNodes = value.nodes.filter(isRecord);
+  if (rawNodes.length === 0) {
+    return value;
+  }
+
+  const explicitRootNodes = rawNodes.filter((node) => node.type === "root");
+  const topLevelNodes = rawNodes.filter(hasNoSpecTreeParent);
+  const shouldAddSyntheticRoot =
+    explicitRootNodes.length === 0 && topLevelNodes.length > 1;
+  const syntheticRoot: Record<string, unknown> | undefined = shouldAddSyntheticRoot
+    ? {
+        id: makeUniqueSpecTreeNodeId("root-node", rawNodes),
+        title:
+          readNonEmptyString(value.rootTitle, value.title, value.name, value.label) ??
+          "Generated SPEC Tree",
+        summary:
+          readNonEmptyString(value.rootSummary, value.summary, value.description, value.overview) ??
+          "Generated SPEC tree summary inferred from node decomposition.",
+        type: "root",
+        priority: 100,
+      }
+    : undefined;
+  const workingNodes = syntheticRoot
+    ? [
+        syntheticRoot,
+        ...rawNodes.map((node) =>
+          topLevelNodes.includes(node) ? { ...node, parentId: syntheticRoot.id } : node,
+        ),
+      ]
+    : rawNodes;
+
+  const rootNode =
+    syntheticRoot ??
+    workingNodes.find((node) => node.type === "root") ??
+    workingNodes.find(hasNoSpecTreeParent);
+  const { normalizedIdByNode, normalizedIdByOriginal } =
+    buildNormalizedSpecTreeNodeIdMaps(workingNodes);
+  const rootNodeId = rootNode ? normalizedIdByNode.get(rootNode) : undefined;
+
+  // `rootTitle` / `rootSummary` 在下游 `buildBlueprintSpecTree` 中其实不消费
+  // （只 `parsedData.nodes` 与 `treeValidation.rootId` 被使用），它们只是 schema
+  // 形式约束 + 给 LLM 的产出指引。Reasoning 模型在严格 JSON 模式下经常完全
+  // 省略这两个 wrapper 字段；为了避免被 zod 卡住而无意义回退到模板分支，这里
+  // 在拿不到任何可用别名时落一个稳定的默认字符串，让 schema 必过。
+  const rootTitle =
+    readNonEmptyString(
+      value.rootTitle,
+      value.title,
+      value.name,
+      value.heading,
+      value.displayName,
+      rootNode?.title,
+      rootNode?.name,
+      rootNode?.label,
+      rootNode?.heading,
+      rootNode?.displayName,
+    ) ?? "Generated SPEC Tree";
+
+  const rootSummary =
+    readNonEmptyString(
+      value.rootSummary,
+      value.summary,
+      value.description,
+      value.overview,
+      rootNode?.summary,
+      rootNode?.description,
+      rootNode?.details,
+      rootNode?.overview,
+      // 兜底：把第一个非 root 节点的 summary 截断作为整体描述。
+      ...workingNodes
+        .filter((node) => node !== rootNode)
+        .slice(0, 1)
+        .map((node) => node.summary ?? node.description ?? node.details),
+    ) ?? "Generated SPEC tree summary inferred from node decomposition.";
+
+  return {
+    ...value,
+    rootTitle,
+    rootSummary,
+    nodes: workingNodes.map((node) => ({
+      id: normalizedIdByNode.get(node),
+      parentId: resolveNormalizedSpecTreeParentId(
+        node,
+        rootNode,
+        rootNodeId,
+        normalizedIdByOriginal,
+      ),
+      // 节点 title / summary 仍然走原有别名 + 缺失兜底逻辑：缺失 title 让 zod
+      // 在 `nodes.<i>.title` 路径上报错，方便排查；root 节点的 title 缺失时
+      // 用 rootTitle 兜底，避免单独一个 root 节点没写 title 把整棵树打回模板。
+      title:
+        readNonEmptyString(node.title, node.name, node.label, node.heading, node.displayName) ??
+        (node === rootNode ? rootTitle : undefined),
+      summary:
+        readNonEmptyString(node.summary, node.description, node.details, node.overview) ??
+        (node === rootNode ? rootSummary : undefined),
+      type: node === rootNode ? "root" : inferNonRootSpecTreeNodeType(node),
+      priority: normalizeSpecTreePriority(node.priority),
+    })),
+  };
+}
+
 /**
  * 从 `safeParse` 失败结果中提取首个 issue 的 message，作为人类可读的
  * 失败原因。`issues` 为空时退回到 `"unknown schema validation error"`。
  */
 function extractFirstIssueMessage(
-  issues: ReadonlyArray<{ message: string }>,
+  issues: ReadonlyArray<{
+    message: string;
+    path?: ReadonlyArray<PropertyKey>;
+  }>,
 ): string {
   const firstIssue = issues[0];
   if (firstIssue && typeof firstIssue.message === "string" && firstIssue.message.length > 0) {
-    return firstIssue.message;
+    const path = Array.isArray(firstIssue.path)
+      ? firstIssue.path.map(String).filter(Boolean).join(".")
+      : "";
+    return path.length > 0 ? `${path}: ${firstIssue.message}` : firstIssue.message;
   }
   return "unknown schema validation error";
 }
@@ -614,7 +1045,9 @@ export function parseSpecTreeLlmResponse(
     if (!normalized.ok) {
       return { ok: false, reason: normalized.reason };
     }
-    const result = SpecTreeLlmResponseSchema.safeParse(normalized.value);
+    const result = SpecTreeLlmResponseSchema.safeParse(
+      normalizeSpecTreeLlmCandidate(normalized.value),
+    );
     if (!result.success) {
       return {
         ok: false,

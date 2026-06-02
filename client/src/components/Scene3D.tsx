@@ -1,6 +1,6 @@
 import { ContactShadows, useGLTF } from "@react-three/drei";
 import { Canvas } from "@react-three/fiber";
-import { Suspense, lazy, useEffect, useRef, useState } from "react";
+import { Suspense, useEffect, useRef, useState } from "react";
 import { ACESFilmicToneMapping } from "three";
 
 import type { BlueprintGenerationJob } from "@shared/blueprint/contracts";
@@ -38,27 +38,12 @@ import type {
   RolePhase,
 } from "./three/scene-fusion/blueprint-wall-process-data";
 import type { SceneFusionMode } from "./three/scene-fusion/role-id-bridge";
+import { BlueprintWallTexture } from "./three/scene-fusion/BlueprintWallTexture";
 import { SceneStageFlow } from "./three/SceneStageFlow";
 import { WaitingDecisionBubble } from "./three/WaitingDecisionBubble";
 
-/**
- * Blueprint-mode 墙面流程图 HUD（lazy / code-split）。
- *
- * 关键约束（NFR-2.5 / Req 10.1）：`BlueprintWallProcessGraphHud` 静态依赖
- * `@ant-design/graphs`（及其重型传递依赖 `@antv/g6` / `@antv/graphin` /
- * `styled-components`）。这里通过 `React.lazy` + 动态 `import()` 建立代码分割边界，
- * 使 mission-first 分支与 `/tasks` bundle 路径**永不静态加载** `@ant-design/graphs`：
- * 只有当 `Scene3D` 以 `mode === "blueprint"` 渲染、真正命中该分支时，蓝图图表 chunk
- * 才会被按需加载。
- *
- * 注意：本文件刻意**不**在顶层 `import { BlueprintWallProcessGraphHud } from ...`，
- * 动态 import 边界正是这条懒加载护栏的实现手段。
- */
-const BlueprintWallProcessGraphHud = lazy(() =>
-  import("./three/scene-fusion/BlueprintWallProcessGraphHud").then(m => ({
-    default: m.BlueprintWallProcessGraphHud,
-  }))
-);
+// BlueprintWallProcessGraphHud 已被 BlueprintWallTexture 替代（纹理渲染方式），
+// 不再需要 lazy import。保留注释供历史追溯。
 
 const CRITICAL_FURNITURE_MODELS = [
   FURNITURE_MODELS.floorFull,
@@ -297,14 +282,23 @@ export function Scene3D({
           near: 0.1,
           far: 100,
         }
-      : {
-          position: [0, 5, 10.5] as [number, number, number],
-          fov: 50,
-          near: 0.1,
-          far: 100,
-        };
+      : mode === "blueprint"
+        ? {
+            // 蓝图模式桌面端：相机 Y 与墙面 HUD 中心同高（2.05），视线完全水平，
+            // 墙面不会有任何梯形变形。角色在下方自然呈现俯视透视。
+            position: [0, 2.05, 11.5] as [number, number, number],
+            fov: 50,
+            near: 0.1,
+            far: 100,
+          }
+        : {
+            position: [0, 5, 10.5] as [number, number, number],
+            fov: 50,
+            near: 0.1,
+            far: 100,
+          };
   const cameraLookAtY =
-    mode === "blueprint" ? (isMobile ? 1.75 : 1.65) : isMobile ? 1.2 : 1.0;
+    mode === "blueprint" ? (isMobile ? 1.75 : 2.05) : isMobile ? 1.2 : 1.0;
   const dpr: [number, number] = reducedSceneEffects
     ? [1, 1]
     : isMobile
@@ -405,23 +399,20 @@ export function Scene3D({
           />
           <MissionIsland projectId={projectId} mode={mode} />
           {mode === "blueprint" ? (
-            // Blueprint 分支：墙面流程图 HUD（lazy chunk）。用一个嵌套
-            // `<Suspense fallback={null}>` 包裹 lazy 元素，确保即使外层 Suspense
-            // 边界后续调整，蓝图图表 chunk 的加载态也始终被就近兜住（Req 1.1）。
-            <Suspense fallback={null}>
-              <BlueprintWallProcessGraphHud
-                job={blueprintJob}
-                routeSet={blueprintRouteSet}
-                specTree={blueprintSpecTree}
-                effectPreviews={blueprintEffectPreviews}
-                agentReasoningEntries={blueprintAgentReasoningEntries}
-                capabilityStatuses={blueprintCapabilityStatuses}
-                capabilityOwners={blueprintCapabilityOwners}
-                rolePhases={blueprintRolePhases}
-                artifacts={blueprintArtifacts}
-                locale={blueprintLocale}
-              />
-            </Suspense>
+            // Blueprint 分支：墙面流程图渲染为 3D 纹理（贴在墙面上），
+            // 角色自然在前面遮挡它，不再是浮在前面的 DOM overlay。
+            <BlueprintWallTexture
+              job={blueprintJob}
+              routeSet={blueprintRouteSet}
+              specTree={blueprintSpecTree}
+              effectPreviews={blueprintEffectPreviews}
+              agentReasoningEntries={blueprintAgentReasoningEntries}
+              capabilityStatuses={blueprintCapabilityStatuses}
+              capabilityOwners={blueprintCapabilityOwners}
+              rolePhases={blueprintRolePhases}
+              artifacts={blueprintArtifacts}
+              locale={blueprintLocale}
+            />
           ) : (
             // Mission-first 分支：保持既有沙箱监控墙面，行为与改造前完全一致（Req 1.2）。
             <SandboxMonitor projectId={projectId} />

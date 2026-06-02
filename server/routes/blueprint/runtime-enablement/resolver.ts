@@ -316,3 +316,86 @@ function parsePortWithDefault(
   }
   return parsed;
 }
+
+// ─── Brainstorm Runtime Config ────────────────────────────────────────────
+
+/**
+ * Brainstorm orchestrator runtime configuration.
+ *
+ * Resolves environment variables governing the multi-agent brainstorm system
+ * including token budgets, tool call limits, timeouts, and the master enable
+ * switch. Follows the same pure-function pattern as {@link AgentRuntimeConfig}.
+ *
+ * | Field | Default | Env Flag | Description |
+ * | --- | --- | --- | --- |
+ * | `maxTokens` | `50000` | `BRAINSTORM_MAX_TOKENS` | Max total token budget per brainstorm session |
+ * | `maxToolCalls` | `20` | `BRAINSTORM_MAX_TOOL_CALLS` | Max tool invocations per session |
+ * | `sessionTimeoutMs` | `120000` | `BRAINSTORM_SESSION_TIMEOUT_MS` | Force-termination timeout (ms) |
+ * | `decisionGateTimeoutMs` | `5000` | `BRAINSTORM_DECISION_GATE_TIMEOUT_MS` | Decision gate LLM call timeout (ms) |
+ * | `enabled` | `false` | `BLUEPRINT_BRAINSTORM_ENABLED` | Master enable switch |
+ *
+ * @see .kiro/specs/autopilot-multi-agent-brainstorm/design.md §Environment Variables
+ * Requirements: 3.6, 4.5, 10.5
+ */
+export interface BrainstormRuntimeConfig {
+  /** Maximum total token budget per brainstorm session. */
+  maxTokens: number;
+  /** Maximum tool invocations per session. */
+  maxToolCalls: number;
+  /** Force-termination timeout in milliseconds (120 seconds default). */
+  sessionTimeoutMs: number;
+  /** Decision gate LLM call timeout in milliseconds (5 seconds default). */
+  decisionGateTimeoutMs: number;
+  /** Whether the brainstorm orchestrator is enabled. */
+  enabled: boolean;
+}
+
+const DEFAULT_BRAINSTORM_MAX_TOKENS = 50_000;
+const DEFAULT_BRAINSTORM_MAX_TOOL_CALLS = 20;
+const DEFAULT_BRAINSTORM_SESSION_TIMEOUT_MS = 120_000;
+const DEFAULT_BRAINSTORM_DECISION_GATE_TIMEOUT_MS = 5_000;
+
+/**
+ * Resolves brainstorm orchestrator runtime configuration from environment variables.
+ *
+ * Preconditions:
+ * - `env` is the caller-supplied environment variable object (typically `process.env`);
+ *   a subset can be passed for testing.
+ *
+ * Postconditions:
+ * - `maxTokens` ≥ 1 (minimum 1 token).
+ * - `maxToolCalls` ≥ 1 (minimum 1 call).
+ * - `sessionTimeoutMs` ≥ 1000 (minimum 1 second).
+ * - `decisionGateTimeoutMs` ≥ 1000 (minimum 1 second).
+ * - `enabled` is `true` only when `BLUEPRINT_BRAINSTORM_ENABLED === "true"`.
+ * - Invalid or missing values silently fall back to defaults.
+ *
+ * Pure function: no I/O, no logger, no side effects.
+ */
+export function resolveBrainstormRuntimeConfig(
+  env: NodeJS.ProcessEnv,
+): BrainstormRuntimeConfig {
+  return {
+    maxTokens: parsePositiveIntWithDefault(
+      env.BRAINSTORM_MAX_TOKENS,
+      DEFAULT_BRAINSTORM_MAX_TOKENS,
+      1,
+    ),
+    maxToolCalls: parsePositiveIntWithDefault(
+      env.BRAINSTORM_MAX_TOOL_CALLS,
+      DEFAULT_BRAINSTORM_MAX_TOOL_CALLS,
+      1,
+    ),
+    sessionTimeoutMs: parsePositiveIntWithDefault(
+      env.BRAINSTORM_SESSION_TIMEOUT_MS,
+      DEFAULT_BRAINSTORM_SESSION_TIMEOUT_MS,
+      1000,
+    ),
+    decisionGateTimeoutMs: parsePositiveIntWithDefault(
+      env.BRAINSTORM_DECISION_GATE_TIMEOUT_MS,
+      DEFAULT_BRAINSTORM_DECISION_GATE_TIMEOUT_MS,
+      1000,
+    ),
+    enabled: env.BLUEPRINT_BRAINSTORM_ENABLED === "true",
+  };
+}

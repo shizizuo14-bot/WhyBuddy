@@ -59,7 +59,7 @@
  * - z = -4.808：紧贴高墙前墙面（-4.81）外侧 0.002m，HUD 与墙面齐平贴合。
  */
 export const BLUEPRINT_WALL_GRAPH_POSITION: [number, number, number] = [
-  0, 4.1, -4.808,
+  0, 4.1, -4.81,
 ];
 
 /**
@@ -70,16 +70,16 @@ export const BLUEPRINT_WALL_GRAPH_DISTANCE_FACTOR = 4.0;
 /**
  * 墙面图 DOM 画布宽度（px）。
  *
- * 1280 → 世界宽度 ≈ 12.65m，落在高墙 17.4m 内，两侧各留 ~2.38m 墙体。
+ * 1760 → 世界宽度 ≈ 17.4m，占满高墙全宽。
  */
-export const BLUEPRINT_WALL_GRAPH_WIDTH = 1280;
+export const BLUEPRINT_WALL_GRAPH_WIDTH = 1760;
 
 /**
  * 墙面图 DOM 画布高度（px）。
  *
- * 580 → 世界高度 ≈ 5.73m，落在高墙 8.2m 内，上下各留 ~1.235m 墙体。
+ * 830 → 世界高度 ≈ 8.2m，占满高墙全高。
  */
-export const BLUEPRINT_WALL_GRAPH_HEIGHT = 580;
+export const BLUEPRINT_WALL_GRAPH_HEIGHT = 830;
 
 /**
  * `<Html>` 面相对 group 的 z 偏移（米）。
@@ -91,7 +91,7 @@ export const BLUEPRINT_WALL_GRAPH_HEIGHT = 580;
  * group 在世界 z = -4.808 → HTML 世界 z = -4.803，距高墙前墙面 -4.81 共 0.007m，
  * 视觉上几乎齐平，呈「嵌入式墙挂显示屏」（而不是凸出墙面的独立设备）。
  */
-export const BLUEPRINT_WALL_GRAPH_PANEL_Z = 0.005;
+export const BLUEPRINT_WALL_GRAPH_PANEL_Z = 0.1;
 
 /**
  * 3D 墙板背板（backing mesh）中心 z（米，相对 group）。
@@ -109,16 +109,16 @@ export const BLUEPRINT_WALL_GRAPH_BACKING_Z = 0;
 /**
  * 3D 背板宽度（米）。
  *
- * HUD 世界宽度 `1280 / 4 / 25.3 ≈ 12.65m`；背板比 HUD 多 0.2m / 边缘留出 0.1m 细边沿。
+ * 与墙面同宽 17.4m。
  */
-export const BLUEPRINT_WALL_GRAPH_BACKING_WIDTH = 12.85;
+export const BLUEPRINT_WALL_GRAPH_BACKING_WIDTH = 17.4;
 
 /**
  * 3D 背板高度（米）。
  *
- * HUD 世界高度 `580 / 4 / 25.3 ≈ 5.73m`；背板比 HUD 多 0.2m / 边缘留出 0.1m 细边沿。
+ * 与墙面同高 8.2m。
  */
-export const BLUEPRINT_WALL_GRAPH_BACKING_HEIGHT = 5.93;
+export const BLUEPRINT_WALL_GRAPH_BACKING_HEIGHT = 8.2;
 
 /**
  * 3D 背板厚度（米）。
@@ -126,7 +126,7 @@ export const BLUEPRINT_WALL_GRAPH_BACKING_HEIGHT = 5.93;
  * 0.004m → 极薄板，只为参与 WebGL 深度测试给 HTML 当「显示屏面板」语义，
  * 视觉上几乎贴墙不凸出。
  */
-export const BLUEPRINT_WALL_GRAPH_BACKING_DEPTH = 0.004;
+export const BLUEPRINT_WALL_GRAPH_BACKING_DEPTH = 0.001;
 
 /**
  * 背板色（HEX）。

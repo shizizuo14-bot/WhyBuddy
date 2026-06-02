@@ -35,6 +35,11 @@ import type { LlmCallFn } from "./llm-call.js";
 import type { ToolInvoker } from "./tool-proxy-client.js";
 import type { ProgressEmitter } from "./progress-emitter.js";
 
+function readPositiveNumber(value: unknown): number | undefined {
+  const parsed = typeof value === "number" ? value : Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : undefined;
+}
+
 /** 外部依赖组合。 */
 export interface AgentLoopStateMachineDeps {
   llmCall: LlmCallFn;
@@ -253,6 +258,8 @@ export class AgentLoopStateMachine {
         history: this.state.history,
         context: this.input.context,
         tools: this.input.tools,
+        maxTokens: readPositiveNumber(this.input.context.llmMaxTokens),
+        acceptDirectOutput: this.input.context.llmAcceptDirectOutput === true,
       });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);

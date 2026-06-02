@@ -79,10 +79,13 @@ const ENV_LLM_ENABLED = "BLUEPRINT_SPEC_TREE_LLM_ENABLED";
 const ENV_BUILD_TARGET = "BUILD_TARGET";
 /** 整体超时（毫秒）；默认 180_000ms。 */
 const ENV_TIMEOUT_MS = "BLUEPRINT_SPEC_TREE_LLM_TIMEOUT_MS";
+/** SPEC tree JSON output budget; defaults to 16_000 to avoid truncating large trees. */
+const ENV_MAX_OUTPUT_TOKENS = "BLUEPRINT_SPEC_TREE_LLM_MAX_TOKENS";
 /** 仓库上下文 token 截断阈值；默认 32_000。 */
 const ENV_MAX_REPO_TOKENS = "BLUEPRINT_SPEC_TREE_LLM_MAX_REPO_TOKENS";
 
 const DEFAULT_TIMEOUT_MS = 180_000;
+const DEFAULT_MAX_OUTPUT_TOKENS = 16_000;
 const DEFAULT_MAX_REPO_TOKENS = 32_000;
 const MAX_FALLBACK_REASON_CHARS = 400;
 /** 单次 LLM 调用估算 token≈4 字符；用于 prompt 内仓库摘要的 byte 截断。 */
@@ -184,6 +187,29 @@ function sha256(text: string): string {
  * 静默写入诊断 invocation；`recordBridgeInvocation` 自身抛错时 debug log，
  * 不影响主流程。
  */
+function describeUnknownShape(value: unknown, depth = 0): unknown {
+  if (depth > 2) return typeof value;
+  if (Array.isArray(value)) {
+    return {
+      type: "array",
+      length: value.length,
+      first: value.length > 0 ? describeUnknownShape(value[0], depth + 1) : undefined,
+    };
+  }
+  if (value !== null && typeof value === "object") {
+    const record = value as Record<string, unknown>;
+    const keys = Object.keys(record).slice(0, 16);
+    return {
+      type: "object",
+      keys,
+      fields: Object.fromEntries(
+        keys.slice(0, 8).map((key) => [key, describeUnknownShape(record[key], depth + 1)]),
+      ),
+    };
+  }
+  return typeof value;
+}
+
 function safeRecordInvocation(
   deps: SpecTreeLlmDerivationDeps,
   result: { mode: "real" | "simulated_fallback"; error?: string },
@@ -372,6 +398,7 @@ function buildAgentJobInput(
   promptPayload: PromptPayload,
   hasMcpAdapter: boolean,
   totalTimeoutMs: number,
+  maxOutputTokens: number,
 ): AgentJobInput {
   const tools: AgentToolDefinition[] = [];
   if (hasMcpAdapter) {
@@ -395,7 +422,7 @@ function buildAgentJobInput(
     tools,
     budget: {
       maxIterations: 8,
-      maxTokens: 16_000,
+      maxTokens: maxOutputTokens,
       timeoutMs: totalTimeoutMs,
       toolTimeoutMs: 30_000,
       allowParallelTools: false,
@@ -404,6 +431,8 @@ function buildAgentJobInput(
       userMessage: promptPayload.userMessage,
       promptId: promptPayload.promptId,
       promptFingerprint: promptPayload.promptFingerprint,
+      llmMaxTokens: maxOutputTokens,
+      llmAcceptDirectOutput: true,
     },
     callbackUrl: "",
     callbackSecret: "",
@@ -469,6 +498,11 @@ async function callLlmDirectly(
         history: [],
         context: { userMessage: promptPayload.userMessage },
         tools: [],
+        maxTokens: readPositiveIntEnv(
+          ENV_MAX_OUTPUT_TOKENS,
+          DEFAULT_MAX_OUTPUT_TOKENS,
+        ),
+        acceptDirectOutput: true,
       }),
       timeoutPromise,
     ]);
@@ -576,6 +610,14 @@ function mapNodeType(
       return "root";
     case "alternative_route":
       return "alternative_route";
+    case "spec_document":
+      return "spec_document";
+    case "effect_preview":
+      return "effect_preview";
+    case "prompt_package":
+      return "prompt_package";
+    case "engineering_plan":
+      return "engineering_plan";
     case "route_step":
     case "module":
     case "submodule":
@@ -755,6 +797,10 @@ export function createSpecTreeLlmDerivation(
           ENV_TIMEOUT_MS,
           DEFAULT_TIMEOUT_MS,
         );
+        const maxOutputTokens = readPositiveIntEnv(
+          ENV_MAX_OUTPUT_TOKENS,
+          DEFAULT_MAX_OUTPUT_TOKENS,
+        );
         const mcpSubTimeoutMs = Math.max(1, Math.floor(totalTimeoutMs / 3));
 
         // ── Task 2.3：Tier 1 仓库上下文抓取（best-effort） ──
@@ -810,6 +856,7 @@ export function createSpecTreeLlmDerivation(
               promptPayload,
               Boolean(deps.mcpToolAdapter),
               totalTimeoutMs,
+              maxOutputTokens,
             );
             llmResponseRaw = await runLiteAgent(
               deps.liteAgentRuntime,
@@ -839,6 +886,7 @@ export function createSpecTreeLlmDerivation(
         if (!parsed.ok) {
           deps.logger.warn("[spec-tree-llm] schema validation failed", {
             reason: redactAndTruncate(parsed.reason),
+            rawShape: describeUnknownShape(llmResponseRaw),
           });
           return fallbackWithDiagnostic(deps, parsed.reason);
         }

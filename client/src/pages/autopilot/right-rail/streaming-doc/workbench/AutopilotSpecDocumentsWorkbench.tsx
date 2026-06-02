@@ -116,7 +116,7 @@ export interface WorkbenchGridLayout {
   gridTemplateAreas: string;
 }
 
-export const WORKBENCH_EXECUTION_PANEL_HEIGHT = "188px";
+export const WORKBENCH_EXECUTION_PANEL_HEIGHT = "240px";
 const TREE_MAIN_ROW_TRACK = "minmax(0, 1fr)";
 
 export function resolveWorkbenchGridLayout(

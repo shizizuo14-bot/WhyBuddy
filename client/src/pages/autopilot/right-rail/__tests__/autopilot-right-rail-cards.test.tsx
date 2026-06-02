@@ -360,6 +360,20 @@ describe("AutopilotRightRail streaming timeline", () => {
     expect(markup).toContain('data-stage="effect_preview"');
   });
 
+  it("keeps the right rail as a bounded flex column so stage content can scroll internally", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const source = await fs.readFile(
+      path.resolve(__dirname, "../AutopilotRightRail.tsx"),
+      "utf8"
+    );
+
+    expect(source).toContain(
+      'className="flex h-full min-h-0 flex-col overflow-hidden"'
+    );
+    expect(source).toContain('className="flex-1 min-h-0"');
+  });
+
   it("uses live family data for nested branch history counts when available", () => {
     expect(
       resolveHistoryEntryFamilyCount({
@@ -650,21 +664,17 @@ describe("AutopilotRightRail streaming timeline", () => {
     });
   });
 
-  it("manual continue moves from the merged SPEC tree review back into SPEC documents", () => {
+  it("does not expose manual continue between merged SPEC tree and SPEC documents", () => {
     expect(
       resolveManualAdvanceAction({
         activeSubStage: "spec_tree",
         activeStageIndex: 3,
         isViewingCompletedStage: false,
       })
-    ).toEqual({
-      type: "workbench-stage",
-      nextStage: "spec_documents",
-      nextSubStage: "spec_tree",
-    });
+    ).toEqual({ type: "none" });
   });
 
-  it("renders a visible continue control on the SPEC tree review page", () => {
+  it("does not render a bottom continue control on the merged SPEC tree review page", () => {
     const markup = renderToStaticMarkup(
       <AutopilotRightRail
         {...makeProps({
@@ -682,8 +692,8 @@ describe("AutopilotRightRail streaming timeline", () => {
     );
 
     expect(markup).toContain('data-stage-key="spec_tree"');
-    expect(markup).toContain('data-testid="autopilot-stage-continue-button"');
-    expect(markup).toContain("进入规格文档");
+    expect(markup).not.toContain('data-testid="autopilot-stage-continue-button"');
+    expect(markup).not.toContain("进入规格文档");
   });
 
   it("does not render a bottom continue button when the final fabric sub-stage has no next action", () => {
@@ -728,7 +738,7 @@ describe("AutopilotRightRail streaming timeline", () => {
     expect(source).not.toMatch(/narrative-swiper/);
   });
 
-  it("exposes a forward chevron in the StageHeader so users can re-enter SPEC documents after backtracking", () => {
+  it("does not expose a forward chevron from SPEC tree to SPEC documents", () => {
     const markup = renderToStaticMarkup(
       <AutopilotRightRail
         {...makeProps({
@@ -745,9 +755,9 @@ describe("AutopilotRightRail streaming timeline", () => {
       />,
     );
 
-    expect(markup).toContain('data-testid="autopilot-stage-forward-button"');
-    expect(markup).toContain('data-next-target-kind="workbench-stage"');
-    expect(markup).toContain('data-next-workbench-stage="spec_documents"');
+    expect(markup).not.toContain('data-testid="autopilot-stage-forward-button"');
+    expect(markup).not.toContain('data-next-target-kind="workbench-stage"');
+    expect(markup).not.toContain('data-next-workbench-stage="spec_documents"');
   });
 
   it("exposes a forward chevron during fabric sub-stage navigation (continue within STEP 06)", () => {
@@ -786,7 +796,7 @@ describe("AutopilotRightRail streaming timeline", () => {
     expect(markup).not.toContain('data-testid="autopilot-stage-forward-button"');
   });
 
-  it("after backtracking from spec_documents, the SPEC tree view exposes BOTH back AND forward navigation", () => {
+  it("after backtracking from spec_documents, the merged SPEC tree view only exposes back navigation", () => {
     // 模拟用户在 spec_documents 阶段点了"返回上一步" → currentSubStage 变成
     // "spec_tree"，但 backend job.stage 仍然停在 "spec_docs"（因为后端 stage
     // 是"已经走到哪里"的真相源；spec 5 §10.9 明确只有 replan 才能回退 backend
@@ -810,13 +820,12 @@ describe("AutopilotRightRail streaming timeline", () => {
 
     // 头部的"返回上一步"按钮仍然在
     expect(markup).toContain('data-testid="autopilot-stage-back-button"');
-    // 头部新增的"继续下一步"前进箭头出现
-    expect(markup).toContain('data-testid="autopilot-stage-forward-button"');
-    expect(markup).toContain('data-next-target-kind="workbench-stage"');
-    expect(markup).toContain('data-next-workbench-stage="spec_documents"');
-    // 底部 CTA 按钮也存在（双重保险）
-    expect(markup).toContain('data-testid="autopilot-stage-continue-button"');
-    expect(markup).toContain("进入规格文档");
+    // SPEC tree 与 SPEC documents 已合并，不再提供进入规格文档的前进入口。
+    expect(markup).not.toContain('data-testid="autopilot-stage-forward-button"');
+    expect(markup).not.toContain('data-next-target-kind="workbench-stage"');
+    expect(markup).not.toContain('data-next-workbench-stage="spec_documents"');
+    expect(markup).not.toContain('data-testid="autopilot-stage-continue-button"');
+    expect(markup).not.toContain("进入规格文档");
   });
 });
 

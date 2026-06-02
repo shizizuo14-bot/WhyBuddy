@@ -47,6 +47,14 @@ const defaultCommandListEventStore = createInMemoryCommandListEventStore();
 const defaultCommandListSnapshotStore = createInMemoryCommandListSnapshotStore();
 const defaultRecommendedCommandsService = new RecommendedCommandsAdapter();
 
+function resolvePreviewMaxTokens(mode: PreviewGenerationMode): number {
+  const override = Number(process.env.NL_COMMAND_PREVIEW_LLM_MAX_TOKENS);
+  if (Number.isFinite(override) && override > 0) {
+    return override;
+  }
+  return mode === "judge" ? 2000 : 4000;
+}
+
 function notImplemented(res: Response, endpoint: string) {
   res.status(501).json({
     error: "Not implemented",
@@ -290,7 +298,7 @@ async function generatePreviewResponse(
     {
       model: process.env.LLM_MODEL,
       temperature: mode === "judge" ? 0.2 : 0.1,
-      maxTokens: mode === "judge" ? 800 : 1200,
+      maxTokens: resolvePreviewMaxTokens(mode),
       // autopilot-streaming-experience integration-gap-2026-05-16 P0#5：
       // 缩短 per-call timeout，避免在主 LLM 不可用时整条澄清主线 hang 10 分钟。
       timeoutMs: Number(process.env.NL_COMMAND_PREVIEW_LLM_TIMEOUT_MS || 30000),

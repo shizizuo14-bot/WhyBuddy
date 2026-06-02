@@ -255,6 +255,17 @@ function Walls({ tallBackWall = false }: { tallBackWall?: boolean }) {
 
   return (
     <group>
+      {/* 屋顶：水平平面覆盖整个房间顶部 */}
+      {tallBackWall && (
+        <mesh position={[0, wallHeight, 0]} rotation={[Math.PI / 2, 0, 0]}>
+          <planeGeometry args={[wallWidth, 12]} />
+          <meshStandardMaterial
+            color={FUTURE_OFFICE_COLORS.wall}
+            roughness={0.92}
+            side={2}
+          />
+        </mesh>
+      )}
       <mesh position={[0, wallCenterY, -4.9]} receiveShadow>
         <boxGeometry args={[wallWidth, wallHeight, 0.18]} />
         <meshStandardMaterial

@@ -41,6 +41,10 @@ export interface LlmCallInput {
   tools: AgentToolDefinition[];
   /** 温度；未提供时默认 0.1。 */
   temperature?: number;
+  /** Optional per-call completion budget. Defaults to 2_000 for legacy callers. */
+  maxTokens?: number;
+  /** Allow domain-specific agents to return their final JSON directly. */
+  acceptDirectOutput?: boolean;
 }
 
 /** LLM 调用输出（三选一）。 */
@@ -211,8 +215,9 @@ function buildUserMessage(
 function parseLlmJson(
   raw: unknown,
   availableTools: AgentToolDefinition[],
+  acceptDirectOutput = false,
 ): LlmCallOutput {
-  if (!raw || typeof raw !== "object") {
+  if (!raw || (typeof raw !== "object" && !Array.isArray(raw))) {
     throw new Error("unrecognized_response: not an object");
   }
   const payload = raw as Record<string, unknown>;
@@ -276,6 +281,15 @@ function parseLlmJson(
     };
   }
 
+  if (acceptDirectOutput) {
+    return {
+      type: "finish",
+      output: raw,
+      thought,
+      tokensUsed: 0,
+    };
+  }
+
   throw new Error("unrecognized_response: neither tool_call / finish / error provided");
 }
 
@@ -301,9 +315,9 @@ export function createLlmCall(deps: LlmCallFactoryDeps): LlmCallFn {
     ];
     const raw = await llm.callJson(messages, {
       temperature: input.temperature ?? 0.1,
-      maxTokens: 2_000,
+      maxTokens: input.maxTokens ?? 2_000,
     });
-    return parseLlmJson(raw, input.tools);
+    return parseLlmJson(raw, input.tools, input.acceptDirectOutput === true);
   }
 
   return async function llmCall(input) {

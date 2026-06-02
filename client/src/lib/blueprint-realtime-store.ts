@@ -691,11 +691,21 @@ function buildLogEntry(event: BlueprintRelayedEvent): BlueprintLogEntry {
 function buildRelayedEventFromHistoricalEvent(
   event: BlueprintGenerationEvent
 ): BlueprintRelayedEvent {
+  const payload =
+    event.payload && typeof event.payload === "object" && !Array.isArray(event.payload)
+      ? { ...(event.payload as Record<string, unknown>) }
+      : {};
+
+  payload.stage ??= event.stage;
+  payload.status ??= event.status;
+  payload.message ??= event.message;
+  payload.roleId ??= event.roleId;
+
   return {
     type: event.type as BlueprintGenerationEventType,
     jobId: event.jobId,
     timestamp: event.occurredAt,
-    payload: (event.payload ?? {}) as Record<string, unknown>,
+    payload,
   };
 }
 

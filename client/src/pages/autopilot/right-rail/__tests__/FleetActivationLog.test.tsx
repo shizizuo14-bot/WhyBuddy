@@ -173,10 +173,10 @@ describe("FleetActivationLog render contract", () => {
   });
 });
 
-// ─── Layer 2：源代码层 — 挂载点必须位于 fabric 分支 ────────────────────────
+// ─── Layer 2：源代码层 — 阶段 2 右栏只保留执行流 / 产物流 ─────────────────
 
-describe("AutopilotRightRail mounts <FleetActivationLog /> inside the fabric branch", () => {
-  it("references <FleetActivationLog /> within the fabric <aside> return block", async () => {
+describe("AutopilotRightRail stage-2 observability placement", () => {
+  it("keeps CapabilityRail and FleetActivationLog outside the SPEC authoring stage", async () => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
     const source = await fs.readFile(
@@ -184,25 +184,18 @@ describe("AutopilotRightRail mounts <FleetActivationLog /> inside the fabric bra
       "utf8"
     );
 
-    // <FleetActivationLog /> 至少出现一次
-    const jsxMatches = source.match(/<FleetActivationLog\b/g) ?? [];
-    expect(jsxMatches.length).toBeGreaterThanOrEqual(1);
-
-    // 关键事实：挂载点必须出现在 fabric 分支的 <aside> return 块中。
-    // 与 RoleStatusStrip.test.tsx 一致：以 `data-stage-placeholder="fabric"` 起、
-    // 以 `export default AutopilotRightRail` 止作为 fabric 分支的 source slice。
-    const fabricBlockMatch = source.match(
-      /data-stage-placeholder="fabric"[\s\S]*?export\s+default\s+AutopilotRightRail/
+    // SPEC tree / SPEC documents 阶段应由执行流 + 产物流承载，不再追加右栏观测日志。
+    expect(source).toContain("const showFabricObservability");
+    expect(source).toMatch(
+      /activeStageKey\s*!==\s*"spec_tree"[\s\S]*activeStageKey\s*!==\s*"spec_documents"/
     );
-    expect(fabricBlockMatch).not.toBeNull();
-    expect(fabricBlockMatch?.[0] ?? "").toMatch(/<FleetActivationLog\s*\/>/);
 
-    // 非 fabric 分支（fileTop ↔ fabric placeholder 之间）不应出现挂载，
-    // 避免被误移到 currentStage !== "fabric" 的 placeholder 分支。
-    const headBlockMatch = source.match(
-      /currentStage\s*!==\s*"fabric"[\s\S]*?data-stage-placeholder="fabric"/
+    // 其它 fabric 子阶段仍可使用能力轨与激活日志；挂载必须在保护条件内。
+    const guardedBlockMatch = source.match(
+      /\{showFabricObservability\s*\?\s*\([\s\S]*?\)\s*:\s*null\}/
     );
-    expect(headBlockMatch).not.toBeNull();
-    expect(headBlockMatch?.[0] ?? "").not.toMatch(/<FleetActivationLog\b/);
+    expect(guardedBlockMatch).not.toBeNull();
+    expect(guardedBlockMatch?.[0] ?? "").toMatch(/<CapabilityRail\s*\/>/);
+    expect(guardedBlockMatch?.[0] ?? "").toMatch(/<FleetActivationLog\s*\/>/);
   });
 });

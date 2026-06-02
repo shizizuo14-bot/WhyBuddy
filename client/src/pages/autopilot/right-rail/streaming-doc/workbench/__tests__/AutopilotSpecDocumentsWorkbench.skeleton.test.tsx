@@ -142,7 +142,7 @@ describe("AutopilotSpecDocumentsWorkbench skeleton", () => {
       />
     );
 
-    expect(markup).toContain("grid-template-rows:auto minmax(0, 1fr) 188px");
+    expect(markup).toContain("grid-template-rows:auto minmax(0, 1fr) 240px");
   });
 
   it("uses compact gutters and a narrower tree column so the right rail content does not clip horizontally", () => {
@@ -158,7 +158,7 @@ describe("AutopilotSpecDocumentsWorkbench skeleton", () => {
   it("uses a fixed execution strip height so console content scrolls instead of squeezing the document workspace", () => {
     const layout = resolveWorkbenchGridLayout(false);
 
-    expect(layout.gridTemplateRows).toBe("auto minmax(0, 1fr) 188px");
+    expect(layout.gridTemplateRows).toBe("auto minmax(0, 1fr) 240px");
     expect(layout.gridTemplateAreas).toContain("exec   exec");
   });
 
@@ -166,7 +166,7 @@ describe("AutopilotSpecDocumentsWorkbench skeleton", () => {
     const layout = resolveWorkbenchGridLayout(true);
 
     expect(layout.gridTemplateColumns).toBe("238px minmax(0, 1fr)");
-    expect(layout.gridTemplateRows).toBe("auto minmax(0, 1fr) 188px");
+    expect(layout.gridTemplateRows).toBe("auto minmax(0, 1fr) 240px");
     expect(layout.gridTemplateAreas).toContain("status status");
     expect(layout.gridTemplateAreas).toContain("tree   main");
     expect(layout.gridTemplateAreas).toContain("exec   exec");

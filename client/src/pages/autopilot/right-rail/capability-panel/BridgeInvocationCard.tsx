@@ -30,11 +30,11 @@ export interface BridgeInvocationCardProps {
 // ---------------------------------------------------------------------------
 
 const STATUS_BADGE_STYLES: Record<BridgeInvocation["status"], string> = {
-  pending: "bg-slate-100 text-slate-500",
-  running: "bg-blue-100 text-blue-700",
-  completed: "bg-emerald-100 text-emerald-700",
-  failed: "bg-red-100 text-red-700 border border-red-200",
-  retrying: "bg-amber-100 text-amber-700",
+  pending: "bg-white/[0.08] text-white/50",
+  running: "bg-blue-500/20 text-blue-300",
+  completed: "bg-emerald-500/20 text-emerald-300",
+  failed: "bg-red-500/20 text-red-300 border border-red-400/30",
+  retrying: "bg-amber-500/20 text-amber-300",
 };
 
 /** 状态中文标签 */
@@ -75,7 +75,7 @@ export const BridgeInvocationCard: FC<BridgeInvocationCardProps> = ({
       className={cn(
         "flex flex-col gap-0.5 px-2 rounded",
         compact ? "py-1.5" : "py-2",
-        isFailed && "border border-red-200 bg-red-50/30"
+        isFailed && "border border-red-400/30 bg-red-500/10"
       )}
     >
       {/* 主行：图标 + 名称 + 状态徽章 + 耗时 */}
@@ -93,13 +93,13 @@ export const BridgeInvocationCard: FC<BridgeInvocationCardProps> = ({
         </span>
 
         {/* 调用名称 */}
-        <span className="flex-1 min-w-0 truncate text-[11px] text-slate-700 font-medium">
+        <span className="flex-1 min-w-0 truncate text-[11px] text-white/75 font-medium">
           {name}
         </span>
 
         {/* 重试计数徽章 */}
         {isRetrying && retryCount != null && retryCount > 0 && (
-          <span className="flex-shrink-0 px-1 py-0.5 rounded text-[9px] font-mono bg-amber-100 text-amber-700">
+          <span className="flex-shrink-0 px-1 py-0.5 rounded text-[9px] font-mono bg-amber-500/20 text-amber-300">
             ×{retryCount}
           </span>
         )}
@@ -116,7 +116,7 @@ export const BridgeInvocationCard: FC<BridgeInvocationCardProps> = ({
 
         {/* 耗时 */}
         {durationMs != null && (
-          <span className="flex-shrink-0 text-[10px] font-mono text-slate-400">
+          <span className="flex-shrink-0 text-[10px] font-mono text-white/40">
             {durationMs < 1000
               ? `${durationMs}ms`
               : `${(durationMs / 1000).toFixed(1)}s`}
@@ -126,7 +126,7 @@ export const BridgeInvocationCard: FC<BridgeInvocationCardProps> = ({
 
       {/* 错误摘要（仅 failed 态，最多 2 行） */}
       {isFailed && error && (
-        <p className="text-[10px] text-red-600 line-clamp-2 pl-[18px]">
+        <p className="text-[10px] text-red-300 line-clamp-2 pl-[18px]">
           {error}
         </p>
       )}

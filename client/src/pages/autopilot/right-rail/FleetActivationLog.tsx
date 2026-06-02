@@ -51,15 +51,15 @@ function formatTimestamp(timestamp: number): string {
 function resolveTypeColorClass(type: AgentProgressEntry["type"]): string {
   switch (type) {
     case "thinking":
-      return "text-blue-600";
+      return "text-blue-300";
     case "acting":
-      return "text-amber-600";
+      return "text-amber-300";
     case "observing":
-      return "text-emerald-600";
+      return "text-emerald-300";
     case "completed":
-      return "text-emerald-700";
+      return "text-emerald-400";
     case "failed":
-      return "text-rose-600";
+      return "text-rose-400";
   }
 }
 
@@ -101,13 +101,13 @@ export const FleetActivationLog: FC = () => {
       {/* 原有激活日志条目 */}
       {visible.length > 0 && (
         <div
-          className="mt-3 max-h-[180px] overflow-y-auto rounded-lg border border-slate-100 bg-slate-50 p-2 text-[10px] font-mono"
+          className="mt-1 max-h-[140px] overflow-y-auto rounded border border-white/[0.08] bg-white/[0.03] p-2 text-[10px] font-mono"
         >
           {visible.map((entry) => (
             <div key={entry.id} className="flex items-center gap-2 py-0.5">
-              <span className="text-slate-400">[{formatTimestamp(entry.timestamp)}]</span>
-              <span className="font-bold text-slate-700">{entry.roleId}</span>
-              <span className="text-slate-500">
+              <span className="text-white/35">[{formatTimestamp(entry.timestamp)}]</span>
+              <span className="font-bold text-white/80">{entry.roleId}</span>
+              <span className="text-white/55">
                 <span className={resolveTypeColorClass(entry.type)}>{entry.type}</span>
                 {entry.message ? ` · ${entry.message}` : ""}
               </span>

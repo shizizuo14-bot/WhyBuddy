@@ -28,6 +28,7 @@ import type {
   BlueprintGenerationJob,
   BlueprintGenerationStage,
   BlueprintRouteSelection,
+  BlueprintSpecDocument,
   BlueprintSpecTree,
 } from "@shared/blueprint/contracts";
 import type { BlueprintAgentCrewSnapshot } from "@/lib/blueprint-api";
@@ -166,5 +167,83 @@ describe("AutopilotRightRail fabric dispatch (Spec 3 PBT)", () => {
       ),
       { numRuns: 50 }
     );
+  });
+
+  it("keeps persisted SPEC documents from specTree.documents after the W1 snapshot settles", () => {
+    const doc = {
+      id: "doc-auth-requirements",
+      jobId: "blueprint-job-docs",
+      treeId: "tree-docs",
+      nodeId: "node-auth",
+      type: "requirements",
+      status: "draft",
+      title: "Requirements: 权限模型",
+      summary: "权限模型需求",
+      content: "## 权限模型\n\n定义角色、菜单、按钮权限。",
+      format: "markdown",
+      createdAt: "2026-06-01T00:00:00.000Z",
+      provenance: {
+        jobId: "blueprint-job-docs",
+        githubUrls: [],
+        treeVersion: 1,
+        nodeType: "feature",
+        nodeTitle: "权限模型",
+        nodeSummary: "权限模型节点",
+        dependencies: [],
+        outputs: [],
+      },
+    } satisfies BlueprintSpecDocument;
+    const specTree = {
+      id: "tree-docs",
+      rootNodeId: "node-auth",
+      nodes: [
+        {
+          id: "node-auth",
+          title: "权限模型",
+          summary: "权限模型节点",
+          type: "feature",
+          status: "ready",
+          priority: 1,
+          dependencies: [],
+          outputs: [],
+          children: [],
+        },
+      ],
+      documents: [doc],
+    } as unknown as BlueprintSpecTree;
+    const job = {
+      id: "blueprint-job-docs",
+      stage: "spec_docs",
+      status: "reviewing",
+      artifacts: [],
+      events: [],
+    } as unknown as BlueprintGenerationJob;
+
+    const markup = renderToStaticMarkup(
+      <AutopilotRightRail
+        jobId={job.id}
+        currentStage="fabric"
+        currentSubStage="spec_tree"
+        job={job}
+        routeSet={null}
+        selection={null}
+        specTree={specTree}
+        agentCrew={null}
+        capabilities={[]}
+        capabilityInvocations={[]}
+        capabilityEvidence={[]}
+        effectPreviews={[]}
+        locale="zh-CN"
+        onSubStageChange={() => {}}
+      />
+    );
+
+    expect(markup).toContain("Requirements: 权限模型");
+    const enterPreviewButton = markup.match(
+      /<button[^>]*data-testid="autopilot-workbench-action-enter-effect-preview"[^>]*>/
+    )?.[0];
+    expect(enterPreviewButton).toBeDefined();
+    expect(enterPreviewButton).toContain('aria-disabled="false"');
+    expect(enterPreviewButton).not.toContain(' disabled=""');
   });
 });
