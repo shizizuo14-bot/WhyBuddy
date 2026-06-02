@@ -218,6 +218,22 @@ const ZONE_GRID_ORDER: readonly FunctionalZone[] = [
 const GRID_COLUMNS = 4;
 
 /**
+ * World-space radius of the round table, in metres. Roles are evenly spaced
+ * around this circle, facing inward toward the centre.
+ */
+const ROUND_TABLE_RADIUS = 5.5;
+
+/**
+ * Centre of the round table in world space. Pushed forward (positive Z toward
+ * camera) so the circle fills the lower visible area of the 3D viewport.
+ */
+const ROUND_TABLE_CENTER_X = 0;
+const ROUND_TABLE_CENTER_Z = 0.5;
+
+/** Exported for agents to compute facing rotation toward table center. */
+export const ROUND_TABLE_CENTER: [number, number, number] = [ROUND_TABLE_CENTER_X, 0, ROUND_TABLE_CENTER_Z];
+
+/**
  * World-space spacing between adjacent grid cells, in metres. Widened in the
  * 2026-05-29 layout follow-up so each role has room for its own workstation
  * (desk + computer) in front without crowding its neighbours; the depth step is
@@ -230,29 +246,24 @@ const GRID_SPACING_Z = 2.8;
 const GRID_ORIGIN_Z = -2.2;
 
 /**
- * Compute the centred grid position for the `index`-th role (0-based) in the
+ * Compute the round-table position for the `index`-th role (0-based) in the
  * ordered fill sequence, given the total role count.
  *
- * Each row is horizontally centred on its own width, so a partially-filled
- * last row still reads as centred rather than left-justified. `y` is always
- * `0` (agents stand on the floor).
+ * Roles are evenly distributed around a circle of `ROUND_TABLE_RADIUS` metres.
+ * The first role sits at the "12 o'clock" position (facing the back wall),
+ * and subsequent roles go clockwise.
+ * `y` is always `0` (agents stand on the floor).
  */
 function gridPosition(
   index: number,
   total: number
 ): [number, number, number] {
-  const row = Math.floor(index / GRID_COLUMNS);
-  const col = index % GRID_COLUMNS;
+  if (total <= 0) return [ROUND_TABLE_CENTER_X, 0, ROUND_TABLE_CENTER_Z];
 
-  const totalRows = Math.ceil(total / GRID_COLUMNS);
-  // Number of cells actually present in this row (last row may be short).
-  const cellsInRow =
-    row < totalRows - 1 ? GRID_COLUMNS : total - row * GRID_COLUMNS;
-
-  // Centre each row on its own width.
-  const rowWidth = (cellsInRow - 1) * GRID_SPACING_X;
-  const x = col * GRID_SPACING_X - rowWidth / 2;
-  const z = GRID_ORIGIN_Z + row * GRID_SPACING_Z;
+  // Evenly space roles around the circle
+  const angle = (index / total) * Math.PI * 2 - Math.PI / 2; // start from top
+  const x = ROUND_TABLE_CENTER_X + Math.cos(angle) * ROUND_TABLE_RADIUS;
+  const z = ROUND_TABLE_CENTER_Z + Math.sin(angle) * ROUND_TABLE_RADIUS;
 
   return [x, 0, z];
 }

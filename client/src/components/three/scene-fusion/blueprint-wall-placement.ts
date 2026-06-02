@@ -70,16 +70,16 @@ export const BLUEPRINT_WALL_GRAPH_DISTANCE_FACTOR = 4.0;
 /**
  * 墙面图 DOM 画布宽度（px）。
  *
- * 1760 → 世界宽度 ≈ 17.4m，占满高墙全宽。
+ * 5280 → 3x 原始分辨率，不惜性能追求清晰。
  */
-export const BLUEPRINT_WALL_GRAPH_WIDTH = 1760;
+export const BLUEPRINT_WALL_GRAPH_WIDTH = 5280;
 
 /**
  * 墙面图 DOM 画布高度（px）。
  *
- * 830 → 世界高度 ≈ 8.2m，占满高墙全高。
+ * 2490 → 3x 原始分辨率，不惜性能追求清晰。
  */
-export const BLUEPRINT_WALL_GRAPH_HEIGHT = 830;
+export const BLUEPRINT_WALL_GRAPH_HEIGHT = 2490;
 
 /**
  * `<Html>` 面相对 group 的 z 偏移（米）。

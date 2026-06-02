@@ -92,6 +92,7 @@ import { deriveConnectionLines } from "./scene-fusion/connection-line-priority";
 import {
   createBlueprintRuntimeSceneData,
   deriveStageSeedRolePhases,
+  ROUND_TABLE_CENTER,
   stableHash,
   type BlueprintConnectionLine,
   type BlueprintObservedPhaseEvent,
@@ -557,11 +558,15 @@ function WorkstationModel({
  */
 function RoleWorkstation({
   position,
+  facingAngle,
 }: {
   position: [number, number, number];
+  facingAngle?: number;
 }) {
+  // Compute rotation toward round table center
+  const rotY = facingAngle ?? 0;
   return (
-    <group position={position}>
+    <group position={position} rotation={[0, rotY, 0]}>
       <group
         position={[0, 0, DESK_FRONT_OFFSET_Z]}
         scale={WORKSTATION_SCALE}
@@ -747,6 +752,11 @@ function RuntimeAgent({
       agent.position[2]
     );
     group.scale.setScalar(BASE_AGENT_SCALE * animScale);
+
+    // Face toward round table center
+    const dx = ROUND_TABLE_CENTER[0] - agent.position[0];
+    const dz = ROUND_TABLE_CENTER[2] - agent.position[2];
+    group.rotation.y = Math.atan2(dx, dz);
 
     // Keep role bodies as their plain GLB material in steady state. Per the
     // 2026-05-29 visual revision the body no longer carries any phase-driven
@@ -1410,7 +1420,14 @@ export function BlueprintRuntimeAgents(props: BlueprintRuntimeAgentsProps) {
         />
       ))}
       {renderAgents.map((agent) => (
-        <RoleWorkstation key={`desk-${agent.roleId}`} position={agent.position} />
+        <RoleWorkstation
+          key={`desk-${agent.roleId}`}
+          position={agent.position}
+          facingAngle={Math.atan2(
+            ROUND_TABLE_CENTER[0] - agent.position[0],
+            ROUND_TABLE_CENTER[2] - agent.position[2]
+          )}
+        />
       ))}
       {renderAgents.map((agent) => (
         <RoleCapabilityChips

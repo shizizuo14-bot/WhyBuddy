@@ -60,9 +60,9 @@ export interface BlueprintWallTextureProps {
 
 const W = BLUEPRINT_WALL_GRAPH_WIDTH;
 const H = BLUEPRINT_WALL_GRAPH_HEIGHT;
-const NODE_W = 200;
-const NODE_H = 64;
-const PADDING = 40;
+const NODE_W = 600;
+const NODE_H = 100;
+const PADDING = 120;
 
 // 节点类型颜色
 const TYPE_COLORS: Record<string, string> = {
@@ -86,6 +86,7 @@ interface LayoutNode {
   type: string;
   status: string;
   body: string;
+  height: number;
 }
 
 interface LayoutEdge {
@@ -99,22 +100,77 @@ interface LayoutResult {
   edges: LayoutEdge[];
 }
 
+/** Line height for node title text */
+const LINE_H = 36;
+/** Vertical padding inside node card */
+const NODE_PAD_Y = 20;
+/** Font used for node title measurement */
+const NODE_FONT = "bold 32px system-ui, sans-serif";
+/** Max text lines before ellipsis */
+const MAX_TEXT_LINES = 3;
+/** Min node height */
+const MIN_NODE_H = 56;
+
+/**
+ * Measure a node's required height based on its text content.
+ * Uses an offscreen canvas for measureText.
+ * Includes space for: title lines + type label line + padding.
+ */
+function measureNodeHeight(text: string, measureCtx: CanvasRenderingContext2D): number {
+  measureCtx.font = NODE_FONT;
+  const lines = wrapTextSimple(text, NODE_W - 60, measureCtx);
+  const lineCount = Math.min(lines.length, MAX_TEXT_LINES);
+  // title lines + type label row (28px) + status dot row included in top padding
+  return Math.max(MIN_NODE_H, lineCount * LINE_H + NODE_PAD_Y * 2 + 32);
+}
+
+/**
+ * Simple word-wrap without needing the full canvas wrapText (used pre-layout).
+ */
+function wrapTextSimple(text: string, maxWidth: number, ctx: CanvasRenderingContext2D): string[] {
+  const lines: string[] = [];
+  let remaining = text;
+  while (remaining.length > 0) {
+    let end = remaining.length;
+    while (ctx.measureText(remaining.slice(0, end)).width > maxWidth && end > 1) {
+      end--;
+    }
+    lines.push(remaining.slice(0, end));
+    remaining = remaining.slice(end);
+  }
+  return lines.length > 0 ? lines : [""];
+}
+
 function computeLayout(
   graphData: { nodes: Array<{ id: string; data?: Record<string, unknown> }>; edges: Array<{ source: string; target: string }> }
 ): LayoutResult {
+  // Create a measurement canvas for text width calculation
+  const measureCanvas = document.createElement("canvas");
+  const measureCtx = measureCanvas.getContext("2d")!;
+
+  // Pre-compute each node's height
+  const nodeHeights = new Map<string, number>();
+  for (const node of graphData.nodes) {
+    const title = (node.data?.title as string) ?? node.id;
+    const body = (node.data?.body as string) ?? "";
+    const fullText = body ? `${title} — ${body}` : title;
+    const h = measureNodeHeight(fullText, measureCtx);
+    nodeHeights.set(node.id, h);
+  }
+
   const g = new dagre.graphlib.Graph();
   g.setGraph({
-    rankdir: "LR",       // 从左到右
-    nodesep: 60,         // 同层节点间距（增大让节点不挤）
-    ranksep: 180,        // 层间距（增大让层级更明显）
+    rankdir: "LR",
+    nodesep: 180,
+    ranksep: 540,
     marginx: PADDING,
     marginy: PADDING,
-    align: "UL",         // 上对齐，让树形结构更自然
+    align: "UL",
   });
   g.setDefaultEdgeLabel(() => ({}));
 
   for (const node of graphData.nodes) {
-    g.setNode(node.id, { width: NODE_W, height: NODE_H });
+    g.setNode(node.id, { width: NODE_W, height: nodeHeights.get(node.id) ?? MIN_NODE_H });
   }
   for (const edge of graphData.edges) {
     g.setEdge(edge.source, edge.target);
@@ -122,13 +178,12 @@ function computeLayout(
 
   dagre.layout(g);
 
-  // 计算缩放以适应画布（留边距）
   const graphInfo = g.graph();
   const graphWidth = (graphInfo.width ?? W - PADDING * 2) + PADDING * 2;
   const graphHeight = (graphInfo.height ?? H - PADDING * 2) + PADDING * 2;
   const scaleX = (W - PADDING * 2) / (graphWidth - PADDING * 2);
   const scaleY = (H - PADDING * 2) / (graphHeight - PADDING * 2);
-  const scale = Math.min(scaleX, scaleY, 1.5); // 不要放太大
+  const scale = Math.min(scaleX, scaleY, 1.5);
   const offsetX = (W - (graphWidth - PADDING * 2) * scale) / 2;
   const offsetY = (H - (graphHeight - PADDING * 2) * scale) / 2;
 
@@ -144,6 +199,7 @@ function computeLayout(
       type: (n.data?.type as string) ?? "default",
       status: (n.data?.status as string) ?? "pending",
       body: (n.data?.body as string) ?? "",
+      height: nodeHeights.get(n.id) ?? MIN_NODE_H,
     };
   });
 
@@ -167,6 +223,23 @@ function computeLayout(
 }
 
 // ---------------------------------------------------------------------------
+/**
+ * Wrap text into multiple lines that fit within maxWidth.
+ */
+function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number): string[] {
+  const lines: string[] = [];
+  let remaining = text;
+  while (remaining.length > 0) {
+    let end = remaining.length;
+    while (ctx.measureText(remaining.slice(0, end)).width > maxWidth && end > 1) {
+      end--;
+    }
+    lines.push(remaining.slice(0, end));
+    remaining = remaining.slice(end);
+  }
+  return lines.length > 0 ? lines : [""];
+}
+
 // Canvas2D 绘制
 // ---------------------------------------------------------------------------
 
@@ -180,10 +253,10 @@ function drawWall(ctx: CanvasRenderingContext2D, layout: LayoutResult | null) {
 
   // 网格装饰点
   ctx.fillStyle = "rgba(148, 163, 184, 0.12)";
-  for (let x = 30; x < W; x += 50) {
-    for (let y = 30; y < H; y += 50) {
+  for (let x = 90; x < W; x += 150) {
+    for (let y = 90; y < H; y += 150) {
       ctx.beginPath();
-      ctx.arc(x, y, 1, 0, Math.PI * 2);
+      ctx.arc(x, y, 3, 0, Math.PI * 2);
       ctx.fill();
     }
   }
@@ -191,19 +264,19 @@ function drawWall(ctx: CanvasRenderingContext2D, layout: LayoutResult | null) {
   if (!layout || layout.nodes.length === 0) {
     // 空态
     ctx.fillStyle = "#94a3b8";
-    ctx.font = "bold 18px system-ui, sans-serif";
+    ctx.font = "bold 54px system-ui, sans-serif";
     ctx.textAlign = "center";
     ctx.textBaseline = "middle";
-    ctx.fillText("蓝图流程图", W / 2, H / 2 - 12);
-    ctx.font = "13px system-ui, sans-serif";
+    ctx.fillText("蓝图流程图", W / 2, H / 2 - 36);
+    ctx.font = "39px system-ui, sans-serif";
     ctx.fillStyle = "#64748b";
-    ctx.fillText("等待执行数据…", W / 2, H / 2 + 14);
+    ctx.fillText("等待执行数据…", W / 2, H / 2 + 42);
     return;
   }
 
   // 绘制连线（贝塞尔曲线虚线）
-  ctx.lineWidth = 1.8;
-  ctx.setLineDash([6, 4]);
+  ctx.lineWidth = 5;
+  ctx.setLineDash([18, 12]);
 
   for (const edge of layout.edges) {
     // 使用水平贝塞尔曲线（从右侧出发到左侧到达）
@@ -229,9 +302,9 @@ function drawWall(ctx: CanvasRenderingContext2D, layout: LayoutResult | null) {
     ctx.setLineDash([]);
     ctx.fillStyle = "rgba(45, 212, 191, 0.7)";
     ctx.beginPath();
-    ctx.arc(toX, toY, 3, 0, Math.PI * 2);
+    ctx.arc(toX, toY, 9, 0, Math.PI * 2);
     ctx.fill();
-    ctx.setLineDash([6, 4]);
+    ctx.setLineDash([18, 12]);
   }
 
   ctx.setLineDash([]);
@@ -239,30 +312,30 @@ function drawWall(ctx: CanvasRenderingContext2D, layout: LayoutResult | null) {
   // 绘制节点卡片
   for (const node of layout.nodes) {
     const x = node.x - NODE_W / 2;
-    const y = node.y - NODE_H / 2;
+    const y = node.y - node.height / 2;
     const typeColor = TYPE_COLORS[node.type] ?? TYPE_COLORS.default;
 
     // 阴影
     ctx.shadowColor = "rgba(0,0,0,0.06)";
-    ctx.shadowBlur = 6;
-    ctx.shadowOffsetY = 2;
+    ctx.shadowBlur = 18;
+    ctx.shadowOffsetY = 6;
 
     // 卡片背景
     ctx.fillStyle = "#ffffff";
     ctx.beginPath();
-    ctx.roundRect(x, y, NODE_W, NODE_H, 6);
+    ctx.roundRect(x, y, NODE_W, node.height, 18);
     ctx.fill();
 
     // 边框
     ctx.shadowColor = "transparent";
     ctx.strokeStyle = "#e2e8f0";
-    ctx.lineWidth = 1;
+    ctx.lineWidth = 3;
     ctx.stroke();
 
     // 左侧颜色条
     ctx.fillStyle = typeColor;
     ctx.beginPath();
-    ctx.roundRect(x, y, 4, NODE_H, [6, 0, 0, 6]);
+    ctx.roundRect(x, y, 12, node.height, [18, 0, 0, 18]);
     ctx.fill();
 
     // 状态圆点
@@ -272,29 +345,32 @@ function drawWall(ctx: CanvasRenderingContext2D, layout: LayoutResult | null) {
       node.status === "failed" ? "#ef4444" : "#94a3b8";
     ctx.fillStyle = statusColor;
     ctx.beginPath();
-    ctx.arc(x + NODE_W - 12, y + 12, 4, 0, Math.PI * 2);
+    ctx.arc(x + NODE_W - 30, y + 28, 10, 0, Math.PI * 2);
     ctx.fill();
 
-    // 标题
+    // 标题 — 动态行数，最多3行，超出省略号
     ctx.fillStyle = "#1e293b";
-    ctx.font = "bold 11px system-ui, sans-serif";
+    ctx.font = NODE_FONT;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    const title = node.title.length > 22 ? node.title.slice(0, 22) + "…" : node.title;
-    ctx.fillText(title, x + 12, y + 10);
-
-    // 类型标签
-    ctx.fillStyle = typeColor;
-    ctx.font = "bold 8px system-ui, sans-serif";
-    ctx.fillText(node.type.toUpperCase().replace(/_/g, " "), x + 12, y + 28);
-
-    // 内容摘要
-    if (node.body) {
-      ctx.fillStyle = "#64748b";
-      ctx.font = "9px system-ui, sans-serif";
-      const body = node.body.length > 35 ? node.body.slice(0, 35) + "…" : node.body;
-      ctx.fillText(body, x + 12, y + 44);
+    const fullText = node.body ? `${node.title} — ${node.body}` : node.title;
+    const allLines = wrapText(ctx, fullText, NODE_W - 60);
+    for (let i = 0; i < Math.min(allLines.length, MAX_TEXT_LINES); i++) {
+      let line = allLines[i];
+      if (i === MAX_TEXT_LINES - 1 && allLines.length > MAX_TEXT_LINES) {
+        while (ctx.measureText(line + "…").width > NODE_W - 60 && line.length > 1) {
+          line = line.slice(0, -1);
+        }
+        line += "…";
+      }
+      ctx.fillText(line, x + 30, y + NODE_PAD_Y + i * LINE_H);
     }
+
+    // 类型标签（底部左侧）
+    ctx.fillStyle = typeColor;
+    ctx.font = "bold 22px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(node.type.toUpperCase().replace(/_/g, " "), x + 30, y + node.height - 32);
   }
 }
 
@@ -485,8 +561,9 @@ export function BlueprintWallTexture({
 
     const texture = new THREE.CanvasTexture(canvas);
     texture.colorSpace = THREE.SRGBColorSpace;
-    texture.minFilter = THREE.LinearFilter;
-    texture.magFilter = THREE.LinearFilter;
+    texture.minFilter = THREE.NearestFilter;
+    texture.magFilter = THREE.NearestFilter;
+    texture.generateMipmaps = false;
     textureRef.current = texture;
 
     // 立即绘制初始状态
