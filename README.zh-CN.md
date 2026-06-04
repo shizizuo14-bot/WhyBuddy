@@ -5,7 +5,8 @@
 <h1 align="center">🏢 WhyBuddy</h1>
 
 <p align="center">
-  <strong>WhyBuddy——一个由人工智能组成的团队，他们会对您的产品构想提出质疑，并在您着手开发之前对其进行演练。</strong>
+  <strong>A Simple and Universal Product Rehearsal Engine, Speccing Anything.
+简洁通用的产品推演引擎，推演万物。</strong>
 </p>
 
 <p align="center">

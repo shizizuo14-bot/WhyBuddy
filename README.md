@@ -5,7 +5,8 @@
 <h1 align="center">🏢 WhyBuddy</h1>
 
 <p align="center">
-  <strong>WhyBuddy — an AI agent team that challenges your product idea and rehearses it before you start building.</strong>
+  <strong>A Simple and Universal Product Rehearsal Engine, Speccing Anything.
+简洁通用的产品推演引擎，推演万物。</strong>
 </p>
 
 <p align="center">
