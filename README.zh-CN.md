@@ -12,14 +12,14 @@
 </p>
 
 <p align="center">
-  <sub>赞助商</sub><br/>
-  <a href="https://isqqw.com"><img src="https://img.shields.io/badge/ISQQW.com-Echarts_Demo集-2563eb?style=for-the-badge&logo=apache-echarts&logoColor=white" alt="ISQQW.com" /></a>
-  &nbsp;
-  <a href="https://codex-for.me"><img src="https://img.shields.io/badge/Codex--For.Me-Cloud_Platform-f97316?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Codex-For.Me" /></a>
-  &nbsp;
-  <a href="https://linux.do"><img src="https://img.shields.io/badge/Linux.do-Community-111827?style=for-the-badge&logo=linux&logoColor=white" alt="Linux.do" /></a>
-  &nbsp;
-  <a href="https://diygw.com"><img src="https://img.shields.io/badge/DIYGW-可视化开发-16a34a?style=for-the-badge&logo=visualstudiocode&logoColor=white" alt="DIYGW" /></a>
+  <sub>赞助商</sub><br/><br/>
+  <a href="https://isqqw.com"><img src="https://img.shields.io/badge/%F0%9F%93%8A_ISQQW.com-Echarts_Demo_集-0969da?style=for-the-badge&labelColor=1a7f37" alt="ISQQW.com" /></a>
+  &nbsp;&nbsp;
+  <a href="https://codex-for.me"><img src="https://img.shields.io/badge/%E2%98%81%EF%B8%8F_Codex--For.Me-Cloud_Platform-e36209?style=for-the-badge&labelColor=6e5494" alt="Codex-For.Me" /></a>
+  &nbsp;&nbsp;
+  <a href="https://linux.do"><img src="https://img.shields.io/badge/%F0%9F%90%A7_Linux.do-Developer_Community-0d1117?style=for-the-badge&labelColor=ffd33d" alt="Linux.do" /></a>
+  &nbsp;&nbsp;
+  <a href="https://diygw.com"><img src="https://img.shields.io/badge/%F0%9F%94%A7_DIYGW-可视化低代码平台-0078d4?style=for-the-badge&labelColor=22863a" alt="DIYGW" /></a>
 </p>
 
 <blockquote>
