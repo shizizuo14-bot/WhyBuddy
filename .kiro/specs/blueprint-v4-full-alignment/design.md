@@ -82,7 +82,7 @@ companionLayerPolicy?: CompanionLayerPolicy;
 - `checkType: "companion_trace"`
 - `status` 由 finding severity 映射：info→pass, warn→warn, error→fail
 - `output` 为 finding JSON 摘要（截断 4096）
-- `metadata` 含 `{ role, targetArtifactId, findingsCount, severity }`
+- `metadata` 含 `{ role, targetArtifactId, findingsCount, severity, repoFilesRead? }`
 
 ### §B.2 交付包露出
 
@@ -122,12 +122,13 @@ shared/blueprint/traceability-matrix/
 
 ```typescript
 function deriveMatrix(specTree: SpecTree, specDocs: SpecDocument[]): TraceabilityMatrix {
-  // 1. requirements: 从 spec_tree 中提取 type === "route_step" 的节点（代表需求）
-  // 2. design: 从 spec_documents 中提取 type === "design" 的文档 → 按 nodeId 关联
-  // 3. tasks: 从 spec_tree 中提取 type === "engineering_plan" 的节点 → 按 parentId 关联
+  // Real SpecTreeLlmNode type enum: root | route_step | alternative_route | spec_document | effect_preview | prompt_package | engineering_plan
+  // 1. requirements: type === "route_step" (these are the requirement-level nodes derived from route steps)
+  // 2. design: type === "spec_document" → 按 nodeId 关联到 requirement 的 parentId
+  // 3. tasks: type === "engineering_plan" → 按 parentId/dependencies 关联
   // 4. evidence: 从每个节点的 outputs[] / metadata.evidenceSources 提取
-  // 5. tests: 从 spec_documents type === "tasks" 中提取 acceptance criteria
-  // 6. gaps: 对每条 requirement，检查 design/task/evidence/test 四维是否有对应
+  // 5. tests: 从 spec_documents 的 acceptance criteria 段落提取
+  // 6. gaps: 对每条 requirement(route_step)，检查 design/task/evidence/test 四维是否有对应
 }
 ```
 
@@ -202,8 +203,22 @@ function checkNodeEvidence(
 // 结构不变量已通过（schema superRefine）
 // → 执行业务软检查（不影响 generationSource 返回值）
 if (process.env.BLUEPRINT_BUSINESS_INVARIANTS_ENABLED === "true") {
-  const coverageResult = checkRequirementCoverage(successCriteria, remapped.nodes);
-  ctx.checksLedger?.recordCheck({ ...coverageResult, checkType: "invariant", checkName: "business_requirement_coverage" });
+  // R18: 从 clarification session 取 successCriteria
+  const session = ctx.blueprintStores.clarificationSessions.get(
+    input.clarificationSession?.id ?? input.request.clarificationSessionId
+  );
+  const successCriteria: string[] =
+    (session as any)?.successCriteria ??                       // 直接字段
+    (session as any)?.metadata?.structuredCriteria ??          // R18.3 兼容结构化
+    [];
+
+  if (successCriteria.length > 0) {
+    const coverageResult = checkRequirementCoverage(successCriteria, remapped.nodes);
+    ctx.checksLedger?.recordCheck({ ...coverageResult, checkType: "invariant", checkName: "business_requirement_coverage" });
+  } else {
+    ctx.checksLedger?.recordCheck({ status: "skip", checkType: "invariant", checkName: "business_requirement_coverage", output: "no successCriteria found" });
+  }
+
   const evidenceResult = checkNodeEvidence(remapped.nodes);
   ctx.checksLedger?.recordCheck({ ...evidenceResult, checkType: "invariant", checkName: "business_node_evidence" });
 }

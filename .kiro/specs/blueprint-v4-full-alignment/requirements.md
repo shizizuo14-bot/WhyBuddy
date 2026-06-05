@@ -134,7 +134,7 @@
 
 1. THE Traceability_Matrix service SHALL expose a factory `createTraceabilityMatrixService(ctx: BlueprintServiceContext)` returning a `TraceabilityMatrixService` interface.
 2. WHEN `BLUEPRINT_TRACEABILITY_MATRIX_ENABLED` env gate is `"false"` or unset, THE service SHALL return a no-op implementation that produces an empty matrix.
-3. WHEN `generateMatrix(jobId)` is invoked, THE service SHALL derive entries from the Spec_Tree nodes by mapping: root children as requirements, `spec_document` nodes as design sections, `engineering_plan` nodes as tasks, node `outputs` as evidence, and acceptance criteria extracted from spec documents as test cases.
+3. WHEN `generateMatrix(jobId)` is invoked, THE service SHALL derive entries from the Spec_Tree nodes by mapping: `type === "route_step"` nodes as requirements, `type === "spec_document"` nodes as design sections, `type === "engineering_plan"` nodes as tasks, node `outputs` as evidence, and acceptance criteria extracted from spec documents as test cases. (Note: the real `SpecTreeLlmNodeSchema` type enum is `root | route_step | alternative_route | spec_document | effect_preview | prompt_package | engineering_plan` — there is no dedicated `"requirement"` type; `route_step` is the requirement-level node.)
 4. THE service SHALL compute coverage statistics in the `TraceabilityCoverage` object.
 5. THE service SHALL be registered on `BlueprintServiceContext` as `traceabilityMatrixService?: TraceabilityMatrixService`.
 
@@ -192,7 +192,7 @@
 2. IF any non-root node lacks evidence references, THEN THE Invariant_Guard SHALL record the finding as a `"warn"` entry in the Checks_Ledger (soft check, non-blocking), listing the node IDs without evidence. IF more than 50% of non-root nodes lack evidence, THE status SHALL be `"fail"`.
 3. WHEN `BLUEPRINT_BUSINESS_INVARIANTS_ENABLED` env gate is `"false"` or unset, THE invariant check SHALL be skipped.
 4. THE invariant check result SHALL be recorded in the Checks_Ledger with `checkType: "invariant"` and `checkName: "business_node_evidence"`.
-5. THE invariant check SHALL execute after the existing 6 structural invariants but SHALL NOT use `ctx.addIssue()` — it writes to the ledger only, consistent with the soft-check philosophy of R10 and R20.
+5. THE invariant check SHALL execute after the existing 6 structural invariants but SHALL NOT use `ctx.addIssue()` — it writes to the ledger only, consistent with the soft-check philosophy of R10.
 
 ---
 
