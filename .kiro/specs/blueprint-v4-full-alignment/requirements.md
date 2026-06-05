@@ -78,6 +78,7 @@
 5. THE Grounding SHALL be non-blocking: findings are advisory and SHALL NOT halt pipeline progression.
 6. IF the repository is unreachable or `ctx.mcpToolAdapter` is not injected, THEN THE Grounding SHALL produce a finding with `severity: "warn"` noting the degradation and continue without throwing.
 7. THE Grounding SHALL respect the existing fallback pattern: when dependencies are unavailable, the service degrades gracefully.
+8. WHEN findings of severity `"warn"` or `"error"` are produced, THE Grounding SHALL ensure these findings are surfaced in the handoff/delivery package review view, consistent with Critic (R2.8).
 
 ---
 
@@ -204,7 +205,7 @@
 1. THE Preview_Audit service SHALL expose a factory `createPreviewAuditService(ctx: BlueprintServiceContext)` returning a `PreviewAuditService` interface.
 2. WHEN `BLUEPRINT_PREVIEW_AUDIT_ENABLED` env gate is `"false"` or unset, THE service SHALL return a no-op implementation that reports all images as `"pass"`.
 3. THE Preview_Audit service SHALL provide `auditPreviews(jobId, previews: PreviewImageMeta[]): Promise<PreviewAuditResult>`.
-4. THE service SHALL detect **兜底占位冒充**: images whose `provenance.source` is `"fallback"` or `"placeholder"` pretending to be real generations.
+4. THE service SHALL detect **兜底占位冒充**: images whose `provenance.source` is `"fallback"` AND `provenance.ok` is `true` — this combination indicates a local placeholder masquerading as a real generation. An honest failure (`source: "fallback"`, `ok: false`, no image file) is NOT fraud — it is a missing image and SHALL NOT trigger the fraud detection path or regeneration loops.
 5. THE service SHALL detect **假成功**: images whose `provenance.ok` is `true` but whose `provenance.errorIndicators` array is non-empty or whose file size is below a configurable minimum threshold (default 1024 bytes).
 6. THE service SHALL detect **复制充数**: two or more images with identical SHA-256 content hash within the same job.
 
@@ -254,17 +255,18 @@
 
 ### Requirement 16: 模块间集成约束
 
-**User Story:** 作为蓝图栈架构师，我想确保五个新模块遵循现有架构约定，以便不引入单例、不破坏现有测试、不引起类型回归。
+**User Story:** 作为蓝图栈架构师，我想确保新模块遵循现有架构约定，以便不引入单例、不破坏现有测试、不引起类型回归。
 
 #### Acceptance Criteria
 
-1. THE five modules SHALL follow the existing closure-based factory pattern via `BlueprintServiceContext`, with no module-level singletons.
-2. THE five modules SHALL each use an independent `BLUEPRINT_{MODULE}_ENABLED` env gate for activation.
-3. THE five modules SHALL write results to the existing `checksLedgerService` via the already-implemented `recordCheck()` interface.
-4. THE five modules SHALL place server-side implementations under `server/routes/blueprint/{module-name}/` following existing directory convention.
-5. THE five modules SHALL place shared types under `shared/blueprint/{module-name}/types.ts`.
-6. THE five modules SHALL NOT break the existing 85+ E2E test suite when their env gates are disabled.
-7. THE five modules SHALL register their services on `BlueprintServiceContext` as optional fields, preserving backward compatibility with existing test fixtures.
+1. THE Modules A–E SHALL follow the existing closure-based factory pattern via `BlueprintServiceContext`, with no module-level singletons.
+2. THE Modules A–E SHALL each use an independent `BLUEPRINT_{MODULE}_ENABLED` env gate for activation.
+3. THE Modules A–E SHALL write results to the existing `checksLedgerService` via the already-implemented `recordCheck()` interface.
+4. THE Modules A–E SHALL place server-side implementations under `server/routes/blueprint/{module-name}/` following existing directory convention.
+5. THE Modules A–E SHALL place shared types under `shared/blueprint/{module-name}/types.ts`.
+6. THE Modules A–E SHALL NOT break the existing 85+ E2E test suite when their env gates are disabled.
+7. THE Modules A–E SHALL register their services on `BlueprintServiceContext` as optional fields, preserving backward compatibility with existing test fixtures.
+8. Module F (R19) is NOT a new standalone module — it is an extension of the existing `EffectPreviewImageService` under `server/routes/blueprint/effect-preview/`. It does NOT require a new directory, new env gate, or new context field. It follows the existing `effect-preview` module conventions.
 
 ---
 
@@ -310,13 +312,13 @@
 
 ---
 
-### Requirement 20: S4 每节点挂证据 — 软检查策略
+### Requirement 20: Provenance 类型统一
 
-**User Story:** 作为蓝图管线开发者，我想让"每节点挂证据"不变量与需求覆盖不变量保持相同的非阻塞策略，以便不会因为 LLM 产出的节点缺少 evidence 就硬拦整棵合法规格树。
+**User Story:** 作为蓝图模块开发者，我想让 provenance 产出方（R19）和审计消费方（R15.2）使用同一份共享类型定义，以便编译期保证字段对齐。
 
 #### Acceptance Criteria
 
-1. THE `business_node_evidence` invariant SHALL operate as a **soft check**: it records `"warn"` (not `ctx.addIssue()`) in the Checks_Ledger when nodes lack evidence, unless the proportion of evidence-less nodes exceeds 50% of all non-root nodes — in which case it records `"fail"`.
-2. THE invariant SHALL NOT invoke `ctx.addIssue()` or cause schema validation to reject the tree — it is advisory, consistent with the non-blocking philosophy of R10.
-3. THE ledger entry `output` SHALL list the specific node IDs that lack evidence, enabling downstream consumers to identify and address gaps.
+1. THE `PreviewProvenance` type defined in R19.1 and the inline `provenance` object in R15.2's `PreviewImageMeta` SHALL be unified into a single shared type `BlueprintPreviewProvenance` at `shared/blueprint/preview-audit/types.ts`.
+2. THE unified type SHALL include all fields from R19.1: `source: "model" | "template" | "fallback"`, `ok: boolean`, `errorIndicators: string[]`, `generatedAt: string`, `modelUsed?: string`, `promptHash?: string`, `retryCount: number`.
+3. Both the image service (R19 producer) and the audit service (R12/R15 consumer) SHALL import from this single shared type.
 
