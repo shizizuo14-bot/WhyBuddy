@@ -43,6 +43,9 @@ export type {
   RoleResourceBudget,
 } from "./role-container/types.js";
 
+// Checks Ledger 类型（`blueprint-checks-ledger` spec Task 1.3）
+export type * from "./checks-ledger/index.js";
+
 // Autonomous Agent 类型（`autopilot-role-autonomous-agent` spec Task 1）
 export type * from "./agent-tool.js";
 export type * from "./agent-budget.js";

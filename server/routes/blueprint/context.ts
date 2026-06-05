@@ -151,6 +151,8 @@ import type { EngineeringHandoffLlmPolicy } from "./engineering-handoff/policy.j
 import { createDefaultEngineeringHandoffLlmPolicy } from "./engineering-handoff/policy.js";
 import type { EngineeringHandoffLlmService } from "./engineering-handoff/service.js";
 import { createEngineeringHandoffLlmService } from "./engineering-handoff/service.js";
+import { createChecksLedgerService } from "./checks-ledger/service.js";
+import { createContentQualityService } from "./content-quality/service.js";
 
 /**
  * Role System Architecture capability policy interface.
@@ -740,6 +742,25 @@ export interface BlueprintServiceContext {
    *   测试基线影响面。
    */
   callbackReceiver?: CallbackReceiver;
+
+  /**
+   * 校验台账服务实例（可选）。
+   *
+   * 由 `buildBlueprintServiceContext` 按 `BLUEPRINT_CHECKS_LEDGER_ENABLED === "true"` 装配。
+   * 未启用时为 undefined，调用侧使用 `ctx.checksLedger?.recordCheck(...)` 安全访问。
+   *
+   * @see .kiro/specs/blueprint-checks-ledger/design.md §10
+   */
+  checksLedger?: import("./checks-ledger/types.js").ChecksLedgerService;
+
+  /**
+   * 内容质量校验服务实例（可选）。
+   *
+   * 由 `buildBlueprintServiceContext` 按 `BLUEPRINT_CONTENT_QUALITY_CHECK_ENABLED === "true"` 装配。
+   *
+   * @see .kiro/specs/blueprint-content-quality-check/design.md §4
+   */
+  contentQuality?: import("./content-quality/types.js").ContentQualityService;
 
   /**
    * Optional: Multi-Agent Brainstorm subsystem context.
@@ -1757,6 +1778,19 @@ export function buildBlueprintServiceContext(
       });
       ctx.brainstormContext = null;
     }
+  }
+
+  // ── Checks Ledger (blueprint-checks-ledger spec Task 5.2) ──
+  // Late-bind: service closure reads ctx.jobStore / ctx.eventBus / ctx.now / ctx.logger.
+  // Env gate is handled inside the service itself; always wire the instance
+  // when env is enabled.
+  if (!ctx.checksLedger && process.env.BLUEPRINT_CHECKS_LEDGER_ENABLED === "true") {
+    ctx.checksLedger = createChecksLedgerService(ctx);
+  }
+
+  // ── Content Quality (blueprint-content-quality-check spec Task 5.2) ──
+  if (!ctx.contentQuality && process.env.BLUEPRINT_CONTENT_QUALITY_CHECK_ENABLED === "true") {
+    ctx.contentQuality = createContentQualityService(ctx);
   }
 
   return ctx;

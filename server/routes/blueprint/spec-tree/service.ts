@@ -307,6 +307,16 @@ export function createSpecTreeLlmService(
           errorMsg: applySpecTreeRedaction(zodMessage, policy),
         },
       );
+      // Record check failure in ledger
+      ctx.checksLedger?.recordCheck({
+        jobId: input.jobId,
+        stage: "spec_tree",
+        checkType: "schema",
+        checkName: "SpecTree LLM Response Schema",
+        status: "fail",
+        validator: "spec-tree/schema.ts",
+        output: zodMessage,
+      });
       return {
         generationSource: "llm_fallback",
         promptId,
@@ -323,6 +333,26 @@ export function createSpecTreeLlmService(
     const remapped = flattenAndRemapIds(parsed.data, {
       rootNodeId: input.rootNodeId,
       primaryRouteId: input.primaryRoute.id,
+    });
+
+    // Record check pass in ledger
+    ctx.checksLedger?.recordCheck({
+      jobId: input.jobId,
+      stage: "spec_tree",
+      checkType: "schema",
+      checkName: "SpecTree LLM Response Schema",
+      status: "pass",
+      validator: "spec-tree/schema.ts",
+    });
+
+    // Record invariant guard pass (flattenAndRemap succeeded = tree structure valid)
+    ctx.checksLedger?.recordCheck({
+      jobId: input.jobId,
+      stage: "spec_tree",
+      checkType: "invariant",
+      checkName: "SpecTree Invariant Guard (flatten+remap)",
+      status: "pass",
+      validator: "spec-tree/flatten-and-remap.ts",
     });
 
     // Compute digests

@@ -40,7 +40,8 @@ export type BlueprintGenerationEventFamily =
   | "capability"
   | "crew"
   | "sandbox"
-  | "brainstorm";
+  | "brainstorm"
+  | "checks";
 
 /**
  * 所有 blueprint 运行时事件名的联合类型。
@@ -136,7 +137,11 @@ export type BlueprintGenerationEventType =
   | "brainstorm.tool.completed"
   | "brainstorm.tool.failed"
   // Brainstorm degradation
-  | "brainstorm.degraded";
+  | "brainstorm.degraded"
+  // Checks Ledger（`blueprint-checks-ledger` spec）
+  | "checks.entry.recorded"
+  | "checks.gate.passed"
+  | "checks.gate.failed";
 
 /**
  * `BlueprintEventName` 事件常量命名空间。
@@ -224,6 +229,10 @@ export const BlueprintEventName = {
   BrainstormToolFailed: "brainstorm.tool.failed",
   // Brainstorm degradation
   BrainstormDegraded: "brainstorm.degraded",
+  // Checks Ledger（`blueprint-checks-ledger` spec）
+  ChecksEntryRecorded: "checks.entry.recorded",
+  ChecksGatePassed: "checks.gate.passed",
+  ChecksGateFailed: "checks.gate.failed",
 } as const satisfies Record<string, BlueprintGenerationEventType>;
 
 /**

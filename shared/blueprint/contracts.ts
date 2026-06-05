@@ -1975,6 +1975,8 @@ export interface BlueprintGenerationJob {
     stage: BlueprintGenerationStage;
   };
   staleArtifactIds?: string[];
+  /** 校验台账条目（可选，append-only）。由 `blueprint-checks-ledger` spec 引入。 */
+  checksLedger?: import("./checks-ledger/types.js").BlueprintChecksLedgerEntry[];
 }
 
 export interface BlueprintFamilyResponse {

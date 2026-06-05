@@ -564,11 +564,31 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       const snapshot = blueprintServiceContext.runtimeDiagnostics.snapshot(
         blueprintServiceContext.now,
       );
+      // Checks Ledger diagnostics (blueprint-checks-ledger spec Task 5.3)
+      const checksLedgerEnabled = process.env.BLUEPRINT_CHECKS_LEDGER_ENABLED === "true";
+      const allJobs = jobStore.list();
+      let totalChecksEntries = 0;
+      let lastRecordedAt: string | null = null;
+      if (checksLedgerEnabled) {
+        for (const job of allJobs) {
+          const ledger = (job as any).checksLedger as Array<{ triggeredAt: string }> | undefined;
+          if (ledger && ledger.length > 0) {
+            totalChecksEntries += ledger.length;
+            const last = ledger[ledger.length - 1].triggeredAt;
+            if (!lastRecordedAt || last > lastRecordedAt) lastRecordedAt = last;
+          }
+        }
+      }
       res.status(200).json({
         ...snapshot,
         brainstorm: getBrainstormDiagnostics(
           blueprintServiceContext.brainstormContext ?? null,
         ),
+        checksLedger: {
+          enabled: checksLedgerEnabled,
+          totalEntries: totalChecksEntries,
+          lastRecordedAt,
+        },
       });
     } catch {
       res.status(500).json({ error: "diagnostics unavailable" });
@@ -2074,6 +2094,26 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     "/jobs/:jobId/stale-artifacts",
     createStaleArtifactsHandler({ jobStore, ctx: blueprintServiceContext }),
   );
+
+  // ── Checks Ledger (blueprint-checks-ledger spec Task 4.4) ──
+  router.get("/jobs/:jobId/checks-ledger", (req, res) => {
+    const job = jobStore.get(req.params.jobId);
+    if (!job) {
+      res.status(404).json({ error: "job_not_found" });
+      return;
+    }
+    const checksLedger = blueprintServiceContext.checksLedger;
+    if (!checksLedger) {
+      res.json({ jobId: req.params.jobId, entries: [], summary: { total: 0, pass: 0, fail: 0, warn: 0, skip: 0 } });
+      return;
+    }
+    const filter: Record<string, string | undefined> = {};
+    if (typeof req.query.stage === "string" && req.query.stage) filter.stage = req.query.stage;
+    if (typeof req.query.status === "string" && req.query.status) filter.status = req.query.status;
+    if (typeof req.query.checkType === "string" && req.query.checkType) filter.checkType = req.query.checkType;
+    const response = checksLedger.getChecks(req.params.jobId, filter as any);
+    res.json(response);
+  });
 
   router.post(
     "/jobs/:jobId/replan",

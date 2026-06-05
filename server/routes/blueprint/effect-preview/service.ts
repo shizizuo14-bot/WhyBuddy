@@ -372,6 +372,16 @@ export function createEffectPreviewLlmService(
           errorMsg: redactAndCap(errorMsg, policy),
         },
       );
+      // Record check failure in ledger
+      ctx.checksLedger?.recordCheck({
+        jobId: input.jobId,
+        stage: "effect_preview",
+        checkType: "schema",
+        checkName: "EffectPreview LLM Response Schema",
+        status: "fail",
+        validator: "effect-preview/schema.ts",
+        output: errorMsg,
+      });
       return {
         generationSource: "llm_fallback",
         promptId: prompt.promptId,
@@ -390,6 +400,17 @@ export function createEffectPreviewLlmService(
       activeNodeId: input.specTreeNode.id,
       policy,
     });
+
+    // Record check pass in ledger
+    ctx.checksLedger?.recordCheck({
+      jobId: input.jobId,
+      stage: "effect_preview",
+      checkType: "schema",
+      checkName: "EffectPreview LLM Response Schema",
+      status: "pass",
+      validator: "effect-preview/schema.ts",
+    });
+
     const responseDigest =
       "sha256:" + sha256Hex(JSON.stringify(rawPayload));
     const structuredPayloadDigest =
