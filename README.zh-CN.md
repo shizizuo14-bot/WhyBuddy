@@ -11,38 +11,6 @@
   <sub>TRAE Skill 挑战赛作品 / 社区展示项目</sub>
 </p>
 
-<p align="center">
-  <strong>🎖️ 赞助商</strong>
-</p>
-<table align="center">
-  <tr>
-    <td align="center" width="160">
-      <a href="https://isqqw.com">
-        <strong>📊 ISQQW.com</strong><br/>
-        <sub>Echarts Demo 集</sub>
-      </a>
-    </td>
-    <td align="center" width="160">
-      <a href="https://codex-for.me">
-        <strong>☁️ Codex-For.Me</strong><br/>
-        <sub>Cloud Platform</sub>
-      </a>
-    </td>
-    <td align="center" width="160">
-      <a href="https://linux.do">
-        <strong>🐧 Linux.do</strong><br/>
-        <sub>开发者社区</sub>
-      </a>
-    </td>
-    <td align="center" width="160">
-      <a href="https://diygw.com">
-        <strong>🔧 DIYGW</strong><br/>
-        <sub>可视化低代码平台</sub>
-      </a>
-    </td>
-  </tr>
-</table>
-
 <blockquote>
 <strong>进度说明：</strong>当前工程化项目进度暂时落后于 WhyBuddy Skill。如需完整产品预演体验，请优先使用 <a href="./skills/whybuddy.zip">WhyBuddy Skill</a>；工程化项目仍在持续推进中。
 </blockquote>

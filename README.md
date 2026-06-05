@@ -11,38 +11,6 @@
   <sub>TRAE Skill Challenge / Community Showcase Project</sub>
 </p>
 
-<p align="center">
-  <strong>🎖️ Sponsors</strong>
-</p>
-<table align="center">
-  <tr>
-    <td align="center" width="160">
-      <a href="https://isqqw.com">
-        <strong>📊 ISQQW.com</strong><br/>
-        <sub>Echarts Demo 集</sub>
-      </a>
-    </td>
-    <td align="center" width="160">
-      <a href="https://codex-for.me">
-        <strong>☁️ Codex-For.Me</strong><br/>
-        <sub>Cloud Platform</sub>
-      </a>
-    </td>
-    <td align="center" width="160">
-      <a href="https://linux.do">
-        <strong>🐧 Linux.do</strong><br/>
-        <sub>Developer Community</sub>
-      </a>
-    </td>
-    <td align="center" width="160">
-      <a href="https://diygw.com">
-        <strong>🔧 DIYGW</strong><br/>
-        <sub>可视化低代码平台</sub>
-      </a>
-    </td>
-  </tr>
-</table>
-
 <blockquote>
 <strong>Progress note:</strong> The engineering app currently trails the WhyBuddy Skill. For the complete product rehearsal experience, use the <a href="./skills/whybuddy.zip">WhyBuddy Skill</a> first; the engineered project is still moving forward.
 </blockquote>
