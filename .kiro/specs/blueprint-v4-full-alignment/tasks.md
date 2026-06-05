@@ -46,7 +46,9 @@
   - [ ] A.8.3 warn/error 级 finding → push 到 job.companionFindings[]
 - [ ] A.9 在 `BlueprintServiceContext` 新增 `companionLayer?` 和 `companionLayerPolicy?`
 - [ ] A.10 在 `buildBlueprintServiceContext()` 按 env gate 装配
-- [ ] A.11 在管线调用点接入：clarification、route_generation、spec_tree 阶段
+- [ ] A.11 在管线调用点接入：
+  - [ ] A.11.1 Critic 接入 clarification、route_generation、spec_tree 三阶段（R2.3）
+  - [ ] A.11.2 Grounding 接入 input(IN_INGEST) 和 clarification(CL_BRIEF) 两阶段（R3.1）— input 阶段是 Grounding 独有、最该读真仓库的入料点
 - [ ] A.12 实现交付包 `companion_log.json` 导出（全量 findings + warn/error 醒目区块）
 - [ ] A.13 单元测试：触发阈值、独立性（不传推理验证）、降级、台账写入、findings 露出
 
@@ -68,7 +70,10 @@
 - [ ] C.8 在 `BlueprintServiceContext` 新增 `traceabilityMatrixService?`
 - [ ] C.9 在 `buildBlueprintServiceContext()` 按 env gate 装配
 - [ ] C.10 在 engineering handoff 导出路径挂载矩阵（JSON + Markdown）
-- [ ] C.11 单元测试：deriveMatrix 各分支、gaps 计算、Markdown 渲染、REST 端点
+- [ ] C.10b 矩阵失效联动（R8.5）：在 spec_tree 失效时，复用 S8 现有 staleness 链路把对应 job 的矩阵标记为 stale
+  - [ ] C.10b.1 在 staleness 依赖图中将 traceability_matrix 挂为 spec_tree 的下游
+  - [ ] C.10b.2 矩阵查询端点在返回 stale 矩阵时附带 `stale: true` 标记
+- [ ] C.11 单元测试：deriveMatrix 各分支、gaps 计算、Markdown 渲染、REST 端点、失效标记
 
 ## Phase 5: Module E — EP_VIS_AUDIT 出图审计
 
@@ -84,6 +89,12 @@
   - [ ] E.5.2 checksLedger.recordCheck(preview_audit)
   - [ ] E.5.3 fail 时 emit preview_audit.regenerate_requested 事件
   - [ ] E.5.4 retryCount >= maxRetries 时标记永久失败
+- [ ] E.5b 创建回炉消费方 `server/routes/blueprint/preview-audit/regeneration-handler.ts`（R14.4 闭环落地）
+  - [ ] E.5b.1 订阅 `preview_audit.regenerate_requested` 事件
+  - [ ] E.5b.2 对每个 failedImageId 调用 `ctx.effectPreviewImageService`（走 F 的真生成路径）重新生成
+  - [ ] E.5b.3 重生成后重新调用 auditPreviews() 复审，retryCount 递增
+  - [ ] E.5b.4 复审仍 fail 且 retryCount >= maxRetries → 标永久失败、记台账、不再 emit（防死循环）
+  - [ ] E.5b.5 在 buildBlueprintServiceContext 中接线该订阅者（env gate 关闭时不订阅）
 - [ ] E.6 在 `BlueprintServiceContext` 新增 `previewAuditService?`
 - [ ] E.7 在 `buildBlueprintServiceContext()` 按 env gate 装配
 - [ ] E.8 在 effect_preview 阶段完成后调用 auditPreviews()

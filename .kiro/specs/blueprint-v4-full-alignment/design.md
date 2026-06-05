@@ -263,11 +263,27 @@ auditPreviews(jobId, previews[])
   → 汇总 findings[]
   → checksLedger.recordCheck(preview_audit, pass/fail)
   → if (failCount > 0 && retryCount < maxRetries):
-      emit("preview_audit.regenerate_requested", { jobId, failedImageIds })
+      emit("preview_audit.regenerate_requested", { jobId, failedImageIds, retryCount })
   → if (retryCount >= maxRetries):
       mark permanently failed, record in ledger
   → return PreviewAuditResult
 ```
+
+### §E.3b 回炉消费方（subscriber，闭环落地）
+
+```
+subscribe("preview_audit.regenerate_requested", { jobId, failedImageIds, retryCount })
+  → for each failedImageId:
+      ctx.effectPreviewImageService.regenerate(imageId)   // 走 F 的真生成路径（禁兜底）
+  → re-run auditPreviews() on regenerated images           // 复审
+  → if still fail && retryCount + 1 >= maxRetries:
+      mark permanently failed, record ledger, STOP (不再 emit → 防死循环)
+  → else if still fail:
+      emit again with retryCount + 1
+```
+
+收敛保证（§E.4）：F 失败只记 ok:false 不写兜底文件 → 诚实失败不算造假 → 不再触发回炉；
+maxRetries=2 硬上限兜底。
 
 ### §E.4 回炉不会死循环的保证
 
