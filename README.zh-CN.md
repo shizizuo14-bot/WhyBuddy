@@ -1,11 +1,4 @@
 <p align="center">
-  <sub>赞助商</sub><br/>
-  <a href="https://isqqw.com"><img src="https://img.shields.io/badge/ISQQW.com-Echarts_Demo集-2563eb?style=for-the-badge&logo=apache-echarts&logoColor=white" alt="ISQQW.com" /></a>
-  &nbsp;&nbsp;
-  <a href="https://codex-for.me"><img src="https://img.shields.io/badge/Codex--For.Me-Cloud_Platform-f97316?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Codex-For.Me" /></a>
-</p>
-
-<p align="center">
   <img src="./docs/assets/banner.png" alt="WhyBuddy" width="100%" />
 </p>
 
@@ -16,6 +9,17 @@
 
 <p align="center">
   <sub>TRAE Skill 挑战赛作品 / 社区展示项目</sub>
+</p>
+
+<p align="center">
+  <sub>赞助商</sub><br/>
+  <a href="https://isqqw.com"><img src="https://img.shields.io/badge/ISQQW.com-Echarts_Demo集-2563eb?style=for-the-badge&logo=apache-echarts&logoColor=white" alt="ISQQW.com" /></a>
+  &nbsp;
+  <a href="https://codex-for.me"><img src="https://img.shields.io/badge/Codex--For.Me-Cloud_Platform-f97316?style=for-the-badge&logo=cloudflare&logoColor=white" alt="Codex-For.Me" /></a>
+  &nbsp;
+  <a href="https://linux.do"><img src="https://img.shields.io/badge/Linux.do-Community-111827?style=for-the-badge&logo=linux&logoColor=white" alt="Linux.do" /></a>
+  &nbsp;
+  <a href="https://diygw.com"><img src="https://img.shields.io/badge/DIYGW-可视化开发-16a34a?style=for-the-badge&logo=visualstudiocode&logoColor=white" alt="DIYGW" /></a>
 </p>
 
 <blockquote>
