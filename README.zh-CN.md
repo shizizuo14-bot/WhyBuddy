@@ -30,9 +30,9 @@
   <img alt="status" src="https://img.shields.io/badge/状态-早期测试-orange?style=flat-square" />
   <img alt="license" src="https://img.shields.io/badge/协议-MIT-111827?style=flat-square" />
   <img alt="stars" src="https://img.shields.io/github/stars/xiaojilele-glitch/WhyBuddy?style=flat-square" />
-  <img alt="ts" src="https://img.shields.io/badge/TypeScript-486k_行-2563eb?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/测试-7,771_用例-0f766e?style=flat-square" />
-  <img alt="specs" src="https://img.shields.io/badge/规格-273_目录-7c3aed?style=flat-square" />
+  <img alt="ts" src="https://img.shields.io/badge/TypeScript-576k_行-2563eb?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/测试-921_文件-0f766e?style=flat-square" />
+  <img alt="specs" src="https://img.shields.io/badge/规格-303_目录-7c3aed?style=flat-square" />
 </p>
 
 ---
@@ -734,14 +734,11 @@ linkStyle 116,117,118 stroke:#dc2626,stroke-width:2px,stroke-dasharray:3 3;
 
 | 指标 | 数量 |
 |:-----|-----:|
-| 项目文件 | 4,707 |
-| TypeScript/TSX 文件 | 1,837 |
-| TypeScript 行数 | 486,932 |
-| 测试文件 | 723 |
-| 测试用例 | 7,771 |
-| 规格目录 | 273 |
-| 规格 Markdown | 879 |
-| 任务检查项 | 7,093 ✅ / 1,072 ⬜ |
+| 项目文件 | 5,457 |
+| TypeScript/TSX 文件 | 2,234 |
+| TypeScript 行数 | 575,591 |
+| 测试文件 | 921 |
+| 规格目录 | 303 |
 
 ---
 

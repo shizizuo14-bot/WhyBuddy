@@ -30,9 +30,9 @@
   <img alt="status" src="https://img.shields.io/badge/Status-Early_Testing-orange?style=flat-square" />
   <img alt="license" src="https://img.shields.io/badge/License-MIT-111827?style=flat-square" />
   <img alt="stars" src="https://img.shields.io/github/stars/xiaojilele-glitch/WhyBuddy?style=flat-square" />
-  <img alt="ts" src="https://img.shields.io/badge/TypeScript-486k_Lines-2563eb?style=flat-square" />
-  <img alt="tests" src="https://img.shields.io/badge/Tests-7,771_Cases-0f766e?style=flat-square" />
-  <img alt="specs" src="https://img.shields.io/badge/Specs-273_Dirs-7c3aed?style=flat-square" />
+  <img alt="ts" src="https://img.shields.io/badge/TypeScript-576k_Lines-2563eb?style=flat-square" />
+  <img alt="tests" src="https://img.shields.io/badge/Tests-921_Files-0f766e?style=flat-square" />
+  <img alt="specs" src="https://img.shields.io/badge/Specs-303_Dirs-7c3aed?style=flat-square" />
 </p>
 
 ---
@@ -737,14 +737,11 @@ linkStyle 116,117,118 stroke:#dc2626,stroke-width:2px,stroke-dasharray:3 3;
 
 | Metric | Count |
 |:-------|------:|
-| Project files | 4,707 |
-| TypeScript/TSX files | 1,837 |
-| TypeScript lines | 486,932 |
-| Test files | 723 |
-| Test cases | 7,771 |
-| Spec directories | 273 |
-| Spec Markdown files | 879 |
-| Task checkboxes | 7,093 ✅ / 1,072 ⬜ |
+| Project files | 5,457 |
+| TypeScript/TSX files | 2,234 |
+| TypeScript lines | 575,591 |
+| Test files | 921 |
+| Spec directories | 303 |
 
 ---
 
