@@ -43,6 +43,10 @@ import {
 import { buildSpecTreePrompt, SPEC_TREE_PROMPT_ID } from "./prompt.js";
 import { SpecTreeLlmResponseSchema } from "./schema.js";
 import { flattenAndRemapIds } from "./flatten-and-remap.js";
+import {
+  checkRequirementCoverage,
+  checkNodeEvidence,
+} from "./business-invariants.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -354,6 +358,56 @@ export function createSpecTreeLlmService(
       status: "pass",
       validator: "spec-tree/flatten-and-remap.ts",
     });
+
+    // ─── Module D: 业务语义软不变量（R10/R11/R18）────────────────────
+    // 软检查：不影响 generationSource 返回值，仅写台账。env gate 控制。
+    if (process.env.BLUEPRINT_BUSINESS_INVARIANTS_ENABLED === "true") {
+      // R18.1/R18.3: 从 clarification session 取 successCriteria（带兼容回退）
+      const sessionAny = input.clarificationSession as
+        | { successCriteria?: string[]; metadata?: { structuredCriteria?: string[] } }
+        | undefined;
+      const successCriteria: string[] =
+        sessionAny?.successCriteria ??
+        sessionAny?.metadata?.structuredCriteria ??
+        [];
+
+      // 需求覆盖检查（R10）
+      if (successCriteria.length > 0) {
+        const coverage = checkRequirementCoverage(successCriteria, remapped.nodes);
+        ctx.checksLedger?.recordCheck({
+          jobId: input.jobId,
+          stage: "spec_tree",
+          checkType: "invariant",
+          checkName: "business_requirement_coverage",
+          status: coverage.status,
+          validator: "spec-tree/business-invariants.ts",
+          output: coverage.output,
+        });
+      } else {
+        // R18.2: 无 criteria → skip
+        ctx.checksLedger?.recordCheck({
+          jobId: input.jobId,
+          stage: "spec_tree",
+          checkType: "invariant",
+          checkName: "business_requirement_coverage",
+          status: "skip",
+          validator: "spec-tree/business-invariants.ts",
+          output: "no successCriteria found in clarification session",
+        });
+      }
+
+      // 节点证据检查（R11）
+      const evidence = checkNodeEvidence(remapped.nodes);
+      ctx.checksLedger?.recordCheck({
+        jobId: input.jobId,
+        stage: "spec_tree",
+        checkType: "invariant",
+        checkName: "business_node_evidence",
+        status: evidence.status,
+        validator: "spec-tree/business-invariants.ts",
+        output: evidence.output,
+      });
+    }
 
     // Compute digests
     const responseDigest =

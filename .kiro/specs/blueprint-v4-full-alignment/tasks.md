@@ -15,15 +15,15 @@
 
 ## Phase 2: Module D — S4 不变量守卫·业务语义
 
-- [ ] D.1 创建 `server/routes/blueprint/spec-tree/business-invariants.ts`，实现 `checkRequirementCoverage` 纯函数
-  - [~] D.1.1 两级匹配：显式 `coversCriteria` 优先 → 归一化关键词兜底
-  - [~] D.1.2 结果：未覆盖条目列表 + status 判定（0=pass，≤50%=warn，>50%=fail）
-- [~] D.2 实现 `checkNodeEvidence` 纯函数（检查 outputs 或 metadata.evidenceSources）
-- [ ] D.3 在 `spec-tree/service.ts` happy path 中接入业务软检查（env gate `BLUEPRINT_BUSINESS_INVARIANTS_ENABLED`）
-  - [~] D.3.1 从 clarification session 取 successCriteria（兼容 R18.1/R18.3）
-  - [~] D.3.2 无 criteria 时记录 skip
-- [~] D.4 写入 checksLedger（checkType: invariant，checkName: business_requirement_coverage / business_node_evidence）
-- [~] D.5 单元测试：匹配各分支、阈值边界、env gate 跳过、无 criteria skip
+- [x] D.1 创建 `server/routes/blueprint/spec-tree/business-invariants.ts`，实现 `checkRequirementCoverage` 纯函数
+  - [x] D.1.1 两级匹配：显式 `coversCriteria` 优先 → 归一化关键词兜底
+  - [x] D.1.2 结果：未覆盖条目列表 + status 判定（0=pass，≤50%=warn，>50%=fail）
+- [x] D.2 实现 `checkNodeEvidence` 纯函数（检查 outputs 或 metadata.evidenceSources）
+- [x] D.3 在 `spec-tree/service.ts` happy path 中接入业务软检查（env gate `BLUEPRINT_BUSINESS_INVARIANTS_ENABLED`）
+  - [x] D.3.1 从 clarification session 取 successCriteria（兼容 R18.1/R18.3）
+  - [x] D.3.2 无 criteria 时记录 skip
+- [x] D.4 写入 checksLedger（checkType: invariant，checkName: business_requirement_coverage / business_node_evidence）
+- [x] D.5 单元测试：匹配各分支、阈值边界、env gate 跳过、无 criteria skip
 
 ## Phase 3: Module A — CO 伴随式审查与接地层 (含 Module B 留痕)
 
