@@ -49,8 +49,11 @@ export type * from "./checks-ledger/index.js";
 // Companion 伴随层类型（`blueprint-v4-full-alignment` Module A）
 export type * from "./companion/index.js";
 
+// Traceability Matrix 类型（`blueprint-v4-full-alignment` Module C）
+export type * from "./traceability-matrix/index.js";
+
 // Preview Audit / Provenance 类型（`blueprint-v4-full-alignment` Module E/F）
-export type * from "./preview-audit/types.js";
+export type * from "./preview-audit/index.js";
 
 // Autonomous Agent 类型（`autopilot-role-autonomous-agent` spec Task 1）
 export type * from "./agent-tool.js";

@@ -154,6 +154,9 @@ import { createEngineeringHandoffLlmService } from "./engineering-handoff/servic
 import { createChecksLedgerService } from "./checks-ledger/service.js";
 import { createContentQualityService } from "./content-quality/service.js";
 import { createCompanionLayer } from "./companion/service.js";
+import { createTraceabilityMatrixService } from "./traceability-matrix/service.js";
+import { createPreviewAuditService } from "./preview-audit/service.js";
+import { createPreviewAuditRegenerationHandler } from "./preview-audit/regeneration-handler.js";
 
 /**
  * Role System Architecture capability policy interface.
@@ -770,6 +773,18 @@ export interface BlueprintServiceContext {
   companionLayer?: import("./companion/types.js").CompanionLayerService;
   /** 伴随层策略（可选，纯数据，R17）。 */
   companionLayerPolicy?: import("./companion/types.js").CompanionLayerPolicy;
+
+  /**
+   * 可追溯矩阵服务实例（可选）。`blueprint-v4-full-alignment` Module C。
+   * 由 `buildBlueprintServiceContext` 按 `BLUEPRINT_TRACEABILITY_MATRIX_ENABLED === "true"` 装配。
+   */
+  traceabilityMatrixService?: import("./traceability-matrix/types.js").TraceabilityMatrixService;
+
+  /**
+   * 出图审计服务实例（可选）。`blueprint-v4-full-alignment` Module E。
+   * 由 `buildBlueprintServiceContext` 按 `BLUEPRINT_PREVIEW_AUDIT_ENABLED === "true"` 装配。
+   */
+  previewAuditService?: import("./preview-audit/types.js").PreviewAuditService;
 
   /**
    * Optional: Multi-Agent Brainstorm subsystem context.
@@ -1805,6 +1820,24 @@ export function buildBlueprintServiceContext(
   // ── Companion Layer (blueprint-v4-full-alignment Module A) ──
   if (!ctx.companionLayer && process.env.BLUEPRINT_COMPANION_ENABLED === "true") {
     ctx.companionLayer = createCompanionLayer(ctx);
+  }
+
+  // ── Traceability Matrix (blueprint-v4-full-alignment Module C) ──
+  if (
+    !ctx.traceabilityMatrixService &&
+    process.env.BLUEPRINT_TRACEABILITY_MATRIX_ENABLED === "true"
+  ) {
+    ctx.traceabilityMatrixService = createTraceabilityMatrixService(ctx);
+  }
+
+  // ── Preview Audit (blueprint-v4-full-alignment Module E) ──
+  if (
+    !ctx.previewAuditService &&
+    process.env.BLUEPRINT_PREVIEW_AUDIT_ENABLED === "true"
+  ) {
+    ctx.previewAuditService = createPreviewAuditService(ctx);
+    // E.5b.5: subscribe regeneration handler (env gate 关闭时不订阅)。
+    createPreviewAuditRegenerationHandler(ctx);
   }
 
   return ctx;

@@ -36,6 +36,8 @@ import {
 } from "./blueprint/context.js";
 import { createAgentCrewStageActivationDriver } from "./blueprint/agent-crew-stage-activation/driver.js";
 import { computeFuzzinessScore as computeCompanionFuzziness } from "./blueprint/companion/fuzziness.js";
+import { createTraceabilityMatrixRouteHandler } from "./blueprint/traceability-matrix/route.js";
+import { buildPreviewMetasFromStageCResult } from "./blueprint/preview-audit/meta-builder.js";
 // `autopilot-llm-spec-generation` Task 6.2：以 `import type` 引入
 // `SpecDocsLlmNodeOutput`，仅作为 `buildSpecDocument` 的可选参数注入 LLM
 // 批量生成结果，不会触发 spec-docs-llm-generation.ts 内部 runtime 副作用。
@@ -2134,6 +2136,12 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
     const response = checksLedger.getChecks(req.params.jobId, filter as any);
     res.json(response);
   });
+
+  // ── Traceability Matrix (blueprint-v4-full-alignment Module C, C.7) ──
+  router.get(
+    "/jobs/:jobId/traceability-matrix",
+    createTraceabilityMatrixRouteHandler(blueprintServiceContext),
+  );
 
   router.post(
     "/jobs/:jobId/replan",
@@ -10491,6 +10499,36 @@ async function generateEffectPreviews(
       error: "Blueprint SPEC documents not ready.",
       message: `No usable SPEC documents are attached to the requested SPEC tree node set.`,
     };
+  }
+
+  // ── EP_VIS_AUDIT 出图审计钩子（blueprint-v4-full-alignment Module E / E.8）──
+  // 在 effect_preview 批次产出后审计所有已出图节点。env-gated（gate 关闭时
+  // `ctx.previewAuditService` 为 undefined，optional-chaining 直接 no-op）且
+  // 非阻塞（包 try/catch，绝不破坏既有返回形态）。在批次层调用以支持跨节点
+  // 复制充数（duplicate_content）检测。
+  try {
+    if (ctx.previewAuditService) {
+      const aggregatedImages: Record<string, NodeImageRecord> = {};
+      for (const preview of previews) {
+        if (preview.imageBase64ByNodeId) {
+          for (const [nodeId, record] of Object.entries(
+            preview.imageBase64ByNodeId
+          )) {
+            aggregatedImages[nodeId] = record;
+          }
+        }
+      }
+      const metas = buildPreviewMetasFromStageCResult(
+        job.id,
+        { imageBase64ByNodeId: aggregatedImages },
+        createdAt
+      );
+      if (metas.length > 0) {
+        await ctx.previewAuditService.auditPreviews(job.id, metas);
+      }
+    }
+  } catch {
+    // 非阻塞：审计失败绝不影响 effect_preview 主流程。
   }
 
   const replacedNodeIds = new Set(previews.map(preview => preview.nodeId));

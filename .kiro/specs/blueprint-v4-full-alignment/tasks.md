@@ -54,54 +54,54 @@
 
 ## Phase 4: Module C — EP_MATRIX 可追溯矩阵
 
-- [~] C.1 创建 `shared/blueprint/traceability-matrix/types.ts`：TraceabilityMatrixEntry、TraceabilityCoverage、TraceabilityGap、TraceabilityMatrix
-- [~] C.2 创建 `shared/blueprint/traceability-matrix/index.ts` barrel
-- [~] C.3 在 `shared/blueprint/index.ts` 新增 re-export
-- [ ] C.4 创建 `server/routes/blueprint/traceability-matrix/derive.ts`：deriveMatrix 纯函数
-  - [~] C.4.1 需求节点 = type === "route_step"（已确认真实 schema）
-  - [~] C.4.2 设计 = type === "spec_document"
-  - [~] C.4.3 任务 = type === "engineering_plan"
-  - [~] C.4.4 证据 = outputs[] + metadata.evidenceSources
-  - [~] C.4.5 测试 = spec documents 中的 acceptance criteria
-  - [~] C.4.6 gaps 计算：逐需求检查四维是否有对应
-- [~] C.5 创建 `server/routes/blueprint/traceability-matrix/service.ts`：createTraceabilityMatrixService(ctx)
-- [~] C.6 创建 `server/routes/blueprint/traceability-matrix/export.ts`：JSON + Markdown 导出
-- [~] C.7 创建 `server/routes/blueprint/traceability-matrix/route.ts`：GET /api/blueprint/jobs/:jobId/traceability-matrix
-- [~] C.8 在 `BlueprintServiceContext` 新增 `traceabilityMatrixService?`
-- [~] C.9 在 `buildBlueprintServiceContext()` 按 env gate 装配
-- [~] C.10 在 engineering handoff 导出路径挂载矩阵（JSON + Markdown）
-- [ ] C.10b 矩阵失效联动（R8.5）：在 spec_tree 失效时，复用 S8 现有 staleness 链路把对应 job 的矩阵标记为 stale
-  - [~] C.10b.1 在 staleness 依赖图中将 traceability_matrix 挂为 spec_tree 的下游
-  - [~] C.10b.2 矩阵查询端点在返回 stale 矩阵时附带 `stale: true` 标记
-- [~] C.11 单元测试：deriveMatrix 各分支、gaps 计算、Markdown 渲染、REST 端点、失效标记
+- [x] C.1 创建 `shared/blueprint/traceability-matrix/types.ts`：TraceabilityMatrixEntry、TraceabilityCoverage、TraceabilityGap、TraceabilityMatrix
+- [x] C.2 创建 `shared/blueprint/traceability-matrix/index.ts` barrel
+- [x] C.3 在 `shared/blueprint/index.ts` 新增 re-export
+- [x] C.4 创建 `server/routes/blueprint/traceability-matrix/derive.ts`：deriveMatrix 纯函数
+  - [x] C.4.1 需求节点 = type === "route_step"（已确认真实 schema）
+  - [x] C.4.2 设计 = type === "spec_document"
+  - [x] C.4.3 任务 = type === "engineering_plan"
+  - [x] C.4.4 证据 = outputs[] + metadata.evidenceSources
+  - [x] C.4.5 测试 = spec documents 中的 acceptance criteria
+  - [x] C.4.6 gaps 计算：逐需求检查四维是否有对应
+- [x] C.5 创建 `server/routes/blueprint/traceability-matrix/service.ts`：createTraceabilityMatrixService(ctx)
+- [x] C.6 创建 `server/routes/blueprint/traceability-matrix/export.ts`：JSON + Markdown 导出
+- [x] C.7 创建 `server/routes/blueprint/traceability-matrix/route.ts`：GET /api/blueprint/jobs/:jobId/traceability-matrix
+- [x] C.8 在 `BlueprintServiceContext` 新增 `traceabilityMatrixService?`
+- [x] C.9 在 `buildBlueprintServiceContext()` 按 env gate 装配
+- [x] C.10 在 engineering handoff 导出路径挂载矩阵（JSON + Markdown）
+- [x] C.10b 矩阵失效联动（R8.5）：在 spec_tree 失效时，复用 S8 现有 staleness 链路把对应 job 的矩阵标记为 stale
+  - [x] C.10b.1 在 staleness 依赖图中将 traceability_matrix 挂为 spec_tree 的下游
+  - [x] C.10b.2 矩阵查询端点在返回 stale 矩阵时附带 `stale: true` 标记
+- [x] C.11 单元测试：deriveMatrix 各分支、gaps 计算、Markdown 渲染、REST 端点、失效标记
 
 ## Phase 5: Module E — EP_VIS_AUDIT 出图审计
 
-- [~] E.1 在 `shared/blueprint/preview-audit/types.ts` 补充 PreviewImageMeta、PreviewAuditFinding、PreviewAuditResult、PreviewAuditService（复用 F.1 的 BlueprintPreviewProvenance）
-- [~] E.2 创建 `shared/blueprint/preview-audit/index.ts` barrel
-- [~] E.3 在 `shared/blueprint/index.ts` 新增 re-export
-- [ ] E.4 创建 `server/routes/blueprint/preview-audit/detectors.ts`：三类造假检测纯函数
-  - [~] E.4.1 detectFallbackFraud：source === "fallback" AND ok === true
-  - [~] E.4.2 detectFakeSuccess：ok === true AND (errorIndicators 非空 OR fileSize < 1024)
-  - [~] E.4.3 detectDuplicates：同 job 内 contentHash 相同的图
-- [ ] E.5 创建 `server/routes/blueprint/preview-audit/service.ts`：createPreviewAuditService(ctx)
-  - [~] E.5.1 auditPreviews() 跑三个 detector
-  - [~] E.5.2 checksLedger.recordCheck(preview_audit)
-  - [~] E.5.3 fail 时 emit preview_audit.regenerate_requested 事件
-  - [~] E.5.4 retryCount >= maxRetries 时标记永久失败
-- [ ] E.5b 创建回炉消费方 `server/routes/blueprint/preview-audit/regeneration-handler.ts`（R14.4 闭环落地）
-  - [~] E.5b.1 订阅 `preview_audit.regenerate_requested` 事件
-  - [~] E.5b.2 对每个 failedImageId 调用 `ctx.effectPreviewImageService`（走 F 的真生成路径）重新生成
-  - [~] E.5b.3 重生成后重新调用 auditPreviews() 复审，retryCount 递增
-  - [~] E.5b.4 复审仍 fail 且 retryCount >= maxRetries → 标永久失败、记台账、不再 emit（防死循环）
-  - [~] E.5b.5 在 buildBlueprintServiceContext 中接线该订阅者（env gate 关闭时不订阅）
-- [~] E.6 在 `BlueprintServiceContext` 新增 `previewAuditService?`
-- [~] E.7 在 `buildBlueprintServiceContext()` 按 env gate 装配
-- [~] E.8 在 effect_preview 阶段完成后调用 auditPreviews()
-- [~] E.9 单元测试：三类 detector 边界、回炉计数、maxRetries 永久失败、台账写入
+- [x] E.1 在 `shared/blueprint/preview-audit/types.ts` 补充 PreviewImageMeta、PreviewAuditFinding、PreviewAuditResult、PreviewAuditService（复用 F.1 的 BlueprintPreviewProvenance）
+- [x] E.2 创建 `shared/blueprint/preview-audit/index.ts` barrel
+- [x] E.3 在 `shared/blueprint/index.ts` 新增 re-export
+- [x] E.4 创建 `server/routes/blueprint/preview-audit/detectors.ts`：三类造假检测纯函数
+  - [x] E.4.1 detectFallbackFraud：source === "fallback" AND ok === true
+  - [x] E.4.2 detectFakeSuccess：ok === true AND (errorIndicators 非空 OR fileSize < 1024)
+  - [x] E.4.3 detectDuplicates：同 job 内 contentHash 相同的图
+- [x] E.5 创建 `server/routes/blueprint/preview-audit/service.ts`：createPreviewAuditService(ctx)
+  - [x] E.5.1 auditPreviews() 跑三个 detector
+  - [x] E.5.2 checksLedger.recordCheck(preview_audit)
+  - [x] E.5.3 fail 时 emit preview_audit.regenerate_requested 事件
+  - [x] E.5.4 retryCount >= maxRetries 时标记永久失败
+- [x] E.5b 创建回炉消费方 `server/routes/blueprint/preview-audit/regeneration-handler.ts`（R14.4 闭环落地）
+  - [x] E.5b.1 订阅 `preview_audit.regenerate_requested` 事件
+  - [x] E.5b.2 对每个 failedImageId 调用 `ctx.effectPreviewImageService`（走 F 的真生成路径）重新生成
+  - [x] E.5b.3 重生成后重新调用 auditPreviews() 复审，retryCount 递增
+  - [x] E.5b.4 复审仍 fail 且 retryCount >= maxRetries → 标永久失败、记台账、不再 emit（防死循环）
+  - [x] E.5b.5 在 buildBlueprintServiceContext 中接线该订阅者（env gate 关闭时不订阅）
+- [x] E.6 在 `BlueprintServiceContext` 新增 `previewAuditService?`
+- [x] E.7 在 `buildBlueprintServiceContext()` 按 env gate 装配
+- [x] E.8 在 effect_preview 阶段完成后调用 auditPreviews()
+- [x] E.9 单元测试：三类 detector 边界、回炉计数、maxRetries 永久失败、台账写入
 
 ## Phase 6: 兼容性验证
 
-- [~] V.1 运行现有 blueprint-routes.test.ts 全部用例（所有新 env gate 关闭时）
-- [~] V.2 验证旧 job JSON 无新必填字段回归
-- [~] V.3 验证 spec-tree schema 校验行为不变（业务不变量是独立软检查，不影响 superRefine）
+- [x] V.1 运行现有 blueprint-routes.test.ts 全部用例（所有新 env gate 关闭时）
+- [x] V.2 验证旧 job JSON 无新必填字段回归
+- [x] V.3 验证 spec-tree schema 校验行为不变（业务不变量是独立软检查，不影响 superRefine）

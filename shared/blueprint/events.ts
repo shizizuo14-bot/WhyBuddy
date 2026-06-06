@@ -79,6 +79,11 @@ export type BlueprintGenerationEventType =
   // Effect preview
   | "preview.generated"
   | "preview.refreshed"
+  // EP_VIS_AUDIT 出图审计回炉（`blueprint-v4-full-alignment` Module E / R14.1）：
+  // 出图审计发现假图时发出，请求对失败图片回炉重生。使用点号命名
+  // `preview.audit.regenerate_requested`，`resolveBlueprintEventFamily` 按首段
+  // `.` 截取会自动归入既有 `preview` 家族，不扩展家族目录。
+  | "preview.audit.regenerate_requested"
   // Prompt package
   | "prompt.packaged"
   // Mission handoff
@@ -176,6 +181,8 @@ export const BlueprintEventName = {
   // Effect preview
   PreviewGenerated: "preview.generated",
   PreviewRefreshed: "preview.refreshed",
+  // EP_VIS_AUDIT 出图审计回炉（`blueprint-v4-full-alignment` Module E / R14.1）
+  PreviewAuditRegenerateRequested: "preview.audit.regenerate_requested",
   // Prompt package
   PromptPackaged: "prompt.packaged",
   // Mission handoff
