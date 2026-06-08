@@ -467,3 +467,68 @@ describe("decide — normal operation and fallback on error", () => {
     expect(passedPrompt).toContain("Stage ID: stage-planning");
   });
 });
+
+// ---------------------------------------------------------------------------
+// decide — force mode (BLUEPRINT_BRAINSTORM_FORCE)
+// ---------------------------------------------------------------------------
+
+describe("decide — force mode", () => {
+  it("returns brainstormNeeded=true WITHOUT calling the LLM when config.force is true", async () => {
+    const mockEmit: EventEmitterFn = vi.fn();
+    const mockLLM: LLMCallerFn = vi.fn(async () => VALID_LLM_RESPONSE);
+
+    const result = await decide(makeInput(), mockLLM, mockEmit, {
+      timeoutMs: 5000,
+      force: true,
+    });
+
+    expect(result.brainstormNeeded).toBe(true);
+    expect(result.requiredRoles).toEqual([
+      "decider",
+      "planner",
+      "architect",
+      "executor",
+      "auditor",
+    ]);
+    // Gate LLM is skipped entirely in force mode (saves tokens, guarantees on).
+    expect(mockLLM).not.toHaveBeenCalled();
+    expect(mockEmit).toHaveBeenCalledWith(
+      "brainstorm.gate.forced",
+      expect.objectContaining({ stageId: "stage-planning" }),
+    );
+  });
+
+  it("forces ON even when capability bridges are degraded", async () => {
+    const mockEmit: EventEmitterFn = vi.fn();
+    const mockLLM: LLMCallerFn = vi.fn(async () => VALID_LLM_RESPONSE);
+
+    const result = await decide(
+      makeInput({ degradedBridges: ["docker", "mcp"] }),
+      mockLLM,
+      mockEmit,
+      { timeoutMs: 5000, force: true },
+    );
+
+    expect(result.brainstormNeeded).toBe(true);
+    expect(mockLLM).not.toHaveBeenCalled();
+  });
+
+  it("reads BLUEPRINT_BRAINSTORM_FORCE from env when config.force is undefined", async () => {
+    const prev = process.env.BLUEPRINT_BRAINSTORM_FORCE;
+    process.env.BLUEPRINT_BRAINSTORM_FORCE = "true";
+    try {
+      const mockEmit: EventEmitterFn = vi.fn();
+      const mockLLM: LLMCallerFn = vi.fn(async () => VALID_LLM_RESPONSE);
+
+      const result = await decide(makeInput(), mockLLM, mockEmit, {
+        timeoutMs: 5000,
+      });
+
+      expect(result.brainstormNeeded).toBe(true);
+      expect(mockLLM).not.toHaveBeenCalled();
+    } finally {
+      if (prev === undefined) delete process.env.BLUEPRINT_BRAINSTORM_FORCE;
+      else process.env.BLUEPRINT_BRAINSTORM_FORCE = prev;
+    }
+  });
+});

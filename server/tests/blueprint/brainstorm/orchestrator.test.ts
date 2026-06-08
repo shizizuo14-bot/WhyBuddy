@@ -268,15 +268,25 @@ describe("BrainstormOrchestrator - Discussion Mode", () => {
     await orchestrator.startSession(config);
     await vi.advanceTimersByTimeAsync(5000);
 
-    expect(calls.length).toBe(6);
-    expect(calls[0]).not.toContain("Prior deliberation outputs");
-    expect(calls[1]).not.toContain("Prior deliberation outputs");
-    expect(calls[2]).not.toContain("Prior deliberation outputs");
-    expect(calls[3]).toContain("Prior deliberation outputs");
-    expect(calls[3]).toContain("Round 1 [planner]");
-    expect(calls[3]).toContain("Output #1");
-    expect(calls[5]).toContain("Round 1 [executor]");
-    expect(calls[5]).toContain("Output #3");
+    // The structured collaboration path (autopilot-brainstorm-real-
+    // collaboration, Task 8.1) interleaves aux-pool Critique / adjudication
+    // calls with per-member claim calls. This test's intent is multi-round
+    // member execution + prior-context chaining, so filter to the member-claim
+    // prompts (only those carry the `needsToolCall` output schema).
+    const memberPrompts = calls.filter((prompt) =>
+      prompt.includes("needsToolCall"),
+    );
+
+    // At least two rounds of three members executed.
+    expect(memberPrompts.length).toBeGreaterThanOrEqual(6);
+    expect(memberPrompts[0]).not.toContain("Prior deliberation outputs");
+    expect(memberPrompts[1]).not.toContain("Prior deliberation outputs");
+    expect(memberPrompts[2]).not.toContain("Prior deliberation outputs");
+    expect(memberPrompts[3]).toContain("Prior deliberation outputs");
+    expect(memberPrompts[3]).toContain("Round 1 [planner]");
+    expect(memberPrompts[3]).toContain("Output #1");
+    expect(memberPrompts[5]).toContain("Round 1 [executor]");
+    expect(memberPrompts[5]).toContain("Output #3");
 
     orchestrator.dispose();
   });
@@ -919,6 +929,74 @@ describe("BrainstormOrchestrator - Event Emission", () => {
     expect(synthesizingEvents.length).toBe(1);
     expect(synthesizingEvents[0][1].status).toBe("synthesizing");
     expect(completedEvents).toHaveLength(0);
+
+    orchestrator.dispose();
+  });
+
+  it("emits runtime edge events when crew-member nodes are linked", async () => {
+    const emitter = makeMockEmitter();
+    const orchestrator = new BrainstormOrchestrator(
+      makeMockLLMCaller(),
+      emitter,
+    );
+
+    await orchestrator.startSession(makeConfig({ mode: "vote" }));
+    await vi.advanceTimersByTimeAsync(5000);
+
+    const emitterCalls = (emitter as any).calls as Array<[string, Record<string, unknown>]>;
+    const edgeEvents = emitterCalls.filter(([type]) => type === "edge.triggered");
+
+    expect(edgeEvents.length).toBeGreaterThanOrEqual(1);
+    expect(edgeEvents[0][1]).toMatchObject({
+      type: "edge.triggered",
+      jobId: "job-test-1",
+      sessionId: expect.any(String),
+      stage: "stage-planning",
+      edgeId: expect.stringMatching(/^brainstorm-edge:/),
+      sourceNodeId: expect.any(String),
+      targetNodeId: expect.any(String),
+    });
+
+    orchestrator.dispose();
+  });
+
+  it("emits runtime synthesis events around completeSynthesis", async () => {
+    const emitter = makeMockEmitter();
+    const orchestrator = new BrainstormOrchestrator(
+      makeMockLLMCaller(),
+      emitter,
+    );
+
+    const session = await orchestrator.startSession(makeConfig({ roles: ["planner"] }));
+    await vi.advanceTimersByTimeAsync(5000);
+
+    orchestrator.completeSynthesis(session.id, {
+      decision: "Use the staged runtime graph.",
+      confidence: 0.82,
+      reasoningPoints: [{ roleId: "planner", point: "Runtime graph is observable." }],
+      dissentingOpinions: [],
+      tokenUsage: 12,
+    });
+
+    const emitterCalls = (emitter as any).calls as Array<[string, Record<string, unknown>]>;
+    const synthesisStarted = emitterCalls.find(([type]) => type === "synthesis.started");
+    const synthesisCompleted = emitterCalls.find(([type]) => type === "synthesis.completed");
+
+    expect(synthesisStarted?.[1]).toMatchObject({
+      type: "synthesis.started",
+      jobId: "job-test-1",
+      sessionId: session.id,
+      stage: "stage-planning",
+      sourceNodeIds: expect.any(Array),
+    });
+    expect(synthesisCompleted?.[1]).toMatchObject({
+      type: "synthesis.completed",
+      jobId: "job-test-1",
+      sessionId: session.id,
+      stage: "stage-planning",
+      synthesisNodeId: expect.any(String),
+      summary: "Use the staged runtime graph.",
+    });
 
     orchestrator.dispose();
   });

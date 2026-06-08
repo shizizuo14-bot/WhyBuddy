@@ -101,3 +101,50 @@ export function writeEvidenceToLedger(
     // Ledger evidence must never block brainstorm completion.
   }
 }
+
+export interface WriteSynthesisAuditToLedgerInput {
+  checksLedger?: Pick<ChecksLedgerService, "recordCheck">;
+  jobId: string;
+  stageId: string;
+  sessionId: string;
+  audit: {
+    status: "pass" | "needs_review";
+    reasons: string[];
+    unresolvedChallengeCount: number;
+  };
+}
+
+/**
+ * Write a primary-model synthesis audit result to the checks ledger. Reuses the
+ * same ledger channel as `writeEvidenceToLedger`. `needs_review` maps to the
+ * ledger `warn` status (the synthesis is surfaced for review without hard
+ * failing the stage). Never throws — ledger writes must not block the pipeline.
+ */
+export function writeSynthesisAuditToLedger(
+  input: WriteSynthesisAuditToLedgerInput,
+): void {
+  try {
+    input.checksLedger?.recordCheck({
+      jobId: input.jobId,
+      stage: "spec_docs",
+      checkType: "companion_trace",
+      checkName: `brainstorm:synthesis-audit:${input.sessionId}`,
+      status: input.audit.status === "pass" ? "pass" : "warn",
+      validator: "brainstorm/synthesis-audit.ts",
+      output:
+        input.audit.reasons.length > 0
+          ? input.audit.reasons.join("; ")
+          : `synthesis audit ${input.audit.status}`,
+      metadata: {
+        artifactName: "brainstorm_synthesis_audit",
+        sessionId: input.sessionId,
+        stageId: input.stageId,
+        auditStatus: input.audit.status,
+        unresolvedChallengeCount: input.audit.unresolvedChallengeCount,
+        reasons: input.audit.reasons,
+      },
+    });
+  } catch {
+    // Audit ledger writes must never block brainstorm completion.
+  }
+}

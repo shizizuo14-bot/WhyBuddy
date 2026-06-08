@@ -131,6 +131,7 @@ describe("Feature: blueprint-v4-full-loop-completion, Property 2", () => {
 describe("Feature: blueprint-v4-full-loop-completion, Property 3", () => {
   it("links rebuttals to prior challenges and flags unresolved challenges after two rounds", async () => {
     const session = makeSession(["planner", "architect"]);
+    const emitEvent = vi.fn();
     const executeMember = vi.fn(async (member) => {
       if (member.roleId === "planner") {
         member.output = {
@@ -155,7 +156,7 @@ describe("Feature: blueprint-v4-full-loop-completion, Property 3", () => {
       session,
       stageContext: "Design auth.",
       executeMember,
-      emitEvent: vi.fn(),
+      emitEvent,
       config: { minRounds: 2, maxRounds: 2, convergenceThreshold: 1 },
     });
 
@@ -175,6 +176,37 @@ describe("Feature: blueprint-v4-full-loop-completion, Property 3", () => {
           opinion: expect.stringContaining("auth risk"),
         }),
       ]),
+    );
+
+    expect(emitEvent).toHaveBeenCalledWith(
+      "decision.marker.emitted",
+      expect.objectContaining({
+        type: "decision.marker.emitted",
+        marker: "CHALLENGE",
+        jobId: "job-test",
+        sessionId: "session-test",
+        stage: "stage-test",
+        roleId: "planner",
+        targetRoleId: "architect",
+      }),
+    );
+    expect(emitEvent).toHaveBeenCalledWith(
+      "edge.triggered",
+      expect.objectContaining({
+        type: "edge.triggered",
+        edgeId: expect.stringMatching(/^challenge:/),
+        sourceNodeId: "role:planner",
+        targetNodeId: "role:architect",
+      }),
+    );
+    expect(emitEvent).toHaveBeenCalledWith(
+      "decision.marker.emitted",
+      expect.objectContaining({
+        type: "decision.marker.emitted",
+        marker: "SUPPORT",
+        roleId: "architect",
+        targetRoleId: "planner",
+      }),
     );
   });
 });

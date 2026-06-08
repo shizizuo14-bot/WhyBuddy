@@ -476,6 +476,7 @@ describe("Pipeline Integration - Synthesis Result", () => {
       synthesizer: new BrainstormSynthesizer(mockLLM, emitter),
       memoryStore: new BrainstormMemoryStore(emitter),
       enabled: true,
+      primaryCaller: mockLLM,
       checksLedger: { recordCheck } as any,
     };
 

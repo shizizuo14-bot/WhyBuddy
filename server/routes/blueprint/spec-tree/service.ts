@@ -417,7 +417,7 @@ export function createSpecTreeLlmService(
     // ─── Module A: 伴随式审查（spec_tree 阶段，Critic 触发）──────────
     // 对抗独立性：只把最终 SPEC 树节点作为 artifact 传入，不含生成方推理。
     // 非阻塞 + 按 env gate（在 companionLayer 内部判定）。
-    const companionLayer = (ctx as { companionLayer?: import("../companion/types.js").CompanionLayerService }).companionLayer;
+    const companionLayer = (ctx as { companionLayer?: import("../../../../shared/blueprint/companion/types.js").CompanionLayerService }).companionLayer;
     if (companionLayer) {
       try {
         await companionLayer.evaluateAll(

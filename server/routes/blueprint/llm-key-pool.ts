@@ -72,12 +72,16 @@ export function parseKeyPoolFromEnv(): LlmKeyPoolConfig | undefined {
 
   const baseUrl = process.env.BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL ?? "https://api.rcouyi.com/v1";
   const model = process.env.BLUEPRINT_SPEC_DOCS_LLM_POOL_MODEL ?? "ouyi-5-preview-thinking";
-  const timeoutMs = parseInt(process.env.BLUEPRINT_SPEC_DOCS_LLM_POOL_TIMEOUT_MS ?? "60000", 10);
+  // 默认 5 分钟（300000ms）：thinking 模型（ouyi-5-preview-thinking）生成一份
+  // 规格文档常常 >60s，且 `callLlmForSpecDoc` 在首轮非 Markdown 时会再发一次
+  // 严格重试。60s 太短会频繁触发 AbortController（"This operation was aborted"）
+  // 进而退化到模板兜底，导致右侧文档串味/缺需求设计任务。给到 5 分钟单次上限。
+  const timeoutMs = parseInt(process.env.BLUEPRINT_SPEC_DOCS_LLM_POOL_TIMEOUT_MS ?? "300000", 10);
 
   return {
     baseUrl,
     model,
-    timeoutMs: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 60000,
+    timeoutMs: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 300000,
     keys: keys.map((apiKey, i) => ({
       apiKey,
       label: labels[i] ?? `key-${i}`,
@@ -147,7 +151,7 @@ export async function callLlmWithPoolKey(
   userMessage: string,
 ): Promise<string> {
   const url = `${config.baseUrl}/chat/completions`;
-  const timeoutMs = config.timeoutMs ?? 60000;
+  const timeoutMs = config.timeoutMs ?? 300000;
 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

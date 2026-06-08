@@ -23,9 +23,18 @@ import type {
   SessionConfig,
   SynthesisResult,
 } from "../../../../shared/blueprint/brainstorm-contracts";
+import type { BrainstormRuntimeGraphEvent } from "../../../../shared/blueprint/brainstorm-runtime-graph";
 
-import { executeDeliberation } from "./deliberation-protocol";
+import { createAdjudicator } from "./adjudicator";
+import {
+  executeDeliberation,
+  parseCritique,
+  parseRebuttal,
+  type StructuredCritiqueCaller,
+  type StructuredRebuttalCaller,
+} from "./deliberation-protocol";
 import { getBrainstormRole } from "./role-registry";
+import { resolveTopology } from "./topology-manager";
 import { collectVotes } from "./vote-synthesizer";
 
 // ---------------------------------------------------------------------------
@@ -68,6 +77,54 @@ export const VALID_CREW_MEMBER_STATES: CrewMemberState[] = [
 ];
 
 // ---------------------------------------------------------------------------
+// Structured collaboration prompt builders (Task 8.1)
+// ---------------------------------------------------------------------------
+// Small, pure prompt builders for the aux-pool Critique / Rebuttal calls wired
+// into discussion mode. They ask the model for a strict JSON object whose
+// closed-set field (`severity` / `stance`) is what `parseCritique` /
+// `parseRebuttal` validate; identity/targeting fields are supplied by the
+// engine, not the model (R1.3 / R2.2).
+
+/** Build the aux-pool critique prompt for a challenger → target claim (R1.1). */
+function buildCritiquePrompt(
+  challengerRoleId: BrainstormRoleId,
+  targetRoleId: BrainstormRoleId,
+  targetClaim: string,
+  stageContext: string,
+): string {
+  return (
+    `You are the "${challengerRoleId}" agent. Critically review this specific ` +
+    `claim made by the "${targetRoleId}" agent:\n\n` +
+    `Claim: "${targetClaim}"\n\n` +
+    `Stage context:\n${stageContext}\n\n` +
+    `Challenge the claim where it is weak, risky, or unsupported. Respond with ` +
+    `a JSON object matching this exact schema:\n` +
+    `{\n` +
+    `  "critique": "your specific critique of the claim",\n` +
+    `  "severity": "low" | "medium" | "high"\n` +
+    `}`
+  );
+}
+
+/** Build the aux-pool rebuttal prompt for the critiqued role (R2.1). */
+function buildRebuttalPrompt(
+  critique: { challengerRoleId: BrainstormRoleId; critique: string },
+  responderClaim: string,
+): string {
+  return (
+    `The "${critique.challengerRoleId}" agent critiqued your claim:\n\n` +
+    `Your claim: "${responderClaim}"\n` +
+    `Their critique: "${critique.critique}"\n\n` +
+    `Respond to the critique. Either concede the point or defend your claim. ` +
+    `Respond with a JSON object matching this exact schema:\n` +
+    `{\n` +
+    `  "rebuttal": "your response to the critique",\n` +
+    `  "stance": "concede" | "defend"\n` +
+    `}`
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Orchestrator
 // ---------------------------------------------------------------------------
 
@@ -78,10 +135,30 @@ export class BrainstormOrchestrator {
   private totalSessionsCompleted = 0;
   private degradationCount = 0;
   private totalDurationMs = 0;
+  // ─── Real structured-collaboration counters (R11.2 / Task 8.1) ──────────
+  // Accumulated across sessions so the diagnostics endpoint (Task 12.1) can
+  // surface how much REAL structured deliberation (vs the legacy heuristic)
+  // actually ran. Additive; never affects control flow.
+  private critiqueCount = 0;
+  private rebuttalCount = 0;
+  private adjudicationCount = 0;
+  private unresolvedCount = 0;
+  private voteCount = 0;
 
+  /**
+   * @param llmCaller Aux_Model caller (`BLUEPRINT_SPEC_DOCS_LLM_POOL_*`) used
+   *   for the parallel debate work: agent claims, Critiques, Rebuttals, votes.
+   * @param emitEvent Event emitter.
+   * @param adjudicatorCaller OPTIONAL Primary_Model caller (`LLM_*` gpt-5.5)
+   *   used for adjudication (and, upstream, synthesis/audit). When omitted the
+   *   adjudicator falls back to the aux caller (R8.4) — but the field reference
+   *   is kept DISTINCT so tests can spy which caller ran which phase (R8.3 /
+   *   R12.5).
+   */
   constructor(
     private readonly llmCaller: LLMCallerFn,
     private readonly emitEvent: EventEmitterFn,
+    private readonly adjudicatorCaller?: LLMCallerFn,
   ) {}
 
   // ─── Session Lifecycle ──────────────────────────────────────────────────
@@ -178,7 +255,33 @@ export class BrainstormOrchestrator {
     session.completedAt = new Date();
     session.tokenUsed += synthesisResult.tokenUsage;
 
-    this.createSynthesisNode(session, synthesisResult);
+    const sourceNodeIds = session.branchNodes.map((node) => node.id);
+    this.emitRuntimeGraphEvent({
+      id: `synthesis-started:${session.id}:${session.branchNodes.length}`,
+      type: "synthesis.started",
+      jobId: session.jobId,
+      sessionId: session.id,
+      stage: session.stageId,
+      occurredAt: new Date().toISOString(),
+      roleId: "decider",
+      sourceNodeIds,
+    });
+
+    const synthesisNodeId = this.createSynthesisNode(session, synthesisResult);
+    this.emitRuntimeGraphEvent({
+      id: `synthesis-completed:${session.id}:${synthesisNodeId}`,
+      type: "synthesis.completed",
+      jobId: session.jobId,
+      sessionId: session.id,
+      stage: session.stageId,
+      occurredAt: new Date().toISOString(),
+      roleId: "decider",
+      nodeId: synthesisNodeId,
+      sourceNodeIds,
+      synthesisNodeId,
+      summary: synthesisResult.decision,
+      confidence: synthesisResult.confidence,
+    });
 
     this.totalSessionsCompleted++;
     this.totalDurationMs +=
@@ -197,6 +300,10 @@ export class BrainstormOrchestrator {
     return session;
   }
 
+  private emitRuntimeGraphEvent(event: BrainstormRuntimeGraphEvent): void {
+    this.emitEvent(event.type, { ...event });
+  }
+
   /**
    * Get diagnostics for the brainstorm orchestrator.
    */
@@ -213,6 +320,13 @@ export class BrainstormOrchestrator {
           : 0,
       tokenBudget: BRAINSTORM_MAX_TOKENS,
       toolCallLimit: BRAINSTORM_MAX_TOOL_CALLS,
+      // Real structured-collaboration counts (Task 8.1 accumulates these so the
+      // diagnostics endpoint in Task 12.1 can read them). Additive/optional.
+      critiqueCount: this.critiqueCount,
+      rebuttalCount: this.rebuttalCount,
+      unresolvedCount: this.unresolvedCount,
+      adjudicationCount: this.adjudicationCount,
+      voteCount: this.voteCount,
     };
   }
 
@@ -286,13 +400,106 @@ export class BrainstormOrchestrator {
     session: BrainstormSession,
     stageContext: string,
   ): Promise<void> {
+    // Resolve the interaction topology (who critiques whom, who synthesizes).
+    // No named topology is wired yet, so this yields the default acyclic
+    // critique chain over the participating roles (R5.1). resolveTopology
+    // never throws and always returns a valid, executable topology.
+    const { topology } = resolveTopology({
+      participatingRoleIds: Array.from(session.crewMembers.keys()),
+    });
+
+    // ─── Critique caller (Aux_Model, R8.1) ──────────────────────────────
+    // Builds a critique prompt, runs it on the AUX caller, and parses the
+    // response into a structured Critique. `targetClaim` is sourced from the
+    // TARGET role's own round output (the first non-empty claim) — never from
+    // the challenger's text (R1.3). Returns null when no target claim exists
+    // or the response is unparseable; the engine then skips the critique (R1.4).
+    const critiqueCaller: StructuredCritiqueCaller = async ({
+      challengerRoleId,
+      target,
+      stageContext: critiqueContext,
+    }) => {
+      const targetClaim = target.claims.find(
+        (claim) => typeof claim === "string" && claim.trim().length > 0,
+      );
+      if (!targetClaim) return null;
+
+      const prompt = buildCritiquePrompt(
+        challengerRoleId,
+        target.roleId,
+        targetClaim,
+        critiqueContext,
+      );
+      const raw = await this.llmCaller(prompt, {});
+      return parseCritique(raw, {
+        id: crypto.randomUUID(),
+        challengerRoleId,
+        targetRoleId: target.roleId,
+        targetClaim,
+        // The engine emits events with its own round counter; the per-critique
+        // round number is informational here.
+        roundNumber: 0,
+      });
+    };
+
+    // ─── Rebuttal caller (Aux_Model, R8.1) ───────────────────────────────
+    // Builds a rebuttal prompt for the critiqued role, runs it on the AUX
+    // caller, and parses the response into a structured Rebuttal that
+    // references its originating critique (R2.2). Returns null on an
+    // unparseable response → the engine leaves the critique unresolved (R2.6).
+    const rebuttalCaller: StructuredRebuttalCaller = async ({
+      critique,
+      responderClaim,
+    }) => {
+      const prompt = buildRebuttalPrompt(critique, responderClaim);
+      const raw = await this.llmCaller(prompt, {});
+      return parseRebuttal(raw, {
+        id: crypto.randomUUID(),
+        responderRoleId: critique.targetRoleId,
+        challengeId: critique.id,
+        roundNumber: critique.roundNumber,
+      });
+    };
+
+    // ─── Adjudicator (Primary_Model, R8.2) ───────────────────────────────
+    // Adjudication runs on the PRIMARY caller when configured, otherwise falls
+    // back to the aux caller (R8.4). The `?? this.llmCaller` keeps the fallback
+    // working while preserving distinct field references so tests can spy which
+    // caller ran which phase (R8.3 / R12.5).
+    const adjudicator = createAdjudicator(this.adjudicatorCaller ?? this.llmCaller);
+
     const result = await executeDeliberation({
       session,
       stageContext,
       emitEvent: this.emitEvent,
       executeMember: (member, context) =>
         this.executeCrewMember(session, member, context),
+      topology,
+      critiqueCaller,
+      rebuttalCaller,
+      adjudicator,
     });
+
+    // Real structured counts derived from the deliberation result. One
+    // adjudication runs per executed round.
+    const sessionCritiqueCount = result.rounds.reduce(
+      (sum, round) => sum + round.challenges.length,
+      0,
+    );
+    const sessionRebuttalCount = result.rounds.reduce(
+      (sum, round) => sum + round.rebuttals.length,
+      0,
+    );
+    const sessionAdjudicationCount = result.rounds.length;
+    const sessionUnresolvedCount = result.unresolvedChallenges.length;
+
+    // Accumulate onto the orchestrator counters so diagnostics (Task 12.1) can
+    // report real structured-collaboration activity.
+    this.critiqueCount += sessionCritiqueCount;
+    this.rebuttalCount += sessionRebuttalCount;
+    this.adjudicationCount += sessionAdjudicationCount;
+    this.unresolvedCount += sessionUnresolvedCount;
+
     session.deliberationSummary = {
       roundCount: result.rounds.length,
       finalConvergenceScore: result.finalConvergenceScore,
@@ -324,6 +531,10 @@ export class BrainstormOrchestrator {
         roleId: dissent.roleId,
         opinion: dissent.opinion,
       })),
+      // Real structured deliberation counts for this session (additive).
+      critiqueCount: sessionCritiqueCount,
+      rebuttalCount: sessionRebuttalCount,
+      adjudicationCount: sessionAdjudicationCount,
     };
   }
 
@@ -342,6 +553,9 @@ export class BrainstormOrchestrator {
       executeMember: (member, context) =>
         this.executeCrewMember(session, member, context),
     });
+
+    // Accumulate the structured vote count for diagnostics (Task 12.1).
+    this.voteCount += result.votes.length;
 
     this.emitEvent("brainstorm.vote.completed", {
       sessionId: session.id,
@@ -769,10 +983,27 @@ export class BrainstormOrchestrator {
         targetNodeId: nodeId,
       };
       session.edges.push(edge);
+      this.emitRuntimeGraphEvent({
+        id: `brainstorm-edge:${session.id}:${parentNode.id}:${nodeId}`,
+        type: "edge.triggered",
+        jobId: session.jobId,
+        sessionId: session.id,
+        stage: session.stageId,
+        occurredAt: now,
+        roleId: member.roleId,
+        nodeId,
+        parentNodeId: parentNode.id,
+        edgeId: `brainstorm-edge:${parentNode.id}:${nodeId}`,
+        sourceNodeId: parentNode.id,
+        targetNodeId: nodeId,
+        reason: "Crew member branch node linked to prior runtime node.",
+      });
     }
 
     this.emitEvent("brainstorm.node.created", {
       sessionId: session.id,
+      jobId: session.jobId,
+      stageId: session.stageId,
       nodeId,
       parentNodeId: node.parentNodeId,
       roleId: member.roleId,
@@ -800,6 +1031,8 @@ export class BrainstormOrchestrator {
 
     this.emitEvent("brainstorm.node.updated", {
       sessionId: session.id,
+      jobId: session.jobId,
+      stageId: session.stageId,
       nodeId,
       roleId: node.roleId,
       status,
@@ -813,7 +1046,7 @@ export class BrainstormOrchestrator {
   private createSynthesisNode(
     session: BrainstormSession,
     synthesisResult: SynthesisResult,
-  ): void {
+  ): string {
     const nodeId = crypto.randomUUID();
     const now = new Date().toISOString();
     const parentNode =
@@ -843,10 +1076,27 @@ export class BrainstormOrchestrator {
         sourceNodeId: parentNode.id,
         targetNodeId: nodeId,
       });
+      this.emitRuntimeGraphEvent({
+        id: `brainstorm-edge:${session.id}:${parentNode.id}:${nodeId}`,
+        type: "edge.triggered",
+        jobId: session.jobId,
+        sessionId: session.id,
+        stage: session.stageId,
+        occurredAt: now,
+        roleId: "decider",
+        nodeId,
+        parentNodeId: parentNode.id,
+        edgeId: `brainstorm-edge:${parentNode.id}:${nodeId}`,
+        sourceNodeId: parentNode.id,
+        targetNodeId: nodeId,
+        reason: "Synthesis node linked to the latest brainstorm runtime node.",
+      });
     }
 
     this.emitEvent("brainstorm.node.created", {
       sessionId: session.id,
+      jobId: session.jobId,
+      stageId: session.stageId,
       nodeId,
       parentNodeId: node.parentNodeId,
       roleId: "decider",
@@ -857,6 +1107,8 @@ export class BrainstormOrchestrator {
     });
     this.emitEvent("brainstorm.node.updated", {
       sessionId: session.id,
+      jobId: session.jobId,
+      stageId: session.stageId,
       nodeId,
       roleId: "decider",
       status: "completed",
@@ -864,6 +1116,7 @@ export class BrainstormOrchestrator {
       confidence: synthesisResult.confidence,
       tokenUsage: synthesisResult.tokenUsage,
     });
+    return nodeId;
   }
 
   /**

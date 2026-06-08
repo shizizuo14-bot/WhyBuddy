@@ -24,6 +24,7 @@ import {
   routeDecision,
   type LLMCallerFn,
   type EventEmitterFn,
+  type RoutingResult,
 } from "./decision-gate";
 import { BrainstormOrchestrator } from "./orchestrator";
 import { BrainstormSynthesizer } from "./synthesizer";
@@ -35,7 +36,17 @@ import { resolveStageConfig } from "./stage-config";
 import {
   buildBrainstormEvidence,
   writeEvidenceToLedger,
+  writeSynthesisAuditToLedger,
 } from "./evidence-trail";
+import { createPoolBackedBrainstormCaller } from "./pool-llm-caller";
+import { parseKeyPoolFromEnv } from "../llm-key-pool";
+import { auditSynthesis } from "./synthesis-audit";
+import { emitReasoningGraphArtifact } from "./reasoning-graph-emitter";
+import type { BrainstormReasoningGraphArtifactPayload } from "../../../../shared/blueprint/brainstorm-reasoning-graph";
+import type {
+  BrainstormDecisionMarker,
+  BrainstormRuntimeGraphEvent,
+} from "../../../../shared/blueprint/brainstorm-runtime-graph";
 import type { ChecksLedgerService } from "../checks-ledger/types";
 
 // ---------------------------------------------------------------------------
@@ -48,6 +59,12 @@ export interface BrainstormServiceContext {
   synthesizer: BrainstormSynthesizer;
   memoryStore: BrainstormMemoryStore;
   enabled: boolean;
+  /**
+   * Primary-model caller (gpt-5.5 via `LLM_*`). Used for synthesis, the
+   * Decision Gate, and synthesis audit — physically distinct from the
+   * pool-backed aux caller that drives the orchestrator's debate.
+   */
+  primaryCaller: LLMCallerFn;
   checksLedger?: Pick<ChecksLedgerService, "recordCheck">;
 }
 
@@ -66,6 +83,14 @@ export interface StageResult {
   output: string;
   synthesisResult?: SynthesisResult;
   sessionId?: string;
+  /**
+   * Set when the primary-model synthesis audit flagged the result as
+   * `needs_review` (e.g. unsupported by evidence, too many unresolved
+   * challenges). Dissent is surfaced, never silently dropped.
+   */
+  needsReview?: boolean;
+  /** Human-readable reasons from the synthesis audit when `needsReview`. */
+  auditReasons?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -88,11 +113,26 @@ export function assembleBrainstormContext(
     return null;
   }
 
-  const orchestrator = new BrainstormOrchestrator(llmCaller, emitEvent);
+  // Model split (Req 1.1, 2.1, 2.4, 8.1, 8.2): the debate (agent claims,
+  // Critiques, Rebuttals, votes) runs on the aux pool (ouyi keys, concurrent),
+  // while synthesis/audit AND adjudication stay on the primary model (gpt-5.5)
+  // passed in as `llmCaller`. When the pool is not configured the aux caller
+  // degrades to the primary caller (Req 1.3 / 8.4) — the two are still
+  // referentially distinct fields so tests can count which phase used which.
+  // Passing the primary `llmCaller` as the orchestrator's third arg wires it as
+  // the Adjudicator (R8.2): aux pool drives debate, primary drives adjudication.
+  const auxCaller = createPoolBackedBrainstormCaller() ?? llmCaller;
+  const orchestrator = new BrainstormOrchestrator(auxCaller, emitEvent, llmCaller);
   const synthesizer = new BrainstormSynthesizer(llmCaller, emitEvent);
   const memoryStore = new BrainstormMemoryStore(emitEvent);
 
-  return { orchestrator, synthesizer, memoryStore, enabled: true };
+  return {
+    orchestrator,
+    synthesizer,
+    memoryStore,
+    enabled: true,
+    primaryCaller: llmCaller,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -116,6 +156,13 @@ export async function executeStageWithBrainstorm(
   llmCaller: LLMCallerFn,
   emitEvent: EventEmitterFn,
   singleAgentFallback: (context: StageContext) => Promise<string>,
+  /**
+   * Optional durable sink for the projected reasoning graph. When provided, the
+   * companion persists the `brainstorm_reasoning_graph` payload as a job
+   * artifact (the channel the client reads) in addition to emitting the
+   * ephemeral event. Never-throw: persist failures are swallowed (Req 6.1).
+   */
+  onReasoningGraph?: (payload: BrainstormReasoningGraphArtifactPayload) => void,
 ): Promise<StageResult> {
   // When brainstorm is disabled via env, skip Decision Gate entirely (Req 10.1)
   if (!brainstormCtx || !brainstormCtx.enabled) {
@@ -155,6 +202,12 @@ export async function executeStageWithBrainstorm(
   });
 
   const routing = routeDecision(decision);
+  emitDecisionGateRuntimeGraphEvents({
+    stageContext,
+    decision,
+    routeType: routing.type,
+    emitEvent,
+  });
 
   if (routing.type === "single-agent") {
     const output = await singleAgentFallback(stageContext);
@@ -239,11 +292,53 @@ export async function executeStageWithBrainstorm(
     const synthesisResult = finalSession.synthesisResult;
     const output = synthesisResult?.decision ?? "Brainstorm completed without synthesis.";
 
+    // Project the final session into a brainstorm_reasoning_graph artifact and
+    // push it on the existing event channel so the 3D wall renders the debate
+    // (Req 3.3). The helper never throws — projection/emit failures are
+    // swallowed (logged at debug) and must not affect the job (Req 6.1).
+    emitReasoningGraphArtifact({
+      session: finalSession,
+      centralQuestionTitle: stageContext.stageDescription,
+      emitEvent,
+      persist: onReasoningGraph,
+    });
+
+    // Primary-model synthesis audit (Req 2.2, 2.3, 6.1). Non-blocking: the
+    // audit never throws, and any ledger write failure is swallowed. When the
+    // audit flags `needs_review` we annotate the StageResult so dissent is
+    // surfaced rather than silently dropped.
+    let needsReview: boolean | undefined;
+    let auditReasons: string[] | undefined;
+    if (synthesisResult) {
+      try {
+        const audit = await auditSynthesis({
+          synthesis: synthesisResult,
+          session: finalSession,
+          primaryCaller: brainstormCtx.primaryCaller,
+        });
+        writeSynthesisAuditToLedger({
+          checksLedger: brainstormCtx.checksLedger,
+          jobId: finalSession.jobId,
+          stageId: finalSession.stageId,
+          sessionId: finalSession.id,
+          audit,
+        });
+        if (audit.status === "needs_review") {
+          needsReview = true;
+          auditReasons = audit.reasons;
+        }
+      } catch {
+        // Audit/ledger failures must never block stage completion (Req 6.1).
+      }
+    }
+
     return {
       type: "brainstorm",
       output,
       synthesisResult: synthesisResult ?? undefined,
       sessionId: session.id,
+      needsReview,
+      auditReasons,
     };
   } catch (err) {
     // Graceful degradation: on unrecoverable error, fall back to single-agent (Req 10.1, 10.3)
@@ -256,6 +351,81 @@ export async function executeStageWithBrainstorm(
     const output = await singleAgentFallback(stageContext);
     return { type: "single-agent", output };
   }
+}
+
+function emitDecisionGateRuntimeGraphEvents(input: {
+  stageContext: StageContext;
+  decision: DecisionGateOutput;
+  routeType: RoutingResult["type"];
+  emitEvent: EventEmitterFn;
+}): void {
+  const { stageContext, decision, routeType, emitEvent } = input;
+  const sessionId = `decision-gate:${stageContext.jobId}:${stageContext.stageId}`;
+  const occurredAt = new Date().toISOString();
+  const marker: BrainstormDecisionMarker =
+    routeType === "brainstorm-session" ? "BRANCH" : "CONTINUE";
+
+  const base = {
+    jobId: stageContext.jobId,
+    sessionId,
+    stage: stageContext.stageId,
+    occurredAt,
+    roleId: "decision-gate",
+    nodeId: "decision-gate",
+    summary: decision.reasoning,
+  } satisfies Pick<
+    BrainstormRuntimeGraphEvent,
+    | "jobId"
+    | "sessionId"
+    | "stage"
+    | "occurredAt"
+    | "roleId"
+    | "nodeId"
+    | "summary"
+  >;
+
+  emitEvent("decision.marker.emitted", {
+    id: `${sessionId}:marker`,
+    type: "decision.marker.emitted",
+    ...base,
+    marker,
+    rationale: decision.reasoning,
+  } satisfies BrainstormRuntimeGraphEvent);
+
+  emitEvent("edge.condition.evaluated", {
+    id: `${sessionId}:edge-evaluated`,
+    type: "edge.condition.evaluated",
+    ...base,
+    edgeId: "decision-gate:brainstorm",
+    sourceNodeId: "decision-gate",
+    targetNodeId: "brainstorm-orchestrator",
+    condition: "brainstormNeeded === true",
+    matched: decision.brainstormNeeded,
+    reason: decision.reasoning,
+  } satisfies BrainstormRuntimeGraphEvent);
+
+  const edgeEvent: BrainstormRuntimeGraphEvent =
+    routeType === "brainstorm-session"
+      ? {
+          id: `${sessionId}:edge-triggered`,
+          type: "edge.triggered",
+          ...base,
+          edgeId: "decision-gate:brainstorm",
+          sourceNodeId: "decision-gate",
+          targetNodeId: "brainstorm-orchestrator",
+          reason: decision.reasoning,
+        }
+      : {
+          id: `${sessionId}:edge-suppressed`,
+          type: "edge.suppressed",
+          ...base,
+          edgeId: "decision-gate:brainstorm",
+          sourceNodeId: "decision-gate",
+          targetNodeId: "brainstorm-orchestrator",
+          reason: decision.reasoning || "Decision Gate kept the stage on single-agent path.",
+        };
+
+  emitEvent(edgeEvent.type, { ...edgeEvent });
 }
 
 function countDeliberationRounds(session: BrainstormSession): number {
@@ -307,6 +477,17 @@ export function getBrainstormDiagnostics(
     ]),
   );
 
+  // Pool usage (Req 5.2): surface whether the aux key pool is configured and
+  // how many keys it carries, so operators can confirm the pool-backed
+  // concurrent debate path is actually wired (vs. degrading to the single
+  // primary caller). Read-only: `parseKeyPoolFromEnv` only inspects env, it
+  // never starts a session or calls an LLM.
+  const poolConfig = parseKeyPoolFromEnv();
+  const pool = {
+    configured: poolConfig !== undefined,
+    keyCount: poolConfig?.keys.length ?? 0,
+  };
+
   if (!brainstormCtx) {
     return {
       enabled: false,
@@ -316,13 +497,24 @@ export function getBrainstormDiagnostics(
       averageSessionDurationMs: 0,
       tokenBudget: 0,
       toolCallLimit: 0,
+      // Real structured-collaboration counts (R11.2): when brainstorm is
+      // disabled / not assembled there is no deliberation, so these are 0.
+      // Surfaced here too (additive) so the diagnostics shape is stable across
+      // the enabled and disabled branches.
+      critiqueCount: 0,
+      rebuttalCount: 0,
+      unresolvedCount: 0,
+      adjudicationCount: 0,
+      voteCount: 0,
       perStageConfig,
+      pool,
     };
   }
 
   return {
     ...brainstormCtx.orchestrator.getDiagnostics(),
     perStageConfig,
+    pool,
   };
 }
 

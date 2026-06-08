@@ -43,6 +43,7 @@ describe("Brainstorm Diagnostics Extension", () => {
   });
 
   it("returns disabled diagnostics when brainstorm context is null", () => {
+    delete process.env.BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS;
     const diag = getBrainstormDiagnostics(null);
 
     expect(diag.enabled).toBe(false);
@@ -53,12 +54,29 @@ describe("Brainstorm Diagnostics Extension", () => {
     expect(diag.tokenBudget).toBe(0);
     expect(diag.toolCallLimit).toBe(0);
     expect(diag.perStageConfig).toEqual({
+      intake: false,
+      clarification: false,
       route_generation: false,
       spec_tree: false,
       spec_docs: false,
       effect_preview: false,
       prompt_packaging: false,
       engineering_handoff: false,
+    });
+    expect(diag.pool).toEqual({ configured: false, keyCount: 0 });
+  });
+
+  it("surfaces pool usage from the aux key pool env (present and absent)", () => {
+    process.env.BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS = "a,b,c,d,e";
+    expect(getBrainstormDiagnostics(null).pool).toEqual({
+      configured: true,
+      keyCount: 5,
+    });
+
+    delete process.env.BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS;
+    expect(getBrainstormDiagnostics(null).pool).toEqual({
+      configured: false,
+      keyCount: 0,
     });
   });
 
@@ -81,6 +99,8 @@ describe("Brainstorm Diagnostics Extension", () => {
     expect(diag.tokenBudget).toBe(50000);
     expect(diag.toolCallLimit).toBe(20);
     expect(diag.perStageConfig).toEqual({
+      intake: false,
+      clarification: false,
       route_generation: false,
       spec_tree: false,
       spec_docs: false,
@@ -121,6 +141,8 @@ describe("Brainstorm Diagnostics Extension", () => {
     const diag = getBrainstormDiagnostics(null);
 
     expect(diag.perStageConfig).toEqual({
+      intake: false,
+      clarification: false,
       route_generation: true,
       spec_tree: false,
       spec_docs: false,

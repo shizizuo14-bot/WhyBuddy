@@ -201,6 +201,18 @@ export interface SpecDocsLlmGeneration {
 /** env 旗标：是否启用 spec_docs LLM 路径。默认 `false`，需显式 opt-in。 */
 const SPEC_DOCS_LLM_ENABLED_ENV = "BLUEPRINT_SPEC_DOCS_LLM_ENABLED";
 
+/**
+ * env 旗标：是否允许「key pool」参与 spec_docs 文档生成。
+ *
+ * 默认 `false`：5-key pool（`BLUEPRINT_SPEC_DOCS_LLM_POOL_*`，ouyi 模型）现在
+ * **专供伴随式头脑风暴**（`pool-llm-caller` / brainstorm companion），不再用于
+ * 生成规格文档。文档生成全流程走主 LLM（`LLM_*`，gpt-5.5）的串行 agent runtime
+ * 路径，保证产物模型一致、避免 thinking 模型输出非 Markdown 退化。
+ *
+ * 仅当显式 `BLUEPRINT_SPEC_DOCS_USE_POOL=true` 时才恢复历史的 pool 并发文档生成。
+ */
+const SPEC_DOCS_USE_POOL_ENV = "BLUEPRINT_SPEC_DOCS_USE_POOL";
+
 /** env 旗标：单节点 LLM 调用独立超时（毫秒），默认 180_000。 */
 const SPEC_DOCS_LLM_TIMEOUT_ENV = "BLUEPRINT_SPEC_DOCS_LLM_TIMEOUT_MS";
 
@@ -228,6 +240,14 @@ const REDACTION_POLICY: AgentCrewStageActivationPolicy =
  */
 function isSpecDocsLlmEnabled(): boolean {
   return process.env[SPEC_DOCS_LLM_ENABLED_ENV] === "true";
+}
+
+/**
+ * 是否允许 key pool 参与文档生成。默认 `false`——pool 专供伴随式头脑风暴。
+ * 仅 `BLUEPRINT_SPEC_DOCS_USE_POOL=true` 时返回 true。
+ */
+function isSpecDocsPoolEnabled(): boolean {
+  return process.env[SPEC_DOCS_USE_POOL_ENV] === "true";
 }
 
 /** 解析单节点超时；非法值或缺失时退回到默认值。 */
@@ -683,8 +703,10 @@ export function createSpecDocsLlmGeneration(
         const parentSummaryMap = new Map<string, string>();
         const perNode: SpecDocsLlmNodeOutput[] = [];
 
-        // 尝试初始化 key pool（仅 spec_docs 使用）
-        const poolConfig = parseKeyPoolFromEnv();
+        // 尝试初始化 key pool。默认关闭：pool 专供伴随式头脑风暴，文档生成走
+        // 主 LLM（gpt-5.5）串行路径。仅 `BLUEPRINT_SPEC_DOCS_USE_POOL=true` 时
+        // 才恢复历史的 pool 并发生成。
+        const poolConfig = isSpecDocsPoolEnabled() ? parseKeyPoolFromEnv() : undefined;
         const pool: LlmKeyPool | undefined = poolConfig ? createLlmKeyPool(poolConfig) : undefined;
 
         if (pool && pool.size > 0) {
@@ -848,8 +870,10 @@ export function createSpecDocsLlmGeneration(
           const llmCount = perNode.filter(n => n.generationSource === "llm").length;
           emitter?.completed(`规格文档生成完成：${llmCount}/${perNode.length} 个节点由 LLM 生成`);
         } else {
-          // ─── 串行路径（无 pool，使用主 LLM）─────────────────────────────
-          const SERIAL_MAX_LLM_NODES = 8;
+          // ─── 串行路径（无 pool，使用主 LLM gpt-5.5）─────────────────────
+          // 文档生成默认走这条路径。上限抬到 44，与历史 pool 路径对齐，避免
+          // 节点数较多时（如 27 个）大量节点被 template 掉。
+          const SERIAL_MAX_LLM_NODES = 44;
           let _serialCompleted = 0;
           let _serialFailed = 0;
           for (let i = 0; i < request.nodes.length; i++) {

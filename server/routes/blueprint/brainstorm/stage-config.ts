@@ -13,8 +13,10 @@
 // Types
 // ---------------------------------------------------------------------------
 
-/** The 6 pipeline stages eligible for brainstorm decision gating. */
+/** The pipeline stages eligible for brainstorm decision gating. */
 export type BrainstormEligibleStage =
+  | "intake"
+  | "clarification"
   | "route_generation"
   | "spec_tree"
   | "spec_docs"
@@ -37,6 +39,8 @@ export interface BrainstormStageConfig {
  * Each per-stage var must equal exactly `"true"` (case-sensitive) to be enabled.
  */
 const STAGE_ENV_MAP: Record<BrainstormEligibleStage, string> = {
+  intake: "BRAINSTORM_STAGE_INTAKE_ENABLED",
+  clarification: "BRAINSTORM_STAGE_CLARIFICATION_ENABLED",
   route_generation: "BRAINSTORM_STAGE_ROUTE_GENERATION_ENABLED",
   spec_tree: "BRAINSTORM_STAGE_SPEC_TREE_ENABLED",
   spec_docs: "BRAINSTORM_STAGE_SPEC_DOCS_ENABLED",

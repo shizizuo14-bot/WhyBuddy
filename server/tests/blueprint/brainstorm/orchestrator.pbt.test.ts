@@ -266,18 +266,28 @@ describe("Property 7: Discussion mode cross-round context chaining", () => {
           await orchestrator.startSession(config);
           await vi.advanceTimersByTimeAsync(5000);
 
-          expect(receivedPrompts.length).toBeGreaterThanOrEqual(roles.length * 2);
+          // The structured collaboration path (autopilot-brainstorm-real-
+          // collaboration, Task 8.1) interleaves aux-pool Critique / Rebuttal /
+          // adjudication calls with the per-member claim calls. This test's
+          // intent is the cross-round CONTEXT CHAINING of the member-claim
+          // calls, so filter to those: only the crew-member reasoning prompt
+          // carries the `needsToolCall` output schema.
+          const memberPrompts = receivedPrompts.filter((prompt) =>
+            prompt.includes("needsToolCall"),
+          );
+
+          expect(memberPrompts.length).toBeGreaterThanOrEqual(roles.length * 2);
 
           for (let i = 0; i < roles.length; i++) {
-            expect(receivedPrompts[i]).not.toContain(
+            expect(memberPrompts[i]).not.toContain(
               "Prior deliberation outputs",
             );
           }
 
           for (let i = roles.length; i < roles.length * 2; i++) {
-            expect(receivedPrompts[i]).toContain("Prior deliberation outputs");
+            expect(memberPrompts[i]).toContain("Prior deliberation outputs");
             for (const roleId of roles) {
-              expect(receivedPrompts[i]).toContain(`Round 1 [${roleId}]`);
+              expect(memberPrompts[i]).toContain(`Round 1 [${roleId}]`);
             }
           }
 

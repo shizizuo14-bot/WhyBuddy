@@ -1,26 +1,37 @@
 import type {
-  BrainstormRoleId,
   BrainstormSession,
   CrewMemberInstance,
+  MajorityVote,
+  StructuredVote,
 } from "../../../../shared/blueprint/brainstorm-contracts.js";
 import type { DeliberationRound } from "./deliberation-protocol.js";
 
-export interface VoteInput {
-  roleId: BrainstormRoleId;
-  chosenOption: string;
-  confidence: number;
-  reasoning: string;
-}
+/**
+ * @deprecated Use {@link StructuredVote}. Retained as a structural alias for
+ * backward compatibility with existing imports (orchestrator, tests).
+ */
+export type VoteInput = StructuredVote;
 
-export interface VoteResult {
-  winningOption: string;
-  winningScore: number;
-  secondPlaceOption: string | null;
+/**
+ * Configurable narrow-margin threshold (R4.3): when the winning option's margin
+ * over the second place is below this value the result is flagged `isNarrow`.
+ */
+export const NARROW_MARGIN_THRESHOLD = 0.15;
+
+/**
+ * Structured majority-vote result. Extends the shared {@link MajorityVote}
+ * contract (so it is directly usable as one) with the additional fields the
+ * orchestrator already consumes plus a degradation flag.
+ */
+export interface VoteResult extends MajorityVote {
+  /** Confidence-weighted score of the second-place option (0 when none). */
   secondPlaceScore: number;
-  margin: number;
-  isNarrow: boolean;
-  votes: VoteInput[];
-  minorityReasoning: string[];
+  /**
+   * True when no valid structured votes were parsed. The orchestrator uses this
+   * to degrade to synthesis annotated "no valid votes" (R4.5) instead of
+   * throwing.
+   */
+  noValidVotes: boolean;
 }
 
 export interface CollectVotesInput {
@@ -38,9 +49,34 @@ function clamp01(value: number): number {
   return Math.max(0, Math.min(1, value));
 }
 
-export function computeVoteResult(votes: readonly VoteInput[]): VoteResult {
+/** A vote is valid only when it carries a non-empty `chosenOption` string. */
+function isValidVote(
+  vote: StructuredVote | null | undefined,
+): vote is StructuredVote {
+  return (
+    vote != null &&
+    typeof vote.chosenOption === "string" &&
+    vote.chosenOption.trim().length > 0
+  );
+}
+
+/**
+ * Compute the confidence-weighted majority vote over a set of structured votes.
+ *
+ * Invalid votes (missing/empty `chosenOption`) are ignored rather than throwing
+ * (R4.4). The winning option is the one with the maximum confidence-weighted
+ * score; `margin` is the winning score minus the second place; `isNarrow` is
+ * true exactly when `margin` is below {@link NARROW_MARGIN_THRESHOLD} (R4.2,
+ * R4.3). When no valid votes remain, `noValidVotes` is true so the caller can
+ * degrade gracefully (R4.5).
+ */
+export function computeVoteResult(
+  votes: readonly StructuredVote[],
+): VoteResult {
+  const validVotes = votes.filter(isValidVote);
+
   const optionScores = new Map<string, number>();
-  for (const vote of votes) {
+  for (const vote of validVotes) {
     optionScores.set(
       vote.chosenOption,
       (optionScores.get(vote.chosenOption) ?? 0) + clamp01(vote.confidence),
@@ -57,7 +93,7 @@ export function computeVoteResult(votes: readonly VoteInput[]): VoteResult {
   const secondPlaceOption = second?.[0] ?? null;
   const secondPlaceScore = second?.[1] ?? 0;
   const margin = winningScore - secondPlaceScore;
-  const isNarrow = margin < 0.15;
+  const isNarrow = margin < NARROW_MARGIN_THRESHOLD;
 
   return {
     winningOption,
@@ -66,45 +102,99 @@ export function computeVoteResult(votes: readonly VoteInput[]): VoteResult {
     secondPlaceScore,
     margin,
     isNarrow,
-    votes: [...votes],
-    minorityReasoning: votes
+    votes: [...validVotes],
+    minorityReasoning: validVotes
       .filter((vote) => vote.chosenOption !== winningOption)
       .map((vote) => vote.reasoning)
       .filter(Boolean),
+    noValidVotes: validVotes.length === 0,
   };
 }
 
-function parseVote(member: CrewMemberInstance): VoteInput | null {
-  const raw = member.output?.content;
-  if (!raw) return null;
+/**
+ * Project a {@link VoteResult} down to the pure shared {@link MajorityVote}
+ * contract (dropping the orchestrator-only `secondPlaceScore`/`noValidVotes`).
+ */
+export function toMajorityVote(result: VoteResult): MajorityVote {
+  return {
+    winningOption: result.winningOption,
+    winningScore: result.winningScore,
+    secondPlaceOption: result.secondPlaceOption,
+    margin: result.margin,
+    isNarrow: result.isNarrow,
+    votes: result.votes,
+    minorityReasoning: result.minorityReasoning,
+  };
+}
 
+function tryParseJsonObject(raw: string): Record<string, unknown> | null {
   try {
-    const parsed = JSON.parse(raw) as Record<string, unknown>;
-    const chosenOption =
-      typeof parsed.chosenOption === "string"
+    const parsed = JSON.parse(raw) as unknown;
+    if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+      return parsed as Record<string, unknown>;
+    }
+  } catch {
+    // Fall through to brace extraction.
+  }
+
+  const match = raw.match(/\{[\s\S]*\}/);
+  if (match) {
+    try {
+      const parsed = JSON.parse(match[0]) as unknown;
+      if (parsed && typeof parsed === "object" && !Array.isArray(parsed)) {
+        return parsed as Record<string, unknown>;
+      }
+    } catch {
+      // Ignore — treated as an invalid vote below.
+    }
+  }
+
+  return null;
+}
+
+/**
+ * Parse a crew member's output into a structured vote. Returns `null` for votes
+ * that cannot be parsed into a valid structured vote (R4.4) so the caller can
+ * ignore them.
+ */
+function parseVote(member: CrewMemberInstance): StructuredVote | null {
+  const raw = member.output?.content;
+  if (!raw || raw.trim().length === 0) return null;
+
+  const parsed = tryParseJsonObject(raw);
+  if (parsed) {
+    const fromChosen =
+      typeof parsed.chosenOption === "string" &&
+      parsed.chosenOption.trim().length > 0
         ? parsed.chosenOption
-        : typeof parsed.option === "string"
-          ? parsed.option
-          : null;
+        : null;
+    const fromOption =
+      typeof parsed.option === "string" && parsed.option.trim().length > 0
+        ? parsed.option
+        : null;
+    const chosenOption = fromChosen ?? fromOption;
     if (!chosenOption) return null;
+
     return {
       roleId: member.roleId,
       chosenOption,
       confidence:
         typeof parsed.confidence === "number"
           ? clamp01(parsed.confidence)
-          : (member.output?.confidence ?? 0.5),
+          : clamp01(member.output?.confidence ?? 0.5),
       reasoning:
         typeof parsed.reasoning === "string" ? parsed.reasoning : raw,
     };
-  } catch {
-    return {
-      roleId: member.roleId,
-      chosenOption: raw.trim(),
-      confidence: member.output?.confidence ?? 0.5,
-      reasoning: raw,
-    };
   }
+
+  // Lenient fallback: a non-JSON plain-text response naming an option.
+  const trimmed = raw.trim();
+  return {
+    roleId: member.roleId,
+    chosenOption: trimmed,
+    confidence: clamp01(member.output?.confidence ?? 0.5),
+    reasoning: raw,
+  };
 }
 
 function buildVoteContext(
@@ -127,6 +217,11 @@ function buildVoteContext(
   return `${stageContext}\n\nDiscussion history before voting:\n${history}`;
 }
 
+/**
+ * Collect structured votes from every crew member and compute the majority
+ * vote. Member execution failures are swallowed by `Promise.allSettled`, and
+ * unparseable votes are ignored — this function never throws (R4.4, R4.5).
+ */
 export async function collectVotes(
   input: CollectVotesInput,
 ): Promise<VoteResult> {
@@ -139,7 +234,7 @@ export async function collectVotes(
 
   const votes = members
     .map((member) => parseVote(member))
-    .filter((vote): vote is VoteInput => vote !== null);
+    .filter((vote): vote is StructuredVote => vote !== null);
 
   return computeVoteResult(votes);
 }

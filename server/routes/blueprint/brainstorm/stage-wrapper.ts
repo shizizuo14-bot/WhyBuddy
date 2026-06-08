@@ -16,6 +16,7 @@
 import type { BrainstormEligibleStage } from "./stage-config.js";
 import type { BrainstormServiceContext, StageContext } from "./pipeline-integration.js";
 import type { BlueprintLlmBridge } from "./llm-adapter.js";
+import type { BrainstormReasoningGraphArtifactPayload } from "../../../../shared/blueprint/brainstorm-reasoning-graph.js";
 
 import { isStageEnabled } from "./stage-config.js";
 import { createLlmCallerAdapter } from "./llm-adapter.js";
@@ -56,6 +57,13 @@ export interface StageWrapperOptions {
   previousStageOutputs?: string[];
   /** Currently degraded capability bridges */
   degradedBridges?: string[];
+  /**
+   * Optional durable sink for the projected reasoning graph. When provided, the
+   * brainstorm debate for this stage is persisted as a `brainstorm_reasoning_graph`
+   * job artifact so the 3D scene flow (`readBrainstormReasoningGraphs(job)` →
+   * `BlueprintWallTexture`) renders it. Never-throw (Req 6.1).
+   */
+  onReasoningGraph?: (payload: BrainstormReasoningGraphArtifactPayload) => void;
   /** The original single-agent handler that produces stage output */
   singleAgentFn: () => Promise<string>;
 }
@@ -153,6 +161,7 @@ export async function wrapStageWithBrainstorm(
       llmCaller,
       emitEvent,
       () => singleAgentFn(),
+      options.onReasoningGraph,
     );
 
     // Step 7: Handle brainstorm result

@@ -209,6 +209,7 @@ describe("Integration: Diagnostics endpoint", () => {
       synthesizer: new BrainstormSynthesizer(mockLLM, emitter),
       memoryStore: new BrainstormMemoryStore(),
       enabled: true,
+      primaryCaller: mockLLM,
     };
 
     const diag = getBrainstormDiagnostics(ctx);

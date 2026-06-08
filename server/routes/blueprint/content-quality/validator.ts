@@ -55,7 +55,7 @@ export function checkDocumentSubstance(
   });
   if (proseLines.length === 0) {
     issues.push("no prose paragraphs found");
-    if (worstStatus !== "fail") worstStatus = "warn";
+    worstStatus = "warn";
   }
 
   // tasks.md: 需要有 checkbox
@@ -72,7 +72,7 @@ export function checkDocumentSubstance(
     const hasMermaid = content.includes("mermaid");
     if (!hasCodeBlock && !hasMermaid) {
       issues.push("no code blocks or diagrams");
-      if (worstStatus !== "fail") worstStatus = "warn";
+      worstStatus = "warn";
     }
   }
 

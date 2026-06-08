@@ -770,21 +770,21 @@ export interface BlueprintServiceContext {
    * 伴随层服务实例（可选）。`blueprint-v4-full-alignment` Module A。
    * 由 `buildBlueprintServiceContext` 按 `BLUEPRINT_COMPANION_ENABLED === "true"` 装配。
    */
-  companionLayer?: import("./companion/types.js").CompanionLayerService;
+  companionLayer?: import("../../../shared/blueprint/companion/types.js").CompanionLayerService;
   /** 伴随层策略（可选，纯数据，R17）。 */
-  companionLayerPolicy?: import("./companion/types.js").CompanionLayerPolicy;
+  companionLayerPolicy?: import("../../../shared/blueprint/companion/types.js").CompanionLayerPolicy;
 
   /**
    * 可追溯矩阵服务实例（可选）。`blueprint-v4-full-alignment` Module C。
    * 由 `buildBlueprintServiceContext` 按 `BLUEPRINT_TRACEABILITY_MATRIX_ENABLED === "true"` 装配。
    */
-  traceabilityMatrixService?: import("./traceability-matrix/types.js").TraceabilityMatrixService;
+  traceabilityMatrixService?: import("../../../shared/blueprint/traceability-matrix/types.js").TraceabilityMatrixService;
 
   /**
    * 出图审计服务实例（可选）。`blueprint-v4-full-alignment` Module E。
    * 由 `buildBlueprintServiceContext` 按 `BLUEPRINT_PREVIEW_AUDIT_ENABLED === "true"` 装配。
    */
-  previewAuditService?: import("./preview-audit/types.js").PreviewAuditService;
+  previewAuditService?: import("../../../shared/blueprint/preview-audit/types.js").PreviewAuditService;
 
   /**
    * Optional: Multi-Agent Brainstorm subsystem context.

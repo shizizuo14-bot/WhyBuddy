@@ -25,6 +25,7 @@ import { getBrainstormDiagnostics } from "./blueprint/brainstorm/pipeline-integr
 import {
   wrapStageWithBrainstorm,
 } from "./blueprint/brainstorm/stage-wrapper.js";
+import { runSecondStageBrainstormCompanion } from "./blueprint/brainstorm/second-stage-companion.js";
 import {
   isStageEnabled,
   type BrainstormEligibleStage,
@@ -815,6 +816,40 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
         }
       }
 
+      // ── 伴随式头脑风暴（clarification 阶段）─────────────────────────
+      // 5-key 池（ouyi）多角色并行辩论，旁路 side-channel：只产出辩论事件 /
+      // 墙面投影，绝不替换澄清问题本身。fire-and-forget，永不阻塞 201。
+      // 受 BLUEPRINT_BRAINSTORM_ENABLED + BRAINSTORM_STAGE_CLARIFICATION_ENABLED
+      // 双开关控制；BLUEPRINT_BRAINSTORM_FORCE=true 时 Decision Gate 必触发。
+      // 此阶段尚无 blueprint job，故不传 onReasoningGraph（无 job 可挂 artifact），
+      // 辩论过程仍通过 eventBus 实时外发。
+      void runSecondStageBrainstormCompanion({
+        brainstormContext: blueprintServiceContext.brainstormContext ?? null,
+        llm: {
+          callJson: async (messages, options) => {
+            const result = await blueprintServiceContext.llm.callJson(
+              messages as any,
+              options as any
+            );
+            return {
+              content:
+                typeof result === "string" ? result : JSON.stringify(result),
+            };
+          },
+        },
+        eventBus: {
+          emit: event => blueprintServiceContext.eventBus.emit(event as any),
+        },
+        logger: blueprintServiceContext.logger,
+        jobId: session.id,
+        projectId: intake.projectId,
+        stageId: "clarification",
+        stageDescription:
+          "Clarify the project intent: surface missing context, constraints, acceptance criteria, and risk boundaries for this intake.",
+      }).catch(() => {
+        // best-effort：伴随式头脑风暴异常不影响澄清会话返回。
+      });
+
       res.status(201).json({ session });
     } catch (error) {
       res.status(500).json({
@@ -1073,7 +1108,7 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
             {
               jobId: result.job.id,
               stage: "route_generation",
-              hasRealRepo: (resolved.intake.githubUrls ?? []).length > 0,
+              hasRealRepo: (resolved.intake?.githubUrls ?? []).length > 0,
             },
             result.routeSet,
           );
@@ -1693,25 +1728,79 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
       return;
     }
 
-    const response = await wrapTypedBlueprintStage({
-      ctx: blueprintServiceContext,
+    // ── 第二阶段（SPEC 文档生成）── 确定性生成是唯一真相源 ────────────────
+    // autopilot-brainstorm-companion-runtime Task 6（保守路线 / side-channel）：
+    // 确定性 `generateSpecDocuments` 始终运行且**永不**被 brainstorm 输出替换。
+    // 之前这里走 `wrapTypedBlueprintStage`（brainstorm-pipeline-hookup 的“尝试
+    // 用辩论结论替换产物”路径）；本 spec 改为保守接线——确定性产物直出，
+    // brainstorm 仅作为旁路伴随层投影到 3D 墙。Flag 关闭时此处与
+    // `wrapTypedBlueprintStage` 在禁用态的返回值逐字节一致（直接调用
+    // `generateSpecDocuments`），因此默认行为零变化。
+    const response = await generateSpecDocuments(
+      blueprintServiceContext,
+      job,
+      specTree,
+      parsed.request,
+      {
+        now: deps.now,
+        store: jobStore,
+        locale: parsed.request.locale ?? resolveRequestLocale(req.body),
+      }
+    );
+
+    // 保守 brainstorm 伴随层（env-gated, best-effort, fire-and-forget）：
+    // 仅当 `BLUEPRINT_BRAINSTORM_ENABLED==="true"` 且 per-stage 配置允许、且
+    // 上下文已装配（`BUILD_TARGET=test` 默认不装配 → 此处 no-op）时触发一次
+    // 辩论 session，把推演图投影到 3D 墙并跑主模型综合/审计。其输出被丢弃
+    // （仅作为附加上下文 / 墙面投影），绝不替换上面的确定性产物，也绝不阻塞
+    // 或中断 job（Req 4.1-4.4, 6.2）。
+    void runSecondStageBrainstormCompanion({
+      brainstormContext: blueprintServiceContext.brainstormContext ?? null,
+      llm: {
+        callJson: async (messages, options) => {
+          const result = await blueprintServiceContext.llm.callJson(
+            messages as any,
+            options as any
+          );
+          return {
+            content:
+              typeof result === "string" ? result : JSON.stringify(result),
+          };
+        },
+      },
+      eventBus: {
+        emit: event => blueprintServiceContext.eventBus.emit(event as any),
+      },
+      logger: blueprintServiceContext.logger,
       jobId: job.id,
       projectId: job.projectId,
       stageId: "spec_docs",
       stageDescription:
         "Generate SPEC requirements, design, and task documents for the selected SPEC tree nodes.",
-      singleAgentFn: () =>
-        generateSpecDocuments(
-          blueprintServiceContext,
-          job,
-          specTree,
-          parsed.request,
-          {
-            now: deps.now,
-            store: jobStore,
-            locale: parsed.request.locale ?? resolveRequestLocale(req.body),
-          }
-        ),
+      // 喂墙持久化（close the feed-the-wall gap）：把投影出的推演图作为
+      // `brainstorm_reasoning_graph` artifact 落到 job 上，前端
+      // `readBrainstormReasoningGraphs(job)` 即可在 3D 墙渲染这场辩论。
+      // best-effort：重新读取最新 job、push、save，任何异常都吞掉，绝不影响
+      // 已返回的确定性 spec 文档（Req 3.3, 6.1）。
+      onReasoningGraph: payload => {
+        try {
+          const current = jobStore.get(job.id);
+          if (!current || !Array.isArray(current.artifacts)) return;
+          current.artifacts.push(
+            createBrainstormReasoningGraphArtifact({
+              graph: payload.graph,
+              stage: payload.stage,
+              subStage: payload.subStage,
+              createdAt: (deps.now?.() ?? new Date()).toISOString(),
+            })
+          );
+          jobStore.save(current);
+        } catch {
+          // best-effort：墙面投影持久化失败不影响 job。
+        }
+      },
+    }).catch(() => {
+      // best-effort：伴随层任何异常都不影响 spec 文档返回。
     });
 
     // ── QA_CONTENT 内容质量校验（blueprint-v4-full-alignment Module / R10）──
@@ -3239,6 +3328,27 @@ async function wrapTypedBlueprintStage<T>(input: {
     projectId: input.projectId,
     stageId: input.stageId,
     stageDescription: input.stageDescription,
+    // 喂墙持久化（同步到 3D 场景 Flow 流）：把本阶段辩论投影成
+    // `brainstorm_reasoning_graph` artifact 落到 job 上，前端
+    // `readBrainstormReasoningGraphs(job)` → `BlueprintWallTexture` 即可渲染。
+    // best-effort：重读最新 job、push、save，异常吞掉，绝不影响阶段产物（Req 3.3, 6.1）。
+    onReasoningGraph: payload => {
+      try {
+        const current = input.ctx.jobStore.get(input.jobId);
+        if (!current || !Array.isArray(current.artifacts)) return;
+        current.artifacts.push(
+          createBrainstormReasoningGraphArtifact({
+            graph: payload.graph,
+            stage: payload.stage,
+            subStage: payload.subStage,
+            createdAt: input.ctx.now().toISOString(),
+          })
+        );
+        input.ctx.jobStore.save(current);
+      } catch {
+        // best-effort：墙面投影持久化失败不影响阶段产物。
+      }
+    },
     singleAgentFn: async () => {
       fallbackValue = await input.singleAgentFn();
       return serialize(fallbackValue);

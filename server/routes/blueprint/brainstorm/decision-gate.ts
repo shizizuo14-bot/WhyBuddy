@@ -43,6 +43,14 @@ export type EventEmitterFn = (
 export interface DecisionGateConfig {
   /** Timeout in milliseconds for the LLM call. Defaults to 5000. */
   timeoutMs: number;
+  /**
+   * Force brainstorm ON for every stage, bypassing the LLM gate entirely.
+   * When undefined, `decide()` reads `BLUEPRINT_BRAINSTORM_FORCE === "true"`
+   * from the environment. Forced mode guarantees `brainstormNeeded=true` even
+   * when capability bridges are degraded (brainstorm only needs the LLM pool,
+   * not docker/mcp/github), and skips the gate LLM call to save tokens.
+   */
+  force?: boolean;
 }
 
 // ---------------------------------------------------------------------------
@@ -79,6 +87,20 @@ export const FALLBACK_OUTPUT: DecisionGateOutput = {
   requiredRoles: ["planner"],
   requiredToolCategories: [],
   reasoning: "Decision Gate fallback: single-agent execution.",
+};
+
+/**
+ * Output used when brainstorm is forced ON for every stage
+ * (`BLUEPRINT_BRAINSTORM_FORCE`). A multi-role discussion is requested so the
+ * companion always spins up a real debate on the aux pool.
+ */
+export const FORCED_OUTPUT: DecisionGateOutput = {
+  brainstormNeeded: true,
+  recommendedMode: "discussion",
+  requiredRoles: ["decider", "planner", "architect", "executor", "auditor"],
+  requiredToolCategories: [],
+  reasoning:
+    "Brainstorm forced ON for every stage (BLUEPRINT_BRAINSTORM_FORCE=true).",
 };
 
 // ---------------------------------------------------------------------------
@@ -223,6 +245,20 @@ export async function decide(
   emitEvent: EventEmitterFn,
   config: DecisionGateConfig = { timeoutMs: 5000 },
 ): Promise<DecisionGateOutput> {
+  // Force mode (BLUEPRINT_BRAINSTORM_FORCE): brainstorm MUST run at every stage.
+  // Skip the gate LLM call entirely (saves tokens + guarantees on) and ignore
+  // degraded-bridge biasing — the debate only needs the aux LLM pool.
+  const forced =
+    config.force ?? (process.env.BLUEPRINT_BRAINSTORM_FORCE === "true");
+  if (forced) {
+    emitEvent("brainstorm.gate.forced", {
+      jobId: input.jobId,
+      stageId: input.stageId,
+      reasoning: FORCED_OUTPUT.reasoning,
+    });
+    return FORCED_OUTPUT;
+  }
+
   // If degraded bridges exist, bias toward single-agent execution
   if (input.degradedBridges.length > 0) {
     const prompt = buildDecisionGatePrompt(input);
