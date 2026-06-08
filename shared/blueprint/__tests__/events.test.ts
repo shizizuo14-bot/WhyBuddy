@@ -31,11 +31,12 @@ const KNOWN_FAMILIES: ReadonlySet<BlueprintGenerationEventFamily> = new Set([
   "crew",
   "sandbox",
   "brainstorm",
+  "checks",
 ]);
 
 describe("BlueprintEventName", () => {
-  it("ships 13 families, matching the design inventory", () => {
-    expect(KNOWN_FAMILIES.size).toBe(13);
+  it("ships 14 families, matching the design inventory", () => {
+    expect(KNOWN_FAMILIES.size).toBe(14);
   });
 
   it("每个常量值都是合法的 BlueprintGenerationEventType", () => {
@@ -123,6 +124,18 @@ describe("BlueprintEventName", () => {
       { type: BlueprintEventName.BrainstormToolCompleted, family: "brainstorm" },
       { type: BlueprintEventName.BrainstormToolFailed, family: "brainstorm" },
       { type: BlueprintEventName.BrainstormDegraded, family: "brainstorm" },
+      // `blueprint-v4-full-loop-completion` Task 1.2：新增 deliberation /
+      // companion / preview batch events. Companion events deliberately map
+      // into the existing checks family.
+      { type: BlueprintEventName.BrainstormRoundCompleted, family: "brainstorm" },
+      { type: BlueprintEventName.BrainstormChallengeIssued, family: "brainstorm" },
+      { type: BlueprintEventName.BrainstormVoteCompleted, family: "brainstorm" },
+      { type: BlueprintEventName.CompanionChallengeStarted, family: "checks" },
+      { type: BlueprintEventName.CompanionChallengeResolved, family: "checks" },
+      { type: BlueprintEventName.PreviewBatchCompleted, family: "preview" },
+      { type: BlueprintEventName.ChecksEntryRecorded, family: "checks" },
+      { type: BlueprintEventName.ChecksGatePassed, family: "checks" },
+      { type: BlueprintEventName.ChecksGateFailed, family: "checks" },
     ];
 
     for (const sample of samples) {
@@ -161,5 +174,35 @@ describe("BlueprintEventName", () => {
     for (const name of legacyEventNames) {
       expect(enumValues.has(name)).toBe(true);
     }
+  });
+
+  it("resolves companion challenge events to the checks family", () => {
+    expect(
+      resolveBlueprintEventFamily("companion.challenge.started"),
+    ).toBe("checks");
+    expect(
+      resolveBlueprintEventFamily("companion.challenge.resolved"),
+    ).toBe("checks");
+  });
+
+  it("exposes v4 full-loop event constants", () => {
+    expect(BlueprintEventName.BrainstormRoundCompleted).toBe(
+      "brainstorm.round.completed",
+    );
+    expect(BlueprintEventName.BrainstormChallengeIssued).toBe(
+      "brainstorm.challenge.issued",
+    );
+    expect(BlueprintEventName.BrainstormVoteCompleted).toBe(
+      "brainstorm.vote.completed",
+    );
+    expect(BlueprintEventName.CompanionChallengeStarted).toBe(
+      "companion.challenge.started",
+    );
+    expect(BlueprintEventName.CompanionChallengeResolved).toBe(
+      "companion.challenge.resolved",
+    );
+    expect(BlueprintEventName.PreviewBatchCompleted).toBe(
+      "preview.batch.completed",
+    );
   });
 });

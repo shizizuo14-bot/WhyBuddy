@@ -160,7 +160,7 @@ describe("AutopilotRightRail streaming timeline", () => {
     expect(markup).toContain('data-sub-stage-placeholder="spec_tree"');
   });
 
-  it("renders <StreamingDocRenderer /> in the spec_documents StageContent when job.stage === 'spec_docs' (autopilot-streaming-doc-renderer Task 6.1)", () => {
+  it("renders the merged SPEC workbench when job.stage === 'spec_docs' without retitling the large phase", () => {
     // autopilot-streaming-doc-renderer 任务 6.1（2026-05-18）：
     // 当 `job.stage === "spec_docs"` 时，AutopilotRightRail 把 activeStageKey
     // 锁定到 `"spec_documents"`，StageContent 由 `<StreamingDocRenderer>` 接管，
@@ -221,8 +221,9 @@ describe("AutopilotRightRail streaming timeline", () => {
       />,
     );
 
-    // 锁定 activeStageKey === "spec_documents" 分支
-    expect(markup).toContain('data-stage-key="spec_documents"');
+    // The visible large phase remains the merged SPEC tree / documents workspace.
+    expect(markup).toContain('data-stage-key="spec_tree"');
+    expect(markup).not.toContain('data-stage-key="spec_documents"');
     // StreamingDocRenderer 占据 StageContent 主区域，并委托到四区工作台。
     expect(markup).toContain('data-testid="streaming-doc-renderer"');
     expect(markup).toContain('data-testid="autopilot-spec-documents-workbench"');
@@ -237,6 +238,46 @@ describe("AutopilotRightRail streaming timeline", () => {
     );
     // 不再走 SpecTreeWorkbench 分支
     expect(markup).not.toContain('data-testid="spec-tree-workbench"');
+  });
+
+  it("does not bleed another project's documents into a fresh job (filters docs by current tree nodeIds)", () => {
+    // Cross-project bleed regression: a stale job snapshot carries documents
+    // whose nodeIds belong to a DIFFERENT (old) tree. The current tree only has
+    // node-root, so those foreign docs must NOT surface (else the user sees
+    // "63/72 generated" while every visible node is 未生成).
+    const specTree = {
+      id: "spec-tree-fresh",
+      version: 1,
+      nodes: [{ id: "node-root", title: "Root SPEC", type: "root", children: [] }],
+    } as unknown as BlueprintSpecTree;
+    const job = {
+      id: "job-fresh",
+      stage: "spec_docs",
+      status: "reviewing",
+      artifacts: [
+        {
+          type: "requirements",
+          payload: { id: "doc-foreign-req", nodeId: "foreign-node-xyz", type: "requirements", title: "Foreign Requirements" },
+        },
+        {
+          type: "design",
+          payload: { id: "doc-foreign-design", nodeId: "foreign-node-xyz", type: "design", title: "Foreign Design" },
+        },
+      ],
+    } as unknown as BlueprintGenerationJob;
+
+    const markup = renderToStaticMarkup(
+      <AutopilotRightRail
+        {...makeProps({ job, specTree, agentCrew: EMPTY_AGENT_CREW })}
+      />,
+    );
+
+    // Merged workspace still renders…
+    expect(markup).toContain('data-testid="streaming-doc-renderer"');
+    // …but the foreign-project documents are filtered out (not surfaced).
+    expect(markup).not.toContain("doc-foreign-req");
+    expect(markup).not.toContain("doc-foreign-design");
+    expect(markup).not.toContain('data-testid="autopilot-workbench-spec-tree-doc-doc-foreign-req"');
   });
 
   it("lets an explicit next sub-stage override stale spec_docs job state while the next step is being generated", () => {
@@ -405,11 +446,11 @@ describe("AutopilotRightRail streaming timeline", () => {
             id: "job-test",
             stage: "spec_docs",
             status: "completed",
-            staleArtifactIds: ["artifact-requirements"],
+            staleArtifactIds: ["artifact-spec-tree"],
             artifacts: [
               {
-                id: "artifact-requirements",
-                type: "requirements",
+                id: "artifact-spec-tree",
+                type: "spec_tree",
                 staleSince: "2026-05-23T07:00:00.000Z",
                 invalidatedBy: {
                   stage: "clarification",
@@ -431,7 +472,7 @@ describe("AutopilotRightRail streaming timeline", () => {
       'data-testid="autopilot-right-rail-stale-indicator"',
     );
     expect(markup).toContain("当前阶段产物已过期");
-    expect(markup).toContain("重新生成规格文档");
+    expect(markup).toContain("重新生成规格树");
     expect(markup).not.toContain("Current stage artifact is stale");
     expect(markup).not.toContain("Regenerate documents");
   });
@@ -562,7 +603,7 @@ describe("AutopilotRightRail streaming timeline", () => {
     }
   });
 
-  it("renders the SPEC documents back control with an outer workflow-page target, not the rail predecessor", () => {
+  it("renders the merged SPEC workspace back control with an outer workflow-page target, not the rail predecessor", () => {
     const markup = renderToStaticMarkup(
       <AutopilotRightRail
         {...makeProps({
@@ -578,7 +619,8 @@ describe("AutopilotRightRail streaming timeline", () => {
       />,
     );
 
-    expect(markup).toContain('data-stage-key="spec_documents"');
+    expect(markup).toContain('data-stage-key="spec_tree"');
+    expect(markup).not.toContain('data-stage-key="spec_documents"');
     expect(markup).toContain('data-testid="autopilot-stage-back-button"');
     expect(markup).toContain('data-previous-target-kind="workflow-stage"');
     expect(markup).toContain('data-previous-workflow-stage="input"');
@@ -586,7 +628,7 @@ describe("AutopilotRightRail streaming timeline", () => {
     expect(markup).not.toContain('data-previous-sub-stage="agent_crew_fabric"');
   });
 
-  it("treats a downstream job pinned back to spec_tree as the merged SPEC documents page", () => {
+  it("treats a downstream job pinned back to spec_tree as the merged SPEC tree workspace", () => {
     const markup = renderToStaticMarkup(
       <AutopilotRightRail
         {...makeProps({
@@ -607,9 +649,10 @@ describe("AutopilotRightRail streaming timeline", () => {
     );
 
     expect(markup).toContain('data-autopilot-sub-stage="spec_tree"');
-    expect(markup).toContain('data-stage-key="spec_documents"');
+    expect(markup).toContain('data-stage-key="spec_tree"');
+    expect(markup).not.toContain('data-stage-key="spec_documents"');
     expect(markup).toContain('data-testid="autopilot-replan-from-stage-divider"');
-    expect(markup).toContain('data-stage="spec_docs"');
+    expect(markup).toContain('data-stage="spec_tree"');
     expect(markup).toContain("2 downstream");
   });
 
@@ -758,6 +801,65 @@ describe("AutopilotRightRail streaming timeline", () => {
     expect(markup).not.toContain('data-testid="autopilot-stage-forward-button"');
     expect(markup).not.toContain('data-next-target-kind="workbench-stage"');
     expect(markup).not.toContain('data-next-workbench-stage="spec_documents"');
+  });
+
+  it("does not expose the effect preview entry while still on the SPEC tree review step", () => {
+    const markup = renderToStaticMarkup(
+      <AutopilotRightRail
+        {...makeProps({
+          currentSubStage: "spec_tree",
+          job: {
+            id: "job-test",
+            stage: "spec_tree",
+            status: "reviewing",
+            artifacts: [
+              {
+                id: "artifact-requirements",
+                type: "spec_tree",
+                payload: { id: "doc-req", type: "requirements" },
+              },
+            ],
+          } as unknown as BlueprintGenerationJob,
+          specTree: EMPTY_SPEC_TREE,
+          agentCrew: EMPTY_AGENT_CREW,
+        })}
+      />,
+    );
+
+    expect(markup).toContain('data-stage-key="spec_tree"');
+    expect(markup).not.toContain(
+      'data-testid="autopilot-workbench-action-enter-effect-preview"'
+    );
+  });
+
+  it("keeps a pinned SPEC tree review titled as SPEC tree even after backend documents exist", () => {
+    const markup = renderToStaticMarkup(
+      <AutopilotRightRail
+        {...makeProps({
+          currentSubStage: "spec_tree",
+          job: {
+            id: "job-test",
+            stage: "spec_docs",
+            status: "reviewing",
+            artifacts: [
+              {
+                id: "artifact-requirements",
+                type: "requirements",
+                payload: { id: "doc-req", type: "requirements" },
+              },
+            ],
+          } as unknown as BlueprintGenerationJob,
+          specTree: EMPTY_SPEC_TREE,
+          agentCrew: EMPTY_AGENT_CREW,
+        })}
+      />,
+    );
+
+    expect(markup).toContain('data-stage-key="spec_tree"');
+    expect(markup).not.toContain('data-stage-key="spec_documents"');
+    expect(markup).not.toContain(
+      'data-testid="autopilot-workbench-action-enter-effect-preview"'
+    );
   });
 
   it("exposes a forward chevron during fabric sub-stage navigation (continue within STEP 06)", () => {

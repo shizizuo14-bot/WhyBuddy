@@ -49,6 +49,8 @@ export interface PreviewImageMeta {
   contentHash: string;
   fileSizeBytes: number;
   provenance: BlueprintPreviewProvenance;
+  watermarkLabel?: string;
+  localizedWatermarkLabel?: string;
 }
 
 /**

@@ -139,6 +139,48 @@ describe("BrainstormSynthesizer - Successful Synthesis", () => {
     expect(prompt).toContain("discussion");
     expect(prompt).toContain("Design the new authentication system");
   });
+
+  it("includes deliberation challenge and dissent context in the synthesis prompt", async () => {
+    const mockLLM: LLMCallerFn = vi
+      .fn()
+      .mockResolvedValue(makeValidSynthesisResponse());
+    const synthesizer = new BrainstormSynthesizer(mockLLM, makeMockEmitter());
+
+    await synthesizer.synthesize(
+      makeSynthesisInput({
+        deliberationContext: {
+          challenges: [
+            {
+              challengerRoleId: "planner",
+              targetRoleId: "architect",
+              summary: "challenge architect: auth risk remains unresolved",
+              roundNumber: 1,
+            },
+          ],
+          rebuttals: [
+            {
+              responderRoleId: "architect",
+              challengeSummary: "challenge architect: auth risk remains unresolved",
+              summary: "acknowledged but not resolved",
+              roundNumber: 2,
+            },
+          ],
+          dissentingOpinions: [
+            {
+              roleId: "planner",
+              opinion: "auth risk remains unresolved",
+            },
+          ],
+        },
+      }),
+    );
+
+    const prompt = (mockLLM as ReturnType<typeof vi.fn>).mock.calls[0][0] as string;
+    expect(prompt).toContain("Deliberation challenges and dissent");
+    expect(prompt).toContain("planner -> architect");
+    expect(prompt).toContain("acknowledged but not resolved");
+    expect(prompt).toContain("auth risk remains unresolved");
+  });
 });
 
 // ─── Synthesis Fallback ─────────────────────────────────────────────────────

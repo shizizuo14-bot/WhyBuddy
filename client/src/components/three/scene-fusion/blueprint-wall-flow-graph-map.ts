@@ -526,6 +526,8 @@ export function resolveVisualStageLane(
       return 2; // route_generation（非 clarification=1，非 route_selection=3）
     case "spec_node":
       return 4; // spec_tree（非 route_generation=2，非 spec_docs=5）
+    case "brainstorm":
+      return 5; // spec_docs lane: second-stage branch convergence
     case "preview":
       return 6; // effect_preview
     case "artifact":

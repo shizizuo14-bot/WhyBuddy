@@ -34,6 +34,7 @@ import type {
   BlueprintRouteCandidate,
   BlueprintRouteSet,
   BlueprintSpecTreeNode,
+  BrainstormReasoningGraph,
 } from "../../../../shared/blueprint/index.js";
 import {
   createDefaultSpecTreeLlmPolicy,
@@ -48,6 +49,7 @@ import {
   checkNodeEvidence,
 } from "./business-invariants.js";
 import { computeFuzzinessScore } from "../companion/fuzziness.js";
+import { parseBrainstormReasoningGraphPayload } from "../brainstorm-reasoning-graph-payload.js";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -104,6 +106,8 @@ export interface SpecTreeLlmServiceOutput {
   structuredPayloadDigest?: string;
   /** Filled only when generationSource === "llm_fallback" */
   error?: string;
+  /** Optional LLM-authored reasoning graph for the Stage 2 wall. */
+  reasoningGraph?: BrainstormReasoningGraph;
 }
 
 export type SpecTreeLlmService = (
@@ -437,6 +441,14 @@ export function createSpecTreeLlmService(
       "sha256:" + sha256Hex(JSON.stringify(rawPayload));
     const structuredPayloadDigest =
       "sha256:" + sha256Hex(JSON.stringify(parsed.data));
+    const reasoningGraph = parseBrainstormReasoningGraphPayload({
+      payload: rawPayload,
+      jobId: input.jobId,
+      stage: "spec_tree",
+      subStage: "spec_tree",
+      fallbackQuestionTitle: input.primaryRoute.title,
+      createdAt: input.createdAt,
+    });
 
     return {
       generationSource: "llm",
@@ -447,6 +459,7 @@ export function createSpecTreeLlmService(
       promptFingerprint,
       responseDigest,
       structuredPayloadDigest,
+      reasoningGraph: reasoningGraph ?? undefined,
     };
   };
 }

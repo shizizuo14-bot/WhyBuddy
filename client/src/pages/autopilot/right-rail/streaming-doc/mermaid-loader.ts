@@ -22,6 +22,7 @@ export async function getMermaid(): Promise<typeof import("mermaid")> {
         mod.default.initialize({
           startOnLoad: false,
           securityLevel: "strict",
+          suppressErrorRendering: true,
           fontFamily: "var(--font-mono, monospace)",
         } satisfies MermaidConfig);
         return mod;
@@ -56,12 +57,28 @@ export async function renderMermaidDiagram(
   mermaid.initialize({
     startOnLoad: false,
     securityLevel: "strict",
+    suppressErrorRendering: true,
     theme: mermaidTheme,
     fontFamily: "var(--font-mono, monospace)",
   });
 
   // Use unique ID to avoid DOM conflicts
   const id = `mermaid-diagram-${++renderCounter}`;
-  const { svg } = await mermaid.render(id, code);
-  return svg;
+  try {
+    const { svg } = await mermaid.render(id, code);
+    return svg;
+  } catch (err) {
+    // Defensive cleanup: even with `suppressErrorRendering`, older mermaid
+    // builds (or a previously-injected error from before the flag was set)
+    // can leave a stray "Syntax error" bomb SVG / temp measurement node in the
+    // DOM. Remove any orphan element tied to this render id so the scary bomb
+    // never lingers at the bottom of the page; MermaidBlock renders its own
+    // graceful error banner instead.
+    if (typeof document !== "undefined") {
+      for (const orphanId of [id, `d${id}`]) {
+        document.getElementById(orphanId)?.remove();
+      }
+    }
+    throw err;
+  }
 }

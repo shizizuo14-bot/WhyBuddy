@@ -119,7 +119,15 @@ Constraints:
 6. type MUST be one of: root / route_step / alternative_route / spec_document / effect_preview / prompt_package / engineering_plan.
 7. Do NOT reference external URLs, real emails, or API key literals; abstract sensitive identifiers.
 8. Nodes SHOULD be organised around the selected primary route's steps / stages; alternative_route nodes for other routes are optional.
-9. The downstream menu layer SHOULD produce a subset of spec_document / effect_preview / prompt_package / engineering_plan nodes as anchors for subsequent stages.`;
+9. The downstream menu layer SHOULD produce a subset of spec_document / effect_preview / prompt_package / engineering_plan nodes as anchors for subsequent stages.
+10. Optionally include "reasoningGraph" with concise semantic nodes and explicit semantic edges for the Stage 2 wall. Use node types question / clarification / hypothesis / evidence / constraint / risk / gap / decision / synthesis, edge types supports / refines / conflicts / cites / questions / depends_on / synthesizes, and include roleId or roleLabel when a role contributed. Omit the graph when unsure; do not invent conflicts or citations.`;
+
+const REASONING_GRAPH_CONTRACT = `Optional reasoningGraph contract:
+- You may include "reasoningGraph" when it helps explain the brainstorm / reasoning shape.
+- Nodes must be semantic, not role-only: question, clarification, hypothesis, evidence, constraint, risk, gap, decision, synthesis.
+- Edges must be explicit semantic relations: supports, refines, conflicts, cites, questions, depends_on, synthesizes.
+- Include roleId or roleLabel when a role contributed.
+- Omit uncertain conflicts or citations; do not invent them.`;
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -148,7 +156,7 @@ export function buildSpecTreePrompt(
   } = input;
 
   // --- systemMessage (locale-aware) ---
-  const systemMessage = locale === "zh-CN" ? SYSTEM_MESSAGE_ZH_CN : SYSTEM_MESSAGE_EN_US;
+  const systemMessage = `${locale === "zh-CN" ? SYSTEM_MESSAGE_ZH_CN : SYSTEM_MESSAGE_EN_US}\n\n${REASONING_GRAPH_CONTRACT}`;
 
   // --- userPayload (deterministic, fixed field order per design §4.5) ---
 

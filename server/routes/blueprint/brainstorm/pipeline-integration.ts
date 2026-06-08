@@ -32,6 +32,11 @@ import {
   buildSessionArtifact,
 } from "./memory-store";
 import { resolveStageConfig } from "./stage-config";
+import {
+  buildBrainstormEvidence,
+  writeEvidenceToLedger,
+} from "./evidence-trail";
+import type { ChecksLedgerService } from "../checks-ledger/types";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -43,6 +48,7 @@ export interface BrainstormServiceContext {
   synthesizer: BrainstormSynthesizer;
   memoryStore: BrainstormMemoryStore;
   enabled: boolean;
+  checksLedger?: Pick<ChecksLedgerService, "recordCheck">;
 }
 
 /** Stage context passed from the autopilot pipeline. */
@@ -216,6 +222,18 @@ export async function executeStageWithBrainstorm(
     // Build and persist artifact (Req 8.4)
     const artifact = buildSessionArtifact(finalSession);
     brainstormCtx.memoryStore.persist(artifact);
+    writeEvidenceToLedger({
+      checksLedger: brainstormCtx.checksLedger,
+      evidence: buildBrainstormEvidence({
+        session: finalSession,
+        roundCount:
+          finalSession.deliberationSummary?.roundCount ??
+          countDeliberationRounds(finalSession),
+        finalConvergenceScore:
+          finalSession.deliberationSummary?.finalConvergenceScore ??
+          extractFinalConvergenceScore(finalSession),
+      }),
+    });
 
     // Extract synthesis result as stage output (Req 8.3)
     const synthesisResult = finalSession.synthesisResult;
@@ -238,6 +256,36 @@ export async function executeStageWithBrainstorm(
     const output = await singleAgentFallback(stageContext);
     return { type: "single-agent", output };
   }
+}
+
+function countDeliberationRounds(session: BrainstormSession): number {
+  const seenRounds = new Set<number>();
+  for (const node of session.branchNodes) {
+    const match = node.title.match(/\bRound\s+(\d+)\b/i);
+    if (match) {
+      seenRounds.add(Number(match[1]));
+    }
+  }
+
+  if (seenRounds.size > 0) {
+    return seenRounds.size;
+  }
+
+  const completedMembers = Array.from(session.crewMembers.values()).filter(
+    (member) => member.state === "completed" && member.output,
+  ).length;
+  const roleCount = Math.max(1, session.crewMembers.size);
+  return Math.max(1, Math.floor(session.branchNodes.length / roleCount), completedMembers > 0 ? 1 : 0);
+}
+
+function extractFinalConvergenceScore(session: BrainstormSession): number {
+  const scoreCandidates = session.branchNodes
+    .map((node) => node.confidence)
+    .filter((value): value is number => typeof value === "number");
+  if (scoreCandidates.length === 0) {
+    return 0;
+  }
+  return Math.max(0, Math.min(1, Math.max(...scoreCandidates)));
 }
 
 // ---------------------------------------------------------------------------
@@ -297,6 +345,14 @@ function buildSynthesisInput(
         content: member.output!.content,
         confidence: member.output!.confidence,
       })),
+    deliberationContext: session.deliberationSummary
+      ? {
+          challenges: session.deliberationSummary.challenges ?? [],
+          rebuttals: session.deliberationSummary.rebuttals ?? [],
+          dissentingOpinions:
+            session.deliberationSummary.dissentingOpinions ?? [],
+        }
+      : undefined,
   };
 }
 

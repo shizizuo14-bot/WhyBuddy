@@ -46,6 +46,36 @@ describe("blueprint scene agents", () => {
     expect(routes.every(route => route.visualWeight === "active")).toBe(true);
   });
 
+  it("fans out and converges spec-generation routes when brainstorm roles are active", () => {
+    const data = createBlueprintSceneData("zh-CN");
+    const configMap = Object.fromEntries(
+      data.sceneAgents.map(agent => [agent.id, agent])
+    );
+    const rolePhases: Record<string, RolePhase> = {
+      "route-planner": "thinking",
+      "repository-analyst": "thinking",
+      "spec-author": "acting",
+      "runtime-quality-auditor": "reviewing",
+    };
+
+    const routes = deriveBlueprintFlowRoutes(rolePhases, configMap);
+
+    expect(routes.length).toBeGreaterThanOrEqual(8);
+    expect(routes.map(route => route.key)).toEqual(
+      expect.arrayContaining([
+        "blueprint-brainstorm-fanout-agent-ceo-agent-manager-research-0",
+        "blueprint-brainstorm-fanout-agent-ceo-agent-manager-design-1",
+        "blueprint-brainstorm-fanout-agent-ceo-agent-manager-engineering-2",
+        "blueprint-brainstorm-converge-agent-manager-research-agent-worker-design-3",
+        "blueprint-brainstorm-converge-agent-manager-design-agent-worker-design-4",
+        "blueprint-brainstorm-converge-agent-manager-engineering-agent-worker-design-5",
+        "blueprint-brainstorm-audit-agent-worker-design-agent-worker-engineering-6",
+      ])
+    );
+    expect(new Set(routes.map(route => route.phase)).size).toBe(routes.length);
+    expect(routes.every(route => route.visualWeight === "active")).toBe(true);
+  });
+
   it("keeps a default command route alive before realtime role events arrive", () => {
     const data = createBlueprintSceneData("zh-CN");
     const configMap = Object.fromEntries(

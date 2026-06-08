@@ -34,6 +34,7 @@ export type { BranchNode, BranchEdge };
 
 /** Maximum number of nodes per active session (FIFO drop). */
 export const MAX_BRAINSTORM_NODES = 500;
+export const MAX_CHALLENGE_EDGES = 500;
 
 // ---------------------------------------------------------------------------
 // State Shape
@@ -59,7 +60,25 @@ export interface BrainstormGraphState {
   sessionStatus: BrainstormSessionStatus;
   nodes: BranchNode[];
   edges: BranchEdge[];
+  currentRound: number | null;
+  convergenceScore: number | null;
+  challengeEdges: ChallengeEdge[];
+  voteOutcome: VoteOutcomeView | null;
   sessionMetadata: BrainstormSessionMetadata;
+}
+
+export interface ChallengeEdge {
+  challengerRoleId: BrainstormRoleId;
+  targetRoleId: BrainstormRoleId;
+  summary: string;
+  roundNumber: number;
+}
+
+export interface VoteOutcomeView {
+  winningOption: string;
+  margin: number;
+  isNarrow: boolean;
+  minority?: string[];
 }
 
 // ---------------------------------------------------------------------------
@@ -109,6 +128,28 @@ export interface BrainstormGraphActions {
   /** Handle brainstorm.session.failed event */
   handleSessionFailed(payload: { sessionId: string }): void;
 
+  handleRoundCompleted(payload: {
+    sessionId: string;
+    roundNumber: number;
+    convergenceScore: number;
+  }): void;
+
+  handleChallengeIssued(payload: {
+    sessionId: string;
+    challengerRoleId: BrainstormRoleId;
+    targetRoleId: BrainstormRoleId;
+    summary: string;
+    roundNumber: number;
+  }): void;
+
+  handleVoteCompleted(payload: {
+    sessionId: string;
+    winningOption: string;
+    margin: number;
+    isNarrow: boolean;
+    minority?: string[];
+  }): void;
+
   /** Reset the entire store */
   reset(): void;
 }
@@ -141,6 +182,22 @@ export function selectSessionMetadata(
   return state.sessionMetadata;
 }
 
+export function selectChallengeEdges(state: BrainstormGraphState): ChallengeEdge[] {
+  return state.challengeEdges;
+}
+
+export function selectVoteOutcome(state: BrainstormGraphState): VoteOutcomeView | null {
+  return state.voteOutcome;
+}
+
+export function selectCurrentRound(state: BrainstormGraphState): number | null {
+  return state.currentRound;
+}
+
+export function selectConvergenceScore(state: BrainstormGraphState): number | null {
+  return state.convergenceScore;
+}
+
 export function selectIsActive(state: BrainstormGraphState): boolean {
   return state.sessionStatus === "active" || state.sessionStatus === "synthesizing";
 }
@@ -154,6 +211,10 @@ export const INITIAL_BRAINSTORM_GRAPH: BrainstormGraphState = {
   sessionStatus: "idle",
   nodes: [],
   edges: [],
+  currentRound: null,
+  convergenceScore: null,
+  challengeEdges: [],
+  voteOutcome: null,
   sessionMetadata: {
     mode: null,
     roles: [],
@@ -178,6 +239,10 @@ export const useBrainstormGraphStore = create<
       sessionStatus: "active",
       nodes: [],
       edges: [],
+      currentRound: null,
+      convergenceScore: null,
+      challengeEdges: [],
+      voteOutcome: null,
       sessionMetadata: {
         mode: payload.mode ?? null,
         roles: payload.roles ?? [],
@@ -306,6 +371,50 @@ export const useBrainstormGraphStore = create<
     set({ sessionStatus: "failed" });
   },
 
+  handleRoundCompleted(payload) {
+    const state = get();
+    if (state.sessionId && payload.sessionId !== state.sessionId) return;
+    set({
+      currentRound: payload.roundNumber,
+      convergenceScore: payload.convergenceScore,
+    });
+  },
+
+  handleChallengeIssued(payload) {
+    const state = get();
+    if (state.sessionId && payload.sessionId !== state.sessionId) return;
+    const hasChallenger = state.nodes.some(
+      node => node.roleId === payload.challengerRoleId,
+    );
+    const hasTarget = state.nodes.some(node => node.roleId === payload.targetRoleId);
+    if (!hasChallenger || !hasTarget) return;
+
+    const next = state.challengeEdges.concat({
+      challengerRoleId: payload.challengerRoleId,
+      targetRoleId: payload.targetRoleId,
+      summary: payload.summary,
+      roundNumber: payload.roundNumber,
+    });
+    set({
+      challengeEdges: next.length > MAX_CHALLENGE_EDGES
+        ? next.slice(next.length - MAX_CHALLENGE_EDGES)
+        : next,
+    });
+  },
+
+  handleVoteCompleted(payload) {
+    const state = get();
+    if (state.sessionId && payload.sessionId !== state.sessionId) return;
+    set({
+      voteOutcome: {
+        winningOption: payload.winningOption,
+        margin: payload.margin,
+        isNarrow: payload.isNarrow,
+        ...(payload.isNarrow && payload.minority ? { minority: payload.minority } : {}),
+      },
+    });
+  },
+
   reset() {
     set(INITIAL_BRAINSTORM_GRAPH);
   },
@@ -425,6 +534,72 @@ export function dispatchBrainstormGraphEvent(event: {
       if (typeof sessionId === "string") {
         store.handleSessionFailed({ sessionId });
       }
+      break;
+    }
+    case "brainstorm.round.completed": {
+      const sessionId = payload.sessionId;
+      const roundNumber = payload.roundNumber;
+      const convergenceScore = payload.convergenceScore;
+      if (
+        typeof sessionId !== "string" ||
+        typeof roundNumber !== "number" ||
+        typeof convergenceScore !== "number"
+      ) {
+        return;
+      }
+      store.handleRoundCompleted({
+        sessionId,
+        roundNumber,
+        convergenceScore,
+      });
+      break;
+    }
+    case "brainstorm.challenge.issued": {
+      const sessionId = payload.sessionId;
+      const challengerRoleId = payload.challengerRoleId;
+      const targetRoleId = payload.targetRoleId;
+      const summary = payload.summary;
+      const roundNumber = payload.roundNumber;
+      if (
+        typeof sessionId !== "string" ||
+        typeof challengerRoleId !== "string" ||
+        typeof targetRoleId !== "string" ||
+        typeof summary !== "string" ||
+        typeof roundNumber !== "number"
+      ) {
+        return;
+      }
+      store.handleChallengeIssued({
+        sessionId,
+        challengerRoleId: challengerRoleId as BrainstormRoleId,
+        targetRoleId: targetRoleId as BrainstormRoleId,
+        summary,
+        roundNumber,
+      });
+      break;
+    }
+    case "brainstorm.vote.completed": {
+      const sessionId = payload.sessionId;
+      const winningOption = payload.winningOption;
+      const margin = payload.margin;
+      const isNarrow = payload.isNarrow;
+      if (
+        typeof sessionId !== "string" ||
+        typeof winningOption !== "string" ||
+        typeof margin !== "number" ||
+        typeof isNarrow !== "boolean"
+      ) {
+        return;
+      }
+      store.handleVoteCompleted({
+        sessionId,
+        winningOption,
+        margin,
+        isNarrow,
+        minority: Array.isArray(payload.minority)
+          ? payload.minority.filter((item): item is string => typeof item === "string")
+          : undefined,
+      });
       break;
     }
   }

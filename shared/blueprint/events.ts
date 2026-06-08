@@ -79,6 +79,7 @@ export type BlueprintGenerationEventType =
   // Effect preview
   | "preview.generated"
   | "preview.refreshed"
+  | "preview.batch.completed"
   // EP_VIS_AUDIT 出图审计回炉（`blueprint-v4-full-alignment` Module E / R14.1）：
   // 出图审计发现假图时发出，请求对失败图片回炉重生。使用点号命名
   // `preview.audit.regenerate_requested`，`resolveBlueprintEventFamily` 按首段
@@ -143,6 +144,13 @@ export type BlueprintGenerationEventType =
   | "brainstorm.tool.failed"
   // Brainstorm degradation
   | "brainstorm.degraded"
+  // Blueprint v4 full-loop deliberation events
+  | "brainstorm.round.completed"
+  | "brainstorm.challenge.issued"
+  | "brainstorm.vote.completed"
+  // Blueprint v4 companion challenge/response events
+  | "companion.challenge.started"
+  | "companion.challenge.resolved"
   // Checks Ledger（`blueprint-checks-ledger` spec）
   | "checks.entry.recorded"
   | "checks.gate.passed"
@@ -181,6 +189,7 @@ export const BlueprintEventName = {
   // Effect preview
   PreviewGenerated: "preview.generated",
   PreviewRefreshed: "preview.refreshed",
+  PreviewBatchCompleted: "preview.batch.completed",
   // EP_VIS_AUDIT 出图审计回炉（`blueprint-v4-full-alignment` Module E / R14.1）
   PreviewAuditRegenerateRequested: "preview.audit.regenerate_requested",
   // Prompt package
@@ -236,6 +245,13 @@ export const BlueprintEventName = {
   BrainstormToolFailed: "brainstorm.tool.failed",
   // Brainstorm degradation
   BrainstormDegraded: "brainstorm.degraded",
+  // Blueprint v4 full-loop deliberation events
+  BrainstormRoundCompleted: "brainstorm.round.completed",
+  BrainstormChallengeIssued: "brainstorm.challenge.issued",
+  BrainstormVoteCompleted: "brainstorm.vote.completed",
+  // Blueprint v4 companion challenge/response events
+  CompanionChallengeStarted: "companion.challenge.started",
+  CompanionChallengeResolved: "companion.challenge.resolved",
   // Checks Ledger（`blueprint-checks-ledger` spec）
   ChecksEntryRecorded: "checks.entry.recorded",
   ChecksGatePassed: "checks.gate.passed",
@@ -263,6 +279,9 @@ export function resolveBlueprintEventFamily(
     return "job";
   }
   const [family] = eventType.split(".", 1);
+  if (family === "companion") {
+    return "checks";
+  }
   return family as BlueprintGenerationEventFamily;
 }
 
@@ -396,4 +415,73 @@ export interface BrainstormDegradedPayload {
   reason: string;
   affectedComponent: string;
   fallbackAction: string;
+}
+
+// ---------------------------------------------------------------------------
+// Blueprint v4 full-loop event payload interfaces
+// ---------------------------------------------------------------------------
+
+/**
+ * Payload for `brainstorm.round.completed` events.
+ */
+export interface BrainstormRoundCompletedPayload {
+  sessionId: string;
+  roundNumber: number;
+  participatingRoleIds: BrainstormEventRoleId[];
+  convergenceScore: number;
+  challengesThisRound: number;
+}
+
+/**
+ * Payload for `brainstorm.challenge.issued` events.
+ */
+export interface BrainstormChallengeIssuedPayload {
+  sessionId: string;
+  challengerRoleId: BrainstormEventRoleId;
+  targetRoleId: BrainstormEventRoleId;
+  challengeSummary: string;
+  roundNumber: number;
+}
+
+/**
+ * Payload for `brainstorm.vote.completed` events.
+ */
+export interface BrainstormVoteCompletedPayload {
+  sessionId: string;
+  voteTally: Record<string, number>;
+  winningOption: string;
+  margin: number;
+  isNarrow: boolean;
+}
+
+/**
+ * Payload for `companion.challenge.started` events.
+ */
+export interface CompanionChallengeStartedPayload {
+  jobId: string;
+  findingId: string;
+  targetArtifactId: string;
+  challengeSummary: string;
+}
+
+/**
+ * Payload for `companion.challenge.resolved` events.
+ */
+export interface CompanionChallengeResolvedPayload {
+  jobId: string;
+  findingId: string;
+  outcome: "accepted" | "partially_resolved" | "escalated";
+  responseSummary: string;
+  durationMs: number;
+}
+
+/**
+ * Payload for `preview.batch.completed` events.
+ */
+export interface PreviewBatchCompletedPayload {
+  jobId: string;
+  totalAttempted: number;
+  succeeded: number;
+  failed: number;
+  retried: number;
 }

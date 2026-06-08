@@ -1,4 +1,7 @@
 import { renderToStaticMarkup } from "react-dom/server";
+import { readFileSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath } from "node:url";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const { projectState } = vi.hoisted(() => ({
@@ -17,6 +20,7 @@ import AutopilotRoutePage, {
   resolveHistoryActiveJobIdForCurrentJob,
   resolveHistoryUrlSelectedJob,
   resolveVisibleWorkflowStepId,
+  selectRailJob,
   selectRightRailSpecTree,
   waitForRouteSelectionSnapshot,
 } from "./AutopilotRoutePage";
@@ -24,21 +28,28 @@ import { AutopilotRightRail } from "./right-rail";
 import { PROJECTS_PATH } from "@/components/navigation-config";
 import { useAppStore } from "@/lib/store";
 
+const here = dirname(fileURLToPath(import.meta.url));
+const autopilotSource = () =>
+  readFileSync(resolve(here, "AutopilotRoutePage.tsx"), "utf8");
+
 vi.mock("@/components/Scene3D", () => ({
   Scene3D: ({
     performanceProfile,
     projectId,
     mode,
+    blueprintReasoningGraphs,
   }: {
     performanceProfile?: string;
     projectId?: string | null;
     mode?: string;
+    blueprintReasoningGraphs?: unknown[];
   }) => (
     <div
       data-testid="mock-scene-3d"
       data-performance-profile={performanceProfile}
       data-project-id={projectId ?? ""}
       data-scene-mode={mode ?? ""}
+      data-reasoning-graph-count={blueprintReasoningGraphs?.length ?? 0}
     />
   ),
 }));
@@ -105,7 +116,7 @@ describe("AutopilotRoutePage", () => {
     expect(markup).toContain('data-testid="autopilot-topbar"');
     expect(markup).toContain('data-testid="autopilot-visual-stage"');
     expect(markup).toContain(
-      "xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]"
+      "xl:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]"
     );
     expect(markup).toContain('data-testid="autopilot-scene-visual"');
     expect(markup).toContain('data-testid="mock-scene-3d"');
@@ -137,6 +148,14 @@ describe("AutopilotRoutePage", () => {
       'data-testid="autopilot-generate-routeset-button"'
     );
     expect(markup).not.toContain("RouteSet generation and selection");
+  });
+
+  it("forwards active-job brainstorm reasoning graph artifacts into Scene3D", () => {
+    const source = autopilotSource();
+
+    expect(source).toContain("readBrainstormReasoningGraphs(job)");
+    expect(source).toContain("blueprintReasoningGraphs={wallReasoningGraphs}");
+    expect(source).not.toContain("readBrainstormReasoningGraphs(latest");
   });
 
   it("keeps partially submitted clarifications in a missing-required state", () => {
@@ -303,6 +322,38 @@ describe("AutopilotRoutePage", () => {
     );
   });
 
+  it("keeps topbar continue on page 2 before returning to downstream effect preview", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const routeSource = await fs.readFile(
+      path.resolve(__dirname, "./AutopilotRoutePage.tsx"),
+      "utf8"
+    );
+
+    expect(routeSource).toMatch(/handleForwardToLatestStage/);
+    expect(routeSource).toMatch(/setWorkflowStageOverride\("fabric"\)/);
+    expect(routeSource).not.toMatch(
+      /data-testid="autopilot-forward-to-latest-stage"[\s\S]{0,500}setWorkflowStageOverride\(null\)/
+    );
+  });
+
+  it("clears the pinned SPEC-tree step when continuing from stage two to the latest downstream stage", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const routeSource = await fs.readFile(
+      path.resolve(__dirname, "./AutopilotRoutePage.tsx"),
+      "utf8"
+    );
+    const handlerSource = routeSource.slice(
+      routeSource.indexOf("const handleForwardToLatestStage"),
+      routeSource.indexOf("const pageTransition")
+    );
+
+    expect(handlerSource).toMatch(/setWorkflowStageOverride\("fabric"\)/);
+    expect(handlerSource).toMatch(/subStageState\.setPinnedSubStage\("spec_tree"\)/);
+    expect(handlerSource).toMatch(/subStageState\.resetPin\(\);\s*setWorkflowStageOverride\(null\)/);
+  });
+
   it("projects downstream runtime state back to the input / clarification / route page without leaking later artifacts", () => {
     const runtimeJob = {
       id: "job-runtime",
@@ -452,6 +503,43 @@ describe("AutopilotRoutePage", () => {
     expect(selectRightRailSpecTree(populatedRailTree, pageTree)).toBe(
       populatedRailTree
     );
+  });
+
+  it("prefers whichever job actually carries SPEC documents so generated docs always surface", () => {
+    const docArtifact = { id: "doc-req", type: "requirements", payload: { id: "d1", nodeId: "n1", type: "requirements" } };
+    const railJobNoDocs = {
+      id: "job-1",
+      stage: "spec_docs",
+      artifacts: [{ id: "tree", type: "spec_tree" }],
+    } as unknown as Parameters<typeof selectRailJob>[0];
+    const latestJobWithDocs = {
+      id: "job-1",
+      stage: "spec_docs",
+      artifacts: [{ id: "tree", type: "spec_tree" }, docArtifact],
+    } as unknown as Parameters<typeof selectRailJob>[1];
+
+    // W1 rail job lacks docs, latest (same id) has them → upgrade to latest.
+    expect(selectRailJob(railJobNoDocs, latestJobWithDocs)).toBe(latestJobWithDocs);
+
+    // W1 rail job already has docs → keep it (authoritative refresh source).
+    const railJobWithDocs = {
+      id: "job-1",
+      stage: "spec_docs",
+      artifacts: [docArtifact],
+    } as unknown as Parameters<typeof selectRailJob>[0];
+    expect(selectRailJob(railJobWithDocs, latestJobWithDocs)).toBe(railJobWithDocs);
+
+    // Different job ids → never cross-wire docs from latest; keep rail job.
+    const latestDifferentId = {
+      id: "job-2",
+      stage: "spec_docs",
+      artifacts: [docArtifact],
+    } as unknown as Parameters<typeof selectRailJob>[1];
+    expect(selectRailJob(railJobNoDocs, latestDifferentId)).toBe(railJobNoDocs);
+
+    // Neither has docs → preserve legacy `railJobData ?? latestJob` semantics.
+    expect(selectRailJob(null, latestJobWithDocs)).toBe(latestJobWithDocs);
+    expect(selectRailJob(undefined, undefined)).toBeNull();
   });
 
   it("polls the selected job until the async SPEC tree snapshot is available", async () => {
@@ -611,6 +699,36 @@ describe("AutopilotRoutePage", () => {
     expect(closeHandler).toMatch(/closeAutopilotHistorySearch\(\)/);
     expect(closeHandler).toMatch(/setHistoryPanelOpen\(false\)/);
     expect(closeHandler).toMatch(/void onHistoryPanelClosed\?\.\(\)/);
+  });
+
+  it("closes version history without dropping the selected active job from the URL", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const routeSource = await fs.readFile(
+      path.resolve(__dirname, "./AutopilotRoutePage.tsx"),
+      "utf8"
+    );
+    const closeSearchHelper = routeSource.slice(
+      routeSource.indexOf("function closeAutopilotHistorySearch"),
+      routeSource.indexOf("function readLegacyClarificationSession")
+    );
+
+    expect(closeSearchHelper).toMatch(/url\.searchParams\.delete\("history"\)/);
+    expect(closeSearchHelper).not.toMatch(
+      /url\.searchParams\.delete\("activeJob"\)/
+    );
+  });
+
+  it("keeps the topbar continue button above the visual stage so real pointer clicks reach it", async () => {
+    const fs = await import("node:fs/promises");
+    const path = await import("node:path");
+    const routeSource = await fs.readFile(
+      path.resolve(__dirname, "./AutopilotRoutePage.tsx"),
+      "utf8"
+    );
+
+    expect(routeSource).toMatch(/data-testid="autopilot-forward-to-latest-stage"/);
+    expect(routeSource).toMatch(/relative z-50 inline-flex items-center/);
   });
 
   it("wires page-level edit mode and transition coordination into the high-conflict shells", async () => {

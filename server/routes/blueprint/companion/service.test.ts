@@ -34,6 +34,7 @@ function makeCtx(opts: {
   enabled?: boolean;
   apiKey?: string;
   hasMcp?: boolean;
+  repoFiles?: Record<string, string>;
   callJsonImpl?: (...args: any[]) => Promise<unknown>;
   job?: BlueprintGenerationJob;
 }): { ctx: BlueprintServiceContext; recordSpy: any; job: BlueprintGenerationJob } {
@@ -57,6 +58,17 @@ function makeCtx(opts: {
       callJson: opts.callJsonImpl ?? (async () => ({})),
     },
     checksLedger: { recordCheck: recordSpy, getChecks: vi.fn(), isGatePassed: vi.fn(), renderMarkdown: vi.fn() },
+    ...(opts.repoFiles
+      ? {
+          companionRepositoryReader: {
+            readFile: vi.fn(async (filePath: string) =>
+              Object.hasOwn(opts.repoFiles!, filePath)
+                ? { ok: true, content: opts.repoFiles![filePath] }
+                : { ok: false, reason: "missing" },
+            ),
+          },
+        }
+      : {}),
     ...(opts.hasMcp ? { mcpToolAdapter: { execute: vi.fn() } } : {}),
   } as unknown as BlueprintServiceContext;
 
@@ -154,15 +166,40 @@ describe("CompanionLayer", () => {
     expect(jobAny.companionFindings[0].severity).toBe("error");
   });
 
-  it("Grounding degrades to warn when no fetcher/mcp", async () => {
+  it("Grounding degrades to info when no repository reader is available", async () => {
     const { ctx } = makeCtx({ enabled: true, apiKey: "sk-x", hasMcp: false });
     const layer = createCompanionLayer(ctx);
     const findings = await layer.evaluateAll(
       { jobId: "job-1", stage: "input", fuzzinessScore: 0.1, hasRealRepo: true },
-      { title: "X" },
+      { title: "X", citation: "server/routes/blueprint/companion/service.ts" },
     );
     const grounding = findings.find((f) => f.role === "grounding");
-    expect(grounding?.severity).toBe("warn");
+    expect(grounding?.severity).toBe("info");
+  });
+
+  it("Grounding reads cited repository files and reports missing files as error", async () => {
+    const { ctx } = makeCtx({
+      enabled: true,
+      apiKey: "sk-x",
+      repoFiles: {
+        "server/routes/blueprint/companion/service.ts": "export function createCompanionLayer() {}",
+      },
+    });
+    const layer = createCompanionLayer(ctx);
+    const findings = await layer.evaluateAll(
+      { jobId: "job-1", stage: "input", fuzzinessScore: 0.1, hasRealRepo: true },
+      {
+        citations: [
+          "server/routes/blueprint/companion/service.ts#createCompanionLayer",
+          "server/routes/blueprint/companion/missing.ts",
+        ],
+      },
+    );
+    const grounding = findings.find((f) => f.role === "grounding");
+    expect(grounding?.severity).toBe("error");
+    expect(grounding?.repoFilesRead).toEqual([
+      "server/routes/blueprint/companion/service.ts",
+    ]);
   });
 
   it("Grounding does not trigger without real repo", async () => {
@@ -173,5 +210,55 @@ describe("CompanionLayer", () => {
       { title: "X" },
     );
     expect(findings.find((f) => f.role === "grounding")).toBeUndefined();
+  });
+
+  it("writes clean_pass companion_trace when no findings are produced", async () => {
+    const { ctx, recordSpy } = makeCtx({ enabled: true, apiKey: "sk-x", hasMcp: true });
+    const layer = createCompanionLayer(ctx);
+    const findings = await layer.evaluateAll(
+      { jobId: "job-1", stage: "spec_docs", fuzzinessScore: 0.1, hasRealRepo: false },
+      { title: "X" },
+    );
+    expect(findings).toEqual([]);
+    expect(recordSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checkType: "companion_trace",
+        checkName: "companion:clean_pass:spec_docs",
+        status: "pass",
+      }),
+    );
+  });
+
+  it("runs challenge response cycle for warn/error findings", async () => {
+    const callJsonSpy = vi.fn(async () => ({
+      findings: ["overconfident assumption"],
+      severity: "error",
+      suggestedActions: ["add evidence"],
+      citations: [],
+    }));
+    const { ctx, recordSpy } = makeCtx({
+      enabled: true,
+      apiKey: "sk-x",
+      callJsonImpl: callJsonSpy,
+    });
+    const layer = createCompanionLayer(ctx);
+    const findings = await layer.evaluateAll(
+      { jobId: "job-1", stage: "spec_tree", fuzzinessScore: 0.9, hasRealRepo: false },
+      { title: "X" },
+    );
+
+    expect(findings[0].severity).toBe("error");
+    expect(recordSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        checkName: expect.stringMatching(/^companion:challenge:/),
+        status: "fail",
+      }),
+    );
+    expect(ctx.eventBus.emit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "companion.challenge.started" }),
+    );
+    expect(ctx.eventBus.emit).toHaveBeenCalledWith(
+      expect.objectContaining({ type: "companion.challenge.resolved" }),
+    );
   });
 });

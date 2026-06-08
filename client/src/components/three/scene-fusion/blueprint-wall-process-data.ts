@@ -78,6 +78,7 @@ export type BlueprintWallGraphNodeType =
   | "user_goal"
   | "stage"
   | "reasoning"
+  | "brainstorm"
   | "route"
   | "spec_node"
   | "capability"
@@ -108,6 +109,7 @@ export interface BlueprintWallGraphNode {
       | "job"
       | "stage"
       | "reasoning"
+      | "brainstorm"
       | "route"
       | "spec"
       | "capability"
@@ -343,6 +345,10 @@ const ROUTE_COLUMN = 1;
  */
 const SPEC_COLUMN = 2;
 
+const BRAINSTORM_COLUMN = REASONING_COLUMN;
+const MAX_BRAINSTORM_BRANCH_NODES = 8;
+const MIN_BRAINSTORM_BRANCH_NODES = 3;
+
 /** user_goal 节点正文最大字符数，超出则截断以保持墙面可读（Req 4.7）。 */
 const USER_GOAL_BODY_MAX = 200;
 
@@ -558,6 +564,11 @@ export function deriveBlueprintWallProcessData(
     input.agentReasoningEntries,
     input.job.id
   );
+  const brainstormNodes = buildBrainstormNodes(
+    input.rolePhases,
+    filteredReasoning,
+    locale
+  );
 
   // Default `maxReasoningNodes` keeps the wall readable (Req 8.4); callers may
   // override it for tests / later UI tuning.
@@ -585,6 +596,7 @@ export function deriveBlueprintWallProcessData(
     filteredReasoning.length > 0 ||
     input.routeSet ||
     input.specTree ||
+    brainstormNodes.length > 0 ||
     currentJobPreviewCount > 0 ||
     includedArtifacts.length > 0 ||
     hasCapabilityStatuses(input.capabilityStatuses);
@@ -672,6 +684,7 @@ export function deriveBlueprintWallProcessData(
     ...stageNodes,
     ...routeNodes,
     ...specNodes,
+    ...brainstormNodes,
     ...capabilityNodes,
     ...reasoningNodes,
     ...(previewNode ? [previewNode] : []),
@@ -686,7 +699,11 @@ export function deriveBlueprintWallProcessData(
   // instead of guessing (Req 5.5-5.8). Relationship edges only emit when both
   // endpoint nodes exist, so they are added only on the has-data path (the
   // no-blueprint-data path has no such nodes and would produce none anyway).
-  const edges = [...stageOrderEdges, ...buildRelationshipEdges(nodes)];
+  const edges = [
+    ...stageOrderEdges,
+    ...buildRelationshipEdges(nodes),
+    ...buildBrainstormEdges(nodes),
+  ];
 
   return buildOutput(
     stageSignal,
@@ -968,6 +985,39 @@ function buildRelationshipEdges(
  *  - 布局：输入列（列 0），row 1（避开列 0 row 0 的 `stage:input` 主干节点）。
  *  - sourceRefs：指向 job 本身。
  */
+function buildBrainstormEdges(
+  nodes: BlueprintWallGraphNode[]
+): BlueprintWallGraphEdge[] {
+  const nodeIds = new Set(nodes.map((node) => node.id));
+  if (!nodeIds.has("stage:spec_tree") || !nodeIds.has("stage:spec_docs")) {
+    return [];
+  }
+
+  const brainstormNodes = nodes.filter((node) => node.type === "brainstorm");
+  if (brainstormNodes.length === 0) return [];
+
+  const edges: BlueprintWallGraphEdge[] = [];
+  for (const node of brainstormNodes) {
+    const brainstormId = node.id.slice("brainstorm:".length);
+    edges.push({
+      id: `edge:brainstorm-fanout:${brainstormId}`,
+      from: "stage:spec_tree",
+      to: node.id,
+      kind: "supports" as const,
+      priority: "secondary" as const,
+    });
+    edges.push({
+      id: `edge:brainstorm-converge:${brainstormId}`,
+      from: node.id,
+      to: "stage:spec_docs",
+      kind: "refines" as const,
+      priority: "ambient" as const,
+    });
+  }
+
+  return edges;
+}
+
 function buildUserGoalNode(
   job: BlueprintGenerationJob,
   locale: AppLocale
@@ -1215,6 +1265,92 @@ function buildSpecSummary(
  * 输入派生（Req 8.2）。防御性规则与 `buildCapabilityNodes` / `buildCapabilitySummary`
  * 保持一致。
  */
+function isRolePhaseActive(phase: RolePhase | undefined): boolean {
+  return (
+    phase === "thinking" ||
+    phase === "acting" ||
+    phase === "activated" ||
+    phase === "reviewing" ||
+    phase === "observing"
+  );
+}
+
+function buildBrainstormNodes(
+  rolePhases: Record<string, RolePhase> | null | undefined,
+  reasoningEntries: AgentReasoningEntry[],
+  locale: AppLocale
+): BlueprintWallGraphNode[] {
+  const activeRoleIds = collectBrainstormRoleIds(rolePhases, reasoningEntries);
+  if (activeRoleIds.length < MIN_BRAINSTORM_BRANCH_NODES) return [];
+
+  return activeRoleIds
+    .slice(0, MAX_BRAINSTORM_BRANCH_NODES)
+    .map((roleId, index) => ({
+    id: `brainstorm:${roleId}`,
+    type: "brainstorm" as const,
+    title: formatBrainstormRoleTitle(roleId),
+    body:
+      locale === "zh-CN"
+        ? `LLM 运行时分支：${roleId}`
+        : `Runtime branch: ${roleId}`,
+    status: "active" as const,
+    column: BRAINSTORM_COLUMN,
+    row: index + 1,
+    accent: "teal" as const,
+    sourceRefs: [{ kind: "brainstorm" as const, id: roleId }],
+  }));
+}
+
+function collectBrainstormRoleIds(
+  rolePhases: Record<string, RolePhase> | null | undefined,
+  reasoningEntries: AgentReasoningEntry[]
+): string[] {
+  const ids: string[] = [];
+  const seen = new Set<string>();
+  const pushRoleId = (rawRoleId: string | undefined) => {
+    if (!rawRoleId) return;
+    const roleId = sanitizeBrainstormRoleId(rawRoleId);
+    if (roleId.length === 0 || seen.has(roleId)) return;
+    seen.add(roleId);
+    ids.push(roleId);
+  };
+
+  if (rolePhases && typeof rolePhases === "object") {
+    for (const [key, phase] of Object.entries(rolePhases)) {
+      if (!isRolePhaseActive(phase)) continue;
+      pushRoleId(key);
+    }
+  }
+
+  for (const entry of reasoningEntries) {
+    if (!isSpecBrainstormStage(entry.stageId)) continue;
+    pushRoleId((entry as AgentReasoningEntry & { roleId?: string }).roleId);
+  }
+
+  return ids;
+}
+
+function isSpecBrainstormStage(stageId: string | null | undefined): boolean {
+  return stageId === "spec_tree" || stageId === "spec_docs";
+}
+
+function sanitizeBrainstormRoleId(roleId: string): string {
+  return roleId
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function formatBrainstormRoleTitle(roleId: string): string {
+  const words = roleId
+    .split(/[-_]+/g)
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1));
+  return words.length > 0 ? words.join(" ") : roleId;
+}
+
 function hasCapabilityStatuses(
   capabilityStatuses: Record<string, CapabilityStatus> | null | undefined
 ): boolean {

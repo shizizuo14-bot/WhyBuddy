@@ -18,6 +18,10 @@ import {
   selectNodesByRole,
   selectNodesByStatus,
   selectSessionMetadata,
+  selectChallengeEdges,
+  selectConvergenceScore,
+  selectCurrentRound,
+  selectVoteOutcome,
   selectIsActive,
 } from "../brainstorm-graph-store";
 
@@ -39,6 +43,10 @@ describe("brainstormGraph store", () => {
       expect(state.sessionStatus).toBe("idle");
       expect(state.nodes).toEqual([]);
       expect(state.edges).toEqual([]);
+      expect(state.currentRound).toBeNull();
+      expect(state.convergenceScore).toBeNull();
+      expect(state.challengeEdges).toEqual([]);
+      expect(state.voteOutcome).toBeNull();
       expect(state.sessionMetadata.mode).toBeNull();
       expect(state.sessionMetadata.roles).toEqual([]);
     });
@@ -85,6 +93,101 @@ describe("brainstormGraph store", () => {
       expect(state.sessionId).toBe("sess-new");
       expect(state.nodes).toEqual([]);
       expect(state.edges).toEqual([]);
+      expect(state.currentRound).toBeNull();
+      expect(state.convergenceScore).toBeNull();
+      expect(state.challengeEdges).toEqual([]);
+      expect(state.voteOutcome).toBeNull();
+    });
+  });
+
+  describe("deliberation events", () => {
+    beforeEach(() => {
+      const store = useBrainstormGraphStore.getState();
+      store.handleSessionStarted({ sessionId: "sess-delib" });
+      store.handleNodeCreated({
+        sessionId: "sess-delib",
+        nodeId: "planner-node",
+        parentNodeId: null,
+        roleId: "planner",
+        nodeType: "thinking",
+        status: "active",
+      });
+      store.handleNodeCreated({
+        sessionId: "sess-delib",
+        nodeId: "architect-node",
+        parentNodeId: null,
+        roleId: "architect",
+        nodeType: "thinking",
+        status: "active",
+      });
+    });
+
+    it("records round, challenge, and narrow vote outcome additively", () => {
+      dispatchBrainstormGraphEvent({
+        type: "brainstorm.round.completed",
+        payload: {
+          sessionId: "sess-delib",
+          roundNumber: 2,
+          convergenceScore: 0.72,
+        },
+      });
+      dispatchBrainstormGraphEvent({
+        type: "brainstorm.challenge.issued",
+        payload: {
+          sessionId: "sess-delib",
+          challengerRoleId: "planner",
+          targetRoleId: "architect",
+          summary: "Clarify runtime boundary.",
+          roundNumber: 2,
+        },
+      });
+      dispatchBrainstormGraphEvent({
+        type: "brainstorm.vote.completed",
+        payload: {
+          sessionId: "sess-delib",
+          winningOption: "Option A",
+          margin: 0.1,
+          isNarrow: true,
+          minority: ["Option B"],
+        },
+      });
+
+      const state = useBrainstormGraphStore.getState();
+      expect(selectCurrentRound(state)).toBe(2);
+      expect(selectConvergenceScore(state)).toBe(0.72);
+      expect(selectChallengeEdges(state)).toEqual([
+        {
+          challengerRoleId: "planner",
+          targetRoleId: "architect",
+          summary: "Clarify runtime boundary.",
+          roundNumber: 2,
+        },
+      ]);
+      expect(selectVoteOutcome(state)).toEqual({
+        winningOption: "Option A",
+        margin: 0.1,
+        isNarrow: true,
+        minority: ["Option B"],
+      });
+    });
+
+    it("drops minority reasoning for non-narrow vote outcomes", () => {
+      dispatchBrainstormGraphEvent({
+        type: "brainstorm.vote.completed",
+        payload: {
+          sessionId: "sess-delib",
+          winningOption: "Option A",
+          margin: 0.5,
+          isNarrow: false,
+          minority: ["Option B"],
+        },
+      });
+
+      expect(useBrainstormGraphStore.getState().voteOutcome).toEqual({
+        winningOption: "Option A",
+        margin: 0.5,
+        isNarrow: false,
+      });
     });
   });
 

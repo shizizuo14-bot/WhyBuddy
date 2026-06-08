@@ -21,6 +21,7 @@ import type { BlueprintCheckStatus } from "../../../../shared/blueprint/checks-l
 import { createDefaultCompanionLayerPolicy } from "./policy.js";
 import { createCriticService } from "./critic.js";
 import { createGroundingService } from "./grounding.js";
+import { initiateChallenge } from "./challenge-response-cycle.js";
 
 const ENV_KEY = "BLUEPRINT_COMPANION_ENABLED";
 
@@ -96,6 +97,44 @@ function recordFinding(
   }
 }
 
+function recordCleanPass(
+  ctx: BlueprintServiceContext,
+  triggerCtx: CompanionTriggerContext,
+): void {
+  try {
+    ctx.checksLedger?.recordCheck({
+      jobId: triggerCtx.jobId,
+      stage: triggerCtx.stage,
+      checkType: "companion_trace",
+      checkName: `companion:clean_pass:${triggerCtx.stage}`,
+      status: "pass",
+      validator: "companion/service.ts",
+      output: "Companion review produced no findings.",
+      metadata: {
+        targetArtifactId: triggerCtx.jobId,
+        stage: triggerCtx.stage,
+        findingsCount: 0,
+      },
+    });
+  } catch (err) {
+    ctx.logger.warn("companion: clean pass ledger write failed", {
+      error: err instanceof Error ? err.message : String(err),
+    });
+  }
+}
+
+async function runChallengeCycle(
+  ctx: BlueprintServiceContext,
+  finding: CompanionFinding,
+  artifact: unknown,
+): Promise<CompanionFinding> {
+  if (finding.severity !== "warn" && finding.severity !== "error") {
+    return finding;
+  }
+  const result = await initiateChallenge(ctx, { finding, artifact });
+  return result.finding;
+}
+
 export function createCompanionLayer(
   ctx: BlueprintServiceContext,
 ): CompanionLayerService {
@@ -123,8 +162,9 @@ export function createCompanionLayer(
         try {
           const f = await critic.evaluate(triggerCtx, artifact);
           if (f) {
-            findings.push(f);
-            recordFinding(ctx, f);
+            const challengedFinding = await runChallengeCycle(ctx, f, artifact);
+            findings.push(challengedFinding);
+            recordFinding(ctx, challengedFinding);
           }
         } catch (err) {
           ctx.logger.warn("companion: critic threw, skipping", {
@@ -137,14 +177,19 @@ export function createCompanionLayer(
         try {
           const f = await grounding.evaluate(triggerCtx, artifact);
           if (f) {
-            findings.push(f);
-            recordFinding(ctx, f);
+            const challengedFinding = await runChallengeCycle(ctx, f, artifact);
+            findings.push(challengedFinding);
+            recordFinding(ctx, challengedFinding);
           }
         } catch (err) {
           ctx.logger.warn("companion: grounding threw, skipping", {
             error: err instanceof Error ? err.message : String(err),
           });
         }
+      }
+
+      if (findings.length === 0) {
+        recordCleanPass(ctx, triggerCtx);
       }
 
       return findings;

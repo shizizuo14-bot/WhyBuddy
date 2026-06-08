@@ -525,9 +525,26 @@ function resolvePersistedSpecDocuments(input: {
   job: BlueprintGenerationJob | null | undefined;
   specTree: BlueprintSpecTree | null | undefined;
 }): BlueprintSpecDocument[] | undefined {
-  return (
-    extractSpecDocuments(input.job) ?? extractSpecTreeDocuments(input.specTree)
+  const docs =
+    extractSpecDocuments(input.job) ?? extractSpecTreeDocuments(input.specTree);
+  if (!docs || docs.length === 0) return docs;
+
+  // Cross-job/cross-project bleed guard: only surface documents whose `nodeId`
+  // belongs to the CURRENT spec tree. Without this, a stale job snapshot (e.g.
+  // the previous project's `latestJob`) can carry 63 documents whose nodeIds
+  // belong to a different tree, producing the "63/72 generated but every node
+  // 未生成" inconsistency the user reported (docs from another project bleeding
+  // into a freshly-created job that hasn't generated anything yet).
+  const nodeIds = input.specTree?.nodes;
+  if (!Array.isArray(nodeIds) || nodeIds.length === 0) {
+    // No tree to validate against — keep docs as-is (no mismatch to guard).
+    return docs;
+  }
+  const treeNodeIdSet = new Set(nodeIds.map(node => node.id));
+  const scoped = docs.filter(
+    doc => typeof doc.nodeId === "string" && treeNodeIdSet.has(doc.nodeId)
   );
+  return scoped.length > 0 ? scoped : undefined;
 }
 
 function renderFabricSubStageContent(
@@ -747,8 +764,6 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
   const baseStageIndex = activeSubStage !== undefined
     ? mapSubStageToStageIndex(activeSubStage)
     : 0;
-  const isSpecDocumentsStage =
-    activeSubStage === "spec_tree" && isAtOrBeyondSpecDocuments(job?.stage);
   const manualStageOverride = isManualWorkbenchStageOverrideValid(
     manualWorkbenchStageOverride,
     { activeSubStage, jobStage: job?.stage }
@@ -757,14 +772,15 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
     : null;
   const activeStageIndex = manualStageOverride
     ? STAGE_ORDER.indexOf(manualStageOverride)
-    : isSpecDocumentsStage
-      ? STAGE_ORDER.indexOf("spec_documents")
-      : baseStageIndex;
+    : baseStageIndex;
   const activeStageKey: WorkbenchStage = STAGE_ORDER[activeStageIndex];
   const currentStageConfig = STAGE_CONFIG[activeStageKey];
+  const canEnterEffectPreviewFromCurrentStage =
+    activeStageKey === "spec_documents";
   const showFabricObservability =
     activeStageKey !== "spec_tree" &&
     activeStageKey !== "spec_documents";
+  const showTrustSection = activeStageKey !== "spec_tree";
   const currentGenerationStage =
     mapWorkbenchStageToGenerationStage(activeStageKey);
   const {
@@ -1619,7 +1635,8 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
               既有断点保留，避免破坏 fabric-dispatch.property.test.tsx 等回归。 */}
           {/* spec_tree 与 spec_documents 合并为同一界面：
               左侧节点导航 + 右侧文档渲染，由 StreamingDocRenderer 统一承载。 */}
-          {(activeStageKey === "spec_documents" || activeStageKey === "spec_tree") ? (
+          {activeStageKey === "spec_tree" ||
+          activeStageKey === "spec_documents" ? (
             <div
               data-sub-stage-placeholder={activeSubStage ?? ""}
               data-timeline-status="active"
@@ -1637,9 +1654,15 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
                 generating={specDocsGenerating}
                 jobId={props.jobId}
                 job={props.job}
-                onEnterEffectPreview={handleEnterEffectPreview}
+                onEnterEffectPreview={
+                  canEnterEffectPreviewFromCurrentStage &&
+                  (persistedSpecDocuments?.length ?? 0) > 0
+                    ? handleEnterEffectPreview
+                    : undefined
+                }
                 effectPreviewState={effectPreviewState}
                 effectPreviewDisabled={
+                  !canEnterEffectPreviewFromCurrentStage ||
                   !props.jobId ||
                   (persistedSpecDocuments?.length ?? 0) === 0
                 }
@@ -1699,7 +1722,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
           （校验台账 / 可追溯矩阵 / 伴随发现）。非线性 sub-stage，不改
           resolve-rail-sub-stage 契约；可用性 gating + CardErrorBoundary 由
           TrustSection 内部承载（design.md §9）。 */}
-      {props.jobId ? (
+      {props.jobId && showTrustSection ? (
         <TrustSection
           jobId={props.jobId}
           job={props.job as unknown as CompanionFindingsSource | null}

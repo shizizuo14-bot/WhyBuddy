@@ -35,7 +35,12 @@ import {
   computeAdaptiveScale,
   drawBrainstormGraph,
 } from "./brainstorm-wall-graph-logic";
-import type { LayoutNode, LayoutEdge, LayoutResult } from "./brainstorm-wall-graph-logic";
+import type {
+  BrainstormDeliberationOverlay,
+  LayoutNode,
+  LayoutEdge,
+  LayoutResult,
+} from "./brainstorm-wall-graph-logic";
 
 // Re-export from logic module for backward compatibility
 export {
@@ -60,6 +65,7 @@ export interface BrainstormWallGraphProps {
   nodes: BranchNode[];
   edges: BranchEdge[];
   sessionStatus: BrainstormSessionStatus;
+  deliberation?: BrainstormDeliberationOverlay;
 }
 
 // ---------------------------------------------------------------------------
@@ -149,6 +155,7 @@ export function BrainstormWallGraph({
   nodes,
   edges,
   sessionStatus,
+  deliberation,
 }: BrainstormWallGraphProps) {
   const meshRef = useRef<THREE.Mesh>(null);
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -248,7 +255,7 @@ export function BrainstormWallGraph({
       drawLayout = { ...drawLayout, nodes: fadedNodes };
     }
 
-    drawBrainstormGraph(ctx, drawLayout);
+    drawBrainstormGraph(ctx, drawLayout, CANVAS_W, CANVAS_H, deliberation);
     texture.needsUpdate = true;
 
     // Ensure mesh material has the texture bound
@@ -282,12 +289,26 @@ export function BrainstormWallGraph({
  * Connected version that reads from the brainstormGraph store.
  */
 export function BrainstormWallGraphConnected() {
-  const { nodes, edges, sessionStatus } = useBrainstormGraphStore();
+  const {
+    nodes,
+    edges,
+    sessionStatus,
+    currentRound,
+    convergenceScore,
+    challengeEdges,
+    voteOutcome,
+  } = useBrainstormGraphStore();
   return (
     <BrainstormWallGraph
       nodes={nodes}
       edges={edges}
       sessionStatus={sessionStatus}
+      deliberation={{
+        currentRound,
+        convergenceScore,
+        challengeEdges,
+        voteOutcome,
+      }}
     />
   );
 }

@@ -9,6 +9,8 @@ import type {
   BlueprintGenerationEvent,
   BlueprintGenerationJob,
   BlueprintFamilyResponse,
+  BrainstormReasoningGraph,
+  BrainstormReasoningGraphArtifactPayload,
   BlueprintImplementationPromptPackage,
   BlueprintIntake,
   BlueprintIntakePatchRequest,
@@ -106,6 +108,80 @@ describe("shared/blueprint/index.ts barrel", () => {
 
     expect(job.parentJobId).toBe("job-parent");
     expect(summary.newlyStaleArtifactCount).toBe(1);
+  });
+
+  it("re-exports brainstorm reasoning graph contracts", () => {
+    const stages: BrainstormReasoningGraph["stage"][] = [
+      "spec_tree",
+      "spec_documents",
+      "effect_preview",
+    ];
+    const graph = {
+      id: "graph-spec-tree",
+      jobId: "job-graph",
+      stage: stages[0],
+      centralQuestion: {
+        id: "question-root",
+        title: "How should this SPEC node be implemented?",
+      },
+      nodes: [
+        {
+          id: "question-root",
+          type: "question",
+          title: "How should this SPEC node be implemented?",
+          status: "open",
+          order: 0,
+        },
+        {
+          id: "evidence-runtime",
+          type: "evidence",
+          title: "Runtime event supports the route",
+          roleId: "runtime-executor",
+          roleLabel: "Runtime Executor",
+          status: "supported",
+          sourceRefs: [{ kind: "reasoning_entry", id: "entry-1" }],
+          order: 1,
+        },
+        {
+          id: "synthesis-final",
+          type: "synthesis",
+          title: "Use the staged SPEC graph",
+          status: "resolved",
+          order: 2,
+        },
+      ],
+      edges: [
+        {
+          id: "edge-evidence-synthesis",
+          source: "evidence-runtime",
+          target: "synthesis-final",
+          type: "supports",
+          label: "runtime evidence",
+          sourceKind: "llm",
+        },
+      ],
+      consoleLines: [
+        {
+          id: "console-ask",
+          kind: "Ask",
+          text: "Ask current role for evidence.",
+        },
+      ],
+      source: "llm",
+    } satisfies BrainstormReasoningGraph;
+    const artifact = {
+      type: "brainstorm_reasoning_graph",
+      stage: "spec_tree",
+      graph,
+    } satisfies BrainstormReasoningGraphArtifactPayload;
+
+    expect(stages).toEqual(["spec_tree", "spec_documents", "effect_preview"]);
+    expect(artifact.graph.nodes.map((node) => node.type)).toEqual([
+      "question",
+      "evidence",
+      "synthesis",
+    ]);
+    expect(artifact.graph.edges[0]?.type).toBe("supports");
   });
 });
 

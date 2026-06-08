@@ -71,6 +71,48 @@ function makeCountingLLMCaller(): {
   return { caller, calls };
 }
 
+function makeConvergingLLMCaller(): {
+  caller: LLMCallerFn;
+  calls: string[];
+} {
+  const calls: string[] = [];
+  const caller: LLMCallerFn = vi.fn().mockImplementation((prompt: string) => {
+    calls.push(prompt);
+    return Promise.resolve(
+      JSON.stringify({
+        content:
+          `Output #${calls.length}. agree: stable api. ` +
+          "I agree with planner, architect, and executor on the same direction.",
+        confidence: 0.9,
+        needsToolCall: false,
+      }),
+    );
+  });
+  return { caller, calls };
+}
+
+function makeVoteLLMCaller(): {
+  caller: LLMCallerFn;
+  calls: string[];
+} {
+  const calls: string[] = [];
+  const caller: LLMCallerFn = vi.fn().mockImplementation((prompt: string) => {
+    calls.push(prompt);
+    return Promise.resolve(
+      JSON.stringify({
+        content: JSON.stringify({
+          chosenOption: calls.length === 2 ? "postgres" : "sqlite",
+          confidence: calls.length === 2 ? 0.4 : 0.8,
+          reasoning: `Vote reasoning #${calls.length}`,
+        }),
+        confidence: 0.8,
+        needsToolCall: false,
+      }),
+    );
+  });
+  return { caller, calls };
+}
+
 function makeMockEmitter(): EventEmitterFn & { calls: Array<[string, Record<string, unknown>]> } {
   const calls: Array<[string, Record<string, unknown>]> = [];
   const fn = vi.fn().mockImplementation((eventType: string, payload: Record<string, unknown>) => {
@@ -213,8 +255,8 @@ describe("BrainstormOrchestrator - Discussion Mode", () => {
     vi.useRealTimers();
   });
 
-  it("executes members sequentially passing outputs as context", async () => {
-    const { caller, calls } = makeCountingLLMCaller();
+  it("executes at least two deliberation rounds and passes prior outputs as context", async () => {
+    const { caller, calls } = makeConvergingLLMCaller();
 
     const orchestrator = new BrainstormOrchestrator(caller, vi.fn());
 
@@ -226,20 +268,15 @@ describe("BrainstormOrchestrator - Discussion Mode", () => {
     await orchestrator.startSession(config);
     await vi.advanceTimersByTimeAsync(5000);
 
-    // Should have called LLM for each member
-    expect(calls.length).toBe(3);
-
-    // First member doesn't have previous context
-    expect(calls[0]).not.toContain("Previous discussion context");
-
-    // Second member gets first member's output
-    expect(calls[1]).toContain("Previous discussion context");
-    expect(calls[1]).toContain("Output #1");
-
-    // Third member gets outputs from first two
-    expect(calls[2]).toContain("Previous discussion context");
-    expect(calls[2]).toContain("Output #1");
-    expect(calls[2]).toContain("Output #2");
+    expect(calls.length).toBe(6);
+    expect(calls[0]).not.toContain("Prior deliberation outputs");
+    expect(calls[1]).not.toContain("Prior deliberation outputs");
+    expect(calls[2]).not.toContain("Prior deliberation outputs");
+    expect(calls[3]).toContain("Prior deliberation outputs");
+    expect(calls[3]).toContain("Round 1 [planner]");
+    expect(calls[3]).toContain("Output #1");
+    expect(calls[5]).toContain("Round 1 [executor]");
+    expect(calls[5]).toContain("Output #3");
 
     orchestrator.dispose();
   });
@@ -403,6 +440,38 @@ describe("BrainstormOrchestrator - Vote Mode", () => {
       expect(member.output!.confidence).toBeGreaterThanOrEqual(0);
       expect(member.output!.confidence).toBeLessThanOrEqual(1);
     }
+
+    orchestrator.dispose();
+  });
+
+  it("emits brainstorm.vote.completed after tallying member votes", async () => {
+    const { caller } = makeVoteLLMCaller();
+    const emitter = makeMockEmitter();
+    const orchestrator = new BrainstormOrchestrator(caller, emitter);
+
+    const config = makeConfig({
+      mode: "vote",
+      roles: ["planner", "architect", "executor"],
+      stageContext: "Choose the best database technology.",
+    });
+
+    await orchestrator.startSession(config);
+    await vi.advanceTimersByTimeAsync(5000);
+
+    const emitterCalls = (emitter as any).calls as Array<[string, Record<string, unknown>]>;
+    const voteEvents = emitterCalls.filter(
+      ([type]) => type === "brainstorm.vote.completed",
+    );
+
+    expect(voteEvents).toHaveLength(1);
+    expect(voteEvents[0][1]).toMatchObject({
+      jobId: "job-test-1",
+      stageId: "stage-planning",
+      winningOption: "sqlite",
+      isNarrow: false,
+    });
+    expect(voteEvents[0][1].voteCount).toBe(3);
+    expect(voteEvents[0][1].minorityReasoning).toEqual(["Vote reasoning #2"]);
 
     orchestrator.dispose();
   });

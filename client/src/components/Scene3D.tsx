@@ -4,10 +4,8 @@ import { Suspense, useEffect, useRef, useState } from "react";
 import { ACESFilmicToneMapping } from "three";
 
 import type { BlueprintGenerationJob } from "@shared/blueprint/contracts";
-import type {
-  BlueprintRouteSet,
-  BlueprintSpecTree,
-} from "@shared/blueprint/contracts";
+import type { BlueprintRouteSet, BlueprintSpecTree } from "@shared/blueprint/contracts";
+import type { BrainstormReasoningGraph } from "@shared/blueprint";
 import type { AgentReasoningEntry } from "@shared/blueprint/agent-reasoning";
 
 import { useContainerWidth } from "@/hooks/useContainerWidth";
@@ -125,6 +123,7 @@ export interface Scene3DProps {
   blueprintRouteSet?: BlueprintRouteSet | null;
   blueprintSpecTree?: BlueprintSpecTree | null;
   blueprintEffectPreviews?: BlueprintEffectPreviewSnapshot[];
+  blueprintReasoningGraphs?: BrainstormReasoningGraph[];
   blueprintAgentReasoningEntries?: AgentReasoningEntry[];
   blueprintCapabilityStatuses?: Record<string, CapabilityStatus>;
   blueprintCapabilityOwners?: Record<string, CapabilityOwner>;
@@ -169,6 +168,7 @@ export function Scene3D({
   blueprintRouteSet = null,
   blueprintSpecTree = null,
   blueprintEffectPreviews,
+  blueprintReasoningGraphs,
   blueprintAgentReasoningEntries,
   blueprintCapabilityStatuses,
   blueprintCapabilityOwners,
@@ -406,10 +406,12 @@ export function Scene3D({
               routeSet={blueprintRouteSet}
               specTree={blueprintSpecTree}
               effectPreviews={blueprintEffectPreviews}
+              structuredReasoningGraphs={blueprintReasoningGraphs}
               agentReasoningEntries={blueprintAgentReasoningEntries}
               capabilityStatuses={blueprintCapabilityStatuses}
               capabilityOwners={blueprintCapabilityOwners}
               rolePhases={blueprintRolePhases}
+              roleLabels={roleLabels}
               artifacts={blueprintArtifacts}
               locale={blueprintLocale}
             />

@@ -169,7 +169,7 @@ describe("AutopilotRightRail fabric dispatch (Spec 3 PBT)", () => {
     );
   });
 
-  it("keeps persisted SPEC documents from specTree.documents after the W1 snapshot settles", () => {
+  it("renders the merged SPEC workspace (tree + documents) on the spec_tree page", () => {
     const doc = {
       id: "doc-auth-requirements",
       jobId: "blueprint-job-docs",
@@ -238,12 +238,13 @@ describe("AutopilotRightRail fabric dispatch (Spec 3 PBT)", () => {
       />
     );
 
-    expect(markup).toContain("Requirements: 权限模型");
-    const enterPreviewButton = markup.match(
-      /<button[^>]*data-testid="autopilot-workbench-action-enter-effect-preview"[^>]*>/
-    )?.[0];
-    expect(enterPreviewButton).toBeDefined();
-    expect(enterPreviewButton).toContain('aria-disabled="false"');
-    expect(enterPreviewButton).not.toContain(' disabled=""');
+    expect(markup).toContain('data-stage-key="spec_tree"');
+    expect(markup).toContain('data-testid="streaming-doc-renderer"');
+    expect(markup).toContain("权限模型");
+    expect(markup).not.toContain('data-testid="spec-tree-workbench"');
+    expect(markup).not.toContain('data-testid="autopilot-trust-section"');
+    expect(markup).not.toContain(
+      'data-testid="autopilot-workbench-action-enter-effect-preview"'
+    );
   });
 });

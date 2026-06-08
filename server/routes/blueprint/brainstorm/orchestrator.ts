@@ -24,7 +24,9 @@ import type {
   SynthesisResult,
 } from "../../../../shared/blueprint/brainstorm-contracts";
 
+import { executeDeliberation } from "./deliberation-protocol";
 import { getBrainstormRole } from "./role-registry";
+import { collectVotes } from "./vote-synthesizer";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -284,29 +286,45 @@ export class BrainstormOrchestrator {
     session: BrainstormSession,
     stageContext: string,
   ): Promise<void> {
-    const members = Array.from(session.crewMembers.values());
-    const previousOutputs: string[] = [];
-
-    for (const member of members) {
-      // Check if session was force-terminated during execution
-      if (session.status !== "active") break;
-
-      // Check token budget before iteration
-      if (session.tokenUsed >= session.tokenBudget) break;
-
-      const contextForMember =
-        previousOutputs.length > 0
-          ? `${stageContext}\n\nPrevious discussion context:\n${previousOutputs.join("\n---\n")}`
-          : stageContext;
-
-      await this.executeCrewMember(session, member, contextForMember);
-
-      if (member.state === "completed" && member.output) {
-        previousOutputs.push(
-          `[${member.roleId}]: ${member.output.content}`,
-        );
-      }
-    }
+    const result = await executeDeliberation({
+      session,
+      stageContext,
+      emitEvent: this.emitEvent,
+      executeMember: (member, context) =>
+        this.executeCrewMember(session, member, context),
+    });
+    session.deliberationSummary = {
+      roundCount: result.rounds.length,
+      finalConvergenceScore: result.finalConvergenceScore,
+      consensusAchieved: result.consensusAchieved,
+      totalChallenges: result.totalChallenges,
+      unresolvedChallengeCount: result.unresolvedChallenges.length,
+      challenges: result.rounds.flatMap((round) =>
+        round.challenges.map((challenge) => ({
+          challengerRoleId: challenge.challengerRoleId,
+          targetRoleId: challenge.targetRoleId,
+          summary: challenge.summary,
+          roundNumber: round.roundNumber,
+        })),
+      ),
+      rebuttals: result.rounds.flatMap((round) =>
+        round.rebuttals.map((rebuttal) => {
+          const challenge = result.rounds
+            .flatMap((candidateRound) => candidateRound.challenges)
+            .find((candidate) => candidate.id === rebuttal.challengeId);
+          return {
+            responderRoleId: rebuttal.responderRoleId,
+            challengeSummary: challenge?.summary ?? rebuttal.challengeId,
+            summary: rebuttal.summary,
+            roundNumber: round.roundNumber,
+          };
+        }),
+      ),
+      dissentingOpinions: result.dissentingOpinions.map((dissent) => ({
+        roleId: dissent.roleId,
+        opinion: dissent.opinion,
+      })),
+    };
   }
 
   // ─── Vote Mode ──────────────────────────────────────────────────────────
@@ -318,15 +336,26 @@ export class BrainstormOrchestrator {
     session: BrainstormSession,
     stageContext: string,
   ): Promise<void> {
-    const members = Array.from(session.crewMembers.values());
+    const result = await collectVotes({
+      session,
+      stageContext,
+      executeMember: (member, context) =>
+        this.executeCrewMember(session, member, context),
+    });
 
-    const promises = members.map((member) =>
-      this.executeCrewMember(session, member, stageContext).catch(() => {
-        // Individual failures are handled inside executeCrewMember
-      }),
-    );
-
-    await Promise.allSettled(promises);
+    this.emitEvent("brainstorm.vote.completed", {
+      sessionId: session.id,
+      jobId: session.jobId,
+      stageId: session.stageId,
+      winningOption: result.winningOption,
+      winningScore: result.winningScore,
+      secondPlaceOption: result.secondPlaceOption,
+      secondPlaceScore: result.secondPlaceScore,
+      margin: result.margin,
+      isNarrow: result.isNarrow,
+      voteCount: result.votes.length,
+      minorityReasoning: result.minorityReasoning,
+    });
   }
 
   // ─── Division Mode ──────────────────────────────────────────────────────

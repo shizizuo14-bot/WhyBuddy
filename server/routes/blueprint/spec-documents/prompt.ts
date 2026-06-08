@@ -130,7 +130,8 @@ Constraints:
 3. Optionally include "status": "draft" | "reviewing" | "accepted" | "rejected".
 4. Sections should cover: functional requirements, non-functional requirements, constraints, acceptance criteria, etc.
 5. Do NOT include real API keys, tokens, or credentials; use abstract placeholders for sensitive identifiers.
-6. All section.id values must be unique within the document (case-insensitive).`;
+6. All section.id values must be unique within the document (case-insensitive).
+7. Optionally include "reasoningGraph" with concise semantic nodes and explicit semantic edges for the Stage 2 wall. Use node types question / clarification / hypothesis / evidence / constraint / risk / gap / decision / synthesis, edge types supports / refines / conflicts / cites / questions / depends_on / synthesizes, and include roleId or roleLabel when a role contributed. Omit the graph when unsure; do not invent conflicts or citations.`;
 
 const SYSTEM_MESSAGE_EN_DESIGN = `You are the /autopilot SPEC Document generator responsible for producing a "design" document for a given SPEC Tree node.
 
@@ -149,7 +150,8 @@ Constraints:
 3. Optionally include "status": "draft" | "reviewing" | "accepted" | "rejected".
 4. Sections should cover: architecture overview, component design, interface definitions, data models, technical decisions, etc.
 5. Do NOT include real API keys, tokens, or credentials; use abstract placeholders for sensitive identifiers.
-6. All section.id values must be unique within the document (case-insensitive).`;
+6. All section.id values must be unique within the document (case-insensitive).
+7. Optionally include "reasoningGraph" with concise semantic nodes and explicit semantic edges for the Stage 2 wall. Use node types question / clarification / hypothesis / evidence / constraint / risk / gap / decision / synthesis, edge types supports / refines / conflicts / cites / questions / depends_on / synthesizes, and include roleId or roleLabel when a role contributed. Omit the graph when unsure; do not invent conflicts or citations.`;
 
 const SYSTEM_MESSAGE_EN_TASKS = `You are the /autopilot SPEC Document generator responsible for producing a "tasks" document for a given SPEC Tree node.
 
@@ -168,7 +170,15 @@ Constraints:
 3. Optionally include "status": "draft" | "reviewing" | "accepted" | "rejected".
 4. Sections should cover: implementation steps, verification criteria, dependencies, risk mitigation, etc.
 5. Do NOT include real API keys, tokens, or credentials; use abstract placeholders for sensitive identifiers.
-6. All section.id values must be unique within the document (case-insensitive).`;
+6. All section.id values must be unique within the document (case-insensitive).
+7. Optionally include "reasoningGraph" with concise semantic nodes and explicit semantic edges for the Stage 2 wall. Use node types question / clarification / hypothesis / evidence / constraint / risk / gap / decision / synthesis, edge types supports / refines / conflicts / cites / questions / depends_on / synthesizes, and include roleId or roleLabel when a role contributed. Omit the graph when unsure; do not invent conflicts or citations.`;
+
+const REASONING_GRAPH_CONTRACT = `Optional reasoningGraph contract:
+- You may include "reasoningGraph" when it helps explain the brainstorm / reasoning shape.
+- Nodes must be semantic, not role-only: question, clarification, hypothesis, evidence, constraint, risk, gap, decision, synthesis.
+- Edges must be explicit semantic relations: supports, refines, conflicts, cites, questions, depends_on, synthesizes.
+- Include roleId or roleLabel when a role contributed.
+- Omit uncertain conflicts or citations; do not invent them.`;
 
 // ─── Output Schema Descriptor ────────────────────────────────────────────────
 
@@ -232,7 +242,7 @@ function getSystemMessage(
 export function buildSpecDocumentsPrompt(
   input: BuildSpecDocumentsPromptInput,
 ): SpecDocumentsPromptPayload {
-  const systemMessage = getSystemMessage(input.locale, input.targetDocumentType);
+  const systemMessage = `${getSystemMessage(input.locale, input.targetDocumentType)}\n\n${REASONING_GRAPH_CONTRACT}`;
 
   // --- Build userPayload with fixed field order ---
   const userPayload: Record<string, unknown> = {

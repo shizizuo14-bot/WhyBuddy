@@ -85,6 +85,20 @@ type BlueprintRoleSlot = {
   };
 };
 
+const BRAINSTORM_FANOUT_SLOTS: MissionAgentId[] = [
+  "agent-manager-research",
+  "agent-manager-design",
+  "agent-manager-engineering",
+  "agent-worker-research",
+];
+
+const BRAINSTORM_CONVERGE_SLOTS: MissionAgentId[] = [
+  "agent-manager-research",
+  "agent-manager-design",
+  "agent-manager-engineering",
+  "agent-worker-research",
+];
+
 const BLUEPRINT_ROLE_SLOTS: BlueprintRoleSlot[] = [
   {
     id: "agent-ceo",
@@ -317,13 +331,14 @@ export function deriveBlueprintFlowRoutes(
   const pushRoute = (
     fromSlot: MissionAgentId,
     toSlot: MissionAgentId,
-    routeIndex: number
+    routeIndex: number,
+    keyPrefix = "blueprint-flow"
   ) => {
     const from = configMap[fromSlot];
     const target = configMap[toSlot];
     if (!from || !target || fromSlot === toSlot) return;
     routes.push({
-      key: `blueprint-flow-${fromSlot}-${toSlot}-${routeIndex}`,
+      key: `${keyPrefix}-${fromSlot}-${toSlot}-${routeIndex}`,
       from: from.position,
       to: target.position,
       color: target.color,
@@ -332,6 +347,49 @@ export function deriveBlueprintFlowRoutes(
       visualWeight: "active",
     });
   };
+
+  const hasBrainstormDivergence =
+    activeSlots.has("agent-manager-research") &&
+    activeSlots.has("agent-manager-design") &&
+    activeSlots.has("agent-worker-design") &&
+    (activeSlots.has("agent-manager-engineering") ||
+      activeSlots.has("agent-worker-engineering"));
+
+  if (hasBrainstormDivergence) {
+    let routeIndex = 0;
+    for (const slot of BRAINSTORM_FANOUT_SLOTS) {
+      if (slot === "agent-worker-research" && !activeSlots.has(slot)) continue;
+      pushRoute("agent-ceo", slot, routeIndex, "blueprint-brainstorm-fanout");
+      routeIndex += 1;
+    }
+
+    for (const slot of BRAINSTORM_CONVERGE_SLOTS) {
+      if (slot === "agent-worker-research" && !activeSlots.has(slot)) continue;
+      pushRoute(
+        slot,
+        "agent-worker-design",
+        routeIndex,
+        "blueprint-brainstorm-converge"
+      );
+      routeIndex += 1;
+    }
+
+    pushRoute(
+      "agent-worker-design",
+      "agent-worker-engineering",
+      routeIndex,
+      "blueprint-brainstorm-audit"
+    );
+    routeIndex += 1;
+    pushRoute(
+      "agent-worker-engineering",
+      "agent-manager-engineering",
+      routeIndex,
+      "blueprint-brainstorm-feedback"
+    );
+
+    if (routes.length > 0) return routes;
+  }
 
   const orderedPairs: Array<[MissionAgentId, MissionAgentId]> = [
     ["agent-ceo", "agent-manager-research"],

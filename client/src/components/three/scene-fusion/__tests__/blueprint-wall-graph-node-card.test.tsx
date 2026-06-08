@@ -98,13 +98,13 @@ describe("BlueprintWallGraphNodeCard / SSR output", () => {
     }
   });
 
-  it("renders every one of the 9 node types without throwing (Req 5.3)", () => {
+  it("renders every one of the 10 node types without throwing (Req 5.3)", () => {
     const types = Object.keys(
       NODE_TYPE_VISUAL
     ) as BlueprintFlowGraphNodeData["type"][];
 
-    // Guard the assumption that NODE_TYPE_VISUAL covers all 9 node types.
-    expect(types).toHaveLength(9);
+    // Guard the assumption that NODE_TYPE_VISUAL covers all 10 node types.
+    expect(types).toHaveLength(10);
 
     for (const type of types) {
       const markup = renderToStaticMarkup(

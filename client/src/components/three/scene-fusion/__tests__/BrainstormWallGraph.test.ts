@@ -221,4 +221,47 @@ describe("drawBrainstormGraph", () => {
     // And reset back to 1
     expect(alphaValues).toContain(1);
   });
+
+  it("draws deliberation overlays without throwing", () => {
+    const ctx = createMockCtx();
+    const text: string[] = [];
+    const dashPatterns: number[][] = [];
+    (ctx.fillText as unknown as { mock?: unknown });
+    (ctx as any).fillText = (value: string) => text.push(value);
+    (ctx as any).setLineDash = (value: number[]) => dashPatterns.push(value);
+    const layout: LayoutResult = {
+      nodes: [
+        { id: "planner-node", x: 100, y: 100, title: "Planner", type: "thinking", status: "active", roleId: "planner", opacity: 1 },
+        { id: "architect-node", x: 400, y: 100, title: "Architect", type: "thinking", status: "active", roleId: "architect", opacity: 1 },
+      ],
+      edges: [],
+      scale: 1,
+    };
+
+    expect(() =>
+      drawBrainstormGraph(ctx, layout, CANVAS_W, CANVAS_H, {
+        currentRound: 2,
+        convergenceScore: 0.72,
+        challengeEdges: [
+          {
+            challengerRoleId: "planner",
+            targetRoleId: "architect",
+            summary: "Clarify runtime boundary.",
+            roundNumber: 2,
+          },
+        ],
+        voteOutcome: {
+          winningOption: "Option A",
+          margin: 0.1,
+          isNarrow: true,
+          minority: ["Option B"],
+        },
+      }),
+    ).not.toThrow();
+
+    expect(text.some((value) => value.includes("Round 2"))).toBe(true);
+    expect(text.some((value) => value.includes("Option A"))).toBe(true);
+    expect(text.some((value) => value.includes("Clarify runtime boundary."))).toBe(true);
+    expect(dashPatterns.some((pattern) => pattern.join(",") === "10,10")).toBe(true);
+  });
 });

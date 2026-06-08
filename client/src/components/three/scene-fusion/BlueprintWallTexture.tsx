@@ -20,6 +20,13 @@ import type {
   BlueprintRouteSet,
   BlueprintSpecTree,
 } from "@shared/blueprint/contracts";
+import type {
+  BrainstormGraphConsoleLine,
+  BrainstormGraphTelemetry,
+  BrainstormReasoningEdge,
+  BrainstormReasoningGraph,
+  BrainstormReasoningNode,
+} from "@shared/blueprint";
 import type { BlueprintEffectPreviewSnapshot } from "@/lib/blueprint-api";
 import type { AppLocale } from "@/lib/locale";
 
@@ -36,6 +43,10 @@ import type {
   CapabilityStatus,
   RolePhase,
 } from "./blueprint-wall-process-data";
+import {
+  deriveBlueprintWallReasoningGraph,
+  type BlueprintWallReasoningGraphViewModel,
+} from "./blueprint-wall-reasoning-graph";
 
 // ---------------------------------------------------------------------------
 // Props
@@ -46,10 +57,12 @@ export interface BlueprintWallTextureProps {
   routeSet?: BlueprintRouteSet | null;
   specTree?: BlueprintSpecTree | null;
   effectPreviews?: BlueprintEffectPreviewSnapshot[];
+  structuredReasoningGraphs?: BrainstormReasoningGraph[];
   agentReasoningEntries?: AgentReasoningEntry[];
   capabilityStatuses?: Record<string, CapabilityStatus>;
   capabilityOwners?: Record<string, CapabilityOwner>;
   rolePhases?: Record<string, RolePhase>;
+  roleLabels?: Record<string, string>;
   artifacts?: BlueprintWallArtifactInput[];
   locale?: AppLocale;
 }
@@ -63,11 +76,22 @@ const H = BLUEPRINT_WALL_GRAPH_HEIGHT;
 const NODE_W = 600;
 const NODE_H = 100;
 const PADDING = 120;
+const MAX_TEXTURE_ROLE_BRANCHES = 8;
 
 // 节点类型颜色
 const TYPE_COLORS: Record<string, string> = {
+  question: "#0f766e",
+  clarification: "#2563eb",
+  hypothesis: "#7c3aed",
+  evidence: "#059669",
+  constraint: "#d97706",
+  risk: "#dc2626",
+  gap: "#be123c",
+  decision: "#0891b2",
+  synthesis: "#16a34a",
   route_root: "#0d9488",
   route_step: "#6366f1",
+  brainstorm: "#0d9488",
   capability: "#f59e0b",
   preview: "#ec4899",
   final: "#10b981",
@@ -86,6 +110,7 @@ interface LayoutNode {
   type: string;
   status: string;
   body: string;
+  roleLabel?: string;
   height: number;
 }
 
@@ -93,12 +118,34 @@ interface LayoutEdge {
   from: { x: number; y: number };
   to: { x: number; y: number };
   points: Array<{ x: number; y: number }>;
+  label?: string;
+  type?: string;
+  sourceKind?: string;
 }
 
 interface LayoutResult {
   nodes: LayoutNode[];
   edges: LayoutEdge[];
+  consoleLines?: BrainstormGraphConsoleLine[];
+  telemetry?: BrainstormGraphTelemetry;
+  hiddenNodeCount?: number;
+  mode?: BlueprintWallReasoningGraphViewModel["mode"];
 }
+
+type GraphData = {
+  nodes: Array<{ id: string; data?: Record<string, unknown> }>;
+  edges: Array<{
+    source: string;
+    target: string;
+    label?: string;
+    type?: string;
+    sourceKind?: string;
+  }>;
+  consoleLines?: BrainstormGraphConsoleLine[];
+  telemetry?: BrainstormGraphTelemetry;
+  hiddenNodeCount?: number;
+  mode?: BlueprintWallReasoningGraphViewModel["mode"];
+};
 
 /** Line height for node title text */
 const LINE_H = 36;
@@ -141,9 +188,197 @@ function wrapTextSimple(text: string, maxWidth: number, ctx: CanvasRenderingCont
   return lines.length > 0 ? lines : [""];
 }
 
-function computeLayout(
-  graphData: { nodes: Array<{ id: string; data?: Record<string, unknown> }>; edges: Array<{ source: string; target: string }> }
+function computeBrainstormLayout(
+  graphData: GraphData,
+  nodeHeights: Map<string, number>
 ): LayoutResult {
+  const nodesById = new Map(graphData.nodes.map(node => [node.id, node]));
+  const brainstormNodes = graphData.nodes.filter(
+    node => node.data?.type === "brainstorm"
+  );
+  const synthesisNodes = graphData.nodes.filter(
+    node => node.data?.type === "final" && node.id.includes("-synthesis")
+  );
+  const stageNodes = graphData.nodes.filter(
+    node => node.id.startsWith("stage-") && node.data?.type === "capability"
+  );
+  const roleIndex = new Map(brainstormNodes.map((node, index) => [node.id, index]));
+  const synthesisIndex = new Map(synthesisNodes.map((node, index) => [node.id, index]));
+  const stageIndex = new Map(stageNodes.map((node, index) => [node.id, index]));
+  const roleCount = Math.max(brainstormNodes.length, 1);
+  const roleColumns = Math.min(4, Math.max(2, Math.ceil(roleCount / 2)));
+  const roleRows = Math.ceil(roleCount / roleColumns);
+  const roleStartX = W * 0.38;
+  const roleEndX = W * 0.68;
+  const roleStartY = H * 0.24;
+  const roleEndY = H * 0.76;
+
+  const toLayoutNode = (
+    node: GraphData["nodes"][number],
+    x: number,
+    y: number
+  ): LayoutNode => ({
+    id: node.id,
+    x,
+    y,
+    title: (node.data?.title as string) ?? node.id,
+    type: (node.data?.type as string) ?? "default",
+    status: (node.data?.status as string) ?? "pending",
+    body: (node.data?.body as string) ?? "",
+    roleLabel: (node.data?.roleLabel as string) ?? undefined,
+    height: nodeHeights.get(node.id) ?? MIN_NODE_H,
+  });
+
+  const nodes: LayoutNode[] = graphData.nodes.map(node => {
+    if (node.id === "root") {
+      return toLayoutNode(node, W * 0.12, H * 0.5);
+    }
+
+    const rolePos = roleIndex.get(node.id);
+    if (rolePos !== undefined) {
+      const col = rolePos % roleColumns;
+      const row = Math.floor(rolePos / roleColumns);
+      const colT = roleColumns === 1 ? 0.5 : col / (roleColumns - 1);
+      const rowT = roleRows === 1 ? 0.5 : row / (roleRows - 1);
+      const stagger = row % 2 === 0 ? 0 : (roleEndX - roleStartX) / (roleColumns * 2);
+      return toLayoutNode(
+        node,
+        roleStartX + (roleEndX - roleStartX) * colT + stagger,
+        roleStartY + (roleEndY - roleStartY) * rowT
+      );
+    }
+
+    const synthesisPos = synthesisIndex.get(node.id);
+    if (synthesisPos !== undefined) {
+      const total = Math.max(synthesisNodes.length, 1);
+      const y = H * (0.42 + (synthesisPos - (total - 1) / 2) * 0.18);
+      return toLayoutNode(node, W * 0.86, y);
+    }
+
+    const stagePos = stageIndex.get(node.id);
+    if (stagePos !== undefined) {
+      const total = Math.max(stageNodes.length, 1);
+      const y = H * (0.36 + (stagePos - (total - 1) / 2) * 0.22);
+      return toLayoutNode(node, W * 0.25, y);
+    }
+
+    return toLayoutNode(node, W * 0.25, H * 0.82);
+  });
+
+  const nodeMap = new Map(nodes.map(node => [node.id, node]));
+  const edges: LayoutEdge[] = graphData.edges
+    .filter(edge => nodesById.has(edge.source) && nodesById.has(edge.target))
+    .map(edge => {
+      const from = nodeMap.get(edge.source);
+      const to = nodeMap.get(edge.target);
+      return {
+        from: { x: from?.x ?? 0, y: from?.y ?? 0 },
+        to: { x: to?.x ?? 0, y: to?.y ?? 0 },
+        points: [],
+        label: edge.label,
+        type: edge.type,
+        sourceKind: edge.sourceKind,
+      };
+    });
+
+  return {
+    nodes,
+    edges,
+    consoleLines: graphData.consoleLines,
+    telemetry: graphData.telemetry,
+    hiddenNodeCount: graphData.hiddenNodeCount,
+    mode: graphData.mode,
+  };
+}
+
+function computeReasoningLayout(
+  graphData: GraphData,
+  nodeHeights: Map<string, number>
+): LayoutResult {
+  const nodesById = new Map(graphData.nodes.map(node => [node.id, node]));
+  const groups: Record<string, GraphData["nodes"]> = {
+    question: [],
+    setup: [],
+    middle: [],
+    resolution: [],
+  };
+
+  for (const node of graphData.nodes) {
+    const type = String(node.data?.type ?? "");
+    if (type === "question") {
+      groups.question.push(node);
+    } else if (type === "clarification" || type === "constraint") {
+      groups.setup.push(node);
+    } else if (type === "decision" || type === "synthesis") {
+      groups.resolution.push(node);
+    } else {
+      groups.middle.push(node);
+    }
+  }
+
+  const toLayoutNode = (
+    node: GraphData["nodes"][number],
+    x: number,
+    y: number
+  ): LayoutNode => ({
+    id: node.id,
+    x,
+    y,
+    title: (node.data?.title as string) ?? node.id,
+    type: (node.data?.type as string) ?? "default",
+    status: (node.data?.status as string) ?? "pending",
+    body: (node.data?.body as string) ?? "",
+    roleLabel: (node.data?.roleLabel as string) ?? undefined,
+    height: nodeHeights.get(node.id) ?? MIN_NODE_H,
+  });
+
+  const placeColumn = (
+    columnNodes: GraphData["nodes"],
+    x: number,
+    top: number,
+    bottom: number
+  ): LayoutNode[] => {
+    const count = Math.max(columnNodes.length, 1);
+    return columnNodes.map((node, index) => {
+      const t = count === 1 ? 0.5 : index / (count - 1);
+      const stagger = index % 2 === 0 ? 0 : 46;
+      return toLayoutNode(node, x + stagger, top + (bottom - top) * t);
+    });
+  };
+
+  const nodes = [
+    ...placeColumn(groups.question, W * 0.13, H * 0.36, H * 0.64),
+    ...placeColumn(groups.setup, W * 0.31, H * 0.2, H * 0.78),
+    ...placeColumn(groups.middle, W * 0.55, H * 0.16, H * 0.84),
+    ...placeColumn(groups.resolution, W * 0.84, H * 0.28, H * 0.72),
+  ];
+  const nodeMap = new Map(nodes.map(node => [node.id, node]));
+  const edges: LayoutEdge[] = graphData.edges
+    .filter(edge => nodesById.has(edge.source) && nodesById.has(edge.target))
+    .map(edge => {
+      const from = nodeMap.get(edge.source);
+      const to = nodeMap.get(edge.target);
+      return {
+        from: { x: from?.x ?? 0, y: from?.y ?? 0 },
+        to: { x: to?.x ?? 0, y: to?.y ?? 0 },
+        points: [],
+        label: edge.label,
+        type: edge.type,
+        sourceKind: edge.sourceKind,
+      };
+    });
+
+  return {
+    nodes,
+    edges,
+    consoleLines: graphData.consoleLines,
+    telemetry: graphData.telemetry,
+    hiddenNodeCount: graphData.hiddenNodeCount,
+    mode: graphData.mode,
+  };
+}
+
+function computeLayout(graphData: GraphData): LayoutResult {
   // Create a measurement canvas for text width calculation
   const measureCanvas = document.createElement("canvas");
   const measureCtx = measureCanvas.getContext("2d")!;
@@ -158,10 +393,18 @@ function computeLayout(
     nodeHeights.set(node.id, h);
   }
 
+  if (graphData.nodes.some(node => node.data?.type === "brainstorm")) {
+    return computeBrainstormLayout(graphData, nodeHeights);
+  }
+
+  if (graphData.nodes.some(node => node.data?.type === "question")) {
+    return computeReasoningLayout(graphData, nodeHeights);
+  }
+
   const g = new dagre.graphlib.Graph();
   g.setGraph({
     rankdir: "LR",
-    nodesep: 180,
+    nodesep: 80,
     ranksep: 540,
     marginx: PADDING,
     marginy: PADDING,
@@ -199,6 +442,7 @@ function computeLayout(
       type: (n.data?.type as string) ?? "default",
       status: (n.data?.status as string) ?? "pending",
       body: (n.data?.body as string) ?? "",
+      roleLabel: (n.data?.roleLabel as string) ?? undefined,
       height: nodeHeights.get(n.id) ?? MIN_NODE_H,
     };
   });
@@ -216,10 +460,20 @@ function computeLayout(
       from: { x: from?.x ?? 0, y: from?.y ?? 0 },
       to: { x: to?.x ?? 0, y: to?.y ?? 0 },
       points,
+      label: e.label,
+      type: e.type,
+      sourceKind: e.sourceKind,
     };
   });
 
-  return { nodes, edges };
+  return {
+    nodes,
+    edges,
+    consoleLines: graphData.consoleLines,
+    telemetry: graphData.telemetry,
+    hiddenNodeCount: graphData.hiddenNodeCount,
+    mode: graphData.mode,
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -242,6 +496,109 @@ function wrapText(ctx: CanvasRenderingContext2D, text: string, maxWidth: number)
 
 // Canvas2D 绘制
 // ---------------------------------------------------------------------------
+
+function isSpecBranchStage(stageId: string): boolean {
+  return stageId === "spec_tree" || stageId === "spec_docs";
+}
+
+function sanitizeRoleNodeId(roleId: string): string {
+  return roleId
+    .trim()
+    .toLowerCase()
+    .replace(/[^a-z0-9_-]+/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+function formatRoleLabel(roleId: string, roleLabels?: Record<string, string>): string {
+  const explicit = roleLabels?.[roleId];
+  if (explicit && explicit.trim().length > 0) return explicit.trim();
+  return roleId
+    .split(/[-_]+/g)
+    .filter(Boolean)
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(" ");
+}
+
+function entryMatchesRole(entry: AgentReasoningEntry, roleId: string): boolean {
+  const entryRole = sanitizeRoleNodeId(
+    ((entry as AgentReasoningEntry & { roleId?: string }).roleId) ?? ""
+  );
+  const targetRole = sanitizeRoleNodeId(roleId);
+  return entryRole.length > 0 && entryRole === targetRole;
+}
+
+function isStageTwoJob(job: BlueprintGenerationJob | null | undefined): boolean {
+  return job?.stage === "spec_tree" || job?.stage === "spec_docs";
+}
+
+function reasoningGraphToGraphData(
+  viewModel: BlueprintWallReasoningGraphViewModel
+): GraphData {
+  return {
+    nodes: viewModel.visibleNodes.map(node => ({
+      id: node.id,
+      data: reasoningNodeData(node),
+    })),
+    edges: viewModel.visibleEdges.map(edge => reasoningEdgeData(edge)),
+    consoleLines: viewModel.consoleLines,
+    telemetry: viewModel.telemetry,
+    hiddenNodeCount: viewModel.hiddenNodeCount,
+    mode: viewModel.mode,
+  };
+}
+
+function reasoningNodeData(node: BrainstormReasoningNode): Record<string, unknown> {
+  return {
+    title: node.title,
+    type: node.type,
+    status: node.status,
+    body: node.body ?? "",
+    roleLabel: node.roleLabel ?? node.roleId ?? "",
+  };
+}
+
+function reasoningEdgeData(edge: BrainstormReasoningEdge): GraphData["edges"][number] {
+  return {
+    source: edge.source,
+    target: edge.target,
+    label: edge.label ?? edge.type.replace(/_/g, " "),
+    type: edge.type,
+    sourceKind: edge.sourceKind,
+  };
+}
+
+function edgeColor(edge: LayoutEdge): string {
+  if (edge.sourceKind === "fallback") return "rgba(100, 116, 139, 0.38)";
+  switch (edge.type) {
+    case "supports":
+      return "rgba(5, 150, 105, 0.62)";
+    case "conflicts":
+      return "rgba(220, 38, 38, 0.62)";
+    case "questions":
+      return "rgba(37, 99, 235, 0.58)";
+    case "cites":
+    case "depends_on":
+      return "rgba(14, 116, 144, 0.56)";
+    case "synthesizes":
+      return "rgba(22, 163, 74, 0.66)";
+    case "refines":
+    default:
+      return "rgba(124, 58, 237, 0.52)";
+  }
+}
+
+function telemetryText(telemetry: BrainstormGraphTelemetry | undefined): string[] {
+  const format = (label: string, value: number | null | undefined, suffix = "") =>
+    `${label}: ${typeof value === "number" ? `${value}${suffix}` : "--"}`;
+  return [
+    format("tokens", telemetry?.tokenBurn),
+    format("sources", telemetry?.sourceCount),
+    format("elapsed", telemetry?.elapsedMs ? Math.round(telemetry.elapsedMs / 1000) : null, "s"),
+    format("budget", telemetry?.remainingBudget),
+    format("roles", telemetry?.activeRoleCount),
+  ];
+}
 
 function drawWall(ctx: CanvasRenderingContext2D, layout: LayoutResult | null) {
   // 背景
@@ -288,7 +645,9 @@ function drawWall(ctx: CanvasRenderingContext2D, layout: LayoutResult | null) {
     // 曲线控制点偏移量（水平距离的 40%）
     const cpOffset = Math.abs(toX - fromX) * 0.4;
 
-    ctx.strokeStyle = "rgba(45, 212, 191, 0.55)";
+    ctx.lineWidth = edge.sourceKind === "fallback" ? 4 : 6;
+    ctx.setLineDash(edge.sourceKind === "fallback" ? [16, 14] : []);
+    ctx.strokeStyle = edgeColor(edge);
     ctx.beginPath();
     ctx.moveTo(fromX, fromY);
     ctx.bezierCurveTo(
@@ -300,11 +659,24 @@ function drawWall(ctx: CanvasRenderingContext2D, layout: LayoutResult | null) {
 
     // 箭头圆点
     ctx.setLineDash([]);
-    ctx.fillStyle = "rgba(45, 212, 191, 0.7)";
+    ctx.fillStyle = edgeColor(edge);
     ctx.beginPath();
     ctx.arc(toX, toY, 9, 0, Math.PI * 2);
     ctx.fill();
-    ctx.setLineDash([18, 12]);
+    if (edge.label) {
+      const labelX = (fromX + toX) / 2;
+      const labelY = (fromY + toY) / 2 - 12;
+      ctx.font = "bold 22px system-ui, sans-serif";
+      ctx.textAlign = "center";
+      ctx.textBaseline = "middle";
+      const labelWidth = ctx.measureText(edge.label).width + 28;
+      ctx.fillStyle = "rgba(255, 255, 255, 0.88)";
+      ctx.beginPath();
+      ctx.roundRect(labelX - labelWidth / 2, labelY - 18, labelWidth, 36, 18);
+      ctx.fill();
+      ctx.fillStyle = edgeColor(edge);
+      ctx.fillText(edge.label, labelX, labelY + 1);
+    }
   }
 
   ctx.setLineDash([]);
@@ -340,9 +712,13 @@ function drawWall(ctx: CanvasRenderingContext2D, layout: LayoutResult | null) {
 
     // 状态圆点
     const statusColor =
-      node.status === "completed" ? "#10b981" :
-      node.status === "running" ? "#3b82f6" :
-      node.status === "failed" ? "#ef4444" : "#94a3b8";
+      node.status === "completed" || node.status === "resolved" || node.status === "supported"
+        ? "#10b981"
+        : node.status === "running" || node.status === "active" || node.status === "open"
+          ? "#3b82f6"
+          : node.status === "failed" || node.status === "challenged"
+            ? "#ef4444"
+            : "#94a3b8";
     ctx.fillStyle = statusColor;
     ctx.beginPath();
     ctx.arc(x + NODE_W - 30, y + 28, 10, 0, Math.PI * 2);
@@ -353,17 +729,24 @@ function drawWall(ctx: CanvasRenderingContext2D, layout: LayoutResult | null) {
     ctx.font = NODE_FONT;
     ctx.textAlign = "left";
     ctx.textBaseline = "top";
-    const fullText = node.body ? `${node.title} — ${node.body}` : node.title;
+    const fullText = node.body ? `${node.title} - ${node.body}` : node.title;
     const allLines = wrapText(ctx, fullText, NODE_W - 60);
     for (let i = 0; i < Math.min(allLines.length, MAX_TEXT_LINES); i++) {
       let line = allLines[i];
       if (i === MAX_TEXT_LINES - 1 && allLines.length > MAX_TEXT_LINES) {
-        while (ctx.measureText(line + "…").width > NODE_W - 60 && line.length > 1) {
+        while (ctx.measureText(`${line}...`).width > NODE_W - 60 && line.length > 1) {
           line = line.slice(0, -1);
         }
-        line += "…";
+        line += "...";
       }
       ctx.fillText(line, x + 30, y + NODE_PAD_Y + i * LINE_H);
+    }
+
+    if (node.roleLabel) {
+      ctx.fillStyle = "#64748b";
+      ctx.font = "20px system-ui, sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(node.roleLabel, x + NODE_W - 58, y + node.height - 32);
     }
 
     // 类型标签（底部左侧）
@@ -371,6 +754,49 @@ function drawWall(ctx: CanvasRenderingContext2D, layout: LayoutResult | null) {
     ctx.font = "bold 22px system-ui, sans-serif";
     ctx.textAlign = "left";
     ctx.fillText(node.type.toUpperCase().replace(/_/g, " "), x + 30, y + node.height - 32);
+  }
+
+  if (layout.mode) {
+    const telemetryLines = telemetryText(layout.telemetry);
+    ctx.fillStyle = "rgba(15, 23, 42, 0.74)";
+    ctx.beginPath();
+    ctx.roundRect(70, 62, 760, 76, 18);
+    ctx.fill();
+    ctx.fillStyle = "#e2e8f0";
+    ctx.font = "bold 22px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText(
+      `Reasoning graph: ${layout.mode}${layout.hiddenNodeCount ? `, +${layout.hiddenNodeCount} hidden` : ""}`,
+      96,
+      92
+    );
+    ctx.font = "19px system-ui, sans-serif";
+    ctx.fillStyle = "#cbd5e1";
+    ctx.fillText(telemetryLines.join("   "), 96, 122);
+  }
+
+  if (layout.consoleLines && layout.consoleLines.length > 0) {
+    const consoleX = 70;
+    const consoleY = H - 390;
+    const consoleW = 1040;
+    const consoleH = 310;
+    ctx.fillStyle = "rgba(15, 23, 42, 0.78)";
+    ctx.beginPath();
+    ctx.roundRect(consoleX, consoleY, consoleW, consoleH, 20);
+    ctx.fill();
+    ctx.fillStyle = "#e2e8f0";
+    ctx.font = "bold 25px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.fillText("Thinking Console", consoleX + 28, consoleY + 42);
+    ctx.font = "21px system-ui, sans-serif";
+    layout.consoleLines.slice(-6).forEach((line, index) => {
+      const y = consoleY + 82 + index * 34;
+      ctx.fillStyle = "#94a3b8";
+      ctx.fillText(`[${line.kind}]`, consoleX + 28, y);
+      ctx.fillStyle = "#f8fafc";
+      const text = line.text.length > 92 ? `${line.text.slice(0, 89)}...` : line.text;
+      ctx.fillText(text, consoleX + 150, y);
+    });
   }
 }
 
@@ -383,10 +809,12 @@ export function BlueprintWallTexture({
   routeSet,
   specTree,
   effectPreviews,
+  structuredReasoningGraphs,
   agentReasoningEntries,
   capabilityStatuses,
   capabilityOwners,
   rolePhases,
+  roleLabels,
   artifacts,
   locale,
 }: BlueprintWallTextureProps) {
@@ -395,9 +823,26 @@ export function BlueprintWallTexture({
   const textureRef = useRef<THREE.CanvasTexture | null>(null);
   const needsRedrawRef = useRef(true);
 
+  const reasoningViewModel = useMemo(
+    () =>
+      deriveBlueprintWallReasoningGraph({
+        job,
+        activeSubStage: job?.stage,
+        structuredGraphs: structuredReasoningGraphs,
+        agentReasoningEntries,
+        roleLabels,
+        specTree,
+      }),
+    [agentReasoningEntries, job, roleLabels, specTree, structuredReasoningGraphs]
+  );
+
   // 直接从 agentReasoningEntries 构建思维导图节点
   // 按 stageId 分组为不同分支，形成多分支树形结构（类似参考图的思维导图）
   const graphData = useMemo(() => {
+    if (isStageTwoJob(job) && reasoningViewModel.mode !== "empty") {
+      return reasoningGraphToGraphData(reasoningViewModel);
+    }
+
     const entries = agentReasoningEntries ?? [];
     if (entries.length === 0) return { nodes: [], edges: [] };
 
@@ -439,6 +884,74 @@ export function BlueprintWallTexture({
       });
       edges.push({ source: rootId, target: stageNodeId });
 
+      const seenRoleBranchIds = new Set<string>();
+      const roleBranches =
+        isSpecBranchStage(stageId) && roleLabels
+          ? Object.keys(roleLabels)
+              .map(rawRoleId => ({
+                rawRoleId,
+                roleId: sanitizeRoleNodeId(rawRoleId),
+              }))
+              .filter(({ roleId }) => {
+                if (!roleId || seenRoleBranchIds.has(roleId)) return false;
+                seenRoleBranchIds.add(roleId);
+                return true;
+              })
+              .slice(0, MAX_TEXTURE_ROLE_BRANCHES)
+          : [];
+      const roleBranchIdSet = new Set(roleBranches.map(role => role.roleId));
+      const roleBranchNodeIds: string[] = [];
+      for (const { rawRoleId, roleId } of roleBranches) {
+        const matchingEntries = stageEntries.filter(entry =>
+          entryMatchesRole(entry, roleId)
+        );
+        const roleNodeId = `${stageNodeId}-role-${roleId}`;
+        roleBranchNodeIds.push(roleNodeId);
+        nodes.push({
+          id: roleNodeId,
+          data: {
+            title: formatRoleLabel(rawRoleId, roleLabels),
+            type: "brainstorm",
+            status: matchingEntries.some(entry => entry.phase === "completed")
+              ? "completed"
+              : "running",
+            body:
+              matchingEntries.length > 0
+                ? `${matchingEntries.length} runtime signals`
+                : "LLM role branch",
+          },
+        });
+        edges.push({ source: stageNodeId, target: roleNodeId });
+      }
+
+      if (roleBranches.length > 0 && isSpecBranchStage(stageId)) {
+        const synthesisNodeId = `${stageNodeId}-synthesis`;
+        nodes.push({
+          id: synthesisNodeId,
+          data: {
+            title: locale === "zh-CN" ? "SPEC 共识合成" : "SPEC consensus synthesis",
+            type: "final",
+            status: stageEntries.some(entry => entry.phase === "completed")
+              ? "completed"
+              : "running",
+            body:
+              locale === "zh-CN"
+                ? "多角色结论汇聚"
+                : "multi-role convergence",
+          },
+        });
+        for (let i = 0; i < roleBranchNodeIds.length; i++) {
+          edges.push({ source: roleBranchNodeIds[i], target: synthesisNodeId });
+          if (i + 1 < roleBranchNodeIds.length) {
+            edges.push({
+              source: roleBranchNodeIds[i],
+              target: roleBranchNodeIds[i + 1],
+            });
+          }
+        }
+        continue;
+      }
+
       // 在每个 stage 内，按 iteration 再分组为子分支
       const iterMap = new Map<number, typeof entries>();
       for (const entry of stageEntries) {
@@ -464,6 +977,14 @@ export function BlueprintWallTexture({
           edges.push({ source: stageNodeId, target: parentId });
         }
 
+        const pickParentId = (entry: AgentReasoningEntry): string => {
+          if (roleBranchIdSet.size === 0) return parentId;
+          const matchedRole = roleBranches.find(role =>
+            entryMatchesRole(entry, role.roleId)
+          );
+          return matchedRole ? `${stageNodeId}-role-${matchedRole.roleId}` : parentId;
+        };
+
         // 每个 entry 按 phase 类型分组为子分支
         const thinkingEntries = iterEntries.filter(e => e.phase === "thinking");
         const actingEntries = iterEntries.filter(e => e.phase === "acting");
@@ -481,7 +1002,7 @@ export function BlueprintWallTexture({
               body: entry.iterationLabel ?? "",
             },
           });
-          edges.push({ source: parentId, target: entry.id });
+          edges.push({ source: pickParentId(entry), target: entry.id });
         }
 
         // acting 分支
@@ -495,7 +1016,7 @@ export function BlueprintWallTexture({
               body: entry.thought?.slice(0, 30) ?? "",
             },
           });
-          edges.push({ source: parentId, target: entry.id });
+          edges.push({ source: pickParentId(entry), target: entry.id });
         }
 
         // observing 分支
@@ -511,7 +1032,7 @@ export function BlueprintWallTexture({
           });
           // observing 连接到对应的 acting（如果有的话）
           const lastActing = actingEntries[actingEntries.length - 1];
-          edges.push({ source: lastActing?.id ?? parentId, target: entry.id });
+          edges.push({ source: lastActing?.id ?? pickParentId(entry), target: entry.id });
         }
 
         // completed/error 分支
@@ -529,13 +1050,13 @@ export function BlueprintWallTexture({
           });
           // completed 连接到最后一个 observing（如果有的话）
           const lastObserving = observingEntries[observingEntries.length - 1];
-          edges.push({ source: lastObserving?.id ?? parentId, target: entry.id });
+          edges.push({ source: lastObserving?.id ?? pickParentId(entry), target: entry.id });
         }
       }
     }
 
     return { nodes, edges };
-  }, [agentReasoningEntries, job]);
+  }, [agentReasoningEntries, job, locale, reasoningViewModel, roleLabels]);
 
   const isEmpty = graphData.nodes.length === 0;
 
@@ -543,10 +1064,7 @@ export function BlueprintWallTexture({
   const layout = useMemo<LayoutResult | null>(() => {
     if (isEmpty) return null;
     try {
-      return computeLayout(graphData as {
-        nodes: Array<{ id: string; data?: Record<string, unknown> }>;
-        edges: Array<{ source: string; target: string }>;
-      });
+      return computeLayout(graphData);
     } catch {
       return null;
     }

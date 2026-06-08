@@ -28,7 +28,9 @@ export type BlueprintCheckType =
   | "test"
   | "merge_gate"
   | "companion_trace"
-  | "preview_audit";
+  | "preview_audit"
+  | "brainstorm_deliberation"
+  | "traceability_matrix";
 
 /** 校验结果状态 */
 export type BlueprintCheckStatus = "pass" | "fail" | "warn" | "skip";

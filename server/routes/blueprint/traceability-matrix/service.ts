@@ -17,6 +17,9 @@ import type {
 } from "../../../../shared/blueprint/traceability-matrix/types.js";
 import { deriveMatrix } from "./derive.js";
 import { renderMatrixMarkdown } from "./export.js";
+import { createTraceabilityMatrixCacheWrapper } from "./cache-subscriber.js";
+import { recordMatrixLedgerEntries } from "./ledger-integration.js";
+import { BlueprintEventName } from "../../../../shared/blueprint/events.js";
 
 const ENV_KEY = "BLUEPRINT_TRACEABILITY_MATRIX_ENABLED";
 
@@ -55,6 +58,28 @@ export function createTraceabilityMatrixService(
   ctx: BlueprintServiceContext,
 ): TraceabilityMatrixService {
   const enabled = process.env[ENV_KEY] === "true";
+  let eventSequence = 0;
+
+  function emitEvent(type: string, payload: Record<string, unknown>): void {
+    try {
+      ctx.eventBus.emit({
+        id: `matrix-${Date.now()}-${++eventSequence}`,
+        jobId: String(payload.jobId ?? ""),
+        family: type === BlueprintEventName.EvidenceRecorded ? "evidence" : "checks",
+        stage: "spec_docs",
+        status: "completed",
+        type: type as any,
+        message:
+          type === BlueprintEventName.EvidenceRecorded
+            ? "Traceability matrix evidence recorded."
+            : "Traceability matrix ledger entry recorded.",
+        occurredAt: ctx.now().toISOString(),
+        payload,
+      });
+    } catch {
+      // Matrix telemetry must not block generation/export.
+    }
+  }
 
   function build(jobId: string): TraceabilityMatrix {
     const generatedAt = ctx.now().toISOString();
@@ -69,14 +94,23 @@ export function createTraceabilityMatrixService(
     }
     const specDocs = extractSpecDocuments(job);
 
-    return deriveMatrix(jobId, specTree.nodes, specDocs, generatedAt);
+    const matrix = deriveMatrix(jobId, specTree.nodes, specDocs, generatedAt);
+    recordMatrixLedgerEntries({
+      matrix,
+      checksLedger: ctx.checksLedger,
+      emitEvent,
+    });
+    return matrix;
   }
 
-  return {
+  return createTraceabilityMatrixCacheWrapper({
+    service: {
     generateMatrix: build,
     exportJson: build,
     exportMarkdown(jobId: string): string {
       return renderMatrixMarkdown(build(jobId));
     },
-  };
+    },
+    eventBus: ctx.eventBus,
+  });
 }

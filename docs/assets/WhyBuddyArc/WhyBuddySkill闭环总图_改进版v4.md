@@ -5,7 +5,8 @@
 > 六、**落地交付升级**——视觉分两路(看感觉→生图模型并标“预览”;结构图→确定性渲染)、可追溯矩阵、更厚的交付包(接口契约草稿·验收用例·未决项·校验台账)。
 > v4 增量(红虚线 + ◆◆)：出图审计 check_previews_real（揪兜底/假成功/复制充数）；出图 gate 只认本次真成功张数、防复制、禁兜底、503 重试。
 > v3 增量(粉虚线 + ◆)：伴随层留痕进台账（companion_log→校验→台账）；出图改为「按模块的强制 gate」并进台账；视觉生成由 spec_tree 模块驱动。
-> 约定:实线=主流程;虚线=反馈/失效/运行时;菱形=判断闸;青虚线+★=v2 新增;**粉虚线+◆=v3 新增**。
+> 约定:实线=主流程;虚线=反馈/失效/运行时/派生预览;菱形=判断闸;青虚线+★=v2 新增;**粉虚线+◆=v3 新增**。
+> 页面主节奏必须保持三段：①澄清与路线选择 → ②SPEC 树与 SPEC 文档 → ③效果预演；`SPEC Tree` 只能进入 `SPEC Document`，不能把派生预览边当作“下一步”主流程。
 
 ```mermaid
 flowchart TB
@@ -175,8 +176,9 @@ SP_TREE --> SD_GEN
 SD_GEN --> SD_DOCS
 SD_DOCS --> SD_ACC
 SD_ACC --> EP_PACK
-SD_DOCS --> EP_PACK
-SP_TREE --> EP_PREV
+SD_ACC --> EP_PREV
+SD_DOCS -. 文档就绪后预构造提示词 .-> EP_PACK
+%% 注意：SP_TREE 到视觉/结构预览只走后面的虚线派生边，不作为页面“下一步”主流程。
 EP_PACK --> EP_HAND
 EP_PREV --> EP_HAND
 SP_TREE --> WF_JOB

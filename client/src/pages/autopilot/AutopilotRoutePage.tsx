@@ -82,6 +82,11 @@ import type {
 } from "@shared/blueprint/contracts";
 
 import {
+  readBrainstormReasoningGraphs,
+  readJobArtifactPayloads,
+  readLatestJobArtifactPayload,
+} from "./blueprint-job-artifacts";
+import {
   AutopilotRightRail,
   resolveRailSubStage,
   RightRailSubStageContext,
@@ -172,7 +177,6 @@ function setAutopilotHistoryActiveJob(jobId: string): void {
 function closeAutopilotHistorySearch(): void {
   updateAutopilotHistorySearch(url => {
     url.searchParams.delete("history");
-    url.searchParams.delete("activeJob");
   });
 }
 
@@ -218,6 +222,55 @@ export function selectRightRailSpecTree(
   if (railSpecTree?.nodes?.length) return railSpecTree;
   if (pageSpecTree?.nodes?.length) return pageSpecTree;
   return railSpecTree ?? pageSpecTree ?? null;
+}
+
+/**
+ * 判断一个 job 的 artifacts 是否已经携带 SPEC 文档（requirements / design /
+ * tasks）。用于在 W1 右栏 job 快照尚未刷到已落盘文档时，回退到 page 级 latestJob。
+ */
+function jobHasSpecDocuments(
+  job: BlueprintGenerationJob | null | undefined
+): boolean {
+  return Boolean(
+    job?.artifacts?.some(
+      artifact =>
+        artifact.type === "requirements" ||
+        artifact.type === "design" ||
+        artifact.type === "tasks"
+    )
+  );
+}
+
+/**
+ * 选择右栏要消费的 job 快照。
+ *
+ * 背景（问题 1 — UI surfacing）：右栏默认用 W1 hook 的 `rightRailView.job.data`，
+ * 但在 spec_docs 生成完成那一刻，W1 快照可能还没把 requirements/design/tasks
+ * artifacts 拉全；与此同时 page 级 `latestJob`（来自 applyLatestGenerationSnapshot）
+ * 已经带上了这些文档。若直接 `railJobData ?? latestJob`，旧的 W1 快照会把带文档的
+ * latestJob 盖住，导致 `deriveDocStats` 数到 0/63、文档主区显示默认文档。
+ *
+ * 策略：
+ * - W1 job 已带 SPEC 文档 → 用 W1 job（权威刷新源）。
+ * - W1 job 没带、但同一个 job 的 latestJob 带了 → 升级到 latestJob（仅在 id 相同或
+ *   W1 job 缺失时，避免把历史/其它 job 的文档错配过来）。
+ * - 其余情况维持既有 `railJobData ?? latestJob` 语义。
+ */
+export function selectRailJob(
+  railJobData: BlueprintGenerationJob | null | undefined,
+  latestJob: BlueprintGenerationJob | null | undefined
+): BlueprintGenerationJob | null {
+  if (railJobData && jobHasSpecDocuments(railJobData)) {
+    return railJobData;
+  }
+  if (
+    latestJob &&
+    jobHasSpecDocuments(latestJob) &&
+    (!railJobData || latestJob.id === railJobData.id)
+  ) {
+    return latestJob;
+  }
+  return railJobData ?? latestJob ?? null;
 }
 
 function hasPersistedSpecTree(
@@ -824,24 +877,6 @@ function asObjectRecord(value: unknown): Record<string, unknown> | null {
     : null;
 }
 
-function readJobArtifactPayloads(
-  job: BlueprintGenerationJob | null,
-  type: BlueprintGenerationArtifactType
-): unknown[] {
-  if (!job) return [];
-  return job.artifacts
-    .filter(artifact => artifact.type === type)
-    .map(artifact => artifact.payload)
-    .filter(payload => payload !== undefined && payload !== null);
-}
-
-function readLatestJobArtifactPayload(
-  job: BlueprintGenerationJob | null,
-  type: BlueprintGenerationArtifactType
-): unknown {
-  return readJobArtifactPayloads(job, type).at(-1);
-}
-
 function readAutopilotAgentCrew(
   job: BlueprintGenerationJob | null
 ): BlueprintAgentCrewSnapshot | null {
@@ -1389,6 +1424,10 @@ function AutopilotVisualStage({
   );
   const isStageTwoConsole =
     job?.stage === "spec_tree" || job?.stage === "spec_docs";
+  const wallReasoningGraphs = useMemo(
+    () => readBrainstormReasoningGraphs(job),
+    [job]
+  );
 
   return (
     // 自动驾驶 3D 场景融合 follow-up（2026-05-13 v10 去边框去边距）：
@@ -1427,6 +1466,7 @@ function AutopilotVisualStage({
               blueprintRouteSet={routeSet}
               blueprintSpecTree={specTree}
               blueprintEffectPreviews={effectPreviews}
+              blueprintReasoningGraphs={wallReasoningGraphs}
               blueprintAgentReasoningEntries={wallAgentReasoningEntries}
               blueprintCapabilityStatuses={wallCapabilityStatuses}
               blueprintCapabilityOwners={wallCapabilityOwners}
@@ -2610,7 +2650,7 @@ function AutopilotWorkflowRail({
         const autoAdvanceSubStage = selectAutoAdvanceSubStage(
           autoAdvancingTo ?? ""
         );
-        const railJob = rightRailView.job.data ?? latestJob;
+        const railJob = selectRailJob(rightRailView.job.data, latestJob);
         const railRouteSet = rightRailView.routeSet.data ?? routeSet;
         const railSelection = rightRailView.selection.data ?? selection;
         const railSpecTree = selectRightRailSpecTree(
@@ -3657,8 +3697,14 @@ export default function AutopilotRoutePage() {
   const refreshLatestGenerationSnapshot = useCallback(async () => {
     const requestedHistoryJobId = readActiveHistoryJobIdFromLocation();
     if (!IS_GITHUB_PAGES && !currentProjectId && !requestedHistoryJobId) {
-      resetLatestGenerationSnapshot();
-      setApiError(null);
+      // No project/history context to refresh from. When this runs from the
+      // history-panel close handler while a job is still on screen, wiping the
+      // snapshot would drop the active job (the "close drops job" bug). Only
+      // reset to the empty state when nothing is currently displayed.
+      if (!latestSceneJobIdRef.current) {
+        resetLatestGenerationSnapshot();
+        setApiError(null);
+      }
       return false;
     }
 
@@ -3846,6 +3892,21 @@ export default function AutopilotRoutePage() {
       }),
     [effectiveSubStage, latestJob?.stage, selection, workflowStageOverride]
   );
+  const handleForwardToLatestStage = useCallback(() => {
+    if (workflowStageOverride === "input" && activeAutopilotPage === 1) {
+      setWorkflowStageOverride("fabric");
+      subStageState.setPinnedSubStage("spec_tree");
+      return;
+    }
+
+    subStageState.resetPin();
+    setWorkflowStageOverride(null);
+  }, [
+    activeAutopilotPage,
+    subStageState.resetPin,
+    subStageState.setPinnedSubStage,
+    workflowStageOverride,
+  ]);
   const pageTransition = usePageTransitionChoreographer();
   const toastQueue = useToastQueue();
   const autopilotCoordinator = useAutopilotCoordination({
@@ -4517,7 +4578,7 @@ export default function AutopilotRoutePage() {
             {workflowStageOverride !== null && selection !== null ? (
               <button
                 type="button"
-                onClick={() => setWorkflowStageOverride(null)}
+                onClick={handleForwardToLatestStage}
                 aria-label={t(
                   locale,
                   "返回最新阶段",
@@ -4528,7 +4589,7 @@ export default function AutopilotRoutePage() {
                   "返回最新阶段",
                   "Return to latest stage"
                 )}
-                className="inline-flex items-center gap-1 border border-black bg-white px-2 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-black transition hover:bg-black hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF4500]/30"
+                className="relative z-50 inline-flex items-center gap-1 border border-black bg-white px-2 py-1 font-mono text-[11px] font-bold uppercase tracking-[0.06em] text-black transition hover:bg-black hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#FF4500]/30"
                 style={{ borderRadius: "0px" }}
                 data-testid="autopilot-forward-to-latest-stage"
               >

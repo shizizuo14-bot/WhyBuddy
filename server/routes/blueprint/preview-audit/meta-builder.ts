@@ -47,6 +47,16 @@ function decodedByteLength(b64: string): number {
   }
 }
 
+function previewUnverifiedLabels(): {
+  watermarkLabel: string;
+  localizedWatermarkLabel: string;
+} {
+  return {
+    watermarkLabel: "preview · unverified",
+    localizedWatermarkLabel: "预览·未验证",
+  };
+}
+
 /**
  * 构造审计输入。`imageId` 采用 `${nodeId}`（同 job 内 nodeId 唯一）。
  *
@@ -80,6 +90,7 @@ export function buildPreviewMetasFromStageCResult(
       contentHash: sha256Hex(record.b64),
       fileSizeBytes: decodedByteLength(record.b64),
       provenance,
+      ...previewUnverifiedLabels(),
     });
   }
 
@@ -94,6 +105,7 @@ export function buildPreviewMetasFromStageCResult(
       contentHash: "",
       fileSizeBytes: 0,
       provenance,
+      ...previewUnverifiedLabels(),
     });
   }
 

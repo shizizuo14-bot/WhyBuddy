@@ -191,10 +191,74 @@ export async function callLlmWithPoolKey(
 }
 
 /**
+ * 校验 LLM 返回的内容是否"看起来像"一份规格文档 Markdown（而不是 JSON、
+ * 裸代码块、API 请求/响应示例或图表片段）。
+ *
+ * 背景（问题 2 — 生成质量）：spec_docs 的 pool 路径直接接受 `callLlmForSpecDoc`
+ * 的原始文本，没有任何形状校验。某些 pool key（thinking 模型）会无视 prompt
+ * 返回 `{"user_prompt": ...}` 这类 JSON、`python\nclass ...` 裸代码或 `mermaid\n
+ * graph TD ...` 裸图表，被当作合法文档落盘，导致用户在第二阶段看到的"需求/
+ * 设计/任务"是垃圾内容。
+ *
+ * 该函数是纯函数（无 IO / 无随机 / 不抛错），便于单测枚举。判定为**不合格**的
+ * 情形：
+ * - 顶层即可 `JSON.parse` 成对象/数组（原始 JSON，不是文档）；
+ * - 整段就是单个代码围栏（```...```）且围栏外没有正文；
+ * - 以编程/图表关键字开头（python / class / graph TD / `{` 等）且全文没有任何
+ *   Markdown 标题；
+ * - 全文既无 Markdown 标题，也无列表/散文（无 `。.!?` 等）；
+ * - 去除空白后长度 < 40。
+ */
+export function looksLikeSpecDocMarkdown(content: string): boolean {
+  const trimmed = (content ?? "").trim();
+  if (trimmed.length < 40) return false;
+
+  // 1. 原始 JSON 对象/数组 → 不是文档。
+  if (/^[[{]/.test(trimmed)) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && typeof parsed === "object") return false;
+    } catch {
+      // 解析失败说明不是合法 JSON，继续后续启发式判断。
+    }
+  }
+
+  const hasHeading = /(^|\n)#{1,6}\s+\S/.test(trimmed);
+
+  // 2. 整段是单个代码围栏（围栏外无正文）。
+  if (/^```[\s\S]*```$/.test(trimmed)) {
+    const withoutOuterFence = trimmed
+      .replace(/^```[A-Za-z0-9_+-]*\s*\n?/, "")
+      .replace(/\n?```$/, "")
+      .trim();
+    if (!withoutOuterFence.includes("```")) return false;
+  }
+
+  // 3. 以裸代码/图表关键字开头且全文无 Markdown 标题。
+  const startsLikeCode =
+    /^(python|javascript|typescript|json|bash|sh|sql|java|golang|go|rust|cpp|c\+\+|mermaid|graph\s+(td|lr|rl|bt)|sequencediagram|class\s|def\s|function\s|import\s|package\s|public\s+class)\b/i.test(
+      trimmed,
+    );
+  if (startsLikeCode && !hasHeading) return false;
+
+  // 4. 既无标题也无列表/散文 → 不像文档。
+  const hasListOrProse =
+    /(^|\n)\s*([-*+]\s+|\d+[.)]\s+)/.test(trimmed) ||
+    /[。.!?！？，、；;]/.test(trimmed);
+  if (!hasHeading && !hasListOrProse) return false;
+
+  return true;
+}
+
+/**
  * 使用 pool key 生成单个文档类型（requirements / design / tasks）。
  *
  * 不要求 JSON 格式返回——直接接受 Markdown 文本。thinking 模型在不强制 JSON
  * 时能产出更高质量的中文规格文档。
+ *
+ * 问题 2 修复：对返回内容做 {@link looksLikeSpecDocMarkdown} 形状校验；首轮不
+ * 合格时用更严格的 system 指令重试一次；二轮仍不合格则抛错，由上层
+ * （`spec-docs-llm-generation.ts`）转成该节点的 template 兜底（llm_fallback 语义）。
  */
 export async function callLlmForSpecDoc(
   entry: LlmKeyPoolEntry,
@@ -222,7 +286,26 @@ ${parentSummary ? `父模块上下文：${parentSummary}` : ""}
 
 请生成该模块的${docTypeLabel}（Markdown 格式）。`;
 
-  return callLlmWithPoolKey(entry, config, systemMessage, userMessage);
+  const first = await callLlmWithPoolKey(entry, config, systemMessage, userMessage);
+  if (looksLikeSpecDocMarkdown(first)) {
+    return first;
+  }
+
+  // 首轮形状不合格（JSON / 裸代码 / 图表 / API 示例）→ 用更严格指令重试一次。
+  const stricterSystem = `${systemMessage}
+
+严格要求（必须遵守）：
+- 只输出${docTypeLabel}的 Markdown 正文，必须包含至少一个 Markdown 标题（# 或 ##）。
+- 必须包含中文说明性段落，不能只有代码或图表。
+- 禁止输出 JSON、禁止把整段包进单个代码块、禁止输出 API 请求/响应示例（如 user_prompt / trace_id / run_id 之类）。`;
+  const second = await callLlmWithPoolKey(entry, config, stricterSystem, userMessage);
+  if (looksLikeSpecDocMarkdown(second)) {
+    return second;
+  }
+
+  throw new Error(
+    `spec-doc content shape invalid for ${docType}: model returned non-markdown (JSON/code/diagram) after retry`,
+  );
 }
 
 /**

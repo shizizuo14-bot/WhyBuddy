@@ -219,7 +219,7 @@ describe("Property 6: Terminal state triggers synthesis", () => {
 // ─── Property 7: Discussion mode sequential context chaining ────────────────
 // **Validates: Requirements 3.1**
 
-describe("Property 7: Discussion mode sequential context chaining", () => {
+describe("Property 7: Discussion mode cross-round context chaining", () => {
   beforeEach(() => {
     vi.useFakeTimers();
   });
@@ -227,7 +227,7 @@ describe("Property 7: Discussion mode sequential context chaining", () => {
     vi.useRealTimers();
   });
 
-  it("member[i] receives concatenated outputs of members[0..i-1]", async () => {
+  it("round 2 receives complete outputs from round 1", async () => {
     await fc.assert(
       fc.asyncProperty(
         fc.uniqueArray(arbRoleId, { minLength: 2, maxLength: 4 }),
@@ -266,17 +266,19 @@ describe("Property 7: Discussion mode sequential context chaining", () => {
           await orchestrator.startSession(config);
           await vi.advanceTimersByTimeAsync(5000);
 
-          // In discussion mode, member i should see context from members 0..i-1
-          // First member gets no "Previous discussion context"
-          if (receivedPrompts.length >= 1) {
-            expect(receivedPrompts[0]).not.toContain(
-              "Previous discussion context",
+          expect(receivedPrompts.length).toBeGreaterThanOrEqual(roles.length * 2);
+
+          for (let i = 0; i < roles.length; i++) {
+            expect(receivedPrompts[i]).not.toContain(
+              "Prior deliberation outputs",
             );
           }
 
-          // Second and subsequent members should see previous outputs
-          for (let i = 1; i < Math.min(receivedPrompts.length, roles.length); i++) {
-            expect(receivedPrompts[i]).toContain("Previous discussion context");
+          for (let i = roles.length; i < roles.length * 2; i++) {
+            expect(receivedPrompts[i]).toContain("Prior deliberation outputs");
+            for (const roleId of roles) {
+              expect(receivedPrompts[i]).toContain(`Round 1 [${roleId}]`);
+            }
           }
 
           orchestrator.dispose();

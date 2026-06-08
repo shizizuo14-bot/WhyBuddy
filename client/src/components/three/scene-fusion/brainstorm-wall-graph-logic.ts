@@ -15,6 +15,10 @@
  */
 
 import type { BranchNodeType } from "@shared/blueprint/brainstorm-contracts";
+import type {
+  ChallengeEdge,
+  VoteOutcomeView,
+} from "@/lib/brainstorm-graph-store";
 
 // ---------------------------------------------------------------------------
 // Constants (exported for testing)
@@ -72,6 +76,13 @@ export interface LayoutResult {
   scale: number;
 }
 
+export interface BrainstormDeliberationOverlay {
+  currentRound?: number | null;
+  convergenceScore?: number | null;
+  challengeEdges?: ChallengeEdge[];
+  voteOutcome?: VoteOutcomeView | null;
+}
+
 // ---------------------------------------------------------------------------
 // Title Truncation
 // ---------------------------------------------------------------------------
@@ -117,7 +128,8 @@ export function drawBrainstormGraph(
   ctx: CanvasRenderingContext2D,
   layout: LayoutResult | null,
   canvasWidth: number = CANVAS_W,
-  canvasHeight: number = CANVAS_H
+  canvasHeight: number = CANVAS_H,
+  deliberation: BrainstormDeliberationOverlay = {},
 ): void {
   // Background
   const gradient = ctx.createLinearGradient(0, 0, 0, canvasHeight);
@@ -147,6 +159,17 @@ export function drawBrainstormGraph(
     ctx.fillStyle = "#64748b";
     ctx.fillText("等待协作会话…", canvasWidth / 2, canvasHeight / 2 + 42);
     return;
+  }
+
+  if (deliberation.currentRound !== null && deliberation.currentRound !== undefined) {
+    ctx.fillStyle = "rgba(15, 23, 42, 0.82)";
+    ctx.font = "bold 30px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    const score = typeof deliberation.convergenceScore === "number"
+      ? ` · ${(deliberation.convergenceScore * 100).toFixed(0)}%`
+      : "";
+    ctx.fillText(`Round ${deliberation.currentRound}${score}`, 96, 42);
   }
 
   // Draw edges (bezier dashed lines)
@@ -181,6 +204,32 @@ export function drawBrainstormGraph(
   }
 
   ctx.setLineDash([]);
+
+  const nodeByRole = new Map(layout.nodes.map((node) => [node.roleId, node]));
+  const challengeEdges = deliberation.challengeEdges ?? [];
+  for (const challenge of challengeEdges) {
+    const from = nodeByRole.get(challenge.challengerRoleId);
+    const to = nodeByRole.get(challenge.targetRoleId);
+    if (!from || !to) continue;
+    ctx.strokeStyle = "rgba(244, 63, 94, 0.78)";
+    ctx.lineWidth = 4;
+    ctx.setLineDash([10, 10]);
+    ctx.beginPath();
+    ctx.moveTo(from.x + BRAINSTORM_NODE_W / 2, from.y + BRAINSTORM_NODE_H / 2);
+    ctx.bezierCurveTo(
+      from.x + 200,
+      from.y + 80,
+      to.x - 200,
+      to.y - 80,
+      to.x - BRAINSTORM_NODE_W / 2,
+      to.y - BRAINSTORM_NODE_H / 2,
+    );
+    ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = "#be123c";
+    ctx.font = "bold 22px system-ui, sans-serif";
+    ctx.fillText(challenge.summary, (from.x + to.x) / 2 - 90, (from.y + to.y) / 2 - 34);
+  }
 
   // Draw nodes
   for (const node of layout.nodes) {
@@ -245,5 +294,32 @@ export function drawBrainstormGraph(
 
     // Reset opacity
     ctx.globalAlpha = 1;
+  }
+
+  if (deliberation.voteOutcome) {
+    const vote = deliberation.voteOutcome;
+    const x = canvasWidth - 720;
+    const y = 42;
+    ctx.fillStyle = "rgba(255, 255, 255, 0.94)";
+    ctx.beginPath();
+    ctx.roundRect(x, y, 620, vote.isNarrow ? 166 : 126, 18);
+    ctx.fill();
+    ctx.strokeStyle = vote.isNarrow ? "#f43f5e" : "#14b8a6";
+    ctx.lineWidth = 4;
+    ctx.stroke();
+    ctx.fillStyle = "#0f172a";
+    ctx.font = "bold 30px system-ui, sans-serif";
+    ctx.textAlign = "left";
+    ctx.textBaseline = "top";
+    ctx.fillText(`Vote: ${vote.winningOption}`, x + 28, y + 24);
+    ctx.fillStyle = "#475569";
+    ctx.font = "24px system-ui, sans-serif";
+    ctx.fillText(`Margin ${(vote.margin * 100).toFixed(0)}%`, x + 28, y + 72);
+    if (vote.isNarrow) {
+      ctx.fillStyle = "#be123c";
+      ctx.font = "bold 22px system-ui, sans-serif";
+      const minority = vote.minority?.join(", ") ?? "minority noted";
+      ctx.fillText(`Dissent: ${minority}`, x + 28, y + 112);
+    }
   }
 }

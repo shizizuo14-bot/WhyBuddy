@@ -19,6 +19,9 @@ import {
   type StageContext,
 } from "../../../routes/blueprint/brainstorm/pipeline-integration";
 import type { LLMCallerFn, EventEmitterFn } from "../../../routes/blueprint/brainstorm/orchestrator";
+import { BrainstormMemoryStore } from "../../../routes/blueprint/brainstorm/memory-store";
+import { BrainstormOrchestrator } from "../../../routes/blueprint/brainstorm/orchestrator";
+import { BrainstormSynthesizer } from "../../../routes/blueprint/brainstorm/synthesizer";
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 
@@ -435,6 +438,67 @@ describe("Pipeline Integration - Synthesis Result", () => {
     expect(result.output.length).toBeGreaterThan(0);
 
     process.env.BLUEPRINT_BRAINSTORM_ENABLED = originalEnv;
+    ctx.orchestrator.dispose();
+  });
+
+  it("writes brainstorm_deliberation evidence to the checks ledger after artifact persistence", async () => {
+    let callIdx = 0;
+    const mockLLM: LLMCallerFn = vi.fn().mockImplementation((prompt: string) => {
+      callIdx++;
+      if (callIdx === 1) {
+        return Promise.resolve(JSON.stringify({
+          brainstormNeeded: true,
+          recommendedMode: "discussion",
+          requiredRoles: ["planner", "architect"],
+          requiredToolCategories: [],
+          reasoning: "Complex task",
+        }));
+      }
+      if (prompt.includes("Respond with a JSON object matching this exact schema")) {
+        return Promise.resolve(JSON.stringify({
+          decision: "Final plan",
+          confidence: 0.9,
+          reasoningPoints: [{ roleId: "planner", point: "Planner referenced architect." }],
+          dissentingOpinions: [],
+          tokenUsage: 42,
+        }));
+      }
+      return Promise.resolve(JSON.stringify({
+        content: "I agree with architect on this direction.",
+        confidence: 0.8,
+        needsToolCall: false,
+      }));
+    });
+    const emitter = makeMockEmitter();
+    const recordCheck = vi.fn();
+    const ctx: BrainstormServiceContext = {
+      orchestrator: new BrainstormOrchestrator(mockLLM, emitter),
+      synthesizer: new BrainstormSynthesizer(mockLLM, emitter),
+      memoryStore: new BrainstormMemoryStore(emitter),
+      enabled: true,
+      checksLedger: { recordCheck } as any,
+    };
+
+    const result = await executeStageWithBrainstorm(
+      makeStageContext({ stageId: "spec_docs" }),
+      ctx,
+      mockLLM,
+      emitter,
+      makeSingleAgentFallback(),
+    );
+
+    expect(result.type).toBe("brainstorm");
+    expect(recordCheck).toHaveBeenCalledWith(
+      expect.objectContaining({
+        jobId: "job-1",
+        stage: "spec_docs",
+        checkType: "brainstorm_deliberation",
+        checkName: expect.stringMatching(/^brainstorm:evidence:/),
+        status: "pass",
+        validator: "brainstorm/orchestrator.ts",
+      }),
+    );
+
     ctx.orchestrator.dispose();
   });
 });

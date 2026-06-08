@@ -39,6 +39,7 @@ import type {
   BlueprintSpecDocumentType,
   BlueprintSpecDocumentVersionSnapshot,
   BlueprintSpecTreeNode,
+  BrainstormReasoningGraph,
 } from "../../../../shared/blueprint/index.js";
 
 import type { BlueprintServiceContext } from "../context.js";
@@ -56,6 +57,7 @@ import {
   type SpecDocumentsPromptPayload,
 } from "./prompt.js";
 import { renderSectionsToMarkdown } from "./render.js";
+import { parseBrainstormReasoningGraphPayload } from "../brainstorm-reasoning-graph-payload.js";
 
 // ─── 既有只读 service shell ──────────────────────────────────────────────────
 
@@ -152,6 +154,8 @@ export interface SpecDocumentsLlmServiceOutput {
   structuredPayloadDigest?: string;
   /** llm_fallback 路径填充。 */
   error?: string;
+  /** Optional LLM-authored reasoning graph for the Stage 2 wall. */
+  reasoningGraph?: BrainstormReasoningGraph;
 }
 
 export type SpecDocumentsLlmService = (
@@ -406,6 +410,14 @@ export function createSpecDocumentsLlmService(
       JSON.stringify(normalized)
     )}`;
     const responseDigest = `sha256:${sha256Hex(JSON.stringify(rawPayload))}`;
+    const reasoningGraph = parseBrainstormReasoningGraphPayload({
+      payload: rawPayload,
+      jobId: input.jobId,
+      stage: "spec_docs",
+      subStage: input.targetDocumentType,
+      fallbackQuestionTitle: `${input.targetDocumentType}: ${input.specTreeNode.title}`,
+      createdAt: input.createdAt,
+    });
 
     return {
       generationSource: "llm",
@@ -418,6 +430,7 @@ export function createSpecDocumentsLlmService(
       promptFingerprint: prompt.promptFingerprint,
       responseDigest,
       structuredPayloadDigest,
+      reasoningGraph: reasoningGraph ?? undefined,
     };
   };
 }

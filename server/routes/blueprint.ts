@@ -38,6 +38,9 @@ import { createAgentCrewStageActivationDriver } from "./blueprint/agent-crew-sta
 import { computeFuzzinessScore as computeCompanionFuzziness } from "./blueprint/companion/fuzziness.js";
 import { createTraceabilityMatrixRouteHandler } from "./blueprint/traceability-matrix/route.js";
 import { buildPreviewMetasFromStageCResult } from "./blueprint/preview-audit/meta-builder.js";
+import { evaluateFinalizeGate } from "./blueprint/preview-audit/finalize-gate.js";
+import { renderRoutedMermaidPreview } from "./blueprint/effect-preview/mermaid-routing.js";
+import type { PreviewImageMeta } from "../../shared/blueprint/preview-audit/types.js";
 // `autopilot-llm-spec-generation` Task 6.2：以 `import type` 引入
 // `SpecDocsLlmNodeOutput`，仅作为 `buildSpecDocument` 的可选参数注入 LLM
 // 批量生成结果，不会触发 spec-docs-llm-generation.ts 内部 runtime 副作用。
@@ -220,6 +223,10 @@ import type {
   BlueprintUpdateSpecTreeNodeResponse,
   NodeImageRecord,
 } from "../../shared/blueprint/contracts.js";
+import type {
+  BrainstormReasoningGraph,
+  BrainstormReasoningGraphArtifactPayload,
+} from "../../shared/blueprint/brainstorm-reasoning-graph.js";
 
 export type BlueprintSpecStatus = "ready" | "partial" | "empty";
 
@@ -587,6 +594,10 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
         brainstorm: getBrainstormDiagnostics(
           blueprintServiceContext.brainstormContext ?? null,
         ),
+        ...buildV4SubsystemDiagnostics({
+          ctx: blueprintServiceContext,
+          jobs: allJobs,
+        }),
         checksLedger: {
           enabled: checksLedgerEnabled,
           totalEntries: totalChecksEntries,
@@ -609,6 +620,53 @@ export function createBlueprintRouter(deps: BlueprintRouterDeps = {}): Router {
   // 转成 `maskedApiKey: string | null`，参见
   // `./blueprint/image-settings.ts` 的实现说明。
   router.get("/image-settings", createImageSettingsHandler());
+
+  router.get("/jobs/:jobId/brainstorm-evidence", (req, res) => {
+    const job = jobStore.get(req.params.jobId);
+    if (!job) {
+      res.status(404).json({ error: "job_not_found" });
+      return;
+    }
+    res.json({
+      jobId: job.id,
+      evidence: extractBrainstormEvidenceResources(job),
+    });
+  });
+
+  router.get("/jobs/:jobId/companion-challenges", (req, res) => {
+    const job = jobStore.get(req.params.jobId);
+    if (!job) {
+      res.status(404).json({ error: "job_not_found" });
+      return;
+    }
+    res.json({
+      jobId: job.id,
+      findings: job.companionFindings ?? [],
+      challengeEvents: job.events.filter(event =>
+        event.type === "companion.challenge.started" ||
+        event.type === "companion.challenge.resolved"
+      ),
+    });
+  });
+
+  router.get("/jobs/:jobId/preview-audit-trail", (req, res) => {
+    const job = jobStore.get(req.params.jobId);
+    if (!job) {
+      res.status(404).json({ error: "job_not_found" });
+      return;
+    }
+    res.json({
+      jobId: job.id,
+      auditChecks: (job.checksLedger ?? []).filter(
+        entry => entry.checkType === "preview_audit",
+      ),
+      auditEvents: job.events.filter(event =>
+        event.type === "preview.audit.regenerate_requested" ||
+        event.type === "checks.gate.passed" ||
+        event.type === "checks.gate.failed"
+      ),
+    });
+  });
 
   router.post("/intake", (req, res) => {
     const parsed = parseIntakeRequest(req.body);
@@ -8845,6 +8903,8 @@ async function selectRouteForSpecTree(
     artifactLinks,
     previousRoleFindings,
   });
+  const specTreeReasoningGraph = readTransientReasoningGraph(specTree);
+  const persistedSpecTree = omitTransientReasoningGraph(specTree);
   const specTreeArtifact: BlueprintGenerationArtifact = {
     id: specTreeArtifactId,
     type: "spec_tree",
@@ -8852,8 +8912,16 @@ async function selectRouteForSpecTree(
     summary:
       "Initial durable SPEC tree generated from the selected primary or alternative route.",
     createdAt: selectedAt,
-    payload: specTree,
+    payload: persistedSpecTree,
   };
+  const specTreeReasoningGraphArtifact = specTreeReasoningGraph
+    ? createBrainstormReasoningGraphArtifact({
+        graph: specTreeReasoningGraph,
+        stage: "spec_tree",
+        subStage: "spec_tree",
+        createdAt: selectedAt,
+      })
+    : undefined;
   const capabilities = extractRuntimeCapabilities(job);
   const existingCrew = extractAgentCrew(job);
   const agentCrew = buildAgentCrew({
@@ -8912,6 +8980,7 @@ async function selectRouteForSpecTree(
     artifact =>
       artifact.type !== "route_selection" &&
       artifact.type !== "spec_tree" &&
+      artifact.type !== "brainstorm_reasoning_graph" &&
       artifact.type !== "agent_crew" &&
       artifact.type !== "role_timeline"
   );
@@ -9012,6 +9081,7 @@ async function selectRouteForSpecTree(
     artifacts: preservedArtifacts.concat(
       routeSelectionArtifact,
       specTreeArtifact,
+      ...(specTreeReasoningGraphArtifact ? [specTreeReasoningGraphArtifact] : []),
       agentCrewArtifact,
       roleTimelineArtifact
     ),
@@ -9023,6 +9093,7 @@ async function selectRouteForSpecTree(
       artifactIds: [
         routeSelectionArtifact.id,
         specTreeArtifact.id,
+        ...(specTreeReasoningGraphArtifact ? [specTreeReasoningGraphArtifact.id] : []),
         agentCrewArtifact.id,
         roleTimelineArtifact.id,
       ],
@@ -9037,7 +9108,7 @@ async function selectRouteForSpecTree(
     job: updatedJob,
     routeSet,
     selection,
-    specTree,
+    specTree: persistedSpecTree,
   };
 }
 
@@ -10388,8 +10459,21 @@ async function generateSpecDocuments(
     title: document.title,
     summary: document.summary,
     createdAt,
-    payload: document,
+    payload: omitTransientReasoningGraph(document),
   })) satisfies BlueprintGenerationArtifact[];
+  const documentReasoningGraphArtifacts = documents.flatMap(document => {
+    const graph = readTransientReasoningGraph(document);
+    return graph
+      ? [
+          createBrainstormReasoningGraphArtifact({
+            graph,
+            stage: "spec_docs",
+            subStage: document.type,
+            createdAt,
+          }),
+        ]
+      : [];
+  });
   const preservedArtifacts = job.artifacts.filter(
     artifact => {
       if (
@@ -10419,7 +10503,7 @@ async function generateSpecDocuments(
     status: "reviewing",
     stage: "spec_docs",
     updatedAt: createdAt,
-    artifacts: preservedArtifacts.concat(documentArtifacts),
+    artifacts: preservedArtifacts.concat(documentArtifacts, documentReasoningGraphArtifacts),
     events: latestJobForEvents.events.concat(
       createGenerationEvent({
         jobId: job.id,
@@ -10453,6 +10537,66 @@ type GenerateEffectPreviewsResult =
     }
   | { ok: false; status: number; error: string; message: string };
 
+function extractBrainstormEvidenceResources(
+  job: BlueprintGenerationJob,
+): Array<Record<string, unknown>> {
+  return (job.checksLedger ?? [])
+    .filter(entry => entry.checkType === "brainstorm_deliberation")
+    .map(entry => ({
+      source: "checks_ledger",
+      checkName: entry.checkName,
+      status: entry.status,
+      metadata: entry.metadata,
+      output: entry.output,
+    }));
+}
+
+export function buildV4SubsystemDiagnostics(input: {
+  ctx: Pick<
+    BlueprintServiceContext,
+    "companionLayer" | "previewAuditService" | "traceabilityMatrixService"
+  >;
+  jobs: readonly BlueprintGenerationJob[];
+}): {
+  companion: { enabled: boolean; healthy: boolean; findingCount: number; lastError: string | null };
+  preview: { enabled: boolean; healthy: boolean; auditCheckCount: number; lastError: string | null };
+  matrix: { enabled: boolean; healthy: boolean; ledgerEntryCount: number; lastError: string | null };
+} {
+  const companionFindings = input.jobs.flatMap(job => job.companionFindings ?? []);
+  const previewChecks = input.jobs.flatMap(job =>
+    (job.checksLedger ?? []).filter(entry => entry.checkType === "preview_audit"),
+  );
+  const matrixChecks = input.jobs.flatMap(job =>
+    (job.checksLedger ?? []).filter(entry => entry.checkType === "traceability_matrix"),
+  );
+  const previewFailures = previewChecks.filter(entry => entry.status === "fail");
+  const matrixFailures = matrixChecks.filter(entry => entry.status === "fail");
+  const companionErrors = companionFindings.filter(
+    finding => finding.severity === "error",
+  );
+
+  return {
+    companion: {
+      enabled: Boolean(input.ctx.companionLayer),
+      healthy: companionErrors.length === 0,
+      findingCount: companionFindings.length,
+      lastError: companionErrors.at(-1)?.findings.join("; ") ?? null,
+    },
+    preview: {
+      enabled: Boolean(input.ctx.previewAuditService),
+      healthy: previewFailures.length === 0,
+      auditCheckCount: previewChecks.length,
+      lastError: previewFailures.at(-1)?.output ?? null,
+    },
+    matrix: {
+      enabled: Boolean(input.ctx.traceabilityMatrixService),
+      healthy: matrixFailures.length === 0,
+      ledgerEntryCount: matrixChecks.length,
+      lastError: matrixFailures.at(-1)?.output ?? null,
+    },
+  };
+}
+
 async function generateEffectPreviews(
   ctx: BlueprintServiceContext,
   job: BlueprintGenerationJob,
@@ -10464,6 +10608,7 @@ async function generateEffectPreviews(
     primaryRoute?: BlueprintRouteCandidate;
   }
 ): Promise<GenerateEffectPreviewsResult> {
+  const runStartedAt = new Date().toISOString();
   const createdAt = (options.now?.() ?? new Date()).toISOString();
   const includeDrafts = request.includeDrafts ?? false;
   const targetNodeIds = request.nodeId
@@ -10549,6 +10694,7 @@ async function generateEffectPreviews(
   try {
     if (ctx.previewAuditService) {
       const aggregatedImages: Record<string, NodeImageRecord> = {};
+      const routedMetas: PreviewImageMeta[] = [];
       for (const preview of previews) {
         if (preview.imageBase64ByNodeId) {
           for (const [nodeId, record] of Object.entries(
@@ -10557,14 +10703,52 @@ async function generateEffectPreviews(
             aggregatedImages[nodeId] = record;
           }
         }
+        if (Array.isArray(preview.previewImageMetas)) {
+          routedMetas.push(...preview.previewImageMetas);
+        }
       }
       const metas = buildPreviewMetasFromStageCResult(
         job.id,
         { imageBase64ByNodeId: aggregatedImages },
         createdAt
-      );
+      ).concat(routedMetas);
       if (metas.length > 0) {
         await ctx.previewAuditService.auditPreviews(job.id, metas);
+        const gateResult = evaluateFinalizeGate({
+          jobId: job.id,
+          expectedNodeIds: previews.map(preview => preview.nodeId),
+          previews: metas,
+          currentRunWindow: {
+            start: runStartedAt,
+            end: new Date().toISOString(),
+          },
+          emitEvent: (type, payload) => {
+            job.events.push(
+              createGenerationEvent({
+                jobId: job.id,
+                projectId: job.projectId,
+                stage: "effect_preview",
+                status: type === "checks.gate.passed" ? "completed" : "failed",
+                type: type as any,
+                message:
+                  type === "checks.gate.passed"
+                    ? "Effect preview finalize gate passed."
+                    : "Effect preview finalize gate failed.",
+                occurredAt: createdAt,
+                payload,
+              }),
+            );
+          },
+          checksLedger: ctx.checksLedger,
+        });
+        if (!gateResult.allowed) {
+          return {
+            ok: false,
+            status: 409,
+            error: "Blueprint effect preview finalize gate failed.",
+            message: `Effect preview completion blocked: ${gateResult.reasons.join(", ")}`,
+          };
+        }
       }
     }
   } catch {
@@ -14164,8 +14348,16 @@ async function buildEffectPreview(
         ReturnType<NonNullable<typeof ctx.effectPreviewImageService>["runStageC"]>
       >
     | undefined;
+  const routedMermaidPreview = await renderRoutedMermaidPreview({
+    jobId: input.job.id,
+    node: input.node,
+    documents: input.documents,
+    generatedAt: input.createdAt,
+    checksLedger: ctx.checksLedger,
+  });
   try {
-    imageStageCResult = await ctx.effectPreviewImageService?.runStageC({
+    if (!routedMermaidPreview) {
+      imageStageCResult = await ctx.effectPreviewImageService?.runStageC({
       missionId: input.job.id,
       specDocuments: input.documents,
       // task 32.x: raster targets vs timeline contract split.
@@ -14188,7 +14380,8 @@ async function buildEffectPreview(
       // ImageService.runStageC 仅消费拓扑顺序的 nodeId 数组，所以这里映射出 nodeId。
       dependencyOrder: dependencyOrder.map(entry => entry.nodeId),
       architectureNotes,
-    });
+      });
+    }
   } catch {
     imageStageCResult = undefined;
   }
@@ -14202,9 +14395,14 @@ async function buildEffectPreview(
   let mergedProgressPlan = progressPlan;
   let mergedImageBase64ByNodeId: Record<string, NodeImageRecord> | undefined;
   let mergedArchitectureSvgDraft: string | undefined;
+  let mergedPreviewImageMetas: PreviewImageMeta[] | undefined;
   let mergedTextOnlyEffectPreview:
     | BlueprintEffectPreview["textOnlyEffectPreview"]
     | undefined;
+  if (routedMermaidPreview) {
+    mergedArchitectureSvgDraft = routedMermaidPreview.svg;
+    mergedPreviewImageMetas = [routedMermaidPreview.meta];
+  }
   if (imageStageCResult) {
     if (typeof imageStageCResult.architectureSvgDraft === "string") {
       mergedArchitectureSvgDraft = imageStageCResult.architectureSvgDraft;
@@ -14281,6 +14479,9 @@ async function buildEffectPreview(
       : {}),
     ...(mergedImageBase64ByNodeId !== undefined
       ? { imageBase64ByNodeId: mergedImageBase64ByNodeId }
+      : {}),
+    ...(mergedPreviewImageMetas !== undefined
+      ? { previewImageMetas: mergedPreviewImageMetas }
       : {}),
     ...(mergedTextOnlyEffectPreview !== undefined
       ? { textOnlyEffectPreview: mergedTextOnlyEffectPreview }
@@ -14751,7 +14952,7 @@ async function buildSpecDocument(
     };
   }
 
-  return {
+  return attachTransientReasoningGraph({
     id,
     jobId: input.job.id,
     treeId: input.specTree.id,
@@ -14787,7 +14988,7 @@ async function buildSpecDocument(
       ),
       ...provenanceExtras,
     },
-  };
+  }, serviceResult?.generationSource === "llm" ? serviceResult.reasoningGraph : undefined);
 }
 
 function buildSpecDocumentHeading(
@@ -15150,11 +15351,60 @@ function replaceSpecTreeArtifact(
   artifacts: BlueprintGenerationArtifact[],
   specTree: BlueprintSpecTree
 ): BlueprintGenerationArtifact[] {
+  const cleanSpecTree = omitTransientReasoningGraph(specTree);
   return artifacts.map(artifact =>
     artifact.type === "spec_tree"
-      ? { ...artifact, payload: specTree }
+      ? { ...artifact, payload: cleanSpecTree }
       : artifact
   );
+}
+
+const TRANSIENT_REASONING_GRAPH_FIELD = "__brainstormReasoningGraph";
+
+function attachTransientReasoningGraph<T extends object>(
+  value: T,
+  graph: BrainstormReasoningGraph | null | undefined
+): T {
+  if (!graph) return value;
+  return {
+    ...value,
+    [TRANSIENT_REASONING_GRAPH_FIELD]: graph,
+  } as T;
+}
+
+function readTransientReasoningGraph(value: unknown): BrainstormReasoningGraph | undefined {
+  return (value as Record<string, unknown> | null | undefined)?.[
+    TRANSIENT_REASONING_GRAPH_FIELD
+  ] as BrainstormReasoningGraph | undefined;
+}
+
+function omitTransientReasoningGraph<T extends object>(value: T): T {
+  if (!(TRANSIENT_REASONING_GRAPH_FIELD in value)) return value;
+  const { [TRANSIENT_REASONING_GRAPH_FIELD]: _graph, ...rest } =
+    value as T & Record<string, unknown>;
+  return rest as T;
+}
+
+function createBrainstormReasoningGraphArtifact(input: {
+  graph: BrainstormReasoningGraph;
+  stage: BrainstormReasoningGraph["stage"];
+  subStage?: string;
+  createdAt: string;
+}): BlueprintGenerationArtifact {
+  const payload: BrainstormReasoningGraphArtifactPayload = {
+    type: "brainstorm_reasoning_graph",
+    stage: input.stage,
+    subStage: input.subStage ?? input.graph.subStage,
+    graph: input.graph,
+  };
+  return {
+    id: createId("blueprint-artifact"),
+    type: "brainstorm_reasoning_graph",
+    title: `Reasoning graph: ${input.stage}`,
+    summary: `${input.graph.nodes.length} semantic reasoning node(s), ${input.graph.edges.length} edge(s).`,
+    createdAt: input.createdAt,
+    payload,
+  };
 }
 
 function replaceSpecDocumentArtifact(
@@ -15528,7 +15778,7 @@ async function buildSpecTreeFromRouteSet(
     };
   }
 
-  return {
+  return attachTransientReasoningGraph({
     id: specTreeId,
     routeSetId: input.routeSet.id,
     selectionId: input.selection.id,
@@ -15560,7 +15810,7 @@ async function buildSpecTreeFromRouteSet(
       reusedEvidenceIds: collectRoleFindingEvidenceIds(previousRoleFindings),
       ...provenanceExtras,
     },
-  };
+  }, serviceResult?.reasoningGraph);
 }
 
 function createDownstreamSpecTreeNodes(input: {

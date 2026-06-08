@@ -1385,6 +1385,7 @@ export interface BlueprintEffectPreview {
    * 仅服务端 `ImageService` 写入，浏览器侧不直接修改（需求 1.3 / 8.1）。
    */
   imageBase64ByNodeId?: Record<string, NodeImageRecord>;
+  previewImageMetas?: import("./preview-audit/types.js").PreviewImageMeta[];
   /**
    * `autopilot-image-rendering-and-visual-system` spec Task 1.1：
    * 任意 fallback 触发或 `specDocuments` 为空时写入；与
@@ -1725,6 +1726,7 @@ export type BlueprintGenerationArtifactType =
   | "design"
   | "tasks"
   | "spec_document_version"
+  | "brainstorm_reasoning_graph"
   | "preview"
   | "effect_preview"
   | "prompt_pack"

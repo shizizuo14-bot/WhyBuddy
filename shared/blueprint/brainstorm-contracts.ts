@@ -155,6 +155,29 @@ export interface BrainstormSession {
   startedAt: Date;
   completedAt?: Date;
   synthesisResult?: SynthesisResult;
+  deliberationSummary?: {
+    roundCount: number;
+    finalConvergenceScore: number;
+    consensusAchieved: boolean;
+    totalChallenges: number;
+    unresolvedChallengeCount: number;
+    challenges?: Array<{
+      challengerRoleId: BrainstormRoleId;
+      targetRoleId: BrainstormRoleId;
+      summary: string;
+      roundNumber: number;
+    }>;
+    rebuttals?: Array<{
+      responderRoleId: BrainstormRoleId;
+      challengeSummary: string;
+      summary: string;
+      roundNumber: number;
+    }>;
+    dissentingOpinions?: Array<{
+      roleId: BrainstormRoleId;
+      opinion: string;
+    }>;
+  };
 }
 
 /** Configuration for starting a new brainstorm session. */
@@ -223,6 +246,24 @@ export interface SynthesisInput {
     confidence: number;
   }>;
   stageContext: string;
+  deliberationContext?: {
+    challenges: Array<{
+      challengerRoleId: BrainstormRoleId;
+      targetRoleId: BrainstormRoleId;
+      summary: string;
+      roundNumber: number;
+    }>;
+    rebuttals: Array<{
+      responderRoleId: BrainstormRoleId;
+      challengeSummary: string;
+      summary: string;
+      roundNumber: number;
+    }>;
+    dissentingOpinions: Array<{
+      roleId: BrainstormRoleId;
+      opinion: string;
+    }>;
+  };
 }
 
 /** Result of the synthesis phase aggregating multi-agent brainstorm outputs. */

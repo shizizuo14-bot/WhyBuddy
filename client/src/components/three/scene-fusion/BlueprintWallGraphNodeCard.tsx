@@ -104,6 +104,10 @@ export const NODE_TYPE_VISUAL: Record<
     label: { "zh-CN": "推理", "en-US": "Reasoning" },
     color: "#0d9488",
   },
+  brainstorm: {
+    label: { "zh-CN": "多路分叉", "en-US": "Brainstorm" },
+    color: "#0d9488",
+  },
   route: {
     label: { "zh-CN": "路线", "en-US": "Route" },
     color: "#7c3aed",

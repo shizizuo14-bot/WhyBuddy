@@ -70,12 +70,14 @@ export class BrainstormSynthesizer {
           `[${o.roleId}] (confidence: ${o.confidence.toFixed(2)}):\n${o.content}`,
       )
       .join("\n\n---\n\n");
+    const deliberationText = this.buildDeliberationContextText(input);
 
     return (
       `You are a synthesis engine for a multi-agent brainstorm session.\n` +
       `Collaboration mode: ${input.mode}\n\n` +
       `Stage context:\n${input.stageContext}\n\n` +
       `Crew member outputs:\n${crewOutputsText}\n\n` +
+      deliberationText +
       `Synthesize the above outputs into a single coherent decision.\n` +
       `Respond with a JSON object matching this exact schema:\n` +
       `{\n` +
@@ -90,6 +92,34 @@ export class BrainstormSynthesizer {
       `- reasoningPoints must include at least one entry per crew member\n` +
       `- dissentingOpinions should capture any minority views that differ from the decision\n` +
       `- tokenUsage should be your estimate of tokens consumed`
+    );
+  }
+
+  private buildDeliberationContextText(input: SynthesisInput): string {
+    const context = input.deliberationContext;
+    if (!context) return "";
+    const challengeLines = context.challenges.map(
+      (challenge) =>
+        `Round ${challenge.roundNumber}: ${challenge.challengerRoleId} -> ${challenge.targetRoleId}: ${challenge.summary}`,
+    );
+    const rebuttalLines = context.rebuttals.map(
+      (rebuttal) =>
+        `Round ${rebuttal.roundNumber}: ${rebuttal.responderRoleId} rebuttal to "${rebuttal.challengeSummary}": ${rebuttal.summary}`,
+    );
+    const dissentLines = context.dissentingOpinions.map(
+      (dissent) => `${dissent.roleId}: ${dissent.opinion}`,
+    );
+    if (
+      challengeLines.length === 0 &&
+      rebuttalLines.length === 0 &&
+      dissentLines.length === 0
+    ) {
+      return "";
+    }
+    return (
+      `Deliberation challenges and dissent:\n` +
+      [...challengeLines, ...rebuttalLines, ...dissentLines].join("\n") +
+      `\n\n`
     );
   }
 

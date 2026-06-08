@@ -739,6 +739,133 @@ describe("deriveBlueprintWallProcessData / graph edges", () => {
     );
     expect(stageReasoningEdge?.kind).toBe("supports");
   });
+
+  it("second-stage brainstorm activity fans out from spec tree and converges into spec docs", () => {
+    const job = makeJob({ stage: "spec_docs" });
+    const result = deriveBlueprintWallProcessData({
+      job,
+      rolePhases: {
+        "route-planner": "thinking",
+        "repository-analyst": "thinking",
+        "spec-author": "acting",
+        "runtime-quality-auditor": "reviewing",
+      },
+      agentReasoningEntries: [
+        makeReasoning({
+          id: "brainstorm-seed",
+          jobId: "job-1",
+          stageId: "spec_tree",
+        }),
+      ],
+    });
+
+    const brainstormNodes = result.nodes.filter(
+      (node) => node.type === "brainstorm"
+    );
+    expect(brainstormNodes.map((node) => node.id)).toEqual([
+      "brainstorm:route-planner",
+      "brainstorm:repository-analyst",
+      "brainstorm:spec-author",
+      "brainstorm:runtime-quality-auditor",
+    ]);
+    expect(new Set(brainstormNodes.map((node) => node.row)).size).toBe(4);
+    expect(
+      result.edges.filter((edge) =>
+        edge.id.startsWith("edge:brainstorm-fanout:")
+      )
+    ).toHaveLength(4);
+    expect(
+      result.edges.filter((edge) =>
+        edge.id.startsWith("edge:brainstorm-converge:")
+      )
+    ).toHaveLength(4);
+    expect(
+      result.edges.some(
+        (edge) =>
+          edge.from === "stage:spec_tree" &&
+          edge.to === "brainstorm:route-planner" &&
+          edge.kind === "supports"
+      )
+    ).toBe(true);
+    expect(
+      result.edges.some(
+        (edge) =>
+          edge.from === "brainstorm:spec-author" &&
+          edge.to === "stage:spec_docs" &&
+          edge.kind === "refines"
+      )
+    ).toBe(true);
+  });
+
+  it("uses runtime role ids for brainstorm branches instead of a fixed role list", () => {
+    const job = makeJob({ stage: "spec_docs" });
+    const result = deriveBlueprintWallProcessData({
+      job,
+      rolePhases: {
+        "llm-market-scout": "thinking",
+        "repo-risk-cartographer": "acting",
+        "prompt-contract-negotiator": "reviewing",
+      },
+      agentReasoningEntries: [
+        makeReasoning({
+          id: "dynamic-brainstorm-seed",
+          jobId: "job-1",
+          stageId: "spec_tree",
+        }),
+      ],
+    });
+
+    expect(
+      result.nodes
+        .filter((node) => node.type === "brainstorm")
+        .map((node) => node.id)
+    ).toEqual([
+      "brainstorm:llm-market-scout",
+      "brainstorm:repo-risk-cartographer",
+      "brainstorm:prompt-contract-negotiator",
+    ]);
+  });
+
+  it("keeps spec-doc brainstorm branches visible from current-job reasoning history", () => {
+    const job = makeJob({ stage: "runtime_capability" });
+    const result = deriveBlueprintWallProcessData({
+      job,
+      rolePhases: {
+        "role-runtime-executor": "acting",
+      },
+      agentReasoningEntries: [
+        makeReasoning({
+          id: "spec-planner",
+          jobId: "job-1",
+          roleId: "role-architecture-planner",
+          stageId: "spec_docs",
+        }),
+        makeReasoning({
+          id: "spec-auditor",
+          jobId: "job-1",
+          roleId: "role-quality-auditor",
+          stageId: "spec_docs",
+        }),
+        makeReasoning({
+          id: "spec-presenter",
+          jobId: "job-1",
+          roleId: "role-experience-presenter",
+          stageId: "spec_docs",
+        }),
+      ],
+    });
+
+    expect(
+      result.nodes
+        .filter((node) => node.type === "brainstorm")
+        .map((node) => node.id)
+    ).toEqual([
+      "brainstorm:role-runtime-executor",
+      "brainstorm:role-architecture-planner",
+      "brainstorm:role-quality-auditor",
+      "brainstorm:role-experience-presenter",
+    ]);
+  });
 });
 
 describe("deriveBlueprintWallProcessData / metrics and minimap", () => {
