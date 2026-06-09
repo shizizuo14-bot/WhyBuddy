@@ -98,6 +98,26 @@ interface BatchBuffer {
   timer: ReturnType<typeof setTimeout> | null;
 }
 
+/**
+ * Envelope keys that describe the relay frame itself rather than per-event
+ * data. Everything else carried at the top level of a `brainstorm`-family event
+ * is real debate data (`sessionId` / `nodeId` / `nodeType` / `challengerRoleId`
+ * / `stance` / ...) that the brainstorm subsystem spreads onto the event top
+ * level via `createEventEmitterAdapter` (it does NOT nest them under `payload`).
+ * Those keys must survive the relay so the 3D wall store can build nodes/edges.
+ */
+const RELAY_ENVELOPE_KEYS: ReadonlySet<string> = new Set<string>([
+  "id",
+  "type",
+  "family",
+  "jobId",
+  "stage",
+  "status",
+  "occurredAt",
+  "message",
+  "payload",
+]);
+
 function buildRelayedPayload(
   event: BlueprintGenerationEvent
 ): Record<string, unknown> {
@@ -110,6 +130,25 @@ function buildRelayedPayload(
   payload.status ??= event.status;
   payload.message ??= event.message;
   payload.roleId ??= event.roleId;
+
+  // Brainstorm + brainstorm runtime-graph events (decision.marker.emitted /
+  // edge.* / synthesis.*) carry their data fields at the event TOP LEVEL — the
+  // brainstorm event-emitter adapter spreads the structured payload there, not
+  // under `event.payload`. Without this, the relay would forward an essentially
+  // empty payload and the client store would bail (`typeof sessionId !==
+  // "string"` → return), leaving the 3D wall empty. Copy every non-envelope
+  // top-level field into the relayed payload so structured debate survives.
+  const family: string =
+    event.family ?? resolveBlueprintEventFamily(event.type);
+  if (family === "brainstorm") {
+    const rawEvent = event as unknown as Record<string, unknown>;
+    for (const key of Object.keys(rawEvent)) {
+      if (RELAY_ENVELOPE_KEYS.has(key)) continue;
+      if (payload[key] === undefined && rawEvent[key] !== undefined) {
+        payload[key] = rawEvent[key];
+      }
+    }
+  }
 
   return payload;
 }

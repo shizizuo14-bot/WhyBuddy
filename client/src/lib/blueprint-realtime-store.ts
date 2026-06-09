@@ -724,6 +724,23 @@ function buildLogEntry(event: BlueprintRelayedEvent): BlueprintLogEntry {
   };
 }
 
+/**
+ * Envelope keys that describe the relay/persistence frame rather than per-event
+ * brainstorm data. Mirrors `RELAY_ENVELOPE_KEYS` on the server relay so the REST
+ * history-replay path flattens the same set of structured fields onto `payload`.
+ */
+const HISTORICAL_RELAY_ENVELOPE_KEYS: ReadonlySet<string> = new Set<string>([
+  "id",
+  "type",
+  "family",
+  "jobId",
+  "stage",
+  "status",
+  "occurredAt",
+  "message",
+  "payload",
+]);
+
 const HISTORICAL_BRAINSTORM_PAYLOAD_KEYS = [
   "roleId",
   "sessionId",
@@ -773,6 +790,23 @@ function buildRelayedEventFromHistoricalEvent(
     payload,
     HISTORICAL_BRAINSTORM_PAYLOAD_KEYS
   );
+
+  // Brainstorm + brainstorm runtime-graph events persist their structured data
+  // (sessionId / nodeId / challengerRoleId / responderRoleId / stance / severity
+  // / marker / edgeId / ...) at the event TOP LEVEL, not under `payload`. The
+  // whitelist above only covers a subset, so on REST history replay any field
+  // outside it (notably the structured-collaboration fields) would be lost and
+  // the wall would not rebuild the debate. Mirror the server relay: copy every
+  // non-envelope top-level field into the payload for brainstorm-family events.
+  if (event.family === "brainstorm") {
+    const rawEvent = event as unknown as Record<string, unknown>;
+    for (const key of Object.keys(rawEvent)) {
+      if (HISTORICAL_RELAY_ENVELOPE_KEYS.has(key)) continue;
+      if (payload[key] === undefined && rawEvent[key] !== undefined) {
+        payload[key] = rawEvent[key];
+      }
+    }
+  }
 
   return {
     type: event.type as BlueprintGenerationEventType,

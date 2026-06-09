@@ -431,3 +431,113 @@ describe("BlueprintSocketRelay 单条事件不丢事件回归（autopilot-stream
     }
   });
 });
+
+// ---------------------------------------------------------------------------
+// Regression: brainstorm structured fields must survive the relay
+// (autopilot-brainstorm-real-collaboration). The brainstorm event-emitter
+// adapter spreads structured data (sessionId / nodeId / nodeType /
+// challengerRoleId / responderRoleId / stance / severity / ...) onto the event
+// TOP LEVEL, not under `event.payload`. Before the fix, buildRelayedPayload
+// forwarded only `event.payload` + 4 envelope fields, so the client store
+// received an empty payload, bailed on `typeof sessionId !== "string"`, and the
+// 3D wall stayed empty — i.e. "the HUD looks the same as before".
+// ---------------------------------------------------------------------------
+
+describe("BlueprintSocketRelay 保留 brainstorm 顶层结构化字段（autopilot-brainstorm-real-collaboration）", () => {
+  let sio: ReturnType<typeof createMockSocketIOServer>;
+
+  beforeEach(() => {
+    sio = createMockSocketIOServer();
+  });
+
+  afterEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("forwards top-level brainstorm.node.created data fields into the relayed payload", () => {
+    const jobId = "job-brainstorm-node";
+    const jobStore = createMemoryBlueprintJobStore([makeJob(jobId)]);
+    const eventBus = createBlueprintEventBus(jobStore);
+
+    const relay = createBlueprintSocketRelay({
+      eventBus,
+      io: sio.io as never,
+    });
+    relay.start();
+
+    // Shape exactly as the brainstorm event-emitter adapter emits it: structured
+    // data spread at the TOP LEVEL, `payload` absent.
+    eventBus.emit({
+      id: "evt-bs-node-1",
+      type: "brainstorm.node.created" as BlueprintGenerationEvent["type"],
+      family: "brainstorm" as BlueprintGenerationEvent["family"],
+      jobId,
+      stage: "spec_docs",
+      status: "processing",
+      message: "brainstorm.node.created",
+      occurredAt: "2026-05-01T00:00:00.000Z",
+      sessionId: "sess-xyz",
+      nodeId: "node-abc",
+      parentNodeId: "node-root",
+      roleId: "planner",
+      nodeType: "thinking",
+    } as unknown as BlueprintGenerationEvent);
+
+    expect(sio.emittedEvents).toHaveLength(1);
+    const data = sio.emittedEvents[0].data as {
+      type: string;
+      payload: Record<string, unknown>;
+    };
+    expect(data.type).toBe("brainstorm.node.created");
+    // The structured fields the client store requires must be present.
+    expect(data.payload.sessionId).toBe("sess-xyz");
+    expect(data.payload.nodeId).toBe("node-abc");
+    expect(data.payload.parentNodeId).toBe("node-root");
+    expect(data.payload.nodeType).toBe("thinking");
+    expect(data.payload.roleId).toBe("planner");
+
+    relay.stop();
+  });
+
+  it("forwards top-level brainstorm.rebuttal.issued structured fields (responderRoleId/stance)", () => {
+    const jobId = "job-brainstorm-rebuttal";
+    const jobStore = createMemoryBlueprintJobStore([makeJob(jobId)]);
+    const eventBus = createBlueprintEventBus(jobStore);
+
+    const relay = createBlueprintSocketRelay({
+      eventBus,
+      io: sio.io as never,
+    });
+    relay.start();
+
+    eventBus.emit({
+      id: "evt-bs-rebuttal-1",
+      type: "brainstorm.rebuttal.issued" as BlueprintGenerationEvent["type"],
+      family: "brainstorm" as BlueprintGenerationEvent["family"],
+      jobId,
+      stage: "spec_docs",
+      status: "processing",
+      message: "brainstorm.rebuttal.issued",
+      occurredAt: "2026-05-01T00:00:00.000Z",
+      sessionId: "sess-xyz",
+      challengeId: "chal-1",
+      responderRoleId: "architect",
+      challengerRoleId: "planner",
+      stance: "defend",
+      roundNumber: 2,
+    } as unknown as BlueprintGenerationEvent);
+
+    expect(sio.emittedEvents).toHaveLength(1);
+    const data = sio.emittedEvents[0].data as {
+      payload: Record<string, unknown>;
+    };
+    expect(data.payload.sessionId).toBe("sess-xyz");
+    expect(data.payload.responderRoleId).toBe("architect");
+    expect(data.payload.challengerRoleId).toBe("planner");
+    expect(data.payload.challengeId).toBe("chal-1");
+    expect(data.payload.stance).toBe("defend");
+    expect(data.payload.roundNumber).toBe(2);
+
+    relay.stop();
+  });
+});
