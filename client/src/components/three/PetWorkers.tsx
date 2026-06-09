@@ -46,6 +46,12 @@ export function PetWorkers({
   isReplay?: boolean;
   latestJobId?: string;
   activeJobId?: string;
+  /**
+   * Legacy stage label (V5 已将 stage 降级为 UI/artifact/history/compat 标签)。
+   * 真实控制平面是 Orchestrator + Capability Pool（(capability, role) 对调度）。
+   * 详见 docs/WhyBuddyV5CapabilityPool.md 和 WhyBuddyV5闭环总图_完整版.md
+   * activeStage 仅用于 3D 场景 role seeding、连线规则、wall 分组等呈现辅助。
+   */
   activeStage?: AutopilotStage;
   roleLabels?: Record<string, string>;
 }) {

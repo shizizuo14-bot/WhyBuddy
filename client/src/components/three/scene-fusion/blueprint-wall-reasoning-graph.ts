@@ -2,7 +2,9 @@ import type {
   BlueprintGenerationJob,
   BlueprintSpecTree,
   BlueprintSpecTreeNode,
+  V5CapabilityId,
 } from "@shared/blueprint/contracts";
+import { STAGE_TO_V5_CAPABILITIES } from "@shared/blueprint/contracts";
 import type { AgentReasoningEntry } from "@shared/blueprint/agent-reasoning";
 import type {
   BrainstormGraphConsoleLine,
@@ -427,6 +429,11 @@ function nodeFromEntry(
     roleLabel,
     status: statusForEntry(entry, type),
     order,
+    // V5: capabilityId 映射（legacy stage → capability），使 graph 成为 capability invocation graph。
+    // 详见 V5 文档：orchestrator 才是权威调度源。
+    capabilityId: entry.stageId
+      ? (STAGE_TO_V5_CAPABILITIES[entry.stageId as keyof typeof STAGE_TO_V5_CAPABILITIES]?.[0] as V5CapabilityId | undefined)
+      : undefined,
     sourceRefs: [
       { kind: "reasoning_entry", id: entry.id },
       ...(entry.stageId ? [{ kind: "stage" as const, id: entry.stageId }] : []),
