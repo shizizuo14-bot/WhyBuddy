@@ -78,6 +78,8 @@ export interface BrainstormReasoningNode {
   body?: string;
   roleId?: string;
   roleLabel?: string;
+  /** V5: 能力包 ID，标识此节点是由哪个 capability 产生的（(capability, role) 对的一部分）。 */
+  capabilityId?: string;
   status: BrainstormReasoningNodeStatus;
   confidence?: number;
   sourceRefs?: BrainstormSourceRef[];
@@ -92,6 +94,8 @@ export interface BrainstormReasoningEdge {
   label?: string;
   confidence?: number;
   sourceKind?: BrainstormReasoningGraphSource;
+  /** V5: 产生此边的能力包 ID（可选，用于 capability invocation graph 追踪）。 */
+  capabilityId?: string;
 }
 
 export interface BrainstormGraphTelemetry {

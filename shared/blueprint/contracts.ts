@@ -2,6 +2,7 @@
 // 引入，避免把大块类型定义堆进 contracts.ts（保持既有契约稳定）。
 import type { RoleCapabilityPackage } from "./role-container/types.js";
 import type { RoleAgentConfig } from "./agent-config.js";
+import type { Artifact } from "./v5-reasoning-state.js";
 
 export type {
   RoleCapabilityPackage,
@@ -98,6 +99,143 @@ export type BlueprintCapabilityEvidenceStatus =
   | "recorded"
   | "blocked"
   | "failed";
+
+/**
+ * V5 Capability Pool taxonomy (定型版).
+ * 旧的 BlueprintGenerationStage 仅保留为 UI/artifact/history/compat 标签。
+ * 真实调度以 V5CapabilityId + (capability, role) 对进行。
+ * 详见 docs/WhyBuddyV5CapabilityPool.md 和 WhyBuddyV5闭环总图_完整版.md
+ */
+export type V5CapabilityId =
+  | "intent.parse"
+  | "intent.clarify"
+  | "context.collect"
+  | "source.classify"
+  | "gap.ask"
+  | "question.expand"
+  | "assumption.validate"
+  | "route.generate"
+  | "route.compare"
+  | "tradeoff.evaluate"
+  | "structure.decompose"
+  | "document.draft"
+  | "requirement.write"
+  | "design.write"
+  | "task.write"
+  | "scenario.simulate"
+  | "ux.preview"
+  | "outcome.visualize"
+  | "instruction.package"
+  | "execution.prepare"
+  | "evidence.search"
+  | "repo.inspect"
+  | "mcp.call"
+  | "skill.invoke"
+  | "risk.analyze"
+  | "counter.argue"
+  | "argument.expand"
+  | "critique.generate"
+  | "rebuttal.resolve"
+  | "synthesis.merge"
+  | "report.write"
+  | "memory.recall"
+  | "traceability.matrix"
+  | "handoff.package";
+
+/**
+ * 旧 stage → V5 能力包映射（兼容层 + 重新解释）。
+ * 调度器使用此映射将 legacy stage 翻译为能力包，但 orchestrator 可自由跨 stage 选择能力。
+ */
+export const STAGE_TO_V5_CAPABILITIES: Record<BlueprintGenerationStage, V5CapabilityId[]> = {
+  input: ["intent.parse", "context.collect", "source.classify"],
+  clarification: ["intent.clarify", "gap.ask", "assumption.validate", "question.expand"],
+  route_generation: ["route.generate", "route.compare", "tradeoff.evaluate"],
+  spec_tree: ["structure.decompose"],
+  spec_docs: ["document.draft", "requirement.write", "design.write", "task.write"],
+  preview: ["scenario.simulate", "ux.preview", "outcome.visualize"],
+  effect_preview: ["scenario.simulate", "ux.preview", "outcome.visualize"],
+  prompt_packaging: ["instruction.package", "execution.prepare"],
+  runtime_capability: ["mcp.call", "skill.invoke"],
+  engineering_handoff: ["structure.decompose", "document.draft", "handoff.package"],
+  engineering_landing: ["execution.prepare", "report.write", "traceability.matrix"],
+};
+
+export const V5_CAPABILITY_TO_STAGES: Partial<Record<V5CapabilityId, BlueprintGenerationStage[]>> = {
+  "intent.parse": ["input"],
+  "intent.clarify": ["clarification"],
+  "route.generate": ["route_generation"],
+  "structure.decompose": ["spec_tree", "engineering_handoff"],
+  "document.draft": ["spec_docs", "engineering_handoff"],
+  "scenario.simulate": ["effect_preview", "preview"],
+  "report.write": ["engineering_landing"],
+};
+
+/**
+ * V5 完整能力池（不是从旧 stage 映射推导）。
+ * 这是 orchestrator / picker 的权威可用能力全集。
+ * STAGE_TO_V5_CAPABILITIES 仅为 legacy 兼容投影，不应限制 V5 调度。
+ */
+export const ALL_V5_CAPABILITIES: V5CapabilityId[] = [
+  "intent.parse",
+  "intent.clarify",
+  "context.collect",
+  "source.classify",
+  "gap.ask",
+  "question.expand",
+  "assumption.validate",
+  "route.generate",
+  "route.compare",
+  "tradeoff.evaluate",
+  "structure.decompose",
+  "document.draft",
+  "requirement.write",
+  "design.write",
+  "task.write",
+  "scenario.simulate",
+  "ux.preview",
+  "outcome.visualize",
+  "instruction.package",
+  "execution.prepare",
+  "evidence.search",
+  "repo.inspect",
+  "mcp.call",
+  "skill.invoke",
+  "risk.analyze",
+  "counter.argue",
+  "argument.expand",
+  "critique.generate",
+  "rebuttal.resolve",
+  "synthesis.merge",
+  "report.write",
+  "memory.recall",
+  "traceability.matrix",
+  "handoff.package",
+];
+
+export const V5_CAPABILITY_POOL = new Set(ALL_V5_CAPABILITIES);
+
+/**
+ * 每个 V5 能力产出的标准 Artifact kind。
+ * 用于页面构造 raw artifact 和 runtime 输入需求匹配。
+ */
+export const CAPABILITY_OUTPUT_KIND: Partial<Record<V5CapabilityId, Artifact["kind"]>> = {
+  "intent.parse": "clarification",
+  "intent.clarify": "clarification",
+  "context.collect": "clarification",
+  "evidence.search": "evidence",
+  "repo.inspect": "evidence",
+  "risk.analyze": "risk",
+  "counter.argue": "risk",
+  "synthesis.merge": "synthesis",
+  "report.write": "report",
+  "route.generate": "route_options",
+  "route.compare": "route_options",
+  "structure.decompose": "spec_tree",
+  "document.draft": "doc",
+  "scenario.simulate": "preview",
+  // 其他可按需扩展，默认 fallback 到 "decision" 或 "plan"
+};
+
 import type {
   BlueprintGenerationEventFamily as _BlueprintGenerationEventFamily,
   BlueprintGenerationEventType as _BlueprintGenerationEventType,
