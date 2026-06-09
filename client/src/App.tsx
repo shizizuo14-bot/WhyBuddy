@@ -10,6 +10,7 @@ import {
   isProjectTasksPath,
   PROJECTS_PATH,
   REPLAY_PATH_PREFIX,
+  WHYBUDDY_PATH,
 } from "@/components/navigation-config";
 import { ReplayPage } from "@/components/replay/ReplayPage";
 import DebugPage from "@/pages/debug/DebugPage";
@@ -43,6 +44,7 @@ import AuthPage from "./pages/auth/AuthPage";
 import SpecCenterPage from "./pages/specs/SpecCenterPage";
 import { TaskDetailPage, TasksPage } from "./pages/tasks";
 import AutopilotSpecDocumentsWorkbenchFixturePage from "./pages/autopilot/right-rail/streaming-doc/workbench/WorkbenchFixturePage";
+import WhyBuddyPage from "./pages/WhyBuddy";
 
 const routerBase =
   import.meta.env.BASE_URL === "/"
@@ -130,6 +132,12 @@ function Router() {
       />
       <Route path={"/debug"} component={DebugPage} />
       <Route path={"/debug/:section"} component={DebugPage} />
+      <Route path={WHYBUDDY_PATH} component={WhyBuddyPage} />
+      {/* V5 chrome-free workspace: WhyBuddy is deliberately isolated from the old stage sequencer / AppShell chrome.
+          All guards, sidebar, mobile tab, config panel, and project-workspace auth checks are skipped for this route
+          (see isChromeFree / isWhyBuddyLocation / isProjectWorkspaceLocation above). This keeps the V5 demo clean.
+          V5 session state is managed via the runtime's per-sessionId store (loadOrCreate / save by sessionId)
+          — completely independent of project/auth/recovery stores. */}
       <Route path={"/command-center/legacy"}>
         {() => <LegacyCommandCenterPage />}
       </Route>
@@ -294,9 +302,15 @@ function isAuthLocation(location: string) {
   return pathname === "/login";
 }
 
+function isWhyBuddyLocation(location: string) {
+  const [pathname] = location.trim().split(/[?#]/, 1);
+  return pathname === WHYBUDDY_PATH || pathname.startsWith(`${WHYBUDDY_PATH}/`);
+}
+
 export function isProjectWorkspaceLocation(location: string) {
   const [pathname] = location.trim().split(/[?#]/, 1);
   if (pathname === "" || pathname === "/") return true;
+  if (isWhyBuddyLocation(location)) return false; // V5 WhyBuddy is independent chrome-free workspace
   return (
     pathname.startsWith(PROJECTS_PATH) ||
     pathname === AUTOPILOT_PATH ||
@@ -339,12 +353,13 @@ export function AppShell() {
   const sidebarWidth = isMobile ? 0 : sidebarCollapsed ? 64 : 248;
   const isHome = isHomeLocation(location);
   const isAuth = isAuthLocation(location);
-  const isChromeFree = isHome || isAuth;
+  const isWhyBuddy = isWhyBuddyLocation(location);
+  const isChromeFree = isHome || isAuth || isWhyBuddy;
 
   return (
     <>
-      {!isAuth && <RecoveryGuard />}
-      {!isAuth && <AuthRouteGuard />}
+      {!isAuth && !isChromeFree && <RecoveryGuard />}
+      {!isAuth && !isChromeFree && <AuthRouteGuard />}
 
       {!isMobile && !isChromeFree && (
         <AppSidebar
@@ -369,9 +384,9 @@ export function AppShell() {
         <Router />
       </div>
 
-      {isMobile && !isAuth && <MobileTabBar />}
+      {isMobile && !isAuth && !isChromeFree && <MobileTabBar />}
 
-      {!isAuth && <ConfigPanel />}
+      {!isAuth && !isChromeFree && <ConfigPanel />}
     </>
   );
 }
