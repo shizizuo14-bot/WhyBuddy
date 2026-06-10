@@ -39,6 +39,8 @@ import type {
   TurnPlan,
   OrchestrateContext,
   SchedulingDecision,
+  CoverageContract,
+  CoverageGateResult,
 } from "@shared/blueprint/v5-reasoning-state";
 import type { BrainstormReasoningGraph, BrainstormReasoningNode, BrainstormReasoningEdge } from "@shared/blueprint/brainstorm-reasoning-graph";
 import { V5_CAPABILITY_POOL, ALL_V5_CAPABILITIES } from "@shared/blueprint/contracts";
@@ -283,6 +285,8 @@ export function createInitialSessionState(goalText: string, sessionId = "whybudd
     sessionId,
     runtimePhase: "idle",
     decisionLedger: [],
+  coverageContract: undefined,
+  coverageGate: undefined,
   };
 }
 
@@ -585,6 +589,88 @@ export function getSessionLedger(state: V5SessionState): Array<{
 /** V5.1 DLEDGER helper (parallel to getSessionLedger). Returns a defensive copy. */
 export function getDecisionLedger(state: V5SessionState): SchedulingDecision[] {
   return [...(state.decisionLedger || [])];
+}
+
+// ===== V5.1 CONTRACT + GCOV gate v1 (Knife 3) =====
+// Mechanical rules only (no deep semantics). Contract + gate prevent premature "想清楚了" (report/AWAIT).
+// Inserted after DLEDGER in ORCH per spec. Budget remains the prior gate.
+
+export function inferCoverageContract(goalText: string, turnId?: string): CoverageContract {
+  const t = (goalText || "").toLowerCase();
+  const isComplex = /风险|risk|安全|审计|反驳|复杂|complex|rebuttal/.test(t);
+  const mode: "simple" | "complex" = isComplex ? "complex" : "simple";
+  const requiredCapabilities = isComplex ? ["risk.analyze", "report.write"] : ["report.write"];
+  const conditionalCapabilities = isComplex ? ["synthesis.merge"] : [];
+  return {
+    id: `cov-${turnId || Date.now()}`,
+    version: 1,
+    mode,
+    requiredCapabilities,
+    conditionalCapabilities,
+    minEvidencePerRequirement: 1,
+    frozenAtTurnId: turnId,
+  };
+}
+
+function hasTrustedCommittedForCap(state: V5SessionState, capId: string): boolean {
+  const runs = state.capabilityRuns || [];
+  const arts = state.artifacts || [];
+  const stales = new Set(state.staleArtifactIds || []);
+  for (const run of runs) {
+    if ((run as any).capabilityId !== capId) continue;
+    const art = arts.find((a: any) => a.producedBy?.capabilityRunId === run.id);
+    if (art && (art.trustLevel === 'gated_pass' || art.trustLevel === 'audited') && !stales.has(art.id)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+function countTrustedUpstreams(state: V5SessionState): number {
+  const stales = new Set(state.staleArtifactIds || []);
+  return (state.artifacts || []).filter((a: any) =>
+    (a.trustLevel === 'gated_pass' || a.trustLevel === 'audited') && !stales.has(a.id)
+  ).length;
+}
+
+export function evaluateCoverageGate(
+  state: V5SessionState,
+  selected: Array<{ capabilityId: string; roleId?: string }> = [],
+  existingContract?: CoverageContract
+): CoverageGateResult {
+  const contract = existingContract || inferCoverageContract(state.goal?.text || "", (state as any).lastTurnId);
+  const missing: string[] = [];
+  // Pre-reqs are the required caps *except* report.write itself (report.write is the converge action we are gating;
+  // we check its prereqs + upstream evidence, not that report is "already committed").
+  const preReqs = contract.requiredCapabilities.filter((c) => c !== 'report.write');
+  for (const req of preReqs) {
+    if (!hasTrustedCommittedForCap(state, req)) {
+      missing.push(req);
+    }
+  }
+  const hasReportIntent = selected.some((s: any) => s.capabilityId === 'report.write');
+  let upstreamOk = true;
+  if (hasReportIntent) {
+    const trustedCount = countTrustedUpstreams(state);
+    if (trustedCount < (contract.minEvidencePerRequirement || 1)) {
+      upstreamOk = false;
+    }
+  }
+  const passed = missing.length === 0 && upstreamOk;
+  const unresolvedGaps: string[] = [];
+  if (!upstreamOk) {
+    unresolvedGaps.push('insufficient trusted upstream evidence for report');
+  }
+  const reason = passed
+    ? `Coverage sufficient (mode=${contract.mode}, required met, upstreams ok)`
+    : `Missing required capabilities or evidence: ${missing.join(', ') || 'upstream evidence'}`;
+  return {
+    passed,
+    missingCapabilities: missing,
+    unresolvedGaps,
+    waivedGaps: [],
+    reason,
+  };
 }
 
 /**
@@ -1665,8 +1751,64 @@ export function orchestrateReasoningTurn(
     decisionLedger: [...(working.decisionLedger || []), decision],
   };
 
+  // ===== V5.1 GCOV (Knife 3) after DLEDGER, before final plan/graph =====
+  // Budget already passed earlier; GCOV may force prepend missing required, but we respect per-turn budget afford.
+  // Only act when converge intent (report.write selected or similar). Author contract on first need (v1).
+  // On !passed: set coverageGate, prepend missing (capped by budget), patch latest DLEDGER decision (addresses + chose), adjust effective plan.
+  let effectiveSelected = [...selected];
+  const hasConvergeIntent = selected.some((s: any) => s.capabilityId === 'report.write') ||
+    /报告|report|总结|收敛|converge/.test(userTextForPick);
+  if (!working.coverageContract) {
+    // Contract is goal/session level; prioritize goal.text for mode (simple vs complex) even if this turn's userText is short.
+    const goalForContract = working.goal?.text || userTextForPick || "";
+    working = {
+      ...working,
+      coverageContract: inferCoverageContract(goalForContract, turnId),
+    };
+  }
+  const gateResult = evaluateCoverageGate(working, selected, working.coverageContract);
+  working = {
+    ...working,
+    coverageGate: gateResult,
+  };
+
+  if (!gateResult.passed && hasConvergeIntent) {
+    const missing = gateResult.missingCapabilities || [];
+    const toForce = missing
+      .filter((m) => !effectiveSelected.some((s: any) => s.capabilityId === m))
+      .map((m) => ({
+        capabilityId: m as V5CapabilityId,
+        roleId: m.includes('risk') ? '安全' : (m.includes('synthesis') ? '综合' : '综合'),
+      }));
+
+    // Budget respect in same turn (conservative v1): use policy maxPerTurn, assume 0 committed yet this turn.
+    const policy = getDefaultBudgetPolicy();
+    const afford = Math.max(0, policy.maxCapabilityRunsPerTurn - effectiveSelected.length);
+    const forced = toForce.slice(0, afford);
+
+    if (forced.length > 0) {
+      effectiveSelected = [...forced, ...effectiveSelected];
+    }
+
+    // Link to DLEDGER: patch the just-appended decision (addresses + chose if forced)
+    const ledgerArr = working.decisionLedger || [];
+    if (ledgerArr.length > 0) {
+      const lastDec: any = ledgerArr[ledgerArr.length - 1];
+      if (lastDec) {
+        const covAdds = missing.map((m) => `coverage:required:${m}`);
+        lastDec.addresses = [...(lastDec.addresses || []), ...covAdds];
+        if (forced.length > 0) {
+          lastDec.chose = [...(lastDec.chose || []), ...forced.map((f: any) => f.capabilityId)];
+          lastDec.rationale = `${lastDec.rationale || ''} | GCOV-forced: ${forced.map((f: any) => f.capabilityId).join(',')}`;
+        } else if (missing.length > 0) {
+          lastDec.rationale = `${lastDec.rationale || ''} | GCOV: ${gateResult.reason}`;
+        }
+      }
+    }
+  }
+
   // 4. For each selected, declare real inputs from current state (this populates dependencyGraph later in commit)
-  const selectedWithInputs = selected.map((sel) => ({
+  const selectedWithInputs = effectiveSelected.map((sel) => ({
     ...sel,
     inputArtifactIds: findInputsForCapability(working, sel.capabilityId as V5CapabilityId),
   }));
@@ -1674,7 +1816,7 @@ export function orchestrateReasoningTurn(
   // 5. For the prototype, we also produce some graph nodes here (so the surface updates)
   // 携带 turnId + 预分配的 capabilityRunId（与页面 commit 循环使用的 `${turnId}-run-${i}` 一致），
   // 让 invalidate 能做到真正的 artifact/run 级精确匹配，而不是只靠 turn+capability。
-  const newGraphNodes: BrainstormReasoningNode[] = selected.map((sel, i) => ({
+  const newGraphNodes: BrainstormReasoningNode[] = effectiveSelected.map((sel, i) => ({
     id: `${turnId}-node-${i}`,
     type: "hypothesis",
     title: `${sel.roleId} · ${sel.capabilityId}`,
@@ -1704,7 +1846,7 @@ export function orchestrateReasoningTurn(
     reason: intervention
       ? `UserIntervention received. Stale marked. Re-picking capabilities.`
       : `Goal-driven pick from capability pool (userText: ${userTextForPick.slice(0, 60)}...)`,
-    expectedArtifacts: selected.map((s) => `${s.capabilityId}-artifact`),
+    expectedArtifacts: effectiveSelected.map((s) => `${s.capabilityId}-artifact`),
   };
 
   return { newState: working, plan, newGraphNodes };

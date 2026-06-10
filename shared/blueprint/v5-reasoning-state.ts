@@ -113,6 +113,10 @@ export interface V5SessionState {
 
   /** V5.1 DLEDGER (P1/A): scheduling decision ledger, appended on every pickNextCapabilities (or special budget block entry). */
   decisionLedger?: SchedulingDecision[];
+
+  /** V5.1 CONTRACT + GCOV (Knife 3): optional coverage contract and last gate result. Kept optional for durable old-state compat. */
+  coverageContract?: CoverageContract;
+  coverageGate?: CoverageGateResult;
 }
 
 export interface UserIntervention {
@@ -164,4 +168,24 @@ export interface SchedulingDecision {
   rationale: string;
   alternativesRejected: string[];
   createdAt: string;
+}
+
+/** V5.1 CONTRACT / GCOV (P0): Coverage contract authored for the session/goal to declare what is required before convergence (report/AWAIT) is allowed. v1 mechanical rules only. */
+export interface CoverageContract {
+  id: string;
+  version: 1;
+  mode: "simple" | "complex";
+  requiredCapabilities: string[];
+  conditionalCapabilities: string[];
+  minEvidencePerRequirement: number;
+  frozenAtTurnId?: string;
+}
+
+/** V5.1 GCOV gate result: mechanical check outcome before allowing report.write or AWAIT converge. */
+export interface CoverageGateResult {
+  passed: boolean;
+  missingCapabilities: string[];
+  unresolvedGaps: string[];
+  waivedGaps: string[];
+  reason: string;
 }

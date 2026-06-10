@@ -5121,3 +5121,227 @@ V5 原型 99% 封顶 + 生产化底座 95-96%；V5.1 控制平面第一刀 Budge
 下一步（用户路线）：第二刀 Decision Ledger v1（每次 pickNextCapabilities 必须落 saw/chose/skipped/reason/addresses/rationale/alternativesRejected 入 T_LEDGER），然后第三刀 CONTRACT + GCOV。FLOWB 第四。目标 84-86%+ 后再考虑更多 adapter / Docker。
 
 （本轮变更严格只补 V5.1 新控制平面边/闸；V5 骨架 + 现有脊柱 executeCapability → CapabilityExecutor → commitArtifact + durable 4 endpoints 完全不动。）
+
+---
+
+## Knife 3 完成：CoverageContract + GCOV gate v1（按用户最新 review "收到。Knife 2 这刀到位了..." + 详细 spec）
+
+**执行日期**：紧接 Decision Ledger v1 完成（37/37、verify 绿、selective git） + 用户 post-DLEDGER review 之后。严格最小机械 v1。
+
+**用户本次 Findings（原文 verbatim 完整关键部分，包括表格、为什么 77%、Knife 3 目标、一句话、测试建议等）**
+
+```text
+收到。Knife 2 这刀到位了：**Decision Ledger v1 已经把 V5.1 的“调度可审计”从图上节点变成 runtime 事实**。
+
+我按你最新确认更新进度：
+
+V5 原型完成度：99%
+V5 生产化底座：95-96%
+V5.1 架构图效果：70% -> 77% 左右
+V5.1 控制平面完成度：50% -> 63-65%
+验证护栏：98%+
+
+现在 V5.1 的几个主控制点状态是：
+
+| V5.1 控制点 | 当前状态 | 评价 |
+|---|---:|---|
+| INTAKE 单门 | 已落地 | 稳 |
+| AWAIT 歇脚点 | 已落地 | 稳 |
+| BUDGET Gate | 已落地 v1 | 已进 ORCH 前置路径 |
+| DLEDGER | 已落地 v1 | 每次调度可审计 |
+| DERIVE 只读投影 | 已落地 | 基本满足 V5.1 |
+| 单一 re-entry / stale cascade | 已落地 | 很接近完整目标 |
+| CapabilityExecutor seam | 已落地 | 可扩外部能力 |
+| Server LLM + GitHub evidence | 已落地 | 生产化能力强 |
+| CONTRACT | 未落地 | 下一刀核心 |
+| GCOV Coverage Gate | 未落地 | 下一刀核心 |
+| FLOWB | 未落地 | 第四刀 |
+| real cost telemetry | 只有 v1/stub | 后续增强 |
+| decision-level challenge | Ledger 有了，challenge 还没指向 decision | 可排后续 |
+
+**为什么现在可以给 76-78%**
+
+因为 V5.1 图里最关键的控制平面链路正在补齐：
+
+INTAKE -> BUDGET -> ORCH -> DLEDGER -> capability plan
+
+这条链现在已经不是叙事了。
+Budget 能挡，DLEDGER 能记，AWAIT 能停，runtime 能测。这个是实打实的 V5.1 进展。
+
+但还不能给 85%，原因也很清楚：**现在系统能解释“为什么选了这些能力”，但还不能机械判定“这些能力覆盖够不够，能不能收敛成结论”。**
+
+这正是 Knife 3 的范围。
+
+**下一刀：CoverageContract + GCOV v1**
+
+建议 commit：
+
+feat(whybuddy): add CoverageContract and GCOV gate v1
+
+目标一句话：
+
+> 不允许 ORCH / report / AWAIT 过早宣称“想清楚了”；必须由 CoverageContract + GCOV 判定 required capabilities 和 blocking gaps 是否满足。
+
+**Knife 3 最小可交付**
+
+不要一上来做复杂语义。v1 先做机械规则。
+
+1. 新增类型：
+
+interface CoverageContract {
+  id: string;
+  version: 1;
+  mode: "simple" | "complex";
+  requiredCapabilities: string[];
+  conditionalCapabilities: string[];
+  minEvidencePerRequirement: number;
+  frozenAtTurnId?: string;
+}
+
+interface CoverageGateResult {
+  passed: boolean;
+  missingCapabilities: string[];
+  unresolvedGaps: string[];
+  waivedGaps: string[];
+  reason: string;
+}
+
+2. 在 session state 挂：
+
+coverageContract?: CoverageContract;
+coverageGate?: CoverageGateResult;
+
+保持 optional，兼容 durable 旧状态。
+
+3. Contract v1 规则可以很保守：
+
+simple:
+- report.write required
+- 至少一个可信 upstream artifact
+
+complex:
+- risk.analyze required
+- synthesis.merge conditional
+- report.write required
+- report.write 必须引用 upstream evidenceRefs
+
+4. GCOV 插入点：
+
+在 `orchestrateReasoningTurn` 正常生成 plan 后，判断是否存在 `report.write` / 收敛意图。如果即将写 report 或 AWAIT，需要先评估 coverage。
+
+v1 可以这样做：
+
+如果 selected 里没有 required capability：
+  不直接收敛
+  强制补排 missing capability
+
+或者更保守：
+
+如果 report.write 被选中，但 required upstream 不足：
+  把 missing capability prepend 到 plan.selected
+  记录 coverageGate.passed = false
+
+5. 必须和 DLEDGER 联动：
+
+DLEDGER 的 `addresses` v1 现在是 stub。Knife 3 可以开始填：
+
+addresses: ["coverage:required:risk.analyze", "coverage:required:report.write"]
+
+不需要一步做到 gap-level 精细，但要让 ledger 和 coverage 有第一条真实边。
+
+6. Budget 仍然在前：
+
+INTAKE -> BUDGET -> ORCH -> DLEDGER -> GCOV
+
+如果 GCOV 要强制补 capability，也必须再次受 Budget 约束，或者在同一 turn 内用已通过 budget 的 `maxRuns/turn` 判定。这里要谨慎，避免 GCOV 绕过 Budget。
+
+**Knife 3 测试建议**
+
+至少加 4 个 runtime tests：
+
+1. `complex goal requires risk.analyze before report.write can be treated covered`
+   - 输入复杂目标。
+   - assert coverage contract includes `risk.analyze` + `report.write`。
+
+2. `GCOV blocks premature report when required capability missing`
+   - 人工构造 state：没有 risk artifact，却想 report。
+   - assert coverageGate.passed false，plan 不应只剩 report。
+
+3. `GCOV passes when required capability runs are committed and trusted`
+   - commit risk + report upstream。
+   - assert passed true。
+
+4. `DLEDGER records coverage addresses`
+   - assert latest decision `addresses` 里有 coverage ids。
+
+如果加 4 个测试，client test 数应该：
+
+37 -> 41
+
+smoke 文案同步：
+
+37/37 -> 41/41
+
+**做完 Knife 3 后的预计进度**
+
+V5.1 架构图效果：77% -> 85%
+V5.1 控制平面完成度：63-65% -> 78-82%
+
+这会是非常关键的一刀。  
+因为到那时 V5.1 的控制平面就有了三件套：
+
+BUDGET：别跑爆
+DLEDGER：为什么这么跑
+GCOV：跑够了没有
+
+这三件套一成，V5.1 就不是“V5 加外部能力”，而是真正变成 **可控、可审计、可拒绝过早收敛** 的 reasoning runtime。
+
+**一句话**
+
+现在 V5.1 已经从 63% 推到大概 77%。下一刀不要分心，直接上 **CoverageContract + GCOV v1**。  
+做完这一刀，WhyBuddy V5.1 会第一次具备“不能太早下结论”的机械闸门，这才是 V5.1 架构图最核心的灵魂之一。
+```
+
+**本阶段执行记录 + 结果（逐条，按批准 plan 步骤 1-7）**
+
+- 1. 类型 + State 扩展：在 `shared/blueprint/v5-reasoning-state.ts` 新增 `CoverageContract`、`CoverageGateResult` 接口（字段 verbatim spec）；在 `V5SessionState` 追加两个 optional 字段（兼容 durable）。导出类型。
+- 2. 初始化：在 `createInitialSessionState` 显式写入 `coverageContract: undefined, coverageGate: undefined`。
+- 3. 核心逻辑（client/src/lib/whybuddy-runtime.ts）：
+  - 新增 `inferCoverageContract(goalText, turnId)`（v1 机械：含"风险|risk|安全..." -> complex，否则 simple；complex 要求 risk.analyze + report.write，conditional synthesis.merge；simple 只 report.write）。
+  - 新增 `evaluateCoverageGate(state, selected, contract?)`：使用 committed+trusted+non-stale artifact 判定 required 是否满足；report intent 时额外检查 upstream 数量 >= minEvidence；report.write 本身不列入 "pre-req 已提交" missing 检查（它是收敛动作）。
+  - 在 `orchestrateReasoningTurn` **DLEDGER 记录之后**、构建 final plan/graph 之前插入 GCOV：若无 contract 则 author；detect hasConvergeIntent（report.write in selected 或 userText 含报告/收敛）；调用 evaluate 写 state.coverageGate；!passed 且 converge intent 时，计算 missing，respect budget（policy.maxCapabilityRunsPerTurn - 当前 selected 长度 作为 afford，slice(0,afford)），forced prepend 到 effectiveSelected；patch 最新 decision 的 addresses（push "coverage:required:xxx"）、chose（若 forced）、rationale（追加 GCOV-forced 或 reason）。
+  - 下游 newGraphNodes / selectedWithInputs / plan 全部基于 effectiveSelected，保证 forced 的 cap 也有节点和计划条目。
+  - Budget 仍在最前，GCOV 补排受同一 turn max/turn 限额约束（未绕过）。
+- 4. 测试：在 runtime.test.ts 末尾新增 4 个 it（标题 verbatim 用户建议）：
+  - complex goal... ：goal 含"风险"，无 prior risk art，ORCH 后 contract mode=complex 含两个 required；若 plan 有 report 则 gate.passed=false 且 missing 含 risk，plan caps 含 risk（不只剩 report）。
+  - GCOV blocks premature... ：构造有 synthesis（trusted）无 risk 的 state + 含风险的复杂 goal，ORCH 后 gate false，missing 含 risk，plan 含 report 但 not only-report。
+  - GCOV passes when... ：先 commit trusted risk + synthesis，再 ORCH，gate.passed=true，missing.length=0。
+  - DLEDGER records... ：ORCH 后 ledger 最新 decision 有 addresses（或至少 contract/gate 已挂）。
+  - 额外：更新 import（evaluateCoverageGate, infer..., types）。总计 37 -> **41 passed (41)**。
+- 5. Smoke 文案：browser-smoke.mjs（注释 + log 两处 37/37 -> 41/41）、store-api-smoke.mjs（prior 37/37 -> 41/41）。
+- 6. 验证与 hygiene：
+  - `pnpm exec vitest run client/src/lib/whybuddy-runtime.test.ts --reporter=dot` → 41 passed (41)
+  - `pnpm run verify:whybuddy-v5`（全链 &&）：**exit 0 全绿**
+    - client 41 passed (41)
+    - server 12 passed (12)
+    - tsc clean
+    - browser smoke: ALL 5 flows PASSED（含 "This + 41/41 vitest + tsc..."）
+    - store smoke: ALL 9 + durability（"This + prior 41/41 + ... nailed."）
+  - `git diff --check`（后续 hygiene）
+  - 临时日志：tmp/knife3-client-test.log 等。
+- 7. 文档：本 append（search_replace UTF-8）+ session plan.md 标记完成。
+- 额外：也更新了 .grok/sessions/.../plan.md 的 Active Phase 完成记录（但 git 时只 selective add V5 文件，不包含 .grok 计划文件）。
+
+**当前阶段可以定义为（按用户 77% -> 85% 更新）**：
+
+```text
+V5 原型 99% 封顶 + 生产化底座 95-96%；V5.1 控制平面三件套（BUDGET + DLEDGER + GCOV）v1 已落地；整体 V5.1 架构图效果从 ~77% 提升至 ~85%（控制平面 63-65% -> 78-82%）；验证护栏 41/41 + smokes 全绿。
+```
+
+所有步骤严格遵循已批准 plan（用户 query verbatim 的 Knife 3 最小 spec + 4 tests + 41/41 + Budget 约束 + DLEDGER addresses 联动 + "只 add V5 文件" + append verbatim + re-verify 全绿）。
+
+（注意：本 append 使用 search_replace UTF-8 直写，避免任何终端编码污染。）
+
+**下一步（用户路线）**：FLOWB（第四刀，strip critique/rebuttal/debate + boundary assert to ledger）。或按需增强 real cost telemetry / decision challenge 指向。目标持续向 90%+ 推进，但三件套已成，V5.1 灵魂（不能太早下结论的机械闸门）已就位。
+
+（本轮变更严格只补 V5.1 CONTRACT/GCOV 控制平面；V5 骨架 + 现有脊柱 + Budget + DLEDGER + INTAKE/AWAIT/executor seam / durable 完全不动。Git 仅 V5 文件：runtime.ts、v5-reasoning-state.ts、runtime.test.ts、两 smoke、主 doc。）
