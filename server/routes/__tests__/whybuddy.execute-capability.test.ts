@@ -13,6 +13,7 @@ import { createServer } from 'node:http';
 import whybuddyRouter from '../whybuddy.js';
 import * as llmClient from '../../core/llm-client.js';
 import * as ghAdapter from '../../whybuddy/github-mcp-adapter.js';
+import * as repoStaticAnalyzer from '../../whybuddy/repo-static-analyzer.js';
 
 describe('POST /api/whybuddy/execute-capability (server route)', () => {
   const app = express();
@@ -363,6 +364,100 @@ describe('POST /api/whybuddy/execute-capability (server route)', () => {
     expect(String(body.message || '')).toMatch(/github|url|no github/i);
 
     errSpy.mockRestore();
+  });
+
+  // --- Static Repo Analyzer (repo.static.inspect) tests ---
+
+  it('repo.static.inspect returns raw 4-field shape with structured engineering evidence', async () => {
+    const staticSpy = vi.spyOn(repoStaticAnalyzer, 'executeRepoStaticInspect').mockResolvedValueOnce({
+      title: 'Static Repo Analysis: facebook/react',
+      summary: 'Detected react, typescript with pnpm. 2 risks noted.',
+      content: JSON.stringify({
+        repository: 'facebook/react',
+        detectedStack: ['react', 'typescript', 'vite'],
+        packageManager: 'pnpm',
+        scripts: { dev: 'vite', test: 'vitest', build: 'vite build' },
+        ci: { hasGithubActions: true, workflowCount: 3 },
+        configSignals: { hasTsconfig: true, hasDockerfile: false, hasEnvExample: true },
+        risks: ['No Dockerfile found'],
+        recommendedNextChecks: ['Review package.json scripts', 'Add Dockerfile'],
+      }, null, 2),
+      provenance: 'repo:static',
+    });
+
+    const res = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        capabilityId: 'repo.static.inspect',
+        state: { sessionId: 't-static', goal: { text: 'analyze https://github.com/facebook/react' } },
+        inputArtifactIds: [],
+        turnId: 't6',
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.provenance).toBe('repo:static');
+    expect(body.title).toContain('facebook/react');
+    const content = JSON.parse(body.content || '{}');
+    expect(content.detectedStack).toContain('react');
+    expect(content.packageManager).toBe('pnpm');
+    expect(content.risks).toContain('No Dockerfile found');
+    expect(content.recommendedNextChecks.length).toBeGreaterThan(0);
+
+    expect(staticSpy).toHaveBeenCalledTimes(1);
+    expect(staticSpy).toHaveBeenCalledWith('repo.static.inspect', expect.anything(), []);
+  });
+
+  it('repo.static.inspect respects inputArtifactIds priority and graceful missing files', async () => {
+    const staticSpy = vi.spyOn(repoStaticAnalyzer, 'executeRepoStaticInspect').mockResolvedValueOnce({
+      title: 'Static Repo Analysis: vercel/next.js',
+      summary: 'Detected react, next, typescript with pnpm. 1 risks noted.',
+      content: JSON.stringify({
+        repository: 'vercel/next.js',
+        detectedStack: ['react', 'next', 'typescript'],
+        packageManager: 'pnpm',
+        scripts: { build: 'next build' },
+        ci: { hasGithubActions: true, workflowCount: 5 },
+        configSignals: { hasTsconfig: true, hasDockerfile: true, hasEnvExample: false },
+        risks: ['No .env.example found'],
+        recommendedNextChecks: ['Add .env.example'],
+      }, null, 2),
+      provenance: 'repo:static',
+    });
+
+    const stateWithGitHubArtifact = {
+      sessionId: 't-static-prio',
+      goal: { text: 'check multiple' },
+      artifacts: [
+        { id: 'gh-fb', title: 'FB', content: 'https://github.com/facebook/react' },
+        { id: 'gh-vercel', title: 'Vercel', content: 'https://github.com/vercel/next.js' },
+      ],
+    };
+
+    const res = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        capabilityId: 'repo.static.inspect',
+        state: stateWithGitHubArtifact,
+        inputArtifactIds: ['gh-vercel'],
+        turnId: 't7',
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.provenance).toBe('repo:static');
+    expect(body.title).toContain('vercel/next.js');
+    const content = JSON.parse(body.content || '{}');
+    expect(content.configSignals.hasDockerfile).toBe(true);
+    expect(content.risks).toContain('No .env.example found');
+
+    expect(staticSpy).toHaveBeenCalledWith('repo.static.inspect', expect.anything(), ['gh-vercel']);
+
+    staticSpy.mockRestore();
   });
 });
 

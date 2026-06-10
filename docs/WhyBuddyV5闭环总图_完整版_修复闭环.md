@@ -4667,6 +4667,81 @@ V5 闭环原型 98-99% 基本封顶；真实 server LLM 路径已带完整护栏
 
 ---
 
+## 本轮变更（feat(whybuddy): add static repo analysis capability）
+
+**执行依据**：用户本轮 review（@docs/whybuddy_v5.1.md，确认 Expanded GitHub Evidence v1 完成、更新分数和阶段定义） + 明确 "下一步我建议不要立刻 Docker，先做 Static Repo Analyzer" + 详细规格（capability repo.static.inspect、读取的关键文件列表、输出 JSON 结构、不执行命令、全 mock 测试、推荐路线、git hygiene 继续排除无关文件）。
+
+### 用户 review 关键内容（verbatim 参考）
+
+**当前进度（用户更新）**
+MCP GitHub external capability absorption：94-95%
+GitHub evidence 质量：92-94%
+真实生产 readiness：96% 左右
+
+**当前阶段定义（用户建议）**
+> WhyBuddy V5 闭环原型已进入 99% 稳定基线；GitHub 外部证据 capability 已从 P0 adapter 进入 v1 evidence enrichment。系统下一阶段应从“读外部源”推进到“静态理解 repo 结构”，再决定是否进入 Docker 执行沙箱。
+
+**推荐路线**
+GitHub evidence → static repo analysis → execution plan artifact → Docker Sandbox。
+
+**为什么 Static 比 Docker 更值现在**
+先拿 70% 工程判断能力，成本 20-30%；为 Docker 提供更好输入（知道 pnpm vs npm、该跑哪个 script、env 需求、有无 CI）。
+
+**下一个 commit 建议**
+`feat(whybuddy): add static repo analysis capability`
+
+文件大概率：新建 server/whybuddy/repo-static-analyzer.ts + 更新 route、test、docs。
+
+继续排除 GROK_PLANS_EXPORT_README.md 和 v5.1 相关未跟踪 docs。
+
+**与 V5.1 修复清单的关系**
+必须严格不破坏 P0–P6（AWAIT 闸、覆盖率闸+决策账、单一回炉、STATE 唯一 authority、预算闸、信任双速、辩论守卫）。新 capability 只是能力池里的 adapter，由 ORCH pick，通过 /execute-capability seam，返回 raw shape，绝不绕过闸或破坏单一真相。
+
+### 本轮执行记录
+
+- **新建 `server/whybuddy/repo-static-analyzer.ts`**（薄 adapter）：
+  - 导出 `executeRepoStaticInspect`。
+  - 复用 GitHub adapter 的 extractFirstGithubUrl / scanForGithubUrl（已 export）提取 repo 上下文（优先 inputArtifactIds）。
+  - 受控 raw fetch（timeout、size guard、无 credential header）读取 package.json / pnpm-lock.yaml / yarn.lock / package-lock.json / tsconfig.json / README.md / LICENSE / Dockerfile / .env.example。
+  - API 调用（/contents/.github/workflows）检测 CI。
+  - 简单启发式解析：packageManager（lock 文件名优先）、detectedStack（react/next/vue/svelte/typescript/vite 等从 deps + tsconfig）、scripts、ci 信号、configSignals（文件存在性）、确定性 risks（无 test script / 无 CI / 无 Dockerfile / 无 .env.example）、recommendedNextChecks。
+  - 组装结构化 JSON 放入 content。
+  - 返回 raw `{title, summary, content, provenance: 'repo:static'}`。
+  - 优雅缺失（文件 404 → 对应字段 null + risk）。
+
+- **更新 `server/routes/whybuddy.ts`**：
+  - 增加 import。
+  - 在 /execute-capability handler 中（GitHub 分支之后）添加 `if (capabilityId === "repo.static.inspect")` 分支，直接调用 analyzer 返回 raw（完全绕过 LLM 路径）。
+  - 保持现有 GitHub / LLM / durable 逻辑不变。
+
+- **更新 `server/routes/__tests__/whybuddy.execute-capability.test.ts`**（现在 12 tests）：
+  - 新 success case for `repo.static.inspect`：assert raw shape + content 结构（detectedStack、packageManager、scripts、ci、configSignals、risks、recommendedNextChecks）。
+  - 新 case：inputArtifactIds 优先 + 与 GitHub evidence 联动（state 有两个 GitHub artifact，指定 second 必须命中 vercel/next.js 的 static 结果）。
+  - Graceful missing key files。
+  - 所有 GitHub 调用 mock（spy 模式）。
+  - 保留所有之前 GitHub cases、spy assertions、error-path spies、report reference 测试。
+
+- **全链路验证**：
+  - Server test：12 passed (12)。
+  - `pnpm run verify:whybuddy-v5`：完整绿（31 client + 12 server + tsc clean + smoke:whybuddy ALL 5 PASSED（日志 "31/31 vitest"） + store smoke ALL 9 steps + durability（日志 "prior 31/31"））。
+  - `git diff --check`：仅 CRLF 警告。
+  - Hygiene：仅显式 add V5 文件（新建 analyzer + route + test + docs）；GROK_PLANS_EXPORT_README.md 和 v5.1 docs 保持 untracked。
+
+- **文档**：本 append 使用 search_replace 干净 UTF-8 直写，包含用户 review 关键 + 执行记录 + 更新阶段定义（强调在 GitHub evidence 之后、Docker 之前，严格遵守 V5.1 核心修复）。
+
+**当前阶段可以定义为（延续用户评分）**：
+```text
+V5 原型 99% 封顶；GitHub MCP evidence 已 v1 丰富；现完成 Static Repo Analyzer v1（repo.static.inspect，只读关键文件信号，结构化 evidence JSON）；验证护栏 98%；真实生产 readiness 96%+。
+```
+
+所有步骤严格遵循已批准 plan（static v1 只读分析 + 全 mock + inputArtifactIds 优先 + raw shape + runtime 独占 commit/Trust Gate/闭环 + 显式 git hygiene + 不破坏 V5.1 修复）。
+
+下一步（用户建议）：在 static 稳固后推进 Repo Execution Plan artifact，然后 Docker Sandbox adapter。
+
+（本轮变更保持 WhyBuddy 核心边界：新 adapter 只产 raw content；commit/Trust Gate/producedBy/evidenceRefs/stale/report schema 仍由 runtime 掌控；与 C_REPO 节点对齐。）
+
+---
+
 ## 本轮变更（feat(whybuddy): enrich GitHub evidence capability）
 
 **执行依据**：用户最新 review（确认 07403708 干净、之前 Medium/Low 已收口、无新 blocker） + 建议的 "Expanded GitHub Evidence v1" 计划。

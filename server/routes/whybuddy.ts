@@ -22,6 +22,7 @@ import { getAIConfig } from "../core/ai-config.js";
 import { callLLMJson } from "../core/llm-client.js";
 import { buildStructuredReport } from "../../shared/blueprint/whybuddy-report-builder.js";
 import { executeGithubMcpCapability } from "../whybuddy/github-mcp-adapter.js";
+import { executeRepoStaticInspect } from "../whybuddy/repo-static-analyzer.js";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -207,6 +208,11 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
     if (capabilityId === "source.github.inspect" || capabilityId === "evidence.github.collect") {
       const gh = await executeGithubMcpCapability(capabilityId, state, inputArtifactIds);
       return res.json(gh);
+    }
+
+    if (capabilityId === "repo.static.inspect") {
+      const result = await executeRepoStaticInspect(capabilityId, state, inputArtifactIds);
+      return res.json(result);
     }
 
     const config = getAIConfig();
