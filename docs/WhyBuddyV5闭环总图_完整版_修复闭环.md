@@ -5348,6 +5348,179 @@ V5 原型 99% 封顶 + 生产化底座 95-96%；V5.1 控制平面三件套（BUD
 
 ---
 
+## Knife 5：decision-level challenge re-entry（按用户 review "收到。Knife 4 这刀落地后..."）
+
+**执行日期**：紧接 Knife 4 FLOWB 净化 + 用户确认 "现在 V5.1 的骨架已经站起来了，下一步应该让用户能够“挑战为什么这么调度”" 之后。
+
+**用户本次 Findings（原文 verbatim 完整关键部分）**
+
+```text
+收到。Knife 4 这刀落地后，V5.1 的“控制平面 + 正式路径净化”已经相当成型了。
+
+我按你这次执行结果更新：
+
+V5 原型完成度：99%
+V5 生产化底座：95-96%
+V5.1 架构图效果：89-90%
+V5.1 控制平面完成度：86-88%
+验证护栏：98%+
+
+现在这条链已经很像真正的 V5.1 了：
+
+INTAKE -> BUDGET -> ORCH -> DLEDGER -> GCOV -> FLOWB -> plan / AWAIT
+
+各自职责也清楚了：
+
+BUDGET：别跑爆
+DLEDGER：为什么这么跑
+GCOV：跑够了没有，不够不许收敛
+FLOWB：正式路径前协议净化，不吞 debate / critique / rebuttal 噪音
+
+这次 FLOWB 的插入点也选得对：没有把整个 brainstorm 系统搬进来，而是先守住 `report.write` / `synthesis.merge` 的正式 artifact 内容。这是 v1 最值钱的位置。
+
+**为什么现在可以给 89-90%**
+
+因为 V5.1 图里的四个核心新增控制点都已经有 runtime 事实了：
+
+| V5.1 控制点 | 当前状态 |
+|---|---|
+| BUDGET | 已进 ORCH 前置路径 |
+| DLEDGER | 每次 pick 有审计账 |
+| GCOV | 能阻断 premature report |
+| FLOWB | 能净化正式路径协议噪音 |
+| AWAIT | 已可观测 |
+| INTAKE | 单门 |
+| DERIVE | 只读投影 |
+| Re-entry | 单链路 + stale cascade |
+| Capability seam | 已能接 LLM/GitHub/static evidence |
+| Durable store | 已可恢复 |
+
+这已经不是“V5 加一些 adapter”，而是真正有了 V5.1 的控制平面味道。
+
+**为什么还不是 95%**
+
+剩下差距主要不是骨架，而是“可操作性”和“更细粒度的可追责”：
+
+1. **decision-level challenge 还没做**
+   - DLEDGER 有账，但用户/UI 还不能点某条 decision 发起 challenge。
+   - `UserIntervention` 还没有 `targetDecisionId`。
+   - invalidation / re-orchestrate 还不能从 decision 回到对应 gap/capability。
+
+2. **Cost telemetry 还只是 v1 counts**
+   - Budget 能挡 count-based 爆炸。
+   - 但还没有 token/cost/run duration 按 capability 入账。
+   - 还不能回答“这轮 risk.analyze 花了多少”。
+
+3. **CoverageContract 还是 mechanical v1**
+   - 还没有 authored/frozen baseline 的更完整版本。
+   - `resolved/waived gaps` 还没成真实 gap ledger。
+   - GCOV 已能挡 premature report，但还不是完整 coverage reasoning。
+
+4. **FLOWB v1 是 line filter**
+   - 它已经守住正式路径。
+   - 但还没和更完整的 brainstorm protocol / debate wall 结构深度绑定。
+
+所以我现在会说：**V5.1 架构图效果 89-90%，但要到 95%，必须进入“用户可交互追责 + 成本/coverage 更细账”的阶段。**
+
+**下一刀建议：Knife 5 decision-level challenge**
+
+我建议按之前顺序继续：
+
+feat(whybuddy): add decision-level challenge re-entry
+
+目标一句话：
+
+> DLEDGER 里的每条 scheduling decision 不只是可看，还能被用户挑战，并通过单 INTAKE 回到对应调度上下文。
+
+**Knife 5 最小可交付**
+
+1. 扩展 `UserIntervention`：
+
+targetDecisionId?: string;
+
+2. 扩展 `invalidateForIntervention` 或新增 helper：
+
+resolveDecisionIntervention(state, targetDecisionId)
+
+v1 不一定要真的 stale artifact，可以先做：
+
+找到 decision
+把 decision.status / challenged 标记为 true
+把 intervention text 注入下一轮 context
+强制 DLEDGER rationale 带 “decision challenged”
+下一轮 pick 优先 reconsider decision.chose / alternativesRejected
+
+3. `SchedulingDecision` 增加可选字段：
+
+status?: "active" | "challenged" | "superseded";
+challengedAt?: string;
+challengeText?: string;
+
+保持 optional，durable-safe。
+
+4. 页面 UI 最小入口：
+
+在 Verify / status / debug 或 graph/card 附近先不做复杂 UI。可以先加一个轻量按钮或开发态列表：
+
+最近调度决策：challenge
+
+但如果你想保持 UI 克制，v1 可以先 runtime-only test，不做 UI。
+
+5. 测试至少 3 个：
+
+decision-level challenge marks target decision as challenged
+decision challenge re-enters through intakeMessage single door
+decision challenge influences next DLEDGER rationale / selected reconsideration
+
+如果加 3 个，client tests：
+
+46 -> 49
+
+smoke 文案同步：
+
+46/46 -> 49/49
+
+**做完 Knife 5 后预期**
+
+V5.1 架构图效果：89-90% -> 92%
+V5.1 控制平面完成度：86-88% -> 90%+
+
+因为这会把 DLEDGER 从“审计账”推进成“可交互追责点”。这正好对应 V5.1 文档里的：
+
+challenge 一条 decision 能重开对应 gap 并触发重排程
+
+**后续顺序**
+
+Knife 5：decision-level challenge
+Knife 6：cost telemetry / richer Budget ledger
+Knife 7：CoverageContract authored baseline + resolved/waived gaps
+Knife 8：FLOWB 与完整 brainstorm protocol deeper integration
+
+一句话：**可以进 Knife 5。**  
+现在 V5.1 的骨架已经站起来了，下一步应该让用户能够“挑战为什么这么调度”，也就是把 DLEDGER 变成真正可操作的问责中枢。
+```
+
+**本阶段执行记录 + 结果（Knife 5）**
+
+- State 扩展：UserIntervention 增加 `targetDecisionId?: string`；SchedulingDecision 增加可选 `status/challengedAt/challengeText`（durable safe）。
+- Runtime：
+  - `invalidateForIntervention` 扩展：若 intervention 带 targetDecisionId，找到对应 decision 并就地标记 status="challenged"、challengedAt、challengeText（单门原则保持）。
+  - `orchestrateReasoningTurn` DLEDGER 记录时：检测当前 intervention.targetDecisionId（来自 intake 透传的 context），在 rationale 注入 "decision challenged: ... — reconsidering prior chose/alternativesRejected"；对 effectiveSelected 和 recorded decision.chose 做 v1 bias（把被挑战 decision 的 prior chose 优先并入，体现重考虑）。
+  - 后续 plan / 节点构建使用受影响的 effectiveSelected，DLEDGER 也记录了挑战上下文。
+- +3 tests（marks as challenged、re-enters single door via intakeMessage、influences next DLEDGER rationale + selected reconsideration）→ client **49 passed (49)**。
+- Smoke 文本同步 46/46 → 49/49。
+- `pnpm run verify:whybuddy-v5` 全绿（49+12, tsc, 5 flows, 9 store+durability，logs 带 49/49）。
+- 主 doc append 完整 verbatim review + 执行记录。
+- Git：仅 V5 文件，commit 使用用户建议消息 `feat(whybuddy): add decision-level challenge re-entry`；status 干净（仅 ?? 排除项）。
+
+现在用户可以挑战 DLEDGER 里的一条 scheduling decision，通过单 INTAKE 重新进入，并让下一轮 DLEDGER rationale / 计划体现重考虑。符合 "可操作的问责中枢" 目标。
+
+进度（用户口径）：89-90% → 92% 架构图效果；86-88% → 90%+ 控制平面。
+
+（注意：本 append 使用 search_replace UTF-8 直写，避免任何终端编码污染。）
+
+下一步按用户建议：Knife 6 cost telemetry / richer Budget ledger。
+
 ## Knife 4：FLOWB boundary guard v1（按用户 review "收到，Knife 3.1 这次是很关键的..."）
 
 **执行日期**：紧接 Knife 3.1 硬化 + 用户明确 “可以开始 FLOWB 了。但要保持 v1 克制” 之后。

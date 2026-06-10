@@ -1472,6 +1472,32 @@ export function invalidateForIntervention(
   intervention: UserIntervention
 ): V5SessionState {
   const targetId = intervention.targetArtifactId || intervention.targetNodeId;
+  const targetDecisionId = intervention.targetDecisionId;
+
+  // Handle decision-level challenge (Knife 5) even if no artifact/node target.
+  if (targetDecisionId) {
+    const ledger = state.decisionLedger || [];
+    const idx = ledger.findIndex((d: any) => d.id === targetDecisionId);
+    if (idx >= 0) {
+      const orig: any = ledger[idx];
+      const challenged = {
+        ...orig,
+        status: "challenged" as const,
+        challengedAt: new Date().toISOString(),
+        challengeText: intervention.text || orig.challengeText,
+      };
+      const newLedger = [...ledger];
+      newLedger[idx] = challenged;
+      // Also mark any associated nodes if we can map (best-effort via chose caps from that turn).
+      // For v1 we primarily rely on the ledger entry itself being marked.
+      return {
+        ...state,
+        decisionLedger: newLedger,
+      };
+    }
+    // If decision not found, fall through (still allow other invalidation if present).
+  }
+
   if (!targetId) return state;
 
   // Collect initial targets
@@ -1824,16 +1850,51 @@ export function orchestrateReasoningTurn(
     alternativesRejected: skipped.map((s) => s.capabilityId),
     createdAt: nowIso,
   };
+
+  // Knife 5: if this turn came from a decision challenge, mark influence on the new decision record
+  // and bias the effective plan to reconsider elements from the challenged decision (v1: prepend previous chose for reconsideration).
+  const challengeIntervention = intervention;
+  if (challengeIntervention?.targetDecisionId) {
+    const oldDec: any = (working.decisionLedger || []).find((d: any) => d.id === challengeIntervention.targetDecisionId);
+    if (oldDec) {
+      (decision as any).rationale = `${decision.rationale} | decision challenged: ${challengeIntervention.targetDecisionId} "${(challengeIntervention.text || "").slice(0, 60)}" — reconsidering prior chose/alternativesRejected`;
+      // v1 reconsideration bias: include previous chose items that weren't already picked this turn (so plan reflects re-consider)
+      const prevChose = (oldDec.chose || []) as string[];
+      const toReconsider = prevChose.filter((cid: string) => !choseIds.includes(cid));
+      if (toReconsider.length > 0) {
+        // prepend for visibility in plan (actual execution will still go through later commit)
+        // We adjust the local choseIds for this decision record and will use for effective later if needed.
+        (decision as any).chose = [...toReconsider, ...choseIds];
+        // Also surface in alternativesRejected note for audit
+        (decision as any).rationale = `${(decision as any).rationale} (reconsidered: ${toReconsider.join(',')})`;
+      }
+    }
+  }
+
   working = {
     ...working,
     decisionLedger: [...(working.decisionLedger || []), decision],
   };
 
+  // Knife 5: if the just-recorded decision was biased by a challenge (chose now contains reconsidered items),
+  // propagate to effectiveSelected so the returned TurnPlan reflects the reconsideration for this turn.
+  let effectiveSelected = [...selected];
+  const recordedChose = (decision as any).chose;
+  if (intervention?.targetDecisionId && recordedChose && recordedChose.length > 0) {
+    const origIds = selected.map((s: any) => s.capabilityId);
+    const extra = recordedChose.filter((cid: string) => !origIds.includes(cid));
+    if (extra.length > 0) {
+      effectiveSelected = [
+        ...extra.map((cid: string) => ({ capabilityId: cid as V5CapabilityId })),
+        ...effectiveSelected,
+      ];
+    }
+  }
+
   // ===== V5.1 GCOV (Knife 3) after DLEDGER, before final plan/graph =====
   // Budget already passed earlier; GCOV may force prepend missing required, but we respect per-turn budget afford.
   // Only act when converge intent (report.write selected or similar). Author contract on first need (v1).
   // On !passed: set coverageGate, prepend missing (capped by budget), patch latest DLEDGER decision (addresses + chose), adjust effective plan.
-  let effectiveSelected = [...selected];
   const hasConvergeIntent = selected.some((s: any) => s.capabilityId === 'report.write') ||
     /报告|report|总结|收敛|converge/.test(userTextForPick);
   if (!working.coverageContract) {

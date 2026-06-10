@@ -126,6 +126,8 @@ export interface UserIntervention {
   targetArtifactId?: string;
   targetNodeId?: string;
   targetReportSectionId?: string;
+  /** V5.1 Knife 5: allow challenging a specific SchedulingDecision from DLEDGER for re-entry / reconsideration. */
+  targetDecisionId?: string;
   intent:
     | "challenge"
     | "clarify"
@@ -171,6 +173,11 @@ export interface SchedulingDecision {
   rationale: string;
   alternativesRejected: string[];
   createdAt: string;
+
+  /** V5.1 Knife 5: decision-level challenge support (optional for durable compat). */
+  status?: "active" | "challenged" | "superseded";
+  challengedAt?: string;
+  challengeText?: string;
 }
 
 /** V5.1 CONTRACT / GCOV (P1/A): Coverage contract authored for the session/goal to declare what is required before convergence (report/AWAIT) is allowed. v1 mechanical rules only. */
