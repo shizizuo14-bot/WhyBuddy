@@ -5345,3 +5345,249 @@ V5 原型 99% 封顶 + 生产化底座 95-96%；V5.1 控制平面三件套（BUD
 **下一步（用户路线）**：FLOWB（第四刀，strip critique/rebuttal/debate + boundary assert to ledger）。或按需增强 real cost telemetry / decision challenge 指向。目标持续向 90%+ 推进，但三件套已成，V5.1 灵魂（不能太早下结论的机械闸门）已就位。
 
 （本轮变更严格只补 V5.1 CONTRACT/GCOV 控制平面；V5 骨架 + 现有脊柱 + Budget + DLEDGER + INTAKE/AWAIT/executor seam / durable 完全不动。Git 仅 V5 文件：runtime.ts、v5-reasoning-state.ts、runtime.test.ts、两 smoke、主 doc。）
+
+---
+
+## Knife 3.1 收口（High/Medium 修复）：harden GCOV ledger consistency and block premature report
+
+**执行日期**：紧接 Knife 3 交付 + 用户 Findings 审查（High: DLEDGER chose/skipped overlap；Medium: GCOV fail 仍可能让 report 留在 plan；Low: P0 注释）之后。小刀收口，不进新大特性。
+
+**用户本次 Findings（原文 verbatim）**
+
+```text
+**Findings**
+
+**High — GCOV 强制补排后，DLEDGER 可能同时把同一个 capability 记在 `chose` 和 `skipped` 里，审计账不一致。**  
+位置：[client/src/lib/whybuddy-runtime.ts](/c:/Users/wangchunji/Documents/cube-pets-office/client/src/lib/whybuddy-runtime.ts:1692)、[client/src/lib/whybuddy-runtime.ts](/c:/Users/wangchunji/Documents/cube-pets-office/client/src/lib/whybuddy-runtime.ts:1757)
+
+当前 DLEDGER 是在原始 `selected` 后先生成：
+
+```ts
+chose = selected.map(...)
+skipped = saw.filter(cid => !choseIds.includes(cid))
+```
+
+然后 GCOV 如果发现缺 `risk.analyze`，会把 missing capability 强制 prepend 到 `effectiveSelected`，并 patch：
+
+```ts
+lastDec.chose = [...lastDec.chose, ...forced.map(...)]
+```
+
+但这里没有同步从 `lastDec.skipped` / `lastDec.alternativesRejected` 里移除这些 forced capability。
+
+结果：如果 `risk.analyze` 原本没被 picker 选中、后来被 GCOV 强制补上，ledger 可能变成：
+
+```text
+chose:   ["report.write", "risk.analyze"]
+skipped: [..., { capabilityId: "risk.analyze", reason: "not chosen..." }]
+```
+
+这会直接破坏 DLEDGER 的核心价值：**调度账不能自相矛盾**。  
+建议修法：GCOV patch DLEDGER 时，拿 `forcedIds` 过滤：
+
+```ts
+lastDec.skipped = lastDec.skipped.filter(sk => !forcedIds.includes(sk.capabilityId));
+lastDec.alternativesRejected = lastDec.alternativesRejected.filter(cid => !forcedIds.includes(cid));
+```
+
+再补一个 regression：
+
+```text
+GCOV-forced capability is not left in skipped / alternativesRejected
+```
+
+这条我会列 High，因为 DLEDGER 是 Knife 2 的主成果，Knife 3 现在会在关键路径上污染它。
+
+---
+
+**Medium — GCOV 失败但 budget afford 不足时，仍可能让 `report.write` 留在 plan 里继续执行。**  
+位置：[client/src/lib/whybuddy-runtime.ts](/c:/Users/wangchunji/Documents/cube-pets-office/client/src/lib/whybuddy-runtime.ts:1732)、[client/src/lib/whybuddy-runtime.ts](/c:/Users/wangchunji/Documents/cube-pets-office/client/src/lib/whybuddy-runtime.ts:1741)、[client/src/lib/whybuddy-runtime.ts](/c:/Users/wangchunji/Documents/cube-pets-office/client/src/lib/whybuddy-runtime.ts:1794)
+
+当前逻辑是：
+
+```ts
+if (!gateResult.passed && hasConvergeIntent) {
+  const forced = toForce.slice(0, afford);
+  if (forced.length > 0) {
+    effectiveSelected = [...forced, ...effectiveSelected];
+  }
+}
+```
+
+如果 `afford === 0`，或者 missing required 没法补进去，`effectiveSelected` 不变。也就是说：  
+`coverageGate.passed = false` 已经记录了，但原始 `report.write` 仍可能在 `plan.selected` 中继续往下执行。
+
+这和 Knife 3 的目标“机械阻止过早 report / converge”还有一点缝。现在更像 **GCOV 标记失败 + 尽量补排**，还不是所有场景都 **硬阻断 premature report**。
+
+建议修法二选一：
+
+1. **硬阻断模式**：如果 `!passed && hasConvergeIntent && missing not fully scheduled`，直接返回 AWAIT partial，`plan.selected=[]`，reason 写 `GCOV_BLOCKED`，conversation 里落 `[GCOV] blocked` note。
+
+2. **替换模式**：预算不够时，优先保 required capability，移除 `report.write`：
+   ```ts
+   effectiveSelected = [...forced, ...effectiveSelected.filter(s => s.capabilityId !== 'report.write')]
+   ```
+
+我更推荐第 1 个，语义最清楚：GCOV fail 就不允许收敛。
+
+需要补一个测试：构造 “report intent + missing risk + no afford to force” 的场景，断言 `plan.selected` 不包含纯 `report.write`，并且 `coverageGate.passed=false`。
+
+---
+
+**Low — `CoverageContract` 注释里把 P1/A 写成了 P0，文档语义不准。**  
+位置：[shared/blueprint/v5-reasoning-state.ts](/c:/Users/wangchunji/Documents/cube-pets-office/shared/blueprint/v5-reasoning-state.ts:166)
+
+当前注释：
+
+```ts
+/** V5.1 CONTRACT / GCOV (P0): ... */
+```
+
+但按 `whybuddy_v5.1.md`，CONTRACT / GCOV 属于 **P1/A**，P0 是 AWAIT 交互闸接入。建议改成：
+
+```ts
+/** V5.1 CONTRACT / GCOV (P1/A): ... */
+```
+
+这不影响运行，但后面你靠注释对图时会少一个小歧义。
+
+---
+
+**Open Questions / Assumptions**
+
+我没有看到 runtime invariant 被破坏：  
+`INTAKE -> BUDGET -> ORCH -> DLEDGER -> GCOV -> plan` 这条主链确实已经进代码了。`CapabilityExecutor` raw 4-field、`commitArtifact` owning Trust Gate / `producedBy` / `evidenceRefs`、stale cascade、AWAIT 外圈，都没有被 Knife 3 改坏。
+
+我也确认了当前工作树没有 V5 源码未提交改动，只有预期未跟踪文档/导出文件：
+
+```text
+?? GROK_PLANS_EXPORT_README.md
+?? docs/WhyBuddy_V5_AsBuilt_模块关联分析.md
+?? docs/whybuddy-v5-asbuilt-relations.mermaid
+?? docs/whybuddy_v5.1.md
+```
+
+**Verification**
+
+我刚重新跑了：
+
+```powershell
+pnpm exec vitest run client/src/lib/whybuddy-runtime.test.ts --reporter=dot
+```
+
+结果：
+
+```text
+41 passed (41)
+```
+
+也跑了完整：
+
+```powershell
+pnpm run verify:whybuddy-v5
+```
+
+结果全绿：
+
+```text
+client runtime: 41 passed (41)
+server execute-capability: 12 passed (12)
+tsc: clean
+browser smoke: ALL 5 flows PASSED
+store smoke: PUT/GET/LIST/DELETE/404 + durability ALL PASSED
+```
+
+所以这次不是“测试红了”的问题，而是 **Knife 3 的 contract 严格度还有两个边界需要钉死**。
+
+**Progress Update**
+
+如果只按“功能已接入 + 全绿”算，Knife 3 可以给到：
+
+```text
+V5.1 架构图效果：84-85%
+```
+
+但按我这次审查的真实严谨口径，两个问题没修前我会稍微压一下：
+
+```text
+当前真实 V5.1 架构图效果：82-83%
+修掉 DLEDGER overlap + GCOV hard-block 后：85-86%
+V5 原型完成度：99%
+V5 生产化底座：95-96%
+V5.1 控制平面完成度：75-78%，修后 80%+
+```
+
+**Next Plan**
+
+我建议不要直接进 FLOWB，先做一个很小的 Knife 3.1 收口：
+
+```text
+fix(whybuddy): harden GCOV ledger consistency and block premature report
+```
+
+最小改动：
+
+1. GCOV forced capability 后，从 `skipped` / `alternativesRejected` 移除 forced ids。
+2. 如果 GCOV fail 且 required missing 没有全部被安排，禁止 `report.write` 继续执行。
+3. 修注释 `P0 -> P1/A`。
+4. 加 2 个 tests：
+   - forced capability 不出现在 skipped / alternativesRejected。
+   - GCOV fail + no afford 时不允许 report.write 留在 plan。
+5. 跑：
+   ```powershell
+   pnpm run verify:whybuddy-v5
+   git diff --check
+   git status --short
+   ```
+
+做完这小刀，Knife 3 才是真的硬。然后再进 Knife 4：FLOWB。
+```
+
+**本阶段执行记录 + 结果（Knife 3.1）**
+
+- High 修复（DLEDGER 一致性）：在 GCOV `if (forced.length > 0)` 分支里，拿到 `forcedIds` 后，除了 append chose + rationale，还执行：
+  `lastDec.skipped = lastDec.skipped.filter(sk => !forcedIds.includes(sk.capabilityId));`
+  `lastDec.alternativesRejected = lastDec.alternativesRejected.filter(cid => !forcedIds.includes(cid));`
+  保证被 GCOV 补上的 cap 不会同时出现在 chose 和 skipped。
+
+- Medium 修复（硬阻断 premature report）：在 GCOV 块末尾增加判定：
+  ```ts
+  const stillMissingPreReqs = preReqs.filter(m => !effectiveSelected.some(...));
+  const reportStillPresent = ... 'report.write' ...
+  if (stillMissingPreReqs.length > 0 && reportStillPresent) {
+    // 走类似 Budget 的 partial AWAIT 路径
+    let parked = markAwaiting(...);
+    ... 追加 [GCOV] blocked note ...
+    拷贝 coverageGate / decisionLedger ...
+    patch 最后 decision rationale 带 GCOV_BLOCKED
+    return { newState: parked, plan: {selected:[], reason:`GCOV_BLOCKED:...`}, newGraphNodes:[] };
+  }
+  ```
+  语义：GCOV !passed 且无法把 required pre-req 全部排进本 turn plan 时，**直接禁止收敛**，不让 report.write 继续流下去。
+
+- Low 修复：shared/blueprint/v5-reasoning-state.ts 把 `/** V5.1 CONTRACT / GCOV (P0) */` 改成 `(P1/A)`。
+
+- 新增 2 个 regression tests（43/43）：
+  - `GCOV-forced capability is not left in skipped / alternativesRejected`
+  - `GCOV fail + insufficient afford blocks report.write from plan and parks AWAIT`（用 untrusted risk kind seed + 精心构造的 userText 让 picker 产出接近 5 个 cap 且不含 risk，但 GCOV 仍 missing risk + report present → 触发硬 block，plan.length===0 + awaiting + note + 账 annotated）。
+
+- Smoke 护栏同步更新为 43/43。
+
+- 验证：`pnpm run verify:whybuddy-v5` 全绿（43 client + 12 server + tsc + 5 flows + 9 store + durability，日志里出现 43/43）。
+
+- Git：仅 V5 文件（runtime.ts、runtime.test.ts、两 smoke、主 doc），commit 消息使用用户建议的 `fix(whybuddy): harden GCOV ledger consistency and block premature report`。
+
+**当前阶段定义（按用户审查口径）**
+
+```text
+Knife 3 + 3.1 收口后：
+V5.1 架构图效果：85-86%
+V5.1 控制平面完成度：80%+
+DLEDGER 不再被 GCOV 污染，GCOV 成为真正的“机械闸门”（fail 且缺 required 时直接 partial AWAIT 阻断收敛）。
+```
+
+所有步骤严格按用户本次 review 的 “Next Plan” 5 点最小改动执行。DLEDGER（Knife 2 主成果）和 GCOV（Knife 3 灵魂）现在在边界上都硬了。
+
+（注意：本 append 使用 search_replace UTF-8 直写，避免任何终端编码污染。）
+
+下一步按用户：做完这小刀，Knife 3 才是真的硬。然后再进 Knife 4：FLOWB。

@@ -1785,12 +1785,15 @@ export function orchestrateReasoningTurn(
     const policy = getDefaultBudgetPolicy();
     const afford = Math.max(0, policy.maxCapabilityRunsPerTurn - effectiveSelected.length);
     const forced = toForce.slice(0, afford);
+    const forcedIds = forced.map((f: any) => f.capabilityId);
 
     if (forced.length > 0) {
       effectiveSelected = [...forced, ...effectiveSelected];
     }
 
-    // Link to DLEDGER: patch the just-appended decision (addresses + chose if forced)
+    // Link to DLEDGER: patch the just-appended decision (addresses + chose if forced).
+    // Critical: also remove any forced caps from skipped / alternativesRejected so the ledger stays consistent
+    // (a cap that was "not chosen by picker" but later forced by GCOV for coverage must not appear in both chose and skipped).
     const ledgerArr = working.decisionLedger || [];
     if (ledgerArr.length > 0) {
       const lastDec: any = ledgerArr[ledgerArr.length - 1];
@@ -1798,12 +1801,54 @@ export function orchestrateReasoningTurn(
         const covAdds = missing.map((m) => `coverage:required:${m}`);
         lastDec.addresses = [...(lastDec.addresses || []), ...covAdds];
         if (forced.length > 0) {
-          lastDec.chose = [...(lastDec.chose || []), ...forced.map((f: any) => f.capabilityId)];
-          lastDec.rationale = `${lastDec.rationale || ''} | GCOV-forced: ${forced.map((f: any) => f.capabilityId).join(',')}`;
+          lastDec.chose = [...(lastDec.chose || []), ...forcedIds];
+          lastDec.skipped = (lastDec.skipped || []).filter((sk: any) => !forcedIds.includes(sk.capabilityId));
+          lastDec.alternativesRejected = (lastDec.alternativesRejected || []).filter((cid: string) => !forcedIds.includes(cid));
+          lastDec.rationale = `${lastDec.rationale || ''} | GCOV-forced: ${forcedIds.join(',')}`;
         } else if (missing.length > 0) {
           lastDec.rationale = `${lastDec.rationale || ''} | GCOV: ${gateResult.reason}`;
         }
       }
+    }
+
+    // Hard block for premature report/converge (per review): if after budget-aware force attempt we still have
+    // unresolved pre-req missing (e.g. risk.analyze) and the plan still contains report.write (or converge intent),
+    // do not allow the turn to proceed with a report. Instead park at partial AWAIT (like Budget block),
+    // record auditable [GCOV] note, return empty plan. This makes GCOV a true mechanical gate, not just a marker.
+    const preReqs = missing.filter((m) => m !== 'report.write');
+    const stillMissingPreReqs = preReqs.filter((m) => !effectiveSelected.some((s: any) => s.capabilityId === m));
+    const reportStillPresent = effectiveSelected.some((s: any) => s.capabilityId === 'report.write');
+    if (stillMissingPreReqs.length > 0 && reportStillPresent) {
+      let parked = markAwaiting(working, turnId);
+      const noteText = `[GCOV] blocked: ${gateResult.reason}. Required capabilities not fully scheduled due to budget afford. Partial AWAIT (no convergence this turn).`;
+      const note = {
+        id: `${turnId}-gcov`,
+        role: 'system',
+        text: noteText,
+        timestamp: new Date().toISOString(),
+      };
+      parked = {
+        ...parked,
+        conversation: [...(parked.conversation || []), note],
+        coverageGate: working.coverageGate,
+        coverageContract: working.coverageContract,
+        decisionLedger: working.decisionLedger,
+      };
+
+      // Ensure the last decision reflects the block for audit trail
+      const ldArr = parked.decisionLedger || [];
+      if (ldArr.length > 0) {
+        const ld: any = ldArr[ldArr.length - 1];
+        if (ld) {
+          ld.rationale = `${ld.rationale || ''} | GCOV_BLOCKED`;
+        }
+      }
+
+      return {
+        newState: parked,
+        plan: { selected: [], reason: `GCOV_BLOCKED: ${gateResult.reason}`, expectedArtifacts: [] } as TurnPlan,
+        newGraphNodes: [],
+      };
     }
   }
 

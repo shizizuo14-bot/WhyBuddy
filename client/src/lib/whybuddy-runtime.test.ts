@@ -1604,4 +1604,91 @@ describe('whybuddy-runtime V5 closed loop (behavioral regression)', () => {
       expect(afterO.coverageGate).toBeTruthy();
     }
   });
+
+  // ===== Knife 3.1 regressions (per review: DLEDGER consistency + hard GCOV block) =====
+
+  it('GCOV-forced capability is not left in skipped / alternativesRejected', () => {
+    // Complex goal + report intent with no trusted risk yet will cause GCOV to want to force 'risk.analyze'.
+    // Even if the original picker did not include it (or did), after GCOV the decision must not list it in skipped.
+    const goal = '权限系统有风险，需要最终报告';
+    let s = createInitialSessionState(goal, 'gcov-31-1');
+    const { newState: afterO } = orchestrateReasoningTurn(s, {
+      turnId: 'g31-1',
+      userText: '生成最终报告',
+    });
+    const ledger = getDecisionLedger(afterO);
+    expect(ledger.length).toBeGreaterThan(0);
+    const last = ledger[ledger.length - 1];
+    const skippedIds = (last.skipped || []).map((sk: any) => sk.capabilityId);
+    const altRejected: string[] = last.alternativesRejected || [];
+    // If GCOV forced risk (or any required), it must not appear in the picker's "skipped" view anymore.
+    expect(skippedIds.includes('risk.analyze')).toBe(false);
+    expect(altRejected.includes('risk.analyze')).toBe(false);
+    // And the gate should reflect the (pre-force) missing
+    const gate = afterO.coverageGate as CoverageGateResult | undefined;
+    if (gate && !gate.passed) {
+      // The decision should have the coverage address recorded
+      const adds = (last.addresses || []) as string[];
+      expect(adds.some((a: string) => a.includes('risk.analyze'))).toBe(true);
+    }
+  });
+
+  it('GCOV fail + insufficient afford blocks report.write from plan and parks AWAIT', () => {
+    // To hit afford==0 + still-missing-pre-req while report is selected:
+    // - Complex goal (contains "风险" for infer → requires risk.analyze).
+    // - userText triggers report + other branches but *avoids* the risk/safety keyword if in picker
+    //   (so risk not auto-pushed by top-level risk block).
+    // - Seed a *non-trusted* 'risk' kind artifact → picker's hasRisk=true (report block's !hasRisk is false, no push)
+    //   but GCOV still sees no *trusted committed* risk.analyze → missing + force attempt.
+    // - openQ + the filler keywords drive pick to ~5 items including report.write.
+    // - afford=0 for the needed force → hard block returns empty plan + AWAIT.
+    const goal = '有风险的权限系统最终可行性报告';
+    let s = createInitialSessionState(goal, 'gcov-31-2');
+
+    // Untrusted risk kind (visible to picker gap logic) but not trusted for GCOV commit check.
+    const { updatedState: sWithRisk } = commitArtifact(
+      s,
+      createRawArtifact('untrusted-risk', 'risk.analyze', '安全', 'risk'),
+      'g31-2-run-risk',
+      false,
+      []
+    );
+    const untrusted = (sWithRisk.artifacts || []).find((a: any) => a.id === 'untrusted-risk');
+    if (untrusted) {
+      (untrusted as any).trustLevel = 'untrusted';
+      (untrusted as any).passedGates = [];
+    }
+
+    s = {
+      ...sWithRisk,
+      openQuestions: [{ id: 'q1', text: '边界？' }],
+    } as any;
+
+    // userText has "报告" (report intent + report block) + route/decompose/preview fillers,
+    // but deliberately no "风险|安全|反驳" so the early risk if in pickNext does not fire.
+    const { newState: afterO, plan } = orchestrateReasoningTurn(s, {
+      turnId: 'g31-2',
+      userText: '生成最终报告 路线对比 拆解结构 预览效果',
+    });
+
+    const gate = afterO.coverageGate as CoverageGateResult | undefined;
+    expect(gate).toBeTruthy();
+    expect(gate!.passed).toBe(false);
+    expect(gate!.missingCapabilities).toContain('risk.analyze');
+
+    // The hard block should have fired because afford was insufficient to force the missing pre-req.
+    const caps = (plan.selected || []).map((p: any) => p.capabilityId);
+    const onlyReport = caps.length === 1 && caps[0] === 'report.write';
+    expect(onlyReport).toBe(false);
+    // Block path returns empty selected + AWAIT
+    expect(plan.selected.length).toBe(0);
+    expect(afterO.runtimePhase).toBe('awaiting');
+    // GCOV block note in conversation
+    const hasGcovNote = (afterO.conversation || []).some((c: any) => (c.text || '').includes('[GCOV] blocked'));
+    expect(hasGcovNote).toBe(true);
+    // Decision annotated
+    const ledger = getDecisionLedger(afterO);
+    const last = ledger[ledger.length - 1];
+    expect(last.rationale).toMatch(/GCOV_BLOCKED|GCOV/);
+  });
 });

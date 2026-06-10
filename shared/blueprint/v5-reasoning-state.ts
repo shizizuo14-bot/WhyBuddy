@@ -170,7 +170,7 @@ export interface SchedulingDecision {
   createdAt: string;
 }
 
-/** V5.1 CONTRACT / GCOV (P0): Coverage contract authored for the session/goal to declare what is required before convergence (report/AWAIT) is allowed. v1 mechanical rules only. */
+/** V5.1 CONTRACT / GCOV (P1/A): Coverage contract authored for the session/goal to declare what is required before convergence (report/AWAIT) is allowed. v1 mechanical rules only. */
 export interface CoverageContract {
   id: string;
   version: 1;
