@@ -34,6 +34,11 @@ import {
   createOpenAILlmCapabilityProvider,
   createServerLlmCapabilityProvider,
   type LlmCapabilityProvider,
+  evaluateBudgetBeforeOrchestrate,
+  getDefaultBudgetPolicy,
+  recordCapabilityRunCost,
+  type BudgetPolicy,
+  type BudgetSnapshot,
 } from './whybuddy-runtime';
 import { isTestHelperEnabled } from '../../../server/routes/whybuddy.ts';
 import type { V5SessionState, Artifact, UserIntervention } from '@shared/blueprint/v5-reasoning-state';
@@ -1328,5 +1333,74 @@ describe('whybuddy-runtime V5 closed loop (behavioral regression)', () => {
       else useDefaultExecutor();
       clearWhyBuddySessionStore();
     }
+  });
+
+  // ===== V5.1 Budget Gate v1 tests (first knife: counts entry gate + partial AWAIT) =====
+  it('Budget Gate v1: high distinct turns -> parks at AWAIT partial, empty plan, auditable conv note', () => {
+    let heavy = createInitialSessionState('budget test goal', 'b1');
+    // Fabricate 31 distinct turns via capabilityRuns ( > default max 30 )
+    const fakeRuns: any[] = Array.from({ length: 31 }, (_, i) => ({
+      id: `run-t${i}`,
+      capabilityId: 'evidence.search',
+      turnId: `t${i}`,
+      inputs: [],
+      outputs: [],
+      gateResults: [],
+    }));
+    heavy = { ...heavy, capabilityRuns: fakeRuns };
+
+    const { newState: afterO, plan } = orchestrateReasoningTurn(heavy, {
+      turnId: 't-new-32',
+      userText: '继续推演更多',
+    });
+
+    expect(afterO.runtimePhase).toBe('awaiting');
+    expect(plan.selected).toEqual([]);
+    expect(plan.reason).toMatch(/BUDGET_EXCEEDED/);
+    const notes = (afterO.conversation || []).filter((c: any) => c.id && c.id.includes('-budget'));
+    expect(notes.length).toBeGreaterThan(0);
+    expect(notes[0].text).toMatch(/maxTurns exceeded/);
+  });
+
+  it('Budget Gate v1: repeat capability exceeds maxRepeat -> blocks further ORCH, partial AWAIT', () => {
+    let heavy = createInitialSessionState('repeat budget', 'b2');
+    const cap = 'risk.analyze';
+    // 7 runs of same cap ( > default maxRepeat 6 )
+    const fakeRuns: any[] = Array.from({ length: 7 }, (_, i) => ({
+      id: `r${i}`,
+      capabilityId: cap,
+      turnId: `tr${i}`,
+      inputs: [],
+      outputs: [],
+      gateResults: [],
+    }));
+    heavy = { ...heavy, capabilityRuns: fakeRuns };
+
+    const { newState: afterO, plan } = orchestrateReasoningTurn(heavy, {
+      turnId: 'tr-new',
+      userText: '再来一次风险分析',
+    });
+
+    expect(afterO.runtimePhase).toBe('awaiting');
+    expect(plan.selected.length).toBe(0);
+    expect(plan.reason).toMatch(/BUDGET_EXCEEDED.*maxRepeatPerCapability/);
+    expect((afterO.conversation || []).some((c: any) => (c.text || '').includes('maxRepeatPerCapability'))).toBe(true);
+  });
+
+  it('Budget Gate v1 + recordCapabilityRunCost: evaluate uses current runs; record is safe no-op stub for v1', () => {
+    const policy = getDefaultBudgetPolicy();
+    expect(policy.maxTurns).toBe(30);
+    expect(policy.maxRepeatPerCapability).toBe(6);
+
+    let s = createInitialSessionState('rec test');
+    const eval1 = evaluateBudgetBeforeOrchestrate(s, { turnId: 'r1', userText: 'x' });
+    expect(eval1.allowed).toBe(true);
+    expect(eval1.snapshot.turns).toBe(0);
+
+    // record should not throw and returns state (v1)
+    const dummyRun: any = { id: 'dummy', capabilityId: 'evidence.search', turnId: 'r1', inputs: [], outputs: [], gateResults: [] };
+    const afterRec = recordCapabilityRunCost(s, dummyRun, { tokens: 123 });
+    expect(afterRec).toBeTruthy();
+    expect((afterRec.capabilityRuns || []).length).toBe(0); // v1 no side effect on count
   });
 });

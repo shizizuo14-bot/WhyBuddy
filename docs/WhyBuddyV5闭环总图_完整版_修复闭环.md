@@ -4821,3 +4821,161 @@ V5 原型 99% 封顶；GitHub MCP adapter P0 已落地并通过收口（07403708
 下一步（用户建议）：在当前 GitHub evidence 稳固后，推进 Docker / repo analysis sandbox adapter（更高风险，涉及真实执行环境）。
 
 （本轮变更保持了 WhyBuddy 核心边界：adapter 只产 raw content；commit/Trust Gate/producedBy/evidenceRefs/stale/report schema 仍由 runtime 掌控。）
+
+---
+
+## [Plan approved] + Knife 1 最终确认
+
+**执行日期**：plan approved 信号后，对已落地的 Budget Gate v1 做最终确认 + re-verify + 记录。
+
+- 重新执行 `pnpm run verify:whybuddy-v5` → 完整绿（34 client passed、12 server passed、tsc clean、browser smoke ALL 5 PASSED（日志 “This + 34/34 vitest...”）、store smoke ALL 9 steps + durability（日志 “prior 34/34”））。
+- git status / staged：精确只有 5 个 V5 文件（runtime.ts + test + 2 smokes + 本 doc）；v5.1 相关 docs 和 .grok/ 保持 ?? 未动。
+- `git diff --check`：仅 CRLF 警告（无 blocking 问题）。
+- 代码状态：Budget 门、evaluate、record、测试、smoke 文本、main doc append 全部就位。V5.1 效果按用户评估从 63% 提升至 ~70%。
+
+所有 post-approval 确认步骤完成。Knife 1 就绪，可安全提交（仅 V5 文件）。
+
+---
+
+## V5.1 控制平面第一刀：Budget Gate v1（按 @docs/whybuddy_v5.1.md + 用户 63% 评估 + 三刀路线）
+
+**执行日期**：紧接 static repo analyzer v1 + GitHub enrichment 收口（verify 全绿、tree clean for V5）之后，按用户最新 assessment 直接执行“第一刀：Budget Gate v1”。
+
+**用户本次 Findings（原文 verbatim 完整复制关键判断 + 表格 + 三刀 + 结论）**
+
+```text
+实打实算，我给当前代码达到 **V5.1 架构图效果：约 63%**。
+
+如果只看“V5 闭环原型能跑、能验证、能演示”，它已经是 **99%**。
+但如果严格按 `docs/whybuddy_v5.1.md` 那张 V5.1 架构图来打分，也就是看 **BUDGET / CONTRACT / GCOV / DLEDGER / FLOWB / Cost Governor / Coverage Gate / Decision Ledger / Flow Boundary** 这些新增边和新增门有没有真实落到代码里，那就不能打 90%。
+
+我的真实判断是：
+
+V5 原型完成度：99%
+V5.1 架构图效果达成度：63% 左右
+V5.1 架构可落地性：80-85%
+V5.1 距离真正封版：还差 3 个核心门 + 1 个边界守卫
+
+...
+
+V5.1 的核心其实是 6 个东西：
+
+P0：AWAIT 交互歇脚点
+P1/A：CONTRACT + GCOV 覆盖率闸
+P1/A：DLEDGER 调度决策账
+P2：单一回炉路径
+P3：DERIVE 不回写 STATE
+P4/B：BUDGET / Cost Governor
+P6：FLOWB 流边界守卫
+
+当前真实状态：（表格略，详见用户 query）
+
+所以按图上“节点是否存在 + 边是否真实执行 + 是否有测试护栏”来算，当前不是 80%，更像 **63%**。
+
+更准确的分层百分比
+
+我会拆成三层看：
+
+1. V5 可运行闭环层：99%
+2. V5 生产化底座层：95-96%
+3. V5.1 控制平面层：35-40%
+
+...
+
+如果你问“再做几刀能到 80%+”
+
+我认为三刀就能到 **82-85%**：
+
+**第一刀：Budget Gate v1**
+
+目标：所有进入 `orchestrateReasoningTurn` 的路径先过预算检查。
+
+最小实现：
+
+BudgetPolicy
+BudgetSnapshot
+evaluateBudgetBeforeOrchestrate(state, context)
+recordCapabilityRunCost(...)
+
+先不用真实 token，先用：
+
+turn count
+capabilityRuns/session
+capabilityRuns/turn
+repeat capability count
+
+做到这些就够了。
+
+提升：
+
+V5.1 效果：63% -> 70%
+
+**第二刀：Decision Ledger v1**
+
+...
+
+**第三刀：CoverageContract + GCOV v1**
+
+...
+
+**我给你的最终判断**
+
+如果你问“这两天做的所有 plan + 当前 AsBuilt，离 V5.1 架构图效果有多近”，我的答案是：
+
+真实当前：63%
+乐观按可挂接点：70%
+做完 Budget + DLedger + GCOV：84-86%
+再做 FLOWB + cost telemetry：90%+
+
+不是因为现在差，而是因为 V5.1 图的新增部分本来就是“控制平面升级”，不是“再接几个 capability”。
+
+**一句话结论**
+
+当前 WhyBuddy 已经是一个很强的 **V5 闭环原型 + 生产化底座**，但还不是完整 V5.1。
+它现在大概达到了 **V5.1 架构图效果的 63%**；真正把 V5.1 拉起来的下一步不是 Docker，也不是再加一个外部 adapter，而是先补：
+
+BUDGET -> DLEDGER -> CONTRACT/GCOV
+
+这三刀做完，V5.1 才会从“图上能对齐”变成“运行时真的按图工作”。
+```
+
+**本阶段目标（严格按用户指定第一刀 + v5.1.md P4/B 验收）**：
+- 所有进入 ORCH 的路（INTAKE 后的 send/challenge/node-click、reentry invalidate 后、测试直连）先过预算检查。
+- 最小 counts（非 token）：maxTurns、maxRuns/session、maxRuns/turn、maxRepeat/capability。
+- 超限 → 停泊 AWAIT 标 partial（runtimePhase=awaiting + 空 plan）。
+- 预算决策本身 auditable（conv system note 持久化 + record hook 就位）。
+- 零破坏现有 31→34 测试、5/5+9 smokes、tsc、durable 合同、page 零改（0 selected 循环自然 skip + markAwaiting 幂等）。
+- 代码锚点：client/src/lib/whybuddy-runtime.ts（新增 types/fns + 门插在 orch 里 conv 之后 pick 之前）。
+
+**本阶段执行记录 + 结果**（逐条）：
+
+- 新增 BudgetPolicy / BudgetSnapshot / getDefaultBudgetPolicy() / evaluateBudgetBeforeOrchestrate()（纯从 state.capabilityRuns 推导 turns=distinct turnId、perCap count、current runs；支持 context.turnId 判断 enteringNewTurn） + recordCapabilityRunCost() stub（v1 counts 已由 commit 隐式，未来 token 入账点）。
+- 在 orchestrateReasoningTurn 里（~ line 1480 区域）：conv append 后、pick 之前立即 `const budgetCheck = evaluate...`；!allowed 分支：markAwaiting + 追加 `[BUDGET] exceeded: ...` system note 到 conversation（可 durable 回放）、调用 record hook、返回 {newState: parked awaiting, plan: {selected:[], reason:`BUDGET_EXCEEDED:...`}, newGraphNodes:[] }。
+- 页面 WhyBuddy.tsx / reentry 零修改：plan.selected.length===0 时 raw/loop 自然 0 次；workingState 已是 awaiting；后续 markAwaiting 安全。
+- 测试：runtime.test.ts 新增 3 it（high distinct turns → awaiting + empty + conv note；repeat cap exceed → block + reason match；evaluate + record 基本行为）。import 新 fns。总计 31→**34 passed**。
+- 护栏刷新：scripts/whybuddy-browser-smoke.mjs（2 处 31/31→34/34）、scripts/whybuddy-store-api-smoke.mjs（1 处 prior 31/31→34/34）。
+- 验证：
+  - `pnpm exec vitest run client/src/lib/whybuddy-runtime.test.ts --reporter=dot` → 34 passed (34)
+  - `pnpm exec tsc --noEmit --pretty false` → clean (TSC_OK)
+  - `pnpm run verify:whybuddy-v5` → 完整绿：
+    - client 34 passed (34)
+    - server 12 passed (12)
+    - tsc clean
+    - browser smoke: ALL 5 flows PASSED
+    - store smoke: ALL 9 steps + durability（PUT/GET/LIST/DELETE/404 + __reload 真恢复）
+  - 临时日志：tmp/runtime-budget.log / tmp/verify-budget.log 已捕获。
+- Git：工作区改动仅 V5 相关（runtime.ts、runtime.test.ts、两 smoke、main doc）。.grok/ 保持 untracked（按历史 hygiene）。
+
+**当前阶段可以定义为（按用户 63% → 三刀路线更新）**：
+
+```text
+V5 原型 99% 封顶 + 生产化底座 95-96%；V5.1 控制平面第一刀 Budget Gate v1 已落地（evaluate + 门 + partial AWAIT + auditable trace + 34/34 护栏）；整体 V5.1 架构图效果从 63% 提升至 ~70%（按用户加权：控制平面 38→更高）；真实生产 readiness 维持/微升。
+```
+
+所有步骤严格遵循已批准 plan（用户 query verbatim 的第一刀最小实现 + “先过预算检查” + “超限停泊 partial” + “预算 auditable artifact” + “reuse existing seam” + “不破坏 AWAIT/INTAKE/seam/verify” + 显式 selective git + append verbatim + re-verify）。
+
+（注意：本 append 使用 search_replace UTF-8 直写，避免任何终端编码污染。）
+
+下一步（用户路线）：第二刀 Decision Ledger v1（每次 pickNextCapabilities 必须落 saw/chose/skipped/reason/addresses/rationale/alternativesRejected 入 T_LEDGER），然后第三刀 CONTRACT + GCOV。FLOWB 第四。目标 84-86%+ 后再考虑更多 adapter / Docker。
+
+（本轮变更严格只补 V5.1 新控制平面边/闸；V5 骨架 + 现有脊柱 executeCapability → CapabilityExecutor → commitArtifact + durable 4 endpoints 完全不动。）

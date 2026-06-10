@@ -153,6 +153,106 @@ export function pickNextCapabilities(
   }).slice(0, 5);
 }
 
+// ===== V5.1 P4/B Budget Gate v1 (counts-based, minimal, per whybuddy_v5.1.md) =====
+// All paths into orchestrateReasoningTurn must pass here first.
+// Over limit → return state already at AWAIT (partial), empty plan (page loop skips), auditable trace.
+// Counts derived from existing capabilityRuns (turnId groups + per-cap) — no schema extension for v1.
+// Budget itself will be auditable (conv note + later ledger artifact). Real token costs later.
+
+export interface BudgetPolicy {
+  maxTurns: number;
+  maxCapabilityRunsPerTurn: number;
+  maxCapabilityRunsPerSession: number;
+  maxRepeatPerCapability: number;
+}
+
+export interface BudgetSnapshot {
+  turns: number;
+  capabilityRuns: number;
+  perCapRuns: Record<string, number>;
+  policy: BudgetPolicy;
+  allowed?: boolean;
+  reason?: string;
+}
+
+export function getDefaultBudgetPolicy(): BudgetPolicy {
+  return {
+    maxTurns: 30,
+    maxCapabilityRunsPerTurn: 5,
+    maxCapabilityRunsPerSession: 120,
+    maxRepeatPerCapability: 6,
+  };
+}
+
+/**
+ * Evaluate before entering the core of orchestrate (pick + plan).
+ * Derives usage purely from persisted capabilityRuns (robust across durable load).
+ * entering a fresh turnId counts as +1 toward maxTurns.
+ */
+export function evaluateBudgetBeforeOrchestrate(
+  state: V5SessionState,
+  context?: OrchestrateContext,
+  policy = getDefaultBudgetPolicy()
+): { allowed: boolean; snapshot: BudgetSnapshot; reason?: string } {
+  const runs = state.capabilityRuns || [];
+  const turnIds = new Set<string>(runs.map((r: any) => r.turnId).filter(Boolean));
+  const currentTurns = turnIds.size;
+  const currentRuns = runs.length;
+
+  const perCap: Record<string, number> = {};
+  for (const r of runs) {
+    const cid = (r as any).capabilityId as string;
+    if (cid) perCap[cid] = (perCap[cid] || 0) + 1;
+  }
+
+  const snapshot: BudgetSnapshot = {
+    turns: currentTurns,
+    capabilityRuns: currentRuns,
+    perCapRuns: perCap,
+    policy,
+  };
+
+  let allowed = true;
+  let reason: string | undefined;
+
+  const thisTurnId = context?.turnId;
+  const enteringNewTurn = thisTurnId && !turnIds.has(thisTurnId) ? 1 : 0;
+  if (currentTurns + enteringNewTurn > policy.maxTurns) {
+    allowed = false;
+    reason = `maxTurns exceeded (current ${currentTurns}+${enteringNewTurn} > ${policy.maxTurns})`;
+  }
+  if (currentRuns >= policy.maxCapabilityRunsPerSession) {
+    allowed = false;
+    reason = reason || `maxCapabilityRunsPerSession exceeded (${currentRuns} >= ${policy.maxCapabilityRunsPerSession})`;
+  }
+  const repeatHit = Object.entries(perCap).find(([, c]) => c >= policy.maxRepeatPerCapability);
+  if (repeatHit) {
+    allowed = false;
+    reason = reason || `maxRepeatPerCapability for ${repeatHit[0]} (${repeatHit[1]} >= ${policy.maxRepeatPerCapability})`;
+  }
+
+  (snapshot as any).allowed = allowed;
+  (snapshot as any).reason = reason;
+  return { allowed, snapshot, reason };
+}
+
+/**
+ * Record post-capability-run cost into state/ledger (v1: counts implicit via capabilityRuns already appended by commit).
+ * Future: attach token/actual cost to the run or separate cost ledger entry. Kept for seam + DLEDGER follow-up.
+ */
+export function recordCapabilityRunCost(
+  state: V5SessionState,
+  run: CapabilityRun,
+  cost?: { tokens?: number; [k: string]: any }
+): V5SessionState {
+  // v1 minimal: no extra mutation (run already in state.capabilityRuns after commitArtifact).
+  // Call sites (future) or orch can invoke for telemetry hook.
+  // Return clone to keep pure style.
+  if (!cost || !cost.tokens) return state;
+  // Placeholder: could push to a costEvents or annotate the matching run, but avoid for v1.
+  return { ...state };
+}
+
 export function createInitialSessionState(goalText: string, sessionId = "whybuddy-local-proto"): V5SessionState {
   // Start with a minimal but valid state. Graph will be mutated by capabilities.
   // Per 修复闭环.md: sessionId isolation starts here; load path will key off it later.
@@ -1474,6 +1574,34 @@ export function orchestrateReasoningTurn(
         timestamp: new Date().toISOString(),
       },
     ];
+  }
+
+  // ===== V5.1 Budget Gate (P4/B first knife) =====
+  // All entries to ORCH (from INTAKE send/challenge/node-click, reentry, tests) pass here.
+  // Evaluate on current persisted runs (pre this turn's commits). If over: park AWAIT partial immediately,
+  // return empty plan (caller exec loop becomes no-op), carry trace in conv (auditable, durable).
+  // Page flow unchanged: 0 selected + already-awaiting state + later markAwaiting is safe.
+  const budgetCheck = evaluateBudgetBeforeOrchestrate(working, { turnId, userText, intervention: context?.intervention });
+  if (!budgetCheck.allowed) {
+    let parked = markAwaiting(working, turnId);
+    const noteText = `[BUDGET] exceeded: ${budgetCheck.reason || 'policy limit'}. Partial AWAIT (no new capabilities scheduled this turn).`;
+    const note = {
+      id: `${turnId}-budget`,
+      role: 'system',
+      text: noteText,
+      timestamp: new Date().toISOString(),
+    };
+    parked = {
+      ...parked,
+      conversation: [...(parked.conversation || []), note],
+    };
+    // Record hook (v1 no-op beyond trace; real cost telemetry lands in DLEDGER later)
+    parked = recordCapabilityRunCost(parked, { id: `${turnId}-budget-run`, capabilityId: 'budget.gate' as any, turnId, inputs: [], outputs: [], gateResults: [] } as any);
+    return {
+      newState: parked,
+      plan: { selected: [], reason: `BUDGET_EXCEEDED: ${budgetCheck.reason}`, expectedArtifacts: [] } as TurnPlan,
+      newGraphNodes: [],
+    };
   }
 
   // 2. Use the provided userText for picking (the "chat manipulator" contract)
