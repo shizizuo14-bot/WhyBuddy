@@ -138,24 +138,40 @@ router.delete("/sessions/:sessionId", (req: Request, res: Response) => {
   res.status(204).end();
 });
 
+// Test-only helper routes (used by smoke + dev tooling for durable pilot verification).
+// These are **not** part of the official 4-endpoint contract.
+//
+// Production isolation:
+// - Only registered when NODE_ENV !== "production" (normal dev/test)
+// - Or when the explicit escape hatch WHYBUDDY_ENABLE_TEST_HELPERS=1 is set.
+// This prevents accidental (or malicious) use of __clear / __reload against a
+// production-like deployment of the session store.
+const enableTestHelpers =
+  process.env.NODE_ENV !== "production" ||
+  process.env.WHYBUDDY_ENABLE_TEST_HELPERS === "1";
+
 // (Optional nicety) allow a manual clear for dev / tests against the real server
 // Not part of the official 4-endpoint contract.
-router.post("/sessions/__clear", (_req: Request, res: Response) => {
-  sessions.clear();
-  if (!flushToDisk()) {
-    return res.status(500).end();
-  }
-  res.status(204).end();
-});
+if (enableTestHelpers) {
+  router.post("/sessions/__clear", (_req: Request, res: Response) => {
+    sessions.clear();
+    if (!flushToDisk()) {
+      return res.status(500).end();
+    }
+    res.status(204).end();
+  });
+}
 
 // (Optional nicety) allow a manual reload-from-durable-file for dev / tests against the real server.
 // Triggers live server backing re-init from the on-disk JSON (clear + loadFromDisk).
 // This is the correct way for the smoke (or any external test) to prove "re-init recovery"
 // against the *live* serving process. Not part of the official 4-endpoint contract.
-router.post("/sessions/__reload", (_req: Request, res: Response) => {
-  reloadFromDisk();
-  res.status(204).end();
-});
+if (enableTestHelpers) {
+  router.post("/sessions/__reload", (_req: Request, res: Response) => {
+    reloadFromDisk();
+    res.status(204).end();
+  });
+}
 
 export default router;
 

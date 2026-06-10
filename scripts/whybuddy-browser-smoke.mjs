@@ -24,8 +24,14 @@ mkdirSync(dataRoot, { recursive: true });
  *
  * This + 28/28 runtime vitest = runtime + UI 双层护栏, enabling the 93-94% prototype claim.
  *
- * Intended to be run while `pnpm dev:frontend` is serving on :3000 (strictPort:false).
- * Usage: node scripts/whybuddy-browser-smoke.mjs   (or `pnpm run smoke:whybuddy` after registration)
+ * Now supports hermetic / one-command use: if no dev server is running on :3000,
+ * it will auto-spawn `pnpm dev:frontend` (Vite), wait for readiness, run the smoke,
+ * and attempt to clean up the child on exit. This makes `verify:whybuddy-v5` (and
+ * `pnpm run smoke:whybuddy`) work from a clean shell without manual pre-start.
+ *
+ * When a dev server is already present it behaves exactly as before (no extra processes).
+ *
+ * Usage: node scripts/whybuddy-browser-smoke.mjs   (or `pnpm run smoke:whybuddy`)
  *
  * Exit code 0 = all 5 flows green + no fatal console errors.
  */
@@ -56,18 +62,74 @@ async function waitForServer(url, totalTimeoutMs = 12000) {
   return false;
 }
 
+// --- Hermetic auto-start support (for one-command verify:whybuddy-v5) ---
+// If no dev server is present we spawn `pnpm dev:frontend` ourselves,
+// wait, run the smoke, and clean up on exit. When a server is already
+// running we do nothing extra (backward compatible).
+let devServerProc = null;
+
+function cleanupDevServer() {
+  if (devServerProc) {
+    try {
+      if (process.platform === 'win32') {
+        // On Windows the vite child is often a cmd wrapper; kill the tree if possible
+        devServerProc.kill();
+      } else {
+        devServerProc.kill('SIGTERM');
+      }
+    } catch {}
+    devServerProc = null;
+  }
+}
+
+process.once('exit', cleanupDevServer);
+process.once('SIGINT', () => {
+  cleanupDevServer();
+  process.exit(1);
+});
+process.once('SIGTERM', () => {
+  cleanupDevServer();
+  process.exit(1);
+});
+
 async function runSmoke() {
   log("starting V5 /whybuddy browser smoke (Playwright)");
   log(`target: ${baseUrl}/whybuddy`);
 
-  const serverUp = await waitForServer(baseUrl, 10000);
+  let serverUp = await waitForServer(baseUrl, 10000);
   if (!serverUp) {
-    log("ERROR: dev server not responding on :3000");
-    log("Hint: in another terminal run `pnpm dev:frontend`, then re-run this smoke.");
-    log("       (vite.config has strictPort:false so it may pick 3001 if 3000 busy)");
-    throw new Error("dev:frontend not reachable");
+    log("dev server not responding on :3000");
+    log("auto-spawning `pnpm dev:frontend` (Vite) for hermetic run...");
+    try {
+      devServerProc = spawn(
+        process.platform === 'win32' ? 'pnpm.cmd' : 'pnpm',
+        ['run', 'dev:frontend'],
+        {
+          stdio: 'ignore',
+          detached: process.platform !== 'win32',
+          shell: false,
+        }
+      );
+      if (typeof devServerProc.unref === 'function') {
+        devServerProc.unref();
+      }
+    } catch (e) {
+      log("ERROR: failed to spawn dev:frontend: " + (e?.message || e));
+      throw new Error("dev:frontend auto-spawn failed");
+    }
+
+    // Give Vite a generous cold-start window (typical first run on a clean env)
+    serverUp = await waitForServer(baseUrl, 60000);
+    if (!serverUp) {
+      cleanupDevServer();
+      log("ERROR: dev server still not responding after auto-start attempt");
+      log("Hint: check for port conflicts or run `pnpm dev:frontend` manually.");
+      throw new Error("dev:frontend not reachable even after auto-spawn");
+    }
+    log("dev server auto-started and reachable");
+  } else {
+    log("dev server reachable");
   }
-  log("dev server reachable");
 
   // Resolve playwright browser launcher.
   // Project only lists "@playwright/test" (not standalone "playwright"), so we try multiple
