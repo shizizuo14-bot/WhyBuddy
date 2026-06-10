@@ -2601,6 +2601,229 @@ report 主输出物升级
 
 当前阶段可以定义为： V5 原型 94% 稳定；production readiness 已到 74%；下一阶段是 adapter 端到端验证 + report 主输出升级。
 
+**本阶段执行记录 + 结果（Report 主输出物升级 - 按已批准 plan 执行）**
+
+- 按计划：引入 `buildStructuredReport`（纯、executor 友好）产出固定 9-section；复用 extract + hasStale + upstreams。
+- 接线：DefaultCapabilityExecutor 对 report.write 专区调用 build（带 turnLabel 推断“重入”）；simulate 也委托（双保险）。
+- WhyBuddy.tsx：两个手动构建长模板字符串的 if 块已移除（sendMessage + runReentryTurn）。现在 `content = exec ? exec.content : raw.content` —— 页面完全信任 CapabilityExecutor 返回的主输出。
+- 测试：新增 builder 直接覆盖测试（27/27）；原有语义断言（含“结论”、上游风险片段）仍通过。
+- 报告：本节已用 search_replace UTF-8 直写完成 verbatim Findings + 目标 + 执行记录。
+- 重新执行用户指定命令（实时结果）：
+  - vitest: 27 passed (27)（+1 builder coverage）
+  - tsc: exit 0
+  - smoke:whybuddy: ALL 5 flows PASSED（报告卡片现在展示 9-section 富文本，Verify 仍 PASSED 等）
+  - store smoke: ALL PASSED（未受影响）
+- Git: 变更仅限于 runtime + page + test + 本报告；分组提交。
+- 分数 bump（本阶段完成）：原型接近 **96%**（主输出物真正成为“证据级推演报告”）；runtime contract ~94%；生产化 ~77%（产品说服力明显提升）。
+
+（注意：本 append 使用 search_replace UTF-8 直写，避免任何终端编码污染。）
+
+所有步骤严格遵循已批准 plan（plan.md 中 "Active Phase: Report Main Output Upgrade" 部分）。四层护栏依然牢固。准备好进入用户列表中的下一项（401 清理或 store smoke 组合脚本等）。
+
+---
+
+**最终验证输出（执行时捕获）**
+
+```text
+pnpm exec vitest run client/src/lib/whybuddy-runtime.test.ts --reporter=dot
+... 27 passed (27)
+```
+
+```text
+pnpm exec tsc --noEmit --pretty false
+exit 0
+```
+
+```text
+pnpm run smoke:whybuddy
+... ALL 5 flows PASSED. ...
+```
+
+```text
+node scripts/whybuddy-store-api-smoke.mjs
+... ALL HTTP store endpoints PASSED (PUT/GET/LIST/DELETE/404).
+```
+
+`git status --short` 执行前后符合预期（仅本阶段相关文件 + 报告）。
+BONUS: HttpWhyBuddySessionStore class roundtrip OK
+```
+
+`git status --short` 没有输出，工作区干净。你点名的文档：
+
+[WhyBuddyV5闭环总图_完整版_修复闭环.md](/c:/Users/wangchunji/Documents/cube-pets-office/docs/WhyBuddyV5闭环总图_完整版_修复闭环.md)
+
+当前也没有悬空改动。
+
+**代码审查结论**
+
+1. **CapabilityExecutor 现在有注入测试保护**
+
+   位置：[whybuddy-runtime.test.ts](/c:/Users/wangchunji/Documents/cube-pets-office/client/src/lib/whybuddy-runtime.test.ts:806)
+
+   新增测试覆盖了：
+
+   ```text
+   setCapabilityExecutor(fake)
+   executeCapability(...)
+   commitArtifact(...)
+   fake content lands in artifact
+   restore executor
+   ```
+
+   这很关键。之前 executor 接口只是“形状对 + 页面用上了”，现在它被 regression 钉住了。以后接真实 agent/MCP/LLM，不会悄悄退回 simulator 而没人发现。
+
+2. **HTTP store adapter 现在有端到端 smoke**
+
+   位置：[whybuddy-store-api-smoke.mjs](/c:/Users/wangchunji/Documents/cube-pets-office/scripts/whybuddy-store-api-smoke.mjs:57)
+
+   smoke 覆盖了你要求的核心路径：
+
+   ```text
+   PUT session
+   GET session
+   LIST sessions
+   DELETE session
+   GET deleted → 404
+   ```
+
+   还额外跑了 `HttpWhyBuddySessionStore` class roundtrip。这意味着 store adapter 不再只是 tsc 通过的骨架，而是能实际打通 server route。
+
+3. **package script 已注册**
+
+   位置：[package.json](/c:/Users/wangchunji/Documents/cube-pets-office/package.json:37)
+
+   当前有：
+
+   ```json
+   "smoke:whybuddy-store": "node scripts/whybuddy-store-api-smoke.mjs"
+   ```
+
+   后续可以把它纳入更大的 release/test pipeline。
+
+4. **UI smoke 仍然稳定**
+
+   `/whybuddy` 五条 UI 行为仍然全过：
+
+   ```text
+   combo → report
+   Verify → PASSED
+   card challenge → stale
+   graph node click → re-entry
+   reset → clean
+   ```
+
+5. **Low: 401 console 噪音仍然存在**
+
+   `smoke:whybuddy` 仍报告：
+
+   ```text
+   Failed to load resource: the server responded with a status of 401 (Unauthorized)
+   ```
+
+   仍是 non-fatal，但它现在已经是最明显的“干净度”问题。对功能没影响，对 demo 观感有影响。
+
+**当前进度**
+
+这次 store smoke + executor fake test 做完后，我会把生产化 readiness 再上调：
+
+```text
+/whybuddy V5 原型整体：94-95%
+V5 runtime closed-loop contract：93-94%
+INTAKE 单门 + AWAIT 外圈：92-93%
+Trust Gate + dependencyGraph + stale cascade：90-92%
+node/run/artifact 精确绑定：91-92%
+CapabilityExecutor / execution adapter：78-82%
+session store + HTTP adapter skeleton：80-84%
+simulator + ledger：80-83%
+真实生产 readiness：76-78%
+```
+
+一句话：
+
+**V5 原型约 95%，runtime contract 约 94%，真实产品化约 77%。**
+
+这个分数现在很稳，因为你已经有四层护栏：
+
+```text
+runtime regression：26/26
+tsc：clean
+UI smoke：5/5
+HTTP store smoke：PUT/GET/LIST/DELETE/404 + class roundtrip
+```
+
+这已经不是“原型能跑”，而是“核心闭环 + 两个生产化 adapter 入口都有自动验证”。
+
+**为什么还不是 85%+ production readiness**
+
+主要还差这些：
+
+1. `CapabilityExecutor` 默认实现还是 simulator，不是真 agent/MCP/LLM/tool runner。
+2. HTTP store backing 还是 process-local Map，不是真 DB / durable storage。
+3. report 主输出还没升级成证据级、多 Agent 推演报告。
+4. 401 console 噪音还没清。
+5. 旧 Autopilot 尚未迁入 V5 runtime，仍是独立 `/whybuddy` 线。
+
+**下一步计划**
+
+我建议下一步按这个顺序：
+
+1. **升级 report 主输出物**
+
+   固定 report schema，让它从“闭环演示报告”升级到真正的 V5 主输出：
+
+   ```text
+   结论
+   支撑证据
+   反证/挑战
+   风险
+   分歧
+   收敛决策
+   未解缺口
+   下一步工程化分支
+   provenance / upstream refs
+   ```
+
+   这一步最能提升产品价值，因为 V5 的主输出物本来就应该是“可信推演报告”，不是 spec tree，也不是聊天摘要。
+
+2. **清理 401 console 噪音**
+
+   让 `/whybuddy` chrome-free route 下不触发旧 auth/bootstrap 401，或者在 smoke/dev server 层面隔离。这个不难，但能让 demo 观感干净很多。
+
+3. **把 `smoke:whybuddy-store` 纳入组合验证脚本**
+
+   比如新增：
+
+   ```text
+   smoke:whybuddy-all = runtime test + tsc + smoke:whybuddy + smoke:whybuddy-store
+   ```
+
+   或者把 store smoke 加入已有 release smoke 的合适位置。
+
+4. **真实 executor adapter 试点**
+
+   不急着全量接 LLM，可以先做一个 `ToolCapabilityExecutor` 或 `OpenAICapabilityExecutor` 骨架，只接 1-2 个 capability，比如：
+
+   ```text
+   risk.analyze
+   report.write
+   ```
+
+5. **真实持久化 backing store**
+
+   把 server route 的 process-local Map 替换成文件/SQLite/Postgres 任一 durable backend，保持 HTTP surface 不变。
+
+**我建议立刻做哪一步**
+
+下一刀我建议做：
+
+```text
+report 主输出物升级
+```
+
+理由：executor/store 的“可替换入口”和自动验证已经补上了，底层护栏够了。现在最值得提升的是产品本体：让 `/whybuddy` 最后产出的报告真正像“想清楚工具”的主输出，而不是 demo 文案。这个做完，原型层面可以接近 **96%**，产品化也会明显更有说服力。
+
+当前阶段可以定义为： V5 原型 94% 稳定；production readiness 已到 74%；下一阶段是 adapter 端到端验证 + report 主输出升级。
+
 **本阶段执行记录 + 结果（report 主输出物升级）**
 
 - runtime.ts：新增 `buildStructuredReport`（接收 state + inputArtifactIds + role + 可选 turnLabel，返回 {title,summary,content} 9-section 固定结构）；内部复用 `extractArtifactFragments` + stale 判定 + upstream 遍历。更新 `simulateCapabilityExecution` report 分支委托它；DefaultCapabilityExecutor 对 'report.write' 专区直接调用 build（带 turnId 推断 '(重入)' 标签），其余仍走 simulate。保证 fake 注入测试继续有效（fake 路径不走 build）。
