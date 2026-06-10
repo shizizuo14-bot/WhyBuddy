@@ -614,6 +614,10 @@ class DefaultCapabilityExecutor implements CapabilityExecutor {
  *   Trust Gate / evidenceRefs / producedBy / capabilityRunId binding / 9-section schema for report
  *   remain 100% the responsibility of commitArtifact + buildStructuredReport.
  * - This proves the swappable seam works for future real MCP/LLM/Tool impls without touching the closed loop.
+ *
+ * Durable Store Pilot (feat commit landed): the session backing is now file-durable with live __reload
+ * recovery proof in smoke. The executor seam is ready for a real LlmCapabilityExecutor / Tool impl
+ * (still scoped to risk+report initially; same raw return contract).
  */
 class PilotRealCapabilityExecutor implements CapabilityExecutor {
   private base = new DefaultCapabilityExecutor();

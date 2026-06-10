@@ -58,6 +58,17 @@
 
 ---
 
+## Durable Store Pilot (已落地，本 commit)
+- 按审查结论 3 处修复已提交：
+  - smoke 改用 live `POST /sessions/__reload` (不再 false-positive 本地 reload)。
+  - `flushToDisk(): boolean` + PUT rollback + DELETE/__clear 失败返回 500。
+  - `.gitignore` 明确列出 `data/whybuddy-sessions.json` + `.tmp`（并有注释）。
+- 验证：`verify:whybuddy-v5` 单元 28/28 + tsc 干净；store smoke 9 步全绿（含 8/9 live reload + durable delete 404）；`git status` 无 runtime json 噪音。
+- 进度参考（保守）：session store + HTTP adapter ~95%；durable store pilot ~92-94%（live recovery + 失败可见 + hygiene 均就位）；整体 V5 闭环原型仍 ~98%，生产化 readiness ~87-88%。
+- 下一阶段按计划进入/形式化 real executor pilot（PilotRealCapabilityExecutor + executeCapability seam 已就绪，仅 risk.analyze + report.write richer，返回 raw 形状，Trust 层仍由 runtime 统一）。
+
+（本节为提交 durable pilot 后的状态记录；V5.1 主体修复清单保持不变。）
+
 ## 二、架构图修复版(V5.1 · 在 V5 上补边补闸删冗余)
 
 > ◆ = 本次新增/改动。删除:FB、RP、`DERIVE→STATE` 回写、`ORCH 写 GOAL` 直连。
