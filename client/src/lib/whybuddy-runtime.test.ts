@@ -31,6 +31,7 @@ import {
   useDefaultExecutor,
   useLlmCapabilityExecutor,
   LlmCapabilityExecutor,
+  createOpenAILlmCapabilityProvider,
   type LlmCapabilityProvider,
 } from './whybuddy-runtime';
 import { isTestHelperEnabled } from '../../../server/routes/whybuddy.ts';
@@ -1019,6 +1020,72 @@ describe('whybuddy-runtime V5 closed loop (behavioral regression)', () => {
       // Drive a non-target capability directly (the executor decides based on capabilityId)
       await executeCapability({ capabilityId: 'synthesis.merge', state: afterO, inputArtifactIds: [], turnId: 'prov1' });
       expect(providerCalls).toBe(0);
+
+      // --- Real provider wiring: createOpenAILlmCapabilityProvider (mocked, hermetic) ---
+      // Verifies the factory produces a valid LlmCapabilityProvider for the two pilot caps,
+      // returns the exact raw contract shape, and that LlmCapabilityExecutor falls back on error.
+      {
+        const prev2 = getCapabilityExecutor ? getCapabilityExecutor() : null;
+        const fetchSpy = vi.spyOn(globalThis as any, 'fetch');
+
+        try {
+          // Success: model returns clean JSON → we get title/summary/content + openai provenance.
+          fetchSpy.mockResolvedValueOnce(
+            new Response(
+              JSON.stringify({
+                choices: [
+                  {
+                    message: {
+                      content: JSON.stringify({
+                        title: 'OpenAI-RISK',
+                        summary: 'real llm risk',
+                        content: 'real-llm-risk-content',
+                      }),
+                    },
+                  },
+                ],
+              }),
+              { status: 200, headers: { 'Content-Type': 'application/json' } }
+            ) as any
+          );
+
+          const openaiProvider = createOpenAILlmCapabilityProvider({ apiKey: 'sk-test-123' });
+          setCapabilityExecutor(new LlmCapabilityExecutor(openaiProvider));
+
+          const riskRes2 = await executeCapability({
+            capabilityId: riskEntry.capabilityId as any,
+            state: afterO,
+            inputArtifactIds: riskEntry.inputArtifactIds || [],
+            roleId: riskEntry.roleId,
+            turnId: 'ai1',
+          });
+          expect(riskRes2.title).toBe('OpenAI-RISK');
+          expect(riskRes2.content).toBe('real-llm-risk-content');
+          // provenance stays within the allowed union for the seam ('llm' etc.); the [openai:...] marker in summary proves real path
+          expect(riskRes2.provenance).toBe('llm');
+          expect(String(riskRes2.summary || '')).toContain('openai');
+
+          // Failure (fetch rejects) → LlmCapabilityExecutor catch must trigger PilotReal fallback.
+          fetchSpy.mockRejectedValueOnce(new Error('simulated network failure'));
+
+          const openaiFailing = createOpenAILlmCapabilityProvider({ apiKey: 'sk-test-123' });
+          setCapabilityExecutor(new LlmCapabilityExecutor(openaiFailing));
+
+          const riskFail2 = await executeCapability({
+            capabilityId: riskEntry.capabilityId as any,
+            state: afterO,
+            inputArtifactIds: riskEntry.inputArtifactIds || [],
+            roleId: riskEntry.roleId,
+            turnId: 'ai2',
+          });
+          expect(riskFail2.content).not.toContain('real-llm-risk-content');
+          expect(riskFail2).toHaveProperty('title');
+          expect(riskFail2).toHaveProperty('content');
+        } finally {
+          fetchSpy.mockRestore();
+          if (prev2 && setCapabilityExecutor) setCapabilityExecutor(prev2);
+        }
+      }
     } finally {
       if (prev && setCapabilityExecutor) setCapabilityExecutor(prev);
       clearWhyBuddySessionStore();

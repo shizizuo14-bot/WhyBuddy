@@ -761,6 +761,7 @@ export type LlmCapabilityProvider = (args: {
  *
  * The default provider produces the current deterministic "LLM pilot" richer output.
  * A real provider (OpenAI, MCP, tool, etc.) can be injected at construction time.
+ * See createOpenAILlmCapabilityProvider + useOpenAILlmCapabilityExecutor for the first concrete wiring.
  */
 export class LlmCapabilityExecutor implements CapabilityExecutor {
   private base = new PilotRealCapabilityExecutor();
@@ -850,9 +851,138 @@ export function useDefaultExecutor(): void {
  * Falls back to PilotReal on error / other capabilities.
  * Use this the same way as usePilotRealExecutor for demo / pilot runs.
  * (The LlmCapabilityExecutor class itself is not exported for direct construction; use the helper or setCapabilityExecutor with a custom impl.)
+ *
+ * This installs the *built-in deterministic pilot provider* (the "LLM pilot" placeholder logic).
+ * For a real backend, prefer `useOpenAILlmCapabilityExecutor()` (or construct `new LlmCapabilityExecutor( createOpenAILlmCapabilityProvider(...) )`).
  */
 export function useLlmCapabilityExecutor(): void {
   setCapabilityExecutor(new LlmCapabilityExecutor());
+}
+
+/**
+ * Factory returning a real OpenAI-backed LlmCapabilityProvider.
+ *
+ * Scope (per V5 pilot): only risk.analyze and report.write receive rich LLM treatment.
+ * All other capabilities and any error path cause the provider to throw so that
+ * LlmCapabilityExecutor falls back cleanly to PilotRealCapabilityExecutor (the seam contract).
+ *
+ * The provider **always** returns exactly the raw shape:
+ *   { title: string, summary: string, content: string, provenance? }
+ * Runtime (Trust Gate, producedBy, commitArtifact, evidenceRefs, etc.) is never touched by the provider.
+ *
+ * Key resolution: opts.apiKey || process.env.OPENAI_API_KEY
+ * If neither is present the provider will throw on first targeted cap invocation (graceful fallback).
+ *
+ * For report.write we feed the deterministic buildStructuredReport output as strong evidence
+ * context so the model can polish/expand while preserving the 9-section schema and facts.
+ */
+export function createOpenAILlmCapabilityProvider(opts: { apiKey?: string; model?: string } = {}): LlmCapabilityProvider {
+  const apiKey = opts.apiKey ?? process.env.OPENAI_API_KEY;
+  const model = opts.model ?? 'gpt-4o-mini';
+
+  return async (args) => {
+    const { capabilityId, state, inputArtifactIds = [], roleId, turnId } = args;
+
+    if (capabilityId !== 'risk.analyze' && capabilityId !== 'report.write') {
+      throw new Error(`OpenAI provider does not handle capability: ${capabilityId}`);
+    }
+
+    if (!apiKey) {
+      throw new Error('OpenAI provider not configured: provide apiKey or set OPENAI_API_KEY');
+    }
+
+    // Compact context for the prompt (avoid token bloat).
+    const goalText = (state as any)?.goal?.text || (state as any)?.goal || '';
+    const recentArtifacts = ((state as any).artifacts || []).slice(-6).map((a: any) => ({
+      title: a?.title,
+      kind: a?.kind,
+      summary: String(a?.summary || '').slice(0, 220),
+    }));
+
+    const systemPrompt =
+      'You are an expert AI collaborator for WhyBuddy V5. ' +
+      'Return ONLY a single JSON object (no prose, no ```json fences) with exactly these keys:\n' +
+      '{"title": string, "summary": string, "content": string}\n' +
+      'title: short and specific. summary: one-sentence high-signal. content: professional, actionable, evidence-based.';
+
+    let userPrompt = '';
+    if (capabilityId === 'risk.analyze') {
+      userPrompt =
+        `Capability: risk.analyze\nGoal: ${goalText}\n` +
+        `Context artifacts: ${JSON.stringify(recentArtifacts)}\n` +
+        `Role: ${roleId || 'unspecified'}  Turn: ${turnId}\n\n` +
+        'Produce a focused risk analysis: key risks, likelihood/impact, mitigations.';
+    } else {
+      // report.write — give the model the already-computed structured report as authoritative base
+      const built = buildStructuredReport({ state, inputArtifactIds, roleId });
+      userPrompt =
+        `Capability: report.write\nGoal: ${goalText}\n` +
+        `Base structured evidence (preserve facts & sections, improve narrative & insight):\n` +
+        `BASE_TITLE: ${built.title}\nBASE_SUMMARY: ${built.summary}\nBASE_CONTENT:\n${built.content}\n\n` +
+        `Role: ${roleId || '综合'}  Turn: ${turnId}\n\n` +
+        'Return the polished final evidence report as the required JSON shape.';
+    }
+
+    const body = {
+      model,
+      messages: [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
+      ],
+      temperature: 0.25,
+      max_tokens: 1600,
+    };
+
+    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+    });
+
+    if (!res.ok) {
+      const errText = await res.text().catch(() => '');
+      throw new Error(`OpenAI API ${res.status}: ${errText.slice(0, 280)}`);
+    }
+
+    const json: any = await res.json();
+    const rawContent: string = json?.choices?.[0]?.message?.content || '';
+
+    let parsed: { title?: string; summary?: string; content?: string } = {};
+    try {
+      // Some models still wrap; be tolerant.
+      const maybe = rawContent.trim().replace(/^```json\s*/i, '').replace(/```$/, '');
+      parsed = JSON.parse(maybe);
+    } catch {
+      parsed = { content: rawContent };
+    }
+
+    const title = (parsed.title || (capabilityId === 'risk.analyze' ? 'Risk Analysis' : 'Evidence Report')).trim();
+    const summary = (parsed.summary || '').trim();
+    const content = (parsed.content || rawContent || 'Model returned no content.').trim();
+
+    return {
+      title,
+      summary: summary ? `${summary} [openai:${model}]` : `[openai:${model}]`,
+      content,
+      provenance: 'llm' as const,
+    };
+  };
+}
+
+/**
+ * Opt-in to a real OpenAI-backed LlmCapabilityExecutor for risk.analyze + report.write.
+ * Requires OPENAI_API_KEY (or pass explicit key). Any configuration / call error
+ * falls back to PilotRealCapabilityExecutor via the existing LlmCapabilityExecutor seam.
+ *
+ * This is the entry point for "真实 provider wiring" in the V5 pilot.
+ * The rest of the runtime (intake → orchestrate → commitArtifact + Trust Gate) is unchanged.
+ */
+export function useOpenAILlmCapabilityExecutor(apiKey?: string): void {
+  const provider = createOpenAILlmCapabilityProvider({ apiKey });
+  setCapabilityExecutor(new LlmCapabilityExecutor(provider));
 }
 
 /**
