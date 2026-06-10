@@ -9,7 +9,8 @@
  *
  * Now backed by durable JSON file (data/whybuddy-sessions.json) for the Durable Store Pilot.
  * In-memory Map is a hot cache only. Every mutate flushes to disk (atomic tmp+rename).
- * Loads from disk at module init. Re-init / reload-from-disk supported for smoke/tests only.
+ * Loads from disk at module init. Re-init / reload-from-disk supported for smoke/tests only
+ * via the test-only __reload endpoint (or the exported helper for direct use).
  *
  * HTTP surface + client HttpWhyBuddySessionStore contract remain identical and swappable.
  * (tsx watch on server/ files will pick up changes live.)
@@ -23,9 +24,9 @@ import * as path from "path";
 const router = Router();
 
 // Durable file-backed pilot store.
-// - DATA_FILE lives under data/ (already broadly gitignored for runtime artifacts).
+// - DATA_FILE lives under data/ (runtime artifacts are explicitly gitignored below).
 // - Map is hot cache for speed + simple list/GET shaping.
-// - loadFromDisk at init; flushToDisk after every mutate (set/delete/clear).
+// - load/reload from disk; flushToDisk after every mutate (set/delete/clear) — now returns boolean.
 // - Atomic write: write .tmp then renameSync.
 const DATA_FILE = path.resolve(process.cwd(), "data", "whybuddy-sessions.json");
 
@@ -49,7 +50,12 @@ function loadFromDisk(): void {
   }
 }
 
-function flushToDisk(): void {
+function reloadFromDisk(): void {
+  sessions.clear();
+  loadFromDisk();
+}
+
+function flushToDisk(): boolean {
   try {
     const dir = path.dirname(DATA_FILE);
     fs.mkdirSync(dir, { recursive: true });
@@ -57,8 +63,10 @@ function flushToDisk(): void {
     const payload = JSON.stringify(Array.from(sessions.entries()), null, 2);
     fs.writeFileSync(tmp, payload);
     fs.renameSync(tmp, DATA_FILE);
+    return true;
   } catch (e) {
     console.error("[whybuddy-store] flushToDisk failed:", (e as Error)?.message || e);
+    return false;
   }
 }
 
@@ -109,8 +117,13 @@ router.put("/sessions/:sessionId", express.json({ limit: "2mb" }), (req: Request
     (state as any).createdAt = (existing as any)?.createdAt || (state as any).lastActive;
   }
 
+  const previous = sessions.get(sid);
   sessions.set(sid, state);
-  flushToDisk();
+  if (!flushToDisk()) {
+    if (previous) sessions.set(sid, previous);
+    else sessions.delete(sid);
+    return res.status(500).json({ error: "persist_failed" });
+  }
   res.status(200).json(state);
 });
 
@@ -118,7 +131,9 @@ router.put("/sessions/:sessionId", express.json({ limit: "2mb" }), (req: Request
 router.delete("/sessions/:sessionId", (req: Request, res: Response) => {
   const sid = req.params.sessionId;
   const existed = sessions.delete(sid);
-  flushToDisk();
+  if (!flushToDisk()) {
+    return res.status(500).end();
+  }
   // 204 No Content is conventional for successful DELETE even if it didn't exist
   res.status(204).end();
 });
@@ -127,7 +142,18 @@ router.delete("/sessions/:sessionId", (req: Request, res: Response) => {
 // Not part of the official 4-endpoint contract.
 router.post("/sessions/__clear", (_req: Request, res: Response) => {
   sessions.clear();
-  flushToDisk();
+  if (!flushToDisk()) {
+    return res.status(500).end();
+  }
+  res.status(204).end();
+});
+
+// (Optional nicety) allow a manual reload-from-durable-file for dev / tests against the real server.
+// Triggers live server backing re-init from the on-disk JSON (clear + loadFromDisk).
+// This is the correct way for the smoke (or any external test) to prove "re-init recovery"
+// against the *live* serving process. Not part of the official 4-endpoint contract.
+router.post("/sessions/__reload", (_req: Request, res: Response) => {
+  reloadFromDisk();
   res.status(204).end();
 });
 
@@ -137,11 +163,10 @@ export default router;
  * Durability pilot test helpers (smoke + future server tests only).
  * - Never called from normal request handlers or the public HTTP surface.
  * - Allow the smoke to prove "re-initialize backing from durable file recovers prior writes"
- *   without killing the dev server process.
+ *   without killing the dev server process (via the __reload endpoint) or for direct use.
  */
 export const __WHYBUDDY_SESSIONS_FILE = DATA_FILE;
 
 export function __reloadFromDisk(): void {
-  sessions.clear();
-  loadFromDisk();
+  reloadFromDisk();
 }

@@ -160,9 +160,9 @@ async function main() {
   }
 
   // Durability pilot checks (new for Durable Store Pilot phase).
-  // Proves: writes go to disk (JSON), re-initializing the backing (fresh load from file)
-  // recovers the session, and delete is also durable. Uses the __reloadFromDisk test helper
-  // exported by the route (never touches the public 4-endpoint HTTP surface).
+  // Proves: writes go to disk (JSON), re-initializing the *live server* backing via the
+  // test-only __reload endpoint recovers the session, and delete is also durable.
+  // (The on-disk read is independent proof; the __reload POST hits the actual serving process.)
   {
     const DUR_ID = TEST_SESSION_ID + '-durability';
     const durState = {
@@ -202,43 +202,33 @@ async function main() {
       console.log('[whybuddy-store-smoke] 7. on-disk JSON contains the session → durable write verified');
     }
 
-    // Re-init the backing from durable file (simulates "server route module re-initialized").
-    // Uses the test-only __reloadFromDisk (exported by server/routes/whybuddy.ts).
+    // Re-init the backing from durable file (triggers *live server* re-init via the test-only __reload endpoint).
+    // This is the correct way to prove "live server lost memory state + recovered from durable JSON".
     {
-      let routeMod = null;
-      try {
-        routeMod = await import('../server/routes/whybuddy.ts');
-      } catch (e) {
-        console.log('[whybuddy-store-smoke] (info) could not dynamic-import route for reload (non-fatal):', e?.message);
+      const reloadRes = await jsonFetch(`${BASE}/sessions/__reload`, { method: 'POST' });
+      if (reloadRes.status !== 204 && reloadRes.status !== 200) {
+        console.error('[whybuddy-store-smoke] durability __reload failed', reloadRes.status);
+        process.exit(1);
       }
-      if (routeMod && typeof routeMod.__reloadFromDisk === 'function') {
-        routeMod.__reloadFromDisk();
-        // Now read back via the public API — if the file backing works, the session is still here.
-        const { status, body } = await jsonFetch(`${BASE}/sessions/${encodeURIComponent(DUR_ID)}`);
-        if (status !== 200 || !body || body.sessionId !== DUR_ID) {
-          console.error('[whybuddy-store-smoke] durability re-init GET failed', status, body);
-          process.exit(1);
-        }
-        console.log('[whybuddy-store-smoke] 8. __reloadFromDisk() + GET → recovered from durable file');
-      } else {
-        console.log('[whybuddy-store-smoke] (info) __reloadFromDisk not available, skipping re-init assertion (file write already proven)');
+      // Now read back via the public API — the live server should have reloaded from disk.
+      const { status, body } = await jsonFetch(`${BASE}/sessions/${encodeURIComponent(DUR_ID)}`);
+      if (status !== 200 || !body || body.sessionId !== DUR_ID) {
+        console.error('[whybuddy-store-smoke] durability re-init GET failed', status, body);
+        process.exit(1);
       }
+      console.log('[whybuddy-store-smoke] 8. POST __reload + GET → live server recovered from durable file');
     }
 
-    // Delete via API, re-init, confirm 404 / not loadable (durable delete also persisted).
+    // Delete via API, re-init via live __reload, confirm 404 / not loadable (durable delete also persisted).
     {
       await jsonFetch(`${BASE}/sessions/${encodeURIComponent(DUR_ID)}`, { method: 'DELETE' });
-      let routeMod = null;
-      try { routeMod = await import('../server/routes/whybuddy.ts'); } catch {}
-      if (routeMod && typeof routeMod.__reloadFromDisk === 'function') {
-        routeMod.__reloadFromDisk();
-      }
+      await jsonFetch(`${BASE}/sessions/__reload`, { method: 'POST' });
       const { status } = await jsonFetch(`${BASE}/sessions/${encodeURIComponent(DUR_ID)}`);
       if (status !== 404) {
         console.error('[whybuddy-store-smoke] durability post-delete 404 check failed', status);
         process.exit(1);
       }
-      console.log('[whybuddy-store-smoke] 9. delete + __reloadFromDisk + GET deleted → 404 (durable delete verified)');
+      console.log('[whybuddy-store-smoke] 9. delete + POST __reload + GET deleted → 404 (durable delete verified)');
     }
   }
 
