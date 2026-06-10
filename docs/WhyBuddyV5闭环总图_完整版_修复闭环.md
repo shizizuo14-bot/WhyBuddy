@@ -4357,6 +4357,20 @@ V5 闭环原型 98% 基线已提交；Durable Store Pilot（JSON）完成，stor
 此变更直接响应审查意见：“参考 `/autopilot` 下的方式，已经有了具体的使用”。WhyBuddy 的 capability LLM 调用现在与平台其它 LLM 使用走同一条配置与调用路径。
 
 ---
+## 本轮小收口（test: harden server LLM execute-capability route）
+
+- 针对上轮 server route 实现后的审查 Findings 做的针对性加固：
+  1. `report.write` 现在在 server 侧先调用 `buildStructuredReport` 拿到权威 9-section 骨架，再把完整 base 喂给 LLM（LLM 只负责 polish/expand，不得丢结构、证据引用、风险、缺口等）。
+  2. 新增 dedicated server route 测试文件 `server/routes/whybuddy.execute-capability.test.ts`，覆盖 review 要求的 case（bad request 400、unsupported capability 4xx 而非 500、无 key 安全 500、risk/report 成功 shape、report 带 9-section 信号）。
+  3. 不支持的 capability 错误从 500 改为 400/422（语义更准，fallback 行为不变）。
+  4. 页面默认仍严格使用 `usePilotRealExecutor`（demo + smoke 稳定）；增加显式 opt-in（`?executor=server-llm`），便于手动真实 server LLM 试跑。
+- 保持所有现有契约：seam、fallback、31/31（或因新增 server test 文件可能的小幅 count 变化已同步刷新 smoke guard）、默认 PilotReal、闭环不变。
+- 执行记录：`pnpm run verify:whybuddy-v5` 全绿；`git diff --check` 干净；提交 `test(whybuddy): harden server LLM execute-capability route`。
+- 生产就绪度影响：`report 主输出物质量` 在真实 server LLM 路径下显著加固；`真实 LLM provider wiring` 更接近 95%；整体 prod readiness 继续向 94%+ 推进。
+
+此小刀直接为后续更大规模的 Autopilot 能力吸收（P0: server LLM 调用 + capability bridge；P1: Checks/Artifact Memory/Traceability；P2: Prompt Package / Handoff / Streaming Docs 等）打下 schema + 测试基础，而不把 Autopilot 的阶段流水线 UI 搬回 WhyBuddy。
+
+---
 ## 继续推进（pilot executor baseline 提交准备 · 验证文案 Low 已自洽 · 6 tracked 文件 grouped commit ready）
 
 **执行依据**：用户本轮 **审查结论**（附着于本文件） + 已批准的执行计划（plan mode 后的 Low 刷新确认 + commit readiness）。

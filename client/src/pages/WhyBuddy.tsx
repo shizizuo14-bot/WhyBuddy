@@ -52,7 +52,18 @@ export default function WhyBuddy() {
   // 9-section schema and all closed-loop invariants are untouched.
   React.useEffect(() => {
     const prev = WhyBuddyRuntime.getCapabilityExecutor?.();
-    WhyBuddyRuntime.usePilotRealExecutor?.();
+
+    // Default remains PilotReal for demo/smoke stability (deterministic richer outputs).
+    // Real server LLM (aligned with /autopilot getAIConfig + callLLMJson) is explicit opt-in.
+    // Usage: /whybuddy?executor=server-llm   (or add your own dev toggle that calls useServerLlmCapabilityExecutor)
+    const params = new URLSearchParams(window.location.search);
+    const wantServer = params.get('executor') === 'server-llm';
+
+    if (wantServer && WhyBuddyRuntime.useServerLlmCapabilityExecutor) {
+      WhyBuddyRuntime.useServerLlmCapabilityExecutor?.();
+    } else {
+      WhyBuddyRuntime.usePilotRealExecutor?.();
+    }
 
     return () => {
       if (prev && WhyBuddyRuntime.setCapabilityExecutor) {

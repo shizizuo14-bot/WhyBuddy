@@ -20,6 +20,7 @@ import express, { Router, type Request, type Response } from "express";
 import type { V5SessionState } from "../../shared/blueprint/v5-reasoning-state.js";
 import { getAIConfig } from "../core/ai-config.js";
 import { callLLMJson } from "../core/llm-client.js";
+import { buildStructuredReport } from "../../client/src/lib/whybuddy-runtime.js";
 import * as fs from "fs";
 import * as path from "path";
 
@@ -225,13 +226,20 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
         `Role: ${roleId || "unspecified"}  Turn: ${turnId}\n\n` +
         "Produce a focused risk analysis: key risks, likelihood/impact, mitigations.";
     } else if (capabilityId === "report.write") {
+      // Use the deterministic 9-section builder as authoritative base (LLM only polishes/expands).
+      // This ensures the main report artifact keeps the strong schema + evidence refs even when real server LLM is active.
+      const built = buildStructuredReport({ state, inputArtifactIds, roleId });
       userPrompt =
         `Capability: report.write\nGoal: ${goalText}\n` +
-        `Context artifacts (use for facts): ${JSON.stringify(recentArtifacts)}\n` +
+        `Base structured evidence (authoritative 9-section skeleton from buildStructuredReport — preserve all sections, key facts, upstream refs, risks, gaps, and the exact structure; only polish narrative, flow, insight and professionalism):\n` +
+        `BASE_TITLE: ${built.title}\nBASE_SUMMARY: ${built.summary}\nBASE_CONTENT:\n${built.content}\n\n` +
         `Role: ${roleId || "综合"}  Turn: ${turnId}\n\n` +
-        "Produce a high-quality evidence report (title, summary, detailed content).";
+        "Return the polished final evidence report as the required JSON {title, summary, content}.";
     } else {
-      throw new Error(`Server LLM provider does not handle capability: ${capabilityId}`);
+      // Client error, not LLM execution error.
+      const err = new Error(`Server LLM provider does not handle capability: ${capabilityId}`);
+      (err as any).status = 400;
+      throw err;
     }
 
     const result = await callLLMJson<{ title?: string; summary?: string; content?: string }>(
@@ -259,8 +267,10 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
   } catch (e: any) {
     const msg = String(e?.message || e);
     console.error("[whybuddy] /execute-capability failed:", msg);
-    // Non-2xx so the client createServerLlmCapabilityProvider will throw → LlmCapabilityExecutor falls back.
-    return res.status(500).json({ error: "llm_execution_failed", message: msg.slice(0, 300) });
+    const status = e?.status || 500;
+    const code = status === 400 || status === 422 ? "unsupported_capability" : "llm_execution_failed";
+    // Non-2xx so the client provider throws → LlmCapabilityExecutor fallback.
+    return res.status(status).json({ error: code, message: msg.slice(0, 300) });
   }
 });
 
