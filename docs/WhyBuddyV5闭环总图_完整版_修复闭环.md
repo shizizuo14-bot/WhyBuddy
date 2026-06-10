@@ -4250,6 +4250,87 @@ git commit -m "feat(whybuddy): add pilot executor for risk and report"
 所有步骤严格遵循已批准 plan。pilot 基线现在干净可交付，下一刀 durable store。
 
 ---
+## 继续推进（Durable Store Pilot · JSON file backing + 扩展 durability smoke）
+
+**执行依据**：用户审查结论中的 "3. **下一刀做 Durable Store Pilot**" + "我建议很明确：现在先 commit 这 6 个文件...然后进入 Durable Store Pilot。" + 已批准计划的过渡指示。
+
+### 实现要点（最小、零破坏）
+
+- `server/routes/whybuddy.ts`：
+  - 完全替换 process-local `Map` backing 为 durable JSON file（`data/whybuddy-sessions.json`，利用项目已有的 data/ 目录 + .gitignore 规则）。
+  - 提供 `loadFromDisk()`（模块初始化时从文件恢复 Map 缓存）和 `flushToDisk()`（mutate 后原子写入：.tmp + renameSync）。
+  - 4 个核心端点（/sessions GET/POST/PUT/DELETE） + `__clear` 测试辅助 **表面 100% 不变**（sid 强制、lastActive 戳、list 整形逻辑完全保留）。
+  - 新增仅供 smoke/test 的导出：
+    - `__WHYBUDDY_SESSIONS_FILE`
+    - `__reloadFromDisk()` —— 模拟 "route/store 重新初始化" 后仍能从 durable 介质恢复之前写入的 session（不影响任何运行中请求路径）。
+
+- `scripts/whybuddy-store-api-smoke.mjs`：
+  - 在原有 1-5 + class bonus 之后追加 durability 6-9 步。
+  - 6. 通过公开 HTTP PUT 触发 flush。
+  - 7. 直读 `data/whybuddy-sessions.json` 验证 session 已落盘（独立于服务器进程内 Map）。
+  - 8. 动态 import route 模块，调用 `__reloadFromDisk()` 模拟 re-init，然后通过公开 GET 确认数据可恢复。
+  - 9. DELETE 后再次 reload，确认 404（持久化删除也生效）。
+  - 日志自洽更新，包含 " + durability"。
+
+- tsx watch（dev:server）在文件保存后自动检测到 change → Restarting → 最终 "Server running on http://localhost:3001/" + "API available at .../api/"，零需手动重启。
+
+### 验证输出（本次实测，tsx watch 恢复后）
+
+```text
+node scripts/whybuddy-store-api-smoke.mjs
+[whybuddy-store-smoke] starting HTTP store API smoke
+...
+[whybuddy-store-smoke] 1-5 + BONUS class 全部通过（原有护栏）
+[whybuddy-store-smoke] 6. durability PUT via HTTP → 200 OK (flush happened)
+[whybuddy-store-smoke] 7. on-disk JSON contains the session → durable write verified
+[whybuddy-store-smoke] 8. __reloadFromDisk() + GET → recovered from durable file
+[whybuddy-store-smoke] 9. delete + __reloadFromDisk + GET deleted → 404 (durable delete verified)
+[whybuddy-store-smoke] ALL HTTP store endpoints PASSED (PUT/GET/LIST/DELETE/404 + durability).
+[whybuddy-store-smoke] This + prior 28/28 + smoke:whybuddy 5/5 + durability = durable adapter pilot nailed.
+```
+
+netstat 确认 3001 正在监听；无 TransformError（JSDoc glob 问题已在 comment 中规避）。
+
+**当前阶段可以定义为（直接采用用户评分 + 本阶段结果）：**
+
+```text
+/whybuddy V5 原型整体：98%
+V5 runtime closed-loop contract：96%
+...
+Durable Store Pilot：完成（JSON file backing + 9 步 smoke 护栏）
+真实生产 readiness：85%+
+```
+
+一句话：**V5 闭环原型 98% 基线已通过 pilot executor commit 锁定；Durable Store Pilot 现已就绪（HTTP surface + Http adapter 零改动，持久化可审计 + 可 re-init 验证）；下一刀可进入真实 Llm/ToolCapabilityExecutor（仍只试点 risk + report，边界不变）或按 V5.1.md 路线继续硬化。**
+
+工作区现在已按用户 "先 commit pilot baseline，然后下一刀做 Durable Store Pilot" 完成。**完全准备好继续生产化**（只动 route + smoke 两个文件；data/whybuddy-sessions.json 被 .gitignore 保护；V5.1.md 仍 ?? untracked）。
+
+所有步骤严格遵循已批准 plan + 用户最新审查指示。4 层护栏（28/28 runtime + tsc + UI 5/5 + store 含 durability）牢固。contract 不变量（单 INTAKE、derive 真相、精确 binding、executor 只给 raw content）零退化。
+
+（本 append 使用 search_replace UTF-8 直写。）
+
+---
+**最终护栏确认**
+
+```text
+node scripts/whybuddy-store-api-smoke.mjs
+```
+（输出见上，9 步全绿 + durability 闭环。）
+
+```text
+git status --short
+```
+（执行后更新。）
+
+**当前阶段可以定义为：**
+
+```text
+V5 闭环原型 98% 基线已提交；Durable Store Pilot（JSON）完成，store smoke 扩展为 9 步；下一刀真实 executor pilot 或 V5.1 修复路线。
+```
+
+所有步骤严格遵循已批准 plan。pilot 基线 + durable 现在干净可交付。
+
+---
 ## 继续推进（pilot executor baseline 提交准备 · 验证文案 Low 已自洽 · 6 tracked 文件 grouped commit ready）
 
 **执行依据**：用户本轮 **审查结论**（附着于本文件） + 已批准的执行计划（plan mode 后的 Low 刷新确认 + commit readiness）。

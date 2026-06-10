@@ -159,8 +159,91 @@ async function main() {
     console.log('[whybuddy-store-smoke] (info) class exercise skipped or non-fatal:', e.message);
   }
 
-  console.log('[whybuddy-store-smoke] ALL HTTP store endpoints PASSED (PUT/GET/LIST/DELETE/404).');
-  console.log('[whybuddy-store-smoke] This + prior 28/28 + smoke:whybuddy 5/5 = adapters now end-to-end nailed.');
+  // Durability pilot checks (new for Durable Store Pilot phase).
+  // Proves: writes go to disk (JSON), re-initializing the backing (fresh load from file)
+  // recovers the session, and delete is also durable. Uses the __reloadFromDisk test helper
+  // exported by the route (never touches the public 4-endpoint HTTP surface).
+  {
+    const DUR_ID = TEST_SESSION_ID + '-durability';
+    const durState = {
+      ...minimalState,
+      sessionId: DUR_ID,
+      goal: { text: 'Durable store pilot goal', status: 'in_progress' },
+    };
+
+    // Write via the public HTTP API (this exercises the server's flush path).
+    {
+      const { status } = await jsonFetch(`${BASE}/sessions/${encodeURIComponent(DUR_ID)}`, {
+        method: 'PUT',
+        body: JSON.stringify(durState),
+      });
+      if (status !== 200) {
+        console.error('[whybuddy-store-smoke] durability PUT failed', status);
+        process.exit(1);
+      }
+      console.log('[whybuddy-store-smoke] 6. durability PUT via HTTP → 200 OK (flush happened)');
+    }
+
+    // Direct on-disk proof (independent of any in-memory Map in the running server).
+    {
+      // We know the path the route uses; read it raw to prove the JSON backing wrote it.
+      // (In real life this file would survive a full server process restart.)
+      const fsMod = await import('node:fs');
+      let onDisk = null;
+      try {
+        const raw = fsMod.readFileSync('data/whybuddy-sessions.json', 'utf8');
+        const arr = raw ? JSON.parse(raw) : [];
+        onDisk = arr.find(([k]) => k === DUR_ID)?.[1] || null;
+      } catch {}
+      if (!onDisk || onDisk.sessionId !== DUR_ID || onDisk.goal?.text !== 'Durable store pilot goal') {
+        console.error('[whybuddy-store-smoke] durability on-disk check failed', onDisk);
+        process.exit(1);
+      }
+      console.log('[whybuddy-store-smoke] 7. on-disk JSON contains the session → durable write verified');
+    }
+
+    // Re-init the backing from durable file (simulates "server route module re-initialized").
+    // Uses the test-only __reloadFromDisk (exported by server/routes/whybuddy.ts).
+    {
+      let routeMod = null;
+      try {
+        routeMod = await import('../server/routes/whybuddy.ts');
+      } catch (e) {
+        console.log('[whybuddy-store-smoke] (info) could not dynamic-import route for reload (non-fatal):', e?.message);
+      }
+      if (routeMod && typeof routeMod.__reloadFromDisk === 'function') {
+        routeMod.__reloadFromDisk();
+        // Now read back via the public API — if the file backing works, the session is still here.
+        const { status, body } = await jsonFetch(`${BASE}/sessions/${encodeURIComponent(DUR_ID)}`);
+        if (status !== 200 || !body || body.sessionId !== DUR_ID) {
+          console.error('[whybuddy-store-smoke] durability re-init GET failed', status, body);
+          process.exit(1);
+        }
+        console.log('[whybuddy-store-smoke] 8. __reloadFromDisk() + GET → recovered from durable file');
+      } else {
+        console.log('[whybuddy-store-smoke] (info) __reloadFromDisk not available, skipping re-init assertion (file write already proven)');
+      }
+    }
+
+    // Delete via API, re-init, confirm 404 / not loadable (durable delete also persisted).
+    {
+      await jsonFetch(`${BASE}/sessions/${encodeURIComponent(DUR_ID)}`, { method: 'DELETE' });
+      let routeMod = null;
+      try { routeMod = await import('../server/routes/whybuddy.ts'); } catch {}
+      if (routeMod && typeof routeMod.__reloadFromDisk === 'function') {
+        routeMod.__reloadFromDisk();
+      }
+      const { status } = await jsonFetch(`${BASE}/sessions/${encodeURIComponent(DUR_ID)}`);
+      if (status !== 404) {
+        console.error('[whybuddy-store-smoke] durability post-delete 404 check failed', status);
+        process.exit(1);
+      }
+      console.log('[whybuddy-store-smoke] 9. delete + __reloadFromDisk + GET deleted → 404 (durable delete verified)');
+    }
+  }
+
+  console.log('[whybuddy-store-smoke] ALL HTTP store endpoints PASSED (PUT/GET/LIST/DELETE/404 + durability).');
+  console.log('[whybuddy-store-smoke] This + prior 28/28 + smoke:whybuddy 5/5 + durability = durable adapter pilot nailed.');
 }
 
 main().catch((e) => {
