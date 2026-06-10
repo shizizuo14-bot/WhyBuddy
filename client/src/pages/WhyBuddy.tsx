@@ -154,45 +154,12 @@ export default function WhyBuddy() {
         roleId: raw.role,
         turnId,
       });
+      // IMPORTANT: no more post-processing override for report.write / synthesis.merge.
+      // The CapabilityExecutor (Default now calls buildStructuredReport for report.write)
+      // is the single source for the main output content. Page trusts exec.content and passes it
+      // through to commitArtifact. This keeps the swappable executor contract honest and makes
+      // the 9-section evidence report the real V5 deliverable.
       let content = exec ? exec.content : raw.content;
-
-      const upstreamsForDissent = workingState.artifacts.filter((a: any) => freshInputs.includes(a.id));
-      const hasStale = upstreamsForDissent.some((u: any) => workingState.staleArtifactIds.includes(u.id));
-
-      if (raw.capability === "report.write") {
-        const upstreams = workingState.artifacts.filter((a: any) => freshInputs.includes(a.id));
-        const fragments = upstreams.flatMap((u: any) => {
-          const src = `${u.kind}(${u.producedBy?.capabilityId || u.capability}×${u.producedBy?.roleId || u.role})`;
-          const extracted = WhyBuddyRuntime.extractArtifactFragments(u, 140);
-          return extracted.map((fragment) => `- 来自 ${src} / ${fragment.label}: ${fragment.text}`);
-        }).join('\n');
-
-        const upstreamSummary = upstreams.length > 0
-          ? upstreams.map((u: any) => `${u.kind}(${u.producedBy?.capabilityId || u.capability}×${u.producedBy?.roleId || u.role})`).join(', ')
-          : '无';
-
-        const riskFragments = upstreams
-          .filter((u: any) => u.kind === 'risk')
-          .flatMap((u: any) => WhyBuddyRuntime.extractArtifactFragments(u, 120))
-          .filter((fragment) => fragment.label === '风险' || fragment.label === '反驳' || fragment.label === '建议')
-          .map((fragment) => `- ${fragment.label}: ${fragment.text}`)
-          .join('\n');
-
-        const hasStale = upstreams.some((u: any) => workingState.staleArtifactIds.includes(u.id));
-
-        content = `【可行性 / 产品推演报告】\n结论：建议推进权限系统建设（基于本轮多角色讨论）。\n支撑证据片段：\n${fragments || '（无具体片段）'}\n\n反证/风险片段（来自上游）：\n${riskFragments || '（本轮未产出明确反证）'}\n\n证据引用：${upstreamSummary}（共 ${upstreams.length} 个已 gated_pass 的上游 artifact）。\n${hasStale ? '分歧意见（模拟多角色投票）：部分上游已 stale，角色间存在异议，需进一步澄清或回炉。\n' : ''}收敛：MVP 先做 RBAC + 基础数据范围，预留策略扩展。\n下一步：进入 structure.decompose 生成任务树。`;
-      }
-
-      // For synthesis.merge, also aggregate a merged conclusion from its direct upstreams
-      if (raw.capability === "synthesis.merge") {
-        const upstreams = workingState.artifacts.filter((a: any) => freshInputs.includes(a.id));
-        const mergedPoints = upstreams.flatMap((u: any) => {
-          const extracted = WhyBuddyRuntime.extractArtifactFragments(u, 90);
-          return extracted.map((fragment) => `• [${u.producedBy?.capabilityId || u.capability} / ${fragment.label}] ${fragment.text}`);
-        }).join('\n');
-        const dissent = hasStale ? '\n角色投票分歧：安全与挑刺角色因 stale 持不同意见（需再澄清）。' : '';
-        content = `【综合收敛 (synthesis.merge)】\n本轮从 ${upstreams.length} 个上游聚合：\n${mergedPoints || '（无上游片段）'}\n\n初步结论：权限系统建议采用 RBAC + 数据范围 MVP，预留策略扩展。${dissent}`;
-      }
 
       const { updatedState, committed } = WhyBuddyRuntime.commitArtifact(
         workingState,
@@ -314,29 +281,10 @@ export default function WhyBuddy() {
         roleId: raw.role,
         turnId,
       });
+      // No post-override for report/synthesis in re-entry either. Executor (with buildStructuredReport
+      // for report.write) is authoritative. Re-entry reports will carry the same 9-section schema
+      // (the builder sees the current state + freshInputs at reentry time, including any new stale marks).
       let content = exec ? exec.content : raw.content;
-
-      if (raw.capability === "report.write") {
-        const upstreams = working.artifacts.filter((a: any) => freshInputs.includes(a.id));
-        const fragments = upstreams.flatMap((u: any) => {
-          const src = `${u.kind}(${u.producedBy?.capabilityId || u.capability}×${u.producedBy?.roleId || u.role})`;
-          const extracted = WhyBuddyRuntime.extractArtifactFragments(u, 140);
-          return extracted.map((fragment) => `- 来自 ${src} / ${fragment.label}: ${fragment.text}`);
-        }).join('\n');
-        const upstreamSummary = upstreams.length > 0
-          ? upstreams.map((u: any) => `${u.kind}(${u.producedBy?.capabilityId || u.capability}×${u.producedBy?.roleId || u.role})`).join(', ')
-          : '无';
-        content = `【可行性 / 产品推演报告 (重入)】\n结论：建议推进权限系统建设（基于本轮多角色讨论）。\n支撑证据片段：\n${fragments || '（无具体片段）'}\n\n证据引用：${upstreamSummary}（共 ${upstreams.length} 个已 gated_pass 的上游 artifact）。\n收敛：MVP 先做 RBAC + 基础数据范围，预留策略扩展。\n下一步：进入 structure.decompose 生成任务树。`;
-      }
-
-      if (raw.capability === "synthesis.merge") {
-        const upstreams = working.artifacts.filter((a: any) => freshInputs.includes(a.id));
-        const mergedPoints = upstreams.flatMap((u: any) => {
-          const extracted = WhyBuddyRuntime.extractArtifactFragments(u, 90);
-          return extracted.map((fragment) => `• [${u.producedBy?.capabilityId || u.capability} / ${fragment.label}] ${fragment.text}`);
-        }).join('\n');
-        content = `【综合收敛 (synthesis.merge，重入)】\n本轮从 ${upstreams.length} 个上游聚合：\n${mergedPoints || '（无上游片段）'}\n\n初步结论：权限系统建议采用 RBAC + 数据范围 MVP，预留策略扩展。`;
-      }
 
       // Correct payload shape expected by runtime commitArtifact
       // (matches the shape already used in the sendMessage path)

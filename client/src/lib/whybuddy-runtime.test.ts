@@ -26,6 +26,7 @@ import {
   setCapabilityExecutor,
   getCapabilityExecutor,
   executeCapability,
+  buildStructuredReport,
 } from './whybuddy-runtime';
 import type { V5SessionState, Artifact, UserIntervention } from '@shared/blueprint/v5-reasoning-state';
 import type { V5CapabilityId } from '@shared/blueprint/contracts';
@@ -287,6 +288,41 @@ describe('whybuddy-runtime V5 closed loop (behavioral regression)', () => {
     expect(fragments.map((fragment) => fragment.text).join('\n')).toContain('数据范围越权');
     expect(fragments.map((fragment) => fragment.text).join('\n')).toContain('过早引入 ABAC');
     expect(fragments.map((fragment) => fragment.text).join('\n')).not.toContain('背景');
+  });
+
+  it('buildStructuredReport produces the fixed 9-section evidence-grade schema and pulls real fragments from upstreams', () => {
+    // Seed a minimal state with risk + synthesis upstreams (simulating what page loop would have committed before report)
+    let s = createInitialSessionState('权限系统报告测试');
+    const riskRaw = createRawArtifact('r1', 'risk.analyze', '安全', 'risk', SEMANTIC_CONTENTS['risk.analyze']);
+    const counterRaw = createRawArtifact('c1', 'counter.argue', '挑刺', 'risk', SEMANTIC_CONTENTS['counter.argue']);
+    const synthRaw = createRawArtifact('s1', 'synthesis.merge', '综合', 'synthesis', SEMANTIC_CONTENTS['synthesis.merge']);
+
+    let after = commitArtifact(s, riskRaw as any, 't-run-r', false, []).updatedState;
+    after = commitArtifact(after, counterRaw as any, 't-run-c', false, [riskRaw.id]).updatedState;
+    after = commitArtifact(after, synthRaw as any, 't-run-s', false, [riskRaw.id, counterRaw.id]).updatedState;
+
+    const reportInputIds = [riskRaw.id, counterRaw.id, synthRaw.id];
+    const built = buildStructuredReport({ state: after, inputArtifactIds: reportInputIds, roleId: '综合' });
+
+    // Must contain the 9 labeled sections (user schema)
+    expect(built.content).toContain('结论：');
+    expect(built.content).toContain('支撑证据：');
+    expect(built.content).toContain('反证/挑战：');
+    expect(built.content).toContain('风险：');
+    expect(built.content).toContain('分歧：');
+    expect(built.content).toContain('收敛决策：');
+    expect(built.content).toContain('未解缺口：');
+    expect(built.content).toContain('下一步工程化分支：');
+    expect(built.content).toContain('provenance / upstream refs：');
+
+    // Must pull real semantic phrases from the seeded upstreams (via extract)
+    expect(built.content).toContain('数据范围越权风险');
+    expect(built.content).toContain('反驳过早引入 ABAC');
+    expect(built.content).toContain('RBAC + 数据范围 MVP');
+
+    // Title/summary sanity
+    expect(built.title).toContain('可行性 / 产品推演报告');
+    expect(built.summary.length).toBeGreaterThan(10);
   });
 
   // ===== 新增：INTAKE 单门 + AWAIT 外圈闭环 + sessionId 隔离（对齐 修复闭环.md） =====
