@@ -12,10 +12,37 @@ export type WhyArtifact = {
   realLlm?: boolean;
 };
 
-/** Product page turn — pure conversation (user bubble + assistant prose). */
+/** S8: pure UI progressive slice — not persisted in V5SessionState. */
+export type TurnStep =
+  | {
+      id: string;
+      kind: "narration";
+      text: string;
+      source: "llm" | "fallback";
+      isFinal?: boolean;
+    }
+  | {
+      id: string;
+      kind: "chip";
+      capabilityId: V5CapabilityId;
+      roleId: string;
+      label: string;
+      realLlm: boolean;
+    }
+  | {
+      id: string;
+      kind: "step_narration";
+      text: string;
+      capabilityId: V5CapabilityId;
+      realLlm: boolean;
+    };
+
+/** Product page turn — progressive conversation (user bubble + step stream). */
 export type UiTurn = {
   id: string;
   user: string;
+  status: "streaming" | "complete";
+  steps: TurnStep[];
   assistant: string;
   assistantSource: "llm" | "fallback";
   narrationReason?: NarrationFallbackReason;

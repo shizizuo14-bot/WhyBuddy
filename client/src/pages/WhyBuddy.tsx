@@ -12,7 +12,7 @@ import { projectConclusionBadge } from "./whybuddy/conclusion-badge";
 import { autopilotTheme } from "./whybuddy/autopilot-theme";
 import type { ActionTrace, LiveAction } from "@shared/blueprint/capability-process-labels";
 import { narrationFallbackHint } from "@/lib/whybuddy-narrator";
-import type { UiTurn } from "./whybuddy/types";
+import type { TurnStep, UiTurn } from "./whybuddy/types";
 
 const HINT_CHIPS = [
   "路线对比一下",
@@ -76,6 +76,41 @@ function LiveActionIndicator({ liveAction }: { liveAction: LiveAction }) {
         </span>
       )}
       {liveAction.label}
+    </div>
+  );
+}
+
+function CapabilityChip({ step }: { step: Extract<TurnStep, { kind: "chip" }> }) {
+  return (
+    <span
+      className={`inline-flex items-center gap-1 rounded-full px-2.5 py-0.5 text-[11px] ring-1 ring-inset ${
+        step.realLlm
+          ? "bg-emerald-50 text-emerald-800 ring-emerald-200"
+          : "bg-slate-50 text-slate-600 ring-slate-200"
+      }`}
+    >
+      {step.label}
+    </span>
+  );
+}
+
+function TurnStepView({
+  step,
+  active,
+}: {
+  step: TurnStep;
+  active: boolean;
+}) {
+  if (step.kind === "chip") {
+    return (
+      <div className="py-1">
+        <CapabilityChip step={step} />
+      </div>
+    );
+  }
+  return (
+    <div className="py-1">
+      <TypewriterText text={step.text} active={active} />
     </div>
   );
 }
@@ -159,7 +194,13 @@ export default function WhyBuddy() {
   });
 
   const badge = projectConclusionBadge(sessionState);
-  const latestTurnId = uiTurns.length > 0 ? uiTurns[uiTurns.length - 1].id : null;
+  const latestTurn = uiTurns.length > 0 ? uiTurns[uiTurns.length - 1] : null;
+  const latestTurnId = latestTurn?.id ?? null;
+  const latestActiveStepId =
+    latestTurn && latestTurn.status === "streaming"
+      ? latestTurn.steps[latestTurn.steps.length - 1]?.id
+      : latestTurn?.steps.find((s) => s.kind === "narration" && "isFinal" in s && s.isFinal)?.id ??
+        latestTurn?.steps[latestTurn.steps.length - 1]?.id;
 
   return (
     <div className={autopilotTheme.page}>
@@ -198,16 +239,38 @@ export default function WhyBuddy() {
                 <div className={autopilotTheme.userBubble}>{turn.user}</div>
               </div>
               <div className="pl-1">
-                <ActionTraceRow
-                  traces={turn.actions}
-                  sessionId={sessionState.sessionId || "whybuddy-main-proto"}
-                />
-                <TypewriterText text={turn.assistant} active={turn.id === latestTurnId} />
-                <TurnFootnote
-                  turn={turn}
-                  sessionId={sessionState.sessionId || "whybuddy-main-proto"}
-                  onChallenge={challengeTurn}
-                />
+                {turn.status === "complete" && (
+                  <ActionTraceRow
+                    traces={turn.actions}
+                    sessionId={sessionState.sessionId || "whybuddy-main-proto"}
+                  />
+                )}
+                {turn.steps.length > 0 ? (
+                  turn.steps.map((step) => (
+                    <TurnStepView
+                      key={step.id}
+                      step={step}
+                      active={
+                        turn.id === latestTurnId &&
+                        step.id === latestActiveStepId &&
+                        (turn.status === "streaming" ||
+                          (step.kind === "narration" && step.isFinal === true))
+                      }
+                    />
+                  ))
+                ) : (
+                  <TypewriterText
+                    text={turn.assistant}
+                    active={turn.id === latestTurnId && turn.status === "complete"}
+                  />
+                )}
+                {turn.status === "complete" && (
+                  <TurnFootnote
+                    turn={turn}
+                    sessionId={sessionState.sessionId || "whybuddy-main-proto"}
+                    onChallenge={challengeTurn}
+                  />
+                )}
               </div>
             </div>
           ))}

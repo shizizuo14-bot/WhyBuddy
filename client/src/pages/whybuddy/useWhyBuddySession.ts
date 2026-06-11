@@ -14,7 +14,8 @@ import * as WhyBuddyRuntime from "@/lib/whybuddy-runtime";
 import { fetchNarration } from "@/lib/whybuddy-narrator";
 import { fetchOrchestratePlan } from "@/lib/whybuddy-orchestrator";
 import type { Artifact, UserIntervention, V5SessionState } from "@shared/blueprint/v5-reasoning-state";
-import type { UiTurn, WhyArtifact, WhyBuddyExecutorMode } from "./types";
+import { buildOpeningPlanNarration, buildStepNarration } from "./step-narration";
+import type { TurnStep, UiTurn, WhyArtifact, WhyBuddyExecutorMode } from "./types";
 
 const DEFAULT_GOAL = "做一个权限管理系统（支持 RBAC + 数据范围）";
 const DEFAULT_SESSION_ID = "whybuddy-main-proto";
@@ -108,7 +109,8 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
     turnId: string,
     planSelected: Array<{ capabilityId: V5CapabilityId; roleId?: string }>,
     processCtx: { userText: string; goalText: string },
-    contentPrefix = ""
+    contentPrefix = "",
+    onStep?: (step: TurnStep) => void
   ): Promise<{ working: V5SessionState; committed: WhyArtifact[]; actions: ActionTrace[] }> => {
     const actionTraces: ActionTrace[] = [];
     const rawArtifacts: WhyArtifact[] = planSelected.map((sel, idx) => {
@@ -142,7 +144,16 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
       const forceFail = nextGateShouldFail && isUpstream;
       const freshInputs = WhyBuddyRuntime.findInputsForCapability(working, raw.capability);
       const labelCtx = buildProcessLabelContext(raw.capability, processCtx.userText, processCtx.goalText);
-      setLiveAction(getLiveAction(raw.capability, labelCtx));
+      const live = getLiveAction(raw.capability, labelCtx);
+      setLiveAction(live);
+      onStep?.({
+        id: `${turnId}-chip-${idx}`,
+        kind: "chip",
+        capabilityId: raw.capability,
+        roleId: raw.role,
+        label: live.label,
+        realLlm: false,
+      });
 
       let exec: Awaited<ReturnType<typeof WhyBuddyRuntime.executeCapability>> | null = null;
       let execThrew = false;
@@ -198,6 +209,18 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
         trustLevel: committed ? (committed.trustLevel as WhyArtifact["trustLevel"]) : "untrusted",
         realLlm,
       });
+
+      onStep?.({
+        id: `${turnId}-step-${idx}`,
+        kind: "step_narration",
+        capabilityId: raw.capability,
+        realLlm,
+        text: buildStepNarration({
+          capabilityId: raw.capability,
+          realLlm,
+          summary: exec?.summary,
+        }),
+      });
     }
 
     return { working, committed: committedArtifacts, actions: actionTraces };
@@ -208,6 +231,26 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
 
     const turnId = `turn-${Date.now()}`;
     setIsRunning(true);
+
+    const appendStep = (step: TurnStep) => {
+      setUiTurns((prev) =>
+        prev.map((t) => (t.id === turnId ? { ...t, steps: [...t.steps, step] } : t))
+      );
+    };
+
+    setUiTurns((prev) => [
+      ...prev,
+      {
+        id: turnId,
+        user: userText.trim(),
+        status: "streaming",
+        steps: [],
+        assistant: "",
+        assistantSource: "fallback",
+        main: null,
+        actions: [],
+      },
+    ]);
 
     try {
       const loadedState = await WhyBuddyRuntime.loadOrCreateSessionState(
@@ -262,6 +305,19 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
         }
       }
 
+      const openingNarration = buildOpeningPlanNarration(
+        planResponse?.rationale,
+        planResponse?.source
+      );
+      if (openingNarration) {
+        appendStep({
+          id: `${turnId}-plan`,
+          kind: "narration",
+          text: openingNarration,
+          source: planResponse?.source === "llm" ? "llm" : "fallback",
+        });
+      }
+
       const { newState: afterOrch, plan } = WhyBuddyRuntime.orchestrateReasoningTurn(
         stateForOrch,
         orchContext
@@ -284,7 +340,9 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
           capabilityId: s.capabilityId as V5CapabilityId,
           roleId: s.roleId,
         })),
-        { userText: userText.trim(), goalText: goal }
+        { userText: userText.trim(), goalText: goal },
+        "",
+        appendStep
       );
 
       let final = WhyBuddyRuntime.enrichGraphNodesAfterCommit(working, turnId);
@@ -314,17 +372,29 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
           : null,
       });
 
-      const turn: UiTurn = {
-        id: turnId,
-        user: userText.trim(),
-        assistant: narration.text,
-        assistantSource: narration.source,
-        narrationReason: narration.reason,
-        main,
-        actions,
-      };
+      appendStep({
+        id: `${turnId}-final`,
+        kind: "narration",
+        text: narration.text,
+        source: narration.source,
+        isFinal: true,
+      });
 
-      setUiTurns((prev) => [...prev, turn]);
+      setUiTurns((prev) =>
+        prev.map((t) =>
+          t.id === turnId
+            ? {
+                ...t,
+                status: "complete",
+                assistant: narration.text,
+                assistantSource: narration.source,
+                narrationReason: narration.reason,
+                main,
+                actions,
+              }
+            : t
+        )
+      );
       setNextGateShouldFail(false);
     } finally {
       setIsRunning(false);

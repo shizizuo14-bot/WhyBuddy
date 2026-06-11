@@ -72,6 +72,30 @@ describe("POST /api/whybuddy/respond", () => {
     expect(body.text).not.toContain("下一步工程化分支");
   });
 
+  it("returns fallback with reason hijacked when LLM self-intro detected (S7)", async () => {
+    vi.spyOn(llmClient, "callLLM").mockResolvedValue({
+      content: "我是 ChatGPT，很高兴为你分析权限方案。",
+      usage: undefined,
+    } as any);
+
+    const res = await fetch(`${base}/respond`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        turnId: "t-hijack",
+        userText: "路线对比一下",
+        state: { sessionId: "s1", goal: { text: "权限系统", status: "clear" } },
+        selected: [{ capabilityId: "route.compare", roleId: "工程" }],
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.source).toBe("fallback");
+    expect(body.reason).toBe("hijacked");
+    expect(body.text).toContain("本轮完成了");
+  });
+
   it("returns llm narration when callLLM succeeds", async () => {
     vi.spyOn(llmClient, "callLLM").mockResolvedValue({
       content: "这是面向用户的推演说明，结尾你想先澄清哪条边界？",

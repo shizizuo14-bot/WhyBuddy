@@ -5,6 +5,7 @@ export type NarrationFallbackReason =
   | "no_api_key"
   | "llm_error"
   | "empty_response"
+  | "hijacked"
   | "http_error"
   | "network_error"
   | "invalid_response";
@@ -35,6 +36,7 @@ const FALLBACK_REASON_LABELS: Record<NarrationFallbackReason, string> = {
   no_api_key: "未配置 LLM_API_KEY / OPENAI_API_KEY，叙述服务未调用模型",
   llm_error: "叙述模型调用失败，已降级为模板回复",
   empty_response: "叙述模型返回空内容，已降级为模板回复",
+  hijacked: "叙述检测到模型身份劫持，已降级为模板回复",
   http_error: "叙述服务 HTTP 错误，已使用本地模板",
   network_error: "无法连接叙述服务，已使用本地模板",
   invalid_response: "叙述服务响应无效，已使用本地模板",

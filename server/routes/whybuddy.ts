@@ -23,6 +23,12 @@ import { callLLM, callLLMJson, callLLMJsonWithUsage } from "../core/llm-client.j
 import { buildStructuredReport } from "../../shared/blueprint/whybuddy-report-builder.js";
 import { buildFallbackNarration } from "../../shared/blueprint/whybuddy-deliverable-sanitize.js";
 import type { GoalStatusForNarration } from "../../shared/blueprint/whybuddy-deliverable-sanitize.js";
+import {
+  buildNarrationSystemPrompt,
+  buildNarrationUserPrompt,
+  capabilityDomainAnchoringBlock,
+  detectNarrationHijack,
+} from "../../shared/blueprint/whybuddy-narration-immunity.js";
 import { executeGithubMcpCapability } from "../whybuddy/github-mcp-adapter.js";
 import { executeRepoStaticInspect } from "../whybuddy/repo-static-analyzer.js";
 import {
@@ -201,25 +207,7 @@ type WhyBuddyRespondBody = {
   mainArtifact?: { kind?: string; title?: string; content?: string } | null;
 };
 
-function buildNarrationSystemPrompt(hasMain: boolean): string {
-  const lengthRule = hasMain
-    ? "When mainArtifact is provided: rewrite the material into 300–700 Chinese characters for the user. Preserve ALL facts, evidence, risks, disagreements, and open gaps from the material. Do NOT add conclusions not present in the material. Remove engineering implementation details and internal references. Use short section headings and line breaks; avoid bullet-symbol stacking. Open with one sentence responding to the user input; end with one forward-looking question or next-step suggestion."
-    : "When no mainArtifact: reply in 120–260 Chinese characters summarizing the turn.";
-
-  return (
-    "You are WhyBuddy's user-facing narrator for a reasoning product.\n" +
-    "Discipline (mandatory):\n" +
-    "1. Transcribe mechanical conclusions only — never adjudicate goal.status yourself.\n" +
-    "2. Never use internal engineering terms (artifact, stale, upstream, gate, capability, provenance, orchestrator, etc.) in user-visible text.\n" +
-    "3. Never announce optimistic trust labels like '已收敛·可信' unless the mechanical state already says clear — and even then describe neutrally.\n" +
-    "4. " +
-    lengthRule +
-    "\n" +
-    "5. Output plain Chinese prose only — no JSON, no markdown code fences."
-  );
-}
-
-function buildNarrationUserPrompt(body: WhyBuddyRespondBody): string {
+function buildRespondUserPrompt(body: WhyBuddyRespondBody): string {
   const goalStatus = (body.state as any)?.goal?.status as GoalStatusForNarration;
   const selected = (body.selected || [])
     .map((s) => `${s.capabilityId || "?"}×${s.roleId || "?"}`)
@@ -231,26 +219,23 @@ function buildNarrationUserPrompt(body: WhyBuddyRespondBody): string {
     )
     .join("\n");
 
-  let prompt =
-    `Turn: ${body.turnId}\n` +
-    `User input: ${body.userText || ""}\n` +
-    `Mechanical goal.status (transcribe faithfully, do not override): ${goalStatus || "needs_refinement"}\n` +
-    `Intervention: ${body.intervention?.intent || "none"}\n` +
-    `Selected analyses: ${selected || "(none)"}\n` +
-    `Artifact summaries:\n${artifactSummaries || "(none)"}\n`;
-
-  if (body.mainArtifact?.content) {
-    prompt +=
-      `\n本轮主产物(权威素材,你的回复要把它完整改写为面向用户的行文——保留其中全部\n` +
-      `事实、证据、风险、分歧与未解缺口,不得新增任何素材里没有的结论,砍掉工程实现\n` +
-      `细节与内部引用):\n` +
-      `${String(body.mainArtifact.content).slice(0, 6000)}`;
-  }
-
-  return prompt;
+  return buildNarrationUserPrompt({
+    turnId: String(body.turnId || ""),
+    userText: body.userText || "",
+    goalText: (body.state as any)?.goal?.text || "",
+    goalStatus: goalStatus || "needs_refinement",
+    interventionIntent: body.intervention?.intent,
+    selectedLine: selected || "(none)",
+    artifactSummaries: artifactSummaries || "(none)",
+    mainArtifactContent: body.mainArtifact?.content || null,
+  });
 }
 
-export type NarrationFallbackReason = "no_api_key" | "llm_error" | "empty_response";
+export type NarrationFallbackReason =
+  | "no_api_key"
+  | "llm_error"
+  | "empty_response"
+  | "hijacked";
 
 // POST /api/whybuddy/orchestrate-plan — scheduling proposal (LLM or heuristic fallback, always 200).
 router.post("/orchestrate-plan", express.json({ limit: "2mb" }), async (req: Request, res: Response) => {
@@ -316,7 +301,7 @@ router.post("/respond", express.json({ limit: "2mb" }), async (req: Request, res
     const { content, usage } = await callLLM(
       [
         { role: "system", content: buildNarrationSystemPrompt(hasMain) },
-        { role: "user", content: buildNarrationUserPrompt(body) },
+        { role: "user", content: buildRespondUserPrompt(body) },
       ],
       {
         model: config.model,
@@ -333,6 +318,16 @@ router.post("/respond", express.json({ limit: "2mb" }), async (req: Request, res
         text: fallback(),
         source: "fallback" as const,
         reason: "empty_response" as const,
+      });
+    }
+
+    const hijack = detectNarrationHijack(text);
+    if (hijack.hijacked) {
+      console.warn("[whybuddy] /respond fallback: hijacked —", hijack.reason);
+      return res.json({
+        text: fallback(),
+        source: "fallback" as const,
+        reason: "hijacked" as const,
       });
     }
 
@@ -450,8 +445,10 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
       summary: String(a?.summary || "").slice(0, 220),
     }));
 
+    const domainAnchor = capabilityDomainAnchoringBlock(goalText);
     const systemPrompt =
       "You are an expert AI collaborator for WhyBuddy V5. " +
+      domainAnchor +
       "Return ONLY a single JSON object (no prose, no ```json fences) with exactly these keys:\n" +
       '{"title": string, "summary": string, "content": string}\n' +
       "title: short and specific. summary: one-sentence high-signal. content: professional, actionable, evidence-based.";
@@ -459,6 +456,7 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
     let userPrompt = "";
     if (capabilityId === "risk.analyze") {
       userPrompt =
+        `${domainAnchor}` +
         `Capability: risk.analyze\nGoal: ${goalText}\n` +
         `Context artifacts: ${JSON.stringify(recentArtifacts)}\n` +
         `Role: ${roleId || "unspecified"}  Turn: ${turnId}\n\n` +
@@ -468,6 +466,7 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
       // This ensures the main report artifact keeps the strong schema + evidence refs even when real server LLM is active.
       const built = buildStructuredReport({ state, inputArtifactIds, roleId });
       userPrompt =
+        `${domainAnchor}` +
         `Capability: report.write\nGoal: ${goalText}\n` +
         `Base structured evidence (authoritative 9-section skeleton from buildStructuredReport — preserve all sections, key facts, upstream refs, risks, gaps, and the exact structure; only polish narrative, flow, insight and professionalism):\n` +
         `BASE_TITLE: ${built.title}\nBASE_SUMMARY: ${built.summary}\nBASE_CONTENT:\n${built.content}\n\n` +

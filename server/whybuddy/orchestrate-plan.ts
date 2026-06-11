@@ -7,6 +7,7 @@ import {
   validateProposedPlan,
   type DropReason,
 } from "../../shared/blueprint/whybuddy-plan-validation.js";
+import { capabilityDomainAnchoringBlock } from "../../shared/blueprint/whybuddy-narration-immunity.js";
 import { getAIConfig } from "../core/ai-config.js";
 import { callLLMJsonWithUsage } from "../core/llm-client.js";
 
@@ -93,6 +94,7 @@ function buildCapabilityCatalogBlock(): string {
 function buildOrchestrateSystemPrompt(): string {
   return (
     "You are WhyBuddy V5's orchestration planner (ORCH). " +
+    capabilityDomainAnchoringBlock() +
     "Given session state and user input, propose 1-4 capability actions for this turn. " +
     "Return ONLY a JSON object (no markdown fences) with exactly:\n" +
     '{"selected":[{"capabilityId":"...","roleId":"...","why":"..."}],"rationale":"..."}\n' +
@@ -119,6 +121,7 @@ function buildOrchestrateUserPrompt(req: OrchestratePlanRequest): string {
         : "";
 
   return (
+    `${capabilityDomainAnchoringBlock(goal)}` +
     `${interventionNote}` +
     `GOAL: ${goal}\nGOAL_STATUS (mechanical): ${goalStatus}\n` +
     `USER_TEXT: ${userText}\n` +
