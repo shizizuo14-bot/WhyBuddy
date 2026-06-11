@@ -68,8 +68,14 @@ export function pickNextCapabilities(
 
   const available = V5_CAPABILITY_POOL;
 
-  // Collect what we already have for gap analysis
-  const existingKinds = new Set((state.artifacts || []).map(a => a.kind));
+  // Collect what we already have for gap analysis (health-aware: only trusted, non-stale
+  // artifacts count as present — same rule as hasTrustedCommittedForCap / isHealthyArtifact)
+  const stales = new Set(state.staleArtifactIds || []);
+  const existingKinds = new Set(
+    (state.artifacts || [])
+      .filter((a) => isHealthyArtifact(a, stales))
+      .map((a) => a.kind)
+  );
   const hasRisk = existingKinds.has('risk');
   const hasSynthesis = existingKinds.has('synthesis');
   const hasReport = existingKinds.has('report');
@@ -798,6 +804,17 @@ export function evaluateContractSufficiencyForBudget(
   };
 }
 
+/** Shared artifact-health rule: trusted (gated_pass | audited) and not stale. */
+function isHealthyArtifact(
+  artifact: { id: string; trustLevel?: string },
+  staleSet: Set<string>
+): boolean {
+  return (
+    (artifact.trustLevel === 'gated_pass' || artifact.trustLevel === 'audited') &&
+    !staleSet.has(artifact.id)
+  );
+}
+
 function hasTrustedCommittedForCap(state: V5SessionState, capId: string): boolean {
   const runs = state.capabilityRuns || [];
   const arts = state.artifacts || [];
@@ -805,7 +822,7 @@ function hasTrustedCommittedForCap(state: V5SessionState, capId: string): boolea
   for (const run of runs) {
     if ((run as any).capabilityId !== capId) continue;
     const art = arts.find((a: any) => a.producedBy?.capabilityRunId === run.id);
-    if (art && (art.trustLevel === 'gated_pass' || art.trustLevel === 'audited') && !stales.has(art.id)) {
+    if (art && isHealthyArtifact(art, stales)) {
       return true;
     }
   }
@@ -866,6 +883,81 @@ export function evaluateCoverageGate(
     waivedGaps,
     reason,
   };
+}
+
+// ===== V5.1 GOAL conclusion gate (GCOV-owned single writer) =====
+// Bugfix spec: whybuddy-goal-conclusion-gate.
+// GCOV (Coverage Gate) is the single authority over the conclusion state `goal.status`.
+// `deriveGoalConclusion` is a PURE mapping from the gate result + coverage state onto the next
+// conclusion; `applyGoalConclusion` is the ONLY assigner of `goal.status` outside
+// `createInitialSessionState`. Neither is wired into ORCH here (see Task 3.2); they are added
+// standalone so ORCH scheduling/budget/pick logic never touches GOAL directly.
+
+/**
+ * Pure conclusion-derivation (GCOV authority). Returns the next `goal.status` without mutating
+ * state. Reads only the gate result, the coverage contract, the coverage gaps, and committed runs.
+ *
+ *  - `gateResult.passed === true`                         -> "clear"
+ *  - coverage cannot be satisfied (every blocking gap is  -> "not_recommended"
+ *    `waived` — none `open`, none `resolved` — AND at
+ *    least one required pre-req capability still lacks a
+ *    trusted committed run)
+ *  - otherwise                                            -> "needs_refinement" (no-op equal to
+ *                                                            the initial value)
+ */
+export function deriveGoalConclusion(
+  state: V5SessionState,
+  gateResult: CoverageGateResult,
+  contract?: CoverageContract
+): V5SessionState["goal"]["status"] {
+  if (gateResult?.passed === true) {
+    return "clear";
+  }
+
+  // Coverage-cannot-be-satisfied check is narrow and reads only gaps + committed runs.
+  const gaps = (state.coverageGaps || []) as CoverageGap[];
+  const blockingIds = new Set(contract?.blockingGapIds || []);
+  const blockingGaps = gaps.filter((g) => blockingIds.has(g.id));
+
+  // "all blocking gaps waived" => at least one blocking gap, and every one is waived
+  // (so none open, none resolved).
+  const allBlockingWaived =
+    blockingGaps.length > 0 && blockingGaps.every((g) => g.status === "waived");
+
+  // required pre-req capabilities (excluding the terminal report.write) that still lack a
+  // trusted committed run.
+  const preReqs = (contract?.requiredCapabilities || []).filter((c) => c !== "report.write");
+  const someRequiredMissing = preReqs.some((c) => !hasTrustedCommittedForCap(state, c));
+
+  if (allBlockingWaived && someRequiredMissing) {
+    return "not_recommended";
+  }
+
+  return "needs_refinement";
+}
+
+/**
+ * Single-writer GOAL applier (GCOV-gated path). The ONLY place outside
+ * `createInitialSessionState` that assigns `goal.status`. Returns a new state with the conclusion
+ * written; leaves every other field structurally intact.
+ */
+export function applyGoalConclusion(
+  state: V5SessionState,
+  status: V5SessionState["goal"]["status"]
+): V5SessionState {
+  return { ...state, goal: { ...state.goal, status } };
+}
+
+/**
+ * Read-only predicate: is the session at a converged conclusion (`clear` / `not_recommended`)?
+ * Used by `invalidateForIntervention` to decide whether a challenge that undermines the
+ * conclusion-supporting artifacts/decisions should route a single-writer downgrade through
+ * `applyGoalConclusion`. Does not assign `goal.status`.
+ */
+function isConvergedConclusion(
+  status: V5SessionState["goal"]["status"]
+): boolean {
+  return status === "clear" || status === "not_recommended";
 }
 
 // ===== V5.1 FLOWB boundary guard v1 (Knife 4) =====
@@ -1739,11 +1831,16 @@ export function findInputsForCapability(state: V5SessionState, capabilityId: V5C
   const neededKinds = CAPABILITY_INPUT_KINDS[capabilityId] || [];
   if (neededKinds.length === 0) return [];
 
+  const stales = new Set(state.staleArtifactIds || []);
   const inputs: string[] = [];
-  // walk backwards to find most recent matching
+  // walk backwards to find most recent matching healthy artifact
   for (let i = state.artifacts.length - 1; i >= 0; i--) {
     const art = state.artifacts[i];
-    if (neededKinds.includes(art.kind) && !inputs.includes(art.id)) {
+    if (
+      neededKinds.includes(art.kind) &&
+      isHealthyArtifact(art, stales) &&
+      !inputs.includes(art.id)
+    ) {
       inputs.push(art.id);
       if (inputs.length >= neededKinds.length) break;
     }
@@ -1776,10 +1873,25 @@ export function invalidateForIntervention(
       newLedger[idx] = challenged;
       // Also mark any associated nodes if we can map (best-effort via chose caps from that turn).
       // For v1 we primarily rely on the ledger entry itself being marked.
-      return {
+      // Monotonic stale-set contract (bugfix 2.6): this decision-level early return spreads
+      // `...state` and never reassigns `staleArtifactIds`, so any previously-stale ids are
+      // preserved intact on this path. Preservation here is intentional, not incidental — do NOT
+      // introduce any shrink of `staleArtifactIds` on this path; the set may only shrink through
+      // the supersede / explicit-resolve exits, which live elsewhere.
+      let nextState: V5SessionState = {
         ...state,
         decisionLedger: newLedger,
       };
+      // C-2: a decision-level challenge that undermines a converged conclusion downgrades
+      // goal.status back to "needs_refinement". When the session is at a converged conclusion
+      // (`clear` / `not_recommended`), the decisions in the ledger are the supporting reasoning
+      // the conclusion depended on, so challenging one undermines it. The downgrade is written
+      // through the SAME single-writer `applyGoalConclusion` — never assigned to goal.status
+      // directly — so no second writer is introduced. Non-converged sessions are left untouched.
+      if (isConvergedConclusion(state.goal.status)) {
+        nextState = applyGoalConclusion(nextState, "needs_refinement");
+      }
+      return nextState;
     }
     // If decision not found, fall through (still allow other invalidation if present).
   }
@@ -1852,14 +1964,44 @@ export function invalidateForIntervention(
     return node;
   });
 
-  return {
+  // Monotonic stale-set contract: a challenge UNIONS its freshly-computed cascade into the
+  // session's existing stale set; it never overwrites/shrinks it. Prior stale ids come first,
+  // then new cascade ids in iteration order, de-duplicated via Set — giving a deterministic,
+  // stable ordering for P2 byte-identical card/node parity. The stale set may only shrink through
+  // the two permitted exits (supersede of a specific id, explicit resolve of a specific id),
+  // which live outside this challenge-recompute path.
+  const mergedStale = Array.from(
+    new Set<string>([...(state.staleArtifactIds || []), ...affected])
+  );
+  let nextState: V5SessionState = {
     ...state,
-    staleArtifactIds: Array.from(affected),
+    staleArtifactIds: mergedStale,
     graph: {
       ...state.graph,
       nodes: newGraphNodes,
     },
   };
+
+  // C-2: when a challenge stales artifacts the current converged conclusion depended on,
+  // downgrade goal.status back to "needs_refinement" through the SAME single-writer
+  // `applyGoalConclusion` (no second writer of goal.status is introduced; never assigned
+  // directly). The conclusion (`clear` / `not_recommended`) is GCOV-gated on a trusted committed
+  // `report`, so the conclusion "depended on" an artifact iff a report-kind artifact lands in the
+  // freshly-staled cascade — either because the report itself was challenged, or because a true
+  // upstream of the report was challenged and the dependency closure cascaded into the report.
+  // Unrelated challenges (whose cascade never reaches a report-kind artifact) and non-converged
+  // sessions leave goal.status untouched.
+  if (isConvergedConclusion(state.goal.status)) {
+    const prevStale = new Set(state.staleArtifactIds || []);
+    const conclusionArtifactStaled = (state.artifacts || []).some(
+      (a) => a.kind === "report" && affected.has(a.id) && !prevStale.has(a.id)
+    );
+    if (conclusionArtifactStaled) {
+      nextState = applyGoalConclusion(nextState, "needs_refinement");
+    }
+  }
+
+  return nextState;
 }
 
 // ===== INTAKE (single door) + AWAIT support per 修复闭环.md =====
@@ -2247,6 +2389,18 @@ export function orchestrateReasoningTurn(
     ...working,
     coverageGate: gateResult,
   };
+
+  // ===== V5.1 GOAL conclusion write (GCOV-gated, single-writer) =====
+  // Bugfix spec: whybuddy-goal-conclusion-gate (Task 3.2).
+  // GCOV is the SOLE authority over the conclusion: the write is driven by `gateResult`, never by
+  // ORCH pick/budget/scheduling logic, so ORCH stays read-only on GOAL. On the hard-block branch
+  // below (`!gateResult.passed && hasConvergeIntent`) `deriveGoalConclusion` returns
+  // "needs_refinement" (a no-op equal to the initial value), so that path is unchanged before its
+  // early return.
+  working = applyGoalConclusion(
+    working,
+    deriveGoalConclusion(working, gateResult, working.coverageContract)
+  );
 
   if (!gateResult.passed && hasConvergeIntent) {
     const missing = gateResult.missingCapabilities || [];

@@ -442,18 +442,40 @@ export default function WhyBuddy() {
   const currentGraphForSurface = useMemo(() => dynamicGraph, [dynamicGraph]);
 
   return (
-    <div className="flex h-screen flex-col bg-slate-50 text-slate-900">
+    <div className="flex h-screen flex-col bg-zinc-950 text-zinc-200">
       {/* V5 顶部状态条（唯一常驻） */}
-      <div className="flex items-center justify-between border-b bg-white px-4 py-2 text-sm shadow-sm">
+      <div className="flex items-center justify-between border-b border-zinc-800 bg-zinc-950 px-4 py-2 text-sm shadow-sm text-zinc-200">
         <div className="flex items-center gap-4">
           <div className="font-semibold text-xl tracking-tight">WhyBuddy</div>
-          <div className="rounded bg-emerald-100 px-2 py-0.5 text-xs font-medium text-emerald-700">V5 Capability Pool</div>
+          <div className="rounded bg-zinc-800 px-2 py-0.5 text-xs font-medium text-zinc-300 ring-1 ring-inset ring-white/10">V5 Capability Pool</div>
         </div>
-        <div className="flex items-center gap-6 text-xs">
-          <div><span className="text-slate-500">目标：</span><span className="font-medium">{goal}</span></div>
-          <div><span className="text-slate-500">轮次：</span><span className="font-mono font-semibold">{chatTurns.length}</span></div>
-          <div className="text-[10px] px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">phase: <span className="font-mono">{(sessionState as any).runtimePhase || 'idle'}</span></div>
-          <div className="text-[10px] font-mono text-slate-500">session: {(sessionState as any).sessionId}</div>
+        <div className="flex items-center gap-6 text-xs text-zinc-400">
+          <div><span className="text-zinc-500">目标：</span><span className="font-medium text-zinc-100">{goal}</span></div>
+          {(() => {
+            const conclusion = (sessionState as any).goal?.status as
+              | 'clear'
+              | 'needs_refinement'
+              | 'not_recommended'
+              | undefined;
+            const meta: Record<string, { label: string; cls: string }> = {
+              clear: { label: '已收敛 / clear', cls: 'bg-emerald-950/60 text-emerald-300 ring-emerald-500/30' },
+              needs_refinement: { label: '待细化', cls: 'bg-zinc-800 text-zinc-300 ring-white/10' },
+              not_recommended: { label: '不建议', cls: 'bg-rose-950/60 text-rose-300 ring-rose-500/30' },
+            };
+            const entry = meta[conclusion ?? 'needs_refinement'] ?? meta.needs_refinement;
+            return (
+              <div
+                data-testid="whybuddy-conclusion-badge"
+                className={`text-[10px] px-1.5 py-0.5 rounded ring-1 ring-inset ${entry.cls}`}
+              >
+                <span className="text-zinc-500">结论：</span>
+                <span className="font-medium">{entry.label}</span>
+              </div>
+            );
+          })()}
+          <div><span className="text-zinc-500">轮次：</span><span className="font-mono font-semibold text-zinc-100">{chatTurns.length}</span></div>
+          <div className="text-[10px] px-1.5 py-0.5 rounded bg-zinc-800 text-zinc-400">phase: <span className="font-mono text-zinc-200">{(sessionState as any).runtimePhase || 'idle'}</span></div>
+          <div className="text-[10px] font-mono text-zinc-500">session: {(sessionState as any).sessionId}</div>
           <button
             onClick={async () => {
               let sessions: any[] = [];
@@ -465,7 +487,7 @@ export default function WhyBuddy() {
               console.log('[V5 Sessions]', sessions);
               alert(`Active V5 sessions: ${sessions.length}\n` + sessions.map((s: any) => `${s.sessionId} (${s.artifactCount} arts, ${s.phase || 'idle'})`).join('\n'));
             }}
-            className="text-[9px] px-1 border rounded hover:bg-slate-100"
+            className="text-[9px] px-1 border border-zinc-700 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200"
             title="List current V5 sessions from the runtime store (demo)"
           >
             sessions
@@ -476,30 +498,12 @@ export default function WhyBuddy() {
               console.log('[V5 Ledger]', ledger);
               alert(`Ledger entries: ${ledger.length}\n` + ledger.slice(-5).map((l: any) => `${l.capabilityId} @ ${l.trustLevel} (${l.gateSummary})`).join('\n'));
             }}
-            className="text-[9px] px-1 border rounded hover:bg-slate-100"
+            className="text-[9px] px-1 border border-zinc-700 rounded hover:bg-zinc-800 text-zinc-400 hover:text-zinc-200"
             title="Show simulated T_LEDGER audit trail for this session"
           >
             ledger
           </button>
-          <div><span className="text-slate-500">已调用能力：</span><span className="font-medium">{[...new Set(chatTurns.flatMap(t => t.selected.map(s => s.cap)))].length}</span></div>
-          {/* Knife 8: V5.1 coverage / cost / decisions summary (surface runtime ledgers) */}
-          {(() => {
-            const gate: any = (sessionState as any).coverageGate;
-            const covGaps: any[] = (sessionState as any).coverageGaps || [];
-            const open = covGaps.filter(g => g.status === 'open').length;
-            const wvd = covGaps.filter(g => g.status === 'waived').length;
-            const covTxt = gate ? `${gate.passed ? 'passed' : 'blocked'} / open ${open} / waived ${wvd}` : 'n/a';
-            const csts: any[] = (sessionState as any).costLedger || [];
-            const tok = csts.reduce((s: number, c: any) => s + (c.estimatedTokens || 0), 0);
-            const decs: any[] = WhyBuddyRuntime.getDecisionLedger ? WhyBuddyRuntime.getDecisionLedger(sessionState) : [];
-            return (
-              <>
-                <div>coverage: <span className="font-mono">{covTxt}</span></div>
-                <div>cost: <span className="font-mono">{tok} tok / {csts.length} runs</span></div>
-                <div>decisions: <span className="font-mono">{decs.length}</span></div>
-              </>
-            );
-          })()}
+          <div><span className="text-zinc-500">已调用能力：</span><span className="font-medium">{[...new Set(chatTurns.flatMap(t => t.selected.map(s => s.cap)))].length}</span></div>
           <button
             onClick={async () => {
               setChatTurns([]);
@@ -511,7 +515,7 @@ export default function WhyBuddy() {
               setPinnedArtifact(null);
               setNextGateShouldFail(false);
             }}
-            className="rounded border px-2 py-1 hover:bg-slate-100"
+            className="rounded border border-zinc-700 px-2 py-1 hover:bg-zinc-800 text-zinc-400 hover:text-zinc-100"
           >
             重置会话
           </button>
@@ -522,7 +526,7 @@ export default function WhyBuddy() {
               alert(`V5 Closed Loop Verify: ${result.passed ? 'PASSED ✅' : 'FAILED ❌'}\n${result.details}\n\nruntimePhase: ${phase} (AWAIT 闭环观测)\n(检查：报告是否引用了真实上游 + 相关 capabilityRun 是否存在)`);
               console.log('[V5 Verify]', result, 'phase=', phase);
             }}
-            className="rounded border px-2 py-1 text-emerald-600 hover:bg-emerald-50"
+            className="rounded border border-zinc-700 px-2 py-1 text-emerald-400 hover:bg-emerald-950/50"
             title="运行轻量 behavioral test，钉住 risk→counter→synthesis→report 闭环链（推荐在 combo 轮后点击）"
           >
             Verify Chain
@@ -534,7 +538,7 @@ export default function WhyBuddy() {
               setDynamicGraph(refreshed.graph);
               console.log('[V5] Derived view refreshed from current artifacts/stale');
             }}
-            className="rounded border px-2 py-1 text-amber-600 hover:bg-amber-50 text-[9px]"
+            className="rounded border border-zinc-700 px-2 py-1 text-amber-400 hover:bg-amber-950/50 text-[9px]"
             title="Re-derive graph node statuses from artifacts + stale (single source of truth demo)"
           >
             Refresh Derived
@@ -543,11 +547,11 @@ export default function WhyBuddy() {
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden md:flex-row">
-        {/* 聊天操纵杆 + 历史（主要交互） */}
-        <div className="flex w-full flex-col border-r bg-white md:w-5/12">
+        {/* 聊天操纵杆 + 历史（主要交互） — Grok dark style */}
+        <div className="flex w-full flex-col border-r border-zinc-800 bg-zinc-900 text-zinc-200 md:w-5/12">
           <div className="flex-1 overflow-auto p-4 space-y-4 text-sm">
             {chatTurns.length === 0 && (
-              <div className="text-center text-slate-400 mt-10">
+              <div className="text-center text-zinc-500 mt-10">
                 欢迎来到 WhyBuddy V5。<br />
                 在下方输入你的目标或质疑，系统会从丰富的能力池中动态挑选 (capability × role) 进行推演。<br />
                 没有固定阶段，一切由当前状态和你的输入驱动。
@@ -555,51 +559,51 @@ export default function WhyBuddy() {
             )}
 
             {chatTurns.map((turn, idx) => (
-              <div key={turn.id} className="rounded-lg border p-3 shadow-sm">
-                <div className="mb-1 text-xs text-slate-500">第 {idx + 1} 轮 · 用户输入</div>
-                <div className="font-medium">{turn.user}</div>
+              <div key={turn.id} className="rounded-lg border border-zinc-700 bg-zinc-800 p-3">
+                <div className="mb-1 text-xs text-zinc-500">第 {idx + 1} 轮 · 用户输入</div>
+                <div className="font-medium text-zinc-100">{turn.user}</div>
 
-                <div className="mt-2 text-[11px] text-slate-500">Orchestrator 挑选：</div>
+                <div className="mt-2 text-[11px] text-zinc-500">Orchestrator 挑选：</div>
                 <div className="flex flex-wrap gap-1 mt-1">
                   {turn.selected.map((s, i) => (
-                    <span key={i} className="rounded bg-violet-100 px-1.5 py-0.5 text-[10px] text-violet-700">
+                    <span key={i} className="rounded bg-violet-900/40 px-1.5 py-0.5 text-[10px] text-violet-300 ring-1 ring-inset ring-violet-700/50">
                       {s.cap} × {s.role}
                     </span>
                   ))}
                 </div>
-                <div className="mt-1 text-xs italic text-slate-600">{turn.reason}</div>
+                <div className="mt-1 text-xs italic text-zinc-500">{turn.reason}</div>
 
                 {/* 本轮产生的 artifact（临时黑板） */}
                 <div className="mt-3 space-y-2">
                   {turn.artifacts.map((art) => (
-                    <div key={art.id} className="rounded border bg-slate-50 p-2 text-xs">
+                    <div key={art.id} className="rounded border border-zinc-700 bg-zinc-700 p-2 text-xs text-zinc-200">
                       <div className="flex items-center justify-between">
-                        <span className="font-medium">{art.capability} <span className="text-slate-400">by {art.role}</span></span>
+                        <span className="font-medium">{art.capability} <span className="text-zinc-400">by {art.role}</span></span>
                         {sessionState.staleArtifactIds.includes(art.id) ? (
-                          <span className="text-[10px] text-orange-600 font-bold">stale</span>
+                          <span className="text-[10px] text-orange-400 font-bold">stale</span>
                         ) : (
-                          <span className={`text-[10px] ${art.trustLevel === "untrusted" ? "text-rose-600 font-bold" : "text-emerald-600"}`}>
+                          <span className={`text-[10px] ${art.trustLevel === "untrusted" ? "text-rose-400 font-bold" : "text-emerald-400"}`}>
                             {art.trustLevel}
                           </span>
                         )}
                       </div>
-                      <div className="mt-1 text-[9px] text-slate-500 font-mono">run: {(art as any).producedBy?.capabilityRunId || 'n/a'} | id: {art.id}</div>
-                      <div className="mt-1 text-slate-700">{art.content}</div>
+                      <div className="mt-1 text-[9px] text-zinc-500 font-mono">run: {(art as any).producedBy?.capabilityRunId || 'n/a'} | id: {art.id}</div>
+                      <div className="mt-1 text-zinc-300">{art.content}</div>
                       {sessionState.staleArtifactIds.includes(art.id) && (
-                        <div className="mt-1 text-[10px] text-orange-500">已失效（依赖的上游被挑战，依赖链级联）</div>
+                        <div className="mt-1 text-[10px] text-orange-400">已失效（依赖的上游被挑战，依赖链级联）</div>
                       )}
                       {art.trustLevel === "untrusted" && !sessionState.staleArtifactIds.includes(art.id) && (
-                        <div className="mt-1 text-[10px] text-rose-500">Commit Gate 失败 / 已拒绝（未进入可信状态）</div>
+                        <div className="mt-1 text-[10px] text-rose-400">Commit Gate 失败 / 已拒绝（未进入可信状态）</div>
                       )}
                       <button
                         onClick={() => challenge(turn, art)}
-                        className="mt-1 text-[10px] text-rose-600 hover:underline"
+                        className="mt-1 text-[10px] text-rose-400 hover:text-rose-300 hover:underline"
                       >
                         挑战此结论（触发重入 + 级联 stale）
                       </button>
                       <button
                         onClick={() => setPinnedArtifact(art)}
-                        className="ml-2 text-[10px] text-blue-600 hover:underline"
+                        className="ml-2 text-[10px] text-blue-400 hover:text-blue-300 hover:underline"
                       >
                         Pin 到主画布
                       </button>
@@ -610,83 +614,106 @@ export default function WhyBuddy() {
             ))}
           </div>
 
-          {/* Knife 8: V5.1 Control Surface — surface DLEDGER / GCOV gaps / Cost for visibility + actionable challenge */}
-          <div className="border-t bg-slate-50 p-2 text-[11px]">
-            <div className="font-semibold text-slate-600 mb-1">V5.1 Control Surface (runtime ledgers)</div>
-            <div className="flex flex-wrap gap-x-4 gap-y-1">
+          {/* Knife 8/10/11: V5.1 Control Surface — Grok-style dark telemetry panel */}
+          <div className="border-t border-zinc-800 bg-zinc-950 p-3 text-[11px] text-zinc-200">
+            <div className="mb-2 flex items-center justify-between">
+              <div className="font-semibold tracking-tight text-zinc-100">V5.1 Control Surface</div>
+              <div className="text-[9px] text-zinc-500">runtime ledgers · live</div>
+            </div>
+
+            {/* Grok-style live metrics row (moved here for focused Control Surface) */}
+            {(() => {
+              const gate: any = (sessionState as any).coverageGate;
+              const covGaps: any[] = (sessionState as any).coverageGaps || [];
+              const open = covGaps.filter(g => g.status === 'open').length;
+              const wvd = covGaps.filter(g => g.status === 'waived').length;
+              const covTxt = gate ? `${gate.passed ? 'passed' : 'blocked'} · open ${open} · waived ${wvd}` : 'n/a';
+              const csts: any[] = (sessionState as any).costLedger || [];
+              const tok = csts.reduce((s: number, c: any) => s + (c.estimatedTokens || 0), 0);
+              const decs: any[] = WhyBuddyRuntime.getDecisionLedger ? WhyBuddyRuntime.getDecisionLedger(sessionState) : [];
+              return (
+                <div className="mb-2 flex items-center gap-2 text-[10px]">
+                  <span className="rounded-full bg-zinc-800 px-2 py-0.5 font-mono text-zinc-400">coverage <span className="text-zinc-100">{covTxt}</span></span>
+                  <span className="rounded-full bg-zinc-800 px-2 py-0.5 font-mono text-zinc-400">cost <span className="text-zinc-100">{tok} tok / {csts.length}</span></span>
+                  <span className="rounded-full bg-zinc-800 px-2 py-0.5 font-mono text-zinc-400">decisions <span className="text-zinc-100">{decs.length}</span></span>
+                </div>
+              );
+            })()}
+
+            {/* Recent decisions — clean list with subtle actions */}
+            <div className="mb-3">
+              <div className="mb-1 text-[10px] font-medium text-zinc-400">Recent DLEDGER (last 3)</div>
               {(() => {
                 const decs: any[] = WhyBuddyRuntime.getDecisionLedger ? WhyBuddyRuntime.getDecisionLedger(sessionState) : [];
                 const recent = [...decs].slice(-3).reverse();
-                return (
-                  <>
-                    <div>decisions: <span className="font-mono">{decs.length}</span></div>
-                  </>
-                );
-              })()}
-            </div>
-
-            {/* Knife 10: interactive gaps list with waive action for open gaps (v1 prompt) */}
-            <div className="mt-1">
-              <div className="text-slate-500 mb-0.5">Coverage Gaps (open gaps are actionable):</div>
-              {(() => {
-                const covGaps: any[] = (sessionState as any).coverageGaps || [];
-                if (!covGaps.length) return <div className="text-slate-400">no gaps</div>;
-                return covGaps.map((g: any, i: number) => (
-                  <div key={i} className="text-[10px] leading-tight mb-0.5">
-                    {g.label} [{g.status}]
-                    {g.status === 'open' && (
-                      <button
-                        onClick={() => waiveGap(g.id)}
-                        className="ml-2 rounded border px-1 text-amber-600 hover:bg-amber-50"
-                        title="waive this gap (v1: prompt for reason; runtime helper + derive + save)"
-                      >
-                        waive
-                      </button>
-                    )}
-                    {g.status === 'waived' && g.waivedReason && (
-                      <span className="ml-1 text-slate-400">(waived: {g.waivedReason})</span>
-                    )}
-                    {g.status === 'resolved' && g.resolvedByArtifactId && (
-                      <span className="ml-1 text-emerald-600">(resolved)</span>
-                    )}
+                if (!recent.length) return <div className="text-[10px] text-zinc-500">no decisions yet</div>;
+                return recent.map((d: any, i: number) => (
+                  <div key={i} className="group mb-1.5 flex items-start gap-2 border-l border-zinc-700 pl-2 text-[10px] leading-snug rounded hover:bg-zinc-900/40 transition">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-mono text-zinc-400">{d.id}</div>
+                      <div className="truncate text-zinc-300">
+                        chose: <span className="text-zinc-100">{(d.chose || []).join(', ')}</span>
+                      </div>
+                      <div className="truncate text-zinc-500">{(d.rationale || '').slice(0, 70)}...</div>
+                      {d.status === 'challenged' && (
+                        <span className="text-amber-400">challenged</span>
+                      )}
+                    </div>
+                    <button
+                      onClick={() => challengeDecision(d.id)}
+                      className="rounded border border-zinc-700 px-1.5 py-px text-[9px] text-blue-400 opacity-70 transition hover:bg-zinc-900 hover:opacity-100 group-hover:opacity-100"
+                      title="Challenge this decision (single-door re-entry + reconsider)"
+                    >
+                      challenge
+                    </button>
                   </div>
                 ));
               })()}
             </div>
 
-            {/* Recent decisions with challenge buttons (last 3) */}
-            <div className="mt-1">
-              <div className="text-slate-500 mb-0.5">Recent DLEDGER decisions (click to challenge → single-door re-entry):</div>
+            {/* Coverage Gaps — actionable, Grok-clean list */}
+            <div>
+              <div className="mb-1 text-[10px] font-medium text-zinc-400">Coverage Gaps</div>
               {(() => {
-                const decs: any[] = WhyBuddyRuntime.getDecisionLedger ? WhyBuddyRuntime.getDecisionLedger(sessionState) : [];
-                const recent = [...decs].slice(-3).reverse();
-                if (!recent.length) return <div className="text-slate-400">no decisions yet</div>;
-                return recent.map((d: any, i: number) => (
-                  <div key={i} className="border-l-2 pl-1 mb-0.5 text-[10px] leading-tight">
-                    {d.id} · chose: {(d.chose || []).join(', ')} · {d.status === 'challenged' ? <span className="text-amber-600">challenged</span> : ''}
-                    <button
-                      onClick={() => challengeDecision(d.id)}
-                      className="ml-2 rounded border px-1 text-blue-600 hover:bg-blue-50"
-                      title="构造 targetDecisionId challenge intervention，走单门 INTAKE + ORCH reconsider"
-                    >
-                      challenge
-                    </button>
-                    <div className="text-slate-400 truncate">{(d.rationale || '').slice(0, 80)}...</div>
+                const covGaps: any[] = (sessionState as any).coverageGaps || [];
+                if (!covGaps.length) return <div className="text-[10px] text-zinc-500">no gaps</div>;
+                return covGaps.map((g: any, i: number) => (
+                  <div key={i} className="mb-1 flex items-center gap-2 text-[10px] rounded px-1 py-0.5 hover:bg-zinc-900/40 transition">
+                    <span className="min-w-0 flex-1 truncate text-zinc-300">
+                      {g.label} <span className="text-zinc-500">[{g.status}]</span>
+                    </span>
+
+                    {g.status === 'open' && (
+                      <button
+                        onClick={() => waiveGap(g.id)}
+                        className="rounded border border-amber-900/60 px-1.5 py-px text-[9px] text-amber-400 transition hover:bg-amber-950 hover:text-amber-300"
+                        title="Waive this gap (v1 prompt for reason)"
+                      >
+                        waive
+                      </button>
+                    )}
+
+                    {g.status === 'waived' && g.waivedReason && (
+                      <span className="text-[9px] text-zinc-500">({g.waivedReason})</span>
+                    )}
+                    {g.status === 'resolved' && (
+                      <span className="text-[9px] text-emerald-400">resolved</span>
+                    )}
                   </div>
                 ));
               })()}
             </div>
           </div>
 
-          {/* 聊天输入（操纵杆） */}
-          <div className="border-t p-3">
+          {/* 聊天输入（操纵杆） — Grok dark */}
+          <div className="border-t border-zinc-800 bg-zinc-950 p-3">
             <div className="flex gap-2">
               <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === "Enter" && sendMessage()}
                 placeholder="输入目标、质疑或指令，例如：这个权限方案风险太高，让安全 Agent 再反驳；或者先出个工程 MVP 方案"
-                className="flex-1 rounded border px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-violet-400"
+                className="flex-1 rounded border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-zinc-100 placeholder:text-zinc-500 focus:outline-none focus:ring-1 focus:ring-violet-500"
               />
               <button
                 onClick={sendMessage}
@@ -696,7 +723,7 @@ export default function WhyBuddy() {
               </button>
               <button
                 onClick={() => setNextGateShouldFail(true)}
-                className="rounded border border-rose-300 px-2 py-2 text-xs text-rose-600 hover:bg-rose-50"
+                className="rounded border border-rose-800 px-2 py-2 text-xs text-rose-400 hover:bg-rose-950"
                 title="下次让上游 risk/counter 失败，report 会因引用 untrusted upstream 自动 gate fail"
               >
                 下次让上游失败 (演示 report 因 bad upstream 自动失败)
@@ -707,60 +734,61 @@ export default function WhyBuddy() {
                 <button
                   key={i}
                   onClick={() => setInput(hint)}
-                  className="rounded-full border px-2 py-0.5 text-slate-500 hover:bg-slate-100"
+                  className="rounded-full border border-zinc-700 px-2 py-0.5 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-200"
                 >
                   {hint}
                 </button>
               ))}
             </div>
-            <div className="mt-1 text-[10px] text-slate-400">
+            <div className="mt-1 text-[10px] text-zinc-500">
               能力池示例（{availableCapabilities.length} 个）：{availableCapabilities.slice(0, 6).join(" · ")} ... <br />
               点击“下次让上游失败” 按钮，然后发送包含报告的消息，即可演示上游失败 → report 因引用 untrusted upstream 自动 gate fail 的路径（V5 护城河核心）。
             </div>
           </div>
         </div>
 
-        {/* 动态主画布（V5 临时黑板区，可展示最新 reasoning graph + pinned artifact） */}
-        <div className="flex flex-1 flex-col overflow-hidden border-t md:border-t-0">
-          <div className="border-b bg-white px-4 py-2 text-xs font-medium text-slate-500 flex items-center justify-between">
+        {/* 动态主画布（V5 临时黑板区，可展示最新 reasoning graph + pinned artifact） — Grok dark */}
+        <div className="flex flex-1 flex-col overflow-hidden border-t border-zinc-800 bg-zinc-900 md:border-t-0">
+          <div className="border-b border-zinc-700 bg-zinc-800 px-4 py-2 text-xs font-medium text-zinc-400 flex items-center justify-between">
             <span>动态推演画布（复用 ReasoningFlowSurface · 随能力调用实时更新）</span>
-            <span className="text-[10px] text-slate-400">点击节点可针对该结论发起挑战（与卡片等效精确重入）</span>
+            <span className="text-[10px] text-zinc-500">点击节点可针对该结论发起挑战（与卡片等效精确重入）</span>
             {pinnedArtifact && (
-              <button onClick={() => setPinnedArtifact(null)} className="text-rose-600">取消 Pin</button>
+              <button onClick={() => setPinnedArtifact(null)} className="text-rose-400">取消 Pin</button>
             )}
           </div>
 
           <div className="flex-1 overflow-auto p-4">
             {/* 主 reasoning graph */}
-            <div className="mb-4 rounded border bg-white p-2 shadow-sm" style={{ height: 420 }}>
-              <div className="mb-1 text-xs font-medium text-slate-600">当前 Reasoning Graph（capability invocation）</div>
+            <div className="mb-4 rounded border border-zinc-700 bg-zinc-800 p-2 shadow-sm" style={{ height: 420 }}>
+              <div className="mb-1 text-xs font-medium text-zinc-400">当前 Reasoning Graph（capability invocation）</div>
               <ReasoningFlowSurface
                 graph={currentGraphForSurface}
                 initialScale={0.75}
                 className="h-full w-full"
                 showChrome={false}
+                dark
                 onNodeClick={handleGraphNodeClick}
               />
             </div>
 
-            {/* Pinned 或最新 artifact 详情 */}
-            <div className="rounded border bg-white p-3 text-sm shadow-sm">
-              <div className="font-medium mb-2">当前焦点 Artifact</div>
+            {/* Pinned 或最新 artifact 详情 — Grok dark card */}
+            <div className="rounded border border-zinc-700 bg-zinc-800 p-3 text-sm shadow-sm text-zinc-200">
+              <div className="font-medium mb-2 text-zinc-100">当前焦点 Artifact</div>
               {pinnedArtifact ? (
                 <div>
-                  <div className="text-xs text-emerald-600">{pinnedArtifact.capability} × {pinnedArtifact.role}</div>
-                  <div className="text-[9px] text-slate-500 font-mono">run: {(pinnedArtifact as any).producedBy?.capabilityRunId || 'n/a'} | id: {pinnedArtifact.id}</div>
-                  <div>{pinnedArtifact.content}</div>
+                  <div className="text-xs text-emerald-400">{pinnedArtifact.capability} × {pinnedArtifact.role}</div>
+                  <div className="text-[9px] text-zinc-500 font-mono">run: {(pinnedArtifact as any).producedBy?.capabilityRunId || 'n/a'} | id: {pinnedArtifact.id}</div>
+                  <div className="text-zinc-300">{pinnedArtifact.content}</div>
                 </div>
               ) : chatTurns.length > 0 ? (
-                <div className="text-slate-500 text-xs">点击聊天中的 “Pin 到主画布” 查看详情。所有 artifact 都来自真实能力运行（模拟），并带有 trustLevel。</div>
+                <div className="text-zinc-500 text-xs">点击聊天中的 “Pin 到主画布” 查看详情。所有 artifact 都来自真实能力运行（模拟），并带有 trustLevel。</div>
               ) : (
-                <div className="text-slate-400">发送第一条消息后，这里会显示最新产生的结构化输出。</div>
+                <div className="text-zinc-500">发送第一条消息后，这里会显示最新产生的结构化输出。</div>
               )}
             </div>
           </div>
 
-          <div className="border-t bg-white p-2 text-[10px] text-slate-400">
+          <div className="border-t border-zinc-800 bg-zinc-950 p-2 text-[10px] text-zinc-500">
             V5 原则演示：没有“下一步”按钮。所有推进都来自聊天输入驱动的动态能力选择。黑板可随对话更新（画面临时），背后的 graph/state 常驻。
           </div>
         </div>

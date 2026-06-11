@@ -248,13 +248,22 @@ describe('whybuddy-runtime V5 closed loop (behavioral regression)', () => {
 
     plan.selected.forEach((sel, idx) => {
       const runId = `${turnId}-run-${idx}`;
-      const fresh = findInputsForCapability(current, sel.capabilityId);
+      let inputIds = findInputsForCapability(current, sel.capabilityId);
       const isUpstream = sel.capabilityId.includes('risk') || sel.capabilityId.includes('argue');
       const force = isUpstream; // simulate the "下次让上游失败" button
 
+      // findInputsForCapability no longer selects untrusted upstreams; wire them explicitly
+      // so this test still exercises the commit gate's untrusted-upstream rejection path.
+      if (sel.capabilityId === 'report.write') {
+        const untrustedIds = current.artifacts
+          .filter((a) => a.trustLevel === 'untrusted')
+          .map((a) => a.id);
+        if (untrustedIds.length > 0) inputIds = untrustedIds;
+      }
+
       const raw = createRawArtifact(`${turnId}-art-${idx}`, sel.capabilityId, sel.roleId || 'agent', 'risk');
 
-      const { updatedState } = commitArtifact(current, raw as any, runId, force, fresh);
+      const { updatedState } = commitArtifact(current, raw as any, runId, force, inputIds);
       current = updatedState;
     });
 
@@ -1644,40 +1653,36 @@ describe('whybuddy-runtime V5 closed loop (behavioral regression)', () => {
 
   it('GCOV fail + insufficient afford blocks report.write from plan and parks AWAIT', () => {
     // To hit afford==0 + still-missing-pre-req while report is selected:
-    // - Complex goal (contains "风险" for infer → requires risk.analyze).
-    // - userText triggers report + other branches but *avoids* the risk/safety keyword if in picker
-    //   (so risk not auto-pushed by top-level risk block).
-    // - Seed a *non-trusted* 'risk' kind artifact → picker's hasRisk=true (report block's !hasRisk is false, no push)
-    //   but GCOV still sees no *trusted committed* risk.analyze → missing + force attempt.
-    // - openQ + the filler keywords drive pick to ~5 items including report.write.
+    // - Complex goal (contains "风险" → requires risk.analyze).
+    // - Trusted synthesis drives report.write via state gap, but no trusted risk.analyze run.
+    // - Keyword fillers (no 报告/可行性 tokens) fill the per-turn cap without scheduling risk.
     // - afford=0 for the needed force → hard block returns empty plan + AWAIT.
     const goal = '有风险的权限系统最终可行性报告';
     let s = createInitialSessionState(goal, 'gcov-31-2');
 
-    // Untrusted risk kind (visible to picker gap logic) but not trusted for GCOV commit check.
     const { updatedState: sWithRisk } = commitArtifact(
       s,
       createRawArtifact('untrusted-risk', 'risk.analyze', '安全', 'risk'),
       'g31-2-run-risk',
-      false,
+      true,
       []
     );
-    const untrusted = (sWithRisk.artifacts || []).find((a: any) => a.id === 'untrusted-risk');
-    if (untrusted) {
-      (untrusted as any).trustLevel = 'untrusted';
-      (untrusted as any).passedGates = [];
-    }
+    s = commitArtifact(
+      sWithRisk,
+      createRawArtifact('trusted-synth', 'synthesis.merge', '综合', 'synthesis'),
+      'g31-2-run-synth',
+      false,
+      []
+    ).updatedState;
 
     s = {
-      ...sWithRisk,
+      ...s,
       openQuestions: [{ id: 'q1', text: '边界？' }],
     } as any;
 
-    // userText has "报告" (report intent + report block) + route/decompose/preview fillers,
-    // but deliberately no "风险|安全|反驳" so the early risk if in pickNext does not fire.
     const { newState: afterO, plan } = orchestrateReasoningTurn(s, {
       turnId: 'g31-2',
-      userText: '生成最终报告 路线对比 拆解结构 预览效果',
+      userText: '路线对比 拆解结构 预览效果',
     });
 
     const gate = afterO.coverageGate as CoverageGateResult | undefined;

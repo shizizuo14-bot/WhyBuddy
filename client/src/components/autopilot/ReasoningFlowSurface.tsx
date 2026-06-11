@@ -70,6 +70,8 @@ export interface ReasoningFlowSurfaceProps {
    * 当提供时，节点卡片会显示为可点击（cursor-pointer）。
    */
   onNodeClick?: (node: BrainstormReasoningNode) => void;
+  /** 启用深色（Grok 风格）主题。默认 false 保持原有浅色产品图感。WhyBuddy V5 等暗色宿主传入 true。 */
+  dark?: boolean;
 }
 
 interface PositionedNode extends BrainstormReasoningNode {
@@ -286,6 +288,7 @@ export function ReasoningFlowSurface({
   className = "",
   showChrome = true,
   onNodeClick,
+  dark = false,
 }: ReasoningFlowSurfaceProps) {
   // 统一数据源 + defense-in-depth（与 stripDebateProtocolNodes 语义对齐）。
   // - raw graph 路径：safeSource 已经过 stripDebateProtocolNodes（移除 debate 节点/边 + 清空 consoleLines）。
@@ -588,7 +591,7 @@ export function ReasoningFlowSurface({
 
   if (!safeSource || nodes.length === 0) {
     return (
-      <div className={`flex h-full w-full items-center justify-center bg-slate-50 text-slate-400 ${className}`}>
+      <div className={`flex h-full w-full items-center justify-center ${dark ? 'bg-zinc-950 text-zinc-500' : 'bg-slate-50 text-slate-400'} ${className}`}>
         <div className="text-center">
           <div className="mb-2 text-2xl">No reasoning graph</div>
           <div className="text-sm">等待结构化 reasoning 数据或切换到支持的阶段</div>
@@ -599,7 +602,7 @@ export function ReasoningFlowSurface({
 
   return (
     <div
-      className={`relative flex h-full w-full select-none flex-col overflow-hidden bg-[#f8fafc] ${className}`}
+      className={`relative flex h-full w-full select-none flex-col overflow-hidden ${dark ? 'bg-zinc-950' : 'bg-[#f8fafc]'} ${className}`}
       style={{ fontFamily: "system-ui, -apple-system, sans-serif" }}
     >
       {/* 主画布视口 */}
@@ -618,10 +621,11 @@ export function ReasoningFlowSurface({
           className="pointer-events-none absolute inset-0"
           style={{
             zIndex: 0,
-            backgroundImage:
-              "linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)",
+            backgroundImage: dark
+              ? "linear-gradient(#27272a 1px, transparent 1px), linear-gradient(90deg, #27272a 1px, transparent 1px)"
+              : "linear-gradient(#e2e8f0 1px, transparent 1px), linear-gradient(90deg, #e2e8f0 1px, transparent 1px)",
             backgroundSize: "28px 28px",
-            opacity: 0.35,
+            opacity: dark ? 0.25 : 0.35,
           }}
         />
 
@@ -728,12 +732,18 @@ export function ReasoningFlowSurface({
                 onMouseEnter={() => setHoveredNodeId(node.id)}
                 onMouseLeave={() => setHoveredNodeId(null)}
                 onClick={clickable ? () => onNodeClick!(node) : undefined}
-                className={`absolute rounded-xl border bg-white/95 overflow-hidden transition-all ${
-                  isDimmed
-                    ? "opacity-25 saturate-[0.6]"
-                    : isHighlighted
-                    ? "opacity-100 shadow-md scale-[1.015] border-slate-300"
-                    : "border-slate-200 shadow-[0_1px_2px_rgb(0,0,0,0.04)] hover:shadow-md hover:border-slate-300"
+                className={`absolute rounded-xl border overflow-hidden transition-all ${
+                  dark
+                    ? (isDimmed
+                        ? "opacity-25 saturate-[0.6] bg-zinc-900 border-zinc-800"
+                        : isHighlighted
+                        ? "opacity-100 shadow-md scale-[1.015] border-zinc-700 bg-zinc-900"
+                        : "border-zinc-700 bg-zinc-900/95 hover:shadow-md hover:border-zinc-600")
+                    : (isDimmed
+                        ? "opacity-25 saturate-[0.6] bg-white/95 border-slate-200"
+                        : isHighlighted
+                        ? "opacity-100 shadow-md scale-[1.015] border-slate-300 bg-white/95"
+                        : "bg-white/95 border-slate-200 shadow-[0_1px_2px_rgb(0,0,0,0.04)] hover:shadow-md hover:border-slate-300")
                 } ${clickable ? "cursor-pointer" : ""}`}
                 style={{
                   left: node.x,
@@ -759,9 +769,9 @@ export function ReasoningFlowSurface({
 
                 <div className="pl-[7px] pr-2 flex flex-col h-full">
                   {/* 头部：role（谁）更醒目 + 类型（对啥的意见类型）。让用户直接看到“谁在对什么发表什么意见”。 */}
-                  <div className="flex min-w-0 items-center gap-1.5 text-[9.5px] font-medium text-slate-500 leading-none mb-0.5">
+                  <div className={`flex min-w-0 items-center gap-1.5 text-[9.5px] font-medium leading-none mb-0.5 ${dark ? 'text-zinc-500' : 'text-slate-500'}`}>
                     {roleLabel && (
-                      <span className="text-slate-600 font-semibold tracking-normal shrink-0">
+                      <span className={`${dark ? 'text-zinc-400' : 'text-slate-600'} font-semibold tracking-normal shrink-0`}>
                         {roleLabel}
                       </span>
                     )}
@@ -773,13 +783,13 @@ export function ReasoningFlowSurface({
                   {/* 标题 + 正文区域（flex-1 保证底部元信息对齐） */}
                   <div className="flex-1 min-h-0 mb-0.5">
                     {/* 标题（信息层级最高） */}
-                    <div className="line-clamp-2 text-[12px] font-semibold leading-[14.5px] text-slate-800">
+                    <div className={`line-clamp-2 text-[12px] font-semibold leading-[14.5px] ${dark ? 'text-zinc-100' : 'text-slate-800'}`}>
                       {node.title || node.id}
                     </div>
 
                     {/* 正文（辅助，密度优先） */}
                     {node.body && (
-                      <div className="mt-0.5 line-clamp-2 text-[10px] leading-[12.5px] text-slate-600">
+                      <div className={`mt-0.5 line-clamp-2 text-[10px] leading-[12.5px] ${dark ? 'text-zinc-400' : 'text-slate-600'}`}>
                         {node.body}
                       </div>
                     )}
@@ -787,7 +797,7 @@ export function ReasoningFlowSurface({
 
                   {/* 底部元信息：置信度右对齐（统一卡片底部信息层级） */}
                   {typeof node.confidence === "number" && (
-                    <div className="text-right text-[8.5px] tabular-nums text-slate-400 leading-none">
+                    <div className={`text-right text-[8.5px] tabular-nums leading-none ${dark ? 'text-zinc-500' : 'text-slate-400'}`}>
                       {(node.confidence * 100).toFixed(0)}%
                     </div>
                   )}
