@@ -23,9 +23,10 @@ import { STAGE_TO_V5_CAPABILITIES, ALL_V5_CAPABILITIES, CAPABILITY_OUTPUT_KIND }
 import type { BrainstormReasoningGraph, BrainstormReasoningNode } from "@shared/blueprint";
 import * as WhyBuddyRuntime from "@/lib/whybuddy-runtime";
 import type { UserIntervention } from "@shared/blueprint/v5-reasoning-state";
+import { V5_ROLE_IDS } from "@shared/blueprint/whybuddy-role-map";
 
-// 简单角色池示例（与 V5 文档对齐）
-const ROLES = ["产品", "架构", "安全", "工程", "挑刺", "综合"] as const;
+/** 与 shared/blueprint/whybuddy-role-map 同源（含「接地」） */
+const ROLES = V5_ROLE_IDS;
 
 type WhyArtifact = {
   id: string;
