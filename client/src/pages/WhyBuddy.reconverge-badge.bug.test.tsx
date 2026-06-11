@@ -27,6 +27,56 @@ vi.mock('@/components/autopilot/ReasoningFlowSurface', () => ({
   ReasoningFlowSurface: () => null,
 }));
 
+vi.mock('./whybuddy/useWhyBuddySession', async () => {
+  const rt = await vi.importActual<typeof import('@/lib/whybuddy-runtime')>(
+    '@/lib/whybuddy-runtime'
+  );
+  // Mirror the runtime mock staging: challenged converged session with stale report.
+  let staged = rt.createInitialSessionState('分析权限系统的风险并给出最终报告', 'badge-reconverge');
+  const commitTrusted = (st: any, id: string, cap: any, role: string, kind: any, runId: string, inputs: string[] = []) => {
+    const { updatedState } = rt.commitArtifact(
+      st,
+      { id, kind, provenance: 'ai_generated', producedBy: { capabilityRunId: `run-${id}`, capabilityId: cap, roleId: role }, title: id, summary: id, content: `${role} 通过 ${cap} 贡献了内容。` } as any,
+      runId,
+      false,
+      inputs
+    );
+    const a = (updatedState.artifacts || []).find((x: any) => x.id === id);
+    if (a) { a.trustLevel = 'gated_pass'; a.passedGates = ['commit']; }
+    return updatedState;
+  };
+  staged = commitTrusted(staged, 'risk-1', 'risk.analyze', '安全', 'risk', 'b-r0');
+  staged = commitTrusted(staged, 'synth-1', 'synthesis.merge', '综合', 'synthesis', 'b-r1');
+  staged = commitTrusted(staged, 'report-1', 'report.write', '综合', 'report', 'b-r2', rt.findInputsForCapability(staged, 'report.write'));
+  staged = rt.applyGoalConclusion(staged, 'clear');
+  staged = rt.invalidateForIntervention(staged, { targetArtifactId: 'report-1', intent: 'challenge', text: '我质疑这个结论' } as any);
+
+  return {
+    useWhyBuddySession: () => ({
+      goal: '分析权限系统的风险并给出最终报告',
+      sessionState: staged,
+      chatTurns: [],
+      input: '',
+      setInput: () => {},
+      pinnedArtifact: null,
+      setPinnedArtifact: () => {},
+      nextGateShouldFail: false,
+      setNextGateShouldFail: () => {},
+      dynamicGraph: { nodes: [], edges: [] },
+      executorMode: 'pilot' as const,
+      sendMessage: async () => {},
+      challenge: () => {},
+      challengeDecision: async () => {},
+      waiveGap: async () => {},
+      handleGraphNodeClick: () => {},
+      resetSession: async () => {},
+      verifyChain: () => {},
+      listSessions: async () => {},
+      showLedger: () => {},
+    }),
+  };
+});
+
 // Stage the page's initial sessionState as a "just-challenged" converged session built with the
 // REAL runtime: a trusted committed report, goal.status === "clear", then a challenge that stales
 // the supporting report through the real invalidateForIntervention (the function under test).
@@ -93,7 +143,7 @@ vi.mock('@/lib/whybuddy-runtime', async () => {
 import WhyBuddy from './WhyBuddy';
 
 describe('BUG: WhyBuddy STATUS badge shows a stale "clear" after a challenge (Property 1 edge case — EXPECTED TO FAIL on unfixed code)', () => {
-  it('renders the conclusion badge as "待细化" (needs_refinement) between the challenge and the next GCOV re-evaluation', () => {
+  it('renders the conclusion badge as "已被质疑·重新推演" after a challenge on a converged conclusion', () => {
     const html = renderToStaticMarkup(React.createElement(WhyBuddy));
 
     // Sanity: the conclusion badge bound to sessionState.goal.status is present.
@@ -102,7 +152,7 @@ describe('BUG: WhyBuddy STATUS badge shows a stale "clear" after a challenge (Pr
     // EXPECTED (design Property 2 / Req 1.6, 2.7): after the challenge the conclusion is downgraded,
     // so the badge surfaces "待细化". FAILS on unfixed code — invalidateForIntervention leaves
     // goal.status === "clear", so the badge still shows the stale "已收敛 / clear".
-    expect(html).toContain('待细化');
-    expect(html).not.toMatch(/已收敛/);
+    expect(html).toContain('已被质疑·重新推演');
+    expect(html).not.toMatch(/已收敛·可信/);
   });
 });

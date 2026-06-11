@@ -43,6 +43,35 @@ vi.mock('@/components/autopilot/ReasoningFlowSurface', () => ({
   ReasoningFlowSurface: () => null,
 }));
 
+vi.mock('./whybuddy/useWhyBuddySession', () => ({
+  useWhyBuddySession: () => {
+    const state = staged.current;
+    if (!state) throw new Error('staged session state not set for integration render');
+    return {
+      goal: state.goal?.text || '',
+      sessionState: state,
+      chatTurns: [],
+      input: '',
+      setInput: () => {},
+      pinnedArtifact: null,
+      setPinnedArtifact: () => {},
+      nextGateShouldFail: false,
+      setNextGateShouldFail: () => {},
+      dynamicGraph: state.graph || { nodes: [], edges: [] },
+      executorMode: 'pilot' as const,
+      sendMessage: async () => {},
+      challenge: () => {},
+      challengeDecision: async () => {},
+      waiveGap: async () => {},
+      handleGraphNodeClick: () => {},
+      resetSession: async () => {},
+      verifyChain: () => {},
+      listSessions: async () => {},
+      showLedger: () => {},
+    };
+  },
+}));
+
 // Override ONLY createInitialSessionState; every other runtime export stays real so the
 // states we build below come from the genuine orchestrate/commit/coverage logic.
 vi.mock('@/lib/whybuddy-runtime', async () => {
@@ -127,19 +156,23 @@ function buildHardBlockFlowState(rt: RuntimeModule): V5SessionState {
     s,
     createRawArtifact('untrusted-risk', 'risk.analyze', '安全', 'risk'),
     'int-hb-run-risk',
-    false,
+    true,
     []
   );
-  const untrusted = (sWithRisk.artifacts || []).find((a: any) => a.id === 'untrusted-risk');
-  if (untrusted) {
-    (untrusted as any).trustLevel = 'untrusted';
-    (untrusted as any).passedGates = [];
-  }
-  s = { ...sWithRisk, openQuestions: [{ id: 'q1', text: '边界？' }] } as any;
+  s = commitTrusted(
+    rt,
+    sWithRisk,
+    'trusted-synth',
+    'synthesis.merge',
+    '综合',
+    'synthesis',
+    'int-hb-run-synth'
+  );
+  s = { ...s, openQuestions: [{ id: 'q1', text: '边界？' }] } as any;
 
   const { newState } = rt.orchestrateReasoningTurn(s, {
     turnId: 'int-hardblock',
-    userText: '生成最终报告 路线对比 拆解结构 预览效果',
+    userText: '路线对比 拆解结构 预览效果',
   });
   return newState;
 }
@@ -172,12 +205,12 @@ describe('INTEGRATION (Task 4): full /whybuddy flow surfaces the GCOV conclusion
 
     // The STATUS bar renders the conclusion badge bound to sessionState.goal.status.
     expect(html).toContain('data-testid="whybuddy-conclusion-badge"');
-    expect(html).toMatch(/已收敛|clear/);
+    expect(html).toMatch(/已收敛·可信|已收敛/);
     // The not-yet-converged / not-recommended labels must NOT appear for a clear conclusion.
     expect(html).not.toContain('不建议');
   });
 
-  it('HARD-BLOCK flow: converge with missing pre-reqs → partial AWAIT → STATUS bar stays "待细化"', async () => {
+  it('HARD-BLOCK flow: converge with missing pre-reqs → partial AWAIT → STATUS bar stays "推演中"', async () => {
     // The flow hard-blocked into a partial AWAIT and left goal.status unchanged.
     const gate = hardBlockState.coverageGate as CoverageGateResult | undefined;
     expect(gate?.passed).toBe(false);
@@ -188,7 +221,7 @@ describe('INTEGRATION (Task 4): full /whybuddy flow surfaces the GCOV conclusion
 
     // The conclusion badge is present but shows the needs_refinement label, never "clear".
     expect(html).toContain('data-testid="whybuddy-conclusion-badge"');
-    expect(html).toContain('待细化');
-    expect(html).not.toContain('已收敛');
+    expect(html).toContain('推演中');
+    expect(html).not.toMatch(/已收敛·可信/);
   });
 });

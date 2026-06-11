@@ -49,6 +49,7 @@ export const AUTOPILOT_PATH = "/autopilot";
 export const SPECS_PATH = "/specs";
 export const REPLAY_PATH_PREFIX = "/replay";
 export const WHYBUDDY_PATH = "/whybuddy";
+export const WHYBUDDY_DEV_PATH = "/whybuddy/dev";
 
 export function getReplayPath(missionId: string): string {
   return `${REPLAY_PATH_PREFIX}/${missionId}`;

@@ -45,6 +45,7 @@ import SpecCenterPage from "./pages/specs/SpecCenterPage";
 import { TaskDetailPage, TasksPage } from "./pages/tasks";
 import AutopilotSpecDocumentsWorkbenchFixturePage from "./pages/autopilot/right-rail/streaming-doc/workbench/WorkbenchFixturePage";
 import WhyBuddyPage from "./pages/WhyBuddy";
+import WhyBuddyDevPage from "./pages/WhyBuddyDev";
 
 const routerBase =
   import.meta.env.BASE_URL === "/"
@@ -132,6 +133,7 @@ function Router() {
       />
       <Route path={"/debug"} component={DebugPage} />
       <Route path={"/debug/:section"} component={DebugPage} />
+      <Route path={`${WHYBUDDY_PATH}/dev`} component={WhyBuddyDevPage} />
       <Route path={WHYBUDDY_PATH} component={WhyBuddyPage} />
       {/* V5 chrome-free workspace: WhyBuddy is deliberately isolated from the old stage sequencer / AppShell chrome.
           All guards, sidebar, mobile tab, config panel, and project-workspace auth checks are skipped for this route
