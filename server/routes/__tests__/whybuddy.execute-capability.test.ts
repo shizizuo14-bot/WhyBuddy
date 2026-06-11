@@ -14,6 +14,7 @@ import whybuddyRouter from '../whybuddy.js';
 import * as llmClient from '../../core/llm-client.js';
 import * as ghAdapter from '../../whybuddy/github-mcp-adapter.js';
 import * as repoStaticAnalyzer from '../../whybuddy/repo-static-analyzer.js';
+import { withStubbedLlmKey } from './helpers/with-stubbed-llm-key.js';
 
 describe('POST /api/whybuddy/execute-capability (server route)', () => {
   const app = express();
@@ -22,12 +23,11 @@ describe('POST /api/whybuddy/execute-capability (server route)', () => {
 
   let server: any;
   let base: string;
-  const origKey = process.env.LLM_API_KEY;
-  const origOpen = process.env.OPENAI_API_KEY;
+  let restoreLlmKey: (() => void) | undefined;
 
   beforeEach(async () => {
     vi.restoreAllMocks();
-    process.env.LLM_API_KEY = process.env.LLM_API_KEY || 'test-key';
+    ({ restore: restoreLlmKey } = withStubbedLlmKey());
     server = createServer(app);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const addr = server.address();
@@ -37,10 +37,7 @@ describe('POST /api/whybuddy/execute-capability (server route)', () => {
 
   afterEach(async () => {
     vi.restoreAllMocks();
-    if (origKey) process.env.LLM_API_KEY = origKey;
-    else delete process.env.LLM_API_KEY;
-    if (origOpen) process.env.OPENAI_API_KEY = origOpen;
-    else delete process.env.OPENAI_API_KEY;
+    restoreLlmKey?.();
     if (server) {
       await new Promise<void>((r) => server.close(() => r()));
     }
@@ -78,8 +75,7 @@ describe('POST /api/whybuddy/execute-capability (server route)', () => {
   });
 
   it('returns 500 (llm_not_configured or execution_failed) when no apiKey, without leaking secrets', async () => {
-    const orig = process.env.LLM_API_KEY;
-    const origOpen = process.env.OPENAI_API_KEY;
+    restoreLlmKey?.();
     delete process.env.LLM_API_KEY;
     delete process.env.OPENAI_API_KEY;
 
@@ -104,8 +100,6 @@ describe('POST /api/whybuddy/execute-capability (server route)', () => {
       expect(bodyStr).not.toMatch(/OPENAI|LLM_API_KEY/i);
     } finally {
       errSpy.mockRestore();
-      if (orig) process.env.LLM_API_KEY = orig;
-      if (origOpen) process.env.OPENAI_API_KEY = origOpen;
     }
   });
 

@@ -39,6 +39,10 @@ import {
   executeDeliberationCapabilityMapped,
   isDeliberationCapability,
 } from "../whybuddy/deliberation-exec-map.js";
+import {
+  executeDialogueCapability,
+  isDialogueCapability,
+} from "../whybuddy/dialogue-exec-map.js";
 import { executeOrchestratePlan } from "../whybuddy/orchestrate-plan.js";
 import * as fs from "fs";
 import * as path from "path";
@@ -354,7 +358,8 @@ router.post("/respond", express.json({ limit: "2mb" }), async (req: Request, res
 });
 
 // POST /api/whybuddy/execute-capability
-// Server-side LLM execution for the WhyBuddy V5 capability seam (risk.analyze + report.write).
+// Server-side LLM execution for the WhyBuddy V5 capability seam
+// (risk/report + D1 dialogue + R2 deliberation + F1 mapped caps).
 // Reuses the project's unified LLM stack (getAIConfig + callLLMJson) exactly like /autopilot and blueprint routes.
 // Input: the same args the LlmCapabilityProvider receives on the client.
 // Output: strictly the raw 4-field shape { title, summary, content, provenance? }.
@@ -410,6 +415,7 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
 
     const isLlmBacked =
       isDeliberationCapability(capabilityId) ||
+      isDialogueCapability(capabilityId) ||
       capabilityId === "risk.analyze" ||
       capabilityId === "report.write";
 
@@ -433,6 +439,17 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
         turnId,
         deliberationMaxRounds,
         targetRoleId,
+      });
+      return res.json(result);
+    }
+
+    if (isDialogueCapability(capabilityId)) {
+      const result = await executeDialogueCapability({
+        capabilityId: capabilityId as any,
+        state,
+        inputArtifactIds,
+        roleId,
+        turnId,
       });
       return res.json(result);
     }

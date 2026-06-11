@@ -1290,6 +1290,10 @@ export class LlmCapabilityExecutor implements CapabilityExecutor {
     const serverRouted: V5CapabilityId[] = [
       'risk.analyze',
       'report.write',
+      'intent.clarify',
+      'route.generate',
+      'route.compare',
+      'requirement.write',
       'repo.inspect',
       'evidence.search',
       'mcp.call',
