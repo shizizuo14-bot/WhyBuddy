@@ -13,6 +13,7 @@ import {
   enrichStructureUpstream,
   buildRichStructureContextForOldDerivation,
   buildRichSpecTreePromptFromOld,
+  tryDeriveWithOldPipeline,
 } from "./structure-derivation-adapter.js";
 import { getOutputContract, renderContractForPrompt } from "../../shared/blueprint/whybuddy-output-contracts.js";
 import { getAIConfig } from "../core/ai-config.js";
