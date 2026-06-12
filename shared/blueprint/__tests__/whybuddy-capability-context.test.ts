@@ -13,6 +13,7 @@ import {
   DOCUMENT_DRAFT_CONTRACT,
 } from "../whybuddy-output-contracts.js";
 import { evaluateQualityGate, PRODUCTION_BASELINE, PILOT_TEMPLATE_BASELINE } from "../whybuddy-quality-gate.js";
+import { buildCapabilityPrompt } from "../whybuddy-capability-prompts.js";
 
 /**
  * K1 内容厚度供给改造 · 探索 + 保全测试
@@ -184,5 +185,39 @@ describe("K3 · G_QUALITY content gate (with K2 contract)", () => {
     const qPilot = evaluateQualityGate(art, REPORT_WRITE_CONTRACT, PILOT_TEMPLATE_BASELINE);
     expect(qPilot?.status).toBe("passed");
     expect(qPilot?.baseline).toBe("pilot-template");
+  });
+});
+
+describe("B1 · capability prompts down to shared (single source of truth)", () => {
+  it("B1.1 preservation: buildCapabilityPrompt produces prompts usable by both server and browser paths (key structures preserved after down-migration)", () => {
+    const state: any = {
+      goal: { text: "测试目标" },
+      artifacts: [
+        { id: "r1", kind: "risk", content: "风险：数据越权 WHEN 跨租户访问 THE system SHALL 拒绝。", producedBy: { capabilityId: "risk.analyze" } },
+      ],
+    };
+    const prompt = buildCapabilityPrompt({
+      capabilityId: "risk.analyze",
+      state,
+      inputArtifactIds: ["r1"],
+      roleId: "安全",
+      turnId: "t1",
+    });
+    expect(prompt.systemPrompt).toContain("You are an expert AI collaborator for WhyBuddy V5");
+    expect(prompt.userPrompt).toContain("Capability: risk.analyze");
+    expect(prompt.userPrompt).toContain("Upstream context");
+    expect(prompt.maxTokens).toBe(8000);
+    expect(prompt.temperature).toBe(0.25);
+
+    const reportPrompt = buildCapabilityPrompt({
+      capabilityId: "report.write",
+      state,
+      inputArtifactIds: [],
+      roleId: "综合",
+      turnId: "t2",
+    });
+    expect(reportPrompt.userPrompt).toContain("Base structured evidence (authoritative 9-section skeleton");
+    expect(reportPrompt.userPrompt).toContain("支撑证据：");
+    expect(reportPrompt.maxTokens).toBe(12000);
   });
 });

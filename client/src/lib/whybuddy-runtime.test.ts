@@ -59,6 +59,7 @@ import { isTestHelperEnabled } from '../../../server/routes/whybuddy.ts';
 import type { V5SessionState, Artifact, UserIntervention } from '@shared/blueprint/v5-reasoning-state';
 import type { V5CapabilityId } from '@shared/blueprint/contracts';
 import type { ControlSignal } from './whybuddy-runtime';
+import { loadByokPool, saveByokPool, clearByokPool, maskKey, validateByokPool } from './whybuddy-byok-config';
 import {
   createGroundedEvidenceRaw,
   commitGroundedEvidence,
@@ -908,6 +909,33 @@ describe('whybuddy-runtime V5 closed loop (behavioral regression)', () => {
     expect(sim.content).toContain('模拟');
     const der = deriveNodeStatus(saved);
     expect(der.graph.nodes.some((n: any) => n.producedArtifactId)).toBe(true);
+  });
+
+  it('B2 BYOK config: save/load/clear/validate/mask roundtrip and security', () => {
+    const cfg = {
+      version: 1 as const,
+      entries: [{
+        id: "k1",
+        label: "test-key",
+        presetId: "openai" as const,
+        endpoint: "https://api.openai.com/v1/chat/completions",
+        model: "gpt-4o-mini",
+        apiKey: "sk-test-1234567890abcdef",
+        enabled: true,
+      }],
+      dispatch: "least-busy" as const,
+      raceMode: false,
+    };
+    clearByokPool();
+    saveByokPool(cfg);
+    const loaded = loadByokPool();
+    expect(loaded?.entries[0].apiKey).toBe("sk-test-1234567890abcdef");
+    expect(maskKey(cfg.entries[0].apiKey)).toBe("sk-t…ef");
+    expect(validateByokPool(cfg).ok).toBe(true);
+    const bad = { ...cfg, version: 2 as any };
+    expect(validateByokPool(bad as any).ok).toBe(false);
+    clearByokPool();
+    expect(loadByokPool()).toBeNull();
   });
 
   it('CapabilityExecutor can be swapped via setCapabilityExecutor and affects committed artifact content (fake injection)', async () => {
