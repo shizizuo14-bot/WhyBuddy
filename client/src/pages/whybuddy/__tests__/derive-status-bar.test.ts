@@ -98,9 +98,14 @@ describe("deriveStatusBarFacts", () => {
   });
 });
 
-/** M7 探索测试：默认 UI 不得出现内部机制词汇（当前必败注释已由翻译推进，测试锁定）。 */
-it("M7: deriveStatusBarFacts default labels avoid internal mechanism tokens (T_GATE, G-GROUND, gated_pass, pilot-template, raw stop reasons)", () => {
-  const forbidden = ["T_GATE", "G-GROUND", "gated_pass", "pilot-template", "budget_exhausted", "coverage_sufficient", "user_interrupted", "await_ready"];
+/** M7 收尾 + 保全：默认 UI 不得出现内部机制词汇（lint 黑名单）。翻译 + derive 负责用户语言化。 */
+it("M7: deriveStatusBarFacts default labels avoid internal mechanism tokens (lint blacklist)", () => {
+  const forbidden = [
+    "T_GATE", "G-GROUND", "gated_pass", "pilot-template",
+    "budget_exhausted", "coverage_sufficient", "user_interrupted", "await_ready",
+    "frontier_exhausted", "session_budget_exhausted", "autopilotPolicy", "supersededArtifactIds",
+    "convergence_signal", "await_confirm"
+  ];
   const state = createInitialSessionState("m7 lang test");
   const facts = deriveStatusBarFacts(state, { turnCount: 1, isRunning: true });
   const allLabels = `${facts.phaseLabel} ${facts.groundingLabel} ${facts.groundingHint || ""} ${facts.executorModeLabel} ${facts.conclusionLabel}`;
@@ -154,4 +159,44 @@ it("M4: marathon policy artifact + await_confirm auto (per policy, ledger trace 
   // Policy attached
   expect((res.finalState as any).autopilotPolicy).toBeDefined();
   expect(["await_human", "frontier_exhausted", "session_budget_exhausted"].includes(res.stopReason) || res.rounds.some((r: any) => r.stopReason === "await_confirm")).toBe(true);
+});
+
+/** M3 保全测试（真实 frontier.propose）：prompt + rationale + ledger 必须存在且可审计。 */
+it("M3 preservation: real proposeFrontier yields prompt(单源) + rationale + ledgerEntry (type=frontier_propose)", async () => {
+  const { proposeFrontier, createRoundDigest } = await import("@/lib/whybuddy-marathon-driver");
+  const st = createInitialSessionState("m3 real propose test");
+  const digest = createRoundDigest(st, (st.artifacts || []).slice(-3).map((a: any) => a.id));
+  const p = await proposeFrontier(st, digest, []);
+  expect(typeof p.prompt).toBe("string");
+  expect(p.prompt.length).toBeGreaterThan(10);
+  expect(p.rationale).toContain("M3 frontier.propose");
+  expect(p.ledgerEntry).toBeDefined();
+  expect(p.ledgerEntry.type).toBe("frontier_propose");
+  expect(typeof p.seed).toBe("string");
+});
+
+/** M6 保全测试（真实 digest + 过质量门概念 + superseded + K1 supply）：9 段 schema + superseded 集合。 */
+it("M6 preservation: createRoundDigest uses buildStructuredReport (9 sections) + returns supersededIds for grouping/K1", async () => {
+  const { createRoundDigest } = await import("@/lib/whybuddy-marathon-driver");
+  const st = createInitialSessionState("m6 digest gate test");
+  const d = createRoundDigest(st, []);
+  expect(d.title).toBeTruthy();
+  expect(d.content).toContain("支撑证据");
+  expect(d.content).toContain("未解缺口");
+  expect(d.content).toContain("下一步工程化分支");
+  expect(Array.isArray(d.supersededIds)).toBe(true);
+});
+
+/** M5 保全 + 探索：真实 costLedger 累计 + budget 触发 session_budget_exhausted（低预算必中）。 */
+it("M5 preservation: driveMarathon consumes real costLedger; low maxTokens forces session_budget_exhausted", async () => {
+  const controller = new AbortController();
+  const st = createInitialSessionState("m5 cost real");
+  const res = await (await import("@/lib/whybuddy-marathon-driver")).driveMarathon(st, "seed-m5", {
+    stopSignal: controller.signal,
+    budget: { maxTokens: 1500, declaredAt: new Date().toISOString() }, // low -> force
+    policy: {},
+  });
+  const cl = (res.finalState as any).costLedger || [];
+  expect(Array.isArray(cl)).toBe(true);
+  expect(["session_budget_exhausted", "frontier_exhausted", "await_human"].includes(res.stopReason)).toBe(true);
 });

@@ -241,27 +241,42 @@ export function WhyBuddyTopHud({
               </span>
             </span>
           )}
-          {/* M5 stub: budget progress for marathon/autopilot (real from costLedger + state). M4 policy attached by driver. */}
-          {(state as any).autopilotPolicy && (
-            <span className="ml-2 text-[8px] text-indigo-300" title="M5: session budget for continuous mode. M4: policy for auto confirm.">
-              自动驾驶 · 预算进行中
+          {/* M5 real: budget + costLedger usage (Knife 6). M4 policy. Sync to hud for marathon. */}
+          {((state as any).costLedger?.length || (state as any).autopilotPolicy) && (
+            <span className="ml-2 text-[8px] text-indigo-300" title="M5: 真实 costLedger 累计 + marathon budget。M4 policy 代答。">
+              自动驾驶 · 预算 {((state as any).costLedger || []).length}条记录 / 预设上限 {((window as any).__whybuddyMarathonBudget?.maxTokens) || 12000}
             </span>
           )}
-          {/* M7: basic audit drawer entry - shows raw mechanism info for the curious (hides from default user language) */}
+          {/* M7: 真实抽屉面板 (非 alert)。点击展开固定右侧面板，展示 policy/ledger/cost/superseded/frontier/M3 prompt 片段。默认用户语言不泄内部 token。 */}
           {IS_GITHUB_PAGES && (
             <button
               onClick={() => {
-                const raw = {
-                  lastStop: state.goal?.status,
-                  gates: (state.gates || []).slice(-3),
-                  ledgerSample: (state.decisionLedger || []).slice(-2),
-                  superseded: (state as any).supersededArtifactIds || [],
-                  note: "M7: mechanisms (T_GATE/BUDGET etc) hidden in default UI; raw here for audit. stopReasons, ledgers etc."
-                };
-                alert("审计抽屉 (M7):\n" + JSON.stringify(raw, null, 2) + "\n(实际应为可折叠面板，信息等量不删)");
+                // toggle real drawer (use data attr for test + simple fixed panel below)
+                const el = document.getElementById("whybuddy-audit-drawer");
+                if (el) {
+                  el.style.display = el.style.display === "none" ? "block" : "none";
+                } else {
+                  // create on demand (一次渲染真实面板)
+                  const d = document.createElement("div");
+                  d.id = "whybuddy-audit-drawer";
+                  d.style.cssText = "position:fixed;right:8px;top:48px;z-index:9999;max-width:420px;max-height:70vh;overflow:auto;background:#0f172a;color:#e2e8f0;padding:10px;border:1px solid #334155;border-radius:6px;font-size:10px;";
+                  const policy = (state as any).autopilotPolicy || {};
+                  const costs: any[] = (state as any).costLedger || [];
+                  const supers = (state as any).supersededArtifactIds || [];
+                  const ledgers = (state.decisionLedger || []).slice(-4);
+                  d.innerHTML = `<div style="font-weight:600;margin-bottom:4px;">WhyBuddy M7 真实审计抽屉 (close: 再次点审计)</div>
+<div>Policy: ${JSON.stringify(policy)}</div>
+<div>CostLedger (${costs.length}): ${JSON.stringify(costs.slice(-3))}</div>
+<div>Superseded: ${supers.length} ids</div>
+<div>Ledger (frontier/policy): ${JSON.stringify(ledgers)}</div>
+<div style="opacity:0.7">M3 prompt/rationale 已在对话与 decisionLedger 落地（见上轮 assistant 或 raw state）。</div>`;
+                  document.body.appendChild(d);
+                  // auto hide after long view or click outside basic
+                  setTimeout(() => { d.onclick = () => { d.style.display="none"; }; }, 10);
+                }
               }}
               className="ml-2 rounded bg-slate-700 px-1 text-[8px] text-white"
-              title="审计抽屉：查看机制原文（T_LEDGER, gates, stop reasons, superseded 等）。默认 UI 已翻译为用户语言。"
+              title="M7 真实抽屉：policy + costLedger + superseded + frontier ledger + M3 rationale。默认 UI 隐藏内部机制词。"
             >
               审计
             </button>

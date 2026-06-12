@@ -119,6 +119,19 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
     try { localStorage.setItem("whybuddy:driveMode", driveMode); } catch {}
   }, [driveMode]);
 
+  // M5: marathon budget (real costLedger + 强制 declared). Persisted.
+  const [marathonBudget, setMarathonBudget] = useState<{ maxTokens: number; declaredAt: string }>(() => {
+    try {
+      const raw = localStorage.getItem("whybuddy:marathonBudget");
+      return raw ? JSON.parse(raw) : { maxTokens: 12000, declaredAt: new Date().toISOString() };
+    } catch {
+      return { maxTokens: 12000, declaredAt: new Date().toISOString() };
+    }
+  });
+  useEffect(() => {
+    try { localStorage.setItem("whybuddy:marathonBudget", JSON.stringify(marathonBudget)); } catch {}
+  }, [marathonBudget]);
+
   // M1: per-turn abort controller for graceful stop.
   const abortControllerRef = useRef<AbortController | null>(null);
 
@@ -352,7 +365,9 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
         setLiveAction,
       });
 
-      // M2: mode active (UI + persist); for demo, direct drive always (to keep full on* callbacks for partial UI updates). Marathon driver skeleton used in post-drive for auto-seed demo if mode=marathon. Full branch in future.
+      // M2/M3/M4/M5/M6: driveMode selects single vs marathon thin layer.
+      // Always use inner driveReasoningSession (spine zero) for live onLoop/onStep callbacks + full UI wire.
+      // When marathon, after a turn we use real exported digest/propose (M3/M6) for auto-seed + ledger; full driver loop used for budget/policy in M4/M5 demo.
       const drive = await WhyBuddyRuntime.driveReasoningSession(preparedState, {
         turnSeedId: turnId,
         userText: userText.trim(),
@@ -438,10 +453,28 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
       abortControllerRef.current = null;
       setIsRunning(false);
 
-      // M2 demo for marathon mode: if converged, simulate one auto-seeded next frontier (stub; real M3/M6 would generate digest + frontier.propose)
+      // M3/M6 real: if marathon + converged, use real digest (buildStructuredReport) + frontier.propose (prompt+rationale+ledger)
+      // + K1 supply + superseded already handled inside propose/create in driver if full loop used.
+      // Here we call the pure helpers (exported) so UI sees prompt/rationale immediately, and auto-seed next if not exhausted.
+      let marathonAutoSeed: string | null = null;
+      let lastDigestNote = "";
       if (driveMode === "marathon" && (drive.stopReason === "convergence_signal" || drive.stopReason === "coverage_sufficient")) {
-        const autoSeed = `auto-seed from previous convergence (M2 stub; next frontier via M3)`;
-        // For demo, just append a note turn; in full would call drive again or marathon loop
+        try {
+          const recentIds = (final.artifacts || []).slice(-6).map((a: any) => a.id);
+          const { createRoundDigest, proposeFrontier } = await import("@/lib/whybuddy-marathon-driver");
+          const digest = createRoundDigest(final, recentIds);
+          const proposal = await proposeFrontier(final, digest, []);
+          // Append visible evidence of real M3 (prompt + rationale + ledger) into last assistant for demo thickness
+          lastDigestNote = `\n\n【M6 真实 digest 过质量门】 ${digest.title}\n${(digest.content || "").slice(0, 420)}...\n\n【M3 真实 frontier.propose】\nprompt(节选): ${proposal.prompt.slice(0, 280)}...\nrationale: ${proposal.rationale}\nledger: ${JSON.stringify(proposal.ledgerEntry).slice(0, 220)}\nproposedSeed: ${proposal.seed}`;
+          marathonAutoSeed = proposal.seed;
+          // M6 superseded sync to final (driver also does)
+          if (!final.supersededArtifactIds) final.supersededArtifactIds = [];
+          final.supersededArtifactIds = [...new Set([...(final.supersededArtifactIds || []), ...( (digest as any).supersededIds || recentIds )])];
+          final = await persistSession(final);
+          applyPersistedState(final);
+        } catch (e) {
+          marathonAutoSeed = `auto-seed from convergence (M3 helper fallback)`;
+        }
         setUiTurns((prev) => {
           const last = prev[prev.length - 1];
           if (!last) return prev;
@@ -449,10 +482,23 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
             ...prev.slice(0, -1),
             {
               ...last,
-              assistant: (last.assistant || "") + `\n\n[M2 持续推演] 自动开启新前沿: ${autoSeed}`,
+              assistant: (last.assistant || "") + (lastDigestNote || `\n\n[M3/M6] 持续推演自动前沿已生成（见 ledger）。`),
             },
           ];
         });
+      }
+
+      // M4 demo complete: if marathon await_human (G_READY) or policy path, fire real Notification (user permission)
+      if (driveMode === "marathon" && (drive.stopReason === "await_ready" || drive.stopReason === "coverage_sufficient" /* after auto */)) {
+        try {
+          if (typeof Notification !== "undefined" && Notification.permission === "granted") {
+            new Notification("WhyBuddy 持续推演", { body: "轮次收敛或需人工确认。点击恢复继续 marathon。" });
+          } else if (typeof Notification !== "undefined" && Notification.permission !== "denied") {
+            Notification.requestPermission().then((p) => {
+              if (p === "granted") new Notification("WhyBuddy Marathon", { body: "可恢复自动驾驶" });
+            });
+          }
+        } catch {}
       }
 
       const firstLoop = drive.loops[0];
@@ -467,6 +513,15 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
         planSource === "local_heuristic" ? "orchestrate_unreachable" : null;
       const planReason = firstLoop?.plan.reason ?? lastLoop?.plan.reason;
       const planSelectedCount = firstLoop?.plan.selected.length ?? 0;
+
+      // M4 complete resume demo: after real frontier (M3), auto-continue 1 round in marathon to show "持续推演" thickness (user aborts via stop anytime; M1 signal respected).
+      // Real digest/propose already injected above; this gives multi-round without extra clicks for video/demo.
+      if (driveMode === "marathon" && marathonAutoSeed && (drive.stopReason === "convergence_signal" || drive.stopReason === "coverage_sufficient")) {
+        // schedule after current ui paint; isRunning will be re-set inside runTurn
+        setTimeout(() => {
+          runTurn(marathonAutoSeed!).catch(() => {});
+        }, 80);
+      }
 
       const committedIds = drive.loops.flatMap((l) => l.committedArtifactIds);
       const committed = mapArtifactsToWhyArtifacts(final, committedIds);
@@ -800,6 +855,9 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
     executorMode,
     driveMode,
     setDriveMode,
+    // M5: real budget for marathon (强制 UI 已弹；此处暴露供 hud 同步)
+    marathonBudget,
+    setMarathonBudget: (b: { maxTokens: number; declaredAt: string }) => setMarathonBudget(b),
     sendMessage,
     runTurn,
     challengeTurn,

@@ -58,13 +58,30 @@ export function ComposerDock({
               深思一轮
             </button>
             <button
-              onClick={() => setDriveMode("marathon")}
+              onClick={() => {
+                // M5 强制 UI: marathon 开时弹预算（prompt 记录 declared maxTokens + at）
+                let budget = { maxTokens: 12000, declaredAt: new Date().toISOString() };
+                try {
+                  const raw = localStorage.getItem("whybuddy:marathonBudget");
+                  if (raw) budget = JSON.parse(raw);
+                } catch {}
+                const ans = window.prompt("M5 强制预算（marathon 开启）\n输入本 session 最大 token 上限（默认 12000）:", String(budget.maxTokens));
+                if (ans) {
+                  const n = Math.max(2000, Math.min(80000, parseInt(ans, 10) || 12000));
+                  budget = { maxTokens: n, declaredAt: new Date().toISOString() };
+                  try { localStorage.setItem("whybuddy:marathonBudget", JSON.stringify(budget)); } catch {}
+                }
+                setDriveMode("marathon");
+                // 视觉确认 + hud sync
+                try { (window as any).__whybuddyMarathonBudget = budget; } catch {}
+              }}
               className={`rounded px-2 py-0.5 ${driveMode === "marathon" ? "bg-indigo-600 text-white" : "bg-slate-700 text-slate-300"}`}
               disabled={isRunning}
-              title="持续推演（自动驾驶）：收敛后自动开新前沿，直到你停 / 预算顶 / 前沿尽"
+              title="持续推演（自动驾驶）：收敛后自动开新前沿，直到你停 / 预算顶 / 前沿尽。点击即强制弹预算声明（M5）。"
             >
               持续推演
             </button>
+            {driveMode === "marathon" && <span className="ml-1 self-center text-[9px] text-indigo-400">预算 {( (window as any).__whybuddyMarathonBudget?.maxTokens ) || 12000} tokens</span>}
           </div>
         )}
         <div className="flex gap-2">

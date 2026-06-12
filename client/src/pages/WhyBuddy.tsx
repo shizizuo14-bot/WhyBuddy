@@ -205,6 +205,8 @@ function WhyBuddyImmersion({
   latestTurn,
   latestTurnId,
   executorMode,
+  driveMode,
+  setDriveMode,
 }: {
   goal: string;
   uiTurns: UiTurn[];
@@ -360,7 +362,8 @@ function WhyBuddyImmersion({
           goal={goal}
           latestUserText={latestTurn?.user}
           hintChips={composerHints}
-          // driveMode/setDriveMode passed for full M2 wiring in future; composer has local fallback for interactive demo now
+          driveMode={driveMode}
+          setDriveMode={setDriveMode}
         />
       </div>
 
@@ -410,6 +413,8 @@ function WhyBuddySplitEngineering({
   latestTurn,
   latestTurnId,
   executorMode,
+  driveMode,
+  setDriveMode,
 }: {
   goal: string;
   uiTurns: UiTurn[];
@@ -584,24 +589,30 @@ function WhyBuddySplitEngineering({
                     <div className={autopilotTheme.userBubble}>{turn.user}</div>
                   </div>
                   <div className="rounded-lg border border-slate-200/80 bg-white px-4 py-4 shadow-[0_1px_2px_rgb(0,0,0,0.04)]">
-                    <TurnRouteTimeline
-                      facts={turn.routeFacts}
-                      steps={turn.steps}
-                      actions={turn.actions}
-                      sessionId={sessionState.sessionId || "whybuddy-v51-product"}
-                      expanded={turn.routeExpanded || turn.status === "streaming"}
-                      onToggle={() => toggleRouteExpanded(turn.id)}
-                      litCount={turn.routeLitCount}
-                      streaming={turn.status === "streaming"}
-                      liveAction={
-                        turn.id === latestTurnId && turn.status === "streaming"
-                          ? liveAction
-                          : null
-                      }
-                      surfaceMode={imSurfaceMode}
-                      retrying={isRunning}
-                      onRetryCapability={(params) => retryCapability(turn.id, params)}
-                    />
+                    {/* M7 收尾: turn-route 在 marathon 模式下默认隐藏（沉浸 + 避免机制词）。single 模式可见；toggle 仍可强展 */}
+                    {(driveMode !== "marathon" || turn.routeExpanded) && (
+                      <TurnRouteTimeline
+                        facts={turn.routeFacts}
+                        steps={turn.steps}
+                        actions={turn.actions}
+                        sessionId={sessionState.sessionId || "whybuddy-v51-product"}
+                        expanded={turn.routeExpanded || turn.status === "streaming"}
+                        onToggle={() => toggleRouteExpanded(turn.id)}
+                        litCount={turn.routeLitCount}
+                        streaming={turn.status === "streaming"}
+                        liveAction={
+                          turn.id === latestTurnId && turn.status === "streaming"
+                            ? liveAction
+                            : null
+                        }
+                        surfaceMode={imSurfaceMode}
+                        retrying={isRunning}
+                        onRetryCapability={(params) => retryCapability(turn.id, params)}
+                      />
+                    )}
+                    {driveMode === "marathon" && !turn.routeExpanded && (
+                      <div className="cursor-pointer text-[10px] text-slate-400" onClick={() => toggleRouteExpanded(turn.id)} title="M7: marathon 收敛中隐藏 turn-route 详情（点击展开内部审计）">— 持续推演（route 隐藏，点击展开） —</div>
+                    )}
                     {turn.status === "complete" && (
                       <TurnFootnote
                         turn={turn}
@@ -838,6 +849,8 @@ export default function WhyBuddy() {
     latestTurn,
     latestTurnId,
     executorMode,
+    driveMode,
+    setDriveMode,
   };
 
   if (isImmersion) {
