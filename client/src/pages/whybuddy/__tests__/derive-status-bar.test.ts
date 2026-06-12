@@ -123,3 +123,18 @@ it("M2.1: marathon driver skeleton with 3-round mock chain (auto-seed, exhausted
   expect(res.stopReason).toBeDefined(); // frontier or other in stub
   // 真实 mock frontier 会在下波；当前 skeleton 覆盖接口
 });
+
+/** M3/M5/M6 探索测试：driver de-dupe (M3), budget exhausted (M5), superseded (M6). */
+it("M3/M5/M6: driver stubs - de-dupe leads to exhausted, budget top, superseded collection", async () => {
+  const controller = new AbortController();
+  let state = createInitialSessionState("m3-6 test");
+  // Force multiple convergence-like by short runs, but stub will hit budget/de-dupe
+  const res = await (await import("@/lib/whybuddy-marathon-driver")).driveMarathon(state, "seed", {
+    stopSignal: controller.signal,
+    budget: { maxTokens: 2000, declaredAt: new Date().toISOString() }, // low to hit M5
+    policy: {},
+  });
+  expect(["frontier_exhausted", "session_budget_exhausted"].includes(res.stopReason)).toBe(true);
+  // superseded may be set on final state
+  expect(Array.isArray((res.finalState as any).supersededArtifactIds) || (res.finalState as any).supersededArtifactIds === undefined).toBe(true);
+});

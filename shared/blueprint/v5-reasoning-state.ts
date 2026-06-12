@@ -122,6 +122,8 @@ export interface V5SessionState {
   dependencyGraph: DependencyEdge[];
   /** V5 新增：被失效引擎标记 */
   staleArtifactIds: string[];
+  /** M6: superseded by round digests (separate from stale per spec; for context compression in marathon, not trust cascade) */
+  supersededArtifactIds?: string[];
   currentFocus?: { nodeId?: string; artifactId?: string };
   userIntervention?: UserIntervention;
 
