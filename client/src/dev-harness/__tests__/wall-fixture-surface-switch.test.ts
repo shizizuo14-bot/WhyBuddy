@@ -59,6 +59,9 @@ describe("wall-fixture surface switch (?surface=2d)", () => {
     expect(surf).toContain("isDraggingRef");
     expect(surf).toContain('touchAction: "none"');
     expect(surf).toContain("passive: false");
+    // Flow card: unified 5-line clamp for title + body
+    expect(surf).toContain("FLOW_MAX_LINES = 5");
+    expect(surf).toContain("flowTextClampStyle");
   });
 
   it("surface module uses product推演 semantics (no legal-domain fallback words)", () => {

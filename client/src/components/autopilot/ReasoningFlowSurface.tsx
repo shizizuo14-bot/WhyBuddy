@@ -21,7 +21,7 @@
  * - 复用项目里已有的 telemetry / consoleLines 结构。
  */
 
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useMemo, useRef, useState, useCallback, type CSSProperties } from "react";
 import dagre from "dagre";
 
 import type {
@@ -97,11 +97,13 @@ interface EdgeWithPath {
   midY: number;
 }
 
-const NODE_WIDTH = 245;
-const NODE_HEIGHT = 86; // 统一高度 + 更紧凑密度，配合内部紧凑排版实现成熟 reasoning map 质感
-const PADDING = 60;
+const NODE_WIDTH = 260;
+const NODE_HEIGHT = 118;
+const FLOW_MAX_LINES = 5;
+const FLOW_LINE_HEIGHT_PX = 14;
+const PADDING = 56;
 const RANK_SEP = 420;
-const NODE_SEP = 36;
+const NODE_SEP = 40;
 
 const TYPE_COLORS: Record<string, string> = {
   question: "#0d9488",     // teal
@@ -170,6 +172,33 @@ function estimateLabelWidth(label: string): number {
   // Better estimate for mixed Chinese/English labels (Chinese chars are wider)
   const units = [...label].reduce((sum, ch) => sum + (/[\u4e00-\u9fff]/.test(ch) ? 11 : 6.5), 0);
   return Math.max(36, units + 16); // padding + min width
+}
+
+function flowTextClampStyle(lines: number = FLOW_MAX_LINES): CSSProperties {
+  return {
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    display: "-webkit-box",
+    WebkitLineClamp: lines,
+    WebkitBoxOrient: "vertical",
+    wordBreak: "break-word",
+  };
+}
+
+function buildFlowTooltip(node: BrainstormReasoningNode): string {
+  const title = (node.title || "").trim();
+  const body = (node.body || "").trim();
+  if (title && body) return `${title}\n\n${body}`;
+  return title || body || node.id;
+}
+
+function hexWithAlpha(hex: string, alpha: number): string {
+  const normalized = hex.replace("#", "");
+  if (normalized.length !== 6) return hex;
+  const r = parseInt(normalized.slice(0, 2), 16);
+  const g = parseInt(normalized.slice(2, 4), 16);
+  const b = parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 }
 
 // ------------------------------------------------------------------------
@@ -881,6 +910,13 @@ export function ReasoningFlowSurface({
             const isDimmed = highlightedNodeIds.size > 0 && !isHighlighted;
 
             const clickable = !!onNodeClick;
+            const flowTooltip = buildFlowTooltip(node);
+            const titleText = (node.title || "").trim();
+            const bodyText = (node.body || "").trim();
+            const cardTitle = clickable
+              ? `${flowTooltip}\n\n点击发起挑战 / 继续讨论`
+              : flowTooltip;
+
             return (
               <div
                 key={node.id}
@@ -894,81 +930,122 @@ export function ReasoningFlowSurface({
                       }
                     : undefined
                 }
-                className={`absolute rounded-xl border overflow-hidden transition-all ${
+                className={`absolute overflow-hidden rounded-[11px] border transition-all duration-150 ${
                   dark
                     ? (isDimmed
-                        ? "opacity-25 saturate-[0.6] bg-zinc-900 border-zinc-800"
+                        ? "opacity-25 saturate-[0.6] border-zinc-800/90 bg-zinc-900/90"
                         : isHighlighted
-                        ? "opacity-100 shadow-md scale-[1.015] border-zinc-700 bg-zinc-900"
-                        : "border-zinc-700 bg-zinc-900/95 hover:shadow-md hover:border-zinc-600")
+                        ? "scale-[1.012] border-zinc-600 bg-zinc-900 shadow-[0_10px_24px_rgba(0,0,0,0.35)]"
+                        : "border-zinc-700/90 bg-zinc-900/95 hover:border-zinc-600 hover:shadow-[0_6px_18px_rgba(0,0,0,0.28)]")
                     : (isDimmed
-                        ? "opacity-25 saturate-[0.6] bg-white/95 border-slate-200"
+                        ? "opacity-25 saturate-[0.6] border-slate-200/90 bg-white/92"
                         : isHighlighted
-                        ? "opacity-100 shadow-md scale-[1.015] border-slate-300 bg-white/95"
-                        : "bg-white/95 border-slate-200 shadow-[0_1px_2px_rgb(0,0,0,0.04)] hover:shadow-md hover:border-slate-300")
+                        ? "scale-[1.012] border-slate-300 bg-white shadow-[0_8px_22px_rgba(15,23,42,0.12)]"
+                        : "border-slate-200/90 bg-[linear-gradient(180deg,rgba(255,255,255,0.98),rgba(248,250,252,0.96))] shadow-[0_2px_8px_rgba(15,23,42,0.05)] hover:border-slate-300 hover:shadow-[0_6px_16px_rgba(15,23,42,0.08)]")
                 } ${clickable ? "cursor-pointer" : ""}`}
                 style={{
                   left: node.x,
                   top: node.y,
                   width: NODE_WIDTH,
                   height: NODE_HEIGHT,
-                  padding: "7px 10px",
+                  padding: "9px 11px 8px",
                   boxSizing: "border-box",
                 }}
-                title={clickable ? "点击发起挑战 / 继续讨论" : undefined}
+                title={cardTitle}
               >
-                {/* 左侧类型色条 + 状态小点 */}
                 <div
-                  className={`absolute left-0 top-1.5 bottom-1.5 rounded-r transition-all ${
-                    isHighlighted ? "w-[4.5px] shadow-[0_0_0_1px_rgba(0,0,0,0.08)]" : "w-[3.5px]"
+                  className={`absolute bottom-2 left-0 top-2 w-1 rounded-r-sm transition-all ${
+                    isHighlighted ? "opacity-100" : "opacity-90"
                   }`}
                   style={{ backgroundColor: color }}
                 />
                 <div
-                  className="absolute right-2 top-2 w-1.5 h-1.5 rounded-full"
+                  className={`absolute right-2.5 top-2.5 h-1.5 w-1.5 rounded-full ${
+                    isActive ? "ring-2 ring-emerald-400/35" : ""
+                  }`}
                   style={{ backgroundColor: isActive ? "#10b981" : "#94a3b8" }}
                 />
 
-                <div className="pl-[7px] pr-2 flex flex-col h-full">
-                  {/* 头部：role（谁）更醒目 + 类型（对啥的意见类型）。让用户直接看到“谁在对什么发表什么意见”。 */}
-                  <div className={`flex min-w-0 items-center gap-1.5 text-[9.5px] font-medium leading-none mb-0.5 ${dark ? 'text-zinc-500' : 'text-slate-500'}`}>
+                <div className="flex h-full min-w-0 flex-col pl-2.5 pr-1">
+                  <div className="mb-1 flex min-w-0 items-center gap-1">
                     {conclusionBadge ? (
-                      <span className={`font-semibold tracking-normal shrink-0 ${badgeTone}`}>
+                      <span
+                        className={`inline-flex max-w-full shrink-0 items-center truncate rounded-full px-1.5 py-px text-[9px] font-semibold leading-none ${badgeTone} ${
+                          dark ? "bg-white/5" : "bg-slate-50"
+                        }`}
+                      >
                         {conclusionBadge}
                       </span>
                     ) : (
                       <>
                         {roleLabel && (
-                          <span className={`${dark ? 'text-zinc-400' : 'text-slate-600'} font-semibold tracking-normal shrink-0`}>
+                          <span
+                            className={`min-w-0 truncate text-[9px] font-semibold leading-none ${
+                              dark ? "text-zinc-400" : "text-slate-600"
+                            }`}
+                            title={roleLabel}
+                          >
                             {roleLabel}
                           </span>
                         )}
-                        <span style={{ color }} className="font-semibold tracking-normal shrink-0">
+                        {roleLabel && (
+                          <span className={`shrink-0 text-[8px] ${dark ? "text-zinc-600" : "text-slate-300"}`}>
+                            ·
+                          </span>
+                        )}
+                        <span
+                          className="inline-flex shrink-0 items-center rounded px-1.5 py-px text-[9px] font-semibold leading-none"
+                          style={{
+                            color,
+                            backgroundColor: hexWithAlpha(color, dark ? 0.16 : 0.1),
+                            border: `1px solid ${hexWithAlpha(color, 0.28)}`,
+                          }}
+                        >
                           {typeLabel}
                         </span>
                       </>
                     )}
                   </div>
 
-                  {/* 标题 + 正文区域（flex-1 保证底部元信息对齐） */}
-                  <div className="flex-1 min-h-0 mb-0.5">
-                    {/* 标题（信息层级最高） */}
-                    <div className={`line-clamp-2 text-[12px] font-semibold leading-[14.5px] ${dark ? 'text-zinc-100' : 'text-slate-800'}`}>
-                      {node.title || node.id}
-                    </div>
-
-                    {/* 正文（辅助，密度优先） */}
-                    {node.body && (
-                      <div className={`mt-0.5 line-clamp-2 text-[10px] leading-[12.5px] ${dark ? 'text-zinc-400' : 'text-slate-600'}`}>
-                        {node.body}
-                      </div>
-                    )}
+                  <div
+                    className={`min-h-0 flex-1 text-[11px] ${
+                      dark ? "text-zinc-300" : "text-slate-700"
+                    }`}
+                    style={{
+                      ...flowTextClampStyle(FLOW_MAX_LINES),
+                      lineHeight: `${FLOW_LINE_HEIGHT_PX}px`,
+                    }}
+                    title={flowTooltip}
+                  >
+                    {titleText ? (
+                      <span className={`font-semibold ${dark ? "text-zinc-100" : "text-slate-800"}`}>
+                        {titleText}
+                      </span>
+                    ) : null}
+                    {titleText && bodyText ? (
+                      <span className={dark ? "text-zinc-500" : "text-slate-400"}> — </span>
+                    ) : null}
+                    {bodyText ? (
+                      <span className={dark ? "text-zinc-400" : "text-slate-600"}>{bodyText}</span>
+                    ) : null}
+                    {!titleText && !bodyText ? (
+                      <span className={`font-medium ${dark ? "text-zinc-500" : "text-slate-500"}`}>
+                        {node.id}
+                      </span>
+                    ) : null}
                   </div>
 
-                  {/* 底部元信息：置信度右对齐（统一卡片底部信息层级） */}
                   {typeof node.confidence === "number" && (
-                    <div className={`text-right text-[8.5px] tabular-nums leading-none ${dark ? 'text-zinc-500' : 'text-slate-400'}`}>
-                      {(node.confidence * 100).toFixed(0)}%
+                    <div className="mt-0.5 flex justify-end">
+                      <span
+                        className={`inline-flex items-center rounded px-1 py-px text-[8.5px] font-medium tabular-nums leading-none ${
+                          dark
+                            ? "bg-zinc-800 text-zinc-400"
+                            : "bg-slate-100 text-slate-500"
+                        }`}
+                      >
+                        {(node.confidence * 100).toFixed(0)}%
+                      </span>
                     </div>
                   )}
                 </div>
