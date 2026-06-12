@@ -140,10 +140,10 @@ function derivePhaseFacts(
     }
   }
 
-  if (facts.length > 0) {
-    return facts.slice(0, MAX_PHASE_CHILDREN);
-  }
-
+  // Do not early-return here. Steps/traces give good live labels during a turn.
+  // We *always* also process the run block below so that for resolved parents (new topic
+  // after reset), the "完成" fact gets the rich artifact title/summary/risk list etc
+  // instead of only the short chip label from latestUiTurn.steps.
   // K6.3: strict - only use exact runId, no capId fallback for phase/ledger (宁缺毋滥)
   const run = runId
     ? (state.capabilityRuns || []).find((r) => r.id === runId)
@@ -255,7 +255,20 @@ function derivePhaseFacts(
     }
   }
 
-  return facts.slice(0, MAX_PHASE_CHILDREN);
+  // Prefer rich run/artifact/ledger facts over short step chip labels for the same kind.
+  // After reset + republish new topic, steps may give "LLM 推演完成", but we want the
+  // artifact-enriched body ("完成 · 风险分析\n识别出 3 类 MVP 风险：...") for the phase cards.
+  const bestByKind = new Map<PhaseKind, PhaseFact>();
+  for (const f of facts) {
+    const prev = bestByKind.get(f.kind);
+    const isRich = /风险|报告|综合|证据|非空|title|引用|检查对象|调度判断/i.test(f.body) || f.body.length > 35;
+    if (!prev || isRich || f.body.length > prev.body.length) {
+      bestByKind.set(f.kind, f);
+    }
+  }
+  const finalFacts = Array.from(bestByKind.values());
+
+  return finalFacts.slice(0, MAX_PHASE_CHILDREN);
 }
 
 function expandEvidenceChildren(
@@ -447,7 +460,11 @@ export function expandProjectionNodes(
     extraNodes.push(...treeNodes);
     extraEdges.push(...treeEdges);
 
-    if (parent.capabilityId && parent.status === "resolved") {
+    // Relaxed: phases for resolved or completed capability nodes (fresh new topics after reset
+    // often have status "completed" from enrichNodeStatus once art is gated_pass, not "resolved").
+    // This ensures after 重置 + new topic, the ::phase- children still get generated.
+    const isFinished = (parent.status as any) === "resolved" || (parent.status as any) === "completed" || (parent.status as any) === "done";
+    if (parent.capabilityId && isFinished) {
       const phaseFacts = derivePhaseFacts(state, parent, latestUiTurn);
       for (const fact of phaseFacts) {
         const child = buildPhaseChild(parent, fact);
