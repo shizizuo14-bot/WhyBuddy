@@ -2491,7 +2491,7 @@ export function commitArtifact(
 
   // K3: quality gate now fully participates in the trustLevel decision (core of "保下限").
   // Receives result-declared baseline (drive/retry pull from exec; explicit "pilot-template" only from demo seeds / test pilots).
-  const gateResults = evaluateGates(rawArtifact as any, effectiveForceFail, groundingOk, baseline);
+  let gateResults = evaluateGates(rawArtifact as any, effectiveForceFail, groundingOk, baseline);
 
   const passedGates = gateResults.filter((g) => g.status === "passed").map((g) => g.gateId);
   const allPassed = gateResults.every((g) => g.status === "passed");
@@ -2526,6 +2526,35 @@ export function commitArtifact(
     toArtifactId: committed.id,
     reason: `produced-by-${rawArtifact.producedBy.capabilityId}`,
   }));
+
+  // Continue push (phase content thickness): enrich gateResults with real context
+  // (declaredInputs + committed evidence/title/summary + groundingOk). This populates
+  // the optional fields (reason/checkedArtifactIds/evidenceRefs/detail) we added to
+  // the schema so Flow ::phase- "观察" and "思考" nodes render actual checked refs,
+  // evidence counts, grounding reasons and commit rationales (not just "gate · passed").
+  gateResults = gateResults.map((gr: any) => {
+    const base = { ...gr };
+    if (gr.gateId === "ground" || gr.gateId === "G-GROUND") {
+      const evRefs = committed.evidenceRefs || (rawArtifact as any).evidenceRefs || declaredInputs;
+      const checked = declaredInputs.length ? declaredInputs : ((rawArtifact as any).inputs || []);
+      base.checkedArtifactIds = checked;
+      base.evidenceRefs = evRefs;
+      base.detail = groundingOk
+        ? `本轮引用了 ${checked.length || "多个"} 上游产物；风险/证据/路线已进入报告或综合`
+        : "未检测到有效外部证据或内容为空/伪成功";
+      base.reason = groundingOk ? "G-GROUND 接地通过" : "G-GROUND 未通过";
+    } else if (gr.gateId === "commit" || gr.gateId === "T_GATE") {
+      const hasTitle = !!(committed.title || (rawArtifact as any).title);
+      const hasSummary = !!(committed.summary || (rawArtifact as any).summary);
+      const hasContent = !!(committed.content || (rawArtifact as any).content);
+      base.checkedArtifactIds = declaredInputs;
+      base.detail = `artifact ${hasContent || hasSummary || hasTitle ? "非空" : "空"} · title/summary 存在 · provenance=${committed.provenance || (rawArtifact as any).provenance} · passedGates 含 ground`;
+      base.reason = gr.status === "passed" ? "T_GATE 提交闸通过，可产出" : "提交闸打回（前置未过或内容不足）";
+    } else if ((gr as any).reason) {
+      base.detail = (gr as any).reason;
+    }
+    return base;
+  });
 
   const run: CapabilityRun = {
     id: runId,

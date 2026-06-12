@@ -1239,6 +1239,7 @@ export function ReasoningFlowSurface({
                       style={{
                         ...flowTextClampStyle(bodyLines),
                         lineHeight: `${FLOW_LINE_HEIGHT_PX}px`,
+                        whiteSpace: (isPhaseChild || (bodyText || "").includes("\n")) ? "pre-line" : "normal",
                       }}
                       title={flowTooltip}
                     >
