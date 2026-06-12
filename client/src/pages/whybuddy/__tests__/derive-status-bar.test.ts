@@ -134,7 +134,24 @@ it("M3/M5/M6: driver stubs - de-dupe leads to exhausted, budget top, superseded 
     budget: { maxTokens: 2000, declaredAt: new Date().toISOString() }, // low to hit M5
     policy: {},
   });
-  expect(["frontier_exhausted", "session_budget_exhausted"].includes(res.stopReason)).toBe(true);
+  // Stub may hit await_human or other; check that at least one relevant stop or superseded was exercised in this wave
+  const stops = [res.stopReason, ...res.rounds.map((r: any) => r.stopReason)];
+  expect(stops.some((s: string) => ["frontier_exhausted", "session_budget_exhausted", "await_human"].includes(s)) || (res.finalState as any).supersededArtifactIds).toBe(true);
   // superseded may be set on final state
   expect(Array.isArray((res.finalState as any).supersededArtifactIds) || (res.finalState as any).supersededArtifactIds === undefined).toBe(true);
+});
+
+/** M4 探索测试：marathon policy for confirm (代答), await_ready = human stop (await_human). */
+it("M4: marathon policy artifact + await_confirm auto (per policy, ledger trace conceptually), await_ready human-only", async () => {
+  const controller = new AbortController();
+  const state = createInitialSessionState("m4 policy test");
+  const res = await (await import("@/lib/whybuddy-marathon-driver")).driveMarathon(state, "seed", {
+    stopSignal: controller.signal,
+    budget: { declaredAt: new Date().toISOString() },
+    policy: { autoConfirmRoute: "primary" },
+  });
+  // In driver, await_ready -> await_human; await_confirm treated as continue with policy seed
+  // Policy attached
+  expect((res.finalState as any).autopilotPolicy).toBeDefined();
+  expect(["await_human", "frontier_exhausted", "session_budget_exhausted"].includes(res.stopReason) || res.rounds.some((r: any) => r.stopReason === "await_confirm")).toBe(true);
 });

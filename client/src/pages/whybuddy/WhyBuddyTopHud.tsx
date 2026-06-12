@@ -242,6 +242,12 @@ export function WhyBuddyTopHud({
               </span>
             </span>
           )}
+          {/* M5 stub: budget progress for marathon/autopilot (real from costLedger + state). M4 policy attached by driver. */}
+          {(state as any).autopilotPolicy && (
+            <span className="ml-2 text-[8px] text-indigo-300" title="M5: session budget for continuous mode. M4: policy for auto confirm.">
+              自动驾驶 · 预算进行中
+            </span>
+          )}
           {/* M7: basic audit drawer entry - shows raw mechanism info for the curious (hides from default user language) */}
           {IS_GITHUB_PAGES && (
             <button

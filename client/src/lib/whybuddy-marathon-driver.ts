@@ -47,6 +47,15 @@ export async function driveMarathon(
   const previousFrontiers: string[] = []; // M3 de-dupe sim
   let sessionCost = 0; // M5 simple cumulative (real: costLedger)
 
+  // M4: AutopilotPolicy (explicit artifact-like, per spec; generated on start for audit)
+  const policy = {
+    autoConfirmRoute: "primary",
+    autoWaiveNonBlockingGaps: true,
+    declaredAt: new Date().toISOString(),
+  };
+  // In real, this would be a gated artifact in state; here for demo, attach to working
+  (working as any).autopilotPolicy = policy;
+
   // Thin loop: call inner drive, decide WHAT next based on stopReason.
   // No change to driveReasoningSession internals.
   while (true) {
@@ -105,8 +114,13 @@ export async function driveMarathon(
       currentSeed = frontierSeed; // auto-seeded, marked in conversation per spec
       // continue loop
     } else if (lastStop === "await_ready") {
-      stopReason = "await_human"; // M4: true human stop, resume later
+      stopReason = "await_human"; // M4: true human stop (G_READY), no auto; resume on user input
       break;
+    } else if (lastStop === "await_confirm") {
+      // M4: use policy to auto-confirm (policy代答 via existing confirm path conceptually; ledger trace)
+      // For skeleton, treat as convergence to continue (real would call userPicksRoute with policy text)
+      currentSeed = `auto-confirmed per policy (${policy.autoConfirmRoute})`;
+      // In full, would append to ledger: [AUTOPILOT_POLICY] confirm ...
     } else if (lastStop === "user_interrupted") {
       stopReason = "user_interrupted";
       break;

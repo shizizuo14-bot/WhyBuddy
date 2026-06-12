@@ -352,8 +352,7 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
         setLiveAction,
       });
 
-      // M2: mode is active in UI/selector/persist. For this wave, always direct drive (skeleton in marathon-driver.ts for future full integration; behavior preservation for single).
-      // If marathon and converged, simulate one auto round post-drive to demo "收敛后自动开新前沿".
+      // M2: mode active (UI + persist); for demo, direct drive always (to keep full on* callbacks for partial UI updates). Marathon driver skeleton used in post-drive for auto-seed demo if mode=marathon. Full branch in future.
       const drive = await WhyBuddyRuntime.driveReasoningSession(preparedState, {
         turnSeedId: turnId,
         userText: userText.trim(),
