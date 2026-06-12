@@ -128,7 +128,7 @@ function derivePhaseFacts(
     for (const trace of latestUiTurn.actions as ActionTrace[]) {
       if (trace.turnId && trace.turnId !== turnId) continue;
       let kind: PhaseKind = trace.ok ? "completed" : "observing";
-      if (!trace.ok && /fail|error|失败|reject|打回/i.test(String(trace.label || trace.detail || ""))) {
+      if (!trace.ok && /fail|error|失败|reject|打回/i.test(String(trace.label || ""))) {
         kind = "failed";
       }
       push({

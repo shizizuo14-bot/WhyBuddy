@@ -83,7 +83,8 @@ export function createGithubPagesWhyBuddySeedSession(): V5SessionState {
     evidenceRaw,
     "pages-demo-run-evidence",
     false,
-    ["demo-risk-1"]
+    ["demo-risk-1"],
+    true // pilot/demo seed -> use pilot-template baseline for K3
   );
   state = committed.updatedState;
   markTrusted(state, "demo-evidence-1");
@@ -140,7 +141,8 @@ export function createGithubPagesWhyBuddySeedSession(): V5SessionState {
     reportRaw,
     "pages-demo-run-report",
     false,
-    ["demo-synth-1", "demo-evidence-1", "demo-risk-1"]
+    ["demo-synth-1", "demo-evidence-1", "demo-risk-1"],
+    true // pilot/demo seed -> use pilot-template baseline for K3
   );
   state = reportCommit.updatedState;
   markTrusted(state, "demo-report-1");

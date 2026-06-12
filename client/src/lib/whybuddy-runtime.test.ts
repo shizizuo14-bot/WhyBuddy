@@ -465,6 +465,20 @@ describe('whybuddy-runtime V5 closed loop (behavioral regression)', () => {
     expect(s2.artifacts.length).toBe(0);
   });
 
+  it('K3.1 integration: thin report via commitArtifact -> quality failed + untrusted (production baseline)', () => {
+    let state = createInitialSessionState('thin report test', 'k3-thin-sess');
+    const thinReport = createRawArtifact('thin-report', 'report.write', '综合', 'report', '结论：可行。'); // very thin, < minContent, missing headings
+    thinReport.provenance = 'llm';
+    const { updatedState, committed } = commitArtifact(state, thinReport, 'k3-thin-run', false, []);
+    expect(committed).toBeTruthy();
+    // quality now participates (fixed from previous nonQuality filter)
+    const run = updatedState.capabilityRuns?.find(r => r.id === 'k3-thin-run');
+    const qualityVerdict = run?.gateResults?.find((g: any) => g.gateId === 'quality');
+    expect(qualityVerdict?.status).toBe('failed');
+    expect(committed?.trustLevel).not.toBe('gated_pass');
+    expect(committed?.trustLevel).toBe('untrusted');
+  });
+
   it('mapInterventionToControlSignal safely maps all UserIntervention intents to ControlSignal without ever leaking union-exterior strings', () => {
     // 覆盖所有当前 intent，确保 classify 总是返回 ControlSignal 成员（Medium contract 严谨性）
     const cases: Array<[UserIntervention["intent"], ControlSignal]> = [
@@ -798,7 +812,7 @@ describe('whybuddy-runtime V5 closed loop (behavioral regression)', () => {
   it('simulateCapabilityExecution produces state-dependent richer content (prototype real-exec feel)', async () => {
     clearWhyBuddySessionStore();
     let s = await loadOrCreateSessionState('sim-sess', '模拟执行');
-    const { updatedState: c } = commitArtifact(s, createRawArtifact('sim-risk', 'risk.analyze', '安全', 'risk'), 'sim-r0', false, []);
+    const { updatedState: c } = commitArtifact(s, createRawArtifact('sim-risk', 'risk.analyze', '安全', 'risk'), 'sim-r0', false, [], true); // pilot simulation seed, use pilot baseline
     const sim = simulateCapabilityExecution('risk.analyze', c, []);
     expect(sim.content).toContain('模拟');
     expect(sim.content).toContain('风险');

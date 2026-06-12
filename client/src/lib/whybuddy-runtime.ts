@@ -954,7 +954,6 @@ function evaluateGates(
   artifact: Artifact,
   forceFail: boolean,
   groundingOk = true,
-  // K3: 可传入 baseline（pilot 路径传 pilot-template，否则 production）
   baselineName: "production" | "pilot-template" = "production"
 ): { status: "passed" | "failed"; gateId: string; reason?: string }[] {
   const capId = String((artifact as any).producedBy?.capabilityId || "");
@@ -963,16 +962,8 @@ function evaluateGates(
     status: g.status,
   }));
 
-  // K3: quality gate（仅当有契约时才返回 verdict，否则跳过）
-  // pilot / simulate 路径自动降级到 pilot-template baseline（在封条/ledger 注明 baseline 名）
-  let effectiveBaselineName = baselineName;
-  const prov = String((artifact as any).provenance || (artifact as any).producedBy?.source || (artifact as any).producedBy?.provenance || "");
-  const c = String((artifact as any).content || "");
-  const isPilotish = prov.includes("template") || prov.includes("sim") || c.includes("pilot-template") || c.includes("【") || c.includes("模拟");
-  if (effectiveBaselineName === "production" && isPilotish) {
-    effectiveBaselineName = "pilot-template";
-  }
-  const q = evaluateQualityGate(artifact as any, undefined, getBaseline(effectiveBaselineName));
+  // K3: quality gate now participates in trust decision (explicit baseline from call site)
+  const q = evaluateQualityGate(artifact as any, undefined, getBaseline(baselineName));
   if (q) {
     return [...commitGates, { gateId: q.gateId, status: q.status, reason: q.reason }];
   }
@@ -2382,7 +2373,8 @@ export function commitArtifact(
   rawArtifact: Omit<Artifact, "trustLevel" | "passedGates">,
   runId: string,
   forceGateFail = false,
-  declaredInputs: string[] = [] // pass the upstream artifact ids this run depends on
+  declaredInputs: string[] = [], // pass the upstream artifact ids this run depends on
+  pilotBaseline = false // K3+K4: explicit for pilot/demo seeds (use relaxed baseline)
 ): { updatedState: V5SessionState; committed: Artifact | null; run: CapabilityRun } {
   // General Trust Layer rule (extended for demo consistency):
   // Any capability that declares upstreams will gate-fail if any upstream is untrusted/stale.
@@ -2456,12 +2448,12 @@ export function commitArtifact(
     }
   }
 
-  const gateResults = evaluateGates(rawArtifact as any, effectiveForceFail, groundingOk);
+  // K3: quality gate now fully participates in the trustLevel decision (core of "保下限").
+  // Call site passes explicit baseline (production for real paths; pilot for demo/simulate seeds).
+  const gateResults = evaluateGates(rawArtifact as any, effectiveForceFail, groundingOk, pilotBaseline ? "pilot-template" : "production");
 
   const passedGates = gateResults.filter((g) => g.status === "passed").map((g) => g.gateId);
-  // K3: quality 参与 gateResults（供 T_GATE / 封条 / ledger 可见），但 trustLevel 决策仍以原有 commit gates + force 为准（保 pilot/demo 及脊柱行为不变；生产基线下的真薄内容仍会被质量门标记为 untrusted）。
-  const nonQualityGates = gateResults.filter((g) => g.gateId !== "quality");
-  const allPassed = nonQualityGates.length === 0 ? gateResults.every((g) => g.status === "passed") : nonQualityGates.every((g) => g.status === "passed");
+  const allPassed = gateResults.every((g) => g.status === "passed");
 
   const committed: Artifact = {
     ...rawArtifact,

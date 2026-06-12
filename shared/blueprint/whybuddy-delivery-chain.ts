@@ -40,27 +40,20 @@ export function evaluateReviewPassGate(state: V5SessionState): {
  */
 export function hasReviewPassRecorded(
   state: V5SessionState,
-  report?: { id: string; createdAt?: string; producedBy?: { capabilityRunId?: string } } | null
+  report?: { id: string; producedBy?: { capabilityRunId?: string } } | null
 ): boolean {
   const target = report ?? latestTrustedReport(state);
   if (!target) return false;
 
-  const targetTime = target.createdAt ? Date.parse(target.createdAt) : 0;
-
   const conv = state.conversation || [];
   for (let i = conv.length - 1; i >= 0; i--) {
-    const entry = conv[i];
-    const text = String(entry.text || "");
+    const text = String(conv[i].text || "");
     if (!/\[RV\]\s*评审通过/i.test(text)) continue;
 
-    // 优先：显式 reportId 绑定
+    // 优先：显式 reportId 绑定（K6.2）
     if (text.includes(`reportId=${target.id}`)) return true;
 
-    // 时间 scope：只有当双方都有有效时间戳时，才用时间判断“RV 晚于该 report”
-    const rvTime = entry.timestamp ? Date.parse(entry.timestamp) : 0;
-    if (rvTime > 0 && targetTime > 0 && rvTime >= targetTime) return true;
-
-    // 仅在完全没有时间信息且只有一个报告生命周期时，容忍 legacy unscoped RV（强烈不推荐，易被后续报告借用）
+    // Legacy unscoped RV：仅当当前只有单一报告生命周期时容忍（强烈不推荐）
     const stale = new Set(state.staleArtifactIds || []);
     const trustedReports = (state.artifacts || []).filter(
       (a) =>
@@ -72,10 +65,9 @@ export function hasReviewPassRecorded(
       (r) => r.capabilityId === "report.write"
     ).length;
 
-    if (trustedReports.length === 1 && reportWriteRuns <= 1 && targetTime === 0 && rvTime === 0) {
-      return true;
-    }
-    // 发现不匹配的 RV 后停止（避免跨报告借用更早的 RV）
+    if (trustedReports.length === 1 && reportWriteRuns <= 1) return true;
+
+    // 发现不匹配的 RV 后停止，避免老 RV 被新报告借用
     break;
   }
   return false;

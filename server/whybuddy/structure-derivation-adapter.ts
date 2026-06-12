@@ -14,10 +14,7 @@
  */
 
 import type { V5SessionState } from "../../shared/blueprint/v5-reasoning-state.js";
-import type {
-  SpecTreeLlmDerivationRequest,
-  BlueprintRouteSet,
-} from "../routes/blueprint/spec-tree-llm-derivation.js";
+import type { SpecTreeLlmDerivationRequest } from "../routes/blueprint/spec-tree-llm-derivation.js";
 import { buildSpecTreePrompt } from "../routes/blueprint/llm-spec-prompts.js";
 
 /** 从 V5 artifacts 提取路线相关信息（route_options / clarification 等）。 */
@@ -31,7 +28,7 @@ export function extractRouteContext(state: V5SessionState, inputArtifactIds: str
 
   let selectedRouteId = "primary";
   let routeSummary = "(no explicit route selected in session)";
-  let routeSet: Partial<BlueprintRouteSet> = { routes: [] };
+  let routeSet: any = { routes: [] };
 
   if (routeArt && routeArt.content) {
     const c = String(routeArt.content);
@@ -58,7 +55,7 @@ export function extractRouteContext(state: V5SessionState, inputArtifactIds: str
 /** 从 repo.inspect 等 artifact 提取 github urls 和 repo 片段（K1 风格上限 + 可见截断）。 */
 export function extractRepoExcerpts(state: V5SessionState, inputArtifactIds: string[] = [], maxPer = 3000, totalBudget = 12000) {
   const arts = (state.artifacts || []).filter((a) =>
-    (a.kind === "repo" || String(a.producedBy?.capabilityId || "").includes("repo")) &&
+    String(a.producedBy?.capabilityId || "").includes("repo") &&
     (inputArtifactIds.length === 0 || inputArtifactIds.includes(a.id))
   );
 
@@ -178,7 +175,7 @@ export function buildRichSpecTreePromptFromOld(
       primaryRoute: ctx.primaryRoute,
       repoTreeDigest: ctx.repoExcerpts,
       // keyFiles left empty; repo excerpts already in digest
-    });
+    }) as any;
     // Return the userPayload as rich instruction (includes target, routes, primary, schema, invariants)
     return JSON.stringify(payload.userPayload || payload, null, 2);
   } catch (e) {
