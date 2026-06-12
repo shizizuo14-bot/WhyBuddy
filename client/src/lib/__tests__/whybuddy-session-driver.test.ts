@@ -25,17 +25,18 @@ describe("driveReasoningSession (Session_Driver, task 4.1/4.2)", () => {
     expect(picks.some((p) => p.capabilityId === "report.write")).toBe(false);
   });
 
-  it("parks await_ready after intent.clarify when goal is vague (S11 / G_READY)", async () => {
-    const s = createInitialSessionState("做一个系统", "sd-gready-clarify");
-    const { preparedState } = intakeMessage(s, { turnId: "grc0", userText: "做一个系统" });
+  it("continues closed loop after intent.clarify on specific goal (no G_READY park)", async () => {
+    const goal = "面向企业内部 RBAC 权限与数据范围";
+    const s = createInitialSessionState(goal, "sd-gready-clarify");
+    const { preparedState } = intakeMessage(s, { turnId: "grc0", userText: goal });
 
     const result = await driveReasoningSession(preparedState, {
       turnSeedId: "grc0",
-      userText: "做一个系统",
+      userText: goal,
       router: createDeterministicRouter([
         {
           selected: [{ capabilityId: "intent.clarify", roleId: "产品" }],
-          rationale: "clarify vague goal",
+          rationale: "clarify",
           source: "llm",
         },
       ]),
@@ -43,13 +44,12 @@ describe("driveReasoningSession (Session_Driver, task 4.1/4.2)", () => {
       maxLoopsPerMessage: 1,
     });
 
-    expect(result.stopReason).toBe("await_ready");
-    expect(result.finalState.awaitReason).toBe("ready");
-    expect(result.finalState.runtimePhase).toBe("awaiting");
+    expect(result.stopReason).not.toBe("await_ready");
+    expect(result.finalState.awaitReason).not.toBe("ready");
     expect(result.loops[0]?.committedArtifactIds.length).toBeGreaterThanOrEqual(1);
   });
 
-  it("parks await_ready after question.expand when goal is vague (S11 / G_READY)", async () => {
+  it("continues closed loop after question.expand on vague goal (no G_READY park)", async () => {
     const s = createInitialSessionState("做一个系统", "sd-gready");
     const { preparedState } = intakeMessage(s, { turnId: "gr0", userText: "做一个系统" });
 
@@ -67,9 +67,8 @@ describe("driveReasoningSession (Session_Driver, task 4.1/4.2)", () => {
       maxLoopsPerMessage: 1,
     });
 
-    expect(result.stopReason).toBe("await_ready");
-    expect(result.finalState.awaitReason).toBe("ready");
-    expect(result.finalState.runtimePhase).toBe("awaiting");
+    expect(result.stopReason).not.toBe("await_ready");
+    expect(result.finalState.awaitReason).not.toBe("ready");
     expect(result.loops[0]?.committedArtifactIds.length).toBeGreaterThanOrEqual(1);
   });
 

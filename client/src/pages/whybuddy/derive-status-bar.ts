@@ -83,7 +83,7 @@ export function deriveStatusBarFacts(
     } else if (awaitReason === "confirm") {
       parkHint = "等待用户确认";
     } else if (awaitReason === "ready") {
-      parkHint = "等待用户补充就绪信息";
+      parkHint = "有待回答问题";
     } else if (openGapCount > 0) {
       parkHint = `待补 ${openGapCount} 项缺口`;
     } else {
@@ -103,7 +103,7 @@ export function deriveStatusBarFacts(
     } else if (awaitReason === "confirm") {
       parkHint = "等待用户确认 · 禁止 LLM 代答";
     } else if (awaitReason === "ready") {
-      parkHint = "等待用户补充就绪信息";
+      parkHint = "有待回答问题";
     } else if (awaitReason === "coverage") {
       parkHint = "覆盖率未满足 · G_COVERAGE 拒绝收敛";
     } else if (awaitReason === "budget") {

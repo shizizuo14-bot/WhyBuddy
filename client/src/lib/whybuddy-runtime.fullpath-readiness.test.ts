@@ -25,19 +25,28 @@ describe("S11 · G_READY readiness chain", () => {
     expect(picks.some((p) => p.capabilityId === "question.expand")).toBe(true);
   });
 
-  it("G_READY→AWAIT: parks after question.expand without LLM auto-confirm", async () => {
+  it("G_READY→AWAIT: parks only when open_question gaps remain after gap.ask", async () => {
     const s = createInitialSessionState("做一个系统", "S11-park");
-    const { preparedState } = intakeMessage(s, { turnId: "S11-t0", userText: "做一个系统" });
+    const gaps = gapsFromGapAskContent("- 面向谁使用？\n- 成功标准是什么？", "S11-g", "art-gap");
+    const withGaps = {
+      ...s,
+      coverageGaps: gaps,
+      coverageContract: {
+        id: "c1",
+        version: 1,
+        requiredCapabilities: ["report.write"],
+        blockingGapIds: gaps.map((g) => g.id),
+        createdAt: new Date().toISOString(),
+      },
+    };
+    const { preparedState } = intakeMessage(withGaps, { turnId: "S11-t0", userText: "做一个系统" });
 
     const result = await driveReasoningSession(preparedState, {
       turnSeedId: "S11-t0",
       userText: "做一个系统",
       router: createDeterministicRouter([
         {
-          selected: [
-            { capabilityId: "gap.ask", roleId: "规划" },
-            { capabilityId: "question.expand", roleId: "规划" },
-          ],
+          selected: [{ capabilityId: "gap.ask", roleId: "规划" }],
           rationale: "readiness chain",
           source: "llm",
         },
@@ -48,7 +57,6 @@ describe("S11 · G_READY readiness chain", () => {
 
     expect(result.stopReason).toBe("await_ready");
     expect(result.finalState.awaitReason).toBe("ready");
-    expect(result.finalState.runtimePhase).toBe("awaiting");
     expect(
       (result.finalState.conversation || []).some((c) => /\[G_READY\]/.test(c.text || ""))
     ).toBe(true);

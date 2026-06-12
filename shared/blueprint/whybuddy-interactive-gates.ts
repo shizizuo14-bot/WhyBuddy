@@ -43,6 +43,18 @@ export function openBlockingGapCount(state: V5SessionState): number {
   ).length;
 }
 
+/** Open questions that require a human answer (not GCOV missing_capability gaps). */
+export function openHumanQuestionGapCount(state: V5SessionState): number {
+  const contract = state.coverageContract as { blockingGapIds?: string[] } | undefined;
+  const blocking = new Set(contract?.blockingGapIds || []);
+  return (state.coverageGaps || []).filter(
+    (g) =>
+      g.status === "open" &&
+      g.kind === "open_question" &&
+      (blocking.size === 0 || blocking.has(g.id))
+  ).length;
+}
+
 /** User message materially supplements readiness (not LLM self-answer). */
 export function userClearsReadiness(userText: string, state: V5SessionState): boolean {
   const t = userText.trim();
@@ -52,7 +64,7 @@ export function userClearsReadiness(userText: string, state: V5SessionState): bo
   ) {
     return true;
   }
-  return openBlockingGapCount(state) === 0 && t.length >= 18;
+  return openHumanQuestionGapCount(state) === 0 && t.length >= 18;
 }
 
 /** User explicitly picks a route branch (S12). */
@@ -77,8 +89,9 @@ export function userExpressesRouteSelection(userText: string): boolean {
 }
 
 /**
- * G_READY — after clarification capabilities when goal still not plannable.
- * Must park AWAIT; forbid LLM auto-confirm (no synthetic user reply).
+ * G_READY — park only when gap.ask materialized open_question gaps the user
+ * has not answered on this turn. Vague goals and needs_refinement alone must
+ * not block the V5.1 closed loop (ORCH continues within Session_Driver).
  */
 export function evaluateReadinessGateAfterCommit(
   state: V5SessionState,
@@ -87,23 +100,17 @@ export function evaluateReadinessGateAfterCommit(
   if (!READINESS_CLARIFICATION_CAPS.has(ctx.capabilityId)) {
     return { park: false };
   }
-  const openGaps = openBlockingGapCount(state);
-  const vague = isVagueGoal(state.goal?.text || "");
-  const needsRefine = state.goal?.status === "needs_refinement";
-  if (!openGaps && !vague && !needsRefine) {
+  const openQuestions = openHumanQuestionGapCount(state);
+  if (openQuestions === 0) {
     return { park: false };
   }
   if (userClearsReadiness(ctx.turnUserText, state)) {
     return { park: false };
   }
-  const parts: string[] = [];
-  if (vague) parts.push("目标过粗");
-  if (openGaps > 0) parts.push(`${openGaps} 项阻塞缺口待补`);
-  if (needsRefine) parts.push("结论状态需细化");
   return {
     park: true,
     gate: "ready",
-    detail: `就绪度不足 · ${parts.join(" · ")} · 请补充后从 INTAKE 续跑`,
+    detail: `${openQuestions} 项待回答问题 · 补充后经 INTAKE 续跑`,
   };
 }
 

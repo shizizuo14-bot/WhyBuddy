@@ -177,7 +177,7 @@ function buildInteractiveGateStation(
   const nodeId = closureReason === "await_ready" ? "G_READY" : "G_CONFIRM";
   const detail =
     closureReason === "await_ready"
-      ? "目标未就绪 · 等用户补充后经 INTAKE 续跑"
+      ? "有待回答问题 · 补充后经 INTAKE 续跑"
       : "路线待确认 · 等用户选择后经 INTAKE 续跑";
   const gate = formatV51ControlStation(nodeId, detail);
   return {

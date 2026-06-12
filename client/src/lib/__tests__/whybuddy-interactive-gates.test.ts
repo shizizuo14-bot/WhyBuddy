@@ -32,24 +32,22 @@ describe("whybuddy-interactive-gates (P0)", () => {
     expect(isVagueGoal("面向企业内部 RBAC 权限与数据范围")).toBe(false);
   });
 
-  it("G_READY parks after intent.clarify when goal still vague", () => {
-    const state = stubState("做一个系统", "ig-ready-clarify");
+  it("G_READY does not park after intent.clarify when goal is already specific", () => {
+    const state = stubState("面向企业内部 RBAC 权限与数据范围", "ig-ready-clarify");
     const verdict = evaluateReadinessGateAfterCommit(state, {
       capabilityId: "intent.clarify",
-      turnUserText: "做一个系统",
+      turnUserText: "面向企业内部 RBAC 权限与数据范围",
     });
-    expect(verdict.park).toBe(true);
-    expect(verdict.gate).toBe("ready");
+    expect(verdict.park).toBe(false);
   });
 
-  it("G_READY parks after question.expand when goal still vague", () => {
+  it("G_READY does not park on vague goal alone — closed loop continues", () => {
     const state = stubState("做一个系统", "ig-ready");
     const verdict = evaluateReadinessGateAfterCommit(state, {
       capabilityId: "question.expand",
       turnUserText: "做一个系统",
     });
-    expect(verdict.park).toBe(true);
-    expect(verdict.gate).toBe("ready");
+    expect(verdict.park).toBe(false);
   });
 
   it("G_READY clears when user supplements readiness on same turn", () => {

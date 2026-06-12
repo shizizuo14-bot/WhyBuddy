@@ -34,14 +34,50 @@ describe("whybuddy-interactive-gates (P0)", () => {
     expect(isVagueGoal("面向企业内部 RBAC 权限与数据范围")).toBe(false);
   });
 
-  it("G_READY parks after question.expand when goal still vague", () => {
+  it("G_READY does not park on vague goal alone — closed loop continues", () => {
     const state = stubState("做一个系统", "ig-ready");
     const verdict = evaluateReadinessGateAfterCommit(state, {
       capabilityId: "question.expand",
       turnUserText: "做一个系统",
     });
+    expect(verdict.park).toBe(false);
+  });
+
+  it("G_READY parks only when open_question gaps remain unanswered", () => {
+    const state = {
+      ...stubState("做一个系统", "ig-open-q"),
+      coverageGaps: [
+        {
+          id: "gap-q1",
+          kind: "open_question",
+          label: "面向谁？",
+          status: "open",
+          createdAt: "2026-01-01T00:00:00.000Z",
+        },
+      ],
+      coverageContract: {
+        id: "c1",
+        version: 1,
+        requiredCapabilities: ["report.write"],
+        blockingGapIds: ["gap-q1"],
+        createdAt: "2026-01-01T00:00:00.000Z",
+      },
+    } as V5SessionState;
+    const verdict = evaluateReadinessGateAfterCommit(state, {
+      capabilityId: "gap.ask",
+      turnUserText: "做一个系统",
+    });
     expect(verdict.park).toBe(true);
     expect(verdict.gate).toBe("ready");
+  });
+
+  it("G_READY does not park after intent.clarify when goal is already specific", () => {
+    const state = stubState("面向企业内部 RBAC 权限与数据范围", "ig-specific");
+    const verdict = evaluateReadinessGateAfterCommit(state, {
+      capabilityId: "intent.clarify",
+      turnUserText: "面向企业内部 RBAC 权限与数据范围",
+    });
+    expect(verdict.park).toBe(false);
   });
 
   it("G_READY clears when user supplements readiness on same turn", () => {
