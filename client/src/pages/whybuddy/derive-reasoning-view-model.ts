@@ -9,7 +9,10 @@ import type {
 import type { BlueprintWallReasoningGraphViewModel } from "@/components/three/scene-fusion/blueprint-wall-reasoning-graph";
 import type { V5SessionState } from "@shared/blueprint/v5-reasoning-state";
 import { getPropositionRootNode } from "@/lib/whybuddy-runtime";
-import { projectSessionGraphForDisplay } from "@shared/blueprint/whybuddy-graph-projection";
+import {
+  projectSessionGraphForDisplay,
+  roleIdToDisplayLabel,
+} from "@shared/blueprint/whybuddy-graph-projection";
 import { CAPABILITY_PROCESS_LABELS } from "@shared/blueprint/capability-process-labels";
 import type { V5CapabilityId } from "@shared/blueprint/contracts";
 import type { LiveAction } from "@shared/blueprint/capability-process-labels";
@@ -237,10 +240,15 @@ export function deriveWhyBuddyReasoningViewModel(
   const visibleNodes: BrainstormReasoningNode[] = projectedNodes.map((n) => {
     const enriched = enrichNodeStatus(state, n as any);
     const isRoot = n.id === root?.id;
+    const kind = conclusionKindLabel({ ...n, status: enriched }, isRoot);
+    const conclusionBadge = /结论明确|结论待完善|用户命题|信息缺失/.test(kind)
+      ? kind
+      : undefined;
     return {
       ...n,
       status: enriched,
-      roleLabel: conclusionKindLabel({ ...n, status: enriched }, isRoot),
+      roleLabel: roleIdToDisplayLabel(n.roleId) || n.roleLabel,
+      conclusionBadge,
     };
   });
 

@@ -47,6 +47,7 @@ import type {
 } from "@shared/blueprint/v5-reasoning-state";
 import type { BrainstormReasoningGraph, BrainstormReasoningNode, BrainstormReasoningEdge } from "@shared/blueprint/brainstorm-reasoning-graph";
 import { V5_CAPABILITY_POOL, ALL_V5_CAPABILITIES, CAPABILITY_OUTPUT_KIND } from "@shared/blueprint/contracts";
+import { CAPABILITY_PROCESS_LABELS } from "@shared/blueprint/capability-process-labels";
 import {
   ensureRouteBranchScaffold,
   scaffoldPropositionBranches,
@@ -627,7 +628,20 @@ export function formatProvenanceForLabel(
     refNode?.type === "question"
       ? refNode.title || refNode.body || refs[0]
       : refNode?.title || refs[0];
-  return `Produced by orchestrateReasoningTurn for: ${label}`;
+  const gist = String(label || "").trim().slice(0, 72);
+  return gist
+    ? `承接「${gist}」继续推演；能力产出后将替换为可读结论。`
+    : "能力执行中，产出后将显示具体结论。";
+}
+
+function pendingCapabilityNodeTitle(capabilityId: V5CapabilityId, roleId: string): string {
+  const entry = CAPABILITY_PROCESS_LABELS[capabilityId];
+  const live =
+    typeof entry?.liveLabel === "function" ? entry.liveLabel({}) : entry?.liveLabel;
+  if (live) {
+    return live.replace(/^⚡\s*/, "").replace(/…+$/u, "").trim();
+  }
+  return `${roleIdToDisplayLabel(roleId)}正在推演`;
 }
 
 export function createInitialSessionState(goalText: string, sessionId = "whybuddy-local-proto"): V5SessionState {
@@ -3705,7 +3719,7 @@ export function orchestrateReasoningTurn(
     const nodePayload = {
       id: nodeId,
       type: childType,
-      title: `${sel.capabilityId.split(".").pop()}：待 ${roleIdToDisplayLabel(sel.roleId)} 推演`,
+      title: pendingCapabilityNodeTitle(sel.capabilityId as V5CapabilityId, sel.roleId),
       body: formatProvenanceForLabel(
         { derivedFrom } as BrainstormReasoningNode & {
           derivedFrom?: string[];

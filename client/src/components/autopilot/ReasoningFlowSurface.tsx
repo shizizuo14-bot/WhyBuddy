@@ -891,10 +891,11 @@ export function ReasoningFlowSurface({
             const color = TYPE_COLORS[node.type] ?? TYPE_COLORS.default;
             const typeLabel = NODE_TYPE_LABELS[node.type] ?? node.type;
             const conclusionBadge =
-              node.roleLabel &&
+              node.conclusionBadge ||
+              (node.roleLabel &&
               /结论明确|结论待完善|用户命题|信息缺失/.test(node.roleLabel)
                 ? node.roleLabel
-                : null;
+                : null);
             const roleLabel = conclusionBadge ? null : node.roleLabel || node.roleId;
             const badgeTone =
               conclusionBadge === "结论明确"

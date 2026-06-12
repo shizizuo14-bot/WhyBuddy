@@ -78,6 +78,8 @@ export interface BrainstormReasoningNode {
   body?: string;
   roleId?: string;
   roleLabel?: string;
+  /** Product UI: 结论/命题状态徽章（与 roleLabel 角色名分离，避免画布头信息混乱）。 */
+  conclusionBadge?: string;
   /** V5: 能力包 ID，标识此节点是由哪个 capability 产生的（(capability, role) 对的一部分）。 */
   capabilityId?: string;
   status: BrainstormReasoningNodeStatus;
