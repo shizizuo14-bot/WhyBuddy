@@ -21,6 +21,39 @@ describe("Knife C · terminal delivery platform", () => {
     expect(vm.terminalNode?.body).toContain("T_GATE");
   });
 
+  it("trust seal commit gate counts scope to report capabilityRun", () => {
+    const { state, reportId } = buildClearStateWithTrustedReport("knife-c-seal");
+    const report = latestTrustedReport(state)!;
+    const reportRun = (state.capabilityRuns || []).find(
+      (r) => r.id === report.producedBy?.capabilityRunId
+    );
+    expect(reportRun?.gateResults?.length).toBeGreaterThan(0);
+
+    const seal = deriveTrustSeal(state);
+    expect(seal.commitTotal).toBe(reportRun!.gateResults!.length);
+    expect(seal.commitPassed).toBe(
+      reportRun!.gateResults!.filter((g) => g.status === "passed").length
+    );
+    expect(seal.commitTotal).toBeLessThan((state.gates || []).length);
+  });
+
+  it("canExport enables on RV pass recorded in conversation", () => {
+    const { state } = buildClearStateWithTrustedReport("knife-c-rv");
+    const withRv = {
+      ...state,
+      conversation: [
+        ...(state.conversation || []),
+        {
+          id: "rv-pass",
+          role: "system",
+          text: "[RV] 评审通过 · DONE",
+        },
+      ],
+    };
+    const vm = deriveWhyBuddyReasoningViewModel(withRv);
+    expect(vm.terminalMeta?.canExport).toBe(true);
+  });
+
   it("parseReportSections yields named sections from structured report", () => {
     const { state, reportId } = buildClearStateWithTrustedReport("knife-c-parse");
     const report = (state.artifacts || []).find((a) => a.id === reportId)!;
@@ -29,12 +62,33 @@ describe("Knife C · terminal delivery platform", () => {
     expect(sections.some((s) => /结论|支撑|风险/.test(s.label))).toBe(true);
   });
 
-  it("evidence ref maps to highlight target node id", () => {
-    const { state, reportId } = buildClearStateWithTrustedReport("knife-c-jump");
-    const report = latestTrustedReport(state)!;
-    const ref = report.evidenceRefs?.[0] || reportId;
-    const target = graphNodeIdForArtifact(state, ref);
+  it("parseReportSections ignores inline 风险: inside body text", () => {
+    const sections = parseReportSections({
+      id: "inline",
+      kind: "report",
+      provenance: "ai_generated",
+      trustLevel: "gated_pass",
+      producedBy: {
+        capabilityRunId: "run",
+        capabilityId: "report.write",
+        roleId: "综合",
+      },
+      passedGates: ["commit"],
+      content: "结论：推进\n\n支撑证据：\n- 来自 risk / 风险: 越权案例\n\n风险：数据范围",
+    });
+    const riskSections = sections.filter((s) => s.label === "风险");
+    expect(riskSections.length).toBe(1);
+    expect(riskSections[0].body).toContain("数据范围");
+  });
+
+  it("evidence ref maps to real graph node id", () => {
+    const { state, riskId } = buildClearStateWithTrustedReport("knife-c-jump");
+    const target = graphNodeIdForArtifact(state, riskId);
+    const graphIds = new Set((state.graph?.nodes || []).map((n) => n.id));
     expect(target).toBeTruthy();
+    expect(
+      graphIds.has(target!) || [...graphIds].some((id) => target!.startsWith(`${id}::ev-`))
+    ).toBe(true);
   });
 
   it("serializeWhyBuddyDeliveryMd does not mutate state", () => {

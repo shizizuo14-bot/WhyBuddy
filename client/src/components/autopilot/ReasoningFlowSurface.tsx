@@ -36,6 +36,7 @@ import {
   stripDebateProtocolNodes,
   type BlueprintWallReasoningGraphViewModel,
 } from "@/components/three/scene-fusion/blueprint-wall-reasoning-graph";
+import { WHYBUDDY_TERMINAL_NODE_ID } from "@/pages/whybuddy/whybuddy-projection-constants";
 
 // ------------------------------------------------------------------------
 // Types & Constants
@@ -89,7 +90,6 @@ export interface ReasoningFlowSurfaceProps {
   terminalCanExport?: boolean;
 }
 
-const TERMINAL_NODE_ID = "whybuddy-terminal-delivery";
 const TERMINAL_NODE_WIDTH = 280;
 const TERMINAL_NODE_HEIGHT = 168;
 
@@ -218,7 +218,7 @@ function hexWithAlpha(hex: string, alpha: number): string {
 // ------------------------------------------------------------------------
 
 function nodeDimensions(node: BrainstormReasoningNode): { width: number; height: number } {
-  if (node.id === TERMINAL_NODE_ID) {
+  if (node.id === WHYBUDDY_TERMINAL_NODE_ID) {
     return { width: TERMINAL_NODE_WIDTH, height: TERMINAL_NODE_HEIGHT };
   }
   if (node.id.includes("::ev-") || node.id.includes("::phase-")) {
@@ -767,9 +767,11 @@ export function ReasoningFlowSurface({
 
   useEffect(() => {
     if (!focusNodeId) return;
+    const target = positioned.find((n) => n.id === focusNodeId);
+    if (!target) return;
     const id = window.requestAnimationFrame(() => panToNode(focusNodeId));
     return () => window.cancelAnimationFrame(id);
-  }, [focusNodeId, panToNode]);
+  }, [focusNodeId, panToNode, positioned]);
 
   // QA keyboard shortcut: F / f triggers fit (for consistent reference composition screenshots)
   // Guard against global pollution: ignore when focus is in editable fields (inputs, textareas, contentEditable)
@@ -946,7 +948,7 @@ export function ReasoningFlowSurface({
 
           {/* HTML 节点卡片层（轻量 2D 产品风格） */}
           {positioned.map((node) => {
-            const isTerminal = node.id === TERMINAL_NODE_ID;
+            const isTerminal = node.id === WHYBUDDY_TERMINAL_NODE_ID;
             const dim = nodeDimensions(node);
             const color = isTerminal ? "#10b981" : (TYPE_COLORS[node.type] ?? TYPE_COLORS.default);
             const typeLabel = NODE_TYPE_LABELS[node.type] ?? node.type;

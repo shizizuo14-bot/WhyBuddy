@@ -23,17 +23,28 @@ function isHealthyArtifact(
   );
 }
 
-function countCommitGates(state: V5SessionState, reportCapId: string): {
-  passed: number;
-  total: number;
-} {
-  const fromState = (state.gates || []).filter(
-    (g) => g.phase === "commit" || g.kind === "commit"
+function isGroundedProvenance(provenance: string): boolean {
+  const prov = String(provenance || "");
+  return (
+    prov.includes("mcp") ||
+    prov.includes("github") ||
+    prov.startsWith("web:search")
   );
-  if (fromState.length > 0) {
-    const passed = fromState.filter((g) => g.status === "passed").length;
-    return { passed, total: fromState.length };
+}
+
+function countCommitGatesForReportRun(
+  state: V5SessionState,
+  reportRunId: string | undefined,
+  reportCapId: string
+): { passed: number; total: number } {
+  if (reportRunId) {
+    const run = (state.capabilityRuns || []).find((r) => r.id === reportRunId);
+    if (run?.gateResults?.length) {
+      const passed = run.gateResults.filter((g) => g.status === "passed").length;
+      return { passed, total: run.gateResults.length };
+    }
   }
+
   const snapshot = evaluateCommitGates(reportCapId, {
     groundingOk: hasGroundedExternalEvidence(state),
   });
@@ -47,18 +58,16 @@ export function deriveTrustSeal(state: V5SessionState): TrustSealFacts {
   const trustedArtifacts = (state.artifacts || []).filter((a) =>
     isHealthyArtifact(a, stale)
   );
-  const groundedN = trustedArtifacts.filter((a) => {
-    const prov = String(a.provenance || "");
-    return (
-      a.kind === "evidence" &&
-      (prov.includes("mcp") || prov.includes("github") || prov === "web:search")
-    );
-  }).length;
+  const groundedN = trustedArtifacts.filter(
+    (a) => a.kind === "evidence" && isGroundedProvenance(String(a.provenance || ""))
+  ).length;
 
   const report = latestTrustedReport(state);
   const reportCap = report?.producedBy?.capabilityId || "report.write";
-  const { passed: commitPassed, total: commitTotal } = countCommitGates(
+  const reportRunId = report?.producedBy?.capabilityRunId;
+  const { passed: commitPassed, total: commitTotal } = countCommitGatesForReportRun(
     state,
+    reportRunId,
     reportCap
   );
 

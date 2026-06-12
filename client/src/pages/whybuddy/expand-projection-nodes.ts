@@ -2,12 +2,14 @@ import type {
   BrainstormReasoningEdge,
   BrainstormReasoningNode,
 } from "@shared/blueprint/brainstorm-reasoning-graph";
+import type { ActionTrace } from "@shared/blueprint/capability-process-labels";
 import type { V5SessionState } from "@shared/blueprint/v5-reasoning-state";
-import type { UiTurn } from "./types";
+import type { TurnStep, UiTurn } from "./types";
 import type { ProjectionDensity } from "./whybuddy-projection-constants";
 
 const MAX_EVIDENCE_CHILDREN = 8;
 const MAX_TREE_DEPTH = 4;
+const MAX_PHASE_CHILDREN = 3;
 
 function isProjectionChildId(id: string): boolean {
   return id.includes("::ev-") || id.includes("::phase-") || id.includes("::tree-");
@@ -27,6 +29,164 @@ function artifactForNode(
   const runId = node.capabilityRunId;
   if (!runId) return undefined;
   return (state.artifacts || []).find((a) => a.producedBy?.capabilityRunId === runId);
+}
+
+function resolveCapabilityRunId(
+  state: V5SessionState,
+  parent: BrainstormReasoningNode & { capabilityRunId?: string; producedArtifactId?: string }
+): string | undefined {
+  if (parent.capabilityRunId) return parent.capabilityRunId;
+  const art = artifactForNode(state, parent);
+  return art?.producedBy?.capabilityRunId;
+}
+
+type PhaseKind = "thinking" | "acting" | "observing" | "completed";
+
+type PhaseFact = {
+  kind: PhaseKind;
+  label: string;
+  body: string;
+  sourceKey: string;
+};
+
+const PHASE_LABEL: Record<PhaseKind, string> = {
+  thinking: "思考",
+  acting: "执行",
+  observing: "观察",
+  completed: "完成",
+};
+
+function progressTypeToPhaseKind(
+  progressType?: "thinking" | "acting" | "observing" | "completed" | "failed"
+): PhaseKind | null {
+  if (!progressType || progressType === "failed") return null;
+  if (progressType === "acting") return "acting";
+  if (progressType === "observing") return "observing";
+  if (progressType === "completed") return "completed";
+  return "thinking";
+}
+
+function ledgerMatchesRun(
+  text: string,
+  runId: string,
+  capId?: string,
+  turnId?: string
+): boolean {
+  if (text.includes(runId)) return true;
+  if (turnId && text.includes(turnId)) return true;
+  if (capId && text.includes(capId)) return true;
+  return false;
+}
+
+/** Derive phase facts from uiTurn → capabilityRun + ledger (no decoration). */
+function derivePhaseFacts(
+  state: V5SessionState,
+  parent: BrainstormReasoningNode,
+  latestUiTurn?: UiTurn | null
+): PhaseFact[] {
+  const capId = parent.capabilityId;
+  const runId = resolveCapabilityRunId(state, parent as any);
+  const facts: PhaseFact[] = [];
+  const seen = new Set<string>();
+
+  const push = (fact: PhaseFact) => {
+    const key = `${fact.kind}:${fact.sourceKey}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    facts.push(fact);
+  };
+
+  if (latestUiTurn?.steps?.length && capId) {
+    for (const step of latestUiTurn.steps) {
+      if (step.kind !== "chip" || !step.progressType) continue;
+      if (step.capabilityId !== capId) continue;
+      if (
+        runId &&
+        "capabilityRunId" in step &&
+        step.capabilityRunId &&
+        step.capabilityRunId !== runId
+      ) {
+        continue;
+      }
+      const kind = progressTypeToPhaseKind(step.progressType);
+      if (!kind) continue;
+      push({
+        kind,
+        label: PHASE_LABEL[kind],
+        body: step.label,
+        sourceKey: `ui:${step.id}`,
+      });
+    }
+  }
+
+  if (facts.length === 0 && latestUiTurn?.actions?.length && runId) {
+    const turnId = latestUiTurn.id;
+    for (const trace of latestUiTurn.actions as ActionTrace[]) {
+      if (trace.turnId && trace.turnId !== turnId) continue;
+      push({
+        kind: trace.ok ? "completed" : "observing",
+        label: trace.ok ? "完成" : "观察",
+        body: trace.label,
+        sourceKey: `trace:${trace.label}:${trace.turnId ?? turnId}`,
+      });
+    }
+  }
+
+  if (facts.length > 0) {
+    return facts.slice(0, MAX_PHASE_CHILDREN);
+  }
+
+  const run = runId
+    ? (state.capabilityRuns || []).find((r) => r.id === runId)
+    : capId
+    ? [...(state.capabilityRuns || [])]
+        .reverse()
+        .find((r) => r.capabilityId === capId)
+    : undefined;
+
+  if (run) {
+    const ground = run.gateResults?.find((g) => g.gateId === "ground");
+    if (ground) {
+      push({
+        kind: "observing",
+        label: "观察",
+        body: `G-GROUND gate · ${ground.status}`,
+        sourceKey: `run:${run.id}:ground`,
+      });
+    }
+    const commitGate = run.gateResults?.find((g) => g.gateId === "commit");
+    if (commitGate) {
+      push({
+        kind: "thinking",
+        label: "思考",
+        body: `T_GATE commit · ${commitGate.status}`,
+        sourceKey: `run:${run.id}:commit`,
+      });
+    }
+    if (run.outputs?.length > 0) {
+      push({
+        kind: "completed",
+        label: "完成",
+        body: `产出 ${run.outputs.join(", ")}`,
+        sourceKey: `run:${run.id}:outputs`,
+      });
+    }
+  }
+
+  for (const c of state.conversation || []) {
+    const text = String(c.text || "");
+    if (!/\[T_LEDGER\]|\[G-GROUND\]/i.test(text)) continue;
+    if (runId && !ledgerMatchesRun(text, runId, capId, run?.turnId)) continue;
+    const kind: PhaseKind = /\[G-GROUND\]/i.test(text) ? "observing" : "thinking";
+    push({
+      kind,
+      label: PHASE_LABEL[kind],
+      body: text.slice(0, 160),
+      sourceKey: `ledger:${c.id}`,
+    });
+  }
+
+  return facts.slice(0, MAX_PHASE_CHILDREN);
 }
 
 function expandEvidenceChildren(
@@ -67,10 +227,10 @@ function expandEvidenceChildren(
 function parseSpecTreeLines(content: string): Array<{ id: string; title: string; depth: number }> {
   const rows: Array<{ id: string; title: string; depth: number }> = [];
   for (const line of content.split("\n")) {
-    const m = line.match(/^(\s*)(?:[-*]|\[(\w+)\])\s*(.+)$/);
+    const m = line.match(/^(\s*)-\s*(?:\[([^\]]+)\]\s*)?(.+)$/);
     if (!m) continue;
     const depth = Math.min(MAX_TREE_DEPTH, Math.floor(m[1].length / 2) + 1);
-    const id = m[2] || `line-${rows.length}`;
+    const id = (m[2] || `line-${rows.length}`).replace(/\s+/g, "-");
     rows.push({ id, title: m[3].trim().slice(0, 80), depth });
     if (rows.length >= 12) break;
   }
@@ -87,9 +247,15 @@ function expandSpecTreeChildren(
   const rows = parseSpecTreeLines(String(art.content || ""));
   const nodes: BrainstormReasoningNode[] = [];
   const edges: BrainstormReasoningEdge[] = [];
-  let prevId = parent.id;
+  const parentStack: Array<{ nodeId: string; depth: number }> = [
+    { nodeId: parent.id, depth: 0 },
+  ];
 
   for (const row of rows) {
+    while (parentStack.length > 1 && parentStack[parentStack.length - 1].depth >= row.depth) {
+      parentStack.pop();
+    }
+    const parentEntry = parentStack[parentStack.length - 1];
     const childId = `${parent.id}::tree-${row.id}`;
     nodes.push({
       id: childId,
@@ -100,34 +266,33 @@ function expandSpecTreeChildren(
       roleId: "架构",
       roleLabel: "结构",
       conclusionBadge: "结构",
-      derivedFrom: [prevId],
+      derivedFrom: [parentEntry.nodeId],
     });
     edges.push({
-      id: `${prevId}-tree-${row.id}`,
-      source: prevId,
+      id: `${parentEntry.nodeId}-tree-${row.id}`,
+      source: parentEntry.nodeId,
       target: childId,
       type: "refines",
-      label: "拆解",
+      label: parentEntry.nodeId === parent.id ? "拆解" : "子项",
     });
-    prevId = childId;
+    parentStack.push({ nodeId: childId, depth: row.depth });
   }
   return { nodes, edges };
 }
 
-function rebuildPhaseChild(
+function buildPhaseChild(
   parent: BrainstormReasoningNode,
-  kind: "thinking" | "observing" | "completed",
-  label: string
+  fact: PhaseFact
 ): BrainstormReasoningNode {
   return {
-    id: `${parent.id}::phase-${kind}`,
+    id: `${parent.id}::phase-${fact.kind}-${fact.sourceKey.replace(/[^a-zA-Z0-9_-]/g, "_")}`,
     type: "clarification",
-    title: label,
-    body: `${parent.title || parent.id} · ${label}`,
+    title: fact.label,
+    body: fact.body,
     status: "resolved",
     roleId: parent.roleId,
     roleLabel: parent.roleLabel,
-    conclusionBadge: label,
+    conclusionBadge: fact.label,
     derivedFrom: [parent.id],
   };
 }
@@ -160,48 +325,19 @@ export function expandProjectionNodes(
     extraNodes.push(...treeNodes);
     extraEdges.push(...treeEdges);
 
-    const capId = parent.capabilityId;
-    if (capId && parent.status === "resolved") {
-      for (const kind of ["thinking", "observing", "completed"] as const) {
-        const label =
-          kind === "thinking" ? "思考" : kind === "observing" ? "观察" : "完成";
-        const child = rebuildPhaseChild(parent, kind, label);
+    if (parent.capabilityId && parent.status === "resolved") {
+      const phaseFacts = derivePhaseFacts(state, parent, latestUiTurn);
+      for (const fact of phaseFacts) {
+        const child = buildPhaseChild(parent, fact);
         extraNodes.push(child);
         extraEdges.push({
-          id: `${parent.id}-phase-${kind}`,
+          id: `${parent.id}-phase-${child.id}`,
           source: parent.id,
           target: child.id,
           type: "refines",
-          label,
+          label: fact.label,
         });
       }
-    }
-  }
-
-  if (latestUiTurn?.steps?.length) {
-    for (const step of latestUiTurn.steps) {
-      if (step.kind !== "chip" || !step.progressType) continue;
-      const runNode = mains.find((n) => n.capabilityId === step.capabilityId);
-      if (!runNode) continue;
-      const childId = `${runNode.id}::phase-live-${step.progressType}`;
-      if (extraNodes.some((n) => n.id === childId)) continue;
-      extraNodes.push({
-        id: childId,
-        type: "clarification",
-        title: step.label,
-        body: step.label,
-        status: step.progressType === "failed" ? "failed" : "active",
-        roleId: step.roleId,
-        conclusionBadge: step.progressType,
-        derivedFrom: [runNode.id],
-      });
-      extraEdges.push({
-        id: `${runNode.id}-live-${step.id}`,
-        source: runNode.id,
-        target: childId,
-        type: "refines",
-        label: "进行中",
-      });
     }
   }
 

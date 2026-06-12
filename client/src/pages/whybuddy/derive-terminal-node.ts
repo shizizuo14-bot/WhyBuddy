@@ -2,7 +2,10 @@ import type {
   BrainstormReasoningEdge,
   BrainstormReasoningNode,
 } from "@shared/blueprint/brainstorm-reasoning-graph";
-import { latestTrustedReport } from "@shared/blueprint/whybuddy-delivery-chain";
+import {
+  hasReviewPassRecorded,
+  latestTrustedReport,
+} from "@shared/blueprint/whybuddy-delivery-chain";
 import type { V5SessionState } from "@shared/blueprint/v5-reasoning-state";
 import { deriveTrustSeal } from "./derive-trust-seal";
 import { WHYBUDDY_TERMINAL_NODE_ID } from "./whybuddy-projection-constants";
@@ -41,7 +44,9 @@ export function deriveTerminalProjection(
 
   const seal = deriveTrustSeal(state);
   const statusLabel = goalStatusLabel(goalStatus);
-  const canExport = goalStatus === "clear" && state.deliveryPhase === "shipped";
+  const canExport =
+    goalStatus === "clear" &&
+    (state.deliveryPhase === "shipped" || hasReviewPassRecorded(state));
 
   const summaryExcerpt = String(report.summary || report.content || "")
     .replace(/\s+/g, " ")

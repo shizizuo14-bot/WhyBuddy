@@ -34,6 +34,11 @@ export function evaluateReviewPassGate(state: V5SessionState): {
   };
 }
 
+/** True when an RV pass was recorded in conversation (S20 · lighter than full ship). */
+export function hasReviewPassRecorded(state: V5SessionState): boolean {
+  return (state.conversation || []).some((c) => /\[RV\]\s*评审通过/i.test(String(c.text || "")));
+}
+
 export function latestTrustedReport(state: V5SessionState) {
   const stale = new Set(state.staleArtifactIds || []);
   const reports = (state.artifacts || []).filter(

@@ -4,6 +4,7 @@ import {
   isReviewRejectIntent,
   isPreviewDissatisfiedIntent,
   evaluateReviewPassGate,
+  hasReviewPassRecorded,
   isDeliveryIntent,
   pickDeliveryCapabilities,
   pickStructureBeforeDelivery,
@@ -228,6 +229,18 @@ describe("whybuddy-delivery-chain (S19/S20)", () => {
     expect(isReviewRejectIntent("评审打回，退回修改")).toBe(true);
     expect(isPreviewDissatisfiedIntent("效果不满意，重新预演")).toBe(true);
     expect(isReviewPassIntent("继续分析风险")).toBe(false);
+  });
+
+  it("hasReviewPassRecorded detects RV pass conversation marker", () => {
+    const state = {
+      conversation: [{ id: "1", role: "system", text: "[RV] 评审通过 · DONE" }],
+    };
+    expect(hasReviewPassRecorded(state as V5SessionState)).toBe(true);
+    expect(
+      hasReviewPassRecorded({
+        conversation: [{ id: "2", role: "system", text: "[RV] blocked" }],
+      } as V5SessionState)
+    ).toBe(false);
   });
 
   it("evaluateReviewPassGate requires trusted report + clear goal", () => {

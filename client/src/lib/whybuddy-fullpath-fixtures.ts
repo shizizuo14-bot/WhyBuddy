@@ -32,6 +32,12 @@ import type {
 } from '@shared/blueprint/v5-reasoning-state';
 import type { V5CapabilityId } from '@shared/blueprint/contracts';
 import { buildStructuredReport } from '@shared/blueprint/whybuddy-report-builder';
+export {
+  replayCoverage,
+  type CoverageReplay,
+  type CoverageReplayGapLine,
+  type CoverageReplayRequirementLine,
+} from '@shared/blueprint/whybuddy-coverage-replay';
 
 // ===== Trigger-word constants (plan §1 trigger cheatsheet + existing combo test) =====
 
@@ -276,117 +282,6 @@ export function recycleSignature(state: V5SessionState): string {
     })),
     projectionDirtyNodeIds: [...(state.projectionDirtyNodeIds || [])].sort(),
   });
-}
-
-// ===== Coverage replay (S2 P1 acceptance helper) =====
-
-export interface CoverageReplayRequirementLine {
-  capabilityId: string;
-  /** report.write is the convergence ACTION, not a pre-req gap. */
-  isConvergenceAction: boolean;
-  /** A trusted (gated_pass|audited), non-stale artifact produced by this capability exists. */
-  satisfied: boolean;
-  satisfiedByArtifactId?: string;
-}
-
-export interface CoverageReplayGapLine {
-  id: string;
-  kind: string;
-  status: 'open' | 'resolved' | 'waived';
-  requiredCapabilityId?: string;
-  resolvedByArtifactId?: string;
-  waivedReason?: string;
-}
-
-export interface CoverageReplay {
-  hasContract: boolean;
-  mode?: 'simple' | 'complex';
-  /** Item-by-item, in the SAME order as contract.requiredCapabilities. */
-  required: CoverageReplayRequirementLine[];
-  conditional: string[];
-  gaps: CoverageReplayGapLine[];
-  resolvedGapIds: string[];
-  waivedGapIds: string[];
-  openGapIds: string[];
-  /** The last computed coverageGate.passed, or null if GCOV never ran. */
-  gatePassed: boolean | null;
-}
-
-/** A trusted (gated_pass|audited), non-stale artifact produced by `capId`, if any. */
-function trustedArtifactForCap(state: V5SessionState, capId: string): Artifact | undefined {
-  const stales = new Set(state.staleArtifactIds || []);
-  return (state.artifacts || []).find(
-    (a: any) =>
-      a.producedBy?.capabilityId === capId &&
-      (a.trustLevel === 'gated_pass' || a.trustLevel === 'audited') &&
-      !stales.has(a.id)
-  );
-}
-
-/**
- * S2 (P1 acceptance): replay the session's coverage from STATE + ledger. Reports which contract
- * requirements were covered (item-by-item against `contract.requiredCapabilities`) and which gaps
- * were resolved / waived / left open. Pure read-only; never mutates `state`.
- *
- * Signature: replayCoverage(state: V5SessionState): CoverageReplay
- */
-export function replayCoverage(state: V5SessionState): CoverageReplay {
-  const contract = state.coverageContract;
-  const gaps = (state.coverageGaps || []) as Array<CoverageReplayGapLine & { status: any }>;
-  const gatePassed =
-    state.coverageGate && typeof state.coverageGate.passed === 'boolean'
-      ? state.coverageGate.passed
-      : null;
-
-  if (!contract) {
-    return {
-      hasContract: false,
-      required: [],
-      conditional: [],
-      gaps: gaps.map((g) => ({
-        id: g.id,
-        kind: g.kind,
-        status: g.status,
-        requiredCapabilityId: (g as any).requiredCapabilityId,
-        resolvedByArtifactId: (g as any).resolvedByArtifactId,
-        waivedReason: (g as any).waivedReason,
-      })),
-      resolvedGapIds: gaps.filter((g) => g.status === 'resolved').map((g) => g.id),
-      waivedGapIds: gaps.filter((g) => g.status === 'waived').map((g) => g.id),
-      openGapIds: gaps.filter((g) => g.status === 'open').map((g) => g.id),
-      gatePassed,
-    };
-  }
-
-  const required: CoverageReplayRequirementLine[] = contract.requiredCapabilities.map((cap) => {
-    const isConvergenceAction = cap === 'report.write';
-    const art = trustedArtifactForCap(state, cap);
-    return {
-      capabilityId: cap,
-      isConvergenceAction,
-      satisfied: !!art,
-      satisfiedByArtifactId: art?.id,
-    };
-  });
-
-  return {
-    hasContract: true,
-    mode: contract.mode,
-    required,
-    conditional: [...(contract.conditionalCapabilities || [])],
-    gaps: gaps.map((g) => ({
-      id: g.id,
-      kind: g.kind,
-      status: g.status,
-      requiredCapabilityId: (g as any).requiredCapabilityId,
-      resolvedByArtifactId: (g as any).resolvedByArtifactId,
-      waivedReason: (g as any).waivedReason,
-    })),
-    resolvedGapIds: gaps.filter((g) => g.status === 'resolved').map((g) => g.id),
-    waivedGapIds: gaps.filter((g) => g.status === 'waived').map((g) => g.id),
-    openGapIds: gaps.filter((g) => g.status === 'open').map((g) => g.id),
-    gatePassed,
-  };
 }
 
 // ===== Small audit/state helpers reused across scenarios =====

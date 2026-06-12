@@ -26,33 +26,31 @@ function splitByHeaders(content: string): ReportSection[] {
   const normalized = normalizeReportContent(content);
   if (!normalized) return [];
 
-  const headerRe = new RegExp(`(${SECTION_LABEL_PATTERN})[：:]`, "gi");
-  const markers: Array<{ label: string; headerStart: number; bodyStart: number }> = [];
-  let match: RegExpExecArray | null;
-
-  while ((match = headerRe.exec(normalized)) !== null) {
-    markers.push({
-      label: labelFromMatch(match[1]),
-      headerStart: match.index,
-      bodyStart: match.index + match[0].length,
-    });
-  }
-
-  if (markers.length === 0) return [];
-
+  const lineHeaderRe = new RegExp(
+    `^\\s*(${SECTION_LABEL_PATTERN})[：:]\\s*(.*)$`,
+    "i"
+  );
   const sections: ReportSection[] = [];
-  for (let i = 0; i < markers.length; i++) {
-    const bodyEnd = i + 1 < markers.length ? markers[i + 1].headerStart : normalized.length;
-    const body = normalized.slice(markers[i].bodyStart, bodyEnd).trim();
-    if (!body) continue;
-    sections.push({
-      id: `sec-${sections.length}`,
-      label: markers[i].label,
-      body,
-      evidenceRefs: [],
-    });
+  let current: ReportSection | null = null;
+
+  for (const line of normalized.split("\n")) {
+    const match = line.match(lineHeaderRe);
+    if (match) {
+      if (current?.body.trim()) sections.push(current);
+      current = {
+        id: `sec-${sections.length}`,
+        label: labelFromMatch(match[1]),
+        body: (match[2] || "").trim(),
+        evidenceRefs: [],
+      };
+      continue;
+    }
+    if (current) {
+      current.body += (current.body ? "\n" : "") + line;
+    }
   }
 
+  if (current?.body.trim()) sections.push(current);
   return sections;
 }
 

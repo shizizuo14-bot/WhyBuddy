@@ -1,5 +1,5 @@
 import { latestTrustedReport } from "@shared/blueprint/whybuddy-delivery-chain";
-import { replayCoverage } from "@/lib/whybuddy-fullpath-fixtures";
+import { replayCoverage } from "@shared/blueprint/whybuddy-coverage-replay";
 import type { V5SessionState } from "@shared/blueprint/v5-reasoning-state";
 import { deriveTrustSeal } from "./derive-trust-seal";
 import { parseReportSections } from "./parse-report-sections";
@@ -111,6 +111,8 @@ export function downloadWhyBuddyDeliveryMd(state: V5SessionState, filename?: str
   a.download =
     filename ||
     `whybuddy-delivery-${state.sessionId || "session"}-${Date.now()}.md`;
+  document.body.appendChild(a);
   a.click();
+  document.body.removeChild(a);
   URL.revokeObjectURL(url);
 }
