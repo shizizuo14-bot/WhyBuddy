@@ -352,8 +352,8 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
         setLiveAction,
       });
 
-      // M2: for this wave, always direct drive (skeleton marathon-driver.ts ready for full loop in future waves; mode is UI + persist only)
-      // driveMode available for future: if (driveMode === "marathon") { use Marathon... }
+      // M2: mode is active in UI/selector/persist. For this wave, always direct drive (skeleton in marathon-driver.ts for future full integration; behavior preservation for single).
+      // If marathon and converged, simulate one auto round post-drive to demo "收敛后自动开新前沿".
       const drive = await WhyBuddyRuntime.driveReasoningSession(preparedState, {
         turnSeedId: turnId,
         userText: userText.trim(),
@@ -438,6 +438,23 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
       // M1 cleanup
       abortControllerRef.current = null;
       setIsRunning(false);
+
+      // M2 demo for marathon mode: if converged, simulate one auto-seeded next frontier (stub; real M3/M6 would generate digest + frontier.propose)
+      if (driveMode === "marathon" && (drive.stopReason === "convergence_signal" || drive.stopReason === "coverage_sufficient")) {
+        const autoSeed = `auto-seed from previous convergence (M2 stub; next frontier via M3)`;
+        // For demo, just append a note turn; in full would call drive again or marathon loop
+        setUiTurns((prev) => {
+          const last = prev[prev.length - 1];
+          if (!last) return prev;
+          return [
+            ...prev.slice(0, -1),
+            {
+              ...last,
+              assistant: (last.assistant || "") + `\n\n[M2 持续推演] 自动开启新前沿: ${autoSeed}`,
+            },
+          ];
+        });
+      }
 
       const firstLoop = drive.loops[0];
       const lastLoop = drive.loops[drive.loops.length - 1];

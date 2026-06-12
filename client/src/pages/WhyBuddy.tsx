@@ -360,8 +360,7 @@ function WhyBuddyImmersion({
           goal={goal}
           latestUserText={latestTurn?.user}
           hintChips={composerHints}
-          driveMode={"single"}
-          setDriveMode={() => {}}
+          // driveMode/setDriveMode passed for full M2 wiring in future; composer has local fallback for interactive demo now
         />
       </div>
 
@@ -684,6 +683,8 @@ export default function WhyBuddy() {
     resetSession,
     toggleRouteExpanded,
     retryCapability,
+    driveMode,
+    setDriveMode,
   } = useWhyBuddySession({
     sessionId: IS_GITHUB_PAGES ? GITHUB_PAGES_DEMO_SESSION_ID : "whybuddy-v51-product",
     documentTitle: IS_GITHUB_PAGES ? "WhyBuddy · 演示" : "WhyBuddy",

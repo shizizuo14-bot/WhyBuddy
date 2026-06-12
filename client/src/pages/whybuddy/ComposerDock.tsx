@@ -16,8 +16,9 @@ export function ComposerDock({
   goal,
   latestUserText,
   hintChips,
-  driveMode,
-  setDriveMode,
+  // driveMode/set from parent (M2); for demo fall back to local if not wired in all splits
+  driveMode: outerDriveMode,
+  setDriveMode: outerSetDriveMode,
 }: {
   input: string;
   setInput: (v: string) => void;
@@ -29,6 +30,9 @@ export function ComposerDock({
   driveMode?: "single" | "marathon";
   setDriveMode?: (m: "single" | "marathon") => void;
 }) {
+  const [localMode, setLocalMode] = React.useState<"single" | "marathon">("single");
+  const driveMode = outerDriveMode || localMode;
+  const setDriveMode = outerSetDriveMode || setLocalMode;
   const chips = hintChips?.length ? hintChips : DEFAULT_HINT_CHIPS;
   return (
     <div className="pointer-events-none flex w-full max-w-2xl flex-col items-center gap-2">

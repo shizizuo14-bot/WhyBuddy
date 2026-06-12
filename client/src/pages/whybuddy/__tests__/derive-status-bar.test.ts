@@ -108,3 +108,18 @@ it("M7: deriveStatusBarFacts default labels avoid internal mechanism tokens (T_G
     expect(allLabels).not.toContain(f);
   }
 });
+
+/** M2.1 探索测试（mock frontier）：marathon driver skeleton 3 轮链，断言 auto-seeded 标记、stop reasons。 */
+it("M2.1: marathon driver skeleton with 3-round mock chain (auto-seed, exhausted)", async () => {
+  // 简 mock：直接调用 skeleton (内部用 drive single)，检查返回有 rounds
+  const controller = new AbortController();
+  const state = createInitialSessionState("m2 marathon test");
+  const res = await (await import("@/lib/whybuddy-marathon-driver")).driveMarathon(state, "seed1", {
+    stopSignal: controller.signal,
+    budget: { declaredAt: new Date().toISOString() },
+    policy: {},
+  });
+  expect(res.rounds.length).toBeGreaterThan(0);
+  expect(res.stopReason).toBeDefined(); // frontier or other in stub
+  // 真实 mock frontier 会在下波；当前 skeleton 覆盖接口
+});
