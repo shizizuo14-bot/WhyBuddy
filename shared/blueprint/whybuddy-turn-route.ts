@@ -29,7 +29,8 @@ export type ReentryStopReason =
   | "max_repeat_guard" // 需求 1.8
   | "convergence_signal" // 需求 3.3
   | "await_ready" // P0: G_READY
-  | "await_confirm"; // P0: G_CONFIRM
+  | "await_confirm" // P0: G_CONFIRM
+  | "user_interrupted"; // M1: graceful user stop via AbortSignal
 
 /**
  * Per-round derived facts for a single planning+reasoning loop within one user turn (需求 14.1).

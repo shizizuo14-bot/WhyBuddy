@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import type { ActionTrace, LiveAction } from "@shared/blueprint/capability-process-labels";
 import * as WhyBuddyRuntime from "@/lib/whybuddy-runtime";
 import { fetchNarration } from "@/lib/whybuddy-narrator";
@@ -103,6 +103,9 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
     createEmptySessionState(sessionId)
   );
   const [sessionHydrated, setSessionHydrated] = useState(false);
+
+  // M1: per-turn abort controller for graceful stop.
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const goal = useMemo(() => {
     const fromState = sessionState.goal?.text?.trim();
@@ -213,9 +216,18 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
   }, []);
 
   const runTurn = async (userText: string, intervention?: UserIntervention) => {
-    if (!userText.trim() || isRunning) return;
+    if (!userText.trim()) return;
+
+    if (isRunning) {
+      // M1: stop instead of send when running
+      abortControllerRef.current?.abort();
+      setIsRunning(false);
+      return;
+    }
 
     const turnId = `turn-${Date.now()}`;
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
     setIsRunning(true);
 
     const appendStep = (step: TurnStep) => {
@@ -334,6 +346,7 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
           : WhyBuddyRuntime.createServerReasoningRouter(),
         executor: uiExecutor,
         maxLoopsPerMessage: resolveMaxLoopsPerMessage(),
+        abortSignal: controller.signal, // M1 graceful stop support
         onCapabilityRound: (payload) => {
           if (!payload.gateFailed && !payload.execFailed) return;
           const message = payload.gateFailed
@@ -404,6 +417,10 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
       let final = drive.finalState;
       final = await persistSession(final);
       applyPersistedState(final);
+
+      // M1 cleanup
+      abortControllerRef.current = null;
+      setIsRunning(false);
 
       const firstLoop = drive.loops[0];
       const lastLoop = drive.loops[drive.loops.length - 1];

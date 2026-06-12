@@ -97,3 +97,14 @@ describe("deriveStatusBarFacts", () => {
     expect(facts.executorModeLabel).toContain("server-llm");
   });
 });
+
+/** M7 探索测试：默认 UI 不得出现内部机制词汇（当前必败注释已由翻译推进，测试锁定）。 */
+it("M7: deriveStatusBarFacts default labels avoid internal mechanism tokens (T_GATE, G-GROUND, gated_pass, pilot-template, raw stop reasons)", () => {
+  const forbidden = ["T_GATE", "G-GROUND", "gated_pass", "pilot-template", "budget_exhausted", "coverage_sufficient", "user_interrupted", "await_ready"];
+  const state = createInitialSessionState("m7 lang test");
+  const facts = deriveStatusBarFacts(state, { turnCount: 1, isRunning: true });
+  const allLabels = `${facts.phaseLabel} ${facts.groundingLabel} ${facts.groundingHint || ""} ${facts.executorModeLabel} ${facts.conclusionLabel}`;
+  for (const f of forbidden) {
+    expect(allLabels).not.toContain(f);
+  }
+});

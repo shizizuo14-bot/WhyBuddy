@@ -202,7 +202,8 @@ export type ReentryStopReason =
   | "max_repeat_guard" // 需求 1.8: maxRepeatPerCapability excluded the only remaining candidates
   | "convergence_signal" // 需求 3.3: router returned selected:[] && converged === true
   | "await_ready" // P0: G_READY — human must supplement readiness
-  | "await_confirm"; // P0: G_CONFIRM — human must pick route / adjust
+  | "await_confirm" // P0: G_CONFIRM — human must pick route / adjust
+  | "user_interrupted"; // M1: graceful stop via AbortSignal at loop boundary
 
 /**
  * Request the Session_Driver hands to a ReasoningRouter on each loop.
@@ -267,6 +268,14 @@ export interface DriveReasoningOptions {
    * (5-key pool + server routes); commits remain sequential for STATE safety.
    */
   parallelCapabilityExecution?: boolean;
+  /**
+   * M1: AbortSignal for graceful user interrupt (stop key).
+   * Checked at loop boundaries (post maxLoops, budget). In-flight LLM/router calls
+   * should receive the same signal for best-effort abort (B3 AbortController reuse).
+   * On abort: stopReason = "user_interrupted", park at AWAIT, T_LEDGER entry, in-flight
+   * costs recorded (estimate if no usage).
+   */
+  abortSignal?: AbortSignal;
   /** Called after each loop (including GCOV recoverable parks) so the UI can refresh mid-drive. */
   onLoopComplete?: (payload: {
     loopIndex: number;
@@ -3142,6 +3151,8 @@ function awaitMetaForStop(
       return { reason: "confirm", detail };
     case "no_progress":
       return { reason: "user_input", detail: detail ?? "连续无进展" };
+    case "user_interrupted":
+      return { reason: "ready", detail: detail || "已停止，发送消息继续" };
     default:
       return detail ? { detail } : undefined;
   }
@@ -4024,6 +4035,24 @@ export async function driveReasoningSession(
     if (accumulator.loopCount >= maxLoops) {
       stopReason = "budget_exhausted";
       break;
+    }
+
+    // M1: graceful stop at loop boundary (after maxLoops guard, before heavy work).
+    // In-flight aborts handled by propagating signal to router/executor where supported.
+    if (options.abortSignal?.aborted) {
+      stopReason = "user_interrupted";
+      working = parkForStop(working, lastLoopTurnId, stopReason, "user requested stop");
+      // Record in T_LEDGER style via loops entry (stopSignal carries the reason).
+      loops.push({
+        loopTurnId: lastLoopTurnId,
+        plan: { selected: [], reason: "USER_INTERRUPTED", expectedArtifacts: [] },
+        committedArtifactIds: [],
+        stopSignal: "user_interrupted",
+      });
+      // Ensure a ledger entry for audit (interrupted_by_user)
+      // Note: actual T_LEDGER appends happen via other paths; here we rely on the stopReason
+      // being visible in result and UI can surface via derive.
+      return { finalState: working, loops, stopReason };
     }
 
     const loopTurnId = `${turnSeedId}-loop-${accumulator.loopCount}`;

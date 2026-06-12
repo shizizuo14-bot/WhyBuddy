@@ -42,23 +42,22 @@ export function ComposerDock({
           <input
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !isRunning && sendMessage()}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
             placeholder={
               goal
                 ? "继续补充想法，或质疑图上节点…"
                 : "描述你想推演的问题…"
             }
-            disabled={isRunning}
             className={autopilotTheme.input}
             data-testid="whybuddy-composer-input"
           />
           <button
             type="button"
             onClick={sendMessage}
-            disabled={isRunning || !input.trim()}
+            disabled={!isRunning && !input.trim()}
             className={autopilotTheme.sendBtn}
           >
-            {isRunning ? "推演中" : "发送"}
+            {isRunning ? "停止" : "发送"}
           </button>
         </div>
         <div className="mt-2 flex flex-wrap justify-center gap-1.5">

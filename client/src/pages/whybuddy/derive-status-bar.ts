@@ -26,7 +26,7 @@ export type StatusBarFacts = {
   trustedArtifactCount: number;
   driveLoopCount: number;
   dataReady: boolean;
-  /** G-GROUND: external evidence grounding for feasibility claims. */
+  /** User-facing: evidence grounding status (hides G-GROUND mechanism per M7). */
   groundingLabel: string;
   groundingClassName: string;
   groundingHint: string | null;
@@ -159,7 +159,7 @@ export function deriveStatusBarFacts(
   } else if (state.coverageGate && !gcovGroundingOk) {
     groundingLabel = "待外部接地";
     groundingClassName = "bg-slate-100 text-slate-600 ring-slate-200/80";
-    groundingHint = "G-GROUND 未满足 · 需 F1/F2 外部来源";
+    groundingHint = "证据未完全落地 · 需补充外部来源";
   } else {
     groundingLabel = "未接地";
     groundingClassName = "bg-slate-100 text-slate-500 ring-slate-200/70";
