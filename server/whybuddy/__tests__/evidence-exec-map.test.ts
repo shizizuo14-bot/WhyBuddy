@@ -114,6 +114,20 @@ describe("evidence-exec-map (S15)", () => {
     expect(result.content).toContain("example.com");
   });
 
+  it("no GitHub: degrades with web_search_failed after F2 miss", async () => {
+    const result = await executeEvidenceSearchMapped(
+      { sessionId: "s15-web-fail", goal: { text: "分析 RBAC 权限模型" }, artifacts: [], conversation: [] } as V5SessionState,
+      [],
+      "接地"
+    );
+
+    expect(result.evidenceSource).toBe(EVIDENCE_SOURCE_IN_SESSION);
+    expect(result.payload?.degraded).toBe(true);
+    expect(result.payload?.degradedReason).toBe("web_search_failed");
+    expect(result.summary).toContain("全网检索");
+    expect(result.content).toContain("已发起全网检索");
+  });
+
   it("C_EVID: evidence.search degrades to in-session when F1 fetch fails", async () => {
     vi.spyOn(ghAdapter, "executeGithubMcpCapability").mockRejectedValueOnce(new Error("network"));
 

@@ -12,7 +12,8 @@ import type {
   WebSearchResultItem,
 } from "../../shared/web-search.js";
 
-const DEFAULT_TIMEOUT_MS = 10_000;
+const DEFAULT_TIMEOUT_MS = 20_000;
+const DUCKDUCKGO_RETRY_DELAY_MS = 400;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024; // 2MB for search HTML
 const USER_AGENT =
   "Mozilla/5.0 (compatible; WhyBuddy/1.0; +https://github.com/nicepkg/whybuddy)";
@@ -173,8 +174,9 @@ function parseDuckDuckGoHtml(html: string, topK: number): WebSearchResultItem[] 
     const rawTitle = match[2].replace(/<[^>]+>/g, "").trim();
     if (rawUrl && rawTitle) {
       // DuckDuckGo wraps URLs through a redirect; extract the actual URL
+      const normalizedUrl = rawUrl.replace(/&amp;/gi, "&");
       const decodedUrl = decodeURIComponent(
-        rawUrl.replace(/^\/\/duckduckgo\.com\/l\/\?uddg=/, "").split("&")[0],
+        normalizedUrl.replace(/^\/\/duckduckgo\.com\/l\/\?uddg=/, "").split("&")[0],
       );
       links.push({
         url: decodedUrl.startsWith("http") ? decodedUrl : rawUrl,
@@ -200,7 +202,7 @@ function parseDuckDuckGoHtml(html: string, topK: number): WebSearchResultItem[] 
   return results;
 }
 
-async function searchWithDuckDuckGo(
+async function searchWithDuckDuckGoOnce(
   query: string,
   topK: number,
 ): Promise<WebSearchResultItem[]> {
@@ -219,6 +221,22 @@ async function searchWithDuckDuckGo(
 
   const html = await readResponseText(response, MAX_RESPONSE_BYTES);
   return parseDuckDuckGoHtml(html, topK);
+}
+
+async function searchWithDuckDuckGo(
+  query: string,
+  topK: number,
+): Promise<WebSearchResultItem[]> {
+  try {
+    return await searchWithDuckDuckGoOnce(query, topK);
+  } catch (firstError) {
+    await new Promise((resolve) => setTimeout(resolve, DUCKDUCKGO_RETRY_DELAY_MS));
+    try {
+      return await searchWithDuckDuckGoOnce(query, topK);
+    } catch {
+      throw firstError;
+    }
+  }
 }
 
 // ── Public API ──

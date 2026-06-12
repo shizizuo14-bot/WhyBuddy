@@ -17,30 +17,30 @@ describe("CAPABILITY_PROCESS_LABELS (B1)", () => {
     expect(Object.keys(CAPABILITY_PROCESS_LABELS).length).toBe(ALL_V5_CAPABILITIES.length);
   });
 
-  it("evidence.search tool trace distinguishes no-github-clue vs fetch-failed", () => {
+  it("evidence.search tool trace distinguishes web-search-failed vs github-fetch-failed", () => {
     const base = buildProcessLabelContext("evidence.search", "做一个系统", "做一个系统");
-    const noClue = inferProcessContextFromExec("evidence.search", base, {
+    const webFailed = inferProcessContextFromExec("evidence.search", base, {
       title: "外部证据检索（规则推演）",
-      summary: "【来源: 会话内综合】未找到可检索的公开仓库线索，使用会话内材料。",
-      content: "未发起外部网络检索。",
+      summary: "【来源: 会话内综合】已尝试全网检索但未取得可用结果，使用会话内材料。",
+      content: "已发起全网检索（F2），但未命中可接地来源。",
       provenance: "ai_generated",
     });
-    const noClueTrace = buildActionTrace("evidence.search", true, noClue, {
+    const webFailedTrace = buildActionTrace("evidence.search", true, webFailed, {
       provenance: "ai_generated",
     });
-    expect(noClueTrace?.ok).toBe(false);
-    expect(noClueTrace?.label).toContain("未找到 GitHub");
+    expect(webFailedTrace?.ok).toBe(false);
+    expect(webFailedTrace?.label).toContain("全网检索");
 
-    const failed = inferProcessContextFromExec("evidence.search", base, {
+    const ghFailed = inferProcessContextFromExec("evidence.search", base, {
       title: "外部证据检索失败",
       summary: "【来源: 会话内综合】GitHub 证据收集不可用，已降级为会话内综合。",
       content: "尝试从 https://github.com/org/private 收集证据时失败。",
       provenance: "ai_generated",
     });
-    const failedTrace = buildActionTrace("evidence.search", true, failed, {
+    const ghFailedTrace = buildActionTrace("evidence.search", true, ghFailed, {
       provenance: "ai_generated",
     });
-    expect(failedTrace?.label).toContain("检索失败");
+    expect(ghFailedTrace?.label).toContain("检索失败");
   });
 
   it("action live labels include concrete targets, not generic external-tool phrasing", () => {

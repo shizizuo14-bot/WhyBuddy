@@ -10,6 +10,7 @@ import { executeRepoStaticInspect } from "./repo-static-analyzer.js";
 import {
   EVIDENCE_SOURCE_WEB_SEARCH,
   executeWebEvidenceSearch,
+  isWebSearchEnabled,
 } from "./web-evidence-adapter.js";
 
 /**
@@ -53,17 +54,54 @@ export type RawExecutorResult = {
   payload?: { degraded?: boolean; degradedReason?: string; [key: string]: unknown };
 };
 
-function ruleEvidenceFallback(state: V5SessionState, roleId?: string): RawExecutorResult {
+type EvidenceFallbackOpts = {
+  /** F2 web search was enabled and attempted before this branch. */
+  webSearchAttempted?: boolean;
+  /** WHYBUDDY_WEB_SEARCH_ENABLED=0 — F2 skipped entirely. */
+  webSearchDisabled?: boolean;
+};
+
+function ruleEvidenceFallback(
+  state: V5SessionState,
+  _roleId?: string,
+  opts: EvidenceFallbackOpts = {}
+): RawExecutorResult {
   const goalText = (state as any)?.goal?.text || "";
-  // Negative invariant (Requirement 5.4 / 5.6): no GitHub clue → no external seam is
-  // touched. This branch performs ZERO network / RAG calls and never throws; it degrades
-  // to in-conversation synthesis labelled 会话内综合.
+  const webDisabled = opts.webSearchDisabled === true;
+  const webAttempted = opts.webSearchAttempted === true;
+
+  let summary: string;
+  let content: string;
+  let degradedReason: string;
+
+  if (webDisabled) {
+    summary = `【来源: ${EVIDENCE_SOURCE_IN_SESSION}】全网检索已关闭，使用会话内材料。`;
+    content =
+      `基于当前目标「${String(goalText).slice(0, 120)}」整理了可引用的会话内要点。` +
+      `未发起全网检索（WHYBUDDY_WEB_SEARCH_ENABLED=0）。`;
+    degradedReason = "web_search_disabled";
+  } else if (webAttempted) {
+    summary = `【来源: ${EVIDENCE_SOURCE_IN_SESSION}】已尝试全网检索但未取得可用结果，使用会话内材料。`;
+    content =
+      `基于当前目标「${String(goalText).slice(0, 120)}」整理了可引用的会话内要点。` +
+      `已发起全网检索（F2），但未命中可接地来源（超时、无结果或检索服务不可用）。` +
+      `未找到 GitHub 仓库线索，故未走 F1 取数。`;
+    degradedReason = "web_search_failed";
+  } else {
+    summary = `【来源: ${EVIDENCE_SOURCE_IN_SESSION}】未找到可检索的公开仓库线索，使用会话内材料。`;
+    content =
+      `基于当前目标「${String(goalText).slice(0, 120)}」整理了可引用的会话内要点。` +
+      `未发起外部网络检索。`;
+    degradedReason = "no_github_clue";
+  }
+
   return {
     title: "外部证据检索（规则推演）",
-    summary: `【来源: ${EVIDENCE_SOURCE_IN_SESSION}】未找到可检索的公开仓库线索，使用会话内材料。`,
-    content: `基于当前目标「${String(goalText).slice(0, 120)}」整理了可引用的会话内要点。未发起外部网络检索。`,
+    summary,
+    content,
     provenance: "ai_generated",
     evidenceSource: EVIDENCE_SOURCE_IN_SESSION,
+    payload: { degraded: true, degradedReason },
   };
 }
 
@@ -154,8 +192,12 @@ export async function executeEvidenceSearchMapped(
     .slice(-8)
     .map((c: any) => String(c?.text || ""));
 
-  // F2 · 全网检索（优先）：goal/对话 → web_search provider → G-GROUND web:search
-  const webResult = await executeWebEvidenceSearch(state, recentTexts);
+  const webSearchEnabled = isWebSearchEnabled();
+
+  // F2 · 全网检索（优先，无 GitHub 时亦应走此路径）：goal/对话 → web_search → G-GROUND web:search
+  const webResult = webSearchEnabled
+    ? await executeWebEvidenceSearch(state, recentTexts)
+    : null;
   if (webResult) {
     return webResult;
   }
@@ -168,7 +210,10 @@ export async function executeEvidenceSearchMapped(
   );
 
   if (!url) {
-    return ruleEvidenceFallback(state, roleId);
+    return ruleEvidenceFallback(state, roleId, {
+      webSearchAttempted: webSearchEnabled,
+      webSearchDisabled: !webSearchEnabled,
+    });
   }
 
   // F1 · GitHub 取数（有仓库链接且 F2 未命中时）

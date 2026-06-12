@@ -1538,8 +1538,21 @@ class DefaultCapabilityExecutor implements CapabilityExecutor {
  * - runtime data file is untracked (gitignore is effective)
  * Next after these: replace PilotReal with a real (LLM-backed) executor behind the same interface.
  */
+const EXTERNAL_SERVER_CAPABILITY_IDS = new Set<V5CapabilityId>([
+  "evidence.search",
+  "repo.inspect",
+]);
+
 class PilotRealCapabilityExecutor implements CapabilityExecutor {
   private base = new DefaultCapabilityExecutor();
+  private serverProvider: LlmCapabilityProvider | null = null;
+
+  private getServerProvider(): LlmCapabilityProvider {
+    if (!this.serverProvider) {
+      this.serverProvider = createServerLlmCapabilityProvider();
+    }
+    return this.serverProvider;
+  }
 
   async executeCapability(args: {
     capabilityId: V5CapabilityId;
@@ -1560,6 +1573,13 @@ class PilotRealCapabilityExecutor implements CapabilityExecutor {
     };
   }> {
     const start = performance.now();
+    if (EXTERNAL_SERVER_CAPABILITY_IDS.has(args.capabilityId)) {
+      try {
+        return await this.getServerProvider()(args);
+      } catch {
+        return this.base.executeCapability(args);
+      }
+    }
     if (args.capabilityId === 'risk.analyze') {
       return this.executeRiskPilot(args);
     }

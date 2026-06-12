@@ -84,7 +84,7 @@ export function useWhyBuddySession(options: UseWhyBuddySessionOptions = {}) {
   const [isRunning, setIsRunning] = useState(false);
   const [liveAction, setLiveAction] = useState<LiveAction | null>(null);
   const [nextGateShouldFail, setNextGateShouldFail] = useState(false);
-  const [executorMode, setExecutorMode] = useState<WhyBuddyExecutorMode>("pilot");
+  const [executorMode, setExecutorMode] = useState<WhyBuddyExecutorMode>("server-llm");
   const [sessionState, setSessionState] = useState(() =>
     createEmptySessionState(sessionId)
   );

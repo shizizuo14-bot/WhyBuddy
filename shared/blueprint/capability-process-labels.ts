@@ -4,7 +4,11 @@ import { extractGithubRepoSlug, findGithubUrlInTexts } from "./whybuddy-github-c
 
 export type ProcessCapabilityKind = "think" | "action" | "deliver";
 
-export type EvidenceFallbackReason = "no_github_clue" | "evidence_fetch_failed";
+export type EvidenceFallbackReason =
+  | "no_github_clue"
+  | "evidence_fetch_failed"
+  | "web_search_failed"
+  | "web_search_disabled";
 
 export type ProcessLabelContext = {
   repoSlug?: string;
@@ -50,13 +54,19 @@ export const CAPABILITY_PROCESS_LABELS: Record<V5CapabilityId, CapabilityProcess
   "rebuttal.resolve": { kind: "think", liveLabel: "正在消解分歧" },
   "evidence.search": {
     kind: "action",
-    liveLabel: "⚡ 正在检索外部证据",
+    liveLabel: "⚡ 正在全网检索外部证据",
     traceTemplate: (ctx, ok) => {
       if (ok) {
         return `检索了外部证据${ctx.evidenceCount != null ? `（${ctx.evidenceCount} 条）` : ""}`;
       }
+      if (ctx.evidenceFallbackReason === "web_search_failed") {
+        return "全网检索未命中可用结果，已降级为会话内综合";
+      }
+      if (ctx.evidenceFallbackReason === "web_search_disabled") {
+        return "全网检索已关闭，使用会话内综合";
+      }
       if (ctx.evidenceFallbackReason === "no_github_clue") {
-        return "未找到 GitHub 仓库线索，使用会话内综合（未发起外部检索）";
+        return "未找到 GitHub 仓库线索，使用会话内综合";
       }
       return "外部证据检索失败，本轮未引入外部证据";
     },
@@ -189,8 +199,14 @@ export function inferProcessContextFromExec(
     exec.provenance !== "repo:static"
   ) {
     const blob = `${exec.summary || ""} ${exec.content || ""} ${exec.title || ""}`;
-    if (/全网检索.*不可用|Web Search.*failed|web_search_failed/i.test(blob)) {
-      ctx.evidenceFallbackReason = "evidence_fetch_failed";
+    if (/全网检索已关闭|WHYBUDDY_WEB_SEARCH_ENABLED=0|web_search_disabled/i.test(blob)) {
+      ctx.evidenceFallbackReason = "web_search_disabled";
+    } else if (
+      /已尝试全网检索但未取得可用结果|已发起全网检索|web_search_failed/i.test(blob)
+    ) {
+      ctx.evidenceFallbackReason = "web_search_failed";
+    } else if (/全网检索.*不可用|Web Search.*failed/i.test(blob)) {
+      ctx.evidenceFallbackReason = "web_search_failed";
     } else if (/GitHub 证据收集不可用|收集证据时失败|仓库检索失败|repo_fetch_failed|evidence_fetch_failed/i.test(blob)) {
       ctx.evidenceFallbackReason = "evidence_fetch_failed";
     } else if (
@@ -198,7 +214,7 @@ export function inferProcessContextFromExec(
     ) {
       ctx.evidenceFallbackReason = "no_github_clue";
     } else if (!ctx.repoSlug) {
-      ctx.evidenceFallbackReason = "no_github_clue";
+      ctx.evidenceFallbackReason = "web_search_failed";
     } else {
       ctx.evidenceFallbackReason = "evidence_fetch_failed";
     }
