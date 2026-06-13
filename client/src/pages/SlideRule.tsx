@@ -23,6 +23,7 @@ import { deriveSlideRuleReasoningViewModel } from "./sliderule/derive-reasoning-
 import { resolveImSurfaceMode } from "./sliderule/im-surface-mode";
 import { SlideRuleStatusBar } from "./sliderule/SlideRuleStatusBar";
 import { SlideRuleTopHud } from "./sliderule/SlideRuleTopHud";
+import { LlmConfigPanel } from "./sliderule/LlmConfigPanel";
 import { ArchitectureProcessPanel } from "./sliderule/ArchitectureProcessPanel";
 import { ComposerDock } from "./sliderule/ComposerDock";
 import { deriveComposerHintChips } from "./sliderule/derive-composer-hints";
@@ -241,6 +242,7 @@ function SlideRuleImmersion({
   setDriveMode?: (m: "single" | "marathon") => void;
 }) {
   const sessionId = sessionState.sessionId || "sliderule-v51-product";
+  const [llmConfigOpen, setLlmConfigOpen] = useState(false);
   const composerHints = useMemo(
     () => deriveComposerHintChips(sessionState),
     [sessionState]
@@ -309,6 +311,7 @@ function SlideRuleImmersion({
           projectionDensity={projectionDensity}
           onProjectionDensityChange={onProjectionDensityChange}
           onResetSession={resetSession}
+          onOpenLlmConfig={() => setLlmConfigOpen(true)}
         />
         <div className={autopilotTheme.immersionOverlayArchRow}>
           <ArchitectureProcessPanel
@@ -398,6 +401,8 @@ function SlideRuleImmersion({
           />
         </div>
       )}
+
+      <LlmConfigPanel open={llmConfigOpen} onClose={() => setLlmConfigOpen(false)} />
     </div>
   );
 }

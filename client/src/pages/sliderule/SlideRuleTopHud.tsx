@@ -6,18 +6,7 @@ import { autopilotTheme } from "./autopilot-theme";
 import type { SlideRuleExecutorMode } from "./types";
 import type { ProjectionDensity } from "./sliderule-projection-constants";
 import { IS_GITHUB_PAGES } from "@/lib/deploy-target";
-import * as SlideRuleRuntime from "@/lib/sliderule-runtime";
-import {
-  loadByokPool,
-  saveByokPool,
-  clearByokPool,
-  validateByokPool,
-  maskKey,
-  PRESET_ENDPOINTS,
-  PRESET_MODELS,
-  type ByokPresetId,
-} from "@/lib/sliderule-byok-config";
-import { getByokDispatcher } from "@/lib/sliderule-byok-dispatcher";
+import { Settings2 } from "lucide-react";
 
 export function SlideRuleTopHud({
   state,
@@ -30,6 +19,7 @@ export function SlideRuleTopHud({
   projectionDensity,
   onProjectionDensityChange,
   onResetSession,
+  onOpenLlmConfig,
 }: {
   state: V5SessionState;
   goal: string;
@@ -41,6 +31,7 @@ export function SlideRuleTopHud({
   projectionDensity?: ProjectionDensity;
   onProjectionDensityChange?: (density: ProjectionDensity) => void;
   onResetSession?: () => void;
+  onOpenLlmConfig?: () => void;
 }) {
   const facts = deriveStatusBarFacts(state, {
     turnCount,
@@ -49,82 +40,6 @@ export function SlideRuleTopHud({
     immersion: true,
     executorMode,
   });
-
-  // B4: GitHub Pages BYOK key config UI (visible only in Pages mode)
-  const [byokDraft, setByokDraft] = React.useState(() => {
-    const p = loadByokPool();
-    const e = p?.entries?.[0];
-    return { preset: (e?.presetId as ByokPresetId) || "openai", key: e ? "********" : "" };
-  });
-
-  const currentByok = React.useMemo(() => loadByokPool(), [byokDraft]); // re-eval on draft change for demo
-
-  const saveByok = () => {
-    if (!byokDraft.key || byokDraft.key === "********") {
-      alert("请输入有效 API Key");
-      return;
-    }
-    const endpoint = PRESET_ENDPOINTS[byokDraft.preset] || "";
-    const model = PRESET_MODELS[byokDraft.preset] || "gpt-4o-mini";
-    const existing = loadByokPool() || { version: 1 as const, entries: [], dispatch: "least-busy" as const, raceMode: false };
-    const newEntry = {
-      id: `user-key-${Date.now()}`,
-      label: `${byokDraft.preset} (BYOK)`,
-      presetId: byokDraft.preset,
-      endpoint,
-      model,
-      apiKey: byokDraft.key,
-      enabled: true,
-    };
-    // Support true multi-key: append instead of replace (advance B4)
-    const pool = {
-      ...existing,
-      entries: [...(existing.entries || []), newEntry],
-    };
-    if (!validateByokPool(pool).ok) {
-      alert("配置无效，请检查 preset/key");
-      return;
-    }
-    saveByokPool(pool);
-    if (IS_GITHUB_PAGES && SlideRuleRuntime.useBrowserLlmCapabilityExecutor) {
-      SlideRuleRuntime.useBrowserLlmCapabilityExecutor();
-    }
-    setByokDraft({ ...byokDraft, key: "********" });
-    window.dispatchEvent(new CustomEvent("byok-config-changed"));
-    alert("Key 已添加到本机 localStorage pool（零服务器，支持多 key）。下一轮推演将使用 browser-llm (production baseline)。配置变更立即生效（下一 turn）。");
-  };
-
-  const clearByok = () => {
-    clearByokPool();
-    setByokDraft({ preset: "openai", key: "" });
-    if (IS_GITHUB_PAGES && SlideRuleRuntime.usePilotRealExecutor) {
-      SlideRuleRuntime.usePilotRealExecutor();
-    }
-    window.dispatchEvent(new CustomEvent("byok-config-changed"));
-    alert("已清除 BYOK 配置，回退到 pilot 模板演示。");
-  };
-
-  // Per-key remove for true multi-key support
-  const removeByokEntry = (id: string) => {
-    const pool = loadByokPool();
-    if (!pool || !pool.entries) return;
-    const newEntries = pool.entries.filter((e: any) => e.id !== id);
-    const newPool = { ...pool, entries: newEntries };
-    saveByokPool(newPool);
-    // bump draft to re-render list
-    setByokDraft({ ...byokDraft, key: byokDraft.key });
-    if (IS_GITHUB_PAGES && newEntries.length === 0 && SlideRuleRuntime.usePilotRealExecutor) {
-      SlideRuleRuntime.usePilotRealExecutor();
-    }
-    window.dispatchEvent(new CustomEvent("byok-config-changed"));
-  };
-
-  // Edit: remove old, load for re-add (replace semantics for "edit")
-  const editByokEntry = (e: any) => {
-    removeByokEntry(e.id); // remove first
-    setByokDraft({ preset: e.presetId as ByokPresetId, key: "********" });
-    alert(`Loaded ${e.presetId} for edit (old removed). Change and Add/Save to re-add updated.`);
-  };
 
   return (
     <header
@@ -187,60 +102,6 @@ export function SlideRuleTopHud({
             </span>
           )}
 
-          {/* B4: BYOK 配置入口 (仅 Pages 模式可见) - advanced multi-key */}
-          {IS_GITHUB_PAGES && (
-            <span className="ml-2 flex flex-col gap-0.5 text-[9px] text-slate-300">
-              <span>BYOK (multi-key pool):</span>
-              {currentByok?.entries?.length ? (
-                currentByok.entries.map((e, i) => {
-                  const snap = getByokDispatcher().snapshot().entries.find(s => s.id === e.id) || { inFlight: 0, totalTokens: 0, cooledUntil: null, enabled: e.enabled };
-                  return (
-                    <span key={i} className="text-[8px] text-emerald-300 flex items-center gap-1" title={`Key ${i+1}: ${e.label} (masked)`}>
-                      {e.presetId} {e.label} ({maskKey(e.apiKey)}) inFlight:{snap.inFlight} tokens:{snap.totalTokens} {snap.cooledUntil ? 'cooled' : ''}
-                      <button
-                        onClick={() => removeByokEntry(e.id)}
-                        className="ml-1 rounded bg-rose-800/70 px-0.5 text-[7px] text-white hover:bg-rose-600"
-                        title="Remove this key"
-                      >
-                        ×
-                      </button>
-                      <button
-                        onClick={() => editByokEntry(e)}
-                        className="rounded bg-sky-800/70 px-0.5 text-[7px] text-white hover:bg-sky-600"
-                        title="Load for edit (change preset/key then Add/Save)"
-                      >
-                        ✎
-                      </button>
-                    </span>
-                  );
-                })
-              ) : <span className="text-amber-400">not set</span>}
-              <div className="flex items-center gap-1">
-                <select
-                  value={byokDraft.preset}
-                  onChange={(e) => setByokDraft({ ...byokDraft, preset: e.target.value as any })}
-                  className="rounded bg-slate-800 px-1 text-[8px] text-white"
-                >
-                  {Object.keys(PRESET_ENDPOINTS).map((p) => (
-                    <option key={p} value={p}>{p}</option>
-                  ))}
-                  <option value="custom">custom</option>
-                </select>
-                <input
-                  type="password"
-                  placeholder="sk-..."
-                  value={byokDraft.key === "********" ? "" : byokDraft.key}
-                  onChange={(e) => setByokDraft({ ...byokDraft, key: e.target.value })}
-                  className="w-16 rounded bg-slate-800 px-1 text-[8px] text-white"
-                />
-                <button onClick={saveByok} className="rounded bg-emerald-700 px-1 text-white text-[8px]">Add/Save</button>
-                <button onClick={clearByok} className="rounded bg-rose-700 px-1 text-white text-[8px]">Clear All</button>
-              </div>
-              <span className="text-[7px] text-amber-400" title="Keys only in localStorage. Snapshot from dispatcher.">
-                (本机, snapshot: in-flight/tokens)
-              </span>
-            </span>
-          )}
           {/* M5 real: budget + costLedger usage (Knife 6). M4 policy. Sync to hud for marathon. */}
           {((state as any).costLedger?.length || (state as any).autopilotPolicy) && (
             <span className="ml-2 text-[8px] text-indigo-300" title="M5: 真实 costLedger 累计 + marathon budget。M4 policy 代答。">
@@ -343,6 +204,18 @@ export function SlideRuleTopHud({
           className="flex shrink-0 items-center gap-2"
           data-testid="sliderule-header-actions"
         >
+          {onOpenLlmConfig && (
+            <button
+              type="button"
+              onClick={onOpenLlmConfig}
+              data-testid="sliderule-llm-config-open"
+              className={`${autopilotTheme.auditBtn} flex items-center gap-1`}
+              title="配置推演用的 LLM（自带 key 浏览器直连，仅存本机）"
+            >
+              <Settings2 className="h-3.5 w-3.5" />
+              LLM
+            </button>
+          )}
           {onResetSession && (
             <button
               type="button"

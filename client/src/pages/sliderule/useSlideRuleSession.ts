@@ -42,18 +42,21 @@ async function persistSession(state: V5SessionState): Promise<V5SessionState> {
   return SlideRuleRuntime.saveSessionState(state);
 }
 
+function hasReadyByokPool(): boolean {
+  const pool = loadByokPool();
+  return !!(pool && validateByokPool(pool).ok && pool.entries.some((e) => e.enabled && e.apiKey));
+}
+
 function resolveExecutorMode(): SlideRuleExecutorMode {
   if (IS_GITHUB_PAGES) {
-    const pool = loadByokPool();
-    if (pool && validateByokPool(pool).ok && pool.entries.some((e) => e.enabled && e.apiKey)) {
-      return "browser-llm";
-    }
-    return "demo";
+    return hasReadyByokPool() ? "browser-llm" : "demo";
   }
   const params = new URLSearchParams(window.location.search);
   if (params.get("executor") === "pilot") return "pilot";
   if (params.get("executor") === "default") return "default";
-  // V5.1 product default: real server LLM executor (override with ?executor=pilot for offline).
+  // BYOK override: a valid local key pool drives browser-direct LLM even on localhost.
+  // Empty / invalid pool falls back to the V5.1 product default (server LLM).
+  if (hasReadyByokPool()) return "browser-llm";
   return "server-llm";
 }
 
@@ -156,13 +159,19 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
       } else {
         SlideRuleRuntime.usePilotRealExecutor?.();
       }
-    } else if (mode === "server-llm" && SlideRuleRuntime.setSlideRuleSessionStore) {
+    } else if (
+      (mode === "server-llm" || mode === "browser-llm") &&
+      SlideRuleRuntime.setSlideRuleSessionStore
+    ) {
       // B-5: product default uses durable Http store (survives refresh via server JSON file).
+      // browser-llm on localhost only swaps the LLM executor — the durable store still applies.
       SlideRuleRuntime.setSlideRuleSessionStore(createHttpSlideRuleSessionStore());
     }
 
     if (!IS_GITHUB_PAGES) {
-      if (mode === "server-llm" && SlideRuleRuntime.useServerLlmCapabilityExecutor) {
+      if (mode === "browser-llm" && SlideRuleRuntime.useBrowserLlmCapabilityExecutor) {
+        SlideRuleRuntime.useBrowserLlmCapabilityExecutor?.();
+      } else if (mode === "server-llm" && SlideRuleRuntime.useServerLlmCapabilityExecutor) {
         SlideRuleRuntime.useServerLlmCapabilityExecutor?.();
       } else if (mode === "default") {
         SlideRuleRuntime.useDefaultExecutor?.();
@@ -186,11 +195,14 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
   // B4: live BYOK config change (storage or custom event) -> re-apply executor + mode without full refresh
   useEffect(() => {
     const reapplyByok = () => {
-      if (!IS_GITHUB_PAGES) return;
+      // Re-resolve on any deploy target: adding/removing BYOK keys live-switches the executor
+      // (Pages: browser-llm ↔ pilot demo; localhost: browser-llm ↔ server-llm).
       const mode = resolveExecutorMode();
       setExecutorMode(mode);
       if (mode === "browser-llm" && SlideRuleRuntime.useBrowserLlmCapabilityExecutor) {
         SlideRuleRuntime.useBrowserLlmCapabilityExecutor?.();
+      } else if (mode === "server-llm" && SlideRuleRuntime.useServerLlmCapabilityExecutor) {
+        SlideRuleRuntime.useServerLlmCapabilityExecutor?.();
       } else {
         SlideRuleRuntime.usePilotRealExecutor?.();
       }
