@@ -25,6 +25,12 @@ export interface MarathonOptions {
   budget: { maxTokens?: number; declaredAt: string };
   policy: { autoConfirmRoute?: string; autoWaiveNonBlockingGaps?: boolean };
   onRoundComplete?: (digest: any, round: any) => void;
+  /** Passthrough to each inner driveReasoningSession round (BYOK pool executor etc.). */
+  executor?: SlideRuleRuntime.DriveReasoningOptions["executor"];
+  router?: SlideRuleRuntime.DriveReasoningOptions["router"];
+  maxLoopsPerMessage?: SlideRuleRuntime.DriveReasoningOptions["maxLoopsPerMessage"];
+  onCapabilityRound?: SlideRuleRuntime.DriveReasoningOptions["onCapabilityRound"];
+  onLoopComplete?: SlideRuleRuntime.DriveReasoningOptions["onLoopComplete"];
 }
 
 export interface MarathonResult {
@@ -151,8 +157,12 @@ export async function driveMarathon(
     const driveRes = await SlideRuleRuntime.driveReasoningSession(working, {
       turnSeedId: `marathon-${Date.now()}`,
       userText: currentSeed,
-      // @ts-ignore - M1 abortSignal additive (supported in runtime)
       abortSignal: opts.stopSignal,
+      executor: opts.executor,
+      router: opts.router,
+      maxLoopsPerMessage: opts.maxLoopsPerMessage,
+      onCapabilityRound: opts.onCapabilityRound,
+      onLoopComplete: opts.onLoopComplete,
     });
 
     const lastStop = driveRes.stopReason;

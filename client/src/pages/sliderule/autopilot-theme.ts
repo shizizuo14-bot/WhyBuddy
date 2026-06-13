@@ -95,4 +95,19 @@ export const autopilotTheme = {
   drawerBtnAccent:
     "rounded border border-slate-300 px-2 py-1 font-medium text-slate-800 transition hover:bg-slate-50",
   drawerPanel: "rounded-lg border border-slate-200 bg-slate-50 p-2",
+
+  latestUserBubble:
+    "pointer-events-auto max-w-full truncate rounded-full border border-slate-200 bg-white/90 px-3 py-1 text-[11px] text-slate-600 shadow-sm backdrop-blur",
+  latestUserBubbleMarathon:
+    "pointer-events-auto max-w-full truncate rounded-full border border-indigo-200 bg-indigo-50/90 px-3 py-1 text-[11px] text-indigo-700 shadow-sm backdrop-blur",
+  grokInputBar:
+    "pointer-events-auto flex w-full items-end gap-1.5 rounded-[24px] border border-slate-200 bg-white/95 px-2 py-1.5 shadow-[0_12px_40px_rgb(15_23_42/0.12)] backdrop-blur-xl",
+  grokInputBarMarathon:
+    "pointer-events-auto flex w-full items-end gap-1.5 rounded-[24px] border border-indigo-200 bg-indigo-50/80 px-2 py-1.5 shadow-[0_12px_40px_rgb(79_70_229/0.10)] backdrop-blur-xl",
+  grokInput:
+    "max-h-40 flex-1 resize-none bg-transparent px-2 py-2.5 text-sm leading-6 text-slate-800 outline-none placeholder:text-slate-400",
+  grokSendBtn:
+    "mb-0.5 shrink-0 rounded-full bg-slate-900 px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-slate-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40",
+  grokSendBtnMarathon:
+    "mb-0.5 shrink-0 rounded-full bg-indigo-600 px-3.5 py-1.5 text-xs font-bold text-white transition hover:bg-indigo-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40",
 } as const;
