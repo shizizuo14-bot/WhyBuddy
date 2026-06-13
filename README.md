@@ -68,8 +68,6 @@ Enter an idea → **5 minutes** → full rehearsal → decide whether it is wort
 
 ---
 
-
-
 ## Product Screens
 
 A consolidated 16-screen photo wall from SlideRule example rehearsals.
@@ -90,7 +88,7 @@ Click the video cover above to open the Bilibili demo.
 
 Besides the full app, SlideRule also ships a **self-contained Skill package** that can be dropped into Trae, Claude, or any host that supports Agent Skills. One sentence in → a reviewable, deliverable spec package out, with every gate **actually run by scripts** instead of merely claimed by the model.
 
-> **Guarantee the floor, not the ceiling.** Deterministic scripts guarantee the *floor* — valid structure, success criteria covered by requirements, EARS acceptance, cited evidence, gate results logged, every artifact provenance-labeled. They do not promise the *ceiling*; real depth still needs a real repo and a human. Everything it generates is labeled with how much you can trust it.
+> **Guarantee the floor, not the ceiling.** Deterministic scripts guarantee the _floor_ — valid structure, success criteria covered by requirements, EARS acceptance, cited evidence, gate results logged, every artifact provenance-labeled. They do not promise the _ceiling_; real depth still needs a real repo and a human. Everything it generates is labeled with how much you can trust it.
 
 ### How to Use
 
@@ -119,46 +117,46 @@ All image settings live in a single file: **`image_config.json`** at the project
 ```jsonc
 {
   "enabled": true,
-  "mode": "http",                    // "http" | "dry_run" | "mcp" | "command"
-  "model": "gpt-image-2",           // ← change model here
-  "api_key": "",                     // ← put your key here (or use env var below)
-  "timeout": 600,                    // seconds per image request
+  "mode": "http", // "http" | "dry_run" | "mcp" | "command"
+  "model": "gpt-image-2", // ← change model here
+  "api_key": "", // ← put your key here (or use env var below)
+  "timeout": 600, // seconds per image request
   "out_dir": "previews",
   "http": {
-    "url": "",                       // ← put your endpoint URL here
+    "url": "", // ← put your endpoint URL here
     "method": "POST",
     "headers": {
       "Content-Type": "application/json",
-      "Authorization": "Bearer ${IMAGE_API_KEY}"   // resolves from env
+      "Authorization": "Bearer ${IMAGE_API_KEY}", // resolves from env
     },
     "body_template": {
-      "model": "${MODEL}",           // auto-filled from top-level "model"
-      "prompt": "${PROMPT}",         // auto-filled per module
+      "model": "${MODEL}", // auto-filled from top-level "model"
+      "prompt": "${PROMPT}", // auto-filled per module
       "response_format": "b64_json",
-      "image_size": "2K",            // "512" | "1K" | "2K" | "4K"
+      "image_size": "2K", // "512" | "1K" | "2K" | "4K"
       "aspect_ratio": "16:9",
-      "n": 1
-    }
-  }
+      "n": 1,
+    },
+  },
 }
 ```
 
 **Three things to configure:**
 
-| What | Where | Example |
-|:-----|:------|:--------|
-| **API Key** | Env var `IMAGE_API_KEY` (recommended) OR `image_config.json → api_key` | `export IMAGE_API_KEY=sk-abc123...` |
-| **Endpoint URL** | `image_config.json → http.url` | `https://api.openai.com/v1/images/generations` |
-| **Model** | `image_config.json → model` | `gpt-image-2` / `gemini-2.5-flash-image` / `gemini-3.1-flash-image-preview` |
+| What             | Where                                                                  | Example                                                                     |
+| :--------------- | :--------------------------------------------------------------------- | :-------------------------------------------------------------------------- |
+| **API Key**      | Env var `IMAGE_API_KEY` (recommended) OR `image_config.json → api_key` | `export IMAGE_API_KEY=sk-abc123...`                                         |
+| **Endpoint URL** | `image_config.json → http.url`                                         | `https://api.openai.com/v1/images/generations`                              |
+| **Model**        | `image_config.json → model`                                            | `gpt-image-2` / `gemini-2.5-flash-image` / `gemini-3.1-flash-image-preview` |
 
 > Priority: environment variable `IMAGE_API_KEY` > config file `api_key`. If both are empty, image generation is skipped and the gate records "no key".
 
 ### Use Cases
 
-| Category | Examples |
-|:---------|:---------|
-| 🆕 Build a product from zero | AI meeting minutes · income dashboard · OKR tracker · lightweight CRM · resume optimizer |
-| 🤖 Build an AI agent | PRD generator · issue triage · code review · investment research · sentiment analysis |
+| Category                                | Examples                                                                                           |
+| :-------------------------------------- | :------------------------------------------------------------------------------------------------- |
+| 🆕 Build a product from zero            | AI meeting minutes · income dashboard · OKR tracker · lightweight CRM · resume optimizer           |
+| 🤖 Build an AI agent                    | PRD generator · issue triage · code review · investment research · sentiment analysis              |
 | 🧩 Add a feature to an existing project | RBAC for React · i18n for Next.js · audit logging for a Node API · OpenAPI enhancement for FastAPI |
 
 ### Output Package Structure
@@ -245,19 +243,19 @@ The runtime layer runs beside the main path: job/artifact store, event bus, sock
 
 The v4 diagram no longer treats the team as a fixed meeting room of roles. SlideRule switches between a single-agent path and a multi-role collaboration path through the **Decision Gate**.
 
-| Role layer | When it appears | Responsibility |
-|:-----------|:----------------|:---------------|
-| **Single Agent** | The route is simple and low-risk | Runs the direct path from clarified brief to SPEC tree and documents |
-| **Brainstorm Board** | The route is complex or ambiguous | Opens discussion, voting, division of labor, and audit mode |
-| **Decision** | Before expensive generation | Chooses standard / deep / upgraded routes and records confidence |
-| **Planning** | Route and dependency work | Breaks the goal into staged work, fallback paths, and replan budgets |
-| **Architecture** | SPEC tree and handoff design | Keeps requirements, design, tasks, evidence, and interfaces aligned |
-| **Execution** | Tool-backed work is needed | Uses Docker, MCP, GitHub, and Skills through the tool proxy |
-| **Audit** | Quality or evidence risk appears | Checks invariants, provenance, ledger output, and review gaps |
-| **UI** | Preview or delivery surface is needed | Turns specs into generated mockups and visible handoff artifacts |
-| **Critic** | Triggered by ambiguity, real repo risk, or weak evidence | Finds holes, missing evidence, and overconfident assumptions |
-| **Grounding** | Triggered when claims must touch real code or sources | Reads the repo and forces real citations into the result |
-| **Synthesizer** | After multi-role work | Merges proposals, confidence scores, and dissent into one route |
+| Role layer           | When it appears                                          | Responsibility                                                       |
+| :------------------- | :------------------------------------------------------- | :------------------------------------------------------------------- |
+| **Single Agent**     | The route is simple and low-risk                         | Runs the direct path from clarified brief to SPEC tree and documents |
+| **Brainstorm Board** | The route is complex or ambiguous                        | Opens discussion, voting, division of labor, and audit mode          |
+| **Decision**         | Before expensive generation                              | Chooses standard / deep / upgraded routes and records confidence     |
+| **Planning**         | Route and dependency work                                | Breaks the goal into staged work, fallback paths, and replan budgets |
+| **Architecture**     | SPEC tree and handoff design                             | Keeps requirements, design, tasks, evidence, and interfaces aligned  |
+| **Execution**        | Tool-backed work is needed                               | Uses Docker, MCP, GitHub, and Skills through the tool proxy          |
+| **Audit**            | Quality or evidence risk appears                         | Checks invariants, provenance, ledger output, and review gaps        |
+| **UI**               | Preview or delivery surface is needed                    | Turns specs into generated mockups and visible handoff artifacts     |
+| **Critic**           | Triggered by ambiguity, real repo risk, or weak evidence | Finds holes, missing evidence, and overconfident assumptions         |
+| **Grounding**        | Triggered when claims must touch real code or sources    | Reads the repo and forces real citations into the result             |
+| **Synthesizer**      | After multi-role work                                    | Merges proposals, confidence scores, and dissent into one route      |
 
 All roles use the same tool proxy, but the companion roles are deliberately **on-demand**: they cut across input, clarification, route planning, and SPEC generation only when risk justifies the extra loop.
 
@@ -270,18 +268,21 @@ All roles use the same tool proxy, but the companion roles are deliberately **on
 <td width="33%" valign="top">
 
 ### 01 Grounded Input
+
 Raw ideas can include a sentence, repository, files, or screenshots. Repo URLs trigger deep ingestion; inaccessible sources become explicit fallback states instead of silent failure.
 
 </td>
 <td width="33%" valign="top">
 
 ### 02 Route Decision
+
 SlideRule compares standard, deep, and upgraded routes before generation. The confirmation gate makes cost, risk, and takeover points visible early.
 
 </td>
 <td width="33%" valign="top">
 
 ### 03 SPEC Tree Guard
+
 The SPEC tree is not just model output. Schema validation, stable ID normalization, invariant guards, provenance, and deterministic fallback protect the structure.
 
 </td>
@@ -290,18 +291,21 @@ The SPEC tree is not just model output. Schema validation, stable ID normalizati
 <td width="33%" valign="top">
 
 ### 04 Delivery Traceability
+
 Requirements, design, tasks, evidence, tests, prompt packs, previews, interfaces, open items, and exports are tied through a traceability matrix and handoff manifest.
 
 </td>
 <td width="33%" valign="top">
 
 ### 05 Runtime Truth
+
 Job store, artifact store, event bus, socket relay, realtime store, derived node status, and replay keep the visible workflow synced with persisted artifacts.
 
 </td>
 <td width="33%" valign="top">
 
 ### 06 Feedback & Invalidation
+
 Reviews, user edits, dependency invalidation, stale indexes, auto-recompute, escalation, and replan budgets make iteration part of the system, not an afterthought.
 
 </td>
@@ -310,18 +314,21 @@ Reviews, user edits, dependency invalidation, stale indexes, auto-recompute, esc
 <td width="33%" valign="top">
 
 ### 07 Companion Review
+
 Critic and grounding roles are triggered by ambiguity, real-repo risk, and evidence gaps, then force the flow to cite sources and expose weak assumptions.
 
 </td>
 <td width="33%" valign="top">
 
 ### 08 Preview Split
+
 Generated UI mockups are labeled as previews, while structural architecture diagrams are rendered deterministically from the SPEC tree instead of image-model guesses.
 
 </td>
 <td width="33%" valign="top">
 
 ### 09 Quality Ledger
+
 Tests, content checks, merge gates, and ledger entries record the script, exit code, and output behind each quality claim.
 
 </td>
@@ -364,14 +371,14 @@ Or open the repository at [xiaojilele-glitch/SlideRule](https://github.com/xiaoj
 
 > Every rehearsal is a shareable piece of content. **50 rehearsals = 50 distribution opportunities.**
 
-| 💬 Input | 📦 Output |
-|:---------|:----------|
-| "AI comic platform" | 6 SPEC modules · content pipeline · monetization model · system architecture |
-| "Permission management SaaS" | 8 SPEC modules · RBAC · multi-tenant · API contracts |
-| "Sentiment analysis tool" | 5 SPEC modules · data pipeline · model selection · alert engine |
-| "Indie developer bookkeeping app" | 4 SPEC modules · local-first · sync plan · privacy compliance |
-| "Enterprise knowledge base" | 7 SPEC modules · RAG pipeline · permission model · incremental indexing |
-| "Cross-border product picker" | 6 SPEC modules · data sources · scoring algorithm · competitor analysis |
+| 💬 Input                          | 📦 Output                                                                    |
+| :-------------------------------- | :--------------------------------------------------------------------------- |
+| "AI comic platform"               | 6 SPEC modules · content pipeline · monetization model · system architecture |
+| "Permission management SaaS"      | 8 SPEC modules · RBAC · multi-tenant · API contracts                         |
+| "Sentiment analysis tool"         | 5 SPEC modules · data pipeline · model selection · alert engine              |
+| "Indie developer bookkeeping app" | 4 SPEC modules · local-first · sync plan · privacy compliance                |
+| "Enterprise knowledge base"       | 7 SPEC modules · RAG pipeline · permission model · incremental indexing      |
+| "Cross-border product picker"     | 6 SPEC modules · data sources · scoring algorithm · competitor analysis      |
 
 ---
 
@@ -722,44 +729,44 @@ linkStyle 116,117,118 stroke:#dc2626,stroke-width:2px,stroke-dasharray:3 3;
 
 ## 🛠️ Tech Stack
 
-| Layer | Technology |
-|:------|:-----------|
-| Frontend | React 19 · Vite · TypeScript · Zustand · Three.js (R3F) · Framer Motion |
-| Server | Express · Socket.IO · TypeScript |
-| AI | OpenAI-compatible APIs (any provider) |
-| Execution | Docker (dockerode) · browser runtime · native runtime |
-| Testing | Vitest · fast-check (PBT) |
-| Storage | IndexedDB (browser) · JSON (server) |
+| Layer     | Technology                                                              |
+| :-------- | :---------------------------------------------------------------------- |
+| Frontend  | React 19 · Vite · TypeScript · Zustand · Three.js (R3F) · Framer Motion |
+| Server    | Express · Socket.IO · TypeScript                                        |
+| AI        | OpenAI-compatible APIs (any provider)                                   |
+| Execution | Docker (dockerode) · browser runtime · native runtime                   |
+| Testing   | Vitest · fast-check (PBT)                                               |
+| Storage   | IndexedDB (browser) · JSON (server)                                     |
 
 ---
 
 ## 📊 Project Scale
 
-| Metric | Count |
-|:-------|------:|
-| Project files | 5,457 |
-| TypeScript/TSX files | 2,234 |
-| TypeScript lines | 575,591 |
-| Test files | 921 |
-| Spec directories | 303 |
+| Metric               |   Count |
+| :------------------- | ------: |
+| Project files        |   5,457 |
+| TypeScript/TSX files |   2,234 |
+| TypeScript lines     | 575,591 |
+| Test files           |     921 |
+| Spec directories     |     303 |
 
 ---
 
 ## ⚔️ Comparison With Other Platforms
 
-| Feature | Dify | n8n | CrewAI | LangGraph | **SlideRule** |
-|:--------|:---:|:---:|:---:|:---:|:---:|
-| Open source | ✅ | ✅ | ✅ | ✅ | ✅ |
-| One sentence to a complete product | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Spec document generation (requirements + design + tasks) | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Multi-route planning | ❌ | ❌ | ❌ | ⚠️ | ✅ |
-| Multi-role agent fleet | ❌ | ❌ | ✅ | ✅ | ✅ |
-| Real-time 3D observability | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Human takeover governance | ⚠️ | ⚠️ | ❌ | ❌ | ✅ |
-| Replay and audit | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Docker sandbox | ❌ | ⚠️ | ❌ | ❌ | ✅ |
-| Export Markdown/ZIP | ❌ | ❌ | ❌ | ❌ | ✅ |
-| Browser-only demo | ❌ | ❌ | ❌ | ❌ | ✅ |
+| Feature                                                  | Dify | n8n | CrewAI | LangGraph | **SlideRule** |
+| :------------------------------------------------------- | :--: | :-: | :----: | :-------: | :-----------: |
+| Open source                                              |  ✅  | ✅  |   ✅   |    ✅     |      ✅       |
+| One sentence to a complete product                       |  ❌  | ❌  |   ❌   |    ❌     |      ✅       |
+| Spec document generation (requirements + design + tasks) |  ❌  | ❌  |   ❌   |    ❌     |      ✅       |
+| Multi-route planning                                     |  ❌  | ❌  |   ❌   |    ⚠️     |      ✅       |
+| Multi-role agent fleet                                   |  ❌  | ❌  |   ✅   |    ✅     |      ✅       |
+| Real-time 3D observability                               |  ❌  | ❌  |   ❌   |    ❌     |      ✅       |
+| Human takeover governance                                |  ⚠️  | ⚠️  |   ❌   |    ❌     |      ✅       |
+| Replay and audit                                         |  ❌  | ❌  |   ❌   |    ❌     |      ✅       |
+| Docker sandbox                                           |  ❌  | ⚠️  |   ❌   |    ❌     |      ✅       |
+| Export Markdown/ZIP                                      |  ❌  | ❌  |   ❌   |    ❌     |      ✅       |
+| Browser-only demo                                        |  ❌  | ❌  |   ❌   |    ❌     |      ✅       |
 
 ---
 
