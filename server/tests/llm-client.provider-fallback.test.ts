@@ -162,7 +162,7 @@ describe("callLLMJson provider fallback", () => {
           choices: [
             {
               message: {
-                content: '[{"identity":"WhyBuddy (xiaojilele-',
+                content: '[{"identity":"SlideRule (xiaojilele-',
               },
               finish_reason: "length",
             },

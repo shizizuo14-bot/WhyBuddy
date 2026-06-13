@@ -115,7 +115,7 @@ describe("persistence health checks", () => {
         mysql: {
           host: "db.local",
           port: 3306,
-          database: "whybuddy",
+          database: "sliderule",
           user: "cube_user",
           password: "secret",
           pool: {

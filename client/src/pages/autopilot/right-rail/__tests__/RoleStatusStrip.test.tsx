@@ -135,7 +135,7 @@ describe("RoleStatusStrip render contract", () => {
 
 describe("AutopilotRightRail no longer mounts <RoleStatusStrip />", () => {
   it("does not reference <RoleStatusStrip /> anywhere in the rail (moved to 3D scene)", async () => {
-    // whybuddy-3d-real-role-driven-scene-2026-05-29: role identity / phase
+    // sliderule-3d-real-role-driven-scene-2026-05-29: role identity / phase
     // status is now carried by the real 3D agents (pet body + nameplate + bob
     // animation), so the duplicate role chip strip was removed from the right
     // rail. The RoleStatusStrip component itself is kept (Layer 1 render

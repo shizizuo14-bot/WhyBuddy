@@ -1,5 +1,5 @@
 /**
- * whybuddy-3d-real-role-driven-scene-2026-05-29 — Task 9
+ * sliderule-3d-real-role-driven-scene-2026-05-29 — Task 9
  *
  * Pure, Three.js-free view-model types and layout/visual helpers for the
  * blueprint runtime scene. This module is the data layer behind

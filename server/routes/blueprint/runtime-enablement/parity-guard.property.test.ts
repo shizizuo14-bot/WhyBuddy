@@ -109,7 +109,7 @@ describe("Feature: blueprint-trust-enforcement-model, Property 8: Parity Guard d
 
             const routeRel = `synthetic/route-${i}.ts`;
             const skillRel = cfg.skillPrefixValid
-              ? `skills/whybuddy/whybuddy/scripts/script-${i}.py`
+              ? `skills/sliderule/sliderule/scripts/script-${i}.py`
               : `skills/elsewhere/script-${i}.py`;
 
             if (cfg.routeExists) {

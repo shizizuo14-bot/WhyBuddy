@@ -7,11 +7,11 @@ describe("check_previews_real.py integrity", () => {
   it("matches the committed SHA-256 manifest", () => {
     const scriptPath = join(
       process.cwd(),
-      "skills/whybuddy/whybuddy/scripts/check_previews_real.py",
+      "skills/sliderule/sliderule/scripts/check_previews_real.py",
     );
     const manifestPath = join(
       process.cwd(),
-      "skills/whybuddy/whybuddy/scripts/check_previews_real.sha256",
+      "skills/sliderule/sliderule/scripts/check_previews_real.sha256",
     );
     const script = readFileSync(scriptPath);
     const manifest = readFileSync(manifestPath, "utf8").trim();

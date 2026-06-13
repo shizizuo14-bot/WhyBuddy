@@ -12,8 +12,8 @@
  * 当前是 fixture 驱动的交互原型，用于验证产品形态。
  *
  * 参考：
- * - docs/WhyBuddyV5CapabilityPool.md
- * - docs/WhyBuddyV5闭环总图_完整版.md
+ * - docs/SlideRuleV5CapabilityPool.md
+ * - docs/SlideRuleV5闭环总图_完整版.md
  */
 
 import React, { useState } from 'react';

@@ -3,7 +3,7 @@ import { MissionFirstAgents } from "./MissionFirstAgents";
 import type { SceneFusionMode } from "./scene-fusion/role-id-bridge";
 
 // ---------------------------------------------------------------------------
-// whybuddy-3d-real-role-driven-scene-2026-05-29 / Wave 0 Task 3
+// sliderule-3d-real-role-driven-scene-2026-05-29 / Wave 0 Task 3
 // ---------------------------------------------------------------------------
 // PetWorkers is the Pet_Workers_Shell: a thin mode-switching orchestrator kept
 // as the named-export entrypoint consumed by Scene3D.tsx and ReplayScene3D.tsx.
@@ -18,7 +18,7 @@ import type { SceneFusionMode } from "./scene-fusion/role-id-bridge";
 // mounts BlueprintRuntimeAgents instead of MissionFirstAgents.
 //
 // PetWorkers renders no React DOM — it is mounted inside the React Three Fiber
-// <Canvas>. The `data-testid="whybuddy-3d-shell"` DOM marker is owned by
+// <Canvas>. The `data-testid="sliderule-3d-shell"` DOM marker is owned by
 // Scene3D.tsx (Task 4), not here.
 
 // TODO(Wave 4): BlueprintRuntimeAgents.tsx does not export `AutopilotStage`; it
@@ -49,7 +49,7 @@ export function PetWorkers({
   /**
    * Legacy stage label (V5 已将 stage 降级为 UI/artifact/history/compat 标签)。
    * 真实控制平面是 Orchestrator + Capability Pool（(capability, role) 对调度）。
-   * 详见 docs/WhyBuddyV5CapabilityPool.md 和 WhyBuddyV5闭环总图_完整版.md
+   * 详见 docs/SlideRuleV5CapabilityPool.md 和 SlideRuleV5闭环总图_完整版.md
    * activeStage 仅用于 3D 场景 role seeding、连线规则、wall 分组等呈现辅助。
    */
   activeStage?: AutopilotStage;

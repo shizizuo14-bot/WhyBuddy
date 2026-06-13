@@ -194,7 +194,7 @@ describe("ProcessArtifactSplitPanel", () => {
             jobId: "job-old",
             phase: "thinking",
             stageId: "spec_docs",
-            thought: "old WhyBuddy document assembly",
+            thought: "old SlideRule document assembly",
           }),
           makeReasoning({
             id: "current-job-entry",
@@ -208,7 +208,7 @@ describe("ProcessArtifactSplitPanel", () => {
     );
 
     expect(markup).toContain("current permission document assembly");
-    expect(markup).not.toContain("old WhyBuddy document assembly");
+    expect(markup).not.toContain("old SlideRule document assembly");
   });
 
   it("StageSplitMount passes descriptor stageFilter into the execution panel", () => {

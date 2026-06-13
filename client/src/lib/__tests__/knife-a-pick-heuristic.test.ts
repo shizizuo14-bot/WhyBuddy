@@ -2,9 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   hasStructureDecomposeIntent,
   pickNextCapabilities,
-} from "@shared/blueprint/whybuddy-pick-heuristic";
-import { createInitialSessionState } from "@/lib/whybuddy-runtime";
-import { commitTrusted } from "@/lib/whybuddy-fullpath-fixtures";
+} from "@shared/blueprint/sliderule-pick-heuristic";
+import { createInitialSessionState } from "@/lib/sliderule-runtime";
+import { commitTrusted } from "@/lib/sliderule-fullpath-fixtures";
 
 describe("Knife A′ · structure pick heuristic", () => {
   it("hasStructureDecomposeIntent matches 结构 / SPEC Tree / decompose", () => {

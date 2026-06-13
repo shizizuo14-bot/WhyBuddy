@@ -36,7 +36,7 @@ import {
   stripDebateProtocolNodes,
   type BlueprintWallReasoningGraphViewModel,
 } from "@/components/three/scene-fusion/blueprint-wall-reasoning-graph";
-import { WHYBUDDY_TERMINAL_NODE_ID } from "@/pages/whybuddy/whybuddy-projection-constants";
+import { SLIDERULE_TERMINAL_NODE_ID } from "@/pages/sliderule/sliderule-projection-constants";
 
 // ------------------------------------------------------------------------
 // Types & Constants
@@ -72,11 +72,11 @@ export interface ReasoningFlowSurfaceProps {
    */
   showBottomChrome?: boolean;
   /**
-   * 可选：节点被点击时的回调。用于 /whybuddy 等场景实现 "BOARD 可点节点" 精确重入。
+   * 可选：节点被点击时的回调。用于 /sliderule 等场景实现 "BOARD 可点节点" 精确重入。
    * 当提供时，节点卡片会显示为可点击（cursor-pointer）。
    */
   onNodeClick?: (node: BrainstormReasoningNode) => void;
-  /** 启用深色（Grok 风格）主题。默认 false 保持原有浅色产品图感。WhyBuddy V5 等暗色宿主传入 true。 */
+  /** 启用深色（Grok 风格）主题。默认 false 保持原有浅色产品图感。SlideRule V5 等暗色宿主传入 true。 */
   dark?: boolean;
   /** Bump to re-run fit() when the graph grows (e.g. mid-drive session updates). */
   graphRevision?: number | string;
@@ -216,7 +216,7 @@ function hexWithAlpha(hex: string, alpha: number): string {
 /**
  * Typewriter effect for live "正在思考" content inside Flow nodes.
  * Reveals the current narration/thinking text chunk-by-chunk with cursor.
- * Re-uses the spirit of the one in WhyBuddy.tsx for consistency.
+ * Re-uses the spirit of the one in SlideRule.tsx for consistency.
  */
 function LiveThinking({ text, isActive }: { text?: string; isActive?: boolean }) {
   const [display, setDisplay] = useState("");
@@ -277,7 +277,7 @@ function LiveThinking({ text, isActive }: { text?: string; isActive?: boolean })
 // ------------------------------------------------------------------------
 
 function nodeDimensions(node: BrainstormReasoningNode): { width: number; height: number } {
-  if (node.id === WHYBUDDY_TERMINAL_NODE_ID) {
+  if (node.id === SLIDERULE_TERMINAL_NODE_ID) {
     return { width: TERMINAL_NODE_WIDTH, height: TERMINAL_NODE_HEIGHT };
   }
   if (node.id.includes("::ev-") || node.id.includes("::phase-")) {
@@ -1044,7 +1044,7 @@ export function ReasoningFlowSurface({
 
           {/* HTML 节点卡片层（轻量 2D 产品风格） */}
           {positioned.map((node) => {
-            const isTerminal = node.id === WHYBUDDY_TERMINAL_NODE_ID;
+            const isTerminal = node.id === SLIDERULE_TERMINAL_NODE_ID;
             const dim = nodeDimensions(node);
             const color = isTerminal ? "#10b981" : (TYPE_COLORS[node.type] ?? TYPE_COLORS.default);
             const typeLabel = NODE_TYPE_LABELS[node.type] ?? node.type;
@@ -1088,7 +1088,7 @@ export function ReasoningFlowSurface({
             return (
               <div
                 key={node.id}
-                data-testid={isTerminal ? "whybuddy-terminal-node" : undefined}
+                data-testid={isTerminal ? "sliderule-terminal-node" : undefined}
                 onMouseEnter={() => setHoveredNodeId(node.id)}
                 onMouseLeave={() => setHoveredNodeId(null)}
                 onClick={
@@ -1186,7 +1186,7 @@ export function ReasoningFlowSurface({
                     <div className="flex min-h-0 flex-1 flex-col gap-1.5 text-[10px]">
                       <div
                         className="font-mono text-[9px] font-medium leading-snug text-emerald-800"
-                        data-testid="whybuddy-trust-seal"
+                        data-testid="sliderule-trust-seal"
                       >
                         {sealLine}
                       </div>

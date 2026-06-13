@@ -1,5 +1,5 @@
 /**
- * whybuddy-3d-real-role-driven-scene-2026-05-29 — CapabilityRail 回归测试。
+ * sliderule-3d-real-role-driven-scene-2026-05-29 — CapabilityRail 回归测试。
  *
  * 顶部「全量能力 status pills」已移除（信息由 3D 角色桌前 chips 承载），
  * `CapabilityRail` 现在只渲染 `CapabilityBridgePanel`（详细调用明细）。

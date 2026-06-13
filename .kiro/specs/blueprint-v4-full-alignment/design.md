@@ -2,7 +2,7 @@
 
 ## 概述
 
-本设计覆盖 6 个模块（A–F），将 Web 端 Blueprint 管线对齐 WhyBuddy Skill v4 闭环架构。
+本设计覆盖 6 个模块（A–F），将 Web 端 Blueprint 管线对齐 SlideRule Skill v4 闭环架构。
 所有模块遵循相同的工程约定：closure-based factory、env gate、可选 ctx 字段、非阻塞降级、
 结果写入 checksLedger。
 

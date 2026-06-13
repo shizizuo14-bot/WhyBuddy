@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/banner.png" alt="WhyBuddy" width="100%" />
+  <img src="./docs/assets/banner.png" alt="SlideRule" width="100%" />
 </p>
 
 <p align="center">
@@ -8,11 +8,11 @@
 </p>
 
 <p align="center">
-  <sub>TRAE Skill 挑战赛作品 / 社区展示项目</sub>
+  <sub>TRAE Skill 挑战赛作品 / 社区展示项目 · 原名 <strong>WhyBuddy</strong>（2026-06 改名 SlideRule）</sub>
 </p>
 
 <blockquote>
-<strong>进度说明：</strong>当前工程化项目进度暂时落后于 WhyBuddy Skill。如需完整产品预演体验，请优先使用 <a href="./skills/whybuddy.zip">WhyBuddy Skill</a>；工程化项目仍在持续推进中。
+<strong>进度说明：</strong>当前工程化项目进度暂时落后于 SlideRule Skill。如需完整产品预演体验，请优先使用 <a href="./skills/sliderule.zip">SlideRule Skill</a>；工程化项目仍在持续推进中。
 </blockquote>
 
 <p align="center">
@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/xiaojilele-glitch/WhyBuddy"><img alt="repo" src="https://img.shields.io/badge/🌐_GitHub仓库-blue?style=for-the-badge" /></a>
+  <a href="https://github.com/xiaojilele-glitch/SlideRule"><img alt="repo" src="https://img.shields.io/badge/🌐_GitHub仓库-blue?style=for-the-badge" /></a>
   <a href="./ROADMAP.md"><img alt="roadmap" src="https://img.shields.io/badge/🗺️_路线图-111827?style=for-the-badge" /></a>
   <a href="./CONTRIBUTING.md"><img alt="contribute" src="https://img.shields.io/badge/🤝_参与贡献-16a34a?style=for-the-badge" /></a>
 </p>
@@ -29,7 +29,7 @@
 <p align="center">
   <img alt="status" src="https://img.shields.io/badge/状态-早期测试-orange?style=flat-square" />
   <img alt="license" src="https://img.shields.io/badge/协议-MIT-111827?style=flat-square" />
-  <img alt="stars" src="https://img.shields.io/github/stars/xiaojilele-glitch/WhyBuddy?style=flat-square" />
+  <img alt="stars" src="https://img.shields.io/github/stars/xiaojilele-glitch/SlideRule?style=flat-square" />
   <img alt="ts" src="https://img.shields.io/badge/TypeScript-576k_行-2563eb?style=flat-square" />
   <img alt="tests" src="https://img.shields.io/badge/测试-921_文件-0f766e?style=flat-square" />
   <img alt="specs" src="https://img.shields.io/badge/规格-303_目录-7c3aed?style=flat-square" />
@@ -72,9 +72,9 @@
 
 ## 🖼️ 产品界面
 
-来自 WhyBuddy 示例预演的 16 张界面合成照片墙。
+来自 SlideRule 示例预演的 16 张界面合成照片墙。
 
-<img src="./docs/assets/16img.png" alt="WhyBuddy 16 张产品界面照片墙" />
+<img src="./docs/assets/16img.png" alt="SlideRule 16 张产品界面照片墙" />
 
 **观看完整产品预演演示**
 
@@ -86,15 +86,15 @@
 
 ---
 
-## 🧩 `whybuddy` 技能包(便携 · 可嵌入任意 Agent)
+## 🧩 `sliderule` 技能包(便携 · 可嵌入任意 Agent)
 
-除了完整应用,WhyBuddy 还提供一个**自包含的技能包**,可以直接丢进 Trae、Claude 或任意支持 Agent Skills 的宿主。一句话进去 → 一套可评审、可交付的规格包,而且每道校验都是**脚本真跑出来的**,不是模型嘴上说一句"我检查过了"。
+除了完整应用,SlideRule 还提供一个**自包含的技能包**,可以直接丢进 Trae、Claude 或任意支持 Agent Skills 的宿主。一句话进去 → 一套可评审、可交付的规格包,而且每道校验都是**脚本真跑出来的**,不是模型嘴上说一句"我检查过了"。
 
 > **保下限,不保上限。** 确定性脚本保证*下限*——结构合法、成功标准被需求覆盖、EARS 验收、证据引用、闸结果留痕、每件产物都带来源标记;它不承诺*上限*(真深度要靠真实仓库 + 人)。它生成的每样东西,都明确标着"你能信几分"。
 
 ### 怎么用
 
-仓库内已经提供可直接导入的技能包: [`skills/whybuddy.zip`](./skills/whybuddy.zip)。
+仓库内已经提供可直接导入的技能包: [`skills/sliderule.zip`](./skills/sliderule.zip)。
 
 ```bash
 # 1. 把技能包放进你 Agent 宿主的 skills 目录(Trae:技能 · Claude:skill)
@@ -332,7 +332,7 @@ UI 草样走生成式预览并标注“预览·未验证”；结构架构图从
 ## 🚀 快速开始
 
 ```bash
-git clone https://github.com/xiaojilele-glitch/WhyBuddy.git && cd WhyBuddy
+git clone https://github.com/xiaojilele-glitch/SlideRule.git && cd SlideRule
 pnpm install
 pnpm run dev:all          # 全栈：前端 + 服务端 + 执行器
 ```
@@ -344,7 +344,7 @@ pnpm run dev:all          # 全栈：前端 + 服务端 + 执行器
 pnpm run dev:frontend     # 打开 localhost:5173
 ```
 
-或直接访问仓库：[xiaojilele-glitch/WhyBuddy](https://github.com/xiaojilele-glitch/WhyBuddy)。
+或直接访问仓库：[xiaojilele-glitch/SlideRule](https://github.com/xiaojilele-glitch/SlideRule)。
 
 </details>
 
@@ -400,9 +400,9 @@ pnpm run dev:frontend     # 打开 localhost:5173
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-<!-- BEGIN WHYBUDDY_SKILL_ARCH -->
+<!-- BEGIN SLIDERULE_SKILL_ARCH -->
 
-来源: [WhyBuddy Skill 闭环架构图 v4](./docs/assets/WhyBuddyArc/WhyBuddySkill%E9%97%AD%E7%8E%AF%E6%80%BB%E5%9B%BE_%E6%94%B9%E8%BF%9B%E7%89%88v4.md)
+来源: [SlideRule Skill 闭环架构图 v4](./docs/assets/SlideRuleArc/SlideRuleSkill%E9%97%AD%E7%8E%AF%E6%80%BB%E5%9B%BE_%E6%94%B9%E8%BF%9B%E7%89%88v4.md)
 
 ```mermaid
 flowchart TB
@@ -713,7 +713,7 @@ linkStyle 112,113,114,115 stroke:#db2777,stroke-width:2px,stroke-dasharray:3 3;
 linkStyle 116,117,118 stroke:#dc2626,stroke-width:2px,stroke-dasharray:3 3;
 ```
 
-<!-- END WHYBUDDY_SKILL_ARCH -->
+<!-- END SLIDERULE_SKILL_ARCH -->
 
 ---
 
@@ -776,10 +776,10 @@ linkStyle 116,117,118 stroke:#dc2626,stroke-width:2px,stroke-dasharray:3 3;
 
 > 引擎产出的每一份预演都是帮助他人发现可能性的内容。Star 这个仓库，帮助更多人找到它。
 
-[![Star History Chart](https://api.star-history.com/svg?repos=xiaojilele-glitch/WhyBuddy&type=Date)](https://star-history.com/#xiaojilele-glitch/WhyBuddy&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=xiaojilele-glitch/SlideRule&type=Date)](https://star-history.com/#xiaojilele-glitch/SlideRule&Date)
 
 ---
 
 <p align="center">
-  <a href="./LICENSE"><strong>MIT 协议</strong></a> · 托管于 <a href="https://github.com/xiaojilele-glitch/WhyBuddy">xiaojilele-glitch/WhyBuddy</a>
+  <a href="./LICENSE"><strong>MIT 协议</strong></a> · 托管于 <a href="https://github.com/xiaojilele-glitch/SlideRule">xiaojilele-glitch/SlideRule</a>
 </p>

@@ -94,7 +94,7 @@ export interface AutopilotSpecDocumentsWorkbenchProps {
   /** 当前蓝图 job 对象，用于底部执行步骤区域复用 `MiroFishCardStream` 派生。 */
   job?: BlueprintGenerationJob | null;
   /**
-   * whybuddy-stage3-unblock-2026-05-29 — 进入效果预演（stage 3）回调。
+   * sliderule-stage3-unblock-2026-05-29 — 进入效果预演（stage 3）回调。
    * 透传给 `WorkbenchStatusBar`。
    */
   onEnterEffectPreview?: () => void;
@@ -103,7 +103,7 @@ export interface AutopilotSpecDocumentsWorkbenchProps {
   /** 进入效果预演按钮的禁用条件。透传给 `WorkbenchStatusBar`。 */
   effectPreviewDisabled?: boolean;
   /**
-   * whybuddy-spec-tree-progress-merge-2026-05-29：每节点生成进度快照，
+   * sliderule-spec-tree-progress-merge-2026-05-29：每节点生成进度快照，
    * 透传给 `WorkbenchSpecTree` 渲染节点行状态图标。由 `AutopilotRightRail`
    * 从 `specDocsProgress.nodes` 派生。
    */
@@ -486,7 +486,7 @@ export const AutopilotSpecDocumentsWorkbench: FC<
       data-expanded={docExpanded ? "true" : undefined}
       role="region"
       aria-label="autopilot spec documents workbench"
-      // whybuddy-stage3-unblock-2026-05-29 — 用户反馈 spec 文档驾驶舱外
+      // sliderule-stage3-unblock-2026-05-29 — 用户反馈 spec 文档驾驶舱外
       // 包浅灰 (#f6f8fb) + p-1.5 + rounded + border + shadow 与右栏整体
       // 视觉割裂，且与内部各个子面板自带的边框 / 背景重复。这里改成完全
       // 透明无内边距的 grid 容器，让内部 4 个子区域（status / tree /

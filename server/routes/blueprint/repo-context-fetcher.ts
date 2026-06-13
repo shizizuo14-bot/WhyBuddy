@@ -58,7 +58,7 @@ export async function fetchRepoContext(
 
     const headers: Record<string, string> = {
       "Accept": "application/vnd.github.v3+json",
-      "User-Agent": "whybuddy-blueprint",
+      "User-Agent": "sliderule-blueprint",
     };
     // 如果有 GitHub token 可以提高 rate limit
     const ghToken = process.env.GITHUB_TOKEN ?? process.env.GH_TOKEN;

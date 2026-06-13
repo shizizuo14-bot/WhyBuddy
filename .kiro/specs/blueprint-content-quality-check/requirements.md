@@ -2,7 +2,7 @@
 
 ## 简介
 
-Blueprint 管线中的 Content Quality Check（内容质量校验）是 WhyBuddy Skill 闭环架构 v4
+Blueprint 管线中的 Content Quality Check（内容质量校验）是 SlideRule Skill 闭环架构 v4
 中 `QA_CONTENT` 节点的 Web 端实现。它对 SPEC 文档（requirements.md / design.md / tasks.md）
 进行结构性和语义性质量校验，验证文档内容是否"成立"（非空壳/占位符），并检查需求文档中的
 验收标准是否遵循 EARS 句式（WHEN/WHILE/IF/THEN/THE/SHALL）。

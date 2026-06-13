@@ -1,5 +1,5 @@
 /**
- * whybuddy-3d-real-role-driven-scene-2026-05-29 — capability→role binding tests
+ * sliderule-3d-real-role-driven-scene-2026-05-29 — capability→role binding tests
  *
  * Pure Vitest coverage for `capability-role-binding.ts`. No Three.js, no React,
  * no DOM: every assertion targets the deterministic binding helper and the

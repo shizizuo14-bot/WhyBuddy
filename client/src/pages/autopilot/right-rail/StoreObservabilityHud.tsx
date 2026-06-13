@@ -37,7 +37,7 @@ import { FleetActivationLog } from "./FleetActivationLog";
  *
  * 也可以作为右栏底部的内联挂载点；本组件不强制要求父级提供 absolute 定位。
  *
- * whybuddy-3d-real-role-driven-scene-2026-05-29 修订：移除 `<RoleStatusStrip />`，
+ * sliderule-3d-real-role-driven-scene-2026-05-29 修订：移除 `<RoleStatusStrip />`，
  * 角色身份 / 状态已由 3D 真实角色承载；`<CapabilityRail />` 现在只承载能力调用
  * 明细面板（顶部全量能力 pills 已移除，由 3D 角色桌前 chips 承载）。
  */

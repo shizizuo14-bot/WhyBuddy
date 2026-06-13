@@ -113,7 +113,7 @@ interface CollapsedNodeGroupProps {
 ### ReasoningCard
 
 实际实现已对齐 mirofish-demo/console 视觉（白底 + #E5E5E5 边框 + 0 圆角），并在
-whybuddy-3d-real-role-driven-scene-2026-05-29 reasoning-detail（2026-05-31）把
+sliderule-3d-real-role-driven-scene-2026-05-29 reasoning-detail（2026-05-31）把
 单字段 fallback 升级为「每个存在字段各自成行」，让一条同时带 think→act→observe 的
 entry 完整展开，不再被压成一行。
 

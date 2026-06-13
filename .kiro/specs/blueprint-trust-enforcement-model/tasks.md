@@ -124,7 +124,7 @@ adds no new branch for Trust Gates, and never touches the advisory/non-blocking 
       critic/grounding, traceability matrix, preview/output audit) (3.1)
     - For each node record `appModel`/`skillModel` (3.2), a non-empty `divergenceReason` for every
       diverging node (3.3), and the App artifact (env flag / route / component) + Skill artifact
-      script path under `skills/whybuddy/whybuddy/scripts/**` (3.4)
+      script path under `skills/sliderule/sliderule/scripts/**` (3.4)
     - Set `redLine` to the ADR's verbatim string asserted to hold across all nodes (3.5); link to the ADR
     - _Requirements: 3.1, 3.2, 3.3, 3.4, 3.5_
 
@@ -143,7 +143,7 @@ adds no new branch for Trust Gates, and never touches the advisory/non-blocking 
       runnable by the existing Vitest runner (4.5)
     - Mapping-drift check (4.1): for each contract node, assert the codebase reality matches — App env
       flag present in `TRUST_GATE_ENABLEMENT_KEYS`, route/component exists; Skill script file exists
-      under `skills/whybuddy/whybuddy/scripts/**`
+      under `skills/sliderule/sliderule/scripts/**`
     - Red Line check (4.2): scan App trust-surface sources (the 5 gate services and the `right-rail`
       trust panel text incl. `TrustSection.tsx`) using a denylist derived from the ADR canonical concepts
     - Pass condition (4.3): mapping matches and no Red Line assertion found

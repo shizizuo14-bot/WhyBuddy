@@ -2,7 +2,7 @@
 
 ## 概述
 
-本设计将 WhyBuddy Skill 闭环架构 v4 中的 `QA_LEDGER` 节点实现为 Web 端 Blueprint 管线的
+本设计将 SlideRule Skill 闭环架构 v4 中的 `QA_LEDGER` 节点实现为 Web 端 Blueprint 管线的
 校验台账模块。模块遵循现有 closure-based factory 模式（与 `createSpecTreeLlmService` /
 `createEffectPreviewLlmService` 一致），通过 `BlueprintServiceContext` 注入所有依赖，不使用
 模块级单例。

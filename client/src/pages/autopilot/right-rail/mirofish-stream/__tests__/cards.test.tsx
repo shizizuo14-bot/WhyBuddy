@@ -138,7 +138,7 @@ describe("ReasoningCard", () => {
     expect(markup).toContain("LLM 调用失败");
   });
 
-  // whybuddy-3d-real-role-driven-scene-2026-05-29 reasoning-detail 2026-05-31：
+  // sliderule-3d-real-role-driven-scene-2026-05-29 reasoning-detail 2026-05-31：
   // 一条同时携带 thought / action / observation 的 entry 应把三段都展开显示，
   // 而不是 fallback-pick-one 只显示 thought。
   it("一条 entry 同时带 thought + action + observation 时三段都展开", () => {

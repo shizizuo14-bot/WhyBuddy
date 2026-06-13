@@ -10,7 +10,7 @@ import {
   isProjectTasksPath,
   PROJECTS_PATH,
   REPLAY_PATH_PREFIX,
-  WHYBUDDY_PATH,
+  SLIDERULE_PATH,
 } from "@/components/navigation-config";
 import { ReplayPage } from "@/components/replay/ReplayPage";
 import DebugPage from "@/pages/debug/DebugPage";
@@ -44,8 +44,8 @@ import AuthPage from "./pages/auth/AuthPage";
 import SpecCenterPage from "./pages/specs/SpecCenterPage";
 import { TaskDetailPage, TasksPage } from "./pages/tasks";
 import AutopilotSpecDocumentsWorkbenchFixturePage from "./pages/autopilot/right-rail/streaming-doc/workbench/WorkbenchFixturePage";
-import WhyBuddyPage from "./pages/WhyBuddy";
-import WhyBuddyDevPage from "./pages/WhyBuddyDev";
+import SlideRulePage from "./pages/SlideRule";
+import SlideRuleDevPage from "./pages/SlideRuleDev";
 
 const routerBase =
   import.meta.env.BASE_URL === "/"
@@ -57,7 +57,7 @@ function Router() {
     <Switch>
       <Route path={"/"}>
         {() => (
-          <RedirectRoute to={IS_GITHUB_PAGES ? WHYBUDDY_PATH : PROJECTS_PATH} />
+          <RedirectRoute to={IS_GITHUB_PAGES ? SLIDERULE_PATH : PROJECTS_PATH} />
         )}
       </Route>
       <Route path={PROJECTS_PATH}>{() => <ProjectCockpitHome />}</Route>
@@ -137,11 +137,11 @@ function Router() {
       />
       <Route path={"/debug"} component={DebugPage} />
       <Route path={"/debug/:section"} component={DebugPage} />
-      <Route path={`${WHYBUDDY_PATH}/dev`} component={WhyBuddyDevPage} />
-      <Route path={WHYBUDDY_PATH} component={WhyBuddyPage} />
-      {/* V5 chrome-free workspace: WhyBuddy is deliberately isolated from the old stage sequencer / AppShell chrome.
+      <Route path={`${SLIDERULE_PATH}/dev`} component={SlideRuleDevPage} />
+      <Route path={SLIDERULE_PATH} component={SlideRulePage} />
+      {/* V5 chrome-free workspace: SlideRule is deliberately isolated from the old stage sequencer / AppShell chrome.
           All guards, sidebar, mobile tab, config panel, and project-workspace auth checks are skipped for this route
-          (see isChromeFree / isWhyBuddyLocation / isProjectWorkspaceLocation above). This keeps the V5 demo clean.
+          (see isChromeFree / isSlideRuleLocation / isProjectWorkspaceLocation above). This keeps the V5 demo clean.
           V5 session state is managed via the runtime's per-sessionId store (loadOrCreate / save by sessionId)
           — completely independent of project/auth/recovery stores. */}
       <Route path={"/command-center/legacy"}>
@@ -275,10 +275,10 @@ function AuthBootstrap() {
 
   useEffect(() => {
     if (IS_GITHUB_PAGES) return;
-    // V5 /whybuddy is chrome-free and deliberately isolated from auth/project stores.
+    // V5 /sliderule is chrome-free and deliberately isolated from auth/project stores.
     // Skip fetchMe here to eliminate the unconditional 401 console noise on the demo route
     // (the route already skips RecoveryGuard, AuthRouteGuard, sidebar, etc. via isChromeFree).
-    if (isWhyBuddyLocation(typeof window !== 'undefined' ? window.location.pathname : '')) return;
+    if (isSlideRuleLocation(typeof window !== 'undefined' ? window.location.pathname : '')) return;
     void fetchMe();
   }, [fetchMe]);
 
@@ -291,8 +291,8 @@ function AuthProjectOwnerBridge() {
 
   useEffect(() => {
     if (IS_GITHUB_PAGES) return;
-    // Same isolation: no owner bridging for the standalone V5 whybuddy workspace.
-    if (isWhyBuddyLocation(typeof window !== 'undefined' ? window.location.pathname : '')) return;
+    // Same isolation: no owner bridging for the standalone V5 sliderule workspace.
+    if (isSlideRuleLocation(typeof window !== 'undefined' ? window.location.pathname : '')) return;
     setActiveOwner(currentUserId);
   }, [currentUserId, setActiveOwner]);
 
@@ -314,15 +314,15 @@ function isAuthLocation(location: string) {
   return pathname === "/login";
 }
 
-function isWhyBuddyLocation(location: string) {
+function isSlideRuleLocation(location: string) {
   const [pathname] = location.trim().split(/[?#]/, 1);
-  return pathname === WHYBUDDY_PATH || pathname.startsWith(`${WHYBUDDY_PATH}/`);
+  return pathname === SLIDERULE_PATH || pathname.startsWith(`${SLIDERULE_PATH}/`);
 }
 
 export function isProjectWorkspaceLocation(location: string) {
   const [pathname] = location.trim().split(/[?#]/, 1);
   if (pathname === "" || pathname === "/") return true;
-  if (isWhyBuddyLocation(location)) return false; // V5 WhyBuddy is independent chrome-free workspace
+  if (isSlideRuleLocation(location)) return false; // V5 SlideRule is independent chrome-free workspace
   return (
     pathname.startsWith(PROJECTS_PATH) ||
     pathname === AUTOPILOT_PATH ||
@@ -365,8 +365,8 @@ export function AppShell() {
   const sidebarWidth = isMobile ? 0 : sidebarCollapsed ? 64 : 248;
   const isHome = isHomeLocation(location);
   const isAuth = isAuthLocation(location);
-  const isWhyBuddy = isWhyBuddyLocation(location);
-  const isChromeFree = isHome || isAuth || isWhyBuddy;
+  const isSlideRule = isSlideRuleLocation(location);
+  const isChromeFree = isHome || isAuth || isSlideRule;
 
   return (
     <>

@@ -2,7 +2,7 @@
 
 ## 简介
 
-Blueprint 管线中的 Quality Gate Checks Ledger（校验台账）是 WhyBuddy Skill 闭环架构 v4 中
+Blueprint 管线中的 Quality Gate Checks Ledger（校验台账）是 SlideRule Skill 闭环架构 v4 中
 `QA_LEDGER` 节点的 Web 端实现。它作为管线的责任中心，统一记录所有校验步骤的结果，包括
 Schema 校验、不变量守卫、测试、内容质量检查、合并门禁、伴生层追踪与预览审计等。
 

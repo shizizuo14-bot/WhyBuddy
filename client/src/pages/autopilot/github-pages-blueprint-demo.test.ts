@@ -170,7 +170,7 @@ describe("github-pages-blueprint-demo", () => {
       },
     };
     storageLike.setItem(
-      "whybuddy:autopilot:pages-blueprint-demo",
+      "sliderule:autopilot:pages-blueprint-demo",
       JSON.stringify({
         sequence: 42,
         job: {

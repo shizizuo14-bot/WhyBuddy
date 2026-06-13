@@ -1,5 +1,5 @@
 /**
- * whybuddy-spec-tree-progress-merge-2026-05-29：从已删除的
+ * sliderule-spec-tree-progress-merge-2026-05-29：从已删除的
  * `SpecDocsProgressPanel.tsx` 抽出的纯工具函数。原浮层组件随进度合并到
  * SPEC 树节点行而删除，但 `formatElapsedTime` 是无依赖的纯函数，被
  * `format-elapsed-time.property.test.ts`（25-case PBT）守护，迁出到此独立

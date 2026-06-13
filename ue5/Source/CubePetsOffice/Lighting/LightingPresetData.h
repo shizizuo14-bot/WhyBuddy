@@ -1,4 +1,4 @@
-// Copyright WhyBuddy. All Rights Reserved.
+// Copyright SlideRule. All Rights Reserved.
 //
 // Lighting Preset Data — UE5-compatible constants for the office lighting
 // system, including directional light, rect lights, point lights, four

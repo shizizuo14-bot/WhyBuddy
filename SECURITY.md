@@ -2,7 +2,7 @@
 
 ## Supported Versions
 
-WhyBuddy is in early active development. Security fixes are handled on the main development line unless a maintainer explicitly announces supported release branches.
+SlideRule is in early active development. Security fixes are handled on the main development line unless a maintainer explicitly announces supported release branches.
 
 | Version | Supported |
 | ------- | --------- |

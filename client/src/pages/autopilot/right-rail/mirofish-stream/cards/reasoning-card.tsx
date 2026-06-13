@@ -3,7 +3,7 @@
  *
  * 独立的推理卡片组件，展示 Agent 思考/执行/观察过程。
  *
- * 视觉特征（whybuddy-rebrand-and-stage3-unblock-2026-05-28 §D refinement
+ * 视觉特征（sliderule-rebrand-and-stage3-unblock-2026-05-28 §D refinement
  * 2026-05-29，对齐 mirofish-demo/console 真实视觉语言）：
  * - 卡片：白色背景 + 1px solid #E5E5E5 边框 + 0 radius + 无阴影
  * - 左侧 2px 实色条：thinking → #FF4500，observing → #666666，acting → #000000
@@ -11,7 +11,7 @@
  * - 推理文本：JetBrains Mono，#000，line-height 1.55
  * - 进入动画：animate-mirofish-fade-in（保留）
  *
- * 信息密度增强（whybuddy-3d-real-role-driven-scene-2026-05-29 reasoning-detail
+ * 信息密度增强（sliderule-3d-real-role-driven-scene-2026-05-29 reasoning-detail
  * 2026-05-31）：
  * - 旧实现对每条 entry 只 fallback-pick-one 字段（thought / action / observation
  *   / reason / error 取其一），导致一条同时带 think→act→observe 的 entry 在卡片上

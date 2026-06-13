@@ -122,7 +122,7 @@ interface ProjectEvidence {
 第一阶段使用 localStorage：
 
 ```text
-whybuddy.project-store.v1
+sliderule.project-store.v1
 ```
 
 持久化内容包括：

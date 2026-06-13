@@ -1,5 +1,5 @@
 /**
- * V5.1 架构图节点 ID → 产品时间线展示（docs/whybuddy_v5.1.md §二）
+ * V5.1 架构图节点 ID → 产品时间线展示（docs/sliderule_v5.1.md §二）
  * IM 操纵杆只标控制平面 / 能力池节点，不输出 REPORT 结论叙述。
  * 展示名与架构图 SVG / mermaid 一致（双语短标题）。
  */
@@ -48,7 +48,7 @@ export type V51CapabilityNodeId =
   | "C_ACC"
   | "C_PACK";
 
-/** 架构图节点真实展示名（与 whybuddy_v5.1.md mermaid 对齐） */
+/** 架构图节点真实展示名（与 sliderule_v5.1.md mermaid 对齐） */
 export const V51_CONTROL_LABELS: Record<V51ControlNodeId, string> = {
   CHAT: "聊天框 = 操纵杆",
   STATUS: "状态条（唯一常驻）",

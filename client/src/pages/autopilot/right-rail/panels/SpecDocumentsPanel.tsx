@@ -35,7 +35,7 @@ import type { BlueprintSpecDocument } from "@shared/blueprint/contracts";
  * `undefined` 有现成的降级路径（需求 2.9 / 设计文档「extra props 与 callback
  * 的处理规则」）。
  *
- * whybuddy-stage3-unblock-2026-05-29 增补：补充
+ * sliderule-stage3-unblock-2026-05-29 增补：补充
  * `onEffectPreviewGenerated` 私有字段，用于把"进入效果预演"按钮的
  * 后端响应回写到上层 `latestJob` / `effectPreviews`。当父组件未提供
  * 时，`SpecDocumentWorkbenchPanel` 内部的 fallback 仍然会把预演快照

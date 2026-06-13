@@ -1,4 +1,4 @@
-// Copyright WhyBuddy. All Rights Reserved.
+// Copyright SlideRule. All Rights Reserved.
 //
 // BP_LightingPreset — Blueprint-compatible lighting preset actor.
 //

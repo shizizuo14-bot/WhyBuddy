@@ -354,7 +354,7 @@ describe("POST /api/chat/nodes/execute", () => {
         results: {
           input: {
             sessionId: "session-2",
-            sourceApp: "whybuddy",
+            sourceApp: "sliderule",
           },
         },
         created_at: "2026-04-22T00:00:00.000Z",

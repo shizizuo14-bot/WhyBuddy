@@ -2,7 +2,7 @@
 
 ## Introduction
 
-本规格聚焦于提升 Web 前端 SPEC 树生成流程的**感知性能（perceived performance）**与**状态一致性（state consistency）**，使其在用户主观体验上更接近离线 Skill 产物（`whybuddy_scm_phase1/`、`skills/whybuddy/` 下的 `spec_tree.json` / `route_options` / 预览 PNG）那种"丝滑"的即时感。
+本规格聚焦于提升 Web 前端 SPEC 树生成流程的**感知性能（perceived performance）**与**状态一致性（state consistency）**，使其在用户主观体验上更接近离线 Skill 产物（`sliderule_scm_phase1/`、`skills/sliderule/` 下的 `spec_tree.json` / `route_options` / 预览 PNG）那种"丝滑"的即时感。
 
 背景与根因（已分析，不在本规格内重新调查）：
 

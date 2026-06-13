@@ -1,5 +1,5 @@
 /**
- * whybuddy-3d-real-role-driven-scene-2026-05-29 — Task 20
+ * sliderule-3d-real-role-driven-scene-2026-05-29 — Task 20
  *
  * Blueprint runtime component harness tests (P1-P10). Built entirely on the
  * Task-19 helper at `./__helpers__/blueprint-harness`, following its documented
@@ -755,7 +755,7 @@ describe("P10 Scene3D DOM marker", () => {
   // shape and placement from source is robust and avoids SSR-rendering the full
   // canvas tree. The marker must carry data-mode={mode} and sit adjacent to
   // (after) </Canvas>.
-  it("renders the whybuddy-3d-shell marker with data-mode adjacent to </Canvas>", async () => {
+  it("renders the sliderule-3d-shell marker with data-mode adjacent to </Canvas>", async () => {
     const fs = await import("node:fs/promises");
     const path = await import("node:path");
     const source = await fs.readFile(
@@ -765,12 +765,12 @@ describe("P10 Scene3D DOM marker", () => {
 
     // The marker exists, carries the active data-mode, and is the documented shape.
     expect(source).toMatch(
-      /<div\s+data-testid="whybuddy-3d-shell"\s+data-mode=\{mode\}\s*\/>/
+      /<div\s+data-testid="sliderule-3d-shell"\s+data-mode=\{mode\}\s*\/>/
     );
 
     // It is a sibling AFTER the canvas close, never inside <Canvas>.
     const canvasCloseIdx = source.indexOf("</Canvas>");
-    const markerIdx = source.indexOf('data-testid="whybuddy-3d-shell"');
+    const markerIdx = source.indexOf('data-testid="sliderule-3d-shell"');
     expect(canvasCloseIdx).toBeGreaterThan(-1);
     expect(markerIdx).toBeGreaterThan(canvasCloseIdx);
   });

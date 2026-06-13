@@ -6,8 +6,8 @@ This is the human-readable half of the `Parity_Contract` for the
 `server/routes/blueprint/runtime-enablement/parity-contract.ts`
 (`PARITY_CONTRACT`).
 
-It maps each enforcement-relevant node of the WhyBuddy v4 closed-loop diagram
-(`docs/assets/WhyBuddyArc/WhyBuddySkill闭环总图_改进版v4.md`) to the enforcement
+It maps each enforcement-relevant node of the SlideRule v4 closed-loop diagram
+(`docs/assets/SlideRuleArc/SlideRuleSkill闭环总图_改进版v4.md`) to the enforcement
 model it uses in the **App** (Track A) vs the **Skill** (Track B), records why
 the two diverge, and names the concrete artifacts that implement each node's
 enforcement. The two tracks can therefore be compared node-by-node, and
@@ -46,11 +46,11 @@ unattended-agent-host (Skill) distinction.
 
 | Node | `nodeId` | App model | Skill model | App artifact | Skill artifact |
 | --- | --- | --- | --- | --- | --- |
-| Checks ledger | `checks-ledger` | advisory | hard-gate | `BLUEPRINT_CHECKS_LEDGER_ENABLED` · `server/routes/blueprint/checks-ledger/service.ts` · `ChecksLedgerPanel.tsx` | `skills/whybuddy/whybuddy/scripts/gate.py` |
-| Content-quality check | `content-quality` | advisory | hard-gate | `BLUEPRINT_CONTENT_QUALITY_CHECK_ENABLED` · `server/routes/blueprint/content-quality/service.ts` | `skills/whybuddy/whybuddy/scripts/check_content_quality.py` |
-| Companion critic/grounding | `companion` | advisory | hard-gate | `BLUEPRINT_COMPANION_ENABLED` · `server/routes/blueprint/companion/service.ts` · `CompanionFindingsPanel.tsx` | `skills/whybuddy/whybuddy/scripts/check_companion.py` |
-| Traceability matrix | `traceability-matrix` | advisory | hard-gate | `BLUEPRINT_TRACEABILITY_MATRIX_ENABLED` · `server/routes/blueprint/traceability-matrix/service.ts` · `TraceabilityMatrixPanel.tsx` | `skills/whybuddy/whybuddy/scripts/validate_spec_tree.py` |
-| Preview/output audit | `preview-audit` | advisory | hard-gate | `BLUEPRINT_PREVIEW_AUDIT_ENABLED` · `server/routes/blueprint/preview-audit/service.ts` | `skills/whybuddy/whybuddy/scripts/check_previews_real.py` |
+| Checks ledger | `checks-ledger` | advisory | hard-gate | `BLUEPRINT_CHECKS_LEDGER_ENABLED` · `server/routes/blueprint/checks-ledger/service.ts` · `ChecksLedgerPanel.tsx` | `skills/sliderule/sliderule/scripts/gate.py` |
+| Content-quality check | `content-quality` | advisory | hard-gate | `BLUEPRINT_CONTENT_QUALITY_CHECK_ENABLED` · `server/routes/blueprint/content-quality/service.ts` | `skills/sliderule/sliderule/scripts/check_content_quality.py` |
+| Companion critic/grounding | `companion` | advisory | hard-gate | `BLUEPRINT_COMPANION_ENABLED` · `server/routes/blueprint/companion/service.ts` · `CompanionFindingsPanel.tsx` | `skills/sliderule/sliderule/scripts/check_companion.py` |
+| Traceability matrix | `traceability-matrix` | advisory | hard-gate | `BLUEPRINT_TRACEABILITY_MATRIX_ENABLED` · `server/routes/blueprint/traceability-matrix/service.ts` · `TraceabilityMatrixPanel.tsx` | `skills/sliderule/sliderule/scripts/validate_spec_tree.py` |
+| Preview/output audit | `preview-audit` | advisory | hard-gate | `BLUEPRINT_PREVIEW_AUDIT_ENABLED` · `server/routes/blueprint/preview-audit/service.ts` | `skills/sliderule/sliderule/scripts/check_previews_real.py` |
 
 ## Divergence reasons
 

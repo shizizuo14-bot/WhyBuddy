@@ -49,7 +49,7 @@ const adapterMap: Record<SingleFramework, (ir: ExportIR) => ExportFile[]> = {
 function generateReadme(framework: ExportFramework, ir: ExportIR): string {
   const lines: string[] = [];
 
-  lines.push(`# WhyBuddy — Export`);
+  lines.push(`# SlideRule — Export`);
   lines.push(``);
   lines.push(`> Exported from workflow \`${ir.source.workflowId}\``);
   lines.push(`> Directive: ${ir.source.directive}`);

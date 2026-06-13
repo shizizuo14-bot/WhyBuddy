@@ -2,11 +2,11 @@
 
 - **Status:** Accepted
 - **Spec:** `blueprint-trust-enforcement-model`
-- **Scope:** The WhyBuddy v4 closed-loop trust architecture, realized by two parallel tracks — the in-app TypeScript "blueprint" pipeline (Track A, "the App") and the portable Claude Skill under `skills/whybuddy/**` (Track B, "the Skill").
+- **Scope:** The SlideRule v4 closed-loop trust architecture, realized by two parallel tracks — the in-app TypeScript "blueprint" pipeline (Track A, "the App") and the portable Claude Skill under `skills/sliderule/**` (Track B, "the Skill").
 
 ## Context
 
-The v4 closed-loop diagram (`docs/assets/WhyBuddyArc/WhyBuddySkill闭环总图_改进版v4.md`) is implemented twice:
+The v4 closed-loop diagram (`docs/assets/SlideRuleArc/SlideRuleSkill闭环总图_改进版v4.md`) is implemented twice:
 
 - **Track A — the App:** the blueprint pipeline mounted at `/api/blueprint`, the `shared/blueprint/**` contracts, and the autopilot right-rail `TrustSection` (`ChecksLedgerPanel` / `TraceabilityMatrixPanel` / `CompanionFindingsPanel`). It runs as a **supervised cockpit** — a human watches the right-rail in real time.
 - **Track B — the Skill:** Python scripts with `gate.py` hard gates and a user-run `check_previews_real.py` audit. It runs in an **unattended agent host** where the agent itself may cheat.

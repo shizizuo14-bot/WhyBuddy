@@ -8,7 +8,7 @@ vi.mock("@/lib/blueprint-realtime-store", () => {
       rolePhases: {} as Record<string, unknown>,
       agentProgress: {} as Record<string, unknown>,
       capabilityStatuses: [] as unknown[],
-      // whybuddy-spec-tree-progress-merge-2026-05-29 §6：fixture page 现在派生
+      // sliderule-spec-tree-progress-merge-2026-05-29 §6：fixture page 现在派生
       // specDocsProgress.nodes → nodeStatusById 透传给 workbench；mock snapshot
       // 必须包含该 slice，避免 selector 命中 undefined。
       specDocsProgress: { nodes: {} as Record<string, never> },

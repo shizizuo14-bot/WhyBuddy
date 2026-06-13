@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
-import { executeOrchestratePlan } from "../server/whybuddy/orchestrate-plan.js";
+import { executeOrchestratePlan } from "../server/sliderule/orchestrate-plan.js";
 
 const state = {
   sessionId: "d1-diag",

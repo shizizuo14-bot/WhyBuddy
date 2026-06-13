@@ -12594,7 +12594,7 @@ function evaluateCapabilitySafetyGate(
 }
 
 // ─────────────────────────────────────────────────────────────────────────
-// reasoning-detail Wave 2（whybuddy-3d-real-role-driven-scene-2026-05-29 /
+// reasoning-detail Wave 2（sliderule-3d-real-role-driven-scene-2026-05-29 /
 // 2026-05-31）：route_generation 与 spec_tree 第二轮 ReAct 的"形态摘要"
 // 纯函数。提取出来便于单测直接锁住空数据保护与真实事实聚合，不依赖整个
 // route handler / LLM mock / 全局环境旗标，避免事件级回归被 BUILD_TARGET=test

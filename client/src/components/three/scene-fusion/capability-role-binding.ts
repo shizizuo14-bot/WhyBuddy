@@ -1,5 +1,5 @@
 /**
- * whybuddy-3d-real-role-driven-scene-2026-05-29 — capability→role binding
+ * sliderule-3d-real-role-driven-scene-2026-05-29 — capability→role binding
  *
  * Pure, Three.js-free helpers that bind live capability invocations
  * (`BlueprintRealtimeStore.capabilityStatuses`, keyed by `capabilityId`) to the

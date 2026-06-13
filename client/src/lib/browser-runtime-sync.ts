@@ -186,7 +186,7 @@ export async function buildBrowserRuntimeExport(): Promise<{
   await markRuntimeExported(bundle.exportedAt);
 
   return {
-    fileName: `whybuddy-browser-runtime-${bundle.exportedAt
+    fileName: `sliderule-browser-runtime-${bundle.exportedAt
       .replace(/[:.]/g, "-")
       .replace("T", "__")
       .replace("Z", "")}.json`,

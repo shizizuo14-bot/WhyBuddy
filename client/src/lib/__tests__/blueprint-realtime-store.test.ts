@@ -1041,7 +1041,7 @@ describe("BlueprintRealtimeStore", () => {
 });
 
 // ---------------------------------------------------------------------------
-// whybuddy-3d-real-role-driven-scene-2026-05-29 Requirement 10 (Fix 1):
+// sliderule-3d-real-role-driven-scene-2026-05-29 Requirement 10 (Fix 1):
 // role.agent.* reasoning events drive rolePhases.
 //
 // mapEventTypeToPhase 现在为 7 个 role.agent.* 事件返回阶段，使其经由既有

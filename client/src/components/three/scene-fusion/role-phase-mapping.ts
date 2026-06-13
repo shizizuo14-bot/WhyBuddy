@@ -1,5 +1,5 @@
 /**
- * whybuddy-spec-tree-progress-merge-2026-05-29 follow-up：
+ * sliderule-spec-tree-progress-merge-2026-05-29 follow-up：
  * 把原 `PetWorkers.tsx` 顶部的两个非 React 工具函数迁出到独立模块，
  * 让 `PetWorkers.tsx` 重新成为「纯 React 组件文件」。
  *

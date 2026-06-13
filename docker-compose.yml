@@ -1,12 +1,12 @@
-# WhyBuddy — one-command bootstrap
+# SlideRule — one-command bootstrap
 #
 #   docker compose up
 #
 # This boots:
-#   - app   → the WhyBuddy server + bundled frontend on http://localhost:3000
+#   - app   → the SlideRule server + bundled frontend on http://localhost:3000
 #             (the container internally listens on 3001; we publish 3000:3001)
-#   - mysql → MySQL 8 with the whybuddy schema (legacy DB name kept
-#             for backward compatibility; project name is whybuddy)
+#   - mysql → MySQL 8 with the sliderule schema (legacy DB name kept
+#             for backward compatibility; project name is sliderule)
 #
 # What is NOT included in this compose:
 #   - Lobster Executor (Docker-in-Docker is messy; opt in separately)
@@ -19,14 +19,14 @@
 services:
   mysql:
     image: mysql:8.0
-    container_name: whybuddy-mysql
+    container_name: sliderule-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-whybuddy_root_change_me}
-      MYSQL_DATABASE: ${DB_NAME:-whybuddy}
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD:-sliderule_root_change_me}
+      MYSQL_DATABASE: ${DB_NAME:-sliderule}
     ports:
       - "${DB_PORT:-3306}:3306"
     volumes:
-      - whybuddy-mysql-data:/var/lib/mysql
+      - sliderule-mysql-data:/var/lib/mysql
     healthcheck:
       test:
         [
@@ -36,7 +36,7 @@ services:
           "-h",
           "127.0.0.1",
           "-uroot",
-          "-p${DB_PASSWORD:-whybuddy_root_change_me}",
+          "-p${DB_PASSWORD:-sliderule_root_change_me}",
         ]
       interval: 5s
       timeout: 3s
@@ -48,8 +48,8 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
-    image: whybuddy:local
-    container_name: whybuddy-app
+    image: sliderule:local
+    container_name: sliderule-app
     depends_on:
       mysql:
         condition: service_healthy
@@ -60,14 +60,14 @@ services:
       PORT: 3001
       DB_HOST: mysql
       DB_PORT: 3306
-      DB_NAME: ${DB_NAME:-whybuddy}
+      DB_NAME: ${DB_NAME:-sliderule}
       DB_USER: ${DB_USER:-root}
-      DB_PASSWORD: ${DB_PASSWORD:-whybuddy_root_change_me}
+      DB_PASSWORD: ${DB_PASSWORD:-sliderule_root_change_me}
       CORS_ORIGIN: http://localhost:3000
     ports:
       - "3000:3001"
     restart: unless-stopped
 
 volumes:
-  whybuddy-mysql-data:
-    name: whybuddy-mysql-data
+  sliderule-mysql-data:
+    name: sliderule-mysql-data

@@ -92,7 +92,7 @@ describe("BlueprintRealtimeStore refresh replay", () => {
     await Promise.resolve();
 
     const state = useBlueprintRealtimeStore.getState();
-    // whybuddy-3d-real-role-driven-scene-2026-05-29 Requirement 10 (Fix 1):
+    // sliderule-3d-real-role-driven-scene-2026-05-29 Requirement 10 (Fix 1):
     // role.agent.thinking now maps to a RolePhase and flows into rolePhases via
     // the existing `role.`-prefix branch. The replayed sequence ends with
     // role.agent.thinking for `planner`, so the spec-correct final phase is

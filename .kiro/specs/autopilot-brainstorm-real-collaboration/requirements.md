@@ -4,7 +4,7 @@ Autopilot Brainstorm Real Collaboration — 把启发式「辩论」升级为真
 
 ## Introduction
 
-WhyBuddy 第二阶段（SPEC 树 / SPEC 文档）的 brainstorm 「伴随运行时」已经接通（见 `autopilot-brainstorm-companion-runtime`）：key pool 并发驱动多角色、主模型综合 + 审计、辩论图投影到 3D 墙。但**协作的核心仍是启发式的**，所以「多智能体辩论真正落地」这件事没落地：
+SlideRule 第二阶段（SPEC 树 / SPEC 文档）的 brainstorm 「伴随运行时」已经接通（见 `autopilot-brainstorm-companion-runtime`）：key pool 并发驱动多角色、主模型综合 + 审计、辩论图投影到 3D 墙。但**协作的核心仍是启发式的**，所以「多智能体辩论真正落地」这件事没落地：
 
 经核验，`server/routes/blueprint/brainstorm/deliberation-protocol.ts` 的当前实现是「扇出 + 正则刮取」：
 

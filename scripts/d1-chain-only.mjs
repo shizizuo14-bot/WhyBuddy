@@ -1,6 +1,6 @@
 import dotenv from "dotenv";
 dotenv.config();
-import { executeDialogueCapability } from "../server/whybuddy/dialogue-exec-map.js";
+import { executeDialogueCapability } from "../server/sliderule/dialogue-exec-map.js";
 
 const goal = { text: "权限系统 RBAC+数据范围", status: "needs_refinement" };
 const gen = await executeDialogueCapability({

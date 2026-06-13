@@ -104,7 +104,7 @@ export type BlueprintCapabilityEvidenceStatus =
  * V5 Capability Pool taxonomy (定型版).
  * 旧的 BlueprintGenerationStage 仅保留为 UI/artifact/history/compat 标签。
  * 真实调度以 V5CapabilityId + (capability, role) 对进行。
- * 详见 docs/WhyBuddyV5CapabilityPool.md 和 WhyBuddyV5闭环总图_完整版.md
+ * 详见 docs/SlideRuleV5CapabilityPool.md 和 SlideRuleV5闭环总图_完整版.md
  */
 export type V5CapabilityId =
   | "intent.parse"

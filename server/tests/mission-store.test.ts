@@ -184,7 +184,7 @@ describe('MissionStore', () => {
 
     store.patchExecution(mission.id, {
       projection: {
-        sourceApp: 'whybuddy',
+        sourceApp: 'sliderule',
       },
     });
 
@@ -197,7 +197,7 @@ describe('MissionStore', () => {
       instanceId: 'wf-projection',
       replayId: 'wf-projection',
       sessionId: 'session-projection',
-      sourceApp: 'whybuddy',
+      sourceApp: 'sliderule',
     });
   });
 

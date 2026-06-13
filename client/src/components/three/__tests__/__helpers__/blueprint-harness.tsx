@@ -1,5 +1,5 @@
 /**
- * whybuddy-3d-real-role-driven-scene-2026-05-29 — Task 19
+ * sliderule-3d-real-role-driven-scene-2026-05-29 — Task 19
  *
  * Server-render component harness helpers for the blueprint runtime scene.
  *
@@ -20,7 +20,7 @@
  * `renderToStaticMarkup` does NOT run `useEffect` or `useFrame`. Two practical
  * consequences for `BlueprintRuntimeAgents`:
  *
- *   1. The DEV scene bridge (`window.__whybuddy3dScene`) and the
+ *   1. The DEV scene bridge (`window.__sliderule3dScene`) and the
  *      `subscribeBlueprintRealtimeEvents` subscription are installed inside
  *      effects, so they never attach under SSR. Drive the event path through
  *      the PURE data path instead — call `deriveConnectionLines(...)` /
@@ -44,7 +44,7 @@
  *     show, so P2/P3 assert labels against the snapshot, not the markup.
  *   - PURE priority chain (`deriveConnectionLines`): use for P6 replay timing
  *     inputs, P7 connection-line priority, and P9 undirected-line flags.
- *   - Scene3D marker (P10): the `data-testid="whybuddy-3d-shell" data-mode`
+ *   - Scene3D marker (P10): the `data-testid="sliderule-3d-shell" data-mode`
  *     marker lives in `Scene3D.tsx` ADJACENT to `<Canvas>`. Assert it either
  *     by a source-level read of `Scene3D.tsx` (matching the right-rail mount
  *     tests) or by SSR-rendering `<Scene3D>` with these mocks; P5 (shell
@@ -81,7 +81,7 @@
  * effect-gated render path never touches a WebGL/canvas context under SSR.
  * `threeModuleMock()` is provided only as an optional escape hatch.
  *
- * Spec: .kiro/specs/whybuddy-3d-real-role-driven-scene-2026-05-29
+ * Spec: .kiro/specs/sliderule-3d-real-role-driven-scene-2026-05-29
  * Acceptance: Requirements 9.1, 9.6.
  */
 

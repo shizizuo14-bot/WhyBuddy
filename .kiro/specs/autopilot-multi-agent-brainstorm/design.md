@@ -2,7 +2,7 @@
 
 ## Overview
 
-本设计将 WhyBuddy `/autopilot` 蓝图驾驶舱从单 Agent 线性执行扩展为多智能体协作决策系统。核心思路是在现有 `BlueprintEventBus` → `BlueprintRealtimeStore` → `BlueprintWallTexture` 数据管线之上，新增一层 **Brainstorm Orchestrator**，由 LLM 自主决策是否启动多分支推理、选择协作模式、分配角色、调用工具链，并将协作过程实时推送到 3D 墙面思维导图。
+本设计将 SlideRule `/autopilot` 蓝图驾驶舱从单 Agent 线性执行扩展为多智能体协作决策系统。核心思路是在现有 `BlueprintEventBus` → `BlueprintRealtimeStore` → `BlueprintWallTexture` 数据管线之上，新增一层 **Brainstorm Orchestrator**，由 LLM 自主决策是否启动多分支推理、选择协作模式、分配角色、调用工具链，并将协作过程实时推送到 3D 墙面思维导图。
 
 **设计原则：**
 - **Compatibility-first**：不修改现有 `RoleAgentDelegator` / `BlueprintEventBus` / `BlueprintWallTexture` 的内部实现，通过组合和扩展接入

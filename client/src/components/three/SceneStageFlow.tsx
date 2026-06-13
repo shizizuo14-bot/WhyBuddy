@@ -69,7 +69,7 @@ function StageFlowSegment({
   return (
     <group>
       {/*
-        whybuddy-spec-tree-progress-merge-2026-05-29 follow-up:
+        sliderule-spec-tree-progress-merge-2026-05-29 follow-up:
         发光路线在亮地板上原本太弱（lineWidth=1.2 + opacity 0.22~0.42），
         加宽到 2.6 + 抬高基线 opacity，叠加一根半透明粗光晕底层模拟 bloom，
         让 stage flow 在 1920×1080 默认相机下肉眼可见。

@@ -1208,7 +1208,7 @@ export function MissionFirstAgents({
   }, [socket]);
 
   // ── Task 17: DEV scene bridge (mission-first shell identity) ─────────────
-  // When the mission-first shell is mounted, the DEV-only `window.__whybuddy3dScene`
+  // When the mission-first shell is mounted, the DEV-only `window.__sliderule3dScene`
   // must report `mountedShell: "mission-first"` so the harness P5 stage can
   // confirm the shell switch. MissionFirstAgents does NOT track blueprint
   // runtime agents, so it writes a minimal snapshot: shell identity plus empty
@@ -1219,7 +1219,7 @@ export function MissionFirstAgents({
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     const w = window as unknown as Record<string, unknown>;
-    w.__whybuddy3dScene = {
+    w.__sliderule3dScene = {
       getSnapshot: () => ({
         mode: "mission-first",
         mountedShell: "mission-first",
@@ -1231,7 +1231,7 @@ export function MissionFirstAgents({
         useBlueprintRealtimeStore.getState().dispatchEvent(event as never),
     };
     return () => {
-      delete w.__whybuddy3dScene;
+      delete w.__sliderule3dScene;
     };
   }, []);
 
@@ -1313,7 +1313,7 @@ export function MissionFirstAgents({
     [configs]
   );
 
-  // whybuddy-spec-tree-progress-merge-2026-05-29 follow-up：在 blueprint 模式下，
+  // sliderule-spec-tree-progress-merge-2026-05-29 follow-up：在 blueprint 模式下，
   // workflow-store 的 messages 永远是空（autopilot 走 BlueprintRealtimeStore 而
   // 不是 mission-first 的 socket message bus），导致 3D 场景的连线 / 粒子流
   // 永远画不出来，办公室看着像静态海报。这里订阅 rolePhases，每一对当前正在

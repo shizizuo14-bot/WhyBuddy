@@ -2,7 +2,7 @@
 
 ## 目标
 
-定义 `web-aigc` 编排平台迁移到 WhyBuddy 时的统一领域模型，作为 52 个节点 spec 的总前提。
+定义 `web-aigc` 编排平台迁移到 SlideRule 时的统一领域模型，作为 52 个节点 spec 的总前提。
 
 ## 需求
 

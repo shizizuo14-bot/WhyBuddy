@@ -53,7 +53,7 @@ function SidebarHeader({
       >
         <img
           src="/brand/transLogo.png"
-          alt="WhyBuddy"
+          alt="SlideRule"
           className="relative size-9 object-contain"
         />
       </span>
@@ -65,7 +65,7 @@ function SidebarHeader({
               glass ? "text-slate-700" : "text-slate-800"
             )}
           >
-            WhyBuddy
+            SlideRule
           </span>
           <span className="mt-1.5 block truncate text-[11px] font-semibold leading-none text-slate-500">
             {subtitle}

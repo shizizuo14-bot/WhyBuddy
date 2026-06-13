@@ -169,7 +169,7 @@ describe("MiroFishCardStream", () => {
         id: "old-job-entry",
         jobId: "job-old",
         phase: "thinking",
-        thought: "old WhyBuddy residue",
+        thought: "old SlideRule residue",
         stageId: "spec_docs",
       }),
       makeReasoning({
@@ -186,7 +186,7 @@ describe("MiroFishCardStream", () => {
     );
 
     expect(markup).toContain("current permission project");
-    expect(markup).not.toContain("old WhyBuddy residue");
+    expect(markup).not.toContain("old SlideRule residue");
   });
 
   it("stageFilter readonly string[]:多阶段合并视图", () => {

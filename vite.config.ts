@@ -149,8 +149,8 @@ function vitePluginManusDebugCollector(): Plugin {
 }
 
 export default defineConfig(() => {
-  const repository = process.env.GITHUB_REPOSITORY || "opencroc/whybuddy";
-  const repositoryName = repository.split("/")[1] || "whybuddy";
+  const repository = process.env.GITHUB_REPOSITORY || "opencroc/sliderule";
+  const repositoryName = repository.split("/")[1] || "sliderule";
   const repositoryUrl = `https://github.com/${repository}`;
   const isGitHubPagesBuild =
     process.env.GITHUB_PAGES === "true" ||

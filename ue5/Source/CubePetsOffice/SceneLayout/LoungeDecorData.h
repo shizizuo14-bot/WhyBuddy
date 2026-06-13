@@ -1,4 +1,4 @@
-// Copyright WhyBuddy. All Rights Reserved.
+// Copyright SlideRule. All Rights Reserved.
 //
 // Lounge & Decor Data — UE5-compatible constants for the lounge/rest area,
 // decorative plants, and architectural accent elements.

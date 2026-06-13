@@ -1,5 +1,5 @@
 /**
- * whybuddy-spec-tree-progress-merge-2026-05-29 §6 — `deriveNodeStatusById` 单元
+ * sliderule-spec-tree-progress-merge-2026-05-29 §6 — `deriveNodeStatusById` 单元
  * 测试。守护双源合并的优先级与边界：
  *
  * - persisted artifacts 给所有出现节点 baseline `completed`；

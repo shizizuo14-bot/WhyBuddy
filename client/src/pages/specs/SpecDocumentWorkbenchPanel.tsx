@@ -38,7 +38,7 @@ interface SpecDocumentWorkbenchPanelProps {
   autoLoad?: boolean;
   onDocumentsChange?: (documents: BlueprintSpecDocument[]) => void;
   /**
-   * whybuddy-stage3-unblock-2026-05-29：用户在 spec_documents 阶段发现没有
+   * sliderule-stage3-unblock-2026-05-29：用户在 spec_documents 阶段发现没有
    * 进入第三阶段（effect_preview）的入口。本回调让父组件在用户手动点击
    * "进入效果预演" 按钮、且后端 `POST /jobs/:jobId/effect-previews`
    * 返回 201 时，把响应里携带的最新 job 状态 / 13 份效果预演快照回写到
@@ -187,7 +187,7 @@ export function SpecDocumentWorkbenchPanel({
   );
   const [error, setError] = useState<ApiRequestError | null>(null);
 
-  // whybuddy-stage3-unblock-2026-05-29：进入效果预演 CTA 的运行态。
+  // sliderule-stage3-unblock-2026-05-29：进入效果预演 CTA 的运行态。
   // - generatingPreview = "loading"  → 已 POST /effect-previews，等待响应
   // - generatingPreview = "success"  → 收到 201，且父组件已被 notify
   // - generatingPreview = "error"    → 后端 4xx/5xx；error 文案由 effectPreviewError 承载
@@ -381,7 +381,7 @@ export function SpecDocumentWorkbenchPanel({
   };
 
   /**
-   * whybuddy-stage3-unblock-2026-05-29 — manual entry into stage 3
+   * sliderule-stage3-unblock-2026-05-29 — manual entry into stage 3
    * (effect_preview).
    *
    * 排查结论：服务端 `POST /api/blueprint/jobs/:id/effect-previews`
@@ -704,7 +704,7 @@ export function SpecDocumentWorkbenchPanel({
           </div>
 
           {/*
-            whybuddy-stage3-unblock-2026-05-29 — manual stage 3 entry CTA.
+            sliderule-stage3-unblock-2026-05-29 — manual stage 3 entry CTA.
             Visible only on the SPEC documents view (this panel) and only
             once at least one document exists. Click triggers the same
             backend endpoint useAutoAdvance would have called (with the

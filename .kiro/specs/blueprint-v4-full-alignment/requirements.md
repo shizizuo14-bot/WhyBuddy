@@ -2,7 +2,7 @@
 
 ## Introduction
 
-本文档定义 WhyBuddy Skill v4 闭环总图（改进版 v4）与 Web 实现之间**剩余模块**的需求规格。已实现的 `QA_LEDGER`（校验台账）和 `QA_CONTENT`（内容质量校验）不在本规格范围内。`QA_MERGE` 明确排除——它不属于 v4 架构图。
+本文档定义 SlideRule Skill v4 闭环总图（改进版 v4）与 Web 实现之间**剩余模块**的需求规格。已实现的 `QA_LEDGER`（校验台账）和 `QA_CONTENT`（内容质量校验）不在本规格范围内。`QA_MERGE` 明确排除——它不属于 v4 架构图。
 
 六个模块（含一个最小前置依赖）分别为：
 

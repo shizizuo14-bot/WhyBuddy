@@ -1,5 +1,5 @@
 /**
- * whybuddy-spec-tree-progress-merge-2026-05-29 §6 — 双源 nodeStatusById 派生。
+ * sliderule-spec-tree-progress-merge-2026-05-29 §6 — 双源 nodeStatusById 派生。
  *
  * SPEC 树节点行的状态来自两个真相源：
  *

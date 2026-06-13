@@ -4,7 +4,7 @@
 
 这份文档是 `docs/mission-worktree-dual-repo.md` 的执行版。
 
-- 目标仓库：`C:\Users\wangchunji\Documents\whybuddy`
+- 目标仓库：`C:\Users\wangchunji\Documents\sliderule`
 - 参考仓库：`C:\Users\wangchunji\Documents\openclaw-feishu-progress`
 - 当前主分支：`main`
 
@@ -59,7 +59,7 @@ git -C ..\openclaw-feishu-progress rev-parse HEAD
 
 ## Step 2：实际创建 worktree 的命令清单
 
-以下命令都在 `C:\Users\wangchunji\Documents\whybuddy` 下执行。
+以下命令都在 `C:\Users\wangchunji\Documents\sliderule` 下执行。
 
 如果你想一次性创建全部 worktree，也可以直接运行：
 
@@ -72,43 +72,43 @@ git -C ..\openclaw-feishu-progress rev-parse HEAD
 ### 2.1 创建 Worktree 0
 
 ```powershell
-git worktree add -b chore/mission-contracts ..\whybuddy-0-mission-contracts main
+git worktree add -b chore/mission-contracts ..\sliderule-0-mission-contracts main
 ```
 
 ### 2.2 创建 Worktree A
 
 ```powershell
-git worktree add -b feat/mission-core ..\whybuddy-A-mission-core main
+git worktree add -b feat/mission-core ..\sliderule-A-mission-core main
 ```
 
 ### 2.3 创建 Worktree B
 
 ```powershell
-git worktree add -b feat/lobster-executor ..\whybuddy-B-lobster-executor main
+git worktree add -b feat/lobster-executor ..\sliderule-B-lobster-executor main
 ```
 
 ### 2.4 创建 Worktree C
 
 ```powershell
-git worktree add -b feat/brain-dispatch ..\whybuddy-C-brain-dispatch main
+git worktree add -b feat/brain-dispatch ..\sliderule-C-brain-dispatch main
 ```
 
 ### 2.5 创建 Worktree D
 
 ```powershell
-git worktree add -b feat/feishu-mission-bridge ..\whybuddy-D-feishu-mission-bridge main
+git worktree add -b feat/feishu-mission-bridge ..\sliderule-D-feishu-mission-bridge main
 ```
 
 ### 2.6 创建 Worktree E
 
 ```powershell
-git worktree add -b feat/tasks-universe ..\whybuddy-E-tasks-universe main
+git worktree add -b feat/tasks-universe ..\sliderule-E-tasks-universe main
 ```
 
 ### 2.7 创建 Worktree F
 
 ```powershell
-git worktree add -b feat/mission-integration ..\whybuddy-F-mission-integration main
+git worktree add -b feat/mission-integration ..\sliderule-F-mission-integration main
 ```
 
 ## Step 3：创建后核对命令
@@ -119,19 +119,19 @@ git worktree list
 
 预期至少能看到这些目录：
 
-- `C:\Users\wangchunji\Documents\whybuddy`
-- `C:\Users\wangchunji\Documents\whybuddy-0-mission-contracts`
-- `C:\Users\wangchunji\Documents\whybuddy-A-mission-core`
-- `C:\Users\wangchunji\Documents\whybuddy-B-lobster-executor`
-- `C:\Users\wangchunji\Documents\whybuddy-C-brain-dispatch`
-- `C:\Users\wangchunji\Documents\whybuddy-D-feishu-mission-bridge`
-- `C:\Users\wangchunji\Documents\whybuddy-E-tasks-universe`
-- `C:\Users\wangchunji\Documents\whybuddy-F-mission-integration`
+- `C:\Users\wangchunji\Documents\sliderule`
+- `C:\Users\wangchunji\Documents\sliderule-0-mission-contracts`
+- `C:\Users\wangchunji\Documents\sliderule-A-mission-core`
+- `C:\Users\wangchunji\Documents\sliderule-B-lobster-executor`
+- `C:\Users\wangchunji\Documents\sliderule-C-brain-dispatch`
+- `C:\Users\wangchunji\Documents\sliderule-D-feishu-mission-bridge`
+- `C:\Users\wangchunji\Documents\sliderule-E-tasks-universe`
+- `C:\Users\wangchunji\Documents\sliderule-F-mission-integration`
 
 同时建议核对每个 worktree 是否已有 `.env`：
 
 ```powershell
-$targets = '..\whybuddy-0-mission-contracts','..\whybuddy-A-mission-core','..\whybuddy-B-lobster-executor','..\whybuddy-C-brain-dispatch','..\whybuddy-D-feishu-mission-bridge','..\whybuddy-E-tasks-universe','..\whybuddy-F-mission-integration'
+$targets = '..\sliderule-0-mission-contracts','..\sliderule-A-mission-core','..\sliderule-B-lobster-executor','..\sliderule-C-brain-dispatch','..\sliderule-D-feishu-mission-bridge','..\sliderule-E-tasks-universe','..\sliderule-F-mission-integration'
 foreach ($target in $targets) { Write-Output \"$target`t$(Test-Path (Join-Path $target '.env'))\" }
 ```
 
@@ -150,13 +150,13 @@ foreach ($target in $targets) { Write-Output \"$target`t$(Test-Path (Join-Path $
 你也可以逐个检查分支是否正确：
 
 ```powershell
-git -C ..\whybuddy-0-mission-contracts branch --show-current
-git -C ..\whybuddy-A-mission-core branch --show-current
-git -C ..\whybuddy-B-lobster-executor branch --show-current
-git -C ..\whybuddy-C-brain-dispatch branch --show-current
-git -C ..\whybuddy-D-feishu-mission-bridge branch --show-current
-git -C ..\whybuddy-E-tasks-universe branch --show-current
-git -C ..\whybuddy-F-mission-integration branch --show-current
+git -C ..\sliderule-0-mission-contracts branch --show-current
+git -C ..\sliderule-A-mission-core branch --show-current
+git -C ..\sliderule-B-lobster-executor branch --show-current
+git -C ..\sliderule-C-brain-dispatch branch --show-current
+git -C ..\sliderule-D-feishu-mission-bridge branch --show-current
+git -C ..\sliderule-E-tasks-universe branch --show-current
+git -C ..\sliderule-F-mission-integration branch --show-current
 ```
 
 ## Step 4：每个 worktree 通用开工 Checklist
@@ -174,7 +174,7 @@ git -C ..\whybuddy-F-mission-integration branch --show-current
 
 ## Worktree 0 开工 Checklist
 
-- [ ] 在 `..\whybuddy-0-mission-contracts` 中确认当前分支为 `chore/mission-contracts`
+- [ ] 在 `..\sliderule-0-mission-contracts` 中确认当前分支为 `chore/mission-contracts`
 - [ ] 阅读 `..\openclaw-feishu-progress\src\types.ts`
 - [ ] 阅读 `..\openclaw-feishu-progress\src\execution\types.ts`
 - [ ] 阅读 `..\openclaw-feishu-progress\src\server\topic.ts`
@@ -191,7 +191,7 @@ git -C ..\whybuddy-F-mission-integration branch --show-current
 
 ## Worktree A 开工 Checklist
 
-- [ ] 在 `..\whybuddy-A-mission-core` 中确认当前分支为 `feat/mission-core`
+- [ ] 在 `..\sliderule-A-mission-core` 中确认当前分支为 `feat/mission-core`
 - [ ] 先拉取 `Worktree 0` 的最新契约
 - [ ] 阅读 `..\openclaw-feishu-progress\src\server\task-store.ts`
 - [ ] 阅读 `..\openclaw-feishu-progress\src\server\task-store.file.ts`
@@ -206,7 +206,7 @@ git -C ..\whybuddy-F-mission-integration branch --show-current
 
 ## Worktree B 开工 Checklist
 
-- [ ] 在 `..\whybuddy-B-lobster-executor` 中确认当前分支为 `feat/lobster-executor`
+- [ ] 在 `..\sliderule-B-lobster-executor` 中确认当前分支为 `feat/lobster-executor`
 - [ ] 先拉取 `Worktree 0` 的最新契约
 - [ ] 阅读 `..\openclaw-feishu-progress\src\execution\types.ts`
 - [ ] 阅读 `..\openclaw-feishu-progress\src\execution\coordinator.ts`
@@ -221,7 +221,7 @@ git -C ..\whybuddy-F-mission-integration branch --show-current
 
 ## Worktree C 开工 Checklist
 
-- [ ] 在 `..\whybuddy-C-brain-dispatch` 中确认当前分支为 `feat/brain-dispatch`
+- [ ] 在 `..\sliderule-C-brain-dispatch` 中确认当前分支为 `feat/brain-dispatch`
 - [ ] 先拉取 `Worktree 0` 的最新契约
 - [ ] 阅读 `..\openclaw-feishu-progress\src\server\croc-office.ts`
 - [ ] 阅读 `..\openclaw-feishu-progress\src\server\chat-task-dispatcher.ts`
@@ -237,7 +237,7 @@ git -C ..\whybuddy-F-mission-integration branch --show-current
 
 ## Worktree D 开工 Checklist
 
-- [ ] 在 `..\whybuddy-D-feishu-mission-bridge` 中确认当前分支为 `feat/feishu-mission-bridge`
+- [ ] 在 `..\sliderule-D-feishu-mission-bridge` 中确认当前分支为 `feat/feishu-mission-bridge`
 - [ ] 先拉取 `Worktree 0` 和 A 的最新接口
 - [ ] 阅读 `..\openclaw-feishu-progress\src\server\feishu-bridge.ts`
 - [ ] 阅读 `..\openclaw-feishu-progress\src\server\feishu-relay.ts`
@@ -254,7 +254,7 @@ git -C ..\whybuddy-F-mission-integration branch --show-current
 
 ## Worktree E 开工 Checklist
 
-- [ ] 在 `..\whybuddy-E-tasks-universe` 中确认当前分支为 `feat/tasks-universe`
+- [ ] 在 `..\sliderule-E-tasks-universe` 中确认当前分支为 `feat/tasks-universe`
 - [ ] 先拉取 `Worktree 0` 和 A 的最新接口
 - [ ] 阅读 `..\openclaw-feishu-progress\src\web\src\pages\tasks\page.tsx`
 - [ ] 阅读 `..\openclaw-feishu-progress\src\web\src\pages\universe\**`
@@ -269,7 +269,7 @@ git -C ..\whybuddy-F-mission-integration branch --show-current
 
 ## Worktree F 开工 Checklist
 
-- [ ] 在 `..\whybuddy-F-mission-integration` 中确认当前分支为 `feat/mission-integration`
+- [ ] 在 `..\sliderule-F-mission-integration` 中确认当前分支为 `feat/mission-integration`
 - [ ] 不要最先开工，必须等待 A/B/C/D/E 主体完成
 - [ ] 合并或 rebase A/B/C/D/E 的最新结果
 - [ ] 只在这个 worktree 中改 `server/index.ts`、主路由注册、`.env.example`、README、总集成 smoke
@@ -313,13 +313,13 @@ git merge feat/tasks-universe
 
 ```powershell
 git worktree list
-git worktree remove ..\whybuddy-0-mission-contracts
-git worktree remove ..\whybuddy-A-mission-core
-git worktree remove ..\whybuddy-B-lobster-executor
-git worktree remove ..\whybuddy-C-brain-dispatch
-git worktree remove ..\whybuddy-D-feishu-mission-bridge
-git worktree remove ..\whybuddy-E-tasks-universe
-git worktree remove ..\whybuddy-F-mission-integration
+git worktree remove ..\sliderule-0-mission-contracts
+git worktree remove ..\sliderule-A-mission-core
+git worktree remove ..\sliderule-B-lobster-executor
+git worktree remove ..\sliderule-C-brain-dispatch
+git worktree remove ..\sliderule-D-feishu-mission-bridge
+git worktree remove ..\sliderule-E-tasks-universe
+git worktree remove ..\sliderule-F-mission-integration
 ```
 
 确认目录都移除后，再按需删除本地分支：

@@ -158,7 +158,7 @@ function Floor({ showFloorLines = true }: { showFloorLines?: boolean }) {
         />
       </mesh>
 
-      {/* whybuddy-3d-real-role-driven-scene-2026-05-29: the thin slate floor
+      {/* sliderule-3d-real-role-driven-scene-2026-05-29: the thin slate floor
           lines read as a stray "black line" in the blueprint scene, so they
           are suppressed there (showFloorLines = false). Mission-first keeps
           them as part of its cool-office floor inlay. */}
@@ -364,7 +364,7 @@ function ArchitecturalAccents({ showLamps = true }: { showLamps?: boolean }) {
         rotation={[0, -Math.PI / 3, 0]}
       />
 
-      {/* whybuddy-3d-real-role-driven-scene-2026-05-29: the standing floor lamp
+      {/* sliderule-3d-real-role-driven-scene-2026-05-29: the standing floor lamp
           + wall lamp (and their point lights) read as a stray "floating lamp"
           in the blueprint scene, so they are suppressed there. Mission-first
           keeps them as part of its decorated office. */}
@@ -1102,7 +1102,7 @@ export function OfficeRoom({
   const setLoadingProgress = useAppStore(state => state.setLoadingProgress);
   const currentWorkflow = useWorkflowStore(state => state.currentWorkflow);
   const locale = useAppStore(state => state.locale);
-  // whybuddy-3d-real-role-driven-scene-2026-05-29: in blueprint mode the shared
+  // sliderule-3d-real-role-driven-scene-2026-05-29: in blueprint mode the shared
   // office's decorative lamps + thin floor lines read as a stray "floating
   // lamp" / "black line" behind the real role scene, so they are suppressed.
   // Mission-first keeps the full decorated office.

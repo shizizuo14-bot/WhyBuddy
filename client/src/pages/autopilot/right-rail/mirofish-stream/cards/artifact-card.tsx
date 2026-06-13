@@ -3,7 +3,7 @@
  *
  * 独立的产物创建卡片组件，展示文件/代码/文档等产物信息。
  *
- * 视觉特征（whybuddy-rebrand-and-stage3-unblock-2026-05-28 §D refinement
+ * 视觉特征（sliderule-rebrand-and-stage3-unblock-2026-05-28 §D refinement
  * 2026-05-29，对齐 mirofish-demo/console 的 .mock-file 模式）：
  * - 卡片底色：#FAFAFA + 1px solid #EEEEEE，0 radius
  * - 标题：Inter / Noto Sans SC，黑色，0.86rem
