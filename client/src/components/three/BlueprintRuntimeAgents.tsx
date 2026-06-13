@@ -45,11 +45,11 @@
  * now carries the currently derived lines so task 17's bridge and the P7 / P9
  * harness can read them.
  *
- * The DEV `window.__whybuddy3dScene` bridge itself is installed in Wave 5
+ * The DEV `window.__sliderule3dScene` bridge itself is installed in Wave 5
  * (task 17); this component only keeps the snapshot data available in a ref so
  * that task can expose it without re-deriving anything.
  *
- * Spec: .kiro/specs/whybuddy-3d-real-role-driven-scene-2026-05-29
+ * Spec: .kiro/specs/sliderule-3d-real-role-driven-scene-2026-05-29
  * Acceptance: Requirements 1.1-1.6, 2.1-2.12, 5.1-5.10, 6.1-6.6.
  */
 
@@ -1386,7 +1386,7 @@ export function BlueprintRuntimeAgents(props: BlueprintRuntimeAgentsProps) {
   }, [renderAgents]);
 
   // ── Task 17: DEV scene bridge ────────────────────────────────────────────
-  // DEV-only `window.__whybuddy3dScene`. `getSnapshot()` returns a FRESH copy
+  // DEV-only `window.__sliderule3dScene`. `getSnapshot()` returns a FRESH copy
   // of the current blueprint snapshot ref each call ({ mode, mountedShell,
   // agents, connectionLines, emptyHintVisible } — Requirement 9.7) so harness
   // assertions never observe a later-mutated live ref. `dispatchEvent` is a
@@ -1397,13 +1397,13 @@ export function BlueprintRuntimeAgents(props: BlueprintRuntimeAgentsProps) {
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     const w = window as unknown as Record<string, unknown>;
-    w.__whybuddy3dScene = {
+    w.__sliderule3dScene = {
       getSnapshot: () => ({ ...sceneSnapshotRef.current }),
       dispatchEvent: (event: BlueprintRelayedEvent) =>
         useBlueprintRealtimeStore.getState().dispatchEvent(event),
     };
     return () => {
-      delete w.__whybuddy3dScene;
+      delete w.__sliderule3dScene;
     };
   }, []);
 

@@ -2,7 +2,7 @@
 
 ## Overview
 
-本设计将 WhyBuddy v4 闭环架构中四个已定义但未端到端接线的子系统推进为完整可运行实现：
+本设计将 SlideRule v4 闭环架构中四个已定义但未端到端接线的子系统推进为完整可运行实现：
 
 1. **Brainstorm Real Execution** — 将多角色头脑风暴从并行独立产出升级为多轮辩论→挑战→投票→综合收敛闭环
 2. **Companion Full Loop** — 将伴随层从孤立 findings 升级为结构化质疑/回应/升级闭环，并由真实工具调用支撑
@@ -942,10 +942,10 @@ END FUNCTION
 #### 3.4 Check Previews Real Audit Script
 
 ```text
-File: skills/whybuddy/whybuddy/scripts/check_previews_real.py
+File: skills/sliderule/sliderule/scripts/check_previews_real.py
 
 CLI:
-  python skills/whybuddy/whybuddy/scripts/check_previews_real.py \
+  python skills/sliderule/sliderule/scripts/check_previews_real.py \
     --job-id <jobId> \
     --previews-dir <dir> \
     [--ledger-jsonl <path>]

@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="./docs/assets/banner.png" alt="WhyBuddy" width="100%" />
+  <img src="./docs/assets/banner.png" alt="SlideRule" width="100%" />
 </p>
 
 <p align="center">
@@ -12,7 +12,7 @@
 </p>
 
 <blockquote>
-<strong>Progress note:</strong> The engineering app currently trails the WhyBuddy Skill. For the complete product rehearsal experience, use the <a href="./skills/whybuddy.zip">WhyBuddy Skill</a> first; the engineered project is still moving forward.
+<strong>Progress note:</strong> The engineering app currently trails the SlideRule Skill. For the complete product rehearsal experience, use the <a href="./skills/sliderule.zip">SlideRule Skill</a> first; the engineered project is still moving forward.
 </blockquote>
 
 <p align="center">
@@ -21,7 +21,7 @@
 </p>
 
 <p align="center">
-  <a href="https://github.com/xiaojilele-glitch/WhyBuddy"><img alt="repo" src="https://img.shields.io/badge/🌐_GitHub_Repo-blue?style=for-the-badge" /></a>
+  <a href="https://github.com/xiaojilele-glitch/SlideRule"><img alt="repo" src="https://img.shields.io/badge/🌐_GitHub_Repo-blue?style=for-the-badge" /></a>
   <a href="./ROADMAP.md"><img alt="roadmap" src="https://img.shields.io/badge/🗺️_Roadmap-111827?style=for-the-badge" /></a>
   <a href="./CONTRIBUTING.md"><img alt="contribute" src="https://img.shields.io/badge/🤝_Contribute-16a34a?style=for-the-badge" /></a>
 </p>
@@ -29,7 +29,7 @@
 <p align="center">
   <img alt="status" src="https://img.shields.io/badge/Status-Early_Testing-orange?style=flat-square" />
   <img alt="license" src="https://img.shields.io/badge/License-MIT-111827?style=flat-square" />
-  <img alt="stars" src="https://img.shields.io/github/stars/xiaojilele-glitch/WhyBuddy?style=flat-square" />
+  <img alt="stars" src="https://img.shields.io/github/stars/xiaojilele-glitch/SlideRule?style=flat-square" />
   <img alt="ts" src="https://img.shields.io/badge/TypeScript-576k_Lines-2563eb?style=flat-square" />
   <img alt="tests" src="https://img.shields.io/badge/Tests-921_Files-0f766e?style=flat-square" />
   <img alt="specs" src="https://img.shields.io/badge/Specs-303_Dirs-7c3aed?style=flat-square" />
@@ -72,9 +72,9 @@ Enter an idea → **5 minutes** → full rehearsal → decide whether it is wort
 
 ## Product Screens
 
-A consolidated 16-screen photo wall from WhyBuddy example rehearsals.
+A consolidated 16-screen photo wall from SlideRule example rehearsals.
 
-<img src="./docs/assets/16img.png" alt="WhyBuddy 16-screen product photo wall" />
+<img src="./docs/assets/16img.png" alt="SlideRule 16-screen product photo wall" />
 
 **Watch the Full Rehearsal Demo**
 
@@ -86,15 +86,15 @@ Click the video cover above to open the Bilibili demo.
 
 ---
 
-## 🧩 The `whybuddy` Skill Package (Portable · Embeddable in Any Agent)
+## 🧩 The `sliderule` Skill Package (Portable · Embeddable in Any Agent)
 
-Besides the full app, WhyBuddy also ships a **self-contained Skill package** that can be dropped into Trae, Claude, or any host that supports Agent Skills. One sentence in → a reviewable, deliverable spec package out, with every gate **actually run by scripts** instead of merely claimed by the model.
+Besides the full app, SlideRule also ships a **self-contained Skill package** that can be dropped into Trae, Claude, or any host that supports Agent Skills. One sentence in → a reviewable, deliverable spec package out, with every gate **actually run by scripts** instead of merely claimed by the model.
 
 > **Guarantee the floor, not the ceiling.** Deterministic scripts guarantee the *floor* — valid structure, success criteria covered by requirements, EARS acceptance, cited evidence, gate results logged, every artifact provenance-labeled. They do not promise the *ceiling*; real depth still needs a real repo and a human. Everything it generates is labeled with how much you can trust it.
 
 ### How to Use
 
-The ready-to-import Skill archive is included at [`skills/whybuddy.zip`](./skills/whybuddy.zip).
+The ready-to-import Skill archive is included at [`skills/sliderule.zip`](./skills/sliderule.zip).
 
 ```bash
 # 1. Drop the skill package into your agent host's skills directory
@@ -243,7 +243,7 @@ The runtime layer runs beside the main path: job/artifact store, event bus, sock
 
 ## 🤖 FSD Agent Fleet
 
-The v4 diagram no longer treats the team as a fixed meeting room of roles. WhyBuddy switches between a single-agent path and a multi-role collaboration path through the **Decision Gate**.
+The v4 diagram no longer treats the team as a fixed meeting room of roles. SlideRule switches between a single-agent path and a multi-role collaboration path through the **Decision Gate**.
 
 | Role layer | When it appears | Responsibility |
 |:-----------|:----------------|:---------------|
@@ -276,7 +276,7 @@ Raw ideas can include a sentence, repository, files, or screenshots. Repo URLs t
 <td width="33%" valign="top">
 
 ### 02 Route Decision
-WhyBuddy compares standard, deep, and upgraded routes before generation. The confirmation gate makes cost, risk, and takeover points visible early.
+SlideRule compares standard, deep, and upgraded routes before generation. The confirmation gate makes cost, risk, and takeover points visible early.
 
 </td>
 <td width="33%" valign="top">
@@ -333,7 +333,7 @@ Tests, content checks, merge gates, and ledger entries record the script, exit c
 ## 🚀 Quick Start
 
 ```bash
-git clone https://github.com/xiaojilele-glitch/WhyBuddy.git && cd WhyBuddy
+git clone https://github.com/xiaojilele-glitch/SlideRule.git && cd SlideRule
 pnpm install
 pnpm run dev:all          # full stack: frontend + server + executor
 ```
@@ -345,7 +345,7 @@ pnpm run dev:all          # full stack: frontend + server + executor
 pnpm run dev:frontend     # open localhost:5173
 ```
 
-Or open the repository at [xiaojilele-glitch/WhyBuddy](https://github.com/xiaojilele-glitch/WhyBuddy).
+Or open the repository at [xiaojilele-glitch/SlideRule](https://github.com/xiaojilele-glitch/SlideRule).
 
 </details>
 
@@ -403,9 +403,9 @@ Or open the repository at [xiaojilele-glitch/WhyBuddy](https://github.com/xiaoji
 
 ---
 
-<!-- BEGIN WHYBUDDY_SKILL_ARCH -->
+<!-- BEGIN SLIDERULE_SKILL_ARCH -->
 
-Source: [WhyBuddy Skill closed-loop architecture v4](./docs/assets/WhyBuddyArc/WhyBuddySkill%E9%97%AD%E7%8E%AF%E6%80%BB%E5%9B%BE_%E6%94%B9%E8%BF%9B%E7%89%88v4.md)
+Source: [SlideRule Skill closed-loop architecture v4](./docs/assets/SlideRuleArc/SlideRuleSkill%E9%97%AD%E7%8E%AF%E6%80%BB%E5%9B%BE_%E6%94%B9%E8%BF%9B%E7%89%88v4.md)
 
 ```mermaid
 flowchart TB
@@ -716,7 +716,7 @@ linkStyle 112,113,114,115 stroke:#db2777,stroke-width:2px,stroke-dasharray:3 3;
 linkStyle 116,117,118 stroke:#dc2626,stroke-width:2px,stroke-dasharray:3 3;
 ```
 
-<!-- END WHYBUDDY_SKILL_ARCH -->
+<!-- END SLIDERULE_SKILL_ARCH -->
 
 ---
 
@@ -747,7 +747,7 @@ linkStyle 116,117,118 stroke:#dc2626,stroke-width:2px,stroke-dasharray:3 3;
 
 ## ⚔️ Comparison With Other Platforms
 
-| Feature | Dify | n8n | CrewAI | LangGraph | **WhyBuddy** |
+| Feature | Dify | n8n | CrewAI | LangGraph | **SlideRule** |
 |:--------|:---:|:---:|:---:|:---:|:---:|
 | Open source | ✅ | ✅ | ✅ | ✅ | ✅ |
 | One sentence to a complete product | ❌ | ❌ | ❌ | ❌ | ✅ |
@@ -779,10 +779,10 @@ See [CONTRIBUTING.md](./CONTRIBUTING.md) for details.
 
 > Every rehearsal generated by the engine is content that helps others discover new possibilities. Star this repository to help more people find it.
 
-[![Star History Chart](https://api.star-history.com/svg?repos=xiaojilele-glitch/WhyBuddy&type=Date)](https://star-history.com/#xiaojilele-glitch/WhyBuddy&Date)
+[![Star History Chart](https://api.star-history.com/svg?repos=xiaojilele-glitch/SlideRule&type=Date)](https://star-history.com/#xiaojilele-glitch/SlideRule&Date)
 
 ---
 
 <p align="center">
-  <a href="./LICENSE"><strong>MIT License</strong></a> · Hosted at <a href="https://github.com/xiaojilele-glitch/WhyBuddy">xiaojilele-glitch/WhyBuddy</a>
+  <a href="./LICENSE"><strong>MIT License</strong></a> · Hosted at <a href="https://github.com/xiaojilele-glitch/SlideRule">xiaojilele-glitch/SlideRule</a>
 </p>

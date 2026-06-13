@@ -3,8 +3,8 @@
  *
  * This is the machine-readable half of the `Parity_Contract` for the
  * `blueprint-trust-enforcement-model` spec. It maps each enforcement-relevant
- * node of the WhyBuddy v4 closed-loop diagram
- * (`docs/assets/WhyBuddyArc/WhyBuddySkill闭环总图_改进版v4.md`) to the enforcement
+ * node of the SlideRule v4 closed-loop diagram
+ * (`docs/assets/SlideRuleArc/SlideRuleSkill闭环总图_改进版v4.md`) to the enforcement
  * model it uses in the App vs the Skill, the reason the two diverge, and the
  * concrete App / Skill artifacts that implement that node's enforcement.
  *
@@ -78,7 +78,7 @@ export interface ParityNode {
   };
   /**
    * Skill artifact (Requirement 3.4): repo-relative path to the Python script
-   * under `skills/whybuddy/whybuddy/scripts/**` that enforces this node.
+   * under `skills/sliderule/sliderule/scripts/**` that enforces this node.
    */
   skillArtifact: { script: string };
 }
@@ -115,7 +115,7 @@ export const CANONICAL_RED_LINE =
  * (Requirement 3.2) and therefore carries a `divergenceReason` rooted in the
  * supervised-cockpit (App) vs unattended-agent-host (Skill) distinction
  * (Requirement 3.3). Each node names its App artifact (env flag / route /
- * component) and its Skill script under `skills/whybuddy/whybuddy/scripts/**`
+ * component) and its Skill script under `skills/sliderule/sliderule/scripts/**`
  * (Requirement 3.4).
  */
 export const PARITY_CONTRACT: ParityContract = {
@@ -134,7 +134,7 @@ export const PARITY_CONTRACT: ParityContract = {
         component:
           "client/src/pages/autopilot/right-rail/panels/ChecksLedgerPanel.tsx",
       },
-      skillArtifact: { script: "skills/whybuddy/whybuddy/scripts/gate.py" },
+      skillArtifact: { script: "skills/sliderule/sliderule/scripts/gate.py" },
     },
     {
       nodeId: "content-quality",
@@ -148,7 +148,7 @@ export const PARITY_CONTRACT: ParityContract = {
         route: "server/routes/blueprint/content-quality/service.ts",
       },
       skillArtifact: {
-        script: "skills/whybuddy/whybuddy/scripts/check_content_quality.py",
+        script: "skills/sliderule/sliderule/scripts/check_content_quality.py",
       },
     },
     {
@@ -165,7 +165,7 @@ export const PARITY_CONTRACT: ParityContract = {
           "client/src/pages/autopilot/right-rail/panels/CompanionFindingsPanel.tsx",
       },
       skillArtifact: {
-        script: "skills/whybuddy/whybuddy/scripts/check_companion.py",
+        script: "skills/sliderule/sliderule/scripts/check_companion.py",
       },
     },
     {
@@ -182,7 +182,7 @@ export const PARITY_CONTRACT: ParityContract = {
           "client/src/pages/autopilot/right-rail/panels/TraceabilityMatrixPanel.tsx",
       },
       skillArtifact: {
-        script: "skills/whybuddy/whybuddy/scripts/validate_spec_tree.py",
+        script: "skills/sliderule/sliderule/scripts/validate_spec_tree.py",
       },
     },
     {
@@ -197,7 +197,7 @@ export const PARITY_CONTRACT: ParityContract = {
         route: "server/routes/blueprint/preview-audit/service.ts",
       },
       skillArtifact: {
-        script: "skills/whybuddy/whybuddy/scripts/check_previews_real.py",
+        script: "skills/sliderule/sliderule/scripts/check_previews_real.py",
       },
     },
   ],

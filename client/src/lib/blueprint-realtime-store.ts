@@ -136,7 +136,7 @@ export interface AgentProgressEntry {
 export type CapabilityStatus = "idle" | "invoking" | "completed" | "failed";
 
 /**
- * 能力调用的真实 owner 记录（whybuddy-3d-real-role-driven-scene-2026-05-29
+ * 能力调用的真实 owner 记录（sliderule-3d-real-role-driven-scene-2026-05-29
  * Requirement 12 修订）。
  *
  * 后端 `capability.*` 事件 payload 自带权威 `roleId`（见
@@ -210,7 +210,7 @@ export interface SpecDocsNodeEntry {
   status: SpecDocsNodeStatus;
   errorSummary?: string;
   /**
-   * whybuddy-spec-tree-progress-merge-2026-05-29 §3（决策 Q1=A2 白盒）：
+   * sliderule-spec-tree-progress-merge-2026-05-29 §3（决策 Q1=A2 白盒）：
    * 节点曾经历过 `failed → processing` 重试。一旦置 true 永久保留，
    * 即使后续 `node_completed` 也不清除——让 SPEC 树节点行能渲染
    * "绿 ✓ + 橙 ⚠ 角标"，向用户透明展示"这个节点重试过"。
@@ -271,7 +271,7 @@ const VALID_TRANSITIONS: Record<SpecDocsNodeStatus, SpecDocsNodeStatus[]> = {
   processing: ["completed", "failed"],
   completed: ["assembled"],
   assembled: [],
-  // whybuddy-spec-tree-progress-merge-2026-05-29 §3（Q1=A2）：放宽 failed 终态，
+  // sliderule-spec-tree-progress-merge-2026-05-29 §3（Q1=A2）：放宽 failed 终态，
   // 允许后端把失败节点重排重试（failed → processing）。原为 `[]`（终态）。
   failed: ["processing"],
 };
@@ -479,7 +479,7 @@ export function mapEventTypeToPhase(type: string): RolePhase | null {
       return "sleeping";
     case "role.container.failed":
       return "failed";
-    // whybuddy-3d-real-role-driven-scene-2026-05-29 Requirement 10 (Fix 1)：
+    // sliderule-3d-real-role-driven-scene-2026-05-29 Requirement 10 (Fix 1)：
     // 把 7 个 `role.agent.*` 推理事件映射到 RolePhase，使角色推理循环
     // （iteration → thinking → acting → observing）能流入 `rolePhases`，
     // 由既有 `if (type.startsWith("role."))` 分支写入 `rolePhases[roleId]`。
@@ -1114,7 +1114,7 @@ function handleSpecDocsProgressEvent(
       const node = currentState.nodes[nodeId];
       if (!node) return null; // Unknown node (Req 2.8)
       if (!isValidTransition(node.status, "processing")) return null; // (Req 2.7)
-      // whybuddy-spec-tree-progress-merge-2026-05-29 §3（Q1=A2 白盒）：
+      // sliderule-spec-tree-progress-merge-2026-05-29 §3（Q1=A2 白盒）：
       // 若本次 node_started 是从 failed 态重新进入 processing（后端重排重试），
       // 永久标记 wasRetried，使最终态可渲染 "✓ + ⚠" 角标。
       const wasRetried = node.status === "failed" ? true : node.wasRetried;
@@ -1308,7 +1308,7 @@ function handleSpecDocsProgressEvent(
 // ---------------------------------------------------------------------------
 
 /**
- * `whybuddy-3d-real-role-driven-scene-2026-05-29` spec Task 5：
+ * `sliderule-3d-real-role-driven-scene-2026-05-29` spec Task 5：
  * Blueprint 实时事件监听器签名。监听器在 `dispatchEvent(event)` 的 reducer
  * 完成后被同步通知一次，接收到的就是这次被分发的 `BlueprintRelayedEvent`。
  */
@@ -1768,7 +1768,7 @@ export const useBlueprintRealtimeStore = create<
       return updates;
     });
 
-    // `whybuddy-3d-real-role-driven-scene-2026-05-29` spec Task 5：
+    // `sliderule-3d-real-role-driven-scene-2026-05-29` spec Task 5：
     // reducer 状态更新完成后，同步通知所有模块级监听器一次。每个监听器调用都
     // 包在 try/catch 中——一个 scene-bridge / observer 的 bug 绝不能破坏 reducer
     // 或阻断其它监听器（Requirement 5.1 / 5.2）。
@@ -1915,7 +1915,7 @@ export const useBlueprintRealtimeStore = create<
 }));
 
 /**
- * whybuddy-spec-tree-progress-merge-2026-05-29 §8.5：DEV-only e2e 注入口。
+ * sliderule-spec-tree-progress-merge-2026-05-29 §8.5：DEV-only e2e 注入口。
  *
  * 本 dev 环境 `AUTOPILOT_REAL_RUNTIME=true` 会把 job 一路自动驾驶冲过
  * spec_docs，且真 LLM 批量生成耗时数分钟、无法稳定复现 `node_failed → 重试

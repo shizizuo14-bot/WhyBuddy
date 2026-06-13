@@ -2,7 +2,7 @@ export type AIConfigMode = "server_proxy" | "browser_direct";
 export type AIWireApi = "responses" | "chat_completions";
 
 /**
- * Net-new additive config extension (whybuddy-llm-autonomous-reasoning, 需求 3.1).
+ * Net-new additive config extension (sliderule-llm-autonomous-reasoning, 需求 3.1).
  *
  * `routerModel` lets the LLM_Router use a low-cost / faster model for scheduling
  * decisions. It is OPTIONAL so durable old configs (which never carried it) stay
@@ -33,7 +33,7 @@ interface PersistedAISettings {
   browserConfig?: Partial<AIConfig>;
 }
 
-const STORAGE_KEY = "whybuddy.ai-settings.v1";
+const STORAGE_KEY = "sliderule.ai-settings.v1";
 
 function getSafeLocalStorage(): Storage | null {
   if (typeof window === "undefined") return null;

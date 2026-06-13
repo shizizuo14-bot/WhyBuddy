@@ -1,4 +1,4 @@
-# WhyBuddy — production image
+# SlideRule — production image
 # Two-stage build: install + build, then a slim runtime stage that
 # only carries dist/ and the production node_modules.
 

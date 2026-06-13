@@ -1,7 +1,7 @@
 /**
  * autopilot-streaming-experience integration-gap-2026-05-16 — UI 消费面 Step 2。
  *
- * whybuddy-3d-real-role-driven-scene-2026-05-29 修订：
+ * sliderule-3d-real-role-driven-scene-2026-05-29 修订：
  * 原本这里在顶部平铺一整排「全量能力 pills」（每个 capabilityId 一颗 badge）。
  * 该信息现在已经由 3D 场景的「角色桌前能力 chips」承载——谁调用了什么能力、
  * 状态如何，都绑定在真实角色身上。右侧再平铺一排 capability id 属于重复且吵，

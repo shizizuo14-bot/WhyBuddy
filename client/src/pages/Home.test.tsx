@@ -237,7 +237,7 @@ vi.mock("@/i18n", () => ({
         liveDemo: "Demo",
         mobileHint: "Mobile hint",
         officeEyebrow: "Office",
-        officeTitle: "WhyBuddy",
+        officeTitle: "SlideRule",
         openConfig: "Config",
         openWorkflow: "Workflow",
         runtimeChip: (label: string) => `Runtime: ${label}`,

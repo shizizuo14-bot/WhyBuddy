@@ -1,6 +1,6 @@
 import type { V5CapabilityId } from "./contracts.js";
 import { ALL_V5_CAPABILITIES } from "./contracts.js";
-import { extractGithubRepoSlug, findGithubUrlInTexts } from "./whybuddy-github-context.js";
+import { extractGithubRepoSlug, findGithubUrlInTexts } from "./sliderule-github-context.js";
 
 export type ProcessCapabilityKind = "think" | "action" | "deliver";
 
@@ -199,7 +199,7 @@ export function inferProcessContextFromExec(
     exec.provenance !== "repo:static"
   ) {
     const blob = `${exec.summary || ""} ${exec.content || ""} ${exec.title || ""}`;
-    if (/全网检索已关闭|WHYBUDDY_WEB_SEARCH_ENABLED=0|web_search_disabled/i.test(blob)) {
+    if (/全网检索已关闭|SLIDERULE_WEB_SEARCH_ENABLED=0|web_search_disabled/i.test(blob)) {
       ctx.evidenceFallbackReason = "web_search_disabled";
     } else if (
       /已尝试全网检索但未取得可用结果|已发起全网检索|web_search_failed/i.test(blob)

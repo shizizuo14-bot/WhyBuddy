@@ -1,5 +1,5 @@
 /**
- * WhyBuddy - Server Entry Point
+ * SlideRule - Server Entry Point
  * Express + Socket.IO + REST API + Multi-Agent Orchestration
  */
 import { createHmac, randomUUID, timingSafeEqual } from "node:crypto";
@@ -1527,7 +1527,7 @@ async function startServer() {
         signal: controller.signal,
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (compatible; WhyBuddy/1.0; +https://github.com/nicepkg/whybuddy)",
+            "Mozilla/5.0 (compatible; SlideRule/1.0; +https://github.com/nicepkg/sliderule)",
           Accept: "text/html, text/*;q=0.9",
         },
       });
@@ -2256,14 +2256,14 @@ async function startServer() {
   );
   app.use("/api/health/persistence", createPersistenceHealthRouter());
 
-  // WhyBuddy V5 closed-loop session store HTTP adapter (skeleton).
+  // SlideRule V5 closed-loop session store HTTP adapter (skeleton).
   // Exposes exactly the 4 endpoints documented in the V5 plan so that
-  // HttpWhyBuddySessionStore (client) can be a drop-in for the in-memory one.
+  // HttpSlideRuleSessionStore (client) can be a drop-in for the in-memory one.
   // Backing store is a process-local Map (no DB yet). Mount is unconditional
   // for the prototype phase; the page/runtime continues to default to the
-  // in-memory store so existing tests + smoke:whybuddy are unaffected.
-  const whybuddyRouterMod = await import("./routes/whybuddy.js");
-  app.use("/api/whybuddy", whybuddyRouterMod.default);
+  // in-memory store so existing tests + smoke:sliderule are unaffected.
+  const slideruleRouterMod = await import("./routes/sliderule.js");
+  app.use("/api/sliderule", slideruleRouterMod.default);
 
   app.get("/api/health", (_req, res) => {
     res.json({

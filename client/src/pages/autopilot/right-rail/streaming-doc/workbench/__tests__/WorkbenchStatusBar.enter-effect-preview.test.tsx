@@ -1,5 +1,5 @@
 /**
- * whybuddy-stage3-unblock-2026-05-29 — regression contract for the new
+ * sliderule-stage3-unblock-2026-05-29 — regression contract for the new
  * "进入效果预演" CTA on the SPEC documents workbench status bar.
  *
  * Background: the user reported that when the autopilot pipeline parks at

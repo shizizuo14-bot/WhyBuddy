@@ -1,4 +1,4 @@
-// Copyright WhyBuddy. All Rights Reserved.
+// Copyright SlideRule. All Rights Reserved.
 //
 // Meeting & Collaboration Data — UE5-compatible constants for meeting/collaboration elements.
 // Covers: CorkBoard, MobileBoards (4), TaskCarts (4).

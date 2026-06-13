@@ -14,7 +14,7 @@ describe("looksLikeSpecDocMarkdown", () => {
   it("rejects raw JSON object payloads (API request/response examples)", () => {
     expect(
       looksLikeSpecDocMarkdown(
-        '{\n  "user_prompt": "分析 WhyBuddy 的核心执行逻辑并修复已知的回调延迟问题",\n  "request_id": "req-998877",\n  "options": { "stream_evidence": true }\n}',
+        '{\n  "user_prompt": "分析 SlideRule 的核心执行逻辑并修复已知的回调延迟问题",\n  "request_id": "req-998877",\n  "options": { "stream_evidence": true }\n}',
       ),
     ).toBe(false);
     expect(
@@ -58,12 +58,12 @@ describe("looksLikeSpecDocMarkdown", () => {
   it("accepts proper Chinese markdown specification documents", () => {
     expect(
       looksLikeSpecDocMarkdown(
-        "这是一份为您生成的 **WhyBuddy 主运行路径（Primary Runtime Path）** 需求文档。该文档基于您提供的模块描述和 GitHub 项目背景，旨在定义如何通过执行器驱动的角色代理路径，将用户请求转化为经过验证的制品。",
+        "这是一份为您生成的 **SlideRule 主运行路径（Primary Runtime Path）** 需求文档。该文档基于您提供的模块描述和 GitHub 项目背景，旨在定义如何通过执行器驱动的角色代理路径，将用户请求转化为经过验证的制品。",
       ),
     ).toBe(true);
     expect(
       looksLikeSpecDocMarkdown(
-        "# 需求文档：提示词与目标上下文规范化\n\n## 1. 模块概述\n### 1.1 模块定义\n本模块是 WhyBuddy 主运行路径的入口。",
+        "# 需求文档：提示词与目标上下文规范化\n\n## 1. 模块概述\n### 1.1 模块定义\n本模块是 SlideRule 主运行路径的入口。",
       ),
     ).toBe(true);
   });

@@ -51,7 +51,7 @@ export interface WorkbenchStatusBarProps {
   /** 一键生成全部规格文档。缺失时不渲染按钮。 */
   onGenerateAll?: () => void;
   /**
-   * whybuddy-stage3-unblock-2026-05-29 — 进入效果预演（stage 3）。
+   * sliderule-stage3-unblock-2026-05-29 — 进入效果预演（stage 3）。
    *
    * 当用户在 spec 文档驾驶舱已经看到至少一份生成出的 SPEC 文档（无需
    * "全部 accepted"），点击此按钮会触发后端

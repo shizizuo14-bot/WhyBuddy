@@ -6750,7 +6750,7 @@ describe("blueprint spec-tree LLM generation — e2e", () => {
   });
 
   // -------------------------------------------------------------------------
-  // reasoning-detail Wave 2（whybuddy-3d-real-role-driven-scene-2026-05-29 /
+  // reasoning-detail Wave 2（sliderule-3d-real-role-driven-scene-2026-05-29 /
   // 2026-05-31）：route_generation 与 spec_tree 各自第二轮 ReAct 的回归。
   //
   // 锁住四件事：

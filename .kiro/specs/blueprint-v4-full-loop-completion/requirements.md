@@ -2,7 +2,7 @@
 
 ## Introduction
 
-本规格完成 WhyBuddy v4 闭环架构（`docs/assets/WhyBuddyArc/WhyBuddySkill闭环总图_改进版v4.md`）中四个已设计但未端到端接线的主要子系统：
+本规格完成 SlideRule v4 闭环架构（`docs/assets/SlideRuleArc/SlideRuleSkill闭环总图_改进版v4.md`）中四个已设计但未端到端接线的主要子系统：
 
 1. **Gap 1 — Brainstorm Real Execution (DG 子图)**：将多角色头脑风暴从"独立并行产出"推进为真正的多轮辩论→挑战→投票→综合收敛闭环。
 2. **Gap 2 — Companion Review Full Loop (CO 子图)**：将伴随层（Critic + Grounding）从孤立 findings 推进为结构化质疑/回应/升级闭环，并由真实工具调用（读仓库代码、验证引用）支撑。
@@ -192,7 +192,7 @@
 
 #### Acceptance Criteria
 
-1. THE check_previews_real script SHALL reside under `skills/whybuddy/whybuddy/scripts/` and be executable by the user without requiring agent permissions or modifications
+1. THE check_previews_real script SHALL reside under `skills/sliderule/sliderule/scripts/` and be executable by the user without requiring agent permissions or modifications
 2. WHEN check_previews_real detects an image with `source: "fallback"` and `ok: true`, THE script SHALL report it as a `fallback_pretending` violation
 3. WHEN check_previews_real detects an image whose provenance record shows `ok: true` alongside a non-empty `errorIndicators` array, THE script SHALL report it as a `fake_success` violation
 4. WHEN check_previews_real detects two or more images with identical SHA-256 hash, THE script SHALL report them as `duplicate_content` violations

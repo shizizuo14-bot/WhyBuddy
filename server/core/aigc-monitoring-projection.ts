@@ -131,7 +131,7 @@ function toSourceApp(
     return fromInput.trim();
   }
 
-  return mission?.topicId ? "whybuddy" : null;
+  return mission?.topicId ? "sliderule" : null;
 }
 
 function toStartTime(workflow: WorkflowRecord, mission?: MissionRecord): string {

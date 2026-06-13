@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   hasStructureDecomposeIntent,
   pickNextCapabilities,
-} from "../whybuddy-pick-heuristic";
+} from "../sliderule-pick-heuristic";
 import type { V5SessionState } from "../v5-reasoning-state";
 
 function baseState(): V5SessionState {

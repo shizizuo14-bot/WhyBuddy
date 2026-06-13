@@ -2453,7 +2453,7 @@ export function BlueprintProgressPanel({
           onSpecTreeVersionsChange={setSpecTreeVersions}
           onDocumentsChange={setSpecDocuments}
           onEffectPreviewGenerated={response => {
-            // whybuddy-stage3-unblock-2026-05-29 — when the user clicks the
+            // sliderule-stage3-unblock-2026-05-29 — when the user clicks the
             // new "进入效果预演" CTA on the SpecDocumentWorkbenchPanel,
             // surface the new previews + advanced job state up here so the
             // Effect Preview workbench (showEffectPreviewWorkbench branch

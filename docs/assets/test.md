@@ -472,7 +472,7 @@ Prompt
 原来我以为我要做的是一个完整 AGI 平台。
 后来我发现，我真正应该做的是：
 AGI 执行前的任务编译层。
-前面由 WhyBuddy / Autopilot 负责：
+前面由 SlideRule / Autopilot 负责：
 澄清
 推演
 生成 SPEC
@@ -519,7 +519,7 @@ AGI 执行前的任务编译层。
 而是在 Trae 开始写代码之前，先把任务准备好。
 简单说就是：
 Trae 负责执行。
-WhyBuddy / Autopilot 负责把问题变成 Trae 能执行的任务包。
+SlideRule / Autopilot 负责把问题变成 Trae 能执行的任务包。
 
 
 第五阶段：输入一句话，真的跑出一个项目

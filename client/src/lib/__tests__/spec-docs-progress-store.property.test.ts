@@ -461,7 +461,7 @@ describe("Property 4: Invalid transitions and unknown nodes are rejected", () =>
   });
 
   it("failed nodes allow retry (failed → processing) but reject direct completed/failed", () => {
-    // whybuddy-spec-tree-progress-merge-2026-05-29 §3 (Q1=A2): the failed state
+    // sliderule-spec-tree-progress-merge-2026-05-29 §3 (Q1=A2): the failed state
     // is no longer terminal — the backend may re-queue a failed node, so
     // `failed → processing` is now a VALID transition that also stamps
     // `wasRetried: true`. Direct `failed → completed` / `failed → failed`

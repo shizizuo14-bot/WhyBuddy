@@ -6,9 +6,9 @@
   role="img"
   aria-labelledby="title desc"
 >
-  <title id="title">WhyBuddy 架构图(中文版)</title>
+  <title id="title">SlideRule 架构图(中文版)</title>
   <desc id="desc">
-    WhyBuddy 产品架构总览,2026-05-11 版本。
+    SlideRule 产品架构总览,2026-05-11 版本。
     保留 2026-04-26 的柔和卡片风格,新增两条主线变化:
     (1) 已落地的 Autopilot 右栏收敛 5 specs(&lt;AutopilotRightRail&gt; + 8 个 fabric 子阶段面板、
     useAutopilotRightRailData 统一数据 hook、useRightRailSubStageState 的 URL ?sub + sticky

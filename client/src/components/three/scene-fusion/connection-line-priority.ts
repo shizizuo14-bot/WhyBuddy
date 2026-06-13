@@ -1,5 +1,5 @@
 /**
- * whybuddy-3d-real-role-driven-scene-2026-05-29 — Task 14
+ * sliderule-3d-real-role-driven-scene-2026-05-29 — Task 14
  *
  * Pure, Three.js-free derivation of blueprint connection lines via the
  * four-step priority chain (design.md "Event Observation and Line Priority" →

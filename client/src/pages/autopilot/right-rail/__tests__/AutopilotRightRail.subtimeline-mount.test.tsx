@@ -85,7 +85,7 @@ vi.mock("@/lib/blueprint-realtime-store", () => {
   const useBlueprintRealtimeStore = ((selector?: (state: { agentReasoning: AgentReasoningSliceState; specDocsProgress: { nodes: Record<string, never> } }) => unknown) => {
     const snapshot = {
       agentReasoning: mockedAgentReasoning,
-      // whybuddy-spec-tree-progress-merge-2026-05-29 §6：RightRail 现在派生
+      // sliderule-spec-tree-progress-merge-2026-05-29 §6：RightRail 现在派生
       // specDocsProgress.nodes → nodeStatusById 透传给 SPEC 树。真实 store 始终
       // 初始化该切片，这里补一个空 nodes record 让 SSR selector 不命中 undefined。
       specDocsProgress: { nodes: {} as Record<string, never> },

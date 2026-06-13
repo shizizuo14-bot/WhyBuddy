@@ -2,7 +2,7 @@
 
 ## 起因
 
-审查了 Agentshire 项目后，发现其 3D 表现力（骨骼动画、日夜天气、编排式 NPC 表演、气泡对话）和链路流畅度（Choreographer → Orchestrator → cinematic sequence）明显优于 WhyBuddy 当前的 3D 层。由此引发了对 WhyBuddy 3D 层升级方向以及更深层产品定位的讨论。
+审查了 Agentshire 项目后，发现其 3D 表现力（骨骼动画、日夜天气、编排式 NPC 表演、气泡对话）和链路流畅度（Choreographer → Orchestrator → cinematic sequence）明显优于 SlideRule 当前的 3D 层。由此引发了对 SlideRule 3D 层升级方向以及更深层产品定位的讨论。
 
 ---
 
@@ -20,18 +20,18 @@
 
 ### 不具备的
 - 无物理碰撞引擎/NavMesh；但不是纯直线移动，已有基于 route-config 的 A* 节点图寻路、move ack/timeout、目的地占用评分，以及召唤队形的障碍规避
-- 无 WhyBuddy 这类审计 ledger / 信任 / 血缘 / 可信回放等企业级基础设施；ActivityStream replay 更偏 UI 活动回放，不是可信审计链
+- 无 SlideRule 这类审计 ledger / 信任 / 血缘 / 可信回放等企业级基础设施；ActivityStream replay 更偏 UI 活动回放，不是可信审计链
 - 无真实执行能力（Docker/sandbox）
 - 代码约 47K TS/TSX 行；测试不是零（约 17 个 test 文件、260+ describe/it），但相对复杂 3D runtime、editor、NPC 行为和 workflow 编排仍偏薄，缺少强 E2E / 视觉回归
 
 ### 对比结论
-- 3D 和链路流畅度：Agentshire 完胜（它是"游戏世界"，WhyBuddy 是"仪表盘装饰"）
-- 产品深度和执行能力：WhyBuddy 完胜（Docker executor、审计链、信任模型、spec-first 流程；行数/spec 数进入正式 spec 前需重新统计）
-- 两者定位不同：Agentshire 让 Agent 好看，WhyBuddy 让 Agent 可信、可控、可审计
+- 3D 和链路流畅度：Agentshire 完胜（它是"游戏世界"，SlideRule 是"仪表盘装饰"）
+- 产品深度和执行能力：SlideRule 完胜（Docker executor、审计链、信任模型、spec-first 流程；行数/spec 数进入正式 spec 前需重新统计）
+- 两者定位不同：Agentshire 让 Agent 好看，SlideRule 让 Agent 可信、可控、可审计
 
 ---
 
-## 二、从 Agentshire 提取的设计模式（适合 WhyBuddy 引入）
+## 二、从 Agentshire 提取的设计模式（适合 SlideRule 引入）
 
 ### 2.1 CinematicScheduler + SceneDirector（编排式叙事）
 

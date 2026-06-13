@@ -8,7 +8,7 @@
  *    Parity Contract, assert the codebase reality matches the recorded mapping:
  *    the App env flag is a real member of `TRUST_GATE_ENABLEMENT_KEYS`, the App
  *    route / component exists on disk, and the Skill script exists under
- *    `skills/whybuddy/whybuddy/scripts/**`. Any mismatch is reported as a
+ *    `skills/sliderule/sliderule/scripts/**`. Any mismatch is reported as a
  *    {@link DriftFinding} naming the drifted node id and unresolved artifact.
  *
  * 2. {@link detectRedLineViolations} (Requirement 4.2) — scan the App
@@ -49,9 +49,9 @@ export const ADR_RELATIVE_PATH =
 /**
  * Required prefix for every Skill artifact script path (Requirement 3.4 / the
  * Task 6.1 mapping-drift contract: "Skill script file exists under
- * `skills/whybuddy/whybuddy/scripts/**`").
+ * `skills/sliderule/sliderule/scripts/**`").
  */
-export const SKILL_SCRIPT_PREFIX = "skills/whybuddy/whybuddy/scripts/";
+export const SKILL_SCRIPT_PREFIX = "skills/sliderule/sliderule/scripts/";
 
 /**
  * The App trust-surface component that is always scanned in addition to the
@@ -193,7 +193,7 @@ export const detectMappingDrift = (
       });
     }
 
-    // Skill script must live under skills/whybuddy/whybuddy/scripts/** and exist.
+    // Skill script must live under skills/sliderule/sliderule/scripts/** and exist.
     const script = node.skillArtifact.script;
     if (!script.startsWith(SKILL_SCRIPT_PREFIX)) {
       findings.push({

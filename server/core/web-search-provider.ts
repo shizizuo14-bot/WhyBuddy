@@ -17,7 +17,7 @@ const DEFAULT_TIMEOUT_MS = 20_000;
 const HTML_SEARCH_RETRY_DELAY_MS = 400;
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024; // 2MB for search HTML
 const USER_AGENT =
-  "Mozilla/5.0 (compatible; WhyBuddy/1.0; +https://github.com/nicepkg/whybuddy)";
+  "Mozilla/5.0 (compatible; SlideRule/1.0; +https://github.com/nicepkg/sliderule)";
 const BROWSER_USER_AGENT =
   "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
 
@@ -28,7 +28,7 @@ export function isBingCnSearchEnabled(): boolean {
 
 const FALLBACK_RESULTS: WebSearchResultItem[] = [
   {
-    title: "WhyBuddy Web Search Mock Overview",
+    title: "SlideRule Web Search Mock Overview",
     url: "https://example.test/web-search/cube-overview",
     snippet:
       "Cube Web Search mock result describing how search output can feed web QA and static webpage reading nodes.",

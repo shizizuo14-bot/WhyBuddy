@@ -57,7 +57,7 @@
 - `server/routes/blueprint/effect-preview/*`: keep image generation, retry, provenance, and Mermaid rendering orchestration here.
 - `server/routes/blueprint/preview-audit/meta-builder.ts`: build `PreviewImageMeta[]` from `runStageC` output before audit/finalize.
 - `server/routes/blueprint/preview-audit/*`: keep detectors, audit trail, regeneration, metadata stamping, and finalize gate here.
-- `skills/whybuddy/whybuddy/scripts/check_previews_real.py`: user-runnable independent preview audit script.
+- `skills/sliderule/sliderule/scripts/check_previews_real.py`: user-runnable independent preview audit script.
 - `server/routes/blueprint/traceability-matrix/service.ts`: existing service is synchronous and exposes `generateMatrix/exportJson/exportMarkdown`; add ledger/recompute wrappers around this service shape.
 - `server/routes/blueprint/traceability-matrix/*`: add ledger integration and recompute trigger around existing derive/export/route.
 - `server/routes/blueprint.ts`: add only thin route registration for new job sub-resources if no narrower route module exists.
@@ -275,7 +275,7 @@ Before coding each gap, verify the exact local signatures and update this spec i
     - _Requirements: 9.2_
 
   - [x] 6.4 Create user-runnable, integrity-checked audit script
-    - Create `skills/whybuddy/whybuddy/scripts/check_previews_real.py`
+    - Create `skills/sliderule/sliderule/scripts/check_previews_real.py`
     - Reuse the detector reasons (`fallback_pretending`/`fake_success`/`duplicate_content`) over the provenance JSON
       produced by the pipeline; report violations and exit non-zero on any violation
     - Must be runnable by the user directly

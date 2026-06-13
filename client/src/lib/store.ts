@@ -86,7 +86,7 @@ interface AppState {
 }
 
 const DEFAULT_AI_CONFIG = createDefaultAIConfig();
-const RUNTIME_MODE_STORAGE_KEY = 'whybuddy-runtime-mode';
+const RUNTIME_MODE_STORAGE_KEY = 'sliderule-runtime-mode';
 
 function getSafeLocalStorage(): Storage | null {
   if (typeof window === 'undefined') return null;

@@ -5,9 +5,9 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { executeOrchestratePlan } from "../server/whybuddy/orchestrate-plan.js";
-import { executeDialogueCapability } from "../server/whybuddy/dialogue-exec-map.js";
-import { pickNextCapabilities } from "../shared/blueprint/whybuddy-pick-heuristic.js";
+import { executeOrchestratePlan } from "../server/sliderule/orchestrate-plan.js";
+import { executeDialogueCapability } from "../server/sliderule/dialogue-exec-map.js";
+import { pickNextCapabilities } from "../shared/blueprint/sliderule-pick-heuristic.js";
 
 const GOAL = "做一个权限管理系统（支持 RBAC + 数据范围）";
 

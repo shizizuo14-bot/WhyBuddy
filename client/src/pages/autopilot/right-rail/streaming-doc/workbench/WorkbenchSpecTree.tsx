@@ -94,7 +94,7 @@ export type WorkbenchSpecTreeStaleState = {
 };
 
 /**
- * whybuddy-spec-tree-progress-merge-2026-05-29 §3/§6：
+ * sliderule-spec-tree-progress-merge-2026-05-29 §3/§6：
  * 每个 SPEC 树节点的生成进度快照，由 `AutopilotRightRail` 从
  * `useBlueprintRealtimeStore().specDocsProgress.nodes` 派生成 plain record
  * 后逐层透传进来。本组件只读，不订阅 store（保持 SSR 可测的无 hooks 契约）。
@@ -118,7 +118,7 @@ export type WorkbenchSpecTreeNodeStatusMap = Readonly<
 >;
 
 /**
- * whybuddy-spec-tree-progress-merge-2026-05-29 §2：单节点状态图标（24×24）。
+ * sliderule-spec-tree-progress-merge-2026-05-29 §2：单节点状态图标（24×24）。
  *
  * 5 态：
  * - pending           空心圆，stroke #999
@@ -252,7 +252,7 @@ export interface WorkbenchSpecTreeProps {
   /** 生成中状态，与 `AutopilotRightRail.specDocsGenerating` 一致。 */
   generating: "all" | "single" | null;
   /**
- * whybuddy-spec-tree-progress-merge-2026-05-29：每节点生成进度快照
+ * sliderule-spec-tree-progress-merge-2026-05-29：每节点生成进度快照
    * （nodeId → { status, wasRetried, errorSummary }）。缺省 / 缺某节点时
    * 该行回退为 pending。合并了原 SpecDocsProgressPanel 浮层的职责。
    */
@@ -651,7 +651,7 @@ export const WorkbenchSpecTreeView: FC<WorkbenchSpecTreeViewProps> = (props) => 
 
     const generateDisabled = generating !== null;
 
-    // whybuddy-spec-tree-progress-merge-2026-05-29：节点生成进度。
+    // sliderule-spec-tree-progress-merge-2026-05-29：节点生成进度。
     const statusEntry = nodeStatusById?.[node.id];
     const nodeStatus = statusEntry?.status ?? "pending";
     const isProcessing = nodeStatus === "processing";
@@ -866,7 +866,7 @@ export const WorkbenchSpecTree: FC<WorkbenchSpecTreeProps> = (props) => {
     return buildTreeIndex(specTree);
   }, [specTree]);
 
-  // whybuddy-spec-tree-progress-merge-2026-05-29 §Q4：节点行 DOM ref 登记表
+  // sliderule-spec-tree-progress-merge-2026-05-29 §Q4：节点行 DOM ref 登记表
   // + 一次性自动滚动。当某节点 status 从非 processing 跃迁到 processing 时，
   // 把该行 scrollIntoView({ block: "nearest" }) 一次；用 ref 记录上一轮每节点
   // status，只对"新晋 processing"触发，避免持续抢夺用户手动滚动位置。

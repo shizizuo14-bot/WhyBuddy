@@ -19,12 +19,12 @@ import { LoadingScreen } from "../LoadingScreen";
 
 /**
  * MiroFish-aligned LoadingScreen contract — see
- * whybuddy-rebrand-and-stage3-unblock-2026-05-28 §D.1.
+ * sliderule-rebrand-and-stage3-unblock-2026-05-28 §D.1.
  *
  * The pixel-art / hologram skin was replaced with a flat MiroFish surface:
  *   - white background, #FF4500 single-accent
  *   - 1px solid #E5E5E5 borders (no gradients, no shadows)
- *   - WhyBuddy wordmark renders the current brand assets and copy
+ *   - SlideRule wordmark renders the current brand assets and copy
  *   - status rail still shows INIT / SYNC / CONFIG / FINALIZE
  *   - progress bar still binds to --loading-progress and the percent label
  *
@@ -49,8 +49,8 @@ describe("LoadingScreen — MiroFish skin", () => {
     expect(markup).toContain('data-testid="loading-status-rail"');
     expect(markup).toContain('data-testid="loading-brand-wordmark"');
 
-    // Brand swap: WhyBuddy replaces previous project names
-    expect(markup).toContain("WhyBuddy");
+    // Brand swap: SlideRule replaces previous project names
+    expect(markup).toContain("SlideRule");
     expect(markup).toContain("/brand/logo.png");
     expect(markup).not.toContain("Duan" + "yun");
     expect(markup).not.toContain("Cube Pets " + "Office");

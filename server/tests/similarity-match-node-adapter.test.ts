@@ -7,11 +7,11 @@ describe("executeSimilarityMatchNode", () => {
     const result = await executeSimilarityMatchNode({
       nodeType: "similarity_match",
       input: {
-        query: "whybuddy agent orchestration",
+        query: "sliderule agent orchestration",
         candidates: [
           {
             candidateId: "workflow",
-            text: "whybuddy workflow orchestration and agent routing",
+            text: "sliderule workflow orchestration and agent routing",
             metadata: { source: "spec" },
           },
           {
@@ -145,7 +145,7 @@ describe("executeSimilarityMatchNode", () => {
           candidates: [
             {
               candidateId: "alpha",
-              text: "whybuddy",
+              text: "sliderule",
             },
           ],
         },
@@ -158,7 +158,7 @@ describe("executeSimilarityMatchNode", () => {
       executeSimilarityMatchNode({
         nodeType: "similarity_match",
         input: {
-          query: "whybuddy",
+          query: "sliderule",
           candidates: [
             {
               candidateId: "empty",

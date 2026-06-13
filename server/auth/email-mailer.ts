@@ -36,7 +36,7 @@ export function readEmailMailerConfig(env: NodeJS.ProcessEnv = process.env): Ema
 
   return {
     mode,
-    from: env.SMTP_FROM?.trim() || "WhyBuddy <no-reply@whybuddy.local>",
+    from: env.SMTP_FROM?.trim() || "SlideRule <no-reply@sliderule.local>",
     smtp: {
       host: env.SMTP_HOST?.trim() || "",
       port: smtpPort,
@@ -79,14 +79,14 @@ export function createEmailCodeMailer(config: EmailMailerConfig): EmailCodeMaile
       await transporter.sendMail({
         from: config.from,
         to: input.email,
-        subject: "WhyBuddy login code",
+        subject: "SlideRule login code",
         text: [
-          `Your WhyBuddy login code is ${input.code}.`,
+          `Your SlideRule login code is ${input.code}.`,
           `It expires in ${input.expiresInMinutes} minutes.`,
           "If you did not request this code, you can ignore this email.",
         ].join("\n"),
         html: [
-          "<p>Your WhyBuddy login code is:</p>",
+          "<p>Your SlideRule login code is:</p>",
           `<p style="font-size:24px;font-weight:700;letter-spacing:4px">${input.code}</p>`,
           `<p>It expires in ${input.expiresInMinutes} minutes.</p>`,
           "<p>If you did not request this code, you can ignore this email.</p>",

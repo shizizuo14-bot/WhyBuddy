@@ -231,7 +231,7 @@ describe("WorkbenchStatusBar — stats badges & DocType cards (Phase 2 / Task 7)
       />
     );
 
-    // whybuddy-3d-real-role-driven-scene-2026-05-29: the status bar's own card
+    // sliderule-3d-real-role-driven-scene-2026-05-29: the status bar's own card
     // chrome (border + shadow + px-2.5 py-2 padding) was removed so the header
     // sits flush in the rail. The inner action buttons (h-7) and the stat /
     // doctype grids still carry the compact spacing + truncation guards.

@@ -149,9 +149,9 @@ data/agents/*/HEARTBEAT.md
 # Audit runtime data and keys (never commit audit WAL/index/private keys)
 data/audit/
 
-# WhyBuddy V5 durable pilot runtime artifacts (explicitly ignored; smoke intentionally creates them)
-data/whybuddy-sessions.json
-data/whybuddy-sessions.json.tmp
+# SlideRule V5 durable pilot runtime artifacts (explicitly ignored; smoke intentionally creates them)
+data/sliderule-sessions.json
+data/sliderule-sessions.json.tmp
 
 # Local debug artifacts
 .manus-logs/

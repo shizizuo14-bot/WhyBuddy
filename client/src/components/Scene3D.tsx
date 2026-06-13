@@ -441,14 +441,14 @@ export function Scene3D({
       </Canvas>
 
       {/*
-        whybuddy-3d-real-role-driven-scene-2026-05-29 / Wave 0 Task 4
+        sliderule-3d-real-role-driven-scene-2026-05-29 / Wave 0 Task 4
         Non-canvas DOM marker. Rendered by Scene3D (which owns the DOM) as a
         sibling ADJACENT to <Canvas>, never inside it — React Three Fiber canvas
         children cannot be DOM nodes. `data-mode` reflects the active scene
         fusion mode so the harness P10 assertion can read the mounted shell.
         Acceptance: Requirement 8.7.
       */}
-      <div data-testid="whybuddy-3d-shell" data-mode={mode} />
+      <div data-testid="sliderule-3d-shell" data-mode={mode} />
 
       {isRecovering && (
         <div

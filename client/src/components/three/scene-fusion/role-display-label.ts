@@ -1,5 +1,5 @@
 /**
- * whybuddy-3d-real-role-driven-scene — Task 7
+ * sliderule-3d-real-role-driven-scene — Task 7
  *
  * Shared display-label helper for blueprint role rendering.
  *

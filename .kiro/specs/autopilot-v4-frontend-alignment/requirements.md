@@ -2,9 +2,9 @@
 
 ## Introduction
 
-The WhyBuddy `/autopilot` cockpit (frontend, under `client/src/pages/autopilot/`) is the
+The SlideRule `/autopilot` cockpit (frontend, under `client/src/pages/autopilot/`) is the
 user-facing surface for the blueprint generation pipeline. The backend now fully implements
-the **v4 closed-loop diagram** (`docs/assets/WhyBuddyArc/WhyBuddySkill闭环总图_改进版v4.md`),
+the **v4 closed-loop diagram** (`docs/assets/SlideRuleArc/SlideRuleSkill闭环总图_改进版v4.md`),
 including the v4 **trust layer (信任层)**: the checks ledger (QA_LEDGER), content-quality /
 EARS checks (QA_CONTENT), the structural + business invariant guard (SP_INV), the companion
 review layer (CO: Critic + Grounding), the traceability matrix (EP_MATRIX), image-generation
@@ -271,7 +271,7 @@ be accessible, so that the cockpit is an honest, usable mirror of the closed loo
 
 ## Glossary
 
-- **v4 diagram / 闭环总图 v4**: The reference architecture `docs/assets/WhyBuddyArc/WhyBuddySkill闭环总图_改进版v4.md` this feature aligns the frontend to.
+- **v4 diagram / 闭环总图 v4**: The reference architecture `docs/assets/SlideRuleArc/SlideRuleSkill闭环总图_改进版v4.md` this feature aligns the frontend to.
 - **Trust layer / 信任层**: The v4 ★ / ◆ / ◆◆ nodes that make the pipeline accountable — checks ledger, content quality, invariant guard, companion review, traceability matrix, image provenance, image audit + reforge.
 - **QA_LEDGER / 校验台账 / Checks Ledger**: The aggregation hub recording every check (`GET /api/blueprint/jobs/:id/checks-ledger`). v4 principle: "台账 = 问责中枢".
 - **checkType**: Ledger entry category — `schema` | `invariant` | `content_quality` | `companion_trace` | `preview_audit`.

@@ -904,7 +904,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
     (state) => state.agentReasoning.entries
   );
 
-  // whybuddy-spec-tree-progress-merge-2026-05-29 §6：把 specDocsProgress.nodes
+  // sliderule-spec-tree-progress-merge-2026-05-29 §6：把 specDocsProgress.nodes
   // 派生成 plain record（nodeId → { status, wasRetried, errorSummary }）透传给
   // 下游 SPEC 树，替代原 SpecDocsProgressPanel 浮层。selector 直接返回 store
   // 的 nodes record，useMemo 把它映射成轻量快照只在 nodes 引用变化时重算。
@@ -1163,7 +1163,7 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
   const generateSpecDocuments =
     props.generateSpecDocuments ?? generateBlueprintSpecDocuments;
 
-  // whybuddy-stage3-unblock-2026-05-29：进入效果预演（stage 3）的 in-flight
+  // sliderule-stage3-unblock-2026-05-29：进入效果预演（stage 3）的 in-flight
   // 状态与 onClick 处理。背景：服务端 POST /jobs/:id/effect-previews 在
   // specTree 存在时即可成功（probe 已验证返回 201 + 13 份预演 + job.stage
   // 翻到 effect_preview）。useAutoAdvance 只在 stage === "spec_docs" &&
@@ -1532,12 +1532,12 @@ export const AutopilotRightRail: FC<AutopilotRightRailProps> = (props) => {
         onRegenerate={handleRegenerateStaleStage}
       />
 
-      {/* whybuddy-3d-real-role-driven-scene-2026-05-29: the role status strip
+      {/* sliderule-3d-real-role-driven-scene-2026-05-29: the role status strip
           was removed from the right rail. Role identity / phase status is now
           carried by the real 3D agents (pet body + nameplate + bob animation),
           so a duplicate role chip strip here was redundant. */}
 
-      {/* whybuddy-spec-tree-progress-merge-2026-05-29：原 <SpecDocsProgressPanel/>
+      {/* sliderule-spec-tree-progress-merge-2026-05-29：原 <SpecDocsProgressPanel/>
           浮层已删除，其每节点进度状态合并进 WorkbenchSpecTree 节点行
           （nodeStatusById 透传链），全局进度仍由 WorkbenchStatusBar 统计三联承载。
           store 的 specDocsProgress slice 与 dismiss/complete action 保留不变。 */}

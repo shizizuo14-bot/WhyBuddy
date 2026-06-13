@@ -47,7 +47,7 @@ import type {
  * fabric stage 调用本面板时留空，`SpecTreeWorkbenchPanel` 内部对 `undefined`
  * 有现成的降级路径（需求 2.9 / 设计文档「extra props 与 callback 的处理规则」）。
  *
- * whybuddy-stage3-unblock-2026-05-29 增补：`onEffectPreviewGenerated` 透传到
+ * sliderule-stage3-unblock-2026-05-29 增补：`onEffectPreviewGenerated` 透传到
  * 内嵌的 `SpecDocumentWorkbenchPanel`，使其底部新增的"进入效果预演"按钮
  * 可以把后端响应抬到上层 latestJob，让右栏切换到 effect_preview 子阶段。
  */

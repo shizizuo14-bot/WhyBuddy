@@ -6,12 +6,12 @@
  * 失效引擎升为一等公民（写进 orchestrateReasoningTurn 主循环）；
  * 调度单元明确为 (capability, role) 对。
  *
- * 详见 docs/WhyBuddyV5CapabilityPool.md 和 docs/WhyBuddyV5闭环总图_完整版.md
+ * 详见 docs/SlideRuleV5CapabilityPool.md 和 docs/SlideRuleV5闭环总图_完整版.md
  */
 
 import type { V5CapabilityId } from "./contracts.js";
 import type { BrainstormReasoningGraph } from "./brainstorm-reasoning-graph.js";
-import type { WhyBuddyReplayEvent } from "./whybuddy-session-replay.js";
+import type { SlideRuleReplayEvent } from "./sliderule-session-replay.js";
 
 export type { V5CapabilityId };
 
@@ -149,7 +149,7 @@ export interface V5SessionState {
   /** P3 incremental derive: node ids needing status recompute. */
   projectionDirtyNodeIds?: string[];
   /** S21 edge 117: append-only replay log (JOB→REPLAY→STORE, per sessionId). */
-  sessionReplayLog?: WhyBuddyReplayEvent[];
+  sessionReplayLog?: SlideRuleReplayEvent[];
   lastTurnId?: string;
   /** P0: why the session is parked awaiting human input (distinct from trust-layer confirm gate). */
   awaitReason?: AwaitReason;

@@ -220,7 +220,7 @@ const room = `blueprint:${event.jobId}`;
 
 ## 后续增强：观察行携带真实事实（reasoning-detail 2026-05-31）
 
-> 配合 `whybuddy-3d-real-role-driven-scene-2026-05-29` reasoning-detail：前端
+> 配合 `sliderule-3d-real-role-driven-scene-2026-05-29` reasoning-detail：前端
 > `ReasoningCard` 已从「fallback 选一个字段」升级为「每个存在字段各自成行」。为了
 > 让推理流不只是更会排版、而是真的更有信息量，本规格的 stage-progress-emitter
 > 调用点同步把**已经算出来的真实事实**塞进观察行（不造任何假步骤、假数据）：

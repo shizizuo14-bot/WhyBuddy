@@ -2,10 +2,10 @@
 
 ## Introduction
 
-The WhyBuddy closed-loop architecture diagram (`docs/assets/WhyBuddyArc/WhyBuddySkill闭环总图_改进版v4.md`, hereafter "the v4 Diagram") is realized by **two parallel implementations**:
+The SlideRule closed-loop architecture diagram (`docs/assets/SlideRuleArc/SlideRuleSkill闭环总图_改进版v4.md`, hereafter "the v4 Diagram") is realized by **two parallel implementations**:
 
 - **Track A — the App**: the in-app TypeScript "blueprint" pipeline (`server/routes/blueprint.ts` mounted at `/api/blueprint`, `shared/blueprint/**` contracts, and the autopilot right-rail `TrustSection` with `ChecksLedgerPanel` / `TraceabilityMatrixPanel` / `CompanionFindingsPanel`). The App runs as a **supervised cockpit**: a human watches the right-rail in real time. Its five v4 trust gates are **advisory / non-blocking** — they record findings to the checks ledger and surface them for human review, and **never auto-block**.
-- **Track B — the Skill**: the portable Claude Skill (`skills/whybuddy/**`) — Python scripts with `gate.py` hard gates and a user-run `check_previews_real.py` audit. The Skill runs in an **unattended agent host** where the agent itself may cheat, so its enforcer lives **outside the agent's control** (hard gate + user-run audit the agent cannot modify).
+- **Track B — the Skill**: the portable Claude Skill (`skills/sliderule/**`) — Python scripts with `gate.py` hard gates and a user-run `check_previews_real.py` audit. The Skill runs in an **unattended agent host** where the agent itself may cheat, so its enforcer lives **outside the agent's control** (hard gate + user-run audit the agent cannot modify).
 
 A re-verified gap analysis between the v4 Diagram and the codebase established the premises below. This spec treats them as **fixed**, not open questions:
 
@@ -20,8 +20,8 @@ This spec addresses exactly three concerns: (1) a latent deployment hazard in ho
 ## Glossary
 
 - **App / Track A**: The in-app TypeScript blueprint pipeline mounted at `/api/blueprint`, with the right-rail `TrustSection` trust UI. A supervised, interactive cockpit.
-- **Skill / Track B**: The portable Claude Skill under `skills/whybuddy/**`, enforced by `gate.py` hard gates and a user-run `check_previews_real.py` audit. An unattended agent host.
-- **v4 Diagram**: `docs/assets/WhyBuddyArc/WhyBuddySkill闭环总图_改进版v4.md`, the closed-loop architecture diagram both tracks implement.
+- **Skill / Track B**: The portable Claude Skill under `skills/sliderule/**`, enforced by `gate.py` hard gates and a user-run `check_previews_real.py` audit. An unattended agent host.
+- **v4 Diagram**: `docs/assets/SlideRuleArc/SlideRuleSkill闭环总图_改进版v4.md`, the closed-loop architecture diagram both tracks implement.
 - **5 Trust Gates**: The five App environment flags `BLUEPRINT_CHECKS_LEDGER_ENABLED`, `BLUEPRINT_CONTENT_QUALITY_CHECK_ENABLED`, `BLUEPRINT_COMPANION_ENABLED`, `BLUEPRINT_TRACEABILITY_MATRIX_ENABLED`, `BLUEPRINT_PREVIEW_AUDIT_ENABLED`.
 - **Master Switch**: The `AUTOPILOT_REAL_RUNTIME` environment variable that drives the opt-out default for the 6 capability bridges.
 - **Advisory / Non-blocking Enforcement**: The App's enforcement model — record a finding to the checks ledger and surface it for human review; never auto-block execution.

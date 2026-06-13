@@ -1,5 +1,5 @@
 flowchart LR
-  %% WhyBuddy / Cube 全规格关联关系大图
+  %% SlideRule / Cube 全规格关联关系大图
   %% Source: specs.zip, grouped from 295 spec folders
 
   subgraph L0["用户入口 / 产品外壳"]

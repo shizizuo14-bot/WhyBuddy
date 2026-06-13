@@ -1,5 +1,5 @@
 /**
- * whybuddy-3d-real-role-driven-scene-2026-05-29 — Task 18
+ * sliderule-3d-real-role-driven-scene-2026-05-29 — Task 18
  *
  * Pure Vitest tests for `role-display-label.ts`. No Three.js, no React, no DOM.
  *

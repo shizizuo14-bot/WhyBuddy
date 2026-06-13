@@ -38,7 +38,7 @@ export default function AuthPage() {
     if (mode === "register") {
       return {
         title: "Create account",
-        subtitle: "Start a personal WhyBuddy workspace.",
+        subtitle: "Start a personal SlideRule workspace.",
         action: "Create account",
         swap: "Sign in instead",
       };

@@ -1,5 +1,5 @@
 /**
- * whybuddy-spec-tree-progress-merge-2026-05-29 §8 — SPEC 树节点行进度状态 SSR 契约。
+ * sliderule-spec-tree-progress-merge-2026-05-29 §8 — SPEC 树节点行进度状态 SSR 契约。
  *
  * 验证把原 SpecDocsProgressPanel 浮层合并进 WorkbenchSpecTree 节点行后的渲染：
  * - 5 态状态图标（pending / processing / completed / failed / retried-completed）

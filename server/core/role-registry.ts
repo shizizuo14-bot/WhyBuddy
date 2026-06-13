@@ -17,7 +17,7 @@ const __rr_dirname = dirname(__rr_filename);
 
 function shouldPersistRoleRegistryByDefault(): boolean {
   if (
-    process.env.WHYBUDDY_DISABLE_ROLE_PERSISTENCE === '1' ||
+    process.env.SLIDERULE_DISABLE_ROLE_PERSISTENCE === '1' ||
     process.env["CUBE_" + "PETS_DISABLE_ROLE_PERSISTENCE"] === '1'
   ) {
     return false;

@@ -12,7 +12,7 @@ import {
 
 /**
  * MiroFish-aligned loading screen — replaces the pixel-art holographic
- * variant per whybuddy-rebrand-and-stage3-unblock-2026-05-28 §D.1.
+ * variant per sliderule-rebrand-and-stage3-unblock-2026-05-28 §D.1.
  *
  * Visual language (matches client/src/styles/mirofish-tokens.css):
  *   - bg: #FFFFFF
@@ -119,7 +119,7 @@ function BrandWordmark({ copy }: { copy: typeof CHINESE_COPY }) {
     >
       <img
         src="/brand/logo.png"
-        alt="WhyBuddy"
+        alt="SlideRule"
         className="h-16 w-auto object-contain"
       />
       <h1
@@ -205,7 +205,7 @@ export function LoadingScreen() {
           className="mt-6 flex items-center justify-between gap-5 border border-[#E5E5E5] bg-white px-5 py-3 font-mono text-[11px] font-bold uppercase tracking-[0.32em] text-black/60"
           style={{ borderRadius: "2px" }}
         >
-          <span>WHYBUDDY</span>
+          <span>SLIDERULE</span>
           <span className="text-black/30">·</span>
           <span>{copy.brandHeadline}</span>
         </footer>

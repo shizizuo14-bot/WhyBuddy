@@ -9,13 +9,13 @@ $ErrorActionPreference = "Stop"
 
 $repoRoot = Split-Path -Parent $PSScriptRoot
 $worktrees = @(
-  @{ Branch = "chore/mission-contracts"; Path = "..\whybuddy-0-mission-contracts" },
-  @{ Branch = "feat/mission-core"; Path = "..\whybuddy-A-mission-core" },
-  @{ Branch = "feat/lobster-executor"; Path = "..\whybuddy-B-lobster-executor" },
-  @{ Branch = "feat/brain-dispatch"; Path = "..\whybuddy-C-brain-dispatch" },
-  @{ Branch = "feat/feishu-mission-bridge"; Path = "..\whybuddy-D-feishu-mission-bridge" },
-  @{ Branch = "feat/tasks-universe"; Path = "..\whybuddy-E-tasks-universe" },
-  @{ Branch = "feat/mission-integration"; Path = "..\whybuddy-F-mission-integration" }
+  @{ Branch = "chore/mission-contracts"; Path = "..\sliderule-0-mission-contracts" },
+  @{ Branch = "feat/mission-core"; Path = "..\sliderule-A-mission-core" },
+  @{ Branch = "feat/lobster-executor"; Path = "..\sliderule-B-lobster-executor" },
+  @{ Branch = "feat/brain-dispatch"; Path = "..\sliderule-C-brain-dispatch" },
+  @{ Branch = "feat/feishu-mission-bridge"; Path = "..\sliderule-D-feishu-mission-bridge" },
+  @{ Branch = "feat/tasks-universe"; Path = "..\sliderule-E-tasks-universe" },
+  @{ Branch = "feat/mission-integration"; Path = "..\sliderule-F-mission-integration" }
 )
 
 Push-Location $repoRoot

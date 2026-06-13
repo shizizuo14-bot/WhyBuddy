@@ -11,7 +11,7 @@
  * Requirements covered:
  *  - 4.1 Mapping-drift check: each contract node's App env flag is a real Trust
  *    Gate key, its route/component exists on disk, and its Skill script exists
- *    under `skills/whybuddy/whybuddy/scripts/**`.
+ *    under `skills/sliderule/sliderule/scripts/**`.
  *  - 4.2 Red Line check: scan the App trust-surface sources (the 5 gate services
  *    + the right-rail trust panels + `TrustSection.tsx`) using a denylist
  *    derived from the ADR's canonical concepts.

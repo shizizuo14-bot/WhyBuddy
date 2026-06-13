@@ -2,7 +2,7 @@
 
 ## Overview
 
-This feature closes three gaps between the WhyBuddy v4 closed-loop diagram and its two parallel
+This feature closes three gaps between the SlideRule v4 closed-loop diagram and its two parallel
 implementations (Track A — the in-app TypeScript "blueprint" pipeline; Track B — the portable
 Claude Skill). It does **not** add product capability and it does **not** change runtime behavior of
 any existing trust gate. It adds:
@@ -262,7 +262,7 @@ An automated test runnable by the existing Vitest runner (Requirement 4.5). It p
 - **Mapping-drift check (4.1):** for each node in the Parity Contract, assert the codebase reality
   matches the recorded mapping — App artifact (env flag constant present in
   `TRUST_GATE_ENABLEMENT_KEYS`, route/component exists) and Skill artifact (script file exists under
-  `skills/whybuddy/**`). A mismatch fails the test.
+  `skills/sliderule/**`). A mismatch fails the test.
 - **Red Line check (4.2):** scan App trust-surface sources (the 5 gate services and the `trust/`
   right-rail panel text) for assertions/implications of the Skill's hard-gate / "agent-can't-touch"
   guarantee using a denylist derived from the ADR's canonical concepts. Any match fails the test.
@@ -318,7 +318,7 @@ interface ParityNode {
   divergenceReason?: string;
   /** App artifact: env flag, route, or component (Requirement 3.4). */
   appArtifact: { envFlag?: TrustGateEnablementKey; route?: string; component?: string };
-  /** Skill artifact: script path under skills/whybuddy/** (Requirement 3.4). */
+  /** Skill artifact: script path under skills/sliderule/** (Requirement 3.4). */
   skillArtifact: { script: string };
 }
 

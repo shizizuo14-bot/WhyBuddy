@@ -13,13 +13,13 @@ if (-not (Test-Path $rootEnvPath)) {
 }
 
 $targets = @(
-  "..\whybuddy-0-mission-contracts",
-  "..\whybuddy-A-mission-core",
-  "..\whybuddy-B-lobster-executor",
-  "..\whybuddy-C-brain-dispatch",
-  "..\whybuddy-D-feishu-mission-bridge",
-  "..\whybuddy-E-tasks-universe",
-  "..\whybuddy-F-mission-integration"
+  "..\sliderule-0-mission-contracts",
+  "..\sliderule-A-mission-core",
+  "..\sliderule-B-lobster-executor",
+  "..\sliderule-C-brain-dispatch",
+  "..\sliderule-D-feishu-mission-bridge",
+  "..\sliderule-E-tasks-universe",
+  "..\sliderule-F-mission-integration"
 )
 
 Push-Location $repoRoot

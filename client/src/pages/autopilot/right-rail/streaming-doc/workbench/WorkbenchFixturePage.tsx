@@ -258,7 +258,7 @@ const FIXTURE_JOB = {
     targetText: "Workbench Route Authoring",
     mode: "spec-documents-workbench",
     domainContext: {
-      projectName: "WhyBuddy",
+      projectName: "SlideRule",
     },
   },
   status: "reviewing",
@@ -271,7 +271,7 @@ const FIXTURE_JOB = {
 } as unknown as BlueprintGenerationJob;
 
 export const AutopilotSpecDocumentsWorkbenchFixturePage: FC = () => {
-  // whybuddy-spec-tree-progress-merge-2026-05-29 §6 (dev-only fixture)：
+  // sliderule-spec-tree-progress-merge-2026-05-29 §6 (dev-only fixture)：
   // 把 store 的 specDocsProgress.nodes 派生成 nodeStatusById 透传给 workbench，
   // 让 e2e 通过 window.__blueprintRealtimeStore.dispatchEvent 驱动节点行状态变化。
   // 与 AutopilotRightRail 的双源合并一致：persisted specDocuments → baseline

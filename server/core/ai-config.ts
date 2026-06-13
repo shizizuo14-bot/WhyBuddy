@@ -7,7 +7,7 @@ export interface AIConfig {
   baseUrl: string;
   model: string;
   /**
-   * Net-new additive field (whybuddy-llm-autonomous-reasoning, 需求 3.1).
+   * Net-new additive field (sliderule-llm-autonomous-reasoning, 需求 3.1).
    *
    * Optional low-cost / faster model used by the LLM_Router for scheduling
    * decisions. OPTIONAL so durable old configs (which never carried it) stay

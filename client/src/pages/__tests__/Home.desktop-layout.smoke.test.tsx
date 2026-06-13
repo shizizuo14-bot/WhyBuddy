@@ -195,7 +195,7 @@ vi.mock("@/i18n", () => ({
         englishShort: "EN",
       },
       home: {
-        desktopOfficeLabel: "WhyBuddy / Office",
+        desktopOfficeLabel: "SlideRule / Office",
         officeTitle: "Office is now the default desktop execution shell.",
         enterTasks: "Execution details",
         openWorkflow: "Open Workflow",
