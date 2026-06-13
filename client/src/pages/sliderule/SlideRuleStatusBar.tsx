@@ -33,6 +33,12 @@ export function SlideRuleStatusBar({
       aria-label="推演状态"
     >
       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-[11px] text-slate-600">
+        <img
+          src="/assets/sliderule_icon_flat_transparent.png"
+          alt="SlideRule"
+          className="mr-1 inline-block h-3.5 w-3.5 opacity-60 align-middle"
+          title="SlideRule"
+        />
         <span className="font-mono text-[10px] font-semibold uppercase tracking-wide text-slate-400">
           STATUS
         </span>

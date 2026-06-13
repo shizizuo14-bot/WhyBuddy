@@ -1,5 +1,6 @@
 import React from "react";
 import { autopilotTheme } from "./autopilot-theme";
+import { Brain, Check, ChevronDown, RefreshCw } from "lucide-react";
 
 /** Compact token budget label: 89000 → "89k", 12500 → "12.5k", 800 → "800". */
 function formatBudgetTokens(n: number): string {
@@ -47,6 +48,7 @@ export function ComposerDock({
 
   const [isModeOpen, setIsModeOpen] = React.useState(false);
   const modeRef = React.useRef(null);
+  const textareaRef = React.useRef<HTMLTextAreaElement>(null);
 
   const selectMode = (mode: "single" | "marathon") => {
     if (mode === "marathon") {
@@ -83,10 +85,34 @@ export function ComposerDock({
     };
   }, []);
 
+  // Auto-grow textarea (optimization: comfortable multi-line without fixed rows)
+  const adjustTextareaHeight = React.useCallback(() => {
+    const ta = textareaRef.current;
+    if (!ta) return;
+    if (!ta.value.trim()) {
+      ta.style.height = "44px";
+      return;
+    }
+    ta.style.height = "auto";
+    const max = 110;
+    ta.style.height = Math.min(ta.scrollHeight, max) + "px";
+  }, []);
+
+  React.useEffect(() => {
+    adjustTextareaHeight();
+  }, [input, adjustTextareaHeight]);
+
+  const placeholderText =
+    driveMode === "marathon"
+      ? "输入新种子继续推演，或质疑当前结果...（Shift+Enter 换行）"
+      : goal
+        ? "继续补充想法，或质疑图上节点...（Shift+Enter 换行）"
+        : "描述你想推演的问题...（Shift+Enter 换行）";
+
   // chips no longer rendered (user requested removal of bottom bubbles)
   // const chips = hintChips?.length ? hintChips : DEFAULT_HINT_CHIPS;
   return (
-    <div className="pointer-events-none flex w-full max-w-2xl flex-col items-center gap-2">
+    <div className={`pointer-events-none flex ${autopilotTheme.composerDockWidth} flex-col items-center gap-2`}>
       {latestUserText && (
         <div
           className={
@@ -120,41 +146,38 @@ export function ComposerDock({
           }`}
         >
           {/* Left mode selector prefix - integrated like Grok (pure SVG icons, smaller pill with hover scale) */}
-          <div className="relative flex-shrink-0 flex items-center pl-1.5" ref={modeRef}>
+          <div className="relative flex w-[116px] shrink-0 items-center sm:w-[164px]" ref={modeRef}>
             <button
               type="button"
               onClick={() => setIsModeOpen(!isModeOpen)}
               disabled={isRunning}
-              className={`flex items-center gap-1 rounded-full px-1.5 py-0.5 text-[9px] font-medium transition-all duration-150 hover:scale-[1.03] active:scale-[0.985] ${
+              className={`flex h-11 w-full items-center gap-2 rounded-full px-3 text-[11px] font-semibold transition-all duration-150 active:scale-[0.985] ${
                 driveMode === "marathon"
-                  ? "text-indigo-600 hover:bg-indigo-100/60"
-                  : "text-slate-500 hover:bg-slate-100/70"
+                  ? "bg-indigo-50 text-indigo-700 hover:bg-indigo-100/70"
+                  : "bg-slate-50/80 text-slate-600 hover:bg-slate-100/80"
               } ${isRunning ? "opacity-50 cursor-not-allowed" : ""}`}
               title="切换推演模式（Grok 风格前缀下拉）"
             >
               {driveMode === "marathon" ? (
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                  <polyline points="23 4 23 10 17 10"></polyline>
-                  <polyline points="1 20 1 14 7 14"></polyline>
-                  <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0120.49 15"></path>
-                </svg>
+                <RefreshCw className="h-4 w-4 shrink-0" strokeWidth={2.2} />
               ) : (
-                <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="flex-shrink-0">
-                  <path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0 3 3 3 3 0 0 0 3-3V5a3 3 0 0 0-3-3Z"></path>
-                  <path d="M12 14a3 3 0 0 0-3 3v1a3 3 0 0 0 3 3 3 3 0 0 0 3-3v-1a3 3 0 0 0-3-3Z"></path>
-                  <path d="M12 5v8"></path>
-                </svg>
+                <Brain className="h-4 w-4 shrink-0" strokeWidth={2.2} />
               )}
-              <span>{driveMode === "marathon" ? "持续推演" : "深思一轮"}</span>
+              <span className="min-w-0 truncate leading-none">
+                {driveMode === "marathon" ? "持续推演" : "深思一轮"}
+              </span>
               {driveMode === "marathon" && (
-                <span className="text-indigo-400/80 text-[8px] font-mono tabular-nums">·{formatBudgetTokens((marathonBudget?.maxTokens) || 12000)}</span>
+                <span className="font-mono text-[8px] tabular-nums text-indigo-400/80">
+                  ·{formatBudgetTokens(marathonBudget?.maxTokens || 12000)}
+                </span>
               )}
-              <span className="ml-0.5 text-[9px] leading-none text-current/50">▾</span>
+              <ChevronDown className="ml-auto h-3 w-3 shrink-0 text-current/50" strokeWidth={2.2} />
             </button>
 
-            {/* Improved dropdown: narrower (w-48), with separator, more descriptive text, left-aligned, smooth animation */}
+            {/* Mode menu */}
             <div
-              className={`absolute left-0 bottom-full mb-1 w-48 origin-bottom-left rounded-2xl border border-slate-200 bg-white shadow-xl overflow-hidden z-[60] text-sm transition-all duration-200 ease-out ${
+              data-testid="sliderule-mode-menu"
+              className={`absolute bottom-full left-0 z-[60] mb-2 w-[218px] origin-bottom-left overflow-hidden rounded-[18px] border border-white/80 bg-white/95 p-1.5 text-sm shadow-[0_18px_48px_rgb(15_23_42/0.16)] ring-1 ring-slate-200/70 backdrop-blur-xl transition-all duration-150 ease-out ${
                 isModeOpen
                   ? "opacity-100 scale-100 translate-y-0"
                   : "opacity-0 scale-95 translate-y-2 pointer-events-none"
@@ -163,72 +186,75 @@ export function ComposerDock({
               <button
                 type="button"
                 onClick={() => selectMode("single")}
-                className={`w-full px-3 py-2 text-left hover:bg-slate-50 flex items-start gap-2 ${driveMode === "single" ? "bg-emerald-50/80" : ""}`}
+                className={`flex w-full items-center gap-2 rounded-[14px] px-2.5 py-2 text-left transition-colors hover:bg-slate-50 ${driveMode === "single" ? "bg-emerald-50/80" : ""}`}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0 text-emerald-600">
-                  <path d="M12 2a3 3 0 0 0-3 3v1a3 3 0 0 0 3 3 3 3 0 0 0 3-3V5a3 3 0 0 0-3-3Z"></path>
-                  <path d="M12 14a3 3 0 0 0-3 3v1a3 3 0 0 0 3 3 3 3 0 0 0 3-3v-1a3 3 0 0 0-3-3Z"></path>
-                  <path d="M12 5v8"></path>
-                </svg>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-slate-800 flex items-center gap-1.5 text-xs">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-emerald-50 text-emerald-600">
+                  <Brain className="h-3.5 w-3.5" strokeWidth={2.2} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
                     深思一轮
-                    {driveMode === "single" && <span className="text-emerald-500 text-[10px]">✓</span>}
+                    {driveMode === "single" && <Check className="h-3 w-3 text-emerald-500" strokeWidth={2.4} />}
                   </div>
-                  <div className="text-[10px] text-slate-500 leading-tight">想清楚一个问题就停，等你确认下一步</div>
+                  <div className="mt-0.5 truncate text-[10px] leading-4 text-slate-500">想清楚一个问题后停下</div>
                 </div>
               </button>
-
-              <div className="border-t border-slate-100 mx-2" />
 
               <button
                 type="button"
                 onClick={() => selectMode("marathon")}
-                className={`w-full px-3 py-2 text-left hover:bg-slate-50 flex items-start gap-2 ${driveMode === "marathon" ? "bg-indigo-50/80" : ""}`}
+                className={`mt-1 flex w-full items-center gap-2 rounded-[14px] px-2.5 py-2 text-left transition-colors hover:bg-slate-50 ${driveMode === "marathon" ? "bg-indigo-50/80" : ""}`}
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" className="mt-0.5 flex-shrink-0 text-indigo-600">
-                  <polyline points="23 4 23 10 17 10"></polyline>
-                  <polyline points="1 20 1 14 7 14"></polyline>
-                  <path d="M3.51 9a9 9 0 0114.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0120.49 15"></path>
-                </svg>
-                <div className="flex-1 min-w-0">
-                  <div className="font-medium text-slate-800 flex items-center gap-1.5 text-xs">
+                <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-indigo-50 text-indigo-600">
+                  <RefreshCw className="h-3.5 w-3.5" strokeWidth={2.2} />
+                </span>
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-800">
                     持续推演
-                    {driveMode === "marathon" && <span className="text-indigo-500 text-[10px]">✓</span>}
+                    {driveMode === "marathon" && <Check className="h-3 w-3 text-indigo-500" strokeWidth={2.4} />}
                   </div>
-                  <div className="text-[10px] text-slate-500 leading-tight">自动多轮推进，直到预算/前沿尽/需要人工介入</div>
+                  <div className="mt-0.5 truncate text-[10px] leading-4 text-slate-500">自动推进到需要确认</div>
                 </div>
               </button>
             </div>
           </div>
 
           {/* subtle divider between prefix and input */}
-          <div className="w-px h-5 bg-slate-200/50 mx-0.5 flex-shrink-0" />
+          <div className="mx-2 h-7 w-px flex-shrink-0 bg-slate-200/70 sm:mx-4" />
 
-          <textarea
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter" && !e.shiftKey) {
-                e.preventDefault();
-                sendMessage();
-              }
-            }}
-            placeholder={
-              driveMode === "marathon"
-                ? "输入新种子继续推演，或质疑当前结果…（Shift+Enter 换行）"
-                : goal
-                  ? "继续补充想法，或质疑图上节点…（Shift+Enter 换行）"
-                  : "描述你想推演的问题…（Shift+Enter 换行）"
-            }
-            rows={1}
-            className={autopilotTheme.grokInput}
-            style={{ minHeight: "40px" }}
-            data-testid="sliderule-composer-input"
-          />
+          <div className="relative h-11 min-w-0 flex-1">
+            {!input && (
+              <div className="pointer-events-none absolute left-4 right-2 top-1/2 -translate-y-1/2 truncate text-[14px] leading-[22px] text-slate-400">
+                {placeholderText}
+              </div>
+            )}
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => {
+                setInput(e.target.value);
+                // trigger height adjust immediately for responsive feel
+                // (the effect also catches it for external changes)
+                requestAnimationFrame(adjustTextareaHeight);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !e.shiftKey) {
+                  e.preventDefault();
+                  sendMessage();
+                }
+              }}
+              placeholder=""
+              aria-label={placeholderText}
+              rows={1}
+              disabled={isRunning}
+              className={autopilotTheme.grokInput}
+              style={{ minHeight: "44px" }}
+              data-testid="sliderule-composer-input"
+            />
+          </div>
           <button
             type="button"
-            onClick={isRunning ? stop : sendMessage}
+            onClick={isRunning ? (stop || (() => {})) : sendMessage}
             disabled={!isRunning && !input.trim()}
             className={
               !isRunning && driveMode === "marathon"

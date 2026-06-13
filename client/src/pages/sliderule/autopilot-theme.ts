@@ -4,11 +4,13 @@
  */
 export const autopilotTheme = {
   /** Full-screen canvas host — graph under floating HUD layers. */
-  immersionPage: "relative h-screen w-screen overflow-hidden bg-[#eef1f4] text-slate-950",
+  immersionPage:
+    "relative h-screen w-screen overflow-hidden bg-[radial-gradient(circle_at_50%_38%,#f8fafc_0,#eef2f6_38%,#e8edf2_100%)] text-slate-950",
   immersionCanvas: "absolute inset-0 z-0",
   immersionOverlayTop:
-    "pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col gap-2 p-3 sm:gap-2.5 sm:p-4",
-  immersionOverlayHeader: "pointer-events-auto w-full",
+    "pointer-events-none absolute inset-x-0 top-0 z-20 flex flex-col gap-2 px-2 pt-2 sm:gap-2.5 sm:px-3 sm:pt-2",
+  immersionOverlayHeader:
+    "pointer-events-auto w-full",
   /** 架构树节拍 — 顶栏下方、右对齐，预留顶栏右侧放 Dev / 导出等操作 */
   immersionOverlayArchRow: "pointer-events-none flex w-full justify-end",
   immersionHudLeft:
@@ -17,15 +19,16 @@ export const autopilotTheme = {
     "pointer-events-auto w-[min(100%,600px)] shrink-0 sm:w-[min(52vw,560px)] lg:w-[min(48vw,600px)]",
   overlayTransparent: "bg-transparent",
   overlayBar:
-    "flex flex-wrap items-center gap-x-3 gap-y-1 border-b border-slate-900/[0.06] pb-1.5 text-[11px] text-slate-700",
+    "flex min-h-11 flex-wrap items-center gap-x-3 gap-y-1 px-0 py-1 text-[11px] text-slate-700",
   immersionOverlayBottom:
-    "pointer-events-none absolute inset-x-0 bottom-0 z-30 flex justify-center px-4 pb-5 pt-2 sm:pb-6",
+    "pointer-events-none absolute inset-x-0 bottom-0 z-30 flex justify-center px-5 pb-[max(28px,env(safe-area-inset-bottom))] pt-1 sm:px-6 sm:pb-[max(34px,env(safe-area-inset-bottom))]",
   glassPanel:
     "pointer-events-auto max-h-[min(70vh,520px)] w-[min(100%,340px)] overflow-hidden rounded-2xl border border-white/70 bg-white/75 px-3 py-3 shadow-[0_8px_32px_rgb(15_23_42/0.12)] backdrop-blur-xl sm:px-4 sm:py-3.5",
   glassPanelWide:
     "pointer-events-auto max-w-[min(100%,560px)] rounded-2xl border border-white/70 bg-white/75 px-3 py-3 shadow-[0_8px_32px_rgb(15_23_42/0.12)] backdrop-blur-xl sm:px-4 sm:py-3.5",
   composerDock:
     "rounded-2xl border border-white/80 bg-white/88 px-3 py-3 shadow-[0_12px_40px_rgb(15_23_42/0.14)] backdrop-blur-2xl sm:px-4",
+  composerDockWidth: "w-full max-w-[min(100%,760px)]",
 
   page: "relative flex h-screen flex-col bg-[#f4f6f8] text-slate-950",
   header: "flex items-center justify-between border-b border-[#E5E5E5] bg-white px-4 py-3",
@@ -72,7 +75,7 @@ export const autopilotTheme = {
     "rounded-full border border-slate-200 bg-white px-2 py-0.5 text-[10px] font-medium text-slate-600 transition hover:border-slate-300 hover:bg-slate-50 hover:text-slate-800",
 
   auditBtn:
-    "rounded-lg border border-slate-200 bg-white px-2.5 py-1 text-[11px] font-medium text-slate-700 transition hover:bg-slate-50",
+    "rounded-full border border-slate-200/80 bg-white/85 px-3 py-1.5 text-[11px] font-semibold text-slate-700 shadow-sm transition hover:bg-white",
   devLink: "text-[10px] text-slate-500 transition hover:text-slate-800 hover:underline",
 
   liveActionThink: "text-sm text-slate-500",
@@ -101,13 +104,13 @@ export const autopilotTheme = {
   latestUserBubbleMarathon:
     "pointer-events-auto max-w-full truncate rounded-full border border-indigo-200 bg-indigo-50/90 px-3 py-1 text-[11px] text-indigo-700 shadow-sm backdrop-blur",
   grokInputBar:
-    "pointer-events-auto flex w-full items-end gap-1.5 rounded-[24px] border border-slate-200 bg-white/95 px-2.5 py-2 shadow-[0_12px_40px_rgb(15_23_42/0.12)] backdrop-blur-xl",
+    "pointer-events-auto flex min-h-[64px] w-full items-center gap-0 rounded-[32px] border border-white/85 bg-white/94 px-4 py-2.5 shadow-[0_18px_52px_rgb(15_23_42/0.12)] ring-1 ring-slate-200/50 backdrop-blur-xl",
   grokInputBarMarathon:
-    "pointer-events-auto flex w-full items-end gap-1.5 rounded-[24px] border border-indigo-200 bg-indigo-50/80 px-2.5 py-2 shadow-[0_12px_40px_rgb(79_70_229/0.10)] backdrop-blur-xl",
+    "pointer-events-auto flex min-h-[64px] w-full items-center gap-0 rounded-[32px] border border-indigo-100/85 bg-white/94 px-4 py-2.5 shadow-[0_18px_52px_rgb(79_70_229/0.13)] ring-1 ring-indigo-100/70 backdrop-blur-xl",
   grokInput:
-    "max-h-40 flex-1 resize-none bg-transparent px-2 py-2 text-sm leading-6 text-slate-800 outline-none placeholder:text-slate-400",
+    "h-11 max-h-[116px] w-full min-w-0 resize-none overflow-y-auto bg-transparent px-4 py-[9px] text-[14px] leading-[22px] text-slate-800 outline-none placeholder:text-slate-400",
   grokSendBtn:
-    "shrink-0 rounded-full bg-slate-900 px-4 py-2 text-xs font-bold text-white transition hover:bg-slate-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40",
+    "inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-slate-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40",
   grokSendBtnMarathon:
-    "shrink-0 rounded-full bg-indigo-600 px-4 py-2 text-xs font-bold text-white transition hover:bg-indigo-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40",
+    "inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-indigo-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40",
 } as const;

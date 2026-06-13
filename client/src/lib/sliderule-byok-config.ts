@@ -9,7 +9,15 @@
  * 预设表驱动各家信封差异。
  */
 
-export type ByokPresetId = "anthropic" | "deepseek" | "openrouter" | "openai" | "custom";
+export type ByokPresetId =
+  | "anthropic"
+  | "deepseek"
+  | "openrouter"
+  | "openai"
+  | "gemini"
+  | "zhipu"
+  | "siliconflow"
+  | "custom";
 
 export interface ByokKeyEntry {
   id: string;                // 池内唯一
@@ -83,6 +91,9 @@ export const PRESET_ENDPOINTS: Record<ByokPresetId, string> = {
   deepseek: "https://api.deepseek.com/chat/completions",
   openrouter: "https://openrouter.ai/api/v1/chat/completions",
   openai: "https://api.openai.com/v1/chat/completions",
+  gemini: "https://generativelanguage.googleapis.com/v1beta/openai/chat/completions",
+  zhipu: "https://open.bigmodel.cn/api/paas/v4/chat/completions",
+  siliconflow: "https://api.siliconflow.cn/v1/chat/completions",
   custom: "",
 };
 
@@ -91,5 +102,8 @@ export const PRESET_MODELS: Record<ByokPresetId, string> = {
   deepseek: "deepseek-chat",
   openrouter: "anthropic/claude-3.5-sonnet",
   openai: "gpt-4o-mini",
+  gemini: "gemini-2.0-flash",
+  zhipu: "glm-4-flash",
+  siliconflow: "Qwen/Qwen2.5-7B-Instruct",
   custom: "gpt-4o-mini",
 };
