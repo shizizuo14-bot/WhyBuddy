@@ -10,6 +10,7 @@
  */
 
 import type { V5CapabilityId } from "./contracts.js";
+import type { ReasoningEvent } from "./sliderule-reasoning-events.js";
 import type { BrainstormReasoningGraph } from "./brainstorm-reasoning-graph.js";
 import type { SlideRuleReplayEvent } from "./sliderule-session-replay.js";
 
@@ -173,6 +174,13 @@ export interface V5SessionState {
 
   /** V5.1 Knife 7: optional coverage gaps for gap lifecycle (resolved/waived) under authored CoverageContract. */
   coverageGaps?: CoverageGap[];
+
+  /**
+   * V5.3 #4: 执行事件流(投影源)。每条绑定 capabilityRunId,记录一次能力执行内的有序
+   * 思考/动作步(think/observe/role_position/critique/converge/…)。可选、可截断、向后兼容。
+   * 不参与机械裁决,纯投影/UI 消费。
+   */
+  reasoningEvents?: ReasoningEvent[];
 }
 
 export interface UserIntervention {

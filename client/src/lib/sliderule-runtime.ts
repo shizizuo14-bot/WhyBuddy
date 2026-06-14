@@ -74,6 +74,7 @@ import {
 import { findGithubUrlInTexts } from "@shared/blueprint/sliderule-github-context";
 import { createBrowserLlmCapabilityProvider } from "./sliderule-browser-llm";
 import { pickNextCapabilities as pickNextCapabilitiesHeuristic } from "@shared/blueprint/sliderule-pick-heuristic";
+import { makeEventSequence, type ReasoningEvent } from "@shared/blueprint/sliderule-reasoning-events";
 import { validateProposedPlan } from "@shared/blueprint/sliderule-plan-validation";
 import { fetchOrchestratePlan } from "./sliderule-orchestrator";
 import {
@@ -1516,6 +1517,8 @@ export interface CapabilityExecutor {
     content: string;
     provenance?: Artifact["provenance"];
     payload?: unknown;
+    /** V5.3 #4: 执行事件流(投影源),绑定 capabilityRunId。 */
+    events?: ReasoningEvent[];
     /** Knife 11: real provider usage if available from server LLM (input/output/total tokens, model). */
     usage?: {
       inputTokens?: number;
@@ -1531,6 +1534,47 @@ export interface CapabilityExecutor {
   }>;
 }
 
+/**
+ * V5.3 #4: 模拟器执行事件(无 LLM 时也让思考链不空)。确定性、用户语言、绑定本次 run。
+ * server-llm 真实路径会用真实 events 覆盖/补充;这里是 pilot/demo/测试兜底。
+ */
+function buildSimulatedReasoningEvents(p: {
+  turnId: string;
+  capabilityRunId: string;
+  capabilityId: string;
+  roleId?: string;
+  summary?: string;
+}): ReasoningEvent[] {
+  const cap = p.capabilityId;
+  const role = roleIdToDisplayLabel(p.roleId || "agent");
+  const steps: Array<Omit<Parameters<typeof makeEventSequence>[1][number], never>> = [
+    { kind: "capability_start", text: `${role} 开始执行`, roleId: p.roleId },
+  ];
+  if (/evidence|search|repo|mcp|skill/.test(cap)) {
+    steps.push({ kind: "observe", text: "正在检索相关证据与上下文", roleId: p.roleId });
+    steps.push({ kind: "tool_call", text: "调用外部检索", roleId: p.roleId, meta: { toolName: cap } });
+  } else if (/risk|counter|critique/.test(cap)) {
+    steps.push({ kind: "think", text: "审视方案边界与潜在风险", roleId: p.roleId });
+  } else if (/synthesis|report/.test(cap)) {
+    steps.push({ kind: "think", text: "聚合上游产物,收敛结论", roleId: p.roleId });
+  } else if (cap === "gap.ask" || cap === "question.expand" || cap === "intent.clarify") {
+    steps.push({ kind: "think", text: "定位阻塞缺口,准备澄清问题", roleId: p.roleId });
+  } else if (/structure|decompose/.test(cap)) {
+    steps.push({ kind: "think", text: "把目标拆解为可执行结构", roleId: p.roleId });
+  } else {
+    steps.push({ kind: "think", text: "基于当前会话状态推进", roleId: p.roleId });
+  }
+  steps.push({
+    kind: "capability_complete",
+    text: (p.summary || "产出完成").slice(0, 80),
+    roleId: p.roleId,
+  });
+  return makeEventSequence(
+    { turnId: p.turnId, capabilityRunId: p.capabilityRunId, capabilityId: cap },
+    steps
+  );
+}
+
 class DefaultCapabilityExecutor implements CapabilityExecutor {
   async executeCapability(args: {
     capabilityId: V5CapabilityId;
@@ -1538,12 +1582,14 @@ class DefaultCapabilityExecutor implements CapabilityExecutor {
     inputArtifactIds: string[];
     roleId?: string;
     turnId: string;
+    capabilityRunId?: string;
   }): Promise<{
     title: string;
     summary: string;
     content: string;
     provenance?: Artifact["provenance"];
     payload?: unknown;
+    events?: ReasoningEvent[];
     usage?: {
       inputTokens?: number;
       outputTokens?: number;
@@ -1557,7 +1603,7 @@ class DefaultCapabilityExecutor implements CapabilityExecutor {
     // Special case for the V5 main output (report.write): use the structured 9-section builder
     // so the committed artifact carries evidence-grade content even under the default simulator path.
     // This is the "wire into CapabilityExecutor" step: page no longer post-processes report strings.
-    let result: { title: string; summary: string; content: string; provenance?: Artifact["provenance"]; payload?: unknown; usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number; model?: string }; qualityBaseline?: "production" | "pilot-template" };
+    let result: { title: string; summary: string; content: string; provenance?: Artifact["provenance"]; payload?: unknown; events?: ReasoningEvent[]; usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number; model?: string }; qualityBaseline?: "production" | "pilot-template" };
     if (args.capabilityId === 'report.write') {
       const built = buildStructuredReport({
         state: args.state,
@@ -1626,6 +1672,15 @@ class DefaultCapabilityExecutor implements CapabilityExecutor {
       tokens: estimatedTokens,
       durationMs,
       source: "estimated",
+    });
+
+    // V5.3 #4: 附确定性执行事件,绑定本次 run(capabilityRunId 与 commit 节点一致)。
+    result.events = buildSimulatedReasoningEvents({
+      turnId: args.turnId,
+      capabilityRunId: args.capabilityRunId || `${args.turnId}-run`,
+      capabilityId: args.capabilityId,
+      roleId: args.roleId,
+      summary: result.summary,
     });
 
     return result;
@@ -4466,6 +4521,16 @@ export async function driveReasoningSession(
 
       working = updatedState;
       if (committed) committedArtifactIds.push(committed.id);
+
+      // V5.3 #4: 合并本次执行的 ReasoningEvent(投影源)。events 已绑定 runId=`${loopTurnId}-run-${i}`,
+      // 与 commit 节点 capabilityRunId 一致;纯追加,不影响裁决。
+      const execEvents = (exec as { events?: ReasoningEvent[] } | null)?.events;
+      if (execEvents && execEvents.length > 0) {
+        working = {
+          ...working,
+          reasoningEvents: [...(working.reasoningEvents || []), ...execEvents],
+        };
+      }
 
       const execDegraded = Boolean((exec as { degraded?: boolean } | null)?.degraded);
       const execDegradedReason = (exec as { degradedReason?: string } | null)?.degradedReason;

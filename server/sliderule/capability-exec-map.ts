@@ -4,6 +4,7 @@
  */
 
 import type { V5SessionState } from "../../shared/blueprint/v5-reasoning-state.js";
+import type { ReasoningEvent } from "../../shared/blueprint/sliderule-reasoning-events.js";
 import { findGithubUrlInTexts, extractGithubRepoSlug } from "../../shared/blueprint/sliderule-github-context.js";
 import { executeGithubMcpCapability } from "./github-mcp-adapter.js";
 import { executeRepoStaticInspect } from "./repo-static-analyzer.js";
@@ -52,6 +53,8 @@ export type RawExecutorResult = {
   evidenceSource?: EvidenceSourceLabel;
   /** S15: explicit degraded marker when repo/evidence path downgrades. */
   payload?: { degraded?: boolean; degradedReason?: string; [key: string]: unknown };
+  /** V5.3 #4: 执行事件流(投影源)。执行器可选返回,经 route 透传 → drive 合并进 state.reasoningEvents。 */
+  events?: ReasoningEvent[];
 };
 
 type EvidenceFallbackOpts = {
