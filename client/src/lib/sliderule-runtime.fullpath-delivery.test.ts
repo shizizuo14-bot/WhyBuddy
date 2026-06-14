@@ -179,6 +179,11 @@ describe("S19 · ship-time delivery chain", () => {
     expect(doc).toBeTruthy();
   });
 
+  // #3 分类齐全(报告/规格树/规格文档/提示词包/架构图/工程交接)依赖各 cap 在真实
+  // pilot-template 门下提交为可信 —— 这要走 driveReasoningSession + simulator 真实路径
+  // (本文件的 runDeliveryPipeline 用 createRawArtifact + production 门是测试夹具,不反映真实门),
+  // 故分类齐全用应用端到端实测验证,这里只断言流水线产出了各 cap 的工件(见上「full pipeline」)。
+
   it("P5: commit-time gates never include T_MERGE / T_CONTENT / T_TEST", () => {
     const commitIds = evaluateCommitGates("handoff.package", {}).map((g) => g.gateId);
     expect(commitIds).not.toContain("T_MERGE");
