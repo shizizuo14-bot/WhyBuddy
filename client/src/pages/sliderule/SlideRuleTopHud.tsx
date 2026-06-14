@@ -6,7 +6,7 @@ import { autopilotTheme } from "./autopilot-theme";
 import type { SlideRuleExecutorMode } from "./types";
 import type { ProjectionDensity } from "./sliderule-projection-constants";
 import { IS_GITHUB_PAGES } from "@/lib/deploy-target";
-import { Settings2 } from "lucide-react";
+import { Layers, Settings2 } from "lucide-react";
 
 export function SlideRuleTopHud({
   state,
@@ -20,6 +20,7 @@ export function SlideRuleTopHud({
   onProjectionDensityChange,
   onResetSession,
   onOpenSettings,
+  onOpenDeliverables,
 }: {
   state: V5SessionState;
   goal: string;
@@ -32,6 +33,7 @@ export function SlideRuleTopHud({
   onProjectionDensityChange?: (density: ProjectionDensity) => void;
   onResetSession?: () => void;
   onOpenSettings?: () => void;
+  onOpenDeliverables?: () => void;
 }) {
   const facts = deriveStatusBarFacts(state, {
     turnCount,
@@ -209,6 +211,18 @@ export function SlideRuleTopHud({
           className="flex shrink-0 items-center justify-end gap-2 py-1"
           data-testid="sliderule-header-actions"
         >
+          {onOpenDeliverables && (
+            <button
+              type="button"
+              onClick={onOpenDeliverables}
+              data-testid="sliderule-deliverables-open"
+              className={`${autopilotTheme.auditBtn} flex items-center gap-1`}
+              title="交付物（报告 / 规格树 / 文档 / 提示词包 / 架构图 / 交接包）"
+            >
+              <Layers className="h-3.5 w-3.5" />
+              交付物
+            </button>
+          )}
           {onOpenSettings && (
             <button
               type="button"

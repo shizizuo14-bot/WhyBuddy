@@ -88,11 +88,17 @@ export function isPreviewDissatisfiedIntent(userText: string): boolean {
   return /不满意|重新预演|预演不行|效果不对|ITER|换个预览/.test(userText.trim());
 }
 
-/** Ordered ship pipeline capabilities (mechanical). */
+/**
+ * Ordered ship pipeline capabilities (mechanical).
+ * 顺序保证 handoff.package 最后(它 bundle 前面的矩阵/架构图/提示词包)。
+ * instruction.package = 提示词包(C_PACK); outcome.visualize = 架构图(由 spec_tree 渲 mermaid)。
+ */
 export const DELIVERY_PIPELINE: Array<{ capabilityId: V5CapabilityId; roleId: string }> = [
   { capabilityId: "document.draft", roleId: "工程" },
   { capabilityId: "traceability.matrix", roleId: "综合" },
   { capabilityId: "task.write", roleId: "产品" },
+  { capabilityId: "instruction.package", roleId: "工程" },
+  { capabilityId: "outcome.visualize", roleId: "架构" },
   { capabilityId: "handoff.package", roleId: "工程" },
 ];
 

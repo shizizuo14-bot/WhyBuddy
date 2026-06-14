@@ -25,6 +25,7 @@ import { SlideRuleStatusBar } from "./sliderule/SlideRuleStatusBar";
 import { SlideRuleTopHud } from "./sliderule/SlideRuleTopHud";
 import { SettingsDialog } from "./sliderule/SettingsDialog";
 import { ClarificationCard, type ClarificationItem } from "./sliderule/ClarificationCard";
+import { DeliverablesPanel } from "./sliderule/DeliverablesPanel";
 import { ArchitectureProcessPanel } from "./sliderule/ArchitectureProcessPanel";
 import { ComposerDock } from "./sliderule/ComposerDock";
 import { deriveComposerHintChips } from "./sliderule/derive-composer-hints";
@@ -214,6 +215,8 @@ function SlideRuleImmersion({
   setMarathonBudget,
   pendingClarifications,
   answerClarifications,
+  generateDeliverables,
+  onExportDeliverables,
 }: {
   goal: string;
   uiTurns: UiTurn[];
@@ -251,9 +254,12 @@ function SlideRuleImmersion({
   setMarathonBudget?: (b: { maxTokens: number; declaredAt: string }) => void;
   pendingClarifications?: ClarificationItem[];
   answerClarifications?: (answers: Array<{ gapId: string; answer: string }>) => void;
+  generateDeliverables?: () => void;
+  onExportDeliverables?: () => void;
 }) {
   const sessionId = sessionState.sessionId || "sliderule-v51-product";
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [deliverablesOpen, setDeliverablesOpen] = useState(false);
   const composerHints = useMemo(
     () => deriveComposerHintChips(sessionState),
     [sessionState]
@@ -314,6 +320,7 @@ function SlideRuleImmersion({
           onProjectionDensityChange={onProjectionDensityChange}
           onResetSession={resetSession}
           onOpenSettings={() => setSettingsOpen(true)}
+          onOpenDeliverables={() => setDeliverablesOpen(true)}
         />
         <div className={autopilotTheme.immersionOverlayArchRow}>
           <ArchitectureProcessPanel
@@ -422,6 +429,16 @@ function SlideRuleImmersion({
         setDriveMode={setDriveMode}
         marathonBudget={marathonBudget}
         setMarathonBudget={setMarathonBudget}
+      />
+
+      <DeliverablesPanel
+        open={deliverablesOpen}
+        onClose={() => setDeliverablesOpen(false)}
+        sessionState={sessionState}
+        isRunning={isRunning}
+        onGenerate={() => generateDeliverables?.()}
+        onExportMd={() => onExportDeliverables?.()}
+        onEvidenceRefClick={onEvidenceRefClick}
       />
     </div>
   );
@@ -754,6 +771,7 @@ export default function SlideRule() {
     resolveInteractiveGate,
     pendingClarifications,
     answerClarifications,
+    generateDeliverables,
   } = useSlideRuleSession({
     sessionId: IS_GITHUB_PAGES ? GITHUB_PAGES_DEMO_SESSION_ID : "sliderule-v51-product",
     documentTitle: IS_GITHUB_PAGES ? "SlideRule · 演示" : "SlideRule",
@@ -918,6 +936,8 @@ export default function SlideRule() {
     setMarathonBudget,
     pendingClarifications,
     answerClarifications,
+    generateDeliverables,
+    onExportDeliverables: () => downloadSlideRuleDeliveryMd(sessionState),
   };
 
   if (isImmersion) {

@@ -62,10 +62,12 @@ export function pickNextCapabilities(
   }
 
   // S19: after clear, delivery intent runs ship pipeline.
+  // 交付能力多为模板/确定性(document/task/matrix/instruction/visualize/handoff),
+  // 一次性排完整条流水线(含 spec 树前置),让「生成交付物」一键产出全部交付物。
   if (isDeliveryIntent(userText) && state.goal?.status === "clear") {
     const delivery = pickDeliveryCapabilities(state);
     const structure = pickStructureBeforeDelivery(state, userText);
-    return [...structure, ...delivery].slice(0, 5);
+    return [...structure, ...delivery].slice(0, 8);
   }
 
   // S18: visual / mermaid intents after doc or tree exists.
