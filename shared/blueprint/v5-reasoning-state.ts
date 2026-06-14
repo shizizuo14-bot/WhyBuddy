@@ -191,6 +191,8 @@ export interface UserIntervention {
     | "compare"
     | "revise";
   text: string;
+  /** 澄清卡片回答：精确标记本次回答了哪些 open_question gap（按 gap id 精确 resolve，支持部分回答）。 */
+  answeredGapIds?: string[];
 }
 
 /**
@@ -281,6 +283,16 @@ export interface CoverageGap {
   waivedReason?: string;
   createdAt: string;
   updatedAt?: string;
+  /**
+   * 澄清问题卡片（G_READY）用：gap.ask 产出结构化候选选项时携带。
+   * 字段词汇对齐 V4 `BlueprintClarificationQuestion`（type/options/defaultAnswer/context）。
+   * 全可选 —— 缺省（或 clarifyType=free_text）时卡片退化为纯文本输入框（向后兼容旧的纯文本问题 gap）。
+   */
+  clarifyType?: "free_text" | "single_choice" | "multi_choice";
+  options?: string[];
+  defaultAnswer?: string;
+  context?: string;
+  questionId?: string;
 }
 
 /** S13/S14 · G_SCHEMA / G_INV results persisted for structure.decompose (edges 88–89). */

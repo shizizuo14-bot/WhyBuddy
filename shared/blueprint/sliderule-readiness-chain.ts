@@ -62,6 +62,72 @@ export function pickReadinessChainCapabilities(
   return picks;
 }
 
+/**
+ * 结构化澄清问题（gap.ask 产出，喂澄清卡片）。
+ * 词汇对齐 V4 `BlueprintClarificationQuestion`（prompt/type/options:string[]/defaultAnswer/context）。
+ */
+export type ClarifyQuestionType = "free_text" | "single_choice" | "multi_choice";
+export interface ClarifyQuestion {
+  id?: string;
+  prompt: string;
+  type?: ClarifyQuestionType;
+  options?: string[];
+  defaultAnswer?: string;
+  context?: string;
+}
+
+/** 解析 gap.ask content 内的 ```clarify-json 围栏块 → 结构化问题 + 去块后的可读正文。 */
+export function extractClarifyBlock(content: string): {
+  questions: ClarifyQuestion[] | null;
+  cleanedContent: string;
+} {
+  const re = /```clarify-json\s*([\s\S]*?)```/i;
+  const m = content.match(re);
+  if (!m) return { questions: null, cleanedContent: content };
+  let questions: ClarifyQuestion[] | null = null;
+  try {
+    const parsed = JSON.parse(m[1].trim());
+    const arr = Array.isArray(parsed) ? parsed : Array.isArray(parsed?.questions) ? parsed.questions : null;
+    if (Array.isArray(arr)) {
+      questions = arr
+        .map((q: any) => {
+          const prompt = String(q?.prompt ?? q?.question ?? "").trim();
+          if (!prompt) return null;
+          const options = Array.isArray(q.options)
+            ? q.options
+                .map((o: any) => (typeof o === "string" ? o : o?.label))
+                .filter((o: any) => typeof o === "string" && o.trim())
+                .slice(0, 4)
+                .map((o: string) => o.trim().slice(0, 80))
+            : undefined;
+          const rawType = String(q?.type || "").trim();
+          const type: ClarifyQuestionType =
+            rawType === "single_choice" || rawType === "multi_choice" || rawType === "free_text"
+              ? (rawType as ClarifyQuestionType)
+              : options && options.length > 0
+                ? "single_choice"
+                : "free_text";
+          return {
+            prompt: prompt.slice(0, 240),
+            type,
+            options: options && options.length > 0 ? options : undefined,
+            defaultAnswer:
+              typeof (q?.defaultAnswer ?? q?.recommended) === "string"
+                ? String(q.defaultAnswer ?? q.recommended).trim().slice(0, 80)
+                : undefined,
+            context: typeof q?.context === "string" ? q.context.trim().slice(0, 160) : undefined,
+          } as ClarifyQuestion;
+        })
+        .filter((q): q is ClarifyQuestion => q !== null)
+        .slice(0, 6);
+    }
+  } catch {
+    questions = null;
+  }
+  const cleanedContent = content.replace(re, "").replace(/\n{3,}/g, "\n\n").trim();
+  return { questions: questions && questions.length > 0 ? questions : null, cleanedContent };
+}
+
 /** Extract blocking questions from gap.ask artifact body. */
 export function extractBlockingQuestions(content: string): string[] {
   const lines = content.split(/\n+/).map((l) => l.trim()).filter(Boolean);
@@ -99,6 +165,28 @@ export function gapsFromGapAskContent(
   }));
 }
 
+/** After gap.ask commit: materialize open_question gaps from STRUCTURED clarify questions (with options). */
+export function gapsFromClarifyQuestions(
+  questions: ClarifyQuestion[],
+  turnId: string,
+  artifactId: string
+): CoverageGap[] {
+  const now = new Date().toISOString();
+  return questions.map((q, i) => ({
+    id: `gap-q-${turnId}-${i}`,
+    kind: "open_question" as const,
+    label: q.prompt.slice(0, 240),
+    status: "open" as const,
+    reason: `gap.ask artifact ${artifactId}`,
+    createdAt: now,
+    clarifyType: q.type ?? (q.options && q.options.length > 0 ? "single_choice" : "free_text"),
+    options: q.options && q.options.length > 0 ? q.options : undefined,
+    defaultAnswer: q.defaultAnswer,
+    context: q.context,
+    questionId: q.id || `gap-q-${turnId}-${i}`,
+  }));
+}
+
 export function mergeGapAskIntoState(
   state: V5SessionState,
   gaps: CoverageGap[]
@@ -132,6 +220,26 @@ export function resolveReadinessGapsFromUserText(
   let changed = false;
   const gaps = (state.coverageGaps || []).map((g) => {
     if (g.status !== "open" || g.kind !== "open_question") return g;
+    changed = true;
+    return { ...g, status: "resolved" as const, updatedAt: now };
+  });
+  return changed ? { ...state, coverageGaps: gaps } : state;
+}
+
+/**
+ * 澄清卡片回答：按 gap id 精确把这些 open_question gap 置 resolved（支持部分回答）。
+ * 比启发式整批解析更可靠 —— 卡片提交时带 answeredGapIds。
+ */
+export function resolveReadinessGapsByIds(
+  state: V5SessionState,
+  answeredGapIds: string[]
+): V5SessionState {
+  if (!answeredGapIds || answeredGapIds.length === 0) return state;
+  const target = new Set(answeredGapIds);
+  const now = new Date().toISOString();
+  let changed = false;
+  const gaps = (state.coverageGaps || []).map((g) => {
+    if (g.status !== "open" || g.kind !== "open_question" || !target.has(g.id)) return g;
     changed = true;
     return { ...g, status: "resolved" as const, updatedAt: now };
   });

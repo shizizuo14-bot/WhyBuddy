@@ -84,6 +84,7 @@ import {
 } from "@shared/blueprint/sliderule-grounding";
 import {
   evaluateInteractiveGateAfterCommit,
+  openHumanQuestionGapCount,
   userClearsReadiness,
   userPicksRoute,
   userRejectsRouteSelection,
@@ -96,8 +97,11 @@ import {
 export { authorCoverageContract, evaluateCoverageGate, hasTrustedCommittedForCap };
 import {
   gapsFromGapAskContent,
+  gapsFromClarifyQuestions,
   mergeGapAskIntoState,
   resolveReadinessGapsFromUserText,
+  resolveReadinessGapsByIds,
+  type ClarifyQuestion,
 } from "@shared/blueprint/sliderule-readiness-chain";
 import {
   isDeliveryIntent,
@@ -2493,6 +2497,46 @@ export function commitArtifact(
   // Receives result-declared baseline (drive/retry pull from exec; explicit "pilot-template" only from demo seeds / test pilots).
   let gateResults = evaluateGates(rawArtifact as any, effectiveForceFail, groundingOk, baseline);
 
+  // U1 验厚回退（修复 "report.write 过了 LLM 但仅 quality 闸未达厚度契约 → 提交为 untrusted → 交付面无产物"）。
+  // 仅当 report.write 在 production 基线下、且**唯一**未过的是 quality 闸（schema/invariant/ground/commit 等全过、
+  // 上游可信、接地通过）时，回退到 BASE 结构化模板 buildStructuredReport（保证 7 段结构 + 上游证据片段），
+  // 以 pilot-template 重新过闸、provenance=template 诚实封条提交为可信产物 —— 保证永远有交付物，
+  // 且不污染"真上游不足/接地失败"的正当拦截语义（那些情况不触发回退）。
+  let qualityFallbackApplied = false;
+  let fallbackTitle: string | undefined;
+  let fallbackSummary: string | undefined;
+  if (
+    isReport &&
+    baseline === "production" &&
+    !effectiveForceFail &&
+    groundingOk &&
+    gateResults.some((g) => g.gateId === "quality" && g.status === "failed") &&
+    gateResults.every((g) => g.gateId === "quality" || g.status === "passed")
+  ) {
+    const base = buildStructuredReport({
+      state,
+      inputArtifactIds: declaredInputs,
+      roleId: rawArtifact.producedBy.roleId,
+    });
+    const baseGate = evaluateGates(
+      { ...(rawArtifact as any), content: base.content },
+      effectiveForceFail,
+      groundingOk,
+      "pilot-template"
+    );
+    if (baseGate.every((g) => g.status === "passed")) {
+      const { cleanedText } = sanitizeThroughFlowBoundary(base.content, {
+        turnId: runId,
+        source: "artifact",
+      });
+      workingContent = cleanedText;
+      gateResults = baseGate;
+      qualityFallbackApplied = true;
+      fallbackTitle = base.title;
+      fallbackSummary = base.summary;
+    }
+  }
+
   const passedGates = gateResults.filter((g) => g.status === "passed").map((g) => g.gateId);
   const allPassed = gateResults.every((g) => g.status === "passed");
 
@@ -2500,6 +2544,8 @@ export function commitArtifact(
     ...rawArtifact,
     content: workingContent,  // FLOWB-cleaned for report/synthesis formal paths
     trustLevel: allPassed ? (rawArtifact.provenance.includes("rendered") ? "audited" : "gated_pass") : "untrusted",
+    // U1 验厚回退：模板兜底产物诚实标注 provenance=template（封条注明非 production LLM 产出）。
+    provenance: qualityFallbackApplied ? "template" : rawArtifact.provenance,
     passedGates,
     producedBy: {
       capabilityRunId: runId,
@@ -2508,8 +2554,8 @@ export function commitArtifact(
     },
     evidenceRefs: declaredInputs.length ? declaredInputs : undefined,
     // Persist content fields so that report/synthesis can aggregate real fragments from upstreams
-    title: (rawArtifact as any).title,
-    summary: (rawArtifact as any).summary,
+    title: qualityFallbackApplied ? fallbackTitle : (rawArtifact as any).title,
+    summary: qualityFallbackApplied ? fallbackSummary : (rawArtifact as any).summary,
     ...(previewAudit
       ? {
           payload: {
@@ -2672,11 +2718,14 @@ export function commitArtifact(
 
   // Knife 7: after successful formal commit, auto-resolve any gaps now satisfied (e.g. required cap delivered).
   if (allPassed && capId === "gap.ask") {
-    const newGaps = gapsFromGapAskContent(
-      committed.content || "",
-      runId.split("-run-")[0] || runId,
-      committed.id
-    );
+    const turnKey = runId.split("-run-")[0] || runId;
+    // 结构化澄清问题（带选项）优先；无则退化为纯文本问题（向后兼容）。
+    const clarifyQuestions = (committed as { payload?: { clarifyQuestions?: ClarifyQuestion[] } })
+      .payload?.clarifyQuestions;
+    const newGaps =
+      Array.isArray(clarifyQuestions) && clarifyQuestions.length > 0
+        ? gapsFromClarifyQuestions(clarifyQuestions, turnKey, committed.id)
+        : gapsFromGapAskContent(committed.content || "", turnKey, committed.id);
     updated = mergeGapAskIntoState(updated, newGaps);
   }
 
@@ -3045,9 +3094,21 @@ export function intakeMessage(
     };
   }
 
+  // 澄清卡片回答：按 gap id 精确 resolve（优先于启发式整批解析，支持部分回答）。
+  const answeredGapIds = intervention?.answeredGapIds;
+  if (Array.isArray(answeredGapIds) && answeredGapIds.length > 0) {
+    working = resolveReadinessGapsByIds(working, answeredGapIds);
+  }
   working = resolveReadinessGapsFromUserText(working, userText);
 
-  if (working.awaitReason === "ready" && userClearsReadiness(userText, working)) {
+  const clearedByCard =
+    Array.isArray(answeredGapIds) &&
+    answeredGapIds.length > 0 &&
+    openHumanQuestionGapCount(working) === 0;
+  if (
+    working.awaitReason === "ready" &&
+    (clearedByCard || userClearsReadiness(userText, working))
+  ) {
     working = { ...working, awaitReason: undefined, awaitDetail: undefined };
   }
   if (working.awaitReason === "confirm" && userRejectsRouteSelection(userText)) {

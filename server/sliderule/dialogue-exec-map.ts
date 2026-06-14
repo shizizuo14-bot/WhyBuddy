@@ -17,6 +17,7 @@ import {
   shouldSkipPrimaryLlmAfterPoolExhausted,
 } from "./pool-json-llm.js";
 import { buildCapabilityLlmFallback } from "./capability-llm-fallback.js";
+import { extractClarifyBlock } from "../../shared/blueprint/sliderule-readiness-chain.js";
 
 export const DIALOGUE_SYSTEM_PROMPT = `你是 SlideRule 的推演引擎,为「想清楚再建」服务:在写任何代码之前,把一个产品想法
 推演清楚。你不是聊天助手,不自我介绍,不寒暄,直接产出内容。
@@ -92,7 +93,17 @@ const TASK_PROMPTS: Record<DialogueCapabilityId, string> = {
 - 每条以「?」或「？」结尾,必须特定于本目标(禁止万金油)
 - 标注「阻塞原因」: 不回答会导致什么决策无法做
 
-禁止 LLM 替用户回答;禁止宣布目标已足够清晰。`,
+禁止 LLM 替用户回答;禁止宣布目标已足够清晰。
+
+在 content 正文末尾,额外追加一个围栏块(便于前端做成可点选的澄清卡片;字段对齐 blueprint 澄清 schema),格式严格如下:
+\`\`\`clarify-json
+[{"prompt":"问题原文","type":"single_choice","options":["典型答法A","典型答法B"],"context":"这个答案如何影响路线(一句话)","defaultAnswer":"典型答法A"}]
+\`\`\`
+- type: 选择题用 "single_choice"(或可多选 "multi_choice");没有明确候选则 "free_text"。
+- options: type 为选择题时给 2~4 个**简洁候选答法**(供用户快速选,不是你替用户拍板);free_text 时省略。
+- context: 一句话说明该问题的答案会如何影响后续路线/方案。
+- defaultAnswer: 你建议的默认假设/推荐项(对应某个 option 文本或一句假设)。
+每个【阻塞缺口】问题对应数组里一条。`,
 
   "question.expand": `任务:扩展关键问题 (C_QEXP)。
 
@@ -185,6 +196,8 @@ export type DialogueExecutorResult = {
   summary: string;
   content: string;
   provenance?: "llm" | "llm_fallback";
+  /** gap.ask 结构化澄清问题（clarify-json 解析）→ 物化带选项的 open_question gaps。 */
+  payload?: { clarifyQuestions?: unknown };
   usage?: {
     inputTokens?: number;
     outputTokens?: number;
@@ -334,9 +347,19 @@ export async function executeDialogueCapability(
 
     const title = String(json?.title || "").trim().slice(0, 30) || "推演结果";
     const summary = String(json?.summary || "").trim();
-    const content = String(json?.content || "").trim();
+    let content = String(json?.content || "").trim();
     if (!content) {
       throw new Error("empty dialogue content from LLM");
+    }
+
+    // gap.ask: 解析 clarify-json 围栏块 → 结构化澄清问题(带选项),并从可见正文剥离。
+    let clarifyPayload: { clarifyQuestions?: unknown } | undefined;
+    if (args.capabilityId === "gap.ask") {
+      const { questions, cleanedContent } = extractClarifyBlock(content);
+      if (questions && questions.length > 0) {
+        clarifyPayload = { clarifyQuestions: questions };
+        content = cleanedContent || content;
+      }
     }
 
     assertContentNotHijacked(title, summary, content);
@@ -346,6 +369,7 @@ export async function executeDialogueCapability(
       summary: summary ? `${summary} ${summaryTag}` : summaryTag,
       content,
       provenance: "llm",
+      ...(clarifyPayload ? { payload: clarifyPayload } : {}),
       usage: usage
         ? {
             inputTokens: usage.prompt_tokens,
