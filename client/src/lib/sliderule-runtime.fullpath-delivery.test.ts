@@ -13,6 +13,8 @@ import {
   commitArtifact,
   findInputsForCapability,
   pickNextCapabilities,
+  resolveStructuralParentId,
+  getPropositionRootNode,
 } from "./sliderule-runtime";
 import {
   buildClearStateWithTrustedReport,
@@ -183,6 +185,25 @@ describe("S19 · ship-time delivery chain", () => {
   // pilot-template 门下提交为可信 —— 这要走 driveReasoningSession + simulator 真实路径
   // (本文件的 runDeliveryPipeline 用 createRawArtifact + production 门是测试夹具,不反映真实门),
   // 故分类齐全用应用端到端实测验证,这里只断言流水线产出了各 cap 的工件(见上「full pipeline」)。
+
+  // #2 Flow 关联:交付能力(无 scaffold 槽)应挂在内容节点(报告/综合)下,而非平铺在 root。
+  it("delivery caps nest under the latest content node, not flat off root", () => {
+    const { state } = buildClearStateWithTrustedReport("S19-nest");
+    const root = getPropositionRootNode(state);
+    expect(root).toBeTruthy();
+    // 有可信内容节点时,交付 cap 的结构父应是内容节点(report/synthesis),不是 root。
+    for (const cap of ["handoff.package", "instruction.package", "outcome.visualize", "traceability.matrix"]) {
+      const parent = resolveStructuralParentId(state, undefined, cap);
+      expect(parent).toBeTruthy();
+      expect(parent).not.toBe(root!.id);
+      const parentNode = (state.graph.nodes || []).find((n) => n.id === parent) as
+        | { capabilityId?: string }
+        | undefined;
+      expect(["report.write", "synthesis.merge", "structure.decompose"]).toContain(
+        parentNode?.capabilityId
+      );
+    }
+  });
 
   it("P5: commit-time gates never include T_MERGE / T_CONTENT / T_TEST", () => {
     const commitIds = evaluateCommitGates("handoff.package", {}).map((g) => g.gateId);

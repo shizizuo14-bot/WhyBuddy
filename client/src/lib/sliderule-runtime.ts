@@ -591,7 +591,46 @@ export function resolveStructuralParentId(
     if (scaffoldId) return scaffoldId;
   }
 
+  // 交付/结构化能力是「基于已产出内容」派生的 —— 没有可用 scaffold 槽时,挂到最近的内容
+  // 节点(报告 > 综合 > 规格树)下,而不是平铺在 root。这样交付物在 Flow 上是内容的子节点,
+  // 视觉上继承上下文谱系(而非孤立的「第二级」节点)。
+  if (capabilityId && DELIVERY_NEST_CAPS.has(capabilityId)) {
+    const contentNodeId = latestContentNodeId(state);
+    if (contentNodeId) return contentNodeId;
+  }
+
   return root.id;
+}
+
+/** 交付/结构化:产出依赖已收敛内容,Flow 上应挂在内容节点下而非 root。 */
+const DELIVERY_NEST_CAPS = new Set<string>([
+  "structure.decompose",
+  "document.draft",
+  "traceability.matrix",
+  "task.write",
+  "instruction.package",
+  "outcome.visualize",
+  "handoff.package",
+]);
+
+/** 最近一个可信内容节点(报告 > 综合 > 规格树)的 graph node id,用作交付物的结构父。 */
+function latestContentNodeId(state: V5SessionState): string | undefined {
+  const stale = new Set(state.staleArtifactIds || []);
+  const trusted = (state.artifacts || []).filter(
+    (a) => (a.trustLevel === "gated_pass" || a.trustLevel === "audited") && !stale.has(a.id)
+  );
+  const lastOfKind = (k: string) => {
+    for (let i = trusted.length - 1; i >= 0; i--) if (trusted[i].kind === k) return trusted[i];
+    return undefined;
+  };
+  const pick = lastOfKind("report") || lastOfKind("synthesis") || lastOfKind("spec_tree");
+  if (!pick) return undefined;
+  const node = (state.graph?.nodes || []).find(
+    (n: BrainstormReasoningNode & { producedArtifactId?: string; capabilityRunId?: string }) =>
+      n.producedArtifactId === pick.id ||
+      (!!pick.producedBy?.capabilityRunId && n.capabilityRunId === pick.producedBy.capabilityRunId)
+  );
+  return node?.id;
 }
 
 /** Mechanical G-ROOT-1..4 checks (binary gates for T_GATE wiring). */
