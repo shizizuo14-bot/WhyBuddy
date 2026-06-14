@@ -12,7 +12,86 @@ const MAX_TREE_DEPTH = 4;
 const MAX_PHASE_CHILDREN = 3;
 
 function isProjectionChildId(id: string): boolean {
-  return id.includes("::ev-") || id.includes("::phase-") || id.includes("::tree-");
+  return (
+    id.includes("::ev-") ||
+    id.includes("::phase-") ||
+    id.includes("::tree-") ||
+    id.includes("::role-")
+  );
+}
+
+const MAX_PANEL_ROLES = 5;
+
+/** R2.5 多角色面板投影：每角色立场一个子节点 + 一个收敛/分歧裁决节点（DERIVE only）。 */
+function expandPanelRoleChildren(
+  state: V5SessionState,
+  parent: BrainstormReasoningNode
+): { nodes: BrainstormReasoningNode[]; edges: BrainstormReasoningEdge[] } {
+  const art = artifactForNode(state, parent as any);
+  const pl = art?.payload as
+    | {
+        panel?: boolean;
+        positions?: Array<{ roleId?: string; v5Role?: string; content?: string }>;
+        convergenceScore?: number;
+        consensusReached?: boolean;
+        dissent?: Array<unknown>;
+      }
+    | undefined;
+  if (!pl?.panel || !Array.isArray(pl.positions) || pl.positions.length === 0) {
+    return { nodes: [], edges: [] };
+  }
+
+  const nodes: BrainstormReasoningNode[] = [];
+  const edges: BrainstormReasoningEdge[] = [];
+
+  for (const pos of pl.positions.slice(0, MAX_PANEL_ROLES)) {
+    const v5 = String(pos.v5Role || pos.roleId || "角色");
+    const childId = `${parent.id}::role-${String(pos.roleId || v5)}`;
+    nodes.push({
+      id: childId,
+      type: "decision",
+      title: `${v5} · 立场`,
+      body: String(pos.content || "").slice(0, 200),
+      status: "resolved",
+      roleId: v5,
+      roleLabel: v5,
+      conclusionBadge: "立场",
+      derivedFrom: [parent.id],
+    });
+    edges.push({
+      id: `${parent.id}-role-${childId}`,
+      source: parent.id,
+      target: childId,
+      type: "refines",
+      label: "立场",
+    });
+  }
+
+  if (typeof pl.convergenceScore === "number") {
+    const consensus = Boolean(pl.consensusReached);
+    const dissentCount = Array.isArray(pl.dissent) ? pl.dissent.length : 0;
+    const childId = `${parent.id}::role-_verdict`;
+    nodes.push({
+      id: childId,
+      type: consensus ? "synthesis" : "risk",
+      title: consensus ? "共识" : "分歧",
+      body: `收敛分 ${pl.convergenceScore.toFixed(2)}${dissentCount ? ` · ${dissentCount} 条保留异议` : ""}`,
+      status: "resolved",
+      roleId: "综合",
+      roleLabel: "裁决",
+      conclusionBadge: consensus ? "共识" : "分歧",
+      derivedFrom: [parent.id],
+    });
+    edges.push({
+      id: `${parent.id}-role-verdict`,
+      source: parent.id,
+      target: childId,
+      type: "refines",
+      label: consensus ? "共识" : "分歧",
+    });
+  }
+
+  return { nodes, edges };
 }
 
 function artifactForNode(
@@ -459,6 +538,10 @@ export function expandProjectionNodes(
     const { nodes: treeNodes, edges: treeEdges } = expandSpecTreeChildren(state, parent);
     extraNodes.push(...treeNodes);
     extraEdges.push(...treeEdges);
+
+    const { nodes: panelNodes, edges: panelEdges } = expandPanelRoleChildren(state, parent);
+    extraNodes.push(...panelNodes);
+    extraEdges.push(...panelEdges);
 
     // Relaxed: phases for resolved or completed capability nodes (fresh new topics after reset
     // often have status "completed" from enrichNodeStatus once art is gated_pass, not "resolved").

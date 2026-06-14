@@ -24,6 +24,7 @@ import { resolveImSurfaceMode } from "./sliderule/im-surface-mode";
 import { SlideRuleStatusBar } from "./sliderule/SlideRuleStatusBar";
 import { SlideRuleTopHud } from "./sliderule/SlideRuleTopHud";
 import { SettingsDialog } from "./sliderule/SettingsDialog";
+import { ClarificationCard, type ClarificationItem } from "./sliderule/ClarificationCard";
 import { ArchitectureProcessPanel } from "./sliderule/ArchitectureProcessPanel";
 import { ComposerDock } from "./sliderule/ComposerDock";
 import { deriveComposerHintChips } from "./sliderule/derive-composer-hints";
@@ -193,6 +194,7 @@ function SlideRuleImmersion({
   graphNodeCount,
   graphRevision,
   handleGraphNodeClick,
+  handleResolveInteractiveGate,
   handleTerminalAction,
   focusNodeId,
   lineageHighlightIds,
@@ -210,6 +212,8 @@ function SlideRuleImmersion({
   setDriveMode,
   marathonBudget,
   setMarathonBudget,
+  pendingClarifications,
+  answerClarifications,
 }: {
   goal: string;
   uiTurns: UiTurn[];
@@ -227,6 +231,7 @@ function SlideRuleImmersion({
   graphNodeCount: number;
   graphRevision: string;
   handleGraphNodeClick: (node: BrainstormReasoningNode) => void;
+  handleResolveInteractiveGate?: (gateNodeId: string, choice: string | null) => void;
   handleTerminalAction: (action: "report" | "lineage" | "export") => void;
   focusNodeId: string | null;
   lineageHighlightIds: string[];
@@ -244,6 +249,8 @@ function SlideRuleImmersion({
   setDriveMode?: (m: "single" | "marathon") => void;
   marathonBudget?: { maxTokens: number; declaredAt: string };
   setMarathonBudget?: (b: { maxTokens: number; declaredAt: string }) => void;
+  pendingClarifications?: ClarificationItem[];
+  answerClarifications?: (answers: Array<{ gapId: string; answer: string }>) => void;
 }) {
   const sessionId = sessionState.sessionId || "sliderule-v51-product";
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -251,6 +258,15 @@ function SlideRuleImmersion({
     () => deriveComposerHintChips(sessionState),
     [sessionState]
   );
+
+  // 澄清卡片可关闭；待回答问题集合变化时重新出现。
+  const clarifications = pendingClarifications ?? [];
+  const clarifyKey = clarifications.map((c) => c.id).join("|");
+  const [clarifyHidden, setClarifyHidden] = useState(false);
+  useEffect(() => {
+    setClarifyHidden(false);
+  }, [clarifyKey]);
+  const showClarify = clarifications.length > 0 && !clarifyHidden && !!answerClarifications;
 
   return (
     <div className={autopilotTheme.immersionPage}>
@@ -264,6 +280,7 @@ function SlideRuleImmersion({
             showChrome={false}
             showBottomChrome
             onNodeClick={handleGraphNodeClick}
+            onResolveInteractiveGate={handleResolveInteractiveGate}
             externalHighlightedIds={lineageHighlightIds}
             focusNodeId={focusNodeId}
             onTerminalAction={handleTerminalAction}
@@ -361,17 +378,26 @@ function SlideRuleImmersion({
       )}
 
       <div className={autopilotTheme.immersionOverlayBottom}>
-        <ComposerDock
-          input={input}
-          setInput={setInput}
-          sendMessage={sendMessage}
-          isRunning={isRunning}
-          goal={goal}
-          latestUserText={latestTurn?.user}
-          hintChips={composerHints}
-          driveMode={driveMode}
-          setDriveMode={setDriveMode}
-        />
+        <div className="pointer-events-none flex w-full max-w-2xl flex-col items-center">
+          {showClarify && (
+            <ClarificationCard
+              questions={clarifications}
+              onSubmit={(answers) => answerClarifications?.(answers)}
+              onClose={() => setClarifyHidden(true)}
+            />
+          )}
+          <ComposerDock
+            input={input}
+            setInput={setInput}
+            sendMessage={sendMessage}
+            isRunning={isRunning}
+            goal={goal}
+            latestUserText={latestTurn?.user}
+            hintChips={composerHints}
+            driveMode={driveMode}
+            setDriveMode={setDriveMode}
+          />
+        </div>
       </div>
 
       {reportReaderOpen && trustedReport && (
@@ -418,6 +444,7 @@ function SlideRuleSplitEngineering({
   graphNodeCount,
   graphRevision,
   handleGraphNodeClick,
+  handleResolveInteractiveGate,
   handleTerminalAction,
   focusNodeId,
   lineageHighlightIds,
@@ -450,6 +477,7 @@ function SlideRuleSplitEngineering({
   graphNodeCount: number;
   graphRevision: string;
   handleGraphNodeClick: (node: BrainstormReasoningNode) => void;
+  handleResolveInteractiveGate?: (gateNodeId: string, choice: string | null) => void;
   handleTerminalAction: (action: "report" | "lineage" | "export") => void;
   focusNodeId: string | null;
   lineageHighlightIds: string[];
@@ -582,6 +610,7 @@ function SlideRuleSplitEngineering({
                 className="absolute inset-0"
                 showChrome
                 onNodeClick={handleGraphNodeClick}
+                onResolveInteractiveGate={handleResolveInteractiveGate}
                 externalHighlightedIds={lineageHighlightIds}
                 focusNodeId={focusNodeId}
                 onTerminalAction={handleTerminalAction}
@@ -722,6 +751,9 @@ export default function SlideRule() {
     setDriveMode,
     marathonBudget,
     setMarathonBudget,
+    resolveInteractiveGate,
+    pendingClarifications,
+    answerClarifications,
   } = useSlideRuleSession({
     sessionId: IS_GITHUB_PAGES ? GITHUB_PAGES_DEMO_SESSION_ID : "sliderule-v51-product",
     documentTitle: IS_GITHUB_PAGES ? "SlideRule · 演示" : "SlideRule",
@@ -798,6 +830,10 @@ export default function SlideRule() {
     [challengeTurn]
   );
 
+  const handleResolveInteractiveGate = useCallback((gateNodeId: string, choice: string | null) => {
+    resolveInteractiveGate(gateNodeId, choice);
+  }, [resolveInteractiveGate]);
+
   const handleTerminalAction = useCallback(
     (action: "report" | "lineage" | "export") => {
       if (action === "report") {
@@ -862,6 +898,7 @@ export default function SlideRule() {
     graphNodeCount,
     graphRevision,
     handleGraphNodeClick,
+    handleResolveInteractiveGate,
     handleTerminalAction,
     focusNodeId,
     lineageHighlightIds,
@@ -879,6 +916,8 @@ export default function SlideRule() {
     setDriveMode,
     marathonBudget,
     setMarathonBudget,
+    pendingClarifications,
+    answerClarifications,
   };
 
   if (isImmersion) {

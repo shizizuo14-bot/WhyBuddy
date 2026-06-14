@@ -4,6 +4,7 @@ import * as SlideRuleRuntime from "@/lib/sliderule-runtime";
 import { fetchNarration } from "@/lib/sliderule-narrator";
 import { pickMainArtifactByKind } from "@shared/blueprint/sliderule-main-artifact";
 import type { UserIntervention, V5SessionState } from "@shared/blueprint/v5-reasoning-state";
+import type { ClarificationItem } from "./ClarificationCard";
 import { deriveTurnRoute } from "@shared/blueprint/sliderule-turn-route";
 import { resolveImSurfaceMode } from "./im-surface-mode";
 import type { SchedulingDecision } from "@shared/blueprint/v5-reasoning-state";
@@ -703,6 +704,17 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
     setLiveAction(null);
   }, []);
 
+  const resolveInteractiveGate = useCallback((gateNodeId: string, choice: string | null) => {
+    // Pragmatic bridge to existing text-driven G_CONFIRM logic in intakeMessage.
+    // "选方案 ..." triggers userPicksRoute (clears await_confirm, proceeds with choice).
+    // Reject text triggers userRejectsRouteSelection (stales route_options, re-compare).
+    const text = choice
+      ? "选方案 A"
+      : "都不行，重新对比路线";
+
+    runTurn(text);
+  }, [runTurn]);
+
   const sendMessage = async () => {
     if (isRunning) {
       stop();
@@ -886,12 +898,45 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
     setNextGateShouldFail(false);
   }, [isRunning, sessionState.sessionId, sessionId]);
 
+  // G_READY 澄清卡片：未回答的 open_question gaps（带 V4 风格结构化选项）→ 卡片。
+  const pendingClarifications = useMemo<ClarificationItem[]>(() => {
+    if (isRunning) return [];
+    return (sessionState.coverageGaps || [])
+      .filter((g) => g.status === "open" && g.kind === "open_question")
+      .map((g) => ({
+        id: g.id,
+        prompt: g.label,
+        type: g.clarifyType,
+        options: g.options,
+        defaultAnswer: g.defaultAnswer,
+        context: g.context,
+      }));
+  }, [sessionState.coverageGaps, isRunning]);
+
+  const answerClarifications = useCallback(
+    (answers: Array<{ gapId: string; answer: string }>) => {
+      if (!answers.length) return;
+      const byId = new Map((sessionState.coverageGaps || []).map((g) => [g.id, g.label] as const));
+      const supplement = answers
+        .map((a) => `「${byId.get(a.gapId) || a.gapId}」答：${a.answer}`)
+        .join("\n");
+      void runTurn(supplement, {
+        intent: "clarify",
+        text: supplement,
+        answeredGapIds: answers.map((a) => a.gapId),
+      });
+    },
+    [sessionState.coverageGaps, runTurn]
+  );
+
   return {
     goal,
     sessionHydrated,
     uiTurns,
     input,
     setInput,
+    pendingClarifications,
+    answerClarifications,
     isRunning,
     liveAction,
     sessionState,
@@ -908,5 +953,6 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
     resetSession,
     toggleRouteExpanded,
     retryCapability,
+    resolveInteractiveGate,
   };
 }

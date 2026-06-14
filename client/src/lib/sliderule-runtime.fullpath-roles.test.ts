@@ -100,7 +100,7 @@ describe("S16 · brainstorm complex path + FLOWB", () => {
     expect(picks[0]?.roleId).toBe("挑刺");
   });
 
-  it("D_BO→D_SYN: after critique run, chain advances toward counter and synthesis", () => {
+  it("D_BO→D_SYN: after panel critique run, chain advances toward synthesis/report (panel chain)", () => {
     let s = seedConvergedUpstream("S16-chain");
     s = runDeliberationTurn(s, "S16-t1", "多角色辩论", {
       "critique.generate": "critique: 缺少租户隔离\n挑刺结论",
@@ -108,7 +108,11 @@ describe("S16 · brainstorm complex path + FLOWB", () => {
     expect((s.capabilityRuns || []).some((r) => r.capabilityId === "critique.generate")).toBe(true);
 
     const picks = pickNextCapabilities(s, "继续辩论");
-    expect(picks.some((p) => p.capabilityId === "counter.argue")).toBe(true);
+    // 新的多角色面板链：critique(面板) 之后推进到综合 / 报告收敛，不再经 counter.argue。
+    expect(
+      picks.some((p) => p.capabilityId === "synthesis.merge" || p.capabilityId === "report.write")
+    ).toBe(true);
+    expect(picks.some((p) => p.capabilityId === "critique.generate")).toBe(false);
   });
 
   it("N5 + FLOWB: formal report content has zero protocol markers; ledger strip record; payload preserved", () => {
