@@ -90,16 +90,16 @@ const TASK_PROMPTS: Record<DialogueCapabilityId, string> = {
 
   "gap.ask": `任务:阻塞性缺口定位 (C_GAP)。
 
-参考 V4 架构的澄清方式:使用固定模板结构(类似 CLARIFICATION_QUESTION_BLUEPRINTS 的维度),LLM 负责针对当前目标填充具体内容。
+针对「用户目标」,列出 3~6 个**特定于这个目标**的阻塞性澄清问题,按"答案会改变方案走向"排序。
 
-针对「用户目标」只针对缺失的规约维度(用户群/平台/核心场景·验收/范围边界)列出阻塞问题。
-必须严格使用以下 V4-style 模板维度 (每个问题必须对应一个 kind):
-- users (kind:"audience"): 主要面向谁使用? (options from template or tailored)
-- platform (kind:"platform"): 优先在什么平台落地?
-- scenario (kind:"success-criteria"): 核心成功标准 / 验收指标是什么?
-- scope (kind:"scope"): 本期范围边界:明确不做什么?
+维度参考(用于打 kind 标签 + 保证覆盖面,不是题库):
+- users(kind:"audience")、platform(kind:"platform")、scenario(kind:"success-criteria")、scope(kind:"scope")。
+- 优先补齐目标中**缺失**的维度;若某维度目标已说清,就不要再问。
+- 鼓励基于目标特性**追加针对性问题并复用最贴切的 kind**:例如涉及数据/隐私→问数据来源与合规边界(kind:"scope" 或 "success-criteria");涉及多端同步/集成→问同步与冲突策略(kind:"platform");涉及提醒/通知类→问触达渠道与时机(kind:"scenario")。
+- 每个目标的问题应当**不一样**(随目标变化),禁止每次都输出同一套模板四问。
 
-参考 V4 CLARIFICATION_QUESTION_BLUEPRINTS: 固定模板结构，LLM 只负责基于当前目标填充具体 prompt 文字、简洁 options (2-4个)、context、defaultAnswer。不要发明新维度。
+每个问题必须特定于本目标("数据范围按部门还是按项目隔离?"是好问题;"预算多少?"这类万金油禁止);
+options 给 2~4 个简洁候选答法(供快速选,不替用户拍板);没有明确候选则用 free_text(省略 options)。
 
 格式硬性要求:
 【阻塞缺口】

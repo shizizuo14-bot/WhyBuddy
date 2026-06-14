@@ -1878,6 +1878,10 @@ export class LlmCapabilityExecutor implements CapabilityExecutor {
       'risk.analyze',
       'report.write',
       'intent.clarify',
+      // 澄清:走 LLM 生成针对当前目标的澄清问题(否则用静态模板,每次都是一样的 4 题)。
+      // 无 LLM/pilot/demo 时,下面的 catch 会回退到 base(模拟器)的固定模板,行为不破坏。
+      'gap.ask',
+      'question.expand',
       'route.generate',
       'route.compare',
       'requirement.write',
