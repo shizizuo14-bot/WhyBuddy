@@ -608,6 +608,18 @@ export function TurnRouteTimeline({
     });
   }, []);
 
+  // ① 多轮折叠:静态(非 streaming)沉浸浮层下,历史轮默认折叠成一行,只展开最新轮,
+  // 减少 BUDGET/GCOV/ORCH 每轮重复刷屏。纯渲染层,不动 deriveTurnRoute。
+  const [expandedRounds, setExpandedRounds] = useState<Set<number>>(() => new Set());
+  const toggleRound = useCallback((r: number) => {
+    setExpandedRounds((prev) => {
+      const next = new Set(prev);
+      if (next.has(r)) next.delete(r);
+      else next.add(r);
+      return next;
+    });
+  }, []);
+
   if (surfaceMode === "minimal") return null;
 
   const allStations = deriveTurnRoute(facts);
@@ -645,14 +657,47 @@ export function TurnRouteTimeline({
         </button>
       )}
       <div className="relative pl-8">
-        {visibleStations.map((station, idx) => {
-          const phase: StationPhase = streaming
-            ? idx < activeIndex
-              ? "completed"
-              : idx === activeIndex
-              ? "active"
-              : "future"
-            : "completed";
+        {(() => {
+          const roundOf = (id: string): number | null => {
+            const m = /-r(\d+)-/.exec(id);
+            return m ? Number(m[1]) : null;
+          };
+          const roundIdxs = visibleStations
+            .map((s) => roundOf(s.id))
+            .filter((r): r is number => r != null);
+          const maxRound = roundIdxs.length ? Math.max(...roundIdxs) : null;
+          // 仅静态、沉浸浮层、且 ≥2 轮时折叠(streaming 实时观看时全展开)。
+          const foldRounds =
+            !streaming && immersionOverlay && maxRound != null && new Set(roundIdxs).size >= 2;
+          const emittedHeaders = new Set<number>();
+
+          return visibleStations.map((station, idx) => {
+            const phase: StationPhase = streaming
+              ? idx < activeIndex
+                ? "completed"
+                : idx === activeIndex
+                ? "active"
+                : "future"
+              : "completed";
+
+            const r = roundOf(station.id);
+            if (foldRounds && r != null && r !== maxRound && !expandedRounds.has(r)) {
+              if (emittedHeaders.has(r)) return null;
+              emittedHeaders.add(r);
+              const stepsInRound = visibleStations.filter((s) => roundOf(s.id) === r).length;
+              return (
+                <button
+                  key={`round-fold-${r}`}
+                  type="button"
+                  onClick={() => toggleRound(r)}
+                  className="mb-1 flex w-full items-center gap-1.5 rounded-md border border-transparent py-1 pl-1 text-left text-[11px] text-slate-400 transition hover:border-slate-200 hover:bg-slate-50 hover:text-slate-600"
+                  data-testid={`sliderule-timeline-round-fold-${r}`}
+                >
+                  <span className="font-mono">▸</span>
+                  第 {r + 1} 轮 · {stepsInRound} 步（已折叠 · 点击展开）
+                </button>
+              );
+            }
           return (
             <StationRow
               key={station.id}
@@ -678,7 +723,8 @@ export function TurnRouteTimeline({
               immersionOverlay={immersionOverlay}
             />
           );
-        })}
+          });
+        })()}
       </div>
       {surfaceMode === "product" && !immersionOverlay && (
         <TurnFleetProgressLog steps={steps} actions={actions} />
