@@ -111,6 +111,7 @@ import {
   latestTrustedReport,
   evaluateReviewPassGate,
   buildHandoffPackageContent,
+  buildPromptPackContent,
 } from "@shared/blueprint/sliderule-delivery-chain";
 import { evaluateCommitGates, evaluateShipGates } from "@shared/blueprint/sliderule-ship-gates";
 import { evaluateQualityGate, getBaseline, PILOT_TEMPLATE_BASELINE, PRODUCTION_BASELINE } from "@shared/blueprint/sliderule-quality-gate";
@@ -1410,6 +1411,9 @@ export function simulateCapabilityExecution(
   } else if (capabilityId === "handoff.package") {
     content = buildHandoffPackageContent(state);
     title = "工程交接包";
+  } else if (capabilityId === "instruction.package") {
+    content = buildPromptPackContent(state);
+    title = "提示词包";
   } else if (lowerCap.includes('scenario') || lowerCap.includes('simulate')) {
     const priorPreviews = (state.artifacts || []).filter(a => a.kind === 'preview').length;
     content = `【效果预演 模拟】\n基于 ${upstreams.length} upstream 模拟场景。\n已产出 ${priorPreviews} 预览。${hasStale ? '含风险上下文。\n' : ''}输出：MVP 流程验证通过（带标注）。`;

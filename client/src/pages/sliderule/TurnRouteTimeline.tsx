@@ -694,7 +694,7 @@ export function TurnRouteTimeline({
                   data-testid={`sliderule-timeline-round-fold-${r}`}
                 >
                   <span className="font-mono">▸</span>
-                  第 {r + 1} 轮 · {stepsInRound} 步（已折叠 · 点击展开）
+                  第 {r} 轮 · {stepsInRound} 步（已折叠 · 点击展开）
                 </button>
               );
             }

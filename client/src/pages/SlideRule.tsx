@@ -477,6 +477,8 @@ function SlideRuleSplitEngineering({
   executorMode,
   driveMode,
   setDriveMode,
+  generateDeliverables,
+  onExportDeliverables,
 }: {
   goal: string;
   uiTurns: UiTurn[];
@@ -510,7 +512,10 @@ function SlideRuleSplitEngineering({
   executorMode: ReturnType<typeof useSlideRuleSession>["executorMode"];
   driveMode?: "single" | "marathon";
   setDriveMode?: (m: "single" | "marathon") => void;
+  generateDeliverables?: () => void;
+  onExportDeliverables?: () => void;
 }) {
+  const [deliverablesOpen, setDeliverablesOpen] = useState(false);
   const imScrollRef = useRef<HTMLElement>(null);
   const imBottomRef = useRef<HTMLDivElement>(null);
   const imAtBottomRef = useRef(true);
@@ -574,6 +579,15 @@ function SlideRuleSplitEngineering({
           </div>
         </div>
         <div className="flex items-center gap-3 pl-4">
+          <button
+            type="button"
+            onClick={() => setDeliverablesOpen(true)}
+            data-testid="sliderule-deliverables-open"
+            className={autopilotTheme.auditBtn}
+            title="交付物（报告 / 规格树 / 文档 / 提示词包 / 架构图 / 交接包）"
+          >
+            交付物
+          </button>
           <button
             type="button"
             onClick={resetSession}
@@ -745,6 +759,16 @@ function SlideRuleSplitEngineering({
           />
         </div>
       )}
+
+      <DeliverablesPanel
+        open={deliverablesOpen}
+        onClose={() => setDeliverablesOpen(false)}
+        sessionState={sessionState}
+        isRunning={isRunning}
+        onGenerate={() => generateDeliverables?.()}
+        onExportMd={() => onExportDeliverables?.()}
+        onEvidenceRefClick={onEvidenceRefClick}
+      />
     </div>
   );
 }

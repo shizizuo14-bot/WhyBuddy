@@ -197,6 +197,47 @@ export function handoffBundlesVisualPreview(
   return hasSection;
 }
 
+/**
+ * 提示词包 / Prompt Pack (C_PACK) 的确定性构造。
+ * 把已收敛的目标/上下文/路线/结构汇成一份「给工程 agent 的可执行实现指令」,
+ * 供 simulator / server / handoff bundle 三处共用(单一真相)。
+ */
+export function buildPromptPackContent(state: V5SessionState): string {
+  const goal = state.goal?.text || "目标";
+  const trusted = trustedArtifacts(state);
+  const report = trusted.filter((a) => a.kind === "report").pop();
+  const routes = trusted.filter((a) => a.kind === "route_options").pop();
+  const tree = trusted.filter((a) => a.kind === "spec_tree").pop();
+  const clarifications = trusted.filter((a) => a.kind === "clarification");
+  const openGaps = (state.coverageGaps || []).filter((g) => g.status === "open");
+
+  const contextLines =
+    clarifications.length > 0
+      ? clarifications.map((c) => `- ${String(c.summary || c.content || "").replace(/\n/g, " ").slice(0, 120)}`).join("\n")
+      : "- （无显式澄清，按报告结论为准）";
+
+  const routeLine = routes
+    ? String(routes.content || routes.summary || "").slice(0, 600)
+    : "- （本轮未生成多路线，按报告收敛结论实现）";
+
+  return (
+    `【提示词包 / Prompt Pack · C_PACK】\n` +
+    `目标: ${goal}\n` +
+    `结论状态(机械裁决): ${state.goal?.status}\n\n` +
+    `## 已确认上下文\n${contextLines}\n\n` +
+    `## 推荐路线\n${routeLine}\n\n` +
+    `## 给工程 Agent 的实现指令\n` +
+    `你是负责落地「${goal}」的工程执行 agent。基于以下已收敛推演实现 MVP:\n` +
+    `1. 严格遵循「推荐路线」与 SPEC 树结构${tree ? `（见 spec 树 ${tree.id}）` : ""}，不要发明范围外的功能。\n` +
+    `2. 每条需求保留 EARS 风格验收标准与证据引用；实现前先读报告的「支撑证据/风险」段。\n` +
+    `3. 遇到「未解缺口」(当前 ${openGaps.length} 项) 先澄清再编码，不得擅自假设。\n` +
+    `4. 风险段列出的项必须在实现中规避或显式标注为已知技术债。\n\n` +
+    `## 验收标准\n以报告「收敛决策 / 下一步工程化分支」段为准；每个 P0 需求须有可机械判定的验收。\n\n` +
+    `## 约束与边界\n仅实现已收敛范围；越界需求回到推演澄清。\n` +
+    (report ? `\n## 报告摘要(权威依据)\n${String(report.content || report.summary || "").slice(0, 800)}` : "")
+  );
+}
+
 /** Build structured handoff.package body for runtime / server executors. */
 export function buildHandoffPackageContent(state: V5SessionState): string {
   const goal = state.goal?.text || "目标";
@@ -265,7 +306,22 @@ export function buildHandoffPackageContent(state: V5SessionState): string {
           .join("\n\n")
       : "";
 
-  const bundledSections = [matrixSection, visrendSection, visgenSection].filter(Boolean).join("\n\n");
+  const promptPacks = trusted.filter((a) => a.producedBy?.capabilityId === "instruction.package");
+  const promptPackSection =
+    promptPacks.length > 0
+      ? promptPacks
+          .map(
+            (p) =>
+              `附: 提示词包 (C_PACK→C_HAND)\n` +
+              `artifactId: ${p.id}\n` +
+              String(p.content || p.summary || "").slice(0, 1000)
+          )
+          .join("\n\n")
+      : "";
+
+  const bundledSections = [matrixSection, visrendSection, visgenSection, promptPackSection]
+    .filter(Boolean)
+    .join("\n\n");
 
   return (
     `【Handoff Package】\n` +

@@ -4,19 +4,24 @@
  */
 
 import type { V5SessionState } from "../../shared/blueprint/v5-reasoning-state.js";
-import { buildHandoffPackageContent } from "../../shared/blueprint/sliderule-delivery-chain.js";
+import {
+  buildHandoffPackageContent,
+  buildPromptPackContent,
+} from "../../shared/blueprint/sliderule-delivery-chain.js";
 import type { RawExecutorResult } from "./capability-exec-map.js";
 
 export type DeliveryCapabilityId =
   | "document.draft"
   | "traceability.matrix"
   | "task.write"
+  | "instruction.package"
   | "handoff.package";
 
 const DELIVERY_CAPS = new Set<string>([
   "document.draft",
   "traceability.matrix",
   "task.write",
+  "instruction.package",
   "handoff.package",
 ]);
 
@@ -89,6 +94,14 @@ export async function executeDeliveryCapabilityMapped(
           `2. 接入审计日志（blockedBy: 1）\n` +
           `3. 验收用例对齐 report（blockedBy: 2）\n` +
           (tree ? `\n来源 SPEC: ${tree.title}` : ""),
+        provenance: "ai_generated",
+      };
+    }
+    case "instruction.package": {
+      return {
+        title: "提示词包",
+        summary: "给工程 agent 的可执行实现指令 (C_PACK)",
+        content: buildPromptPackContent(state),
         provenance: "ai_generated",
       };
     }
