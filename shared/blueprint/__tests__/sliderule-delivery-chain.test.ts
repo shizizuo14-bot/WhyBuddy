@@ -14,6 +14,7 @@ import {
   handoffBundlesVisualRender,
   handoffBundlesVisualPreview,
   buildHandoffPackageContent,
+  buildPromptPackContent,
 } from "../sliderule-delivery-chain.js";
 import type { V5SessionState } from "../v5-reasoning-state.js";
 
@@ -222,6 +223,88 @@ describe("sliderule-delivery-chain (S19/S20)", () => {
     expect(
       handoffBundlesVisualPreview(content, { artifactId: previewId, sourceCap: "ux.preview" })
     ).toBe(true);
+  });
+
+  it("S19: buildPromptPackContent derives a real prompt pack from trusted artifacts", () => {
+    const content = buildPromptPackContent({
+      goal: { text: "权限系统", status: "clear" },
+      graph: { id: "g", jobId: "j", stage: "effect_preview", nodes: [], edges: [] },
+      artifacts: [
+        {
+          id: "r1",
+          kind: "report",
+          provenance: "ai_generated",
+          trustLevel: "gated_pass",
+          passedGates: ["commit"],
+          producedBy: { capabilityRunId: "run", capabilityId: "report.write", roleId: "综合" },
+          content: "报告正文：收敛决策与下一步。",
+        },
+        {
+          id: "tree1",
+          kind: "spec_tree",
+          provenance: "ai_generated",
+          trustLevel: "gated_pass",
+          passedGates: ["commit"],
+          producedBy: { capabilityRunId: "run-t", capabilityId: "structure.decompose", roleId: "架构" },
+          content: "根节点",
+        },
+      ],
+      capabilityRuns: [],
+      conversation: [],
+      openQuestions: [],
+      evidence: [],
+      decisions: [],
+      risks: [],
+      gates: [],
+      dependencyGraph: [],
+      staleArtifactIds: [],
+      sessionId: "s19-pack",
+      coverageGaps: [],
+    } as V5SessionState);
+    expect(content).toContain("Prompt Pack");
+    expect(content).toContain("权限系统");
+    expect(content).toContain("给工程 Agent 的实现指令");
+    expect(content).toContain("tree1");
+    expect(content).toContain("报告正文");
+  });
+
+  it("S19: buildHandoffPackageContent bundles the prompt pack artifact", () => {
+    const content = buildHandoffPackageContent({
+      goal: { text: "权限系统", status: "clear" },
+      graph: { id: "g", jobId: "j", stage: "effect_preview", nodes: [], edges: [] },
+      artifacts: [
+        {
+          id: "r1",
+          kind: "report",
+          provenance: "ai_generated",
+          trustLevel: "gated_pass",
+          passedGates: ["commit"],
+          producedBy: { capabilityRunId: "run", capabilityId: "report.write", roleId: "综合" },
+          content: "报告",
+        },
+        {
+          id: "pack1",
+          kind: "document",
+          provenance: "ai_generated",
+          trustLevel: "gated_pass",
+          passedGates: ["commit"],
+          producedBy: { capabilityRunId: "run-p", capabilityId: "instruction.package", roleId: "综合" },
+          content: "【提示词包 / Prompt Pack · C_PACK】\n目标: 权限系统",
+        },
+      ],
+      capabilityRuns: [],
+      conversation: [],
+      openQuestions: [],
+      evidence: [],
+      decisions: [],
+      risks: [],
+      gates: [],
+      dependencyGraph: [],
+      staleArtifactIds: [],
+      sessionId: "s19-pack-bundle",
+    } as V5SessionState);
+    expect(content).toContain("提示词包 (C_PACK→C_HAND)");
+    expect(content).toContain("pack1");
   });
 
   it("detects RV pass / reject / ITER intents", () => {

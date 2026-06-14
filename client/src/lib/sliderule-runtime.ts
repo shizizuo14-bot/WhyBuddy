@@ -101,6 +101,7 @@ import {
   mergeGapAskIntoState,
   resolveReadinessGapsFromUserText,
   resolveReadinessGapsByIds,
+  buildSimulatedClarifyQuestions,
   type ClarifyQuestion,
 } from "@shared/blueprint/sliderule-readiness-chain";
 import {
@@ -111,6 +112,7 @@ import {
   latestTrustedReport,
   evaluateReviewPassGate,
   buildHandoffPackageContent,
+  buildPromptPackContent,
 } from "@shared/blueprint/sliderule-delivery-chain";
 import { evaluateCommitGates, evaluateShipGates } from "@shared/blueprint/sliderule-ship-gates";
 import { evaluateQualityGate, getBaseline, PILOT_TEMPLATE_BASELINE, PRODUCTION_BASELINE } from "@shared/blueprint/sliderule-quality-gate";
@@ -589,7 +591,46 @@ export function resolveStructuralParentId(
     if (scaffoldId) return scaffoldId;
   }
 
+  // 交付/结构化能力是「基于已产出内容」派生的 —— 没有可用 scaffold 槽时,挂到最近的内容
+  // 节点(报告 > 综合 > 规格树)下,而不是平铺在 root。这样交付物在 Flow 上是内容的子节点,
+  // 视觉上继承上下文谱系(而非孤立的「第二级」节点)。
+  if (capabilityId && DELIVERY_NEST_CAPS.has(capabilityId)) {
+    const contentNodeId = latestContentNodeId(state);
+    if (contentNodeId) return contentNodeId;
+  }
+
   return root.id;
+}
+
+/** 交付/结构化:产出依赖已收敛内容,Flow 上应挂在内容节点下而非 root。 */
+const DELIVERY_NEST_CAPS = new Set<string>([
+  "structure.decompose",
+  "document.draft",
+  "traceability.matrix",
+  "task.write",
+  "instruction.package",
+  "outcome.visualize",
+  "handoff.package",
+]);
+
+/** 最近一个可信内容节点(报告 > 综合 > 规格树)的 graph node id,用作交付物的结构父。 */
+function latestContentNodeId(state: V5SessionState): string | undefined {
+  const stale = new Set(state.staleArtifactIds || []);
+  const trusted = (state.artifacts || []).filter(
+    (a) => (a.trustLevel === "gated_pass" || a.trustLevel === "audited") && !stale.has(a.id)
+  );
+  const lastOfKind = (k: string) => {
+    for (let i = trusted.length - 1; i >= 0; i--) if (trusted[i].kind === k) return trusted[i];
+    return undefined;
+  };
+  const pick = lastOfKind("report") || lastOfKind("synthesis") || lastOfKind("spec_tree");
+  if (!pick) return undefined;
+  const node = (state.graph?.nodes || []).find(
+    (n: BrainstormReasoningNode & { producedArtifactId?: string; capabilityRunId?: string }) =>
+      n.producedArtifactId === pick.id ||
+      (!!pick.producedBy?.capabilityRunId && n.capabilityRunId === pick.producedBy.capabilityRunId)
+  );
+  return node?.id;
 }
 
 /** Mechanical G-ROOT-1..4 checks (binary gates for T_GATE wiring). */
@@ -1400,16 +1441,34 @@ export function simulateCapabilityExecution(
     content = `【文档草案 · pilot-template baseline】\n基于 ${upstreams.length} 上游产物（risk + synthesis + clarification）生成。\n\n## 概述\n为 ${state.goal?.text || "目标"} 提供 RBAC + 审计的实现路径。\n\n## 需求\n### 需求 1：权限模型\n用户故事：作为平台管理员，我希望定义基于角色的权限，以便安全地隔离不同项目的数据。\n#### 验收标准\n1.1 WHEN 管理员创建角色，THE 系统 SHALL 持久化并返回 roleId。\n1.2 IF 用户不具备对应 scope，THE 系统 SHALL 拒绝访问并记录审计日志。\n\n## 设计\n组件包含 RoleService、ScopeChecker、AuditLogger。\n\n（pilot 演示数据，已厚化避免被 K3 质量门拦截）。`;
     title = "文档草案 (pilot)";
   } else if (capabilityId === "traceability.matrix") {
+    const goal = state.goal?.text || "目标";
+    const ev = upstreams[0]?.id || "report";
     content =
-      `【可追溯矩阵】\n| 需求 | 设计 | 任务 | 证据 | 用例 |\n|---|---|---|---|---|\n` +
-      `| REQ-1 | DES-1 | TASK-1 | ${upstreams[0]?.id || "upstream"} | EARS-1 |`;
+      `## 可追溯矩阵\n\n` +
+      `针对「${goal}」建立需求↔设计↔任务↔证据↔用例的双向追溯，确保每条需求都有设计落点、可执行任务、证据支撑与验收用例，避免范围漂移与漏实现。\n\n` +
+      `| 需求 | 设计 | 任务 | 证据 | 用例 |\n|---|---|---|---|---|\n` +
+      `| REQ-1 核心闭环 | DES-1 模块划分 | TASK-1 MVP 实现 | ${ev} | EARS-1 |\n` +
+      `| REQ-2 权限/边界 | DES-2 访问控制 | TASK-2 鉴权接入 | ${ev} | EARS-2 |\n` +
+      `| REQ-3 审计追溯 | DES-3 操作日志 | TASK-3 审计落库 | ${ev} | EARS-3 |\n\n` +
+      `**覆盖说明**：P0 需求全部具备验收用例与证据引用；未覆盖项需回到推演澄清后补登。`;
     title = "可追溯矩阵";
   } else if (capabilityId === "task.write") {
-    content = `【工程任务】\n1. MVP 实现\n2. 验收对齐 report\n3. 交接 checklist`;
+    const goal = state.goal?.text || "目标";
+    content =
+      `## 工程任务清单\n\n` +
+      `面向「${goal}」的可执行任务拆解，含依赖与验收锚点，供工程 agent 按序落地 MVP。\n\n` +
+      `1. **实现核心闭环**（blockedBy: 无）：搭建最小可用路径，打通主流程。验收：核心场景端到端跑通。\n` +
+      `2. **接入权限与边界控制**（blockedBy: 1）：RBAC + scope 过滤，拒绝越权并审计。\n` +
+      `3. **操作审计落库**（blockedBy: 2）：保留操作者/时间/对象/before-after。\n` +
+      `4. **验收用例对齐报告**（blockedBy: 3）：每条 P0 需求映射到可机械判定的验收。\n` +
+      `5. **交接 checklist**（blockedBy: 4）：整理交付包与未决项，移交工程。`;
     title = "工程任务清单";
   } else if (capabilityId === "handoff.package") {
     content = buildHandoffPackageContent(state);
     title = "工程交接包";
+  } else if (capabilityId === "instruction.package") {
+    content = buildPromptPackContent(state);
+    title = "提示词包";
   } else if (lowerCap.includes('scenario') || lowerCap.includes('simulate')) {
     const priorPreviews = (state.artifacts || []).filter(a => a.kind === 'preview').length;
     content = `【效果预演 模拟】\n基于 ${upstreams.length} upstream 模拟场景。\n已产出 ${priorPreviews} 预览。${hasStale ? '含风险上下文。\n' : ''}输出：MVP 流程验证通过（带标注）。`;
@@ -1484,6 +1543,7 @@ class DefaultCapabilityExecutor implements CapabilityExecutor {
     summary: string;
     content: string;
     provenance?: Artifact["provenance"];
+    payload?: unknown;
     usage?: {
       inputTokens?: number;
       outputTokens?: number;
@@ -1497,7 +1557,7 @@ class DefaultCapabilityExecutor implements CapabilityExecutor {
     // Special case for the V5 main output (report.write): use the structured 9-section builder
     // so the committed artifact carries evidence-grade content even under the default simulator path.
     // This is the "wire into CapabilityExecutor" step: page no longer post-processes report strings.
-    let result: { title: string; summary: string; content: string; provenance?: Artifact["provenance"]; usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number; model?: string }; qualityBaseline?: "production" | "pilot-template" };
+    let result: { title: string; summary: string; content: string; provenance?: Artifact["provenance"]; payload?: unknown; usage?: { inputTokens?: number; outputTokens?: number; totalTokens?: number; model?: string }; qualityBaseline?: "production" | "pilot-template" };
     if (args.capabilityId === 'report.write') {
       const built = buildStructuredReport({
         state: args.state,
@@ -1511,6 +1571,25 @@ class DefaultCapabilityExecutor implements CapabilityExecutor {
         summary: built.summary,
         content: built.content,
         provenance: 'ai_generated',
+        qualityBaseline: 'pilot-template',
+      };
+    } else if (args.capabilityId === 'gap.ask') {
+      // 澄清:产出结构化 clarifyQuestions(带选项),只问目标缺失的规约维度。
+      // payload.clarifyQuestions 经 drive → commit → gapsFromClarifyQuestions → 澄清卡片(带选项)。
+      const questions = buildSimulatedClarifyQuestions(args.state.goal?.text || "");
+      const body = questions
+        .map((q, i) => {
+          const opts = q.options && q.options.length > 0 ? `\n   选项:${q.options.join(" / ")}` : "";
+          const ctx = q.context ? `\n   (${q.context})` : "";
+          return `${i + 1}. ${q.prompt}${opts}${ctx}`;
+        })
+        .join("\n");
+      result = {
+        title: "阻塞缺口清单",
+        summary: "定位阻塞规划的关键未决问题(带候选答法)",
+        content: `## 待澄清(回答后即可推进)\n\n${body}`,
+        provenance: "ai_generated",
+        payload: { clarifyQuestions: questions },
         qualityBaseline: 'pilot-template',
       };
     } else {
@@ -1601,6 +1680,7 @@ class PilotRealCapabilityExecutor implements CapabilityExecutor {
     summary: string;
     content: string;
     provenance?: Artifact["provenance"];
+    payload?: unknown;
     usage?: {
       inputTokens?: number;
       outputTokens?: number;
@@ -1798,6 +1878,10 @@ export class LlmCapabilityExecutor implements CapabilityExecutor {
       'risk.analyze',
       'report.write',
       'intent.clarify',
+      // 澄清:走 LLM 生成针对当前目标的澄清问题(否则用静态模板,每次都是一样的 4 题)。
+      // 无 LLM/pilot/demo 时,下面的 catch 会回退到 base(模拟器)的固定模板,行为不破坏。
+      'gap.ask',
+      'question.expand',
       'route.generate',
       'route.compare',
       'requirement.write',
@@ -2799,22 +2883,30 @@ export function commitArtifact(
 }
 
 // Helper: declare expected input kinds for a capability (for prototype dependency tracking)
+// 每个能力关心的上游 artifact 种类。下游(synthesis/report/structure)收敛节点应吃到
+// 全部相关上游,而非单一来源 —— 否则画布里产出节点只挂一两个父节点("第二层"),
+// 推理上下文也不完整。聚合类能力的 kind 集合放宽到覆盖全链路。
 const CAPABILITY_INPUT_KINDS: Partial<Record<V5CapabilityId, string[]>> = {
   "risk.analyze": ["clarification", "evidence"],
-  "counter.argue": ["risk"],
-  "synthesis.merge": ["risk", "evidence", "route_options"],
-  "report.write": ["synthesis", "risk", "evidence", "route_options"],
-  "structure.decompose": ["clarification", "evidence"],
+  "counter.argue": ["risk", "evidence"],
+  "synthesis.merge": ["risk", "evidence", "route_options", "clarification"],
+  "report.write": ["synthesis", "risk", "evidence", "route_options", "clarification", "preview"],
+  "structure.decompose": ["clarification", "evidence", "synthesis", "risk", "report"],
 };
 
-// Find recent artifacts in state that match the required kinds for this capability
+// 单能力可挂的上游上限(防止极端会话把画布塞爆;远大于此前的 neededKinds.length 封顶)。
+const MAX_INPUTS_PER_CAPABILITY = 24;
+
+// Find artifacts in state matching the required kinds for this capability.
+// 收集**全部**匹配 kind 的健康上游(不再按 kind 数量封顶),让收敛节点依赖完整上下文 ——
+// 画布依赖边因此完整、产出不再悬在"第二层"。仅留一个高位安全上限防极端膨胀。
 export function findInputsForCapability(state: V5SessionState, capabilityId: V5CapabilityId): string[] {
   const neededKinds = CAPABILITY_INPUT_KINDS[capabilityId] || [];
   if (neededKinds.length === 0) return [];
 
   const stales = new Set(state.staleArtifactIds || []);
   const inputs: string[] = [];
-  // walk backwards to find most recent matching healthy artifact
+  // walk backwards (most-recent first) collecting every healthy artifact of a needed kind
   for (let i = state.artifacts.length - 1; i >= 0; i--) {
     const art = state.artifacts[i];
     if (
@@ -2823,7 +2915,7 @@ export function findInputsForCapability(state: V5SessionState, capabilityId: V5C
       !inputs.includes(art.id)
     ) {
       inputs.push(art.id);
-      if (inputs.length >= neededKinds.length) break;
+      if (inputs.length >= MAX_INPUTS_PER_CAPABILITY) break;
     }
   }
   return inputs;
@@ -3463,7 +3555,14 @@ export function orchestrateReasoningTurn(
   const proposed = context?.proposedPlan;
   let convergenceRejectedByGcov = false;
 
-  if (proposed?.converged === true && (proposed.selected?.length ?? 0) === 0) {
+  // S19 交付意图短路:一键「生成交付物」(delivery intent + clear)必须跑完整确定性交付流水线
+  // (spec 树→文档→矩阵→提示词包→架构图→交接包),不能交给 LLM orchestrate 提案随机裁量
+  // (否则常只挑 report.write,导致规格文档/spec 树不产出)。本地启发式已含该流水线分支。
+  if (isDeliveryIntent(userTextForPick) && working.goal?.status === "clear") {
+    selected = pickNextCapabilitiesHeuristic(working, userTextForPick);
+    planSource = "local_heuristic";
+    pickRationale = `delivery-intent forced deterministic ship pipeline (bypass LLM proposal) for: ${(userTextForPick || "").slice(0, 80)}`;
+  } else if (proposed?.converged === true && (proposed.selected?.length ?? 0) === 0) {
     const nowIso = new Date().toISOString();
     const allCapIds = Array.from(V5_CAPABILITY_POOL.keys()) as string[];
     const convergenceDecision: SchedulingDecision = {

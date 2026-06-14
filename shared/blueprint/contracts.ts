@@ -235,6 +235,7 @@ export const CAPABILITY_OUTPUT_KIND: Partial<Record<V5CapabilityId, Artifact["ki
   "task.write": "doc",
   "traceability.matrix": "plan",
   "handoff.package": "plan",
+  "instruction.package": "doc",
   "scenario.simulate": "preview",
   "ux.preview": "preview",
   "outcome.visualize": "preview",

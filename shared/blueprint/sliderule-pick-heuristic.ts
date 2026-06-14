@@ -62,10 +62,22 @@ export function pickNextCapabilities(
   }
 
   // S19: after clear, delivery intent runs ship pipeline.
+  // 交付能力多为模板/确定性(document/task/matrix/instruction/visualize/handoff),
+  // 一次性排完整条流水线(含 spec 树前置),让「生成交付物」一键产出全部交付物。
   if (isDeliveryIntent(userText) && state.goal?.status === "clear") {
     const delivery = pickDeliveryCapabilities(state);
     const structure = pickStructureBeforeDelivery(state, userText);
-    return [...structure, ...delivery].slice(0, 5);
+    // 推演报告是最重要的交付物 —— 若本会话收敛时没产出过可信报告(LLM 调度可能跳过),
+    // 交付前先补一发 report.write,保证交付物始终含报告。
+    const stales = new Set(state.staleArtifactIds || []);
+    const hasTrustedReport = (state.artifacts || []).some(
+      (a) => a.kind === "report" && isHealthyArtifact(a, stales)
+    );
+    const reportPrefix =
+      !hasTrustedReport && V5_CAPABILITY_POOL.has("report.write")
+        ? [{ capabilityId: "report.write" as V5CapabilityId, roleId: "综合" }]
+        : [];
+    return [...reportPrefix, ...structure, ...delivery].slice(0, 9);
   }
 
   // S18: visual / mermaid intents after doc or tree exists.

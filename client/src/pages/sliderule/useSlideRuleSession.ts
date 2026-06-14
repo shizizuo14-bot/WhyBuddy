@@ -906,12 +906,22 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
       .map((g) => ({
         id: g.id,
         prompt: g.label,
+        kind: g.clarifyKind,  // V4 alignment
         type: g.clarifyType,
         options: g.options,
         defaultAnswer: g.defaultAnswer,
         context: g.context,
       }));
   }, [sessionState.coverageGaps, isRunning]);
+
+  // 一键生成交付物:发一条交付意图消息走既有 S19 流水线(spec树→文档→任务→提示词包→架构图→交接包)。
+  const generateDeliverables = useCallback(() => {
+    if (isRunning) return;
+    void runTurn("打包交付：生成 spec 树、规格文档、提示词包、架构图与工程交接包", {
+      intent: "generate_plan",
+      text: "打包交付：生成 spec 树、规格文档、提示词包、架构图与工程交接包",
+    });
+  }, [isRunning, runTurn]);
 
   const answerClarifications = useCallback(
     (answers: Array<{ gapId: string; answer: string }>) => {
@@ -937,6 +947,7 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
     setInput,
     pendingClarifications,
     answerClarifications,
+    generateDeliverables,
     isRunning,
     liveAction,
     sessionState,

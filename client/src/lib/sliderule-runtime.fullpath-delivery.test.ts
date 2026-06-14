@@ -13,6 +13,8 @@ import {
   commitArtifact,
   findInputsForCapability,
   pickNextCapabilities,
+  resolveStructuralParentId,
+  getPropositionRootNode,
 } from "./sliderule-runtime";
 import {
   buildClearStateWithTrustedReport,
@@ -177,6 +179,65 @@ describe("S19 · ship-time delivery chain", () => {
     expect(tree).toBeTruthy();
     const doc = (final.artifacts || []).find((a) => a.kind === "doc");
     expect(doc).toBeTruthy();
+  });
+
+  // #3 分类齐全(报告/规格树/规格文档/提示词包/架构图/工程交接)依赖各 cap 在真实
+  // pilot-template 门下提交为可信 —— 这要走 driveReasoningSession + simulator 真实路径
+  // (本文件的 runDeliveryPipeline 用 createRawArtifact + production 门是测试夹具,不反映真实门),
+  // 故分类齐全用应用端到端实测验证,这里只断言流水线产出了各 cap 的工件(见上「full pipeline」)。
+
+  // #2 Flow 关联:交付能力(无 scaffold 槽)应挂在内容节点(报告/综合)下,而非平铺在 root。
+  it("delivery caps nest under the latest content node, not flat off root", () => {
+    const { state } = buildClearStateWithTrustedReport("S19-nest");
+    const root = getPropositionRootNode(state);
+    expect(root).toBeTruthy();
+    // 有可信内容节点时,交付 cap 的结构父应是内容节点(report/synthesis),不是 root。
+    for (const cap of ["handoff.package", "instruction.package", "outcome.visualize", "traceability.matrix"]) {
+      const parent = resolveStructuralParentId(state, undefined, cap);
+      expect(parent).toBeTruthy();
+      expect(parent).not.toBe(root!.id);
+      const parentNode = (state.graph.nodes || []).find((n) => n.id === parent) as
+        | { capabilityId?: string }
+        | undefined;
+      expect(["report.write", "synthesis.merge", "structure.decompose"]).toContain(
+        parentNode?.capabilityId
+      );
+    }
+  });
+
+  // #2 端到端:真实 orchestrate 一个交付 turn 后,交付节点的结构边(depends_on)应指向
+  // 内容节点(report/synthesis/structure),而不是 proposition root(平铺「第二级」)。
+  it("orchestrate delivery turn parents delivery nodes under content node (not root)", () => {
+    const { state } = buildClearStateWithTrustedReport("S19-flow");
+    const { newState } = orchestrateReasoningTurn(state, {
+      turnId: "S19-flow-d",
+      userText: "打包交付：生成 spec 树、规格文档、提示词包、架构图与工程交接包",
+    });
+    const root = getPropositionRootNode(newState);
+    expect(root).toBeTruthy();
+    const structEdges = (newState.graph.edges || []).filter((e) => e.type === "depends_on");
+    const deliveryCaps = new Set([
+      "traceability.matrix",
+      "task.write",
+      "instruction.package",
+      "outcome.visualize",
+      "handoff.package",
+    ]);
+    const deliveryNodes = (newState.graph.nodes || []).filter((n) =>
+      deliveryCaps.has(String((n as { capabilityId?: string }).capabilityId))
+    );
+    expect(deliveryNodes.length).toBeGreaterThan(0); // 至少排了一个交付节点
+    for (const node of deliveryNodes) {
+      const inEdge = structEdges.find((e) => e.target === node.id);
+      expect(inEdge).toBeTruthy();
+      expect(inEdge!.source).not.toBe(root!.id); // 不再平铺在 root 下
+      const parent = (newState.graph.nodes || []).find((n) => n.id === inEdge!.source) as
+        | { capabilityId?: string }
+        | undefined;
+      expect(["report.write", "synthesis.merge", "structure.decompose"]).toContain(
+        parent?.capabilityId
+      );
+    }
   });
 
   it("P5: commit-time gates never include T_MERGE / T_CONTENT / T_TEST", () => {
