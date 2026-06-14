@@ -1,6 +1,22 @@
+# SlideRule V5.2 架构图 (Mermaid)
+
+V5.2 外环 (◆) + U* 修订 (●) 围绕 V5.1 脊柱 (零改动)。完整模型见下图。
+
 ```mermaid
+%% SlideRule V5.2 架构图
+%% V5.1 脊柱 (CORE 控制平面 + POOL 能力池 + 基础 REENTRY/RUNTIME/OUT) 零改动
+%% V5.2 外环 (◆) + U* 修订 (●)：Drive/Marathon 外层、U1 信任修订、U2 执行器拓扑 (browser-llm + KEYPOOL)、U4 用户语言化表面
+%% 符号说明:
+%%   ◆ = V5.2 新增 / 外环元素
+%%   ● = Ux 修订点 (在 V5.1 基础上增强)
+%%   虚线/点线 = 跨层连接 或 部分实现 (待补，图中已自注)
+%% 布局提示: TB 纵向；外环 (DRIVE + SURF + EXEC/TRUST 部分) 建议在 Mermaid 中使用容器或分图查看以减少交叉边 spaghetti
+
 flowchart TB
- 
+
+subgraph V52_OUTER["V5.2 外环 ◆ (Drive + U* 表面/执行/信任) · 薄层复用内脊柱"]
+  direction TB
+
 subgraph DRIVE["00.5 驱动层 / Drive Modes（◆ 外环 · 内层零改动）"]
   direction TB
   MODE{"◆ 模式选择器 / Mode<br/>深思一轮(默认·绕过外环) · 持续推演"}:::gate
@@ -15,8 +31,8 @@ subgraph SURF["00 交互面 / Surface（◆ U4 用户语言化：出问题才说
   direction TB
   CHAT["聊天框 = 操纵杆<br/>灌 goal · 提质疑 · 指定关注点<br/>◆ 运行中发送键=停止键"]:::surface
   STATUS["状态条（唯一常驻）<br/>◆ 只说人话：推演中·第N步 / 已想清楚✓<br/>还差N个关键信息 / 已停止·随时继续"]:::surface
-  AUDIT["◆ 审计抽屉 / Audit Drawer<br/>gate原文·台账·封条计数·baseline·分账<br/>机制信息只搬家不删除"]:::surface
-  BOARD["内联临时黑板<br/>讨论 · 图 · 报告段 · 方案 · 预览<br/>● 按轮分组折叠(马拉松)"]:::surface
+  AUDIT["◆ 审计抽屉 / Audit Drawer<br/>gate原文·台账·封条计数·baseline·分账 (M7: policy + ledger + superseded + baseline + cost)<br/>机制信息只搬家不删除"]:::surface
+  BOARD["内联临时黑板<br/>讨论 · 图 · 报告段 · 方案 · 预览<br/>● 按轮分组折叠(马拉松, via routeExpanded + superseded)"]:::surface
 end
  
 subgraph CORE["01 控制平面 / Control Plane（V5.1 脊柱 · 零改动）"]
@@ -32,13 +48,13 @@ subgraph CORE["01 控制平面 / Control Plane（V5.1 脊柱 · 零改动）"]
   AWAIT["待续 / Awaiting（环上歇脚点）<br/>收敛 · 等人 · 超轮内预算<br/>◆ + 用户停止 · 等人补缺(马拉松) · 会话预算顶 · 前沿耗尽"]:::await
 end
  
-subgraph ROLES["02 角色与协作 / Roles（V5.1 原样）"]
+subgraph ROLES["02 角色与协作 / Roles（● V5.2：多角色面板已真正接入 drive）"]
   direction TB
   RL["多角色 / Roles<br/>产品·架构·安全·合规·工程·挑刺·接地·综合·UI"]:::role
-  D_GATE{"决策门 / Decision Gate<br/>简单 or 复杂?"}:::gate
+  D_GATE{"● 决策门 / Decision Gate<br/>简单 or 复杂?<br/>resolveRoleMode：契约 complex / 产品搭建类目标 → 自动 complex<br/>(去掉旧的≥4产物硬门槛，brainstorm 不再形同虚设)"}:::gate
   D_SA["单 Agent / Single-Agent"]:::role
-  D_BO["头脑风暴 / Brainstorm<br/>讨论·投票·分工·审计"]:::role
-  D_SYN["综合器 / Synthesizer<br/>方案·信心分·分歧意见"]:::role
+  D_BO["● 头脑风暴 / Brainstorm（多角色面板）<br/>产品·架构·安全 三角色各出立场 → 轮转交叉质疑 → 裁决<br/>复用 executeDeliberation+adjudicator；payload: positions+critiques+收敛分+异议"]:::role
+  D_SYN["● 综合器 / Synthesizer<br/>读面板多角色立场聚合 · 信心分 · 分歧意见(收敛分/保留异议)<br/>结构化多视角上游 → 喂厚 report.write"]:::role
   FLOWB{"流边界守卫 / Flow Boundary<br/>剥离 critique · rebuttal · debate console"}:::gate
   D_DEG["降级兜底 / Degradation → 单 Agent"]:::fallback
   PAIR["调度单元 = (capability, role) 对"]:::role
@@ -135,6 +151,9 @@ subgraph OUT["07 输出 / Output"]
 end
  
 %% ===== ◆ 驱动外环（仅持续推演模式生效）=====
+%% 薄外环复用说明 (应用审查 Issue 4): MARATHON/FRONTIER/DIGEST 是薄编排 (reuses driveReasoningSession + append-only to ledgers/STATE/supersededArtifactIds)
+%% CORE/INTAKE/ORCH/BUDGET/GCOV 等内层 V5.1 脊柱零改动；外环仅通过 stopReason 分流 + 追加 ledger/STATE 字段
+%% 见 marathon-driver + useSlideRuleSession 条件调用 + post-drive digest/propose
 CHAT -.选模式.-> MODE
 MODE -.深思一轮·直通.-> INTAKE
 MODE -.持续推演.-> MARATHON
@@ -194,19 +213,24 @@ BUS --- C_SYN
 BUS --- C_REP
 BUS --- C_PACK
  
-%% ===== 角色 + 流边界（V5.1 原样）=====
+%% ===== 角色 + 流边界（● V5.2：多角色面板接入 drive）=====
+%% pickBrainstormChain(complex) 把面板链 critique.generate(面板) → synthesis.merge 前置到 report.write 之前；
+%% critique.generate 在 complex 下经 deliberation-exec-map.runPanelSession 跑成 3 角色面板（见 D_BO）。
 RL --> D_GATE
-D_GATE -.简单.-> D_SA
-D_GATE -.复杂.-> D_BO
+D_GATE -.简单·成对质疑.-> D_SA
+D_GATE -.复杂·多角色面板.-> D_BO
 D_BO --> D_SYN
 D_GATE -.失败超时.-> D_DEG
 D_DEG -.兜底.-> D_SA
 ORCH -.选 capability×role.-> PAIR
+ORCH -.复杂·prime 面板链.-> D_BO
 D_SA -.视角.-> PAIR
 D_SYN --> FLOWB
+D_SYN -.● 多角色立场与投票分歧.-> C_REP
 FLOWB -.净化后视角.-> PAIR
 FLOWB -.断言进台账.-> T_LEDGER
 D_BO -.回灌·经守卫.-> FLOWB
+D_BO -.● 立场与收敛分投影为画布多角色子节点.-> BOARD
 PAIR -.接入.-> BUS
  
 %% ===== 池内链（V5.1 原样，节选）=====
@@ -244,9 +268,11 @@ QCONTRACT -.契约注入.-> PROMPTS
 EXECABS -.browser端取租约.-> KEYPOOL
 DEPLOY -.Pages.-> KEYPOOL
 DEPLOY -.自托管.-> EXECABS
-KEYPOOL -.◆ 分账.-> T_LEDGER
+KEYPOOL -.◆ 分账 (aggregate costLedger + 待补 per-key).-> T_LEDGER
 KEYISO -.边界锁.-> KEYPOOL
 EXECABS -.结果+baseline声明.-> BUS
+%% 失败回退 (应用审查 Issue 3): browser-llm / KEYPOOL 异常 (CORS/429/401/timeout) → 触发内层降级到 PilotReal / Default (代码已实现 try/catch + onStep fail)
+KEYPOOL -.失败回退 (browser-llm 异常 → PilotReal).-> EXECABS
  
 %% ===== ● U1 信任层接线（修订）=====
 BUS ==>|产物送审| T_GATE
@@ -290,7 +316,16 @@ C_REP ==> REPORT
 REPORT --> READER
 READER -.证据回跳.-> BOARD
 C_HAND ==> DONE
- 
+
+end
+%% 结束 V52_OUTER (V5.2 外环容器：DRIVE + SURF + EXEC/TRUST U* 部分)
+
+%% ===== 改进后的图例 (应用审查 Issue 1 + 6) =====
+%% V5.2 外环 (◆) 容器包裹了 DRIVE/Marathon + SURF(U4) + EXEC(U2 browser-llm/KEYPOOL) + TRUST(U1 quality) 部分
+%% 内层 CORE/POOL/REENTRY/RUNTIME/OUT 为 V5.1 脊柱 (零改动)
+%% 符号: ◆ = V5.2 新增/外环 ; ● = Ux 修订 ; 虚线 = 跨层或待补
+%% 建议: Mermaid 渲染时使用 "View as code" 或折叠外容器以减少交叉边 spaghetti；或拆分为 "核心脊柱" + "V5.2 delta" 两个图
+
 classDef surface fill:#dbeafe,stroke:#3b82f6,color:#1e3a5f
 classDef core fill:#e0e7ff,stroke:#6366f1,color:#312e81
 classDef cap fill:#ede9fe,stroke:#8b5cf6,color:#4c1d95

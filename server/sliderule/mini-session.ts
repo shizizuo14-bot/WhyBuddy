@@ -25,6 +25,8 @@ export type MiniSessionInput = {
   challengerRole: BrainstormRoleId;
   targetRole: BrainstormRoleId;
   stageContext: string;
+  /** R2.5 多角色面板：显式 N 个参与者（提供时优先于 challenger/target 两角色）。 */
+  participants?: BrainstormRoleId[];
 };
 
 const NOOP_EMIT: (eventType: string, payload: Record<string, unknown>) => void = () => {};
@@ -45,9 +47,11 @@ function createCrewMember(roleId: BrainstormRoleId): CrewMemberInstance {
 }
 
 export function buildMiniSession(input: MiniSessionInput): BrainstormSession {
-  const participants = [input.challengerRole, input.targetRole].filter(
-    (role, idx, arr) => arr.indexOf(role) === idx
-  );
+  const rawParticipants =
+    input.participants && input.participants.length > 0
+      ? input.participants
+      : [input.challengerRole, input.targetRole];
+  const participants = rawParticipants.filter((role, idx, arr) => arr.indexOf(role) === idx);
 
   const crewMembers = new Map<BrainstormRoleId, CrewMemberInstance>();
   for (const roleId of participants) {

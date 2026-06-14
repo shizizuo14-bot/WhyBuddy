@@ -16,8 +16,10 @@ import type {
 import type { V5SessionState } from "../../shared/blueprint/v5-reasoning-state.js";
 import {
   mapV5RoleToBrainstorm,
+  mapBrainstormRoleToV5Canonical,
   resolveCritiqueTargetRole,
 } from "../../shared/blueprint/sliderule-role-map.js";
+import { resolveRoleMode } from "../../shared/blueprint/sliderule-role-mode.js";
 import { getAIConfig } from "../core/ai-config.js";
 import { callLLM } from "../core/llm-client.js";
 import { createAdjudicator } from "../routes/blueprint/brainstorm/adjudicator.js";
@@ -377,6 +379,169 @@ async function runCritiqueSession(args: {
   };
 }
 
+// ===== R2.5 多角色面板（complex 模式 critique.generate 走此路）=====
+
+type PanelPosition = { roleId: BrainstormRoleId; v5Role: string; content: string };
+
+/** 产品搭建三视角：产品(planner) / 架构(architect) / 安全·挑刺(auditor)。 */
+function pickPanelRoles(): BrainstormRoleId[] {
+  return ["planner", "architect", "auditor"];
+}
+
+function renderPanel(
+  positions: PanelPosition[],
+  critiques: Critique[],
+  convergenceScore: number,
+  consensusReached: boolean,
+  dissent: Array<{ roleId: BrainstormRoleId; opinion: string }>
+): string {
+  const posText = positions.map((p) => `【${p.v5Role}】${p.content}`).join("\n\n");
+  const critText = critiques.length
+    ? critiques.map((c) => `· ${c.challengerRoleId}→${c.targetRoleId}: ${c.critique}`).join("\n")
+    : "（无交叉质疑）";
+  const dissentText = dissent.length
+    ? dissent.map((d) => `· ${mapBrainstormRoleToV5Canonical(d.roleId)}: ${d.opinion}`).join("\n")
+    : "无";
+  return (
+    `多角色立场：\n${posText}\n\n` +
+    `交叉质疑：\n${critText}\n\n` +
+    `收敛分 ${convergenceScore.toFixed(2)}（${consensusReached ? "已共识" : "有分歧"}）\n` +
+    `保留异议：\n${dissentText}`
+  );
+}
+
+async function runPanelSession(args: {
+  state: V5SessionState;
+  turnId: string;
+  claimText: string;
+  maxRounds: number;
+}): Promise<DeliberationExecutorResult> {
+  const goalText = String((args.state as any)?.goal?.text || "");
+  const stageContext = buildStageContext(goalText, args.claimText);
+  const participants = pickPanelRoles();
+
+  const session = buildMiniSession({
+    turnId: args.turnId,
+    challengerRole: participants[0],
+    targetRole: participants[1],
+    participants,
+    stageContext,
+  });
+
+  const { auxCaller, primaryCaller, usage } = createLlmCallers();
+  const collectedCritiques: Critique[] = [];
+
+  const critiqueCaller: StructuredCritiqueCaller = async ({
+    challengerRoleId,
+    target,
+    stageContext: ctx,
+  }) => {
+    const targetClaim = target.claims.find((c) => typeof c === "string" && c.trim().length > 0);
+    if (!targetClaim) return null;
+    const prompt = buildCritiquePrompt(challengerRoleId, target.roleId, targetClaim, ctx);
+    const raw = await auxCaller(prompt, {});
+    const parsed = parseCritique(raw, {
+      id: newCritiqueId(),
+      challengerRoleId,
+      targetRoleId: target.roleId,
+      targetClaim,
+      roundNumber: 1,
+    });
+    if (parsed) collectedCritiques.push(parsed);
+    return parsed;
+  };
+
+  const rebuttalCaller: StructuredRebuttalCaller = async ({ critique, responderClaim }) => {
+    const prompt = buildRebuttalPrompt(critique, responderClaim);
+    const raw = await auxCaller(prompt, {});
+    return parseRebuttal(raw, {
+      id: crypto.randomUUID(),
+      responderRoleId: critique.targetRoleId,
+      challengeId: critique.id,
+      roundNumber: critique.roundNumber,
+    });
+  };
+
+  const adjudicator = createAdjudicator(primaryCaller);
+
+  // 轮转交叉质疑：每个角色质疑下一个角色（形成多视角交锋而非单对）。
+  const critiqueEdges = participants.map((r, i) => ({
+    challenger: r,
+    target: participants[(i + 1) % participants.length],
+  }));
+  const topology: BrainstormTopology = {
+    name: "sliderule-panel",
+    participants,
+    critiqueEdges,
+    synthesizerRoleId: "decider",
+    minRounds: 1,
+    maxRounds: args.maxRounds,
+  };
+
+  const result = await executeDeliberation({
+    session,
+    stageContext,
+    emitEvent: noopEmitEvent(),
+    config: { minRounds: 1, maxRounds: args.maxRounds },
+    topology,
+    critiqueCaller,
+    rebuttalCaller,
+    adjudicator,
+    executeMember: async (member, context) => {
+      try {
+        const raw = await auxCaller(buildMemberPrompt(member.roleId, context), {});
+        member.state = "completed";
+        member.output = {
+          content: raw,
+          confidence: 0.75,
+          toolInvocations: [],
+          tokenUsage: Math.ceil(raw.length / 4),
+        };
+        session.tokenUsed += member.output.tokenUsage;
+      } catch {
+        member.state = "failed";
+        member.failureReason = "member_execution_failed";
+      }
+    },
+  });
+
+  const positions: PanelPosition[] = participants
+    .map((r) => ({
+      roleId: r,
+      v5Role: mapBrainstormRoleToV5Canonical(r),
+      content: String(session.crewMembers.get(r)?.output?.content || "").trim(),
+    }))
+    .filter((p) => p.content.length > 0);
+
+  const degraded = positions.length === 0;
+  const convergenceScore = result.finalConvergenceScore;
+  const consensusReached = result.consensusAchieved;
+  const dissent = (result.dissentingOpinions || []).map((d) => ({
+    roleId: d.roleId,
+    opinion: d.opinion,
+  }));
+
+  return {
+    title: `多角色面板：${positions.map((p) => p.v5Role).join(" · ") || "(降级)"}`,
+    summary: degraded
+      ? "面板降级：未产生有效立场"
+      : `${positions.length} 个角色立场 · 收敛 ${convergenceScore.toFixed(2)}${consensusReached ? " · 已共识" : " · 有分歧"}`,
+    content: renderPanel(positions, collectedCritiques, convergenceScore, consensusReached, dissent),
+    payload: {
+      panel: true,
+      positions,
+      critiques: collectedCritiques,
+      convergenceScore,
+      consensusReached,
+      dissent,
+    },
+    provenance: degraded ? "llm_fallback" : "llm",
+    usage: toExecutorUsage(usage),
+    degraded: degraded || undefined,
+    degradedReason: degraded ? "no_panel_positions" : undefined,
+  };
+}
+
 async function runRebuttalResolve(args: {
   state: V5SessionState;
   turnId: string;
@@ -478,14 +643,41 @@ async function runSynthesisMerge(args: {
   });
 
   const arts: any[] = (args.state as any)?.artifacts || [];
-  const crewOutputs = (args.inputArtifactIds.length > 0
+  const candidateArts = (args.inputArtifactIds.length > 0
     ? args.inputArtifactIds.map((id) => arts.find((a) => a.id === id)).filter(Boolean)
-    : arts.slice(-6)
-  ).map((art: any, idx: number) => ({
-    roleId: (["architect", "auditor", "decider"] as BrainstormRoleId[])[idx % 3],
-    content: artifactClaimText(art),
-    confidence: 0.8,
-  }));
+    : arts.slice(-6)) as any[];
+
+  // R2.5: 优先吃多角色面板的真实立场（每角色一条），让综合按真实视角聚合 + 透传投票/分歧。
+  const panelArt =
+    candidateArts.find((a) => a?.payload?.panel && Array.isArray(a.payload.positions) && a.payload.positions.length > 0) ||
+    arts.slice(-8).find((a) => a?.payload?.panel && Array.isArray(a.payload?.positions) && a.payload.positions.length > 0);
+
+  let panelMeta:
+    | { convergenceScore: number; consensusReached: boolean; dissent: Array<{ roleId: string; opinion: string }> }
+    | null = null;
+  let crewOutputs: Array<{ roleId: BrainstormRoleId; content: string; confidence: number }>;
+
+  if (panelArt) {
+    const pl: any = panelArt.payload;
+    panelMeta = {
+      convergenceScore: Number(pl.convergenceScore ?? 0),
+      consensusReached: Boolean(pl.consensusReached),
+      dissent: Array.isArray(pl.dissent) ? pl.dissent : [],
+    };
+    crewOutputs = (pl.positions as any[])
+      .map((p) => ({
+        roleId: p.roleId as BrainstormRoleId,
+        content: String(p.content || ""),
+        confidence: 0.8,
+      }))
+      .filter((c) => c.content.trim().length > 0);
+  } else {
+    crewOutputs = candidateArts.map((art: any, idx: number) => ({
+      roleId: (["architect", "auditor", "decider"] as BrainstormRoleId[])[idx % 3],
+      content: artifactClaimText(art),
+      confidence: 0.8,
+    }));
+  }
 
   if (crewOutputs.length === 0) {
     crewOutputs.push({
@@ -516,7 +708,8 @@ async function runSynthesisMerge(args: {
     title: "综合结论",
     summary: synthesis.decision.slice(0, 120),
     content: renderSynthesis(synthesis, audit.status),
-    payload: { synthesis, audit },
+    // panelMeta 透传：projection 据此显示「投票/分歧」（来自多角色面板的收敛分 + 保留异议）。
+    payload: panelMeta ? { synthesis, audit, panel: panelMeta } : { synthesis, audit },
     provenance: "llm",
     usage: toExecutorUsage(usage),
   };
@@ -549,9 +742,18 @@ export async function executeDeliberationCapabilityMapped(
   }
 
   if (args.capabilityId === "critique.generate") {
+    const claim = extractUpstreamClaim(args.state, inputArtifactIds) || goalText;
+    // complex 模式跑多角色面板（产品/架构/安全交叉质疑）；simple 维持成对质疑。
+    if (resolveRoleMode(args.state, "") === "complex") {
+      return runPanelSession({
+        state: args.state,
+        turnId: args.turnId,
+        claimText: claim,
+        maxRounds,
+      });
+    }
     const challengerBs: BrainstormRoleId = "auditor";
     const targetBs = resolveCritiqueTargetRole(challengerBs, args.targetRoleId);
-    const claim = extractUpstreamClaim(args.state, inputArtifactIds) || goalText;
     return runCritiqueSession({
       state: args.state,
       turnId: args.turnId,

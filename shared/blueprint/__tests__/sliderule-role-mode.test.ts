@@ -30,9 +30,26 @@ describe("sliderule-role-mode (S16/S17)", () => {
     expect(resolveRoleMode(stub("权限系统"), "来个多角色辩论")).toBe("complex");
   });
 
-  it("pickBrainstormChain orders critique before counter", () => {
+  it("resolveRoleMode complex for product-build goals (放宽触发: 主用例默认多角色)", () => {
+    // 你截图的目标类型：造一个工具/系统/应用 → 默认走多角色面板
+    expect(resolveRoleMode(stub("做一个万年历+倒数日提醒工具"), "")).toBe("complex");
+    expect(resolveRoleMode(stub("设计一个权限系统"), "")).toBe("complex");
+  });
+
+  it("resolveRoleMode complex when coverageContract.mode is complex (去掉 ≥4 产物门槛)", () => {
+    const s = { ...stub("x"), coverageContract: { mode: "complex" } as any };
+    expect(resolveRoleMode(s, "")).toBe("complex");
+  });
+
+  it("resolveRoleMode simple for trivial / non-build chatter", () => {
+    expect(resolveRoleMode(stub("你好"), "今天天气怎么样")).toBe("simple");
+  });
+
+  it("pickBrainstormChain primes panel critique → synthesis (no counter)", () => {
     const picks = pickBrainstormChain(stub("复杂平台"));
     expect(picks[0]?.capabilityId).toBe("critique.generate");
+    expect(picks.some((p) => p.capabilityId === "synthesis.merge")).toBe(true);
+    expect(picks.some((p) => p.capabilityId === "counter.argue")).toBe(false);
   });
 
   it("degraded mode when brainstormDegraded flag set", () => {

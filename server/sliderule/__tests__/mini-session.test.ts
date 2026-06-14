@@ -41,6 +41,20 @@ describe("mini-session (R2)", () => {
     expect(session.status).toBe("active");
   });
 
+  it("buildMiniSession supports N-role panel via participants[]", () => {
+    const session = buildMiniSession({
+      turnId: "panel-1",
+      challengerRole: "planner",
+      targetRole: "architect",
+      participants: ["planner", "architect", "auditor"],
+      stageContext: "ctx",
+    });
+    expect(session.crewMembers.size).toBe(3);
+    expect(session.crewMembers.has("planner")).toBe(true);
+    expect(session.crewMembers.has("architect")).toBe(true);
+    expect(session.crewMembers.has("auditor")).toBe(true);
+  });
+
   it("buildStageContext includes goal and claim", () => {
     const ctx = buildStageContext("权限", "主张 X");
     expect(ctx).toContain("权限");

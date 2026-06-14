@@ -218,10 +218,15 @@ export function pickNextCapabilities(
   }
 
   if (roleMode === "complex" && !shouldDegradeBrainstorm(state, userText) && picks.length < 4) {
-    for (const primer of pickBrainstormChain(state)) {
-      if (available.has(primer.capabilityId) && !picks.some((p) => p.capabilityId === primer.capabilityId)) {
-        picks.unshift(primer);
-      }
+    // 多角色面板链需保持顺序：critique.generate(面板) → synthesis.merge → ……(report)。
+    // 整体前置（不用逐个 unshift，否则会把顺序倒过来让 synthesis 跑在 critique 之前）。
+    const primers = pickBrainstormChain(state).filter(
+      (primer) =>
+        available.has(primer.capabilityId) &&
+        !picks.some((p) => p.capabilityId === primer.capabilityId)
+    );
+    if (primers.length > 0) {
+      picks.unshift(...primers);
     }
   }
 

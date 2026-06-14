@@ -210,13 +210,25 @@ function buildTelemetry(state: V5SessionState, visibleNodes: BrainstormReasoning
       .filter(Boolean)
   );
 
+  // R2.5 多角色面板：把面板真实参与角色计入「角色 N」（密度无关 —— 直接读产物 payload）。
+  const panelRoles = new Set<string>();
+  for (const a of state.artifacts || []) {
+    const pl = (a as any).payload;
+    if (pl?.panel && Array.isArray(pl.positions)) {
+      for (const p of pl.positions) {
+        const r = String(p?.v5Role || p?.roleId || "").trim();
+        if (r) panelRoles.add(r);
+      }
+    }
+  }
+
   return {
     tokenBurn: tokenBurn > 0 ? tokenBurn : null,
     sourceCount: grounded.length > 0 ? grounded.length : trustedArtifacts.length || null,
     remainingBudget: blockingOpen > 0 ? blockingOpen : openGaps || null,
     elapsedMs,
     activeRoleCount:
-      Math.max(activeRoles.size, runRoles.size) ||
+      Math.max(activeRoles.size, runRoles.size, panelRoles.size) ||
       (runs.length > 0 ? Math.min(6, runs.length) : null),
   };
 }

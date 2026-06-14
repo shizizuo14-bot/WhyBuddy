@@ -115,6 +115,63 @@ describe("Knife B · projection density", () => {
     expect(treeNodes.some((n) => n.title.includes("核心需求"))).toBe(true);
   });
 
+  it("multi-role panel projects per-role position children + convergence verdict (detailed only)", () => {
+    const state = createInitialSessionState("做一个万年历提醒工具", "knife-panel") as any;
+    state.artifacts = [
+      {
+        id: "crit-panel",
+        kind: "risk",
+        trustLevel: "gated_pass",
+        provenance: "llm",
+        producedBy: {
+          capabilityRunId: "panel-run",
+          capabilityId: "critique.generate",
+          roleId: "挑刺",
+        },
+        passedGates: ["commit"],
+        title: "多角色面板",
+        summary: "3 立场",
+        content: "多角色立场…",
+        payload: {
+          panel: true,
+          positions: [
+            { roleId: "planner", v5Role: "产品", content: "产品视角立场" },
+            { roleId: "architect", v5Role: "架构", content: "架构视角立场" },
+            { roleId: "auditor", v5Role: "安全", content: "安全视角立场" },
+          ],
+          convergenceScore: 0.42,
+          consensusReached: false,
+          dissent: [{ roleId: "auditor", opinion: "保留隐私顾虑" }],
+        },
+      },
+    ];
+    const parent = {
+      id: "node-crit",
+      type: "risk" as const,
+      title: "面板质疑",
+      status: "resolved" as const,
+      capabilityId: "critique.generate" as const,
+      producedArtifactId: "crit-panel",
+      roleId: "挑刺",
+    };
+
+    const detailed = expandProjectionNodes(state, [parent], [], "detailed");
+    const roleNodes = detailed.nodes.filter(
+      (n) => n.id.includes("::role-") && !n.id.endsWith("::role-_verdict")
+    );
+    expect(roleNodes.length).toBe(3);
+    expect(roleNodes.map((n) => n.roleLabel)).toEqual(
+      expect.arrayContaining(["产品", "架构", "安全"])
+    );
+    const verdict = detailed.nodes.find((n) => n.id.endsWith("::role-_verdict"));
+    expect(verdict?.title).toBe("分歧"); // consensusReached=false
+    expect(verdict?.body).toContain("0.42");
+
+    // compact density: panel children are not projected.
+    const compact = expandProjectionNodes(state, [parent], [], "compact");
+    expect(compact.nodes.some((n) => n.id.includes("::role-"))).toBe(false);
+  });
+
   it("spec_tree children form a tree (siblings share parent)", () => {
     let state = createInitialSessionState("拆解", "knife-b-tree");
     const treeContent = [
