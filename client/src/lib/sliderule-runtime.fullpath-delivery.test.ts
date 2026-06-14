@@ -205,6 +205,41 @@ describe("S19 · ship-time delivery chain", () => {
     }
   });
 
+  // #2 端到端:真实 orchestrate 一个交付 turn 后,交付节点的结构边(depends_on)应指向
+  // 内容节点(report/synthesis/structure),而不是 proposition root(平铺「第二级」)。
+  it("orchestrate delivery turn parents delivery nodes under content node (not root)", () => {
+    const { state } = buildClearStateWithTrustedReport("S19-flow");
+    const { newState } = orchestrateReasoningTurn(state, {
+      turnId: "S19-flow-d",
+      userText: "打包交付：生成 spec 树、规格文档、提示词包、架构图与工程交接包",
+    });
+    const root = getPropositionRootNode(newState);
+    expect(root).toBeTruthy();
+    const structEdges = (newState.graph.edges || []).filter((e) => e.type === "depends_on");
+    const deliveryCaps = new Set([
+      "traceability.matrix",
+      "task.write",
+      "instruction.package",
+      "outcome.visualize",
+      "handoff.package",
+    ]);
+    const deliveryNodes = (newState.graph.nodes || []).filter((n) =>
+      deliveryCaps.has(String((n as { capabilityId?: string }).capabilityId))
+    );
+    expect(deliveryNodes.length).toBeGreaterThan(0); // 至少排了一个交付节点
+    for (const node of deliveryNodes) {
+      const inEdge = structEdges.find((e) => e.target === node.id);
+      expect(inEdge).toBeTruthy();
+      expect(inEdge!.source).not.toBe(root!.id); // 不再平铺在 root 下
+      const parent = (newState.graph.nodes || []).find((n) => n.id === inEdge!.source) as
+        | { capabilityId?: string }
+        | undefined;
+      expect(["report.write", "synthesis.merge", "structure.decompose"]).toContain(
+        parent?.capabilityId
+      );
+    }
+  });
+
   it("P5: commit-time gates never include T_MERGE / T_CONTENT / T_TEST", () => {
     const commitIds = evaluateCommitGates("handoff.package", {}).map((g) => g.gateId);
     expect(commitIds).not.toContain("T_MERGE");
