@@ -2,6 +2,8 @@ import React from "react";
 import {
   Check,
   CheckCircle2,
+  ChevronDown,
+  ChevronUp,
   DownloadCloud,
   Eye,
   EyeOff,
@@ -21,6 +23,7 @@ import {
   deriveEndpoint,
   fetchProviderModels,
   modelSuggestionsFor,
+  moveProvider,
   pingLlmEndpoint,
   presetGlyph,
   providerStatus,
@@ -203,6 +206,13 @@ export function LlmProviderSettings({
     setSelectedId(id);
   };
 
+  const reorderProvider = (id: string, dir: "up" | "down") => {
+    setDraft((current: LlmProvidersConfig | null) => {
+      if (!current) return current;
+      return { ...current, providers: moveProvider(current.providers, id, dir) };
+    });
+  };
+
   const removeProvider = (id: string) => {
     setDraft((current: LlmProvidersConfig | null) => {
       if (!current) return current;
@@ -333,16 +343,16 @@ export function LlmProviderSettings({
           className="max-h-[148px] flex-1 overflow-y-auto p-2 min-[900px]:max-h-none"
           data-testid="sliderule-provider-list"
         >
-          {draft.providers.map((p) => {
+          {draft.providers.map((p, idx) => {
             const active = p.id === selected?.id;
             return (
-              <li key={p.id}>
+              <li key={p.id} className="mb-0.5 flex items-center gap-0.5">
                 <button
                   type="button"
                   onClick={() => setSelectedId(p.id)}
                   data-provider={p.presetId}
                   aria-current={active}
-                  className={`relative mb-0.5 flex w-full items-center gap-2 rounded-lg py-2 pl-3 pr-2 text-left transition ${
+                  className={`relative flex min-w-0 flex-1 items-center gap-2 rounded-lg py-2 pl-3 pr-2 text-left transition ${
                     active ? "bg-white shadow-sm ring-1 ring-slate-200" : "hover:bg-white/70"
                   }`}
                 >
@@ -358,6 +368,31 @@ export function LlmProviderSettings({
                   </span>
                   <StatusDot status={providerStatus(p)} />
                 </button>
+                {/* 上移/下移（仅当前选中项显示，减少噪音） */}
+                {active && (
+                  <span className="flex shrink-0 flex-col" data-testid="sliderule-provider-reorder">
+                    <button
+                      type="button"
+                      onClick={() => reorderProvider(p.id, "up")}
+                      disabled={idx === 0}
+                      title="上移"
+                      className="rounded p-0.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                      data-testid="sliderule-provider-move-up"
+                    >
+                      <ChevronUp className="h-3 w-3" />
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => reorderProvider(p.id, "down")}
+                      disabled={idx === draft.providers.length - 1}
+                      title="下移"
+                      className="rounded p-0.5 text-slate-400 transition hover:bg-slate-200 hover:text-slate-700 disabled:opacity-30 disabled:hover:bg-transparent"
+                      data-testid="sliderule-provider-move-down"
+                    >
+                      <ChevronDown className="h-3 w-3" />
+                    </button>
+                  </span>
+                )}
               </li>
             );
           })}
@@ -486,6 +521,9 @@ export function LlmProviderSettings({
                   />
                   需要 API 密钥（本地服务可取消勾选）
                 </label>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  密钥仅存本机，绝不进会话/导出/遥测。本地服务（如 Ollama/Lemonade）取消上面的勾选即可免密钥入池。
+                </p>
               </div>
 
               <div className="mt-4">
@@ -509,6 +547,9 @@ export function LlmProviderSettings({
                     请求地址：{deriveEndpoint(selected.baseUrl, selected.protocol) || "（待填写 Base URL）"}
                   </p>
                 )}
+                <p className="mt-1 text-[11px] text-slate-400">
+                  仅在用代理/中转或自建网关时才改；官方直连保持默认即可。
+                </p>
               </div>
             </Section>
 
@@ -702,6 +743,45 @@ export function LlmProviderSettings({
                   })}
                 </ul>
               )}
+            </Section>
+
+            {/* 高级 · 调度（全局，作用于整个 BYOK 池） */}
+            <Section title="高级 · 调度（全局）" testid="sliderule-section-advanced">
+              <div>
+                <label className={labelClass}>多 key 分发策略</label>
+                <select
+                  value={draft.dispatch}
+                  onChange={(e) =>
+                    setDraft((current) =>
+                      current ? { ...current, dispatch: e.target.value as LlmProvidersConfig["dispatch"] } : current
+                    )
+                  }
+                  className={inputClass}
+                  data-testid="sliderule-dispatch"
+                >
+                  <option value="least-busy">least-busy（优先空闲 key）</option>
+                  <option value="round-robin">round-robin（轮流）</option>
+                </select>
+                <p className="mt-1 text-[11px] text-slate-400">
+                  同轮多能力并行时，如何在已启用的多个模型/key 间分摊请求。
+                </p>
+              </div>
+
+              <label className="mt-4 flex items-center gap-2 text-[12px] text-slate-600">
+                <input
+                  type="checkbox"
+                  checked={draft.raceMode}
+                  onChange={(e) =>
+                    setDraft((current) => (current ? { ...current, raceMode: e.target.checked } : current))
+                  }
+                  className="h-3.5 w-3.5 accent-indigo-600"
+                  data-testid="sliderule-race-mode"
+                />
+                竞速模式（同时打多个 key 取最快）
+              </label>
+              <p className="mt-1 text-[11px] text-slate-400">
+                更快但更费：默认关闭以对自己的账单诚实，按需开启。
+              </p>
             </Section>
           </div>
         )}

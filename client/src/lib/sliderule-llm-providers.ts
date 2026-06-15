@@ -93,6 +93,21 @@ export function presetGlyph(presetId: string): string {
  */
 export type ProviderStatus = "ready" | "needs-key" | "configured" | "idle";
 
+/** 上移/下移厂商（纯数组重排，越界则原样返回）。仅影响列表展示顺序。 */
+export function moveProvider(
+  providers: LlmProviderConfig[],
+  id: string,
+  dir: "up" | "down"
+): LlmProviderConfig[] {
+  const idx = providers.findIndex((p) => p.id === id);
+  if (idx < 0) return providers;
+  const swapWith = dir === "up" ? idx - 1 : idx + 1;
+  if (swapWith < 0 || swapWith >= providers.length) return providers;
+  const next = [...providers];
+  [next[idx], next[swapWith]] = [next[swapWith], next[idx]];
+  return next;
+}
+
 export function providerStatus(p: LlmProviderConfig): ProviderStatus {
   const keyReady = !p.requiresApiKey || !!p.apiKey.trim();
   if (p.enabled && keyReady) return "ready";

@@ -11,6 +11,7 @@ import { LlmProviderSettings, TestConnectionResult } from "../LlmProviderSetting
 import {
   isEnabledProviderReady,
   modelSuggestionsFor,
+  moveProvider,
   providerStatus,
   validateProviderConfig,
   type LlmProvidersConfig,
@@ -166,5 +167,34 @@ describe("测试连接 / 校验（Aspect ③）", () => {
     const html = renderToStaticMarkup(<LlmProviderSettings draft={draft} setDraft={noop} />);
     expect(html).toContain('data-testid="sliderule-key-error"');
     expect(html).toContain('data-testid="sliderule-baseurl-error"');
+  });
+});
+
+describe("字段 / 信息架构（Aspect ④）", () => {
+  it("moveProvider：上移/下移/越界保持", () => {
+    const ps = makeDraft().providers; // [openai, anthropic]
+    expect(moveProvider(ps, "anthropic", "up").map((p) => p.id)).toEqual(["anthropic", "openai"]);
+    expect(moveProvider(ps, "openai", "down").map((p) => p.id)).toEqual(["anthropic", "openai"]);
+    expect(moveProvider(ps, "openai", "up").map((p) => p.id)).toEqual(["openai", "anthropic"]); // 越界原样
+    expect(moveProvider(ps, "missing", "up")).toBe(ps);
+  });
+
+  it("当前选中项渲染上移/下移控件（首项 上移 disabled）", () => {
+    const html = renderToStaticMarkup(<LlmProviderSettings draft={makeDraft()} setDraft={noop} />);
+    expect(html).toContain('data-testid="sliderule-provider-reorder"');
+    expect(html).toMatch(/disabled[^>]*data-testid="sliderule-provider-move-up"/);
+  });
+
+  it("高级·调度（全局）暴露 dispatch + raceMode", () => {
+    const html = renderToStaticMarkup(<LlmProviderSettings draft={makeDraft()} setDraft={noop} />);
+    expect(html).toContain('data-testid="sliderule-section-advanced"');
+    expect(html).toContain('data-testid="sliderule-dispatch"');
+    expect(html).toContain('data-testid="sliderule-race-mode"');
+  });
+
+  it("字段带 helper 文案（密钥安全 / Base URL 何时改）", () => {
+    const html = renderToStaticMarkup(<LlmProviderSettings draft={makeDraft()} setDraft={noop} />);
+    expect(html).toContain("密钥仅存本机");
+    expect(html).toContain("仅在用代理");
   });
 });
