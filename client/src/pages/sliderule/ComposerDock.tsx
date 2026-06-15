@@ -146,7 +146,7 @@ export function ComposerDock({
           }`}
         >
           {/* Left mode selector prefix - integrated like Grok (pure SVG icons, smaller pill with hover scale) */}
-          <div className="relative flex w-[116px] shrink-0 items-center sm:w-[164px]" ref={modeRef}>
+          <div className="relative flex w-[100px] shrink-0 items-center sm:w-[132px]" ref={modeRef}>
             <button
               type="button"
               onClick={() => setIsModeOpen(!isModeOpen)}
