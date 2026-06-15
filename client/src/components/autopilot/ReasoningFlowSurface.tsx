@@ -850,8 +850,9 @@ export function ReasoningFlowSurface({
     const padding = 40;
     const availW = el.clientWidth - padding * 2;
     const availH = el.clientHeight - padding * 2;
-    const rawS = Math.min(availW / graphWidth, availH / graphHeight, 1.6);
-    const nextScale = Math.max(0.4, Math.min(rawS, 1.6));
+    // 上限 1.0:节点少的首轮图不要被放大到超过自然尺寸(此前 1.6 导致"首次节点较大")。
+    const rawS = Math.min(availW / graphWidth, availH / graphHeight, 1.0);
+    const nextScale = Math.max(0.4, Math.min(rawS, 1.0));
     setScale(nextScale);
     setTx((el.clientWidth - graphWidth * nextScale) / 2);
     setTy((el.clientHeight - graphHeight * nextScale) / 2);
@@ -877,10 +878,13 @@ export function ReasoningFlowSurface({
       const dim = nodeDimensions(target);
       const cx = target.x + dim.width / 2;
       const cy = target.y + dim.height / 2;
-      setTx(el.clientWidth / 2 - cx * scale);
-      setTy(el.clientHeight / 2 - cy * scale);
+      // 从 ref 读取当前缩放(而非把 scale 放进 deps)—— 否则滚轮缩放改变 scale 会让
+      // panToNode 重建 → focusNodeId 的 effect 重新触发 → 缩放时被强制重定位到选中节点(很不爽)。
+      const s = scaleRef.current;
+      setTx(el.clientWidth / 2 - cx * s);
+      setTy(el.clientHeight / 2 - cy * s);
     },
-    [positioned, scale]
+    [positioned]
   );
 
   useEffect(() => {
@@ -1399,6 +1403,16 @@ export function ReasoningFlowSurface({
             <button className="rounded-md border bg-white px-2 py-1 text-xs shadow-sm active:bg-slate-100">⛶</button>
           </div>
         </>
+      )}
+
+      {/* 沉浸视图(showChrome=false)也要有缩放/重置控制 —— 否则只能靠滚轮,很不爽。 */}
+      {!showChrome && (
+        <div className="absolute right-4 top-4 z-20 flex gap-1.5" data-testid="reasoning-flow-controls">
+          <button onClick={zoomOut} title="缩小" className="rounded-md border border-slate-200 bg-white/90 px-2 py-1 text-sm shadow-sm backdrop-blur transition active:bg-slate-100">−</button>
+          <button onClick={zoomIn} title="放大" className="rounded-md border border-slate-200 bg-white/90 px-2 py-1 text-sm shadow-sm backdrop-blur transition active:bg-slate-100">+</button>
+          <button onClick={fit} title="适配全部节点" className="rounded-md border border-slate-200 bg-white/90 px-2 py-1 text-xs shadow-sm backdrop-blur transition active:bg-slate-100">适配</button>
+          <button onClick={reset} title="重置视图" className="rounded-md border border-slate-200 bg-white/90 px-2 py-1 text-xs shadow-sm backdrop-blur transition active:bg-slate-100">重置</button>
+        </div>
       )}
 
       {bottomChrome && (

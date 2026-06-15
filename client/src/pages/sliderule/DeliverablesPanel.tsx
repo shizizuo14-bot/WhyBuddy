@@ -91,17 +91,26 @@ export function DeliverablesPanel({
   }, [sessionState]);
 
   const available = CATEGORY_ORDER.filter((c) => (grouped.get(c)?.length ?? 0) > 0);
+  const availableKey = available.join(",");
   const [active, setActive] = React.useState<CategoryId>("report");
+  // 打开时(首次拿到非空分类)优先停在报告;之后只在当前 active 失效时纠正 ——
+  // 不能每次渲染都强制回报告(否则点别的 tab 会被立刻弹回,这正是之前的 bug)。
+  const initializedRef = React.useRef(false);
   React.useEffect(() => {
-    if (open && available.length > 0) {
-      // Prefer "report" when opening the delivery dialog (e.g. from "查看报告" terminal action)
-      if (available.includes("report")) {
-        setActive("report");
-      } else if (!available.includes(active)) {
-        setActive(available[0]);
-      }
+    if (!open) {
+      initializedRef.current = false;
+      return;
     }
-  }, [open, available, active]);
+    if (available.length === 0) return;
+    if (!initializedRef.current) {
+      initializedRef.current = true;
+      setActive(available.includes("report") ? "report" : available[0]);
+      return;
+    }
+    if (!available.includes(active)) setActive(available[0]);
+    // availableKey 而非 available(数组每次新引用),避免无谓重跑
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, availableKey, active]);
 
   if (!open) return null;
 
@@ -193,7 +202,9 @@ export function DeliverablesPanel({
             <div className="flex items-center gap-2">
               <button
                 onClick={onExportMd}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50"
+                disabled={available.length === 0}
+                title={available.length === 0 ? "尚无可导出的交付物" : "导出为 Markdown"}
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-2 text-[13px] font-semibold text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
                 data-testid="sliderule-deliverables-export"
               >
                 <Download className="h-3.5 w-3.5" /> 导出 MD
