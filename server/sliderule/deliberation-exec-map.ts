@@ -46,6 +46,46 @@ import {
 import type { ReasoningEvent } from "../../shared/blueprint/sliderule-reasoning-events.js";
 import { makeEventSequence } from "../../shared/blueprint/sliderule-reasoning-events.js";
 
+/**
+ * V5.3 P2.1: 把多角色面板结果(positions/critiques/收敛)塑形为 ReasoningEvent 序列。
+ * 纯函数(不依赖 LLM),供 runPanelSession 调用 + 单测确定性验证 emit 契约。
+ */
+export function buildPanelEvents(p: {
+  turnId: string;
+  capabilityRunId: string;
+  capabilityId: string;
+  positions: Array<{ v5Role?: string; roleId?: string; content?: string }>;
+  critiques?: Array<{ challengerRoleId?: string; targetRoleId?: string; critique?: string }>;
+  convergenceScore: number;
+  consensusReached: boolean;
+  dissent: Array<{ roleId: string; opinion: string }>;
+}): ReasoningEvent[] {
+  const steps = [
+    { kind: "capability_start" as const, text: "多角色面板开始评估", roleId: "综合" },
+    ...p.positions.map((x) => ({
+      kind: "role_position" as const,
+      roleId: String(x.v5Role || x.roleId || "角色"),
+      text: String(x.content || "").slice(0, 200),
+    })),
+    ...(p.critiques || []).map((c) => ({
+      kind: "role_critique" as const,
+      roleId: String(c.challengerRoleId || "挑刺"),
+      targetRoleId: String(c.targetRoleId || ""),
+      text: String(c.critique || "").slice(0, 200),
+    })),
+    {
+      kind: "panel_converge" as const,
+      roleId: "综合",
+      text: `收敛分 ${p.convergenceScore.toFixed(2)} · ${p.consensusReached ? "已共识" : "有分歧"}`,
+      meta: { convergenceScore: p.convergenceScore, consensusReached: p.consensusReached, dissent: p.dissent },
+    },
+  ];
+  return makeEventSequence(
+    { turnId: p.turnId, capabilityRunId: p.capabilityRunId, capabilityId: p.capabilityId },
+    steps
+  );
+}
+
 export type DeliberationExecutorResult = {
   title: string;
   summary: string;
@@ -547,30 +587,16 @@ async function runPanelSession(args: {
   // runId aligned via caller (panelRunId = `${turnId}-run-${capabilityId}`)
   const runId = (args as any).capabilityRunId || `${args.turnId}-run-panel`;
   const capIdForEvent = (args as any).capabilityId || ("critique.generate" as V5CapabilityId);
-  const steps = [
-    { kind: "capability_start" as const, text: "多角色面板开始评估", roleId: "综合" },
-    ...positions.map((p) => ({
-      kind: "role_position" as const,
-      roleId: String(p.v5Role || p.roleId || "角色"),
-      text: String(p.content || "").slice(0, 200),
-    })),
-    ...(collectedCritiques || []).map((c) => ({
-      kind: "role_critique" as const,
-      roleId: String(c.challengerRoleId || "挑刺"),
-      targetRoleId: String(c.targetRoleId || ""),
-      text: String(c.critique || "").slice(0, 200),
-    })),
-    {
-      kind: "panel_converge" as const,
-      roleId: "综合",
-      text: `收敛分 ${convergenceScore.toFixed(2)} · ${consensusReached ? "已共识" : "有分歧"}`,
-      meta: { convergenceScore, consensusReached, dissent },
-    },
-  ];
-  const events = makeEventSequence(
-    { turnId: args.turnId, capabilityRunId: runId, capabilityId: capIdForEvent },
-    steps
-  );
+  const events = buildPanelEvents({
+    turnId: args.turnId,
+    capabilityRunId: runId,
+    capabilityId: capIdForEvent,
+    positions,
+    critiques: collectedCritiques,
+    convergenceScore,
+    consensusReached,
+    dissent,
+  });
 
   return {
     title: `多角色面板：${positions.map((p) => p.v5Role).join(" · ") || "(降级)"}`,

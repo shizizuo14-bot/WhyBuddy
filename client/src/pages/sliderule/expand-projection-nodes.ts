@@ -7,6 +7,7 @@ import type { V5SessionState } from "@shared/blueprint/v5-reasoning-state";
 import type { TurnStep, UiTurn } from "./types";
 import type { ProjectionDensity } from "./sliderule-projection-constants";
 import { eventsByRun } from "@shared/blueprint/sliderule-reasoning-events.js"; // V5.3 P3 for role_critique from events
+import type { ReasoningEvent } from "@shared/blueprint/sliderule-reasoning-events";
 
 const MAX_EVIDENCE_CHILDREN = 8;
 const MAX_TREE_DEPTH = 4;
@@ -140,6 +141,41 @@ function expandPanelRoleChildren(
       });
     }
   }
+
+  return { nodes, edges };
+}
+
+/** V5.3 P4: turn a cap's think/observe/tool/subtask events into ordered sub-step nodes + "step" edges (non-depends_on). */
+export function expandReasoningChain(
+  parent: BrainstormReasoningNode,
+  events: ReasoningEvent[]
+): { nodes: BrainstormReasoningNode[]; edges: BrainstormReasoningEdge[] } {
+  const subEvents = (events || [])
+    .filter((e: any) => ["think", "observe", "tool_call", "subtask"].includes(e.kind))
+    .sort((a: any, b: any) => (a.order ?? 0) - (b.order ?? 0));
+
+  const nodes: BrainstormReasoningNode[] = [];
+  const edges: BrainstormReasoningEdge[] = [];
+
+  subEvents.forEach((ev: any, i: number) => {
+    const childId = `${parent.id}::step-${i}`;
+    nodes.push({
+      id: childId,
+      type: "decision" as any,
+      title: ev.kind,
+      body: String(ev.text || "").slice(0, 200),
+      // projection-only derived fields
+      ...( { eventKind: ev.kind } as any ),
+      derivedFrom: [parent.id],
+    });
+    edges.push({
+      id: `${parent.id}-step-${i}`,
+      source: parent.id,
+      target: childId,
+      type: "step" as any, // non-depends_on per red line
+      label: ev.kind,
+    });
+  });
 
   return { nodes, edges };
 }
