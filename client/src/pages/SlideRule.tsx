@@ -42,6 +42,7 @@ import {
 } from "./sliderule/derive-lineage-highlight";
 
 import { downloadSlideRuleDeliveryMd } from "./sliderule/serialize-sliderule-delivery-md";
+import { deriveLatestTurnFromState } from "./sliderule/derive-persisted-turn";
 import {
   PROJECTION_DENSITY_STORAGE_KEY,
   SLIDERULE_TERMINAL_NODE_ID,
@@ -803,7 +804,12 @@ export default function SlideRule() {
 
   const imSurfaceMode = useMemo(() => resolveImSurfaceMode(), []);
   const isImmersion = imSurfaceMode !== "engineering";
-  const latestTurn = uiTurns.length > 0 ? uiTurns[uiTurns.length - 1] : null;
+  // 刷新后 uiTurns 为空时,从持久化 sessionState 重建「最近一轮」,让右上角架构执行记录不消失。
+  const restoredLatestTurn = useMemo(
+    () => (uiTurns.length === 0 ? deriveLatestTurnFromState(sessionState) : null),
+    [uiTurns.length, sessionState]
+  );
+  const latestTurn = uiTurns.length > 0 ? uiTurns[uiTurns.length - 1] : restoredLatestTurn;
   const latestTurnId = latestTurn?.id ?? null;
 
   const [projectionDensity, setProjectionDensity] = useState<ProjectionDensity>(() => {
