@@ -878,11 +878,21 @@ export function ReasoningFlowSurface({
     setTy(80);
   };
 
+  // 自动 fit 只在「内容首次出现」时跑一次(每次挂载/重置后),不在切简详、改运行态、
+  // 新增节点时反复重定位 —— 否则刷新或切简/详时画布会乱跑。后续视口由用户(适配/重置按钮)掌控。
+  const didAutoFitRef = useRef(false);
   useEffect(() => {
-    if (graphRevision === undefined) return;
+    if (nodes.length === 0) {
+      didAutoFitRef.current = false; // 重置/清空后,下次内容出现再 fit 一次
+      return;
+    }
+    if (didAutoFitRef.current) return;
+    didAutoFitRef.current = true;
     const id = window.requestAnimationFrame(() => fit());
     return () => window.cancelAnimationFrame(id);
-  }, [graphRevision, fit, nodes.length]);
+    // 仅依赖 nodes.length:从空到有内容触发一次;切简/详(数量变化但已 fit 过)不再重定位。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes.length]);
 
   const panToNode = useCallback(
     (nodeId: string) => {
