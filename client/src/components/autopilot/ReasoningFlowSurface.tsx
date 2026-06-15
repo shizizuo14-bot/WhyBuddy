@@ -1477,9 +1477,14 @@ export function ReasoningFlowSurface({
         </>
       )}
 
-      {/* 沉浸视图(showChrome=false)也要有缩放/重置控制 —— 否则只能靠滚轮,很不爽。 */}
+      {/* 沉浸视图(showChrome=false)的缩放/重置控制:放右下角、概览图(minimap)正上方,
+          避开右上角的交付物/设置/重置会话按钮(用户反馈重叠)。 */}
       {!showChrome && (
-        <div className="absolute right-4 top-4 z-20 flex gap-1.5" data-testid="reasoning-flow-controls">
+        <div
+          className="absolute right-4 z-20 flex gap-1.5"
+          style={{ bottom: minimapH + 24 }}
+          data-testid="reasoning-flow-controls"
+        >
           <button onClick={zoomOut} title="缩小" className="rounded-md border border-slate-200 bg-white/90 px-2 py-1 text-sm shadow-sm backdrop-blur transition active:bg-slate-100">−</button>
           <button onClick={zoomIn} title="放大" className="rounded-md border border-slate-200 bg-white/90 px-2 py-1 text-sm shadow-sm backdrop-blur transition active:bg-slate-100">+</button>
           <button onClick={fit} title="适配全部节点" className="rounded-md border border-slate-200 bg-white/90 px-2 py-1 text-xs shadow-sm backdrop-blur transition active:bg-slate-100">适配</button>
