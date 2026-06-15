@@ -31,22 +31,52 @@ export function isWebSearchEnabled(): boolean {
   return readEnvCompat("SLIDERULE_WEB_SEARCH_ENABLED") !== "0";
 }
 
-/** Build a concise query from goal + recent user turns. */
+const TECH_TOKEN_RE =
+  /LLM|GPT|Agent|RPG|API|MCP|RAG|多\s*Agent|游戏引擎|自定义|架构|framework|multi-?agent/gi;
+
+/** Extract technical tokens so Bing/DDG do not match homographs (e.g. 写). */
+export function extractTechSearchTerms(text: string): string[] {
+  const raw = String(text || "");
+  const hits = raw.match(TECH_TOKEN_RE) ?? [];
+  const normalized = hits.map((t) => t.replace(/\s+/g, "").trim()).filter(Boolean);
+  return [...new Set(normalized)];
+}
+
+/** Build a search query biased toward technical evidence (not literal Chinese verbs). */
 export function buildEvidenceSearchQuery(
   state: V5SessionState,
   recentTexts: string[] = []
 ): string {
   const goal = (state.goal?.text || "").trim();
   const userTurns = ((state.conversation || [])
-    .slice(-6)
+    .slice(-3)
     .filter((c) => c.role === "user")
     .map((c) => String(c.text || "").trim())
-    .filter(Boolean)) as string[];
+    .filter((t) => t && t !== goal)) as string[];
 
-  const parts = [...recentTexts, ...userTurns, goal].filter(Boolean);
-  const unique = [...new Set(parts)];
-  const merged = unique.join(" · ").slice(0, 280);
-  return merged || goal || "SlideRule evidence search";
+  const techTerms = [
+    ...extractTechSearchTerms(goal),
+    ...recentTexts.flatMap((t) => extractTechSearchTerms(t)),
+    ...userTurns.flatMap((t) => extractTechSearchTerms(t)),
+  ];
+  const uniqueTech = [...new Set(techTerms)];
+
+  if (uniqueTech.length >= 2) {
+    const en = uniqueTech
+      .map((t) =>
+        t
+          .replace(/多Agent/gi, "multi-agent")
+          .replace(/游戏引擎/g, "game engine")
+          .replace(/自定义/g, "custom")
+          .replace(/架构/g, "architecture")
+      )
+      .join(" ");
+    return `${en} software system design`.slice(0, 220);
+  }
+
+  const supplement = userTurns[0] || recentTexts.find((t) => t && t !== goal) || "";
+  const merged = supplement ? `${goal} ${supplement}` : goal;
+  return merged.slice(0, 220) || "SlideRule evidence search";
 }
 
 /** True when results are from a real search provider, not the example.test mock fallback. */
@@ -76,7 +106,13 @@ export async function executeWebEvidenceSearch(
 
   const query = buildEvidenceSearchQuery(state, recentTexts);
   try {
-    const res = await webSearchExecutor({ query, options: { topK } });
+    const res = await webSearchExecutor({
+      query,
+      options: {
+        topK,
+        timeoutMs: Number.parseInt(process.env.WEB_SEARCH_FIRST_TIMEOUT_MS || "8000", 10) || 8_000,
+      },
+    });
     if (!isRealWebSearchResponse(res)) return null;
 
     const lines = formatWebEvidenceLines(res);

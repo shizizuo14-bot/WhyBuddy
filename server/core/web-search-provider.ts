@@ -14,7 +14,41 @@ import type {
 } from "../../shared/web-search.js";
 
 const DEFAULT_TIMEOUT_MS = 20_000;
+const FIRST_PASS_TIMEOUT_MS = Math.max(
+  3_000,
+  Number.parseInt(process.env.WEB_SEARCH_FIRST_TIMEOUT_MS || "8000", 10) || 8_000
+);
+const CACHE_TTL_MS = Math.max(
+  30_000,
+  Number.parseInt(process.env.WEB_SEARCH_CACHE_TTL_MS || "300000", 10) || 300_000
+);
 const HTML_SEARCH_RETRY_DELAY_MS = 400;
+
+type CacheEntry = { expiresAt: number; response: WebSearchResponse };
+const searchCache = new Map<string, CacheEntry>();
+
+/** Test seam — clear in-memory search cache. */
+export function __clearWebSearchCacheForTests(): void {
+  searchCache.clear();
+}
+
+function cacheKey(query: string, topK: number, apiKey?: string): string {
+  return `${apiKey ? "api" : "html"}\0${topK}\0${query.trim().toLowerCase()}`;
+}
+
+function readCached(key: string): WebSearchResponse | null {
+  const hit = searchCache.get(key);
+  if (!hit) return null;
+  if (Date.now() > hit.expiresAt) {
+    searchCache.delete(key);
+    return null;
+  }
+  return hit.response;
+}
+
+function writeCache(key: string, response: WebSearchResponse): void {
+  searchCache.set(key, { expiresAt: Date.now() + CACHE_TTL_MS, response });
+}
 const MAX_RESPONSE_BYTES = 2 * 1024 * 1024; // 2MB for search HTML
 const USER_AGENT =
   "Mozilla/5.0 (compatible; SlideRule/1.0; +https://github.com/nicepkg/sliderule)";
@@ -214,6 +248,7 @@ export function parseBingCnHtml(html: string, topK: number): WebSearchResultItem
 async function searchWithBingCnOnce(
   query: string,
   topK: number,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<WebSearchResultItem[]> {
   const url = new URL("https://cn.bing.com/search");
   url.searchParams.set("q", query);
@@ -221,6 +256,7 @@ async function searchWithBingCnOnce(
   url.searchParams.set("cc", "CN");
 
   const response = await fetchWithTimeout(url.toString(), {
+    timeoutMs,
     headers: {
       "User-Agent": BROWSER_USER_AGENT,
       Accept: "text/html,application/xhtml+xml",
@@ -307,10 +343,12 @@ function parseDuckDuckGoHtml(html: string, topK: number): WebSearchResultItem[] 
 async function searchWithDuckDuckGoOnce(
   query: string,
   topK: number,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<WebSearchResultItem[]> {
   const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
 
   const response = await fetchWithTimeout(url, {
+    timeoutMs,
     headers: {
       "User-Agent": USER_AGENT,
       Accept: "text/html",
@@ -344,18 +382,34 @@ async function searchWithDuckDuckGo(
 async function searchWithHtmlProviders(
   query: string,
   topK: number,
+  timeoutMs = DEFAULT_TIMEOUT_MS,
 ): Promise<WebSearchResultItem[]> {
+  const firstTimeout = Math.min(timeoutMs, FIRST_PASS_TIMEOUT_MS);
+  const secondTimeout = timeoutMs;
+
   if (isBingCnSearchEnabled()) {
     try {
-      const bingResults = await searchWithBingCn(query, topK);
+      const bingResults = await searchWithBingCnOnce(query, topK, firstTimeout);
       if (bingResults.length > 0) return bingResults;
     } catch {
-      /* fall through to DuckDuckGo */
+      try {
+        const bingRetry = await searchWithBingCnOnce(query, topK, secondTimeout);
+        if (bingRetry.length > 0) return bingRetry;
+      } catch {
+        /* fall through */
+      }
     }
   }
 
-  const ddgResults = await searchWithDuckDuckGo(query, topK);
-  if (ddgResults.length > 0) return ddgResults;
+  try {
+    const ddgResults = await searchWithDuckDuckGoOnce(query, topK, firstTimeout);
+    if (ddgResults.length > 0) return ddgResults;
+  } catch {
+    await new Promise((resolve) => setTimeout(resolve, HTML_SEARCH_RETRY_DELAY_MS));
+    const ddgRetry = await searchWithDuckDuckGoOnce(query, topK, secondTimeout);
+    if (ddgRetry.length > 0) return ddgRetry;
+  }
+
   return [];
 }
 
@@ -366,7 +420,16 @@ export async function executeRealWebSearch(
 ): Promise<WebSearchResponse> {
   const startedAt = Date.now();
   const topK = request.options?.topK ?? 3;
+  const timeoutMs = request.options?.timeoutMs ?? DEFAULT_TIMEOUT_MS;
   const apiKey = process.env.WEB_SEARCH_API_KEY?.trim();
+  const key = cacheKey(request.query, topK, apiKey);
+
+  if (!request.options?.skipCache) {
+    const cached = readCached(key);
+    if (cached) {
+      return { ...cached, latencyMs: Math.max(0, Date.now() - startedAt) };
+    }
+  }
 
   try {
     let results: WebSearchResultItem[];
@@ -374,7 +437,7 @@ export async function executeRealWebSearch(
     if (apiKey) {
       results = await searchWithApi(request.query, apiKey, topK);
     } else {
-      results = await searchWithHtmlProviders(request.query, topK);
+      results = await searchWithHtmlProviders(request.query, topK, timeoutMs);
     }
 
     if (results.length === 0) {
@@ -384,13 +447,17 @@ export async function executeRealWebSearch(
     }
 
     const latencyMs = Math.max(0, Date.now() - startedAt);
-    return {
+    const response: WebSearchResponse = {
       query: request.query,
       results,
       totalCandidates: results.length,
       latencyMs,
       mode: "hybrid",
     };
+    if (!request.options?.skipCache) {
+      writeCache(key, response);
+    }
+    return response;
   } catch {
     // Graceful fallback: return mock results on any failure
     const latencyMs = Math.max(0, Date.now() - startedAt);

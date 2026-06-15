@@ -110,7 +110,7 @@ export const autopilotTheme = {
   grokInput:
     "h-11 max-h-[116px] w-full min-w-0 resize-none overflow-y-auto bg-transparent px-4 py-[9px] text-[14px] leading-[22px] text-slate-800 outline-none placeholder:text-slate-400",
   grokSendBtn:
-    "inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-slate-900 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-slate-700 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40",
+    "inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-indigo-700 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-600 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40",
   grokSendBtnMarathon:
     "inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-indigo-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-indigo-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40",
 } as const;

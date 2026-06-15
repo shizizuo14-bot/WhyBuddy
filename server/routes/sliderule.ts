@@ -24,6 +24,12 @@ import { applyReplayOnSave } from "../../shared/blueprint/sliderule-session-repl
 import { sanitizeGoalStatusOnPut } from "../../shared/blueprint/sliderule-coverage-gate.js";
 import { getAIConfig } from "../core/ai-config.js";
 import { callLLM, callLLMJson, callLLMJsonWithUsage } from "../core/llm-client.js";
+import { isEmptyDialogueJsonShape } from "../core/llm-json-budget.js";
+import {
+  createExecuteCapabilityLogger,
+  provenanceFromBody,
+} from "../sliderule/execute-capability-log.js";
+import { callSlideRuleDialogueJsonLlm } from "../sliderule/json-llm-call.js";
 import { buildStructuredReport } from "../../shared/blueprint/sliderule-report-builder.js";
 import {
   buildCapabilityContext,
@@ -491,7 +497,23 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
     targetRoleId?: string;
   };
 
+  const logCap = createExecuteCapabilityLogger(capabilityId || "?", turnId || "?");
+  const sendJson = (body: unknown, httpStatus = 200) => {
+    logCap({
+      provenance: provenanceFromBody(body),
+      httpStatus,
+      model:
+        body && typeof body === "object" && "usage" in (body as object)
+          ? String((body as { usage?: { model?: string } }).usage?.model || "")
+          : undefined,
+    });
+    return httpStatus === 200
+      ? res.json(body)
+      : res.status(httpStatus).json(body);
+  };
+
   if (!capabilityId || !state || !turnId) {
+    logCap({ error: "bad_request", httpStatus: 400 });
     return res.status(400).json({ error: "bad_request", message: "capabilityId, state and turnId are required" });
   }
 
@@ -502,22 +524,22 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
     // SlideRule runtime still owns commitArtifact, Trust Gate, producedBy, evidenceRefs, etc.
     if (capabilityId === "source.github.inspect" || capabilityId === "evidence.github.collect") {
       const gh = await executeGithubMcpCapability(capabilityId, state, inputArtifactIds);
-      return res.json(gh);
+      return sendJson(gh);
     }
 
     if (capabilityId === "repo.static.inspect") {
       const result = await executeRepoStaticInspect(capabilityId, state, inputArtifactIds);
-      return res.json(result);
+      return sendJson(result);
     }
 
     if (capabilityId === "repo.inspect") {
       const result = await executeRepoInspectMapped(state, inputArtifactIds);
-      return res.json(result);
+      return sendJson(result);
     }
 
     if (capabilityId === "evidence.search") {
       const result = await executeEvidenceSearchMapped(state, inputArtifactIds, roleId);
-      return res.json(result);
+      return sendJson(result);
     }
 
     if (isStructureCapability(capabilityId)) {
@@ -527,17 +549,17 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
         roleId,
         turnId
       );
-      return res.json(result);
+      return sendJson(result);
     }
 
     if (isDeliveryCapability(capabilityId)) {
       const result = await executeDeliveryCapabilityMapped(capabilityId, state, inputArtifactIds);
-      return res.json(result);
+      return sendJson(result);
     }
 
     if (isVisualCapability(capabilityId)) {
       const result = await executeVisualCapabilityMapped(capabilityId, state);
-      return res.json(result);
+      return sendJson(result);
     }
 
     const isLlmBacked =
@@ -565,7 +587,7 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
         targetRoleId,
       });
       // V5.3 P2.5: forward events (from panel/dialogue) as-is alongside title/summary/content/payload
-      return res.json({ ...result, events: (result as any).events });
+      return sendJson({ ...result, events: (result as any).events });
     }
 
     if (isDialogueCapability(capabilityId)) {
@@ -577,7 +599,7 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
         turnId,
       });
       // V5.3 P2.5: forward events (think/observe etc.) as-is
-      return res.json({ ...result, events: (result as any).events });
+      return sendJson({ ...result, events: (result as any).events });
     }
 
     // B1: 使用共享 prompt 构造（单一真相）。server 路由现在是薄壳。
@@ -596,12 +618,12 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
         summary?: string;
         content?: string;
       }>(systemPrompt, userPrompt, temperature);
-      if (pooledRisk?.json) {
+      if (pooledRisk?.json && !isEmptyDialogueJsonShape(pooledRisk.json)) {
         const title = String(pooledRisk.json.title || "Risk Analysis").trim();
         const summary = String(pooledRisk.json.summary || "").trim();
-        const content = String(pooledRisk.json.content || "").trim() || "Model returned no content.";
+        const content = String(pooledRisk.json.content || "").trim();
         const tag = formatPoolSummaryTag(pooledRisk.model, pooledRisk.poolLabel);
-        return res.json({
+        return sendJson({
           title,
           summary: summary ? `${summary} ${tag}` : tag,
           content,
@@ -624,7 +646,8 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
       throw new Error("LLM not configured (no apiKey from getAIConfig)");
     }
 
-    const { json: result, usage } = await callLLMJsonWithUsage<{ title?: string; summary?: string; content?: string }>(
+    const { json: result, usage } = await callSlideRuleDialogueJsonLlm(
+      capabilityId,
       [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -634,14 +657,17 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
         temperature,
         maxTokens,
         timeoutMs: Math.min(config.timeoutMs, 120000),
-      } as any
+      }
     );
 
     const title = (result.title || (capabilityId === "risk.analyze" ? "Risk Analysis" : "Evidence Report")).trim();
     const summary = (result.summary || "").trim();
-    const content = (result.content || "Model returned no content.").trim();
+    const content = String(result.content || "").trim();
+    if (!content) {
+      throw new Error("empty_json_content_from_llm");
+    }
 
-    return res.json({
+    return sendJson({
       title,
       summary: summary ? `${summary} [server-llm:${config.model}]` : `[server-llm:${config.model}]`,
       content,
@@ -661,11 +687,13 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
 
     if (status === 400 || status === 422) {
       const code = "unsupported_capability";
+      logCap({ error: msg.slice(0, 200), httpStatus: status });
       return res.status(status).json({ error: code, message: msg.slice(0, 300) });
     }
 
     if (isLlmContentHijackError(msg)) {
       console.error("[sliderule] /execute-capability hijack blocked:", msg.slice(0, 200));
+      logCap({ error: msg.slice(0, 200), httpStatus: 500 });
       return res.status(500).json({ error: "llm_execution_failed", message: msg.slice(0, 300) });
     }
 
@@ -679,10 +707,12 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
     });
     if (fb) {
       console.warn("[sliderule] /execute-capability degraded:", msg.slice(0, 200));
+      logCap({ provenance: fb.provenance, error: msg.slice(0, 200), httpStatus: 200 });
       return res.json(fb);
     }
 
     console.error("[sliderule] /execute-capability failed:", msg);
+    logCap({ error: msg.slice(0, 200), httpStatus: 500 });
     return res.status(500).json({ error: "llm_execution_failed", message: msg.slice(0, 300) });
   }
 });

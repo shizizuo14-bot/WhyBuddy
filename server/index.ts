@@ -22,11 +22,13 @@ import type {
   ExecutorPreviewSessionStatus,
   ExecutorPreviewSessionType,
 } from "../shared/executor/contracts.js";
+import { logSlideRuleProxyStartupDiag } from "./sliderule/proxy-startup-diag.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, "../.env") });
+logSlideRuleProxyStartupDiag();
 const STARTUP_TRACE_ENABLED = process.env.STARTUP_TRACE === "1";
 
 function traceStartup(step: string): void {

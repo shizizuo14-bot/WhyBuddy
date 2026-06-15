@@ -306,7 +306,7 @@ function SlideRuleImmersion({
             <img
               src="/assets/SlideRule_transparent_cropped.png"
               alt="SlideRule"
-              className="w-[min(82vw,360px)] object-contain opacity-[0.35] drop-shadow-[0_14px_30px_rgb(15_23_42/0.08)]"
+              className="w-[min(82vw,360px)] object-contain opacity-[0.55] drop-shadow-[0_14px_30px_rgb(15_23_42/0.12)]"
               title="SlideRule"
             />
           </div>

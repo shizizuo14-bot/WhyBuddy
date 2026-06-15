@@ -107,7 +107,7 @@ export function ComposerDock({
       ? "输入新种子继续推演，或质疑当前结果...（Shift+Enter 换行）"
       : goal
         ? "继续补充想法，或质疑图上节点...（Shift+Enter 换行）"
-        : "描述你想推演的问题...（Shift+Enter 换行）";
+        : "描述你想推演的问题、产品、功能或路线…（Shift+Enter 换行）";
 
   // chips no longer rendered (user requested removal of bottom bubbles)
   // const chips = hintChips?.length ? hintChips : DEFAULT_HINT_CHIPS;
@@ -257,7 +257,9 @@ export function ComposerDock({
             onClick={isRunning ? (stop || (() => {})) : sendMessage}
             disabled={!isRunning && !input.trim()}
             className={
-              !isRunning && driveMode === "marathon"
+              isRunning
+                ? "inline-flex h-11 shrink-0 items-center justify-center rounded-full bg-red-600 px-5 text-sm font-bold text-white shadow-sm transition hover:bg-red-500 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                : !isRunning && driveMode === "marathon"
                 ? autopilotTheme.grokSendBtnMarathon
                 : autopilotTheme.grokSendBtn
             }

@@ -7,6 +7,10 @@ export type WebSearchMode = "mock" | "hybrid";
 export interface WebSearchRequestOptions {
   topK?: number;
   mode?: WebSearchMode;
+  /** Per-request fetch timeout (ms). HTML scrape uses a shorter first pass by default. */
+  timeoutMs?: number;
+  /** Skip in-memory result cache (tests / forced refresh). */
+  skipCache?: boolean;
 }
 
 export interface WebSearchRequest {

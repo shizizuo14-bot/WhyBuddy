@@ -7,6 +7,7 @@ import express from "express";
 import { createServer } from "node:http";
 
 import slideruleRouter from "../sliderule.js";
+import * as blueprintRoutes from "../blueprint.js";
 import * as llmClient from "../../core/llm-client.js";
 import { withStubbedLlmKey } from "./helpers/with-stubbed-llm-key.js";
 import { buildDialogueUserPrompt } from "../../sliderule/dialogue-exec-map.js";
@@ -60,6 +61,9 @@ describe("D1 dialogue execute-capability", () => {
     vi.stubEnv("BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS", "");
     resetSlideRuleCapabilityPoolCache();
     ({ restore: restoreLlmKey } = withStubbedLlmKey());
+    vi.spyOn(blueprintRoutes, "generateClarificationQuestionsWithLlm").mockRejectedValue(
+      new Error("test: skip v4 clarify generator")
+    );
     server = createServer(app);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const addr = server.address();

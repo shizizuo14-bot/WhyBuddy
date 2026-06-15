@@ -34,6 +34,9 @@ describe("sliderule-role-mode (S16/S17)", () => {
     // 你截图的目标类型：造一个工具/系统/应用 → 默认走多角色面板
     expect(resolveRoleMode(stub("做一个万年历+倒数日提醒工具"), "")).toBe("complex");
     expect(resolveRoleMode(stub("设计一个权限系统"), "")).toBe("complex");
+    // 修复:游戏/引擎/写 + 多Agent 也应判复杂(此前 RPG 游戏目标被判 simple → 多角色为 0)
+    expect(resolveRoleMode(stub("写一个以LLM为核心驱动引擎的多Agent自定义RPG游戏"), "")).toBe("complex");
+    expect(resolveRoleMode(stub("做一个游戏引擎"), "")).toBe("complex");
   });
 
   it("resolveRoleMode complex when coverageContract.mode is complex (去掉 ≥4 产物门槛)", () => {

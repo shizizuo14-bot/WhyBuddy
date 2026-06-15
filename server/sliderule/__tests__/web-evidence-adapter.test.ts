@@ -1,6 +1,7 @@
 import { describe, it, expect, afterEach } from "vitest";
 import {
   buildEvidenceSearchQuery,
+  extractTechSearchTerms,
   isRealWebSearchResponse,
   executeWebEvidenceSearch,
   __setWebSearchExecutorForTests,
@@ -20,6 +21,17 @@ describe("web-evidence-adapter (F2)", () => {
     const q = buildEvidenceSearchQuery(state);
     expect(q).toContain("RBAC");
     expect(q).toContain("企业内部");
+  });
+
+  it("extractTechSearchTerms avoids homograph-only queries for LLM RPG goals", () => {
+    const goal = "写一个以LLM为核心驱动引擎的多Agent自定义RPG游戏";
+    const terms = extractTechSearchTerms(goal);
+    expect(terms.some((t) => /LLM/i.test(t))).toBe(true);
+    expect(terms.some((t) => /Agent/i.test(t))).toBe(true);
+    const q = buildEvidenceSearchQuery({ goal: { text: goal }, conversation: [] } as V5SessionState);
+    expect(q.toLowerCase()).toContain("multi-agent");
+    expect(q.toLowerCase()).toContain("software");
+    expect(q).not.toContain("写一个");
   });
 
   it("isRealWebSearchResponse rejects mock fallback", () => {

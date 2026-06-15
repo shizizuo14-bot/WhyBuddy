@@ -30,7 +30,7 @@ export function resolveRoleMode(state: V5SessionState, userText: string): RoleMo
 
   const t = `${state.goal?.text || ""} ${userText}`.toLowerCase();
   // 1) 显式协作意图关键词（保留）。
-  if (/辩论|brainstorm|多角色|复杂|合规|审计|跨部门|平台化|多模块/.test(t)) {
+  if (/辩论|brainstorm|多角色|多\s?[Aa]gent|multi-?agent|复杂|合规|审计|跨部门|平台化|多模块/.test(t)) {
     return "complex";
   }
   // 2) 覆盖率合约判为 complex 即触发多角色（去掉旧的 "≥4 产物" 硬门槛 ——
@@ -40,8 +40,8 @@ export function resolveRoleMode(state: V5SessionState, userText: string): RoleMo
   }
   // 3) 产品搭建类目标（SlideRule 主用例）默认走多角色面板：产品/架构/安全等视角天然受益。
   //    限定为"造东西"的名词 + 动词，避免在纯澄清/闲聊轮误触发。
-  if (/工具|系统|应用|平台|产品|功能|服务|模块|网站|小程序|\bapp\b|tool|system|platform|feature|product|service/.test(t) &&
-      /做|造|搭建|开发|实现|设计|构建|规划|推演|build|design|implement|plan/.test(t)) {
+  if (/工具|系统|应用|平台|产品|功能|服务|模块|网站|小程序|游戏|引擎|\bapp\b|tool|system|platform|feature|product|service|game|engine/.test(t) &&
+      /做|造|搭建|开发|实现|设计|构建|规划|推演|写|build|design|implement|plan/.test(t)) {
     return "complex";
   }
   return "simple";

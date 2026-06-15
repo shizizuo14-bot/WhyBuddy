@@ -10,7 +10,7 @@ import {
   detectNarrationHijack,
 } from "../../shared/blueprint/sliderule-narration-immunity.js";
 import { getAIConfig } from "../core/ai-config.js";
-import { callLLMJsonWithUsage } from "../core/llm-client.js";
+import { callSlideRuleDialogueJsonLlm } from "./json-llm-call.js";
 import {
   callPoolJsonLlm,
   formatPoolSummaryTag,
@@ -433,11 +433,8 @@ export async function executeDialogueCapability(
       modelTag = pooled.model;
       summaryTag = formatPoolSummaryTag(pooled.model, pooled.poolLabel);
     } else if (config.apiKey && !shouldSkipPrimaryLlmAfterPoolExhausted()) {
-      const primary = await callLLMJsonWithUsage<{
-        title?: string;
-        summary?: string;
-        content?: string;
-      }>(
+      const primary = await callSlideRuleDialogueJsonLlm(
+        args.capabilityId,
         [
           { role: "system", content: DIALOGUE_SYSTEM_PROMPT },
           { role: "user", content: userPrompt },
@@ -445,10 +442,9 @@ export async function executeDialogueCapability(
         {
           model: config.model,
           temperature,
-          maxTokens: 8000,
           timeoutMs: Math.min(config.timeoutMs, 120_000),
           retryAttempts: 1,
-        } as any
+        }
       );
       json = primary.json;
       usage = primary.usage;
