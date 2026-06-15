@@ -116,11 +116,11 @@ export function SettingsDialog(props: SettingsDialogProps) {
           <div className="flex min-h-0 flex-1">
             {/* 左栏：分类导航 */}
             <nav className="flex w-[190px] shrink-0 flex-col gap-1 border-r border-slate-200 bg-slate-50/70 p-3">
-              <div className="mb-2 flex items-center gap-2 px-2 py-1">
+              <div className="mb-3 flex items-center gap-2 px-2 py-2">
                 <img
                   src="/assets/sliderule_logo_wordmark_transparent.png"
                   alt="SlideRule"
-                  className="h-5"
+                  className="h-8"
                   title="SlideRule 设置"
                 />
               </div>

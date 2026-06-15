@@ -410,13 +410,13 @@ export function LlmProviderSettings({
       </div>
 
       {/* 右栏：厂商详情 */}
-      <div className="min-w-0 flex-1 overflow-y-auto bg-slate-50/30 px-6 py-5">
+      <div className="flex min-w-0 flex-1 flex-col bg-slate-50/30">
         {!selected ? (
-          <p className="text-sm text-slate-400">左侧选择或添加一个厂商</p>
+          <p className="px-6 py-5 text-sm text-slate-400">左侧选择或添加一个厂商</p>
         ) : (
-          <div className="space-y-4" data-testid="sliderule-provider-detail">
-            {/* header */}
-            <div className="flex items-center justify-between">
+          <div className="flex min-h-0 flex-1 flex-col" data-testid="sliderule-provider-detail">
+            {/* header（固定在右栏顶部，不随内容滚动） */}
+            <div className="flex shrink-0 items-center justify-between border-b border-slate-200 px-6 py-4">
               <div className="flex items-center gap-2.5">
                 <ProviderBadge glyph={presetGlyph(selected.presetId)} active />
                 <div>
@@ -465,6 +465,8 @@ export function LlmProviderSettings({
               </div>
             </div>
 
+            {/* 可滚动内容区（header 固定，仅此区域滚动） */}
+            <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-6 py-4">
             {/* 连接 */}
             <Section title="连接" testid="sliderule-section-connection">
               <div>
@@ -783,6 +785,7 @@ export function LlmProviderSettings({
                 更快但更费：默认关闭以对自己的账单诚实，按需开启。
               </p>
             </Section>
+            </div>
           </div>
         )}
       </div>
