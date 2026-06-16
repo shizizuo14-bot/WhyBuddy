@@ -176,3 +176,6 @@ tmp-server-*.log
 # These are per-workspace session files for the Grok Build TUI/CLI (e.g. .grok/config.toml, caches).
 # Never commit; keeps git status clean and protects hygiene for V5 submissions.
 .grok/
+
+# Local sibling project copies / migration scratch space
+tws-ai-ask-python/

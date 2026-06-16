@@ -12,16 +12,16 @@ class Settings(BaseSettings):
     PORT: int = 9700
     NODE_ENV: str = "development"
 
-    # DB (reuse cube_pets_office or dedicated)
-    DB_HOST: str = "115.191.22.18"
+    # DB (reuse cube_pets_office or dedicated). Production credentials must come from .env.
+    DB_HOST: str = "localhost"
     DB_PORT: int = 3306
     DB_NAME: str = "cube_pets_office"
     DB_USER: str = "root"
-    DB_PASSWORD: str = "Wang13734121540."
+    DB_PASSWORD: str = ""
 
     # Vector / RAG (stable evidence source, replacing Node LLM pool for tools/evidence)
     QDRANT_URL: str = "http://localhost:6333"
-    QDRANT_API_KEY: Optional[str] = "sh.13579"
+    QDRANT_API_KEY: Optional[str] = None
     QDRANT_COLLECTION: str = "knowledge_base"
 
     # LLM (stable, like original Python; no su8 primary + 6-key pool)
