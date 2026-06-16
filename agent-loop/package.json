@@ -1,0 +1,15 @@
+{
+  "name": "agent-loop",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/**/*.test.js",
+    "probe": "node src/index.js",
+    "loop": "node src/loop.js",
+    "check:mojibake": "node src/check-mojibake.js"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}

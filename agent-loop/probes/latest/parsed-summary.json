@@ -1,0 +1,28 @@
+{
+  "codexReview": {
+    "exitCode": 0,
+    "timedOut": false,
+    "stdoutBytes": 217,
+    "stderrBytes": 20409,
+    "parsedJson": null,
+    "spawnError": null
+  },
+  "grokJson": {
+    "exitCode": 0,
+    "timedOut": false,
+    "stdoutBytes": 328,
+    "stderrBytes": 1572,
+    "parsedJson": {
+      "text": "{\"verdict\":\"ok\",\"message\":\"hello from grok probe\"}",
+      "stopReason": "EndTurn",
+      "sessionId": "019ecfa7-2b03-7d00-b43e-f97b785acadd",
+      "requestId": "c03b0716-4e3b-42c5-badc-683e8a4d8d43",
+      "thought": "The user wants me to return exactly one JSON object with no markdown fences. The content should be:"
+    },
+    "spawnError": null,
+    "parsedTextJson": {
+      "verdict": "ok",
+      "message": "hello from grok probe"
+    }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "command": "C:\\Users\\wangchunji\\.vscode\\extensions\\openai.chatgpt-26.5609.30741-win32-x64\\bin\\windows-x86_64\\codex.exe",
+  "args": [
+    "review",
+    "--uncommitted"
+  ],
+  "cwd": "C:\\Users\\wangchunji\\Documents\\cube-pets-office\\agent-loop\\tmp\\probe-repo-2026-06-16T08-56-15-681Z",
+  "exitCode": 0,
+  "signal": null,
+  "timedOut": false,
+  "spawnError": null,
+  "startedAt": "2026-06-16T08:56:16.298Z",
+  "endedAt": "2026-06-16T08:58:08.882Z"
+}

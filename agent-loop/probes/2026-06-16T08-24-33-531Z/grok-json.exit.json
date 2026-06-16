@@ -1,0 +1,21 @@
+{
+  "command": "C:\\Users\\wangchunji\\.grok\\bin\\grok.exe",
+  "args": [
+    "--prompt-file",
+    "C:\\Users\\wangchunji\\Documents\\agent-loop\\probes\\2026-06-16T08-24-33-531Z\\grok-probe-prompt.md",
+    "--output-format",
+    "json",
+    "--cwd",
+    "C:\\Users\\wangchunji\\Documents\\agent-loop\\tmp\\probe-repo-2026-06-16T08-24-33-531Z",
+    "--max-turns",
+    "1",
+    "--no-plan"
+  ],
+  "cwd": "C:\\Users\\wangchunji\\Documents\\agent-loop\\tmp\\probe-repo-2026-06-16T08-24-33-531Z",
+  "exitCode": 0,
+  "signal": null,
+  "timedOut": false,
+  "spawnError": null,
+  "startedAt": "2026-06-16T08:25:30.086Z",
+  "endedAt": "2026-06-16T08:25:45.395Z"
+}

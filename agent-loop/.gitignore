@@ -1,0 +1,5 @@
+node_modules/
+# run artifacts (state/diff/report per run) — regenerated, not source
+.agent-loop/
+# throwaway fixture/probe repos created during runs
+tmp/
