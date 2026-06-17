@@ -5,7 +5,7 @@
     "autoFix": true,
     "skipReview": false,
     "fixAgent": "grok",
-    "reviewAgent": "grok",
+    "reviewAgent": "codex",
     "scopedReview": true,
     "grokMaxTurns": 4,
     "reviewMaxTurns": 6,
