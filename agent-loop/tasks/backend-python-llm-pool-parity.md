@@ -2,19 +2,19 @@
 
 ## 执行状态
 
-- 状态：进行中 — 红灯测试已落地，等待 AgentLoop + Grok 修复
+- 状态：已实现 — pool parity 代码与单测已补齐，待 AgentLoop 审查闭环
 - 目标：让 Python `sliderule_llm.pool` 对齐 Node `pool-json-llm` 关键运行语义
-- 前置：`backend-python-llm-config-parity.md` 已完成；`client-parity` 建议先完成
+- 前置：`backend-python-llm-config-parity.md` 已完成；`client-parity` 已完成
 - 注意：用 mock caller，不发 live pool 请求。
 
 ### 状态清单
 
-- [ ] 代理环境下默认 `sequential` race mode
-- [ ] 504 / transient 错误 penalty 与 key 冷却
-- [ ] pool label / model metadata 保留
-- [ ] `call_pool_json` 空 JSON / 形状失败时不假装成功
-- [ ] `tests/test_pool_parity.py` 绿灯
-- [ ] 现有 `test_pool.py` 无回归
+- [x] 代理环境下默认 `sequential` race mode
+- [x] 504 / transient 错误 penalty 与 key 冷却
+- [x] pool label / model metadata 保留
+- [x] `call_pool_json` 空 JSON / 形状失败时不假装成功
+- [x] `tests/test_pool_parity.py` 绿灯
+- [x] 现有 `test_pool.py` 无回归
 
 ## 目标
 

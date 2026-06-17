@@ -11,7 +11,7 @@ from __future__ import annotations
 import os
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any
 
 from .client import LlmError, LlmResult, call_llm, call_llm_json
@@ -91,6 +91,12 @@ def _active_key_states(states: list[PoolKeyState]) -> list[PoolKeyState]:
     return [state for state in states if not state.is_penalized()]
 
 
+def _annotate_pool_result(result: LlmResult, pool: PoolConfig, label: str) -> LlmResult:
+    usage = dict(result.usage or {})
+    usage["model"] = f"{pool.model}@{label}"
+    return replace(result, model=pool.model, usage=usage)
+
+
 def _run_pool_attempts(
     states: list[PoolKeyState],
     *,
@@ -104,14 +110,14 @@ def _run_pool_attempts(
     if race_mode == "sequential":
         for state in active:
             try:
-                return runner(state.key)
+                return runner(state)
             except LlmError as error:
                 state.mark_http_failure(error)
                 continue
         return None
 
     with ThreadPoolExecutor(max_workers=len(active)) as ex:
-        futures = {ex.submit(runner, state.key): state for state in active}
+        futures = {ex.submit(runner, state): state for state in active}
         try:
             for fut in as_completed(futures):
                 state = futures[fut]
@@ -160,8 +166,14 @@ def call_pool(
     states = _pool_key_states(p)
     race_mode = resolve_pool_race_mode(p)
 
-    def one(key: str) -> LlmResult:
-        return call_llm(messages, config=_key_config(p, key), temperature=temperature, max_tokens=max_tokens)
+    def one(state: PoolKeyState) -> LlmResult:
+        result = call_llm(
+            messages,
+            config=_key_config(p, state.key),
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        return _annotate_pool_result(result, p, state.label)
 
     return _run_pool_attempts(states, race_mode=race_mode, runner=one)
 
@@ -181,7 +193,13 @@ def call_pool_json(
     states = _pool_key_states(p)
     race_mode = resolve_pool_race_mode(p)
 
-    def one(key: str) -> tuple[dict[str, Any], LlmResult]:
-        return call_llm_json(messages, config=_key_config(p, key), temperature=temperature, max_tokens=max_tokens)
+    def one(state: PoolKeyState) -> tuple[dict[str, Any], LlmResult]:
+        parsed, result = call_llm_json(
+            messages,
+            config=_key_config(p, state.key),
+            temperature=temperature,
+            max_tokens=max_tokens,
+        )
+        return parsed, _annotate_pool_result(result, p, state.label)
 
     return _run_pool_attempts(states, race_mode=race_mode, runner=one)
