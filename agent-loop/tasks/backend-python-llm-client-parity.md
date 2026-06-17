@@ -9,13 +9,13 @@
 
 - 最近执行：2026-06-17
 - 最近确认：2026-06-17
-- AgentLoop run id：`2026-06-17T11-30-57-260Z`
-- AgentLoop 本地时间：`2026-06-17 19:30:57 (Asia/Shanghai)`
-- AgentLoop 结果：`DONE_GATE_ONLY`
-- AgentLoop 运行模式：`gate-only`
-- Grok 已运行：`false`
+- AgentLoop run id：`2026-06-17T11-42-36-043Z`
+- AgentLoop 本地时间：`2026-06-17 19:42:36 (Asia/Shanghai)`
+- AgentLoop 结果：`HALT_HUMAN`
+- AgentLoop 运行模式：`halt-human-after-grok-review`
+- Grok 已运行：`true`
 - Codex 已运行：`false`
-- gate 结果：baseline gate 为 green，failure count 为 0
+- gate 结果：最近状态为 `HALT_HUMAN`
 ### 状态清单
 
 - [x] `classify_llm_failure_kind()` 错误分类与 Node 口径对齐
@@ -24,7 +24,7 @@
 - [x] finish reason / empty content 处理
 - [x] 读取 `get_fallback_llm_config()` 并接入 provider fallback 链（mock 级）
 - [x] `tests/test_client_parity.py` 绿灯
-- [x] 现有 `test_config.py` / `test_capabilities.py` 无回归
+- [x] 现有 `test_config.py` 无回归；`test_capabilities.py` 对已迁移能力无回归（队列中待迁能力仍预期 `UnsupportedCapability`）
 
 ## 目标
 
@@ -38,6 +38,7 @@
 - `tws-ai-slide-rule-python/sliderule_llm/__init__.py`
 - `tws-ai-slide-rule-python/tests/test_client_parity.py`
 - `tws-ai-slide-rule-python/tests/test_config.py`（仅当 gate 证明必须联动）
+- `tws-ai-slide-rule-python/tests/test_capabilities.py`（仅当 gate 包含该文件且需修正回归口径）
 - `agent-loop/tasks/backend-python-llm-client-parity.md`
 
 ## 禁止事项

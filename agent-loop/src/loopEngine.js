@@ -10,6 +10,7 @@ import {
   useScopedReview,
 } from './agentRoles.js';
 import { buildAgentChecklistFixPrompt, buildAgentFixPrompt, buildAgentReviewPrompt } from './grokPrompt.js';
+import { parseAgentReviewOutput, reviewVerdictAllowsDone } from './reviewParser.js';
 import { parseTaskChecklist, shouldRunDevFix } from './taskChecklist.js';
 import { ensureWorktree as defaultEnsureWorktree } from './worktree.js';
 import { resolveAgents as defaultResolveAgents } from './resolveAgents.js';
@@ -512,15 +513,27 @@ async function runFinalReview({
     grokReview: reviewAgent === 'grok' ? summarizedReview : null,
   };
 
-  if (agentReview.exitCode === 0 && !agentReview.timedOut && !agentReview.spawnError) {
+  const parsedReview = reviewAgent === 'grok' ? parseAgentReviewOutput(agentReview.stdout || '') : null;
+  const reviewPassed = (
+    !agentReview.timedOut
+    && !agentReview.spawnError
+    && (
+      agentReview.exitCode === 0
+      || reviewVerdictAllowsDone(parsedReview)
+    )
+  );
+
+  if (reviewPassed) {
     await transition('DONE_REVIEWED', {
       iterations,
       ...legacyReviewPatch,
+      reviewVerdict: parsedReview?.verdict ?? (agentReview.exitCode === 0 ? 'pass' : null),
     });
   } else {
     await transition('HALT_HUMAN', {
       iterations,
       ...legacyReviewPatch,
+      reviewVerdict: parsedReview?.verdict ?? null,
     });
   }
   return finalizeState(state, options);

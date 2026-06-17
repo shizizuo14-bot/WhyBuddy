@@ -126,19 +126,19 @@ def test_question_expand_returns_v5_shape_with_python_llm_provenance():
     assert "turn my rough question" in joined
 
 
-@pytest.mark.parametrize(
-    "capability_id,title,content_snippet",
-    [
-        ("synthesis.merge", "Synthesis merge", "converged next step"),
-        ("rebuttal.resolve", "Rebuttal resolution", "unresolved disagreement"),
-        ("counter.argue", "Counter argument", "counterpoint evidence"),
-        ("report.write", "Feasibility report", "evidence-backed conclusion"),
-        ("structure.decompose", "Structure decomposition", "requirements branch"),
-        ("risk.analyze", "Risk analysis", "mitigation path"),
-        ("evidence.search", "Evidence search", "grounding reference"),
-    ],
+PENDING_NATIVE_CAPABILITIES = (
+    "synthesis.merge",
+    "rebuttal.resolve",
+    "counter.argue",
+    "report.write",
+    "structure.decompose",
+    "risk.analyze",
+    "evidence.search",
 )
-def test_pending_native_capabilities_return_python_llm_provenance(capability_id, title, content_snippet):
+
+
+@pytest.mark.parametrize("capability_id", PENDING_NATIVE_CAPABILITIES)
+def test_pending_capabilities_remain_unsupported_until_migrated(capability_id):
     body = {
         "capabilityId": capability_id,
         "state": {"goal": {"text": "design a pet office progression system"}},
@@ -147,12 +147,9 @@ def test_pending_native_capabilities_return_python_llm_provenance(capability_id,
         "turnId": f"t-{capability_id}",
     }
 
-    def fake_caller(messages, **kwargs):
-        return _fake_result(f"## {title}\n- {content_snippet}")
-
-    out = execute_capability(body, caller=fake_caller)
-    assert out["provenance"] == "python-llm"
-    assert content_snippet in out["content"]
+    assert is_python_native_capability(capability_id) is False
+    with pytest.raises(UnsupportedCapability):
+        execute_capability(body, caller=lambda *a, **k: _fake_result("should not run"))
 
 
 def test_markdown_fence_is_stripped():
@@ -168,16 +165,10 @@ def test_unsupported_capability_raises():
     assert is_python_native_capability("gap.ask") is True
     assert is_python_native_capability("question.expand") is True
     assert is_python_native_capability("critique.generate") is True
-    for cap in (
-        "synthesis.merge",
-        "rebuttal.resolve",
-        "counter.argue",
-        "report.write",
-        "structure.decompose",
-        "risk.analyze",
-        "evidence.search",
-    ):
-        assert is_python_native_capability(cap) is True
+    for cap in PENDING_NATIVE_CAPABILITIES:
+        assert is_python_native_capability(cap) is False
+        with pytest.raises(UnsupportedCapability):
+            execute_capability({"capabilityId": cap, "state": {}}, caller=lambda *a, **k: _fake_result())
 
 
 def test_empty_content_raises_llm_error():

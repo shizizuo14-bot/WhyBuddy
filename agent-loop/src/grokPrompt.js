@@ -171,6 +171,12 @@ export function buildAgentReviewPrompt({
   return [
     '# AgentLoop 审查请求',
     '',
+    '## 强制要求',
+    '',
+    '- 禁止调用 Shell / Read / 任何工具；只根据下方证据判断。',
+    '- 你的回复必须且只能是 JSON verdict（见文末格式），不要 markdown fence，不要解释性前言。',
+    '- gate 结果已由 AgentLoop 验证；未提交 diff 为空时，默认审查 HEAD 中允许文件的已实现内容。',
+    '',
     `你是代码审查员。${workerAgent} 已完成修改，或 AgentLoop gate 已通过等待你审查。`,
     '请根据下方证据审查任务是否完成；不要依赖你自己重跑 gate。',
     '',
