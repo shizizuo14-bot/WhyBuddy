@@ -1,7 +1,91 @@
 import { randomUUID } from "node:crypto";
-
 import dotenv from "dotenv";
 import { nanoid } from "nanoid";
+
+// Proxy handling: rely ENTIRELY on Node's built-in env-proxy support. Set NODE_USE_ENV_PROXY=1
+// together with HTTP_PROXY/HTTPS_PROXY (and NO_PROXY for exemptions); dev:all and .env do this
+// when a local proxy (Clash) is active. Node's built-in fetch then routes correctly per the env.
+//
+// We must NOT pass a dispatcher built from the standalone `undici` npm package to the global
+// `fetch`: the installed undici (8.x) and Node's built-in undici differ, so such a dispatcher
+// throws "invalid onRequestStart method" → "fetch failed" (surfaced as "Cannot reach LLM
+// service"). That version skew is exactly what broke the high / orchestrate-plan calls while the
+// lighter caps (which didn't go through a custom dispatcher) still worked. So setupProxyIfNeeded
+// just returns the global fetch and logs the routing decision once per host.
+const loggedProxyHosts = new Set<string>();
+
+function setupProxyIfNeeded(targetHost: string): typeof fetch {
+  const proxyUrl =
+    process.env.HTTP_PROXY || process.env.http_proxy || process.env.HTTPS_PROXY || process.env.https_proxy;
+  if (proxyUrl && !loggedProxyHosts.has(targetHost)) {
+    loggedProxyHosts.add(targetHost);
+    const noProxy = (process.env.NO_PROXY || process.env.no_proxy || "").toLowerCase();
+    const exempt = noProxy
+      .split(",")
+      .map((s) => s.trim())
+      .some((p) => p && (p === "*" || targetHost.toLowerCase() === p || targetHost.toLowerCase().endsWith(p)));
+    const envProxyOn =
+      process.env.NODE_USE_ENV_PROXY === "1" || process.env.NODE_USE_ENV_PROXY === "true";
+    const how = exempt
+      ? "NO_PROXY exempt → direct"
+      : envProxyOn
+        ? `proxied via NODE_USE_ENV_PROXY (${proxyUrl})`
+        : `proxy set but NODE_USE_ENV_PROXY off → DIRECT (set NODE_USE_ENV_PROXY=1 to route via proxy)`;
+    console.log(`[llm-client] ${targetHost}: ${how}`);
+  }
+  return fetch;
+}
+
+/**
+ * Node.js 版 “httpx” 风格的稳定 LLM HTTP 调用。
+ * 
+ * 和 tws-ai-ask-python 里的 httpx.AsyncClient 用法对齐：
+ *   - 每次调用用原生 fetch（相当于新鲜 client）
+ *   - 显式 timeout (AbortSignal)
+ *   - 统一做 raise_for_status 风格的错误处理
+ *   - 代理完全靠 env (HTTP_PROXY + NODE_USE_ENV_PROXY=1) 驱动，不在调用层做 global dispatcher 魔法
+ * 
+ * 这样最稳，和 Python 版 benchmark 风格一致。
+ */
+export async function llmHttpPost(
+  baseUrl: string,
+  path: string,
+  apiKey: string,
+  body: any,
+  timeoutMs: number,
+  extraSignal?: AbortSignal
+): Promise<Response> {
+  const url = `${baseUrl.replace(/\/$/, '')}${path}`;
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+
+  const signal = extraSignal 
+    ? AbortSignal.any?.([extraSignal, controller.signal]) ?? controller.signal   // Node 20+ 支持 any
+    : controller.signal;
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "Authorization": `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify(body),
+      signal,
+    });
+
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      const err = new Error(`LLM HTTP ${res.status}: ${text.slice(0, 300)}`);
+      (err as any).status = res.status;
+      throw err;
+    }
+
+    return res;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
 
 import { estimateCost, PRICING_TABLE, DEFAULT_PRICING } from "../../shared/cost.js";
 import { getAIConfig } from "./ai-config.js";
@@ -12,6 +96,10 @@ import type { LLMMessageContentPart } from "../../shared/workflow-runtime.js";
 import { costTracker } from "./cost-tracker.js";
 
 dotenv.config();
+
+// Trigger ai-config early so the NO_PROXY augmentation for the LLM host runs
+// (belt-and-suspenders for custom hosts like blackaicoding.com behind dev proxy).
+import("./ai-config.js").catch(() => {}); // fire and forget, side-effect only
 
 interface LLMMessage {
   role: "system" | "user" | "assistant";
@@ -31,6 +119,8 @@ interface LLMOptions {
   missionId?: string;
   /** 调用关联的 Session ID（用于成本追踪） */
   sessionId?: string;
+  /** Per-call override for reasoning effort (used to lighten heavy planning calls and avoid gateway 524s on long reasoning). */
+  reasoningEffort?: string;
 }
 
 interface LLMResponse {
@@ -99,10 +189,18 @@ function parseModelList(raw: string | undefined): string[] {
 
 function getPrimaryModelFallbacks(defaultModel: string): string[] {
   const configured = process.env.LLM_MODEL_FALLBACKS;
-  const fallbackModels =
-    configured === undefined
-      ? ["gpt-5.3-codex", "gpt-5.4-mini", "gpt-5.2"]
-      : parseModelList(configured);
+
+  // For custom LLM endpoints (e.g. blackaicoding.com with gpt-5.5), do not auto-inject
+  // openai-style fallback models like gpt-5.3-codex. Only use fallbacks if the user
+  // explicitly sets LLM_MODEL_FALLBACKS (can be empty string to disable).
+  // This prevents unwanted "downgrade" when user configures a specific slow/custom model.
+  let fallbackModels: string[];
+  if (configured === undefined) {
+    fallbackModels = [];
+  } else {
+    fallbackModels = parseModelList(configured);
+  }
+
   const seen = new Set([normalizeModelName(defaultModel)]);
   return fallbackModels.filter(model => {
     const normalized = normalizeModelName(model);
@@ -202,13 +300,31 @@ function getProviderKey(provider: ProviderConfig): string {
   return `${provider.name}:${provider.baseUrl}:${provider.defaultModel}`;
 }
 
+function isSu8Provider(provider: ProviderConfig): boolean {
+  return /su8\.codes/i.test(provider.baseUrl || "");
+}
+
 function getProviderCooldownMs(provider: ProviderConfig): number {
-  const raw =
-    provider.name === "fallback"
-      ? process.env.FALLBACK_LLM_COOLDOWN_MS || "30000"
-      : process.env.LLM_PROVIDER_COOLDOWN_MS || "120000";
+  if (provider.name === "fallback") {
+    const raw = process.env.FALLBACK_LLM_COOLDOWN_MS || "30000";
+    const parsed = Number(raw);
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+  }
+  if (isSu8Provider(provider) && process.env.SU8_COOLDOWN_MS) {
+    const su8Parsed = Number(process.env.SU8_COOLDOWN_MS);
+    if (Number.isFinite(su8Parsed) && su8Parsed >= 0) return su8Parsed;
+  }
+  const raw = process.env.LLM_PROVIDER_COOLDOWN_MS || "15000"; // transient 网关错误（su8 504 等）默认短锁
   const parsed = Number(raw);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 0;
+}
+
+function isTransientProviderError(error: Error): boolean {
+  const m = error.message || "";
+  // Covers both gateway timeouts (524) and full connectivity failures ("Cannot reach LLM service", fetch failures, etc.)
+  // These are typically transient (proxy flap, temporary provider blip, Cloudflare edge, DNS hiccup) and should not
+  // lock the system out for the full 2min default cooldown.
+  return /cannot reach llm service|fetch failed|network|timeout|econnrefused|enotfound|524|gateway timeout|origin.*(timeout|slow)/i.test(m);
 }
 
 function isProviderCoolingDown(provider: ProviderConfig): boolean {
@@ -245,6 +361,24 @@ function openGlobalProviderCooldown(durationMs: number): void {
     globalProviderCooldownUntil,
     Date.now() + durationMs
   );
+}
+
+export function resetLLMProviderCooldownsForTest(): void {
+  providerCooldownUntil.clear();
+  globalProviderCooldownUntil = 0;
+}
+
+/**
+ * Clear cooldown for the main primary LLM provider (used by planning high model).
+ * Call this after a transient connectivity blip + successful pool fallback for planning,
+ * so the next high-model attempt can retry the primary quickly instead of waiting the short cooldown.
+ */
+export function clearPrimaryLLMCooldown(): void {
+  // The primary provider key is based on the main LLM config (name "primary" or the base host).
+  // We clear all to be safe for the main path (planning is high priority).
+  // In practice this affects the LLM_* configured primary.
+  providerCooldownUntil.clear();
+  globalProviderCooldownUntil = 0;
 }
 
 function clearGlobalProviderCooldown(): void {
@@ -319,6 +453,11 @@ function normalizeLLMError(
     );
   }
   if (status >= 500) {
+    if (status === 524) {
+      return new Error(
+        `LLM gateway/Cloudflare timeout (HTTP 524) from ${providerName} — the origin took too long (typical with gpt-5.x + high reasoning + large planning prompts). ${trimmed ? `Details: ${trimmed.substring(0, 200)}` : ""}`
+      );
+    }
     return new Error(
       `LLM service error from ${providerName}: HTTP ${status}.${trimmed ? ` Details: ${trimmed.substring(0, 160)}` : ""}`
     );
@@ -371,14 +510,14 @@ function shouldStopRetryingProvider(error: Error): boolean {
 }
 
 function shouldOpenCircuit(error: Error): boolean {
-  return /no available clients|temporarily unavailable|LLM service error|HTTP 5\d\d|timed out|Cannot reach LLM service|rate limited|out of quota/i.test(
+  return /no available clients|temporarily unavailable|LLM service error|HTTP 5\d\d|timed out|Cannot reach LLM service|rate limited|out of quota|empty response body/i.test(
     error.message
   );
 }
 
 export function isLLMTemporarilyUnavailableError(error: unknown): boolean {
   const message = error instanceof Error ? error.message : String(error);
-  return /provider cooling down|timed out|Cannot reach LLM service|temporarily unavailable|LLM service error|HTTP 5\d\d|rate limited|out of quota|All LLM providers are temporarily unavailable/i.test(
+  return /provider cooling down|timed out|Cannot reach LLM service|temporarily unavailable|LLM service error|HTTP 5\d\d|rate limited|out of quota|empty response body|All LLM providers are temporarily unavailable/i.test(
     message
   );
 }
@@ -469,17 +608,24 @@ function parseSSE(raw: string): SSEEvent[] {
 
 function parseJsonSafely(raw: string): any {
   try {
-    return JSON.parse(raw);
+    // Some endpoints send "data: [DONE]" even on non-stream requests or as trailing garbage.
+    // Strip it before json parse to avoid malformed errors.
+    const cleaned = raw.replace(/data:\s*\[DONE\]\s*$/i, "").trim();
+    return JSON.parse(cleaned || "{}");
   } catch {
     throw malformedResponseError(raw.substring(0, 200));
   }
 }
 
 function looksLikeSSE(raw: string, contentType: string): boolean {
-  return (
-    contentType.includes("text/event-stream") ||
-    /^\s*(event|data):/m.test(raw)
-  );
+  const c = (contentType || "").toLowerCase();
+  const t = (raw || "").trim();
+  if (c.includes("text/event-stream")) return true;
+  if (/^\s*(event|data):/m.test(t)) return true;
+  // Explicitly catch bare "data: [DONE]" terminator that sometimes leaks when stream was requested
+  // but client expected json (common on slow/custom endpoints that ignore stream=false).
+  if (/data:\s*\[DONE\]/i.test(t)) return true;
+  return false;
 }
 
 function parseResponsesStream(raw: string): LLMResponse {
@@ -626,21 +772,23 @@ async function createChatCompletion(
     if (provider.chatThinkingType) {
       body.thinking = { type: provider.chatThinkingType };
     }
-
-    const response = await fetch(`${provider.baseUrl}/chat/completions`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${provider.apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal,
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => "");
-      throw normalizeLLMError(provider, response.status, errText);
+    // Some providers (and VSCode custom OpenAI setups) accept reasoning on the chat/completions wire
+    // using the top-level field (matching OpenAI o-series convention). Add it for broader compat.
+    // (For gpt-5.x on blackaicoding etc. the responses wire is still required and is selected via ai-config.)
+    if (provider.reasoningEffort) {
+      body.reasoning_effort = provider.reasoningEffort;
+      // Also include the nested form some gateways expect
+      body.reasoning = { effort: provider.reasoningEffort };
     }
+
+    const response = await llmHttpPost(
+      provider.baseUrl,
+      "/chat/completions",
+      provider.apiKey,
+      body,
+      provider.timeoutMs,
+      signal
+    );
 
     const { raw, contentType } = await readBody(response);
     if (looksLikeSSE(raw, contentType)) {
@@ -689,20 +837,14 @@ async function createResponse(
       body.text = { format: { type: "json_object" } };
     }
 
-    const response = await fetch(`${provider.baseUrl}/responses`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${provider.apiKey}`,
-      },
-      body: JSON.stringify(body),
-      signal,
-    });
-
-    if (!response.ok) {
-      const errText = await response.text().catch(() => "");
-      throw normalizeLLMError(provider, response.status, errText);
-    }
+    const response = await llmHttpPost(
+      provider.baseUrl,
+      "/responses",
+      provider.apiKey,
+      body,
+      provider.timeoutMs,
+      signal
+    );
 
     const { raw, contentType } = await readBody(response);
     if (looksLikeSSE(raw, contentType)) {
@@ -808,6 +950,10 @@ export async function callLLM(
       throw missingKeyError();
     }
 
+    // Hoisted above the global-cooldown early-exit so that branch can rethrow the most
+    // recent provider error if one was recorded (was declared below → TS2448/2454).
+    let lastError: Error | null = null;
+
     if (isGlobalProviderCoolingDown()) {
       throw unavailableProvidersError(getGlobalProviderCooldownMs());
     }
@@ -817,10 +963,11 @@ export async function callLLM(
         ...providers.map(provider => getRemainingCooldownMs(provider))
       );
       openGlobalProviderCooldown(remainingMs);
+      if (lastError) {
+        throw lastError;
+      }
       throw unavailableProvidersError(remainingMs);
     }
-
-    let lastError: Error | null = null;
 
     for (const provider of providers) {
       const providerForCall: ProviderConfig = {
@@ -828,6 +975,8 @@ export async function callLLM(
         timeoutMs:
           normalizePositiveInteger(effectiveOptions.timeoutMs) ??
           provider.timeoutMs,
+        reasoningEffort:
+          effectiveOptions.reasoningEffort ?? provider.reasoningEffort,
       };
 
       if (isProviderCoolingDown(providerForCall)) {
@@ -888,7 +1037,20 @@ export async function callLLM(
           );
 
           if (shouldOpenCircuit(lastError)) {
-            openProviderCooldown(providerForCall);
+            if (isTransientProviderError(lastError)) {
+              // Transient errors (connectivity "Cannot reach", network failures, 524 gateway timeouts)
+              // are common with custom providers like blackaicoding behind proxies or during heavy calls.
+              // Short cooldown (SU8_COOLDOWN_MS / LLM_PROVIDER_COOLDOWN_MS) so planning + pool recover quickly.
+              const shortMs = getProviderCooldownMs(providerForCall);
+              if (shortMs > 0) {
+                providerCooldownUntil.set(getProviderKey(providerForCall), Date.now() + shortMs);
+                console.warn(
+                  `[LLM:${providerForCall.name}] short ${Math.ceil(shortMs / 1000)}s cooldown for transient provider error: ${lastError.message.slice(0, 120)}`
+                );
+              }
+            } else {
+              openProviderCooldown(providerForCall);
+            }
           }
 
           if (shouldStopRetryingProvider(lastError)) {
@@ -937,6 +1099,9 @@ export async function callLLM(
         ...providers.map(provider => getRemainingCooldownMs(provider))
       );
       openGlobalProviderCooldown(remainingMs);
+      if (lastError) {
+        throw lastError;
+      }
       throw unavailableProvidersError(remainingMs);
     }
 

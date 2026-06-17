@@ -16,6 +16,7 @@ export async function callSlideRuleDialogueJsonLlm(
     timeoutMs?: number;
     retryAttempts?: number;
     maxTokens?: number;
+    reasoningEffort?: string;  // allow per-call lighter reasoning for 504 recovery
   }
 ): Promise<{ json: DialogueJson; usage?: { prompt_tokens?: number; completion_tokens?: number; total_tokens?: number }; finishReason?: string }> {
   const maxTokens = resolveSlideRuleJsonMaxTokens(capabilityId, options.maxTokens);
@@ -27,6 +28,7 @@ export async function callSlideRuleDialogueJsonLlm(
     maxTokens,
     timeoutMs,
     retryAttempts: options.retryAttempts ?? 1,
+    reasoningEffort: options.reasoningEffort,
   } as any);
 
   if (!isEmptyDialogueJsonShape(first.json)) {

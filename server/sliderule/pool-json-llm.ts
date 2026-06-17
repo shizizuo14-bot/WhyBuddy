@@ -1,6 +1,7 @@
 /**
  * SlideRule V5.1 — route auxiliary capabilities through the 5-key LLM pool
- * (BLUEPRINT_SPEC_DOCS_LLM_POOL_*), leaving the primary LLM for orchestrate + report.write.
+ * (BLUEPRINT_SPEC_DOCS_LLM_POOL_*). Primary LLM reserved for orchestrate.plan;
+ * report.write is pool-first (pool-only when configured) via the execute-capability route.
  *
  * Performance: spec_docs pool is fast because it fires keys in parallel (runConcurrent).
  * SlideRule defaults to the same "race" semantics — first successful key wins, not 5× serial wait.
@@ -28,9 +29,11 @@ const POOL_DIALOGUE_CAPS = new Set([
 
 const POOL_DELIBERATION_CAPS = new Set([
   "counter.argue",
-  "critique.generate",
   "rebuttal.resolve",
-  "synthesis.merge",
+  // Deliberation panel (critique/synthesis) and high-level audit (risk/report) are forced to the high model (gpt-5.5)
+  // per the 5+1 architecture: gpt-5.5 plans/allocates/audits, low-level ouyi-5-preview pool handles parallel execution.
+  // "critique.generate",
+  // "synthesis.merge",
 ]);
 
 let cachedPool: LlmKeyPool | null | undefined;
@@ -46,8 +49,10 @@ export function resolveSlideRulePoolTimeoutMs(poolDefault?: number): number {
     const n = Number.parseInt(raw, 10);
     if (Number.isFinite(n) && n > 0) return n;
   }
-  // Thinking models can be slow, but 300s serial retry × 5 keys is unacceptable for product UX.
-  return Math.min(poolDefault ?? 300_000, 90_000);
+  // Thinking models / multi-role deliberation (critique/synthesis) can be very slow on custom LLM hosts.
+  // Raise the cap for stability on slow/custom endpoints (blackaicoding etc.) while still protecting UX.
+  // Users can override with SLIDERULE_POOL_TIMEOUT_MS.
+  return Math.min(poolDefault ?? 300_000, 300_000); // allow up to 5min for complex panel work
 }
 
 /** 
@@ -112,6 +117,18 @@ function formatTransportError(e: unknown): string {
 /** When pool is configured, skip duplicate primary LLM hop (same endpoint / cooldown waste). */
 export function shouldSkipPrimaryLlmAfterPoolExhausted(): boolean {
   if (readEnvCompat("SLIDERULE_SKIP_PRIMARY_AFTER_POOL") === "0") return false;
+  return isSlideRuleCapabilityPoolEnabled();
+}
+
+/**
+ * report.write *prefers* the 6-key pool when configured (to avoid large structured prompts
+ * causing 504s on high-model primary like su8). If the pool is exhausted we still try
+ * primary as a last resort before template (improved resilience).
+ * Set SLIDERULE_REPORT_SKIP_PRIMARY=0 to force-allow primary even when pool configured;
+ * set to 1 to force strict pool-only (may lead to template if pool down).
+ */
+export function shouldSkipPrimaryForReportWrite(): boolean {
+  if (readEnvCompat("SLIDERULE_REPORT_SKIP_PRIMARY") === "0") return false;
   return isSlideRuleCapabilityPoolEnabled();
 }
 
@@ -214,6 +231,23 @@ async function tryPoolKeyOnce<T extends Record<string, unknown>>(
   return buildPoolResult(json as T, config, entry, raw, systemPrompt, userPrompt);
 }
 
+/** Simple short-lived per-key penalty for 504s (so one bad key doesn't dominate the race immediately). */
+const recent504Keys = new Map<string, number>(); // label -> until timestamp
+const POOL_504_PENALTY_MS = 8000;
+
+function isKeyIn504Penalty(label: string): boolean {
+  const until = recent504Keys.get(label);
+  return !!until && until > Date.now();
+}
+
+function record504Penalty(label: string) {
+  recent504Keys.set(label, Date.now() + POOL_504_PENALTY_MS);
+  // cleanup old
+  for (const [k, v] of recent504Keys) {
+    if (v < Date.now()) recent504Keys.delete(k);
+  }
+}
+
 /** Lightweight retry for transient transport errors (common behind dev proxies). */
 async function tryPoolKeyWithRetry<T extends Record<string, unknown>>(
   entry: LlmKeyPoolEntry,
@@ -222,6 +256,10 @@ async function tryPoolKeyWithRetry<T extends Record<string, unknown>>(
   userPrompt: string,
   maxAttempts = 2
 ): Promise<PoolJsonLlmResult<T> | null> {
+  if (isKeyIn504Penalty(entry.label)) {
+    return null; // skip this key for a short while after 504
+  }
+
   let lastErr: unknown;
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
@@ -236,7 +274,16 @@ async function tryPoolKeyWithRetry<T extends Record<string, unknown>>(
                           msg.includes("timeout") ||
                           msg.includes("econnreset") ||
                           msg.includes("und_err") ||
-                          msg.includes("connect");
+                          msg.includes("connect") ||
+                          msg.includes("empty response body") ||
+                          msg.includes("504") ||
+                          msg.includes("http 5") ||
+                          msg.includes("service error") ||
+                          msg.includes("gateway");
+      const is504 = msg.includes("504");
+      if (is504) {
+        record504Penalty(entry.label);
+      }
       if (!isTransient || attempt === maxAttempts) {
         throw e;
       }

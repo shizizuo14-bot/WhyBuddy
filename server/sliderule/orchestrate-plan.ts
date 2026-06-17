@@ -4,12 +4,17 @@ import { ALL_V5_CAPABILITIES } from "../../shared/blueprint/contracts.js";
 import { CAPABILITY_DESCRIPTIONS } from "../../shared/blueprint/sliderule-capability-catalog.js";
 import { pickNextCapabilities } from "../../shared/blueprint/sliderule-pick-heuristic.js";
 import {
+  pickBrainstormChain,
+  resolveRoleMode,
+  shouldDegradeBrainstorm,
+} from "../../shared/blueprint/sliderule-role-mode.js";
+import {
   validateProposedPlan,
   type DropReason,
 } from "../../shared/blueprint/sliderule-plan-validation.js";
 import { capabilityDomainAnchoringBlock } from "../../shared/blueprint/sliderule-narration-immunity.js";
 import { getAIConfig } from "../core/ai-config.js";
-import { callLLMJsonWithUsage } from "../core/llm-client.js";
+import { callLLMJsonWithUsage, clearPrimaryLLMCooldown } from "../core/llm-client.js";
 import { callPoolJsonLlm, shouldSkipPrimaryLlmAfterPoolExhausted } from "./pool-json-llm.js";
 import { readEnvCompat } from "../../shared/env/read-env-compat.js";
 import {
@@ -197,6 +202,61 @@ function buildCoverageContractBlock(state: V5SessionState): string {
   );
 }
 
+const ORCHESTRATE_MAX_SELECTED = 4;
+
+/**
+ * Mechanical guard: complex product-build goals must run deliberation primers
+ * (critique.generate → synthesis.merge) before report.write when not yet committed.
+ *
+ * V5.2/V5.3 audit (RPG marathon): LLM router can still propose 4 non-panel caps
+ * and put critique/synthesis into alternativesRejected even when ROLE_MODE=complex.
+ * This function is the last mechanical backstop — it must preserve primers even
+ * when selected.length === 4 (do not let MAX_SELECTED slice them out).
+ */
+export function ensureComplexDeliberationPrimers(
+  state: V5SessionState,
+  userText: string,
+  selected: Array<{ capabilityId: V5CapabilityId; roleId: string; why?: string }>
+): Array<{ capabilityId: V5CapabilityId; roleId: string; why?: string }> {
+  if (resolveRoleMode(state, userText) !== "complex" || shouldDegradeBrainstorm(state, userText)) {
+    return selected;
+  }
+
+  const recent = new Set(
+    (state.capabilityRuns || []).slice(-12).map((r) => r.capabilityId as string)
+  );
+  const alreadyScheduled = new Set(selected.map((s) => s.capabilityId));
+  if (recent.has("critique.generate") || alreadyScheduled.has("critique.generate")) {
+    return selected;
+  }
+
+  const primers = pickBrainstormChain(state).filter(
+    (p) => !recent.has(p.capabilityId) && !alreadyScheduled.has(p.capabilityId)
+  );
+  if (primers.length === 0) return selected;
+
+  // Prepend primers first (they must come before report.write per contract + V5.2 design).
+  // Then append non-primer selected items. Finally respect MAX but *keep all primers*.
+  const merged = [
+    ...primers.map((p) => ({ capabilityId: p.capabilityId, roleId: p.roleId })),
+    ...selected.filter((s) => !primers.some((p) => p.capabilityId === s.capabilityId)),
+  ];
+  const seen = new Set<string>();
+  const deduped = merged.filter((p) => {
+    if (seen.has(p.capabilityId)) return false;
+    seen.add(p.capabilityId);
+    return true;
+  });
+
+  // If over limit, keep primers + as many others as fit (never drop primers for product/game goals).
+  if (deduped.length > ORCHESTRATE_MAX_SELECTED) {
+    const primerCount = primers.length;
+    const others = deduped.slice(primerCount);
+    return [...deduped.slice(0, primerCount), ...others.slice(0, ORCHESTRATE_MAX_SELECTED - primerCount)];
+  }
+  return deduped;
+}
+
 function buildOrchestrateSystemPrompt(): string {
   return (
     "You are SlideRule V5's orchestration planner (ORCH). " +
@@ -206,6 +266,15 @@ function buildOrchestrateSystemPrompt(): string {
     '{"selected":[{"capabilityId":"...","roleId":"...","why":"..."}],"rationale":"..."}\n' +
     "Rules: use only capability ids from the provided catalog; 1-4 items; roleId must be a V5 role; " +
     "why is optional but encouraged when repeating or prioritizing a capability. " +
+    "\n" +
+    "CRITICAL — V5.2 Roles + V5.3 contract rule (product-build / game / platform / multi-agent goals): " +
+    "If ROLE_MODE=complex (or COVERAGE_CONTRACT.mode=complex), you MUST front-load critique.generate " +
+    "(role 挑刺) and synthesis.merge (role 综合) before any report.write or final convergence. " +
+    "These are required by the authored CoverageContract for complex goals (see COVERAGE_CONTRACT block). " +
+    "Skipping them for a complex goal is a policy violation — prefer them even if it means using fewer other caps. " +
+    "Only skip if the contract explicitly lists only evidence.search as blocking. " +
+    "When ROLE_MODE=complex and critique.generate has not run, you MUST include it (and synthesis.merge when missing) BEFORE report.write. " +
+    "Do not skip multi-role deliberation for product-build / game / platform / 多Agent goals.\n" +
     'When you confirm no further reasoning steps are needed, return {"selected": [], "converged": true, "rationale": ...}.'
   );
 }
@@ -228,10 +297,13 @@ export function buildOrchestrateUserPrompt(req: OrchestratePlanRequest): string 
         ? `INTERVENTION: ${intervention.intent}\n`
         : "";
 
+  const roleMode = resolveRoleMode(state, userText);
+
   return (
     `${capabilityDomainAnchoringBlock(goal)}` +
     `${interventionNote}` +
     `GOAL: ${goal}\nGOAL_STATUS (mechanical): ${goalStatus}\n` +
+    `ROLE_MODE: ${roleMode}\n` +
     `USER_TEXT: ${userText}\n` +
     `HEALTHY_ARTIFACT_KINDS: ${healthyKinds.join(", ") || "(none)"}\n` +
     `STALE_COUNT: ${staleIds.length}\n` +
@@ -240,6 +312,7 @@ export function buildOrchestrateUserPrompt(req: OrchestratePlanRequest): string 
     `BUDGET: turns_used=${budget.turns} runs=${budget.runs} est_tokens=${budget.estimatedTokens} ` +
     `remaining_turns≈${budget.remainingTurns} remaining_runs≈${budget.remainingRuns}\n\n` +
     `${buildCoverageContractBlock(state)}\n\n` +
+    `IMPORTANT: For complex goals the COVERAGE_CONTRACT lists required deliberation caps (critique.generate, synthesis.merge, risk.analyze etc). The plan MUST respect them or the GCOV gate will block later. Prefer the required caps early.\n\n` +
     `${buildOpenGapsBlock(state)}\n\n` +
     `${buildEvidenceStatusBlock(state)}\n\n` +
     `${buildFailureEventsBlock(state)}\n\n` +
@@ -252,7 +325,11 @@ function heuristicFallback(
   reason: OrchestratePlanFallbackReason
 ): OrchestratePlanResponse {
   const userText = req.userText || req.state.goal?.text || "";
-  const selected = pickNextCapabilities(req.state, userText);
+  let selected = pickNextCapabilities(req.state, userText);
+  // Heuristic guard (V5.2/V5.3 audit): even on fallback (no_api_key / llm_error / invalid etc),
+  // complex goals must get their deliberation primers (critique.generate etc) prepended.
+  // Mirrors the ensureComplexDeliberationPrimers path taken on successful LLM proposals.
+  selected = ensureComplexDeliberationPrimers(req.state, userText, selected);
   return {
     selected,
     rationale: `heuristic_fallback (${reason}) for: ${userText.slice(0, 80)}`,
@@ -283,56 +360,86 @@ export async function executeOrchestratePlan(
     const userPrompt = buildOrchestrateUserPrompt(req);
     const systemPrompt = buildOrchestrateSystemPrompt();
 
-    const pooled = await callPoolJsonLlm<{
-      selected?: Array<{ capabilityId?: string; roleId?: string; why?: string }>;
-      rationale?: string;
-      converged?: boolean;
-    }>(systemPrompt, userPrompt, 0.2);
-    if (pooled?.json) {
-      return {
-        json: pooled.json,
-        usage: pooled.usage
-          ? {
-              prompt_tokens: pooled.usage.inputTokens,
-              completion_tokens: pooled.usage.outputTokens,
-              total_tokens: pooled.usage.totalTokens,
-            }
-          : undefined,
-        modelLabel: `${pooled.model}@${pooled.poolLabel}`,
-      };
-    }
-
+    // 5+1 architecture: the router (orchestrate.plan) is always handled by the high-level model (gpt-5.5).
+    // It is the "planner" that decides allocation. We bypass the low-level pool here to ensure
+    // planning and complex decisions use the strong model. Low-level execution caps use the 5 ouyi pool.
+    // (Previously we tried pooled first for cost; now forced to primary per user 5+1 requirement.)
     if (!config.apiKey) return null;
 
-    // Good resilience fix: when we are behind a dev proxy (very common in this setup),
-    // pool transport failures are often transient (concurrent CONNECT issues).
-    // In that case, still try the primary LLM instead of hard "no_llm_available".
-    const proxyActive = !!(readEnvCompat("HTTP_PROXY") || process.env.HTTP_PROXY ||
-                           readEnvCompat("HTTPS_PROXY") || process.env.HTTPS_PROXY ||
-                           readEnvCompat("NODE_USE_ENV_PROXY") || process.env.NODE_USE_ENV_PROXY);
+    // 5+1 planner prefers the high-level model (gpt-5.5) for quality planning/allocation.
+    // If high fails (as in this run: repeated "Cannot reach blackaicoding" leading to "all providers unavailable"),
+    // fall back to the low 5-key ouyi pool for the planning call. This keeps the marathon moving with
+    // (degraded) 5+1: high preferred, low as resilient concurrent backup for planner.
+    // Low execution caps continue to use the pool in parallel.
+    const routerTimeout = Number(
+      readEnvCompat("LLM_ROUTER_TIMEOUT_MS") || config.timeoutMs || 600000
+    );
 
-    if (shouldSkipPrimaryLlmAfterPoolExhausted() && !proxyActive) {
+    const plannerModel = config.model;  // the gpt-5.5 high model
+
+    try {
+      // Use a lighter reasoning effort for the *planning* step even if global LLM_REASONING_EFFORT=high.
+      // Heavy planning prompts (full state + many agents + JSON) + high reasoning frequently cause
+      // upstream gateway timeouts (HTTP 524 from Cloudflare fronting blackaicoding etc.).
+      // Lighter effort still gives good allocation quality but finishes faster on the provider side.
+      const { json, usage } = await callLLMJsonWithUsage<{
+        selected?: Array<{ capabilityId?: string; roleId?: string; why?: string }>;
+        rationale?: string;
+        converged?: boolean;
+      }>(
+        [
+          { role: "system", content: systemPrompt },
+          { role: "user", content: userPrompt },
+        ],
+        {
+          model: plannerModel,
+          temperature: 0.2,
+          maxTokens: 4000,
+          timeoutMs: routerTimeout,
+          retryAttempts: 1,
+          stream: false,
+          reasoningEffort: 'medium',
+        } as any
+      );
+      return { json, usage, modelLabel: plannerModel };
+    } catch (e) {
+      const errStr = String(e);
+      const isTransient = /cannot reach|524|gateway timeout|origin.*timeout|network|fetch failed/i.test(errStr);
+      const providerHost = (config.baseUrl || "").replace(/^https?:\/\//, "").split("/")[0] || "configured LLM host";
+      const logMsg = isTransient
+        ? `[sliderule] /orchestrate-plan high model hit transient connectivity / gateway issue to ${providerHost} (e.g. "Cannot reach LLM service" or 5xx). This can happen intermittently even with direct fetch + NO_PROXY (Clash etc.). Falling back to 5-low pool (sequential for safety).`
+        : `[sliderule] /orchestrate-plan high model failed, falling back to 5-low pool for planning:`;
+      console.warn(logMsg, isTransient ? errStr.slice(0, 300) : errStr.slice(0, 200));
+
+      // Use sequential for the fallback planning call to avoid concurrent overload on flaky providers/keys.
+      // (The env mode is parallel, but for critical router fallback we force safer sequential to give individual keys a better chance.)
+      const originalRace = process.env.SLIDERULE_POOL_RACE_MODE;
+      process.env.SLIDERULE_POOL_RACE_MODE = "sequential";
+      const pooled = await callPoolJsonLlm<{
+        selected?: Array<{ capabilityId?: string; roleId?: string; why?: string }>;
+        rationale?: string;
+        converged?: boolean;
+      }>(systemPrompt, userPrompt, 0.2);
+      if (originalRace) process.env.SLIDERULE_POOL_RACE_MODE = originalRace;
+      if (pooled?.json) {
+        // Transient connectivity blip to primary (blackaicoding) — clear cooldowns (primary + global)
+        // so the very next planning iteration (and other gpt-5.5 caps) can immediately retry the primary
+        // instead of waiting even the short 15s.
+        if (isTransient) {
+          try { clearPrimaryLLMCooldown(); } catch {}
+        }
+        return {
+          json: pooled.json,
+          usage: pooled.usage ? {
+            prompt_tokens: pooled.usage.inputTokens,
+            completion_tokens: pooled.usage.outputTokens,
+            total_tokens: pooled.usage.totalTokens,
+          } : undefined,
+          modelLabel: `${pooled.model}@${pooled.poolLabel} (5+1 pool fallback)`,
+        };
+      }
       return null;
     }
-
-    const { json, usage } = await callLLMJsonWithUsage<{
-      selected?: Array<{ capabilityId?: string; roleId?: string; why?: string }>;
-      rationale?: string;
-      converged?: boolean;
-    }>(
-      [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt },
-      ],
-      {
-        model: routerModel,
-        temperature: 0.2,
-        maxTokens: 4000,
-        timeoutMs: Math.min(config.timeoutMs, 45_000),
-        retryAttempts: 1,
-      } as any
-    );
-    return { json, usage, modelLabel: routerModel };
   };
 
   try {
@@ -375,7 +482,15 @@ export async function executeOrchestratePlan(
     );
 
     if (!validated.valid || validated.selected.length === 0) {
-      console.warn("[sliderule] /orchestrate-plan fallback: invalid_proposal");
+      // TEMP diagnostic: why did the planner proposal fail validation? (raw shape + dropped reasons)
+      const sel: any = (json as any)?.selected;
+      console.warn(
+        "[sliderule] /orchestrate-plan fallback: invalid_proposal |",
+        "jsonKeys=", json && typeof json === "object" ? Object.keys(json as any).join(",") : typeof json,
+        "| selected=", Array.isArray(sel) ? `array(len ${sel.length})` : typeof sel,
+        "| sample=", (() => { try { return JSON.stringify(sel).slice(0, 300); } catch { return "n/a"; } })(),
+        "| dropped=", JSON.stringify(validated.dropped).slice(0, 300)
+      );
       const fb = heuristicFallback(req, "invalid_proposal");
       return { ...fb, dropped: validated.dropped };
     }
@@ -386,8 +501,14 @@ export async function executeOrchestratePlan(
       return { ...fb, dropped: validated.dropped };
     }
 
+    const withDeliberation = ensureComplexDeliberationPrimers(
+      req.state,
+      req.userText || req.state.goal?.text || "",
+      validated.selected
+    );
+
     return {
-      selected: validated.selected,
+      selected: withDeliberation,
       rationale,
       source: "llm",
       ...(validated.dropped.length ? { dropped: validated.dropped } : {}),

@@ -32,6 +32,8 @@ export interface LlmKeyPoolConfig {
   keys: ReadonlyArray<LlmKeyPoolEntry>;
   /** 单次调用超时（毫秒），默认 60000。 */
   timeoutMs?: number;
+  /** Wire protocol. Defaults to responses for gpt-5.* models on providers that only speak responses for reasoning tiers. */
+  wireApi?: 'responses' | 'chat_completions';
 }
 
 /** Pool 实例。 */
@@ -57,6 +59,8 @@ export interface LlmKeyPool {
  * - `BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL`：API base URL
  * - `BLUEPRINT_SPEC_DOCS_LLM_POOL_MODEL`：模型名称
  * - `BLUEPRINT_SPEC_DOCS_LLM_POOL_TIMEOUT_MS`：单次超时
+ * - `BLUEPRINT_SPEC_DOCS_LLM_POOL_WIRE_API`：可选，"responses" 或 "chat_completions"。
+ *   默认：对 gpt-5.* / 5.x 模型自动使用 responses（因为许多提供商在此类模型上 chat/completions 返回 200+空 body）。
  *
  * 返回 undefined 表示未配置 pool（调用方应回退到主 LLM）。
  */
@@ -78,10 +82,22 @@ export function parseKeyPoolFromEnv(): LlmKeyPoolConfig | undefined {
   // 进而退化到模板兜底，导致右侧文档串味/缺需求设计任务。给到 5 分钟单次上限。
   const timeoutMs = parseInt(process.env.BLUEPRINT_SPEC_DOCS_LLM_POOL_TIMEOUT_MS ?? "300000", 10);
 
+  // Wire selection for the pool (5-low keys).
+  // Same logic as primary: for gpt-5.* tiers on providers like blackaicoding, responses is required
+  // to get non-empty bodies. Users can override with BLUEPRINT_SPEC_DOCS_LLM_POOL_WIRE_API.
+  let wireApi: 'responses' | 'chat_completions' = 'chat_completions';
+  const poolWireRaw = process.env.BLUEPRINT_SPEC_DOCS_LLM_POOL_WIRE_API;
+  if (poolWireRaw) {
+    wireApi = poolWireRaw.toLowerCase() === 'responses' ? 'responses' : 'chat_completions';
+  } else if (/gpt-5|gpt5|5\.[0-9]/i.test(model)) {
+    wireApi = 'responses';
+  }
+
   return {
     baseUrl,
     model,
     timeoutMs: Number.isFinite(timeoutMs) && timeoutMs > 0 ? timeoutMs : 300000,
+    wireApi,
     keys: keys.map((apiKey, i) => ({
       apiKey,
       label: labels[i] ?? `key-${i}`,
@@ -144,6 +160,8 @@ export function createLlmKeyPool(config: LlmKeyPoolConfig): LlmKeyPool {
  * 返回 LLM 的原始文本响应，由调用方做后续处理。
  * 失败时抛错，由调用方捕获并降级。
  */
+import { llmHttpPost } from "../../core/llm-client.js";
+
 export async function callLlmWithPoolKey(
   entry: LlmKeyPoolEntry,
   config: LlmKeyPoolConfig,
@@ -156,14 +174,39 @@ export async function callLlmWithPoolKey(
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
+  const isResponses = config.wireApi === 'responses';
+
   try {
-    const response = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${entry.apiKey}`,
-      },
-      body: JSON.stringify({
+    let res: Response;
+
+    if (isResponses) {
+      // Responses wire — required for gpt-5.5 / gpt-5.4 on providers like blackaicoding
+      // when the key+model only return content on /responses (chat/completions gives 200 + empty).
+      const respBody: any = {
+        model: config.model,
+        input: [
+          { role: "system", content: systemMessage },
+          { role: "user", content: userMessage },
+        ],
+        max_output_tokens: 16000,
+        stream: false,
+        store: false,
+        temperature: 0.3,
+      };
+      // Low pool usually does not need high reasoning, but if someone sets a pool reasoning env we could add it.
+      // For now the basic responses shape that succeeded in direct probes is used.
+
+      res = await llmHttpPost(
+        config.baseUrl,
+        "/responses",
+        entry.apiKey,
+        respBody,
+        timeoutMs,
+        controller.signal
+      );
+    } else {
+      // Classic chat/completions (original behavior)
+      const chatBody = {
         model: config.model,
         messages: [
           { role: "system", content: systemMessage },
@@ -171,22 +214,56 @@ export async function callLlmWithPoolKey(
         ],
         temperature: 0.3,
         max_tokens: 16000,
-      }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      const text = await response.text().catch(() => "");
-      throw new Error(`LLM pool HTTP ${response.status}: ${text.slice(0, 200)}`);
+      };
+      res = await llmHttpPost(
+        config.baseUrl,
+        "/chat/completions",
+        entry.apiKey,
+        chatBody,
+        timeoutMs,
+        controller.signal
+      );
     }
 
-    const json = await response.json() as {
-      choices?: Array<{ message?: { content?: string } }>;
-    };
-    const content = json.choices?.[0]?.message?.content;
-    if (!content) {
+    // llmHttpPost 已经保证 res.ok（否则会抛错，错误消息类似 "LLM HTTP 504: ..."）
+    const raw = await res.text();
+    if (!raw.trim()) {
+      throw new Error("LLM pool HTTP 200: empty response body");
+    }
+
+    // Parse + extract content. Support both chat and responses shapes.
+    let content = "";
+    try {
+      const json = JSON.parse(raw);
+
+      if (isResponses) {
+        // Mirror extractResponsesText + common fallbacks
+        if (typeof json.output_text === "string" && json.output_text.length > 0) {
+          content = json.output_text;
+        } else if (Array.isArray(json.output)) {
+          const texts: string[] = [];
+          for (const item of json.output) {
+            if (item?.type !== "message") continue;
+            for (const c of item.content || []) {
+              if (c?.type === "output_text" && typeof c.text === "string") texts.push(c.text);
+            }
+          }
+          content = texts.join("\n").trim();
+        } else if (json.choices?.[0]?.message?.content) {
+          // Some gateways still return chat shape even on /responses
+          content = json.choices[0].message.content;
+        }
+      } else {
+        content = json.choices?.[0]?.message?.content || "";
+      }
+    } catch {
+      throw new Error(`LLM pool HTTP 200: invalid JSON response: ${raw.slice(0, 200)}`);
+    }
+
+    if (!content || !content.trim()) {
       throw new Error("LLM pool: empty response content");
     }
+
     // thinking 模型可能返回 <think>...</think> 前缀，需要剥离
     return stripThinkingTags(content);
   } finally {

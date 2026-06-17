@@ -75,17 +75,63 @@ export function getAIConfig(): AIConfig {
     process.env.OPENAI_ROUTER_MODEL
   );
 
+  // Belt-and-suspenders: when a dev proxy is active, force the LLM host into NO_PROXY (direct).
+  // Opt-out: set LLM_PROXY_THROUGH=1 to route LLM traffic THROUGH the proxy instead (e.g. the
+  // host is only reachable via Clash/VPN). In that case we must NOT auto-add it to NO_PROXY.
+  try {
+    const routeThroughProxy =
+      process.env.LLM_PROXY_THROUGH === '1' || process.env.LLM_PROXY_THROUGH === 'true';
+    const hasProxy = !!(process.env.HTTP_PROXY || process.env.HTTPS_PROXY || process.env.http_proxy || process.env.https_proxy || process.env.NODE_USE_ENV_PROXY);
+    if (hasProxy && baseUrl && !routeThroughProxy) {
+      const host = (() => { try { return new URL(baseUrl).hostname; } catch { return ''; } })();
+      if (host) {
+        const current = ((process.env.NO_PROXY || process.env.no_proxy || '') + ',localhost,127.0.0.1').toLowerCase();
+        if (!current.includes(host.toLowerCase())) {
+          const merged = (process.env.NO_PROXY || process.env.no_proxy || '') + ',' + host + ',localhost,127.0.0.1';
+          const cleaned = Array.from(new Set(merged.split(',').map(s => s.trim()).filter(Boolean))).join(',');
+          process.env.NO_PROXY = cleaned;
+          process.env.no_proxy = cleaned;
+        }
+      }
+    }
+  } catch {}
+
+  const rawWire = pickProviderValue(process.env.LLM_WIRE_API, process.env.OPENAI_WIRE_API);
+  const modelReasoningEffort =
+    pickProviderValue(process.env.LLM_REASONING_EFFORT, process.env.OPENAI_REASONING_EFFORT) ||
+    'medium';
+
+  // Smart wire selection for reasoning models (gpt-5.x, o-series, thinking etc).
+  // Many modern providers (including blackaicoding for gpt-5.5/gpt-5.4) only return
+  // useful content on the /responses endpoint when reasoning effort is requested.
+  // If the user explicitly forces chat_completions it is respected *unless* we have
+  // a strong signal (reasoning + gpt-5 style model) that responses is required for
+  // the key+model combo to produce non-empty bodies.
+  let wireApi: 'responses' | 'chat_completions';
+  const hasReasoning = modelReasoningEffort && modelReasoningEffort !== 'none' && modelReasoningEffort.trim().length > 0;
+  const isReasoningModel = /gpt-5|gpt5|o[0-3]|thinking|reasoning/i.test(model);
+  if (rawWire && rawWire.toLowerCase() === 'responses') {
+    wireApi = 'responses';
+  } else if (rawWire && rawWire.toLowerCase() === 'chat_completions') {
+    // Honor explicit chat_completions as-is. Some providers (e.g. rcouyi) only implement
+    // /chat/completions and return HTTP 501 on /responses, so auto-upgrading reasoning models
+    // to /responses here would break them. If a host genuinely needs /responses for a
+    // reasoning model, set LLM_WIRE_API=responses explicitly.
+    wireApi = 'chat_completions';
+  } else {
+    // Wire unset → infer: reasoning models (gpt-5.x / o-series / thinking) default to /responses.
+    wireApi = (hasReasoning && isReasoningModel) ? 'responses' : normalizeWireApi(rawWire);
+  }
+
   return {
     apiKey,
     baseUrl,
     model,
     ...(routerModel ? { routerModel } : {}),
-    modelReasoningEffort:
-      pickProviderValue(process.env.LLM_REASONING_EFFORT, process.env.OPENAI_REASONING_EFFORT) ||
-      'medium',
+    modelReasoningEffort,
     maxContext: normalizeNumber(process.env.LLM_MAX_CONTEXT, 1_000_000),
     providerName: deriveProviderName(baseUrl),
-    wireApi: normalizeWireApi(pickProviderValue(process.env.LLM_WIRE_API, process.env.OPENAI_WIRE_API)),
+    wireApi,
     timeoutMs: normalizeNumber(
       pickProviderValue(process.env.LLM_TIMEOUT_MS, process.env.OPENAI_TIMEOUT_MS),
       600000

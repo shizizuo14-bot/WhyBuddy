@@ -316,6 +316,308 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
     );
   });
 
+  it('intent.clarify delegates to Python V5 backend in python mode and skips Node LLM/pool', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+    vi.stubEnv('SLIDERULE_CAPABILITY_POOL_ENABLED', 'true');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS', 'k1');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL', 'https://example.test/v1');
+    poolJsonLlm.resetSlideRuleCapabilityPoolCache();
+
+    const primarySpy = vi.spyOn(llmClient, 'callLLMJsonWithUsage');
+    const poolSpy = vi.spyOn(poolJsonLlm, 'callPoolJsonLlm');
+    pythonDelegation.callPythonSlideRule.mockResolvedValueOnce({
+      title: 'Clarification from Python RAG',
+      summary: 'Python clarified the goal with grounded questions',
+      content: 'Please confirm the target users, data boundary, and acceptance criteria for the permission workflow.',
+      provenance: 'python-llm',
+      model: 'fake-python-model',
+      usage: { total_tokens: 42 },
+    });
+
+    const res = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        capabilityId: 'intent.clarify',
+        state: { sessionId: 't-intent', goal: { text: 'Design an RBAC permission workflow' }, artifacts: [] },
+        inputArtifactIds: ['goal-1'],
+        roleId: 'clarifier',
+        turnId: 't-intent',
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.provenance).toBe('python-llm');
+    expect(primarySpy).not.toHaveBeenCalled();
+    expect(poolSpy).not.toHaveBeenCalled();
+    expect(pythonDelegation.callPythonSlideRule).toHaveBeenCalledWith(
+      expect.stringContaining('localhost:9700'),
+      '/api/sliderule/execute-capability',
+      expect.objectContaining({
+        capabilityId: 'intent.clarify',
+        inputArtifactIds: ['goal-1'],
+        roleId: 'clarifier',
+        turnId: 't-intent',
+        userText: 'Design an RBAC permission workflow',
+      }),
+      expect.any(String)
+    );
+  });
+
+  it('gap.ask delegates to Python V5 backend in python mode and skips Node LLM/pool', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+    vi.stubEnv('SLIDERULE_CAPABILITY_POOL_ENABLED', 'true');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS', 'k1');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL', 'https://example.test/v1');
+    poolJsonLlm.resetSlideRuleCapabilityPoolCache();
+
+    const primarySpy = vi.spyOn(llmClient, 'callLLMJsonWithUsage');
+    const poolSpy = vi.spyOn(poolJsonLlm, 'callPoolJsonLlm');
+    pythonDelegation.callPythonSlideRule.mockResolvedValueOnce({
+      title: 'Gap questions',
+      summary: 'Missing information',
+      content: '## Missing information\n- Desk assignment rules\n## Questions\n- What triggers promotion?',
+      provenance: 'python-llm',
+      model: 'fake-python-model',
+      usage: { total_tokens: 36 },
+    });
+
+    const res = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        capabilityId: 'gap.ask',
+        state: { sessionId: 't-gap', goal: { text: 'Design a pet office task assignment system' }, artifacts: [] },
+        inputArtifactIds: ['goal-1'],
+        roleId: 'gap-finder',
+        turnId: 't-gap',
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.provenance).toBe('python-llm');
+    expect(body.content).toContain('Desk assignment');
+    expect(primarySpy).not.toHaveBeenCalled();
+    expect(poolSpy).not.toHaveBeenCalled();
+    expect(pythonDelegation.callPythonSlideRule).toHaveBeenCalledWith(
+      expect.stringContaining('localhost:9700'),
+      '/api/sliderule/execute-capability',
+      expect.objectContaining({
+        capabilityId: 'gap.ask',
+        inputArtifactIds: ['goal-1'],
+        roleId: 'gap-finder',
+        turnId: 't-gap',
+        userText: 'Design a pet office task assignment system',
+      }),
+      expect.any(String)
+    );
+  });
+
+  it('critique.generate delegates to Python V5 backend in python mode and skips Node LLM/pool', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+    vi.stubEnv('SLIDERULE_CAPABILITY_POOL_ENABLED', 'true');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS', 'k1');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL', 'https://example.test/v1');
+    poolJsonLlm.resetSlideRuleCapabilityPoolCache();
+
+    const primarySpy = vi.spyOn(llmClient, 'callLLMJsonWithUsage');
+    const poolSpy = vi.spyOn(poolJsonLlm, 'callPoolJsonLlm');
+    pythonDelegation.callPythonSlideRule.mockResolvedValueOnce({
+      title: 'Structured critique',
+      summary: 'Critique points',
+      content: '## Critique points\n- Promotion rules are underspecified\n## Risks\n- Players may grind without meaningful choices',
+      provenance: 'python-llm',
+      model: 'fake-python-model',
+      usage: { total_tokens: 41 },
+    });
+
+    const res = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        capabilityId: 'critique.generate',
+        state: { sessionId: 't-critique', goal: { text: 'Design a pet office progression system' }, artifacts: [] },
+        inputArtifactIds: ['goal-1'],
+        roleId: '挑刺',
+        turnId: 't-critique',
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.provenance).toBe('python-llm');
+    expect(body.content).toContain('Promotion rules');
+    expect(primarySpy).not.toHaveBeenCalled();
+    expect(poolSpy).not.toHaveBeenCalled();
+    expect(pythonDelegation.callPythonSlideRule).toHaveBeenCalledWith(
+      expect.stringContaining('localhost:9700'),
+      '/api/sliderule/execute-capability',
+      expect.objectContaining({
+        capabilityId: 'critique.generate',
+        inputArtifactIds: ['goal-1'],
+        roleId: '挑刺',
+        turnId: 't-critique',
+        userText: 'Design a pet office progression system',
+      }),
+      expect.any(String)
+    );
+  });
+
+  const pendingPythonNativeCaps = [
+    {
+      capabilityId: 'synthesis.merge',
+      roleId: '综合',
+      goal: 'Design a pet office progression system',
+      snippet: 'converged next step',
+      title: 'Synthesis merge',
+    },
+    {
+      capabilityId: 'rebuttal.resolve',
+      roleId: '综合',
+      goal: 'Design a pet office progression system',
+      snippet: 'unresolved disagreement',
+      title: 'Rebuttal resolution',
+    },
+    {
+      capabilityId: 'counter.argue',
+      roleId: '挑刺',
+      goal: 'Design a pet office progression system',
+      snippet: 'counterpoint evidence',
+      title: 'Counter argument',
+    },
+    {
+      capabilityId: 'report.write',
+      roleId: '综合',
+      goal: 'Design a pet office feasibility report',
+      snippet: 'evidence-backed conclusion',
+      title: 'Feasibility report',
+    },
+    {
+      capabilityId: 'structure.decompose',
+      roleId: '架构',
+      goal: 'Decompose a pet office product spec tree',
+      snippet: 'requirements branch',
+      title: 'Structure decomposition',
+    },
+    {
+      capabilityId: 'risk.analyze',
+      roleId: '安全',
+      goal: 'Analyze risks in a pet office progression system',
+      snippet: 'mitigation path',
+      title: 'Risk analysis',
+    },
+    {
+      capabilityId: 'evidence.search',
+      roleId: '接地',
+      goal: 'Find evidence for a pet office progression system',
+      snippet: 'grounding reference',
+      title: 'Evidence search',
+    },
+  ] as const;
+
+  for (const cap of pendingPythonNativeCaps) {
+    it(`${cap.capabilityId} delegates to Python V5 backend in python mode and skips Node LLM/pool`, async () => {
+      vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+      vi.stubEnv('SLIDERULE_CAPABILITY_POOL_ENABLED', 'true');
+      vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS', 'k1');
+      vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL', 'https://example.test/v1');
+      poolJsonLlm.resetSlideRuleCapabilityPoolCache();
+
+      const primarySpy = vi.spyOn(llmClient, 'callLLMJsonWithUsage');
+      const poolSpy = vi.spyOn(poolJsonLlm, 'callPoolJsonLlm');
+      pythonDelegation.callPythonSlideRule.mockResolvedValueOnce({
+        title: cap.title,
+        summary: cap.title,
+        content: `## ${cap.title}\n- ${cap.snippet}`,
+        provenance: 'python-llm',
+        model: 'fake-python-model',
+        usage: { total_tokens: 40 },
+      });
+
+      const res = await fetch(`${base}/execute-capability`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          capabilityId: cap.capabilityId,
+          state: { sessionId: `t-${cap.capabilityId}`, goal: { text: cap.goal }, artifacts: [] },
+          inputArtifactIds: ['goal-1'],
+          roleId: cap.roleId,
+          turnId: `t-${cap.capabilityId}`,
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+      expect(body.provenance).toBe('python-llm');
+      expect(body.content).toContain(cap.snippet);
+      expect(primarySpy).not.toHaveBeenCalled();
+      expect(poolSpy).not.toHaveBeenCalled();
+      expect(pythonDelegation.callPythonSlideRule).toHaveBeenCalledWith(
+        expect.stringContaining('localhost:9700'),
+        '/api/sliderule/execute-capability',
+        expect.objectContaining({
+          capabilityId: cap.capabilityId,
+          roleId: cap.roleId,
+          turnId: `t-${cap.capabilityId}`,
+          userText: cap.goal,
+        }),
+        expect.any(String),
+      );
+    });
+  }
+
+  it('question.expand delegates to Python V5 backend in python mode and skips Node LLM/pool', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+    vi.stubEnv('SLIDERULE_CAPABILITY_POOL_ENABLED', 'true');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS', 'k1');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL', 'https://example.test/v1');
+    poolJsonLlm.resetSlideRuleCapabilityPoolCache();
+
+    const primarySpy = vi.spyOn(llmClient, 'callLLMJsonWithUsage');
+    const poolSpy = vi.spyOn(poolJsonLlm, 'callPoolJsonLlm');
+    pythonDelegation.callPythonSlideRule.mockResolvedValueOnce({
+      title: 'Expanded questions',
+      summary: 'Expanded questions',
+      content: '## Expanded questions\n- What onboarding milestone should unlock the first desk?\n## Why they matter\n- It affects progression pacing.',
+      provenance: 'python-llm',
+      model: 'fake-python-model',
+      usage: { total_tokens: 33 },
+    });
+
+    const res = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        capabilityId: 'question.expand',
+        state: { sessionId: 't-question', goal: { text: 'Design onboarding for a pet office sim' }, artifacts: [] },
+        inputArtifactIds: ['goal-1'],
+        roleId: 'question-expander',
+        turnId: 't-question',
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.provenance).toBe('python-llm');
+    expect(body.content).toContain('onboarding milestone');
+    expect(primarySpy).not.toHaveBeenCalled();
+    expect(poolSpy).not.toHaveBeenCalled();
+    expect(pythonDelegation.callPythonSlideRule).toHaveBeenCalledWith(
+      expect.stringContaining('localhost:9700'),
+      '/api/sliderule/execute-capability',
+      expect.objectContaining({
+        capabilityId: 'question.expand',
+        inputArtifactIds: ['goal-1'],
+        roleId: 'question-expander',
+        turnId: 't-question',
+        userText: 'Design onboarding for a pet office sim',
+      }),
+      expect.any(String)
+    );
+  });
+
   // --- P0 MCP GitHub adapter tests (source/evidence via server capability seam) ---
 
   it('source.github.inspect returns raw 4-field shape with mcp:github provenance (success)', async () => {

@@ -1,7 +1,9 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import {
+  callPoolJsonLlm,
   resolveSlideRulePoolRaceMode,
   resolveSlideRulePoolTimeoutMs,
+  shouldSkipPrimaryForReportWrite,
   shouldSkipPrimaryLlmAfterPoolExhausted,
   resetSlideRuleCapabilityPoolCache,
 } from "../pool-json-llm.js";
@@ -36,8 +38,8 @@ describe("pool-json-llm tuning", () => {
     expect(resolveSlideRulePoolRaceMode()).toBe("parallel");
   });
 
-  it("caps default pool timeout at 90s", () => {
-    expect(resolveSlideRulePoolTimeoutMs(300_000)).toBe(90_000);
+  it("allows the default pool timeout up to 300s", () => {
+    expect(resolveSlideRulePoolTimeoutMs(300_000)).toBe(300_000);
   });
 
   it("honors SLIDERULE_POOL_TIMEOUT_MS override", () => {
@@ -54,5 +56,58 @@ describe("pool-json-llm tuning", () => {
     vi.stubEnv("BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL", "https://example.test/v1");
     resetSlideRuleCapabilityPoolCache();
     expect(shouldSkipPrimaryLlmAfterPoolExhausted()).toBe(true);
+  });
+
+  it("skips primary for report.write when pool is configured", () => {
+    vi.stubEnv("SLIDERULE_CAPABILITY_POOL_ENABLED", "true");
+    vi.stubEnv("BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS", "k1");
+    vi.stubEnv("BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL", "https://example.test/v1");
+    resetSlideRuleCapabilityPoolCache();
+    expect(shouldSkipPrimaryForReportWrite()).toBe(true);
+  });
+
+  it("allows report.write primary when SLIDERULE_REPORT_SKIP_PRIMARY=0", () => {
+    vi.stubEnv("SLIDERULE_CAPABILITY_POOL_ENABLED", "true");
+    vi.stubEnv("SLIDERULE_REPORT_SKIP_PRIMARY", "0");
+    vi.stubEnv("BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS", "k1");
+    vi.stubEnv("BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL", "https://example.test/v1");
+    resetSlideRuleCapabilityPoolCache();
+    expect(shouldSkipPrimaryForReportWrite()).toBe(false);
+  });
+
+  it("retries an HTTP 200 empty body from the upstream pool provider", async () => {
+    vi.stubEnv("SLIDERULE_CAPABILITY_POOL_ENABLED", "true");
+    vi.stubEnv("SLIDERULE_POOL_RACE_MODE", "sequential");
+    vi.stubEnv("BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS", "k1");
+    vi.stubEnv("BLUEPRINT_SPEC_DOCS_LLM_POOL_LABELS", "test001");
+    vi.stubEnv("BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL", "https://example.test/v1");
+    vi.stubEnv("BLUEPRINT_SPEC_DOCS_LLM_POOL_MODEL", "gpt-test");
+    resetSlideRuleCapabilityPoolCache();
+
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        new Response("", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        })
+      )
+      .mockResolvedValueOnce(
+        new Response(
+          JSON.stringify({
+            choices: [{ message: { content: JSON.stringify({ ok: true }) } }],
+          }),
+          {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }
+        )
+      );
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await callPoolJsonLlm<{ ok: boolean }>("system", "user");
+
+    expect(result?.json).toEqual({ ok: true });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 });

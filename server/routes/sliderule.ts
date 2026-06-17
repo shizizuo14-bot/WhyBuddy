@@ -598,6 +598,10 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
     const v5Backend = (process.env.SLIDERULE_V5_BACKEND || 'python').toLowerCase().trim();
 
     const isPythonV5Cap =
+      capabilityId === 'intent.clarify' ||
+      capabilityId === 'gap.ask' ||
+      capabilityId === 'question.expand' ||
+      capabilityId === 'critique.generate' ||
       capabilityId === 'mcp.call' ||
       capabilityId === 'skill.invoke' ||
       capabilityId === 'evidence.search' ||

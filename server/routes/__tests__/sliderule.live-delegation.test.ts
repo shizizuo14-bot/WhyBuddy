@@ -13,7 +13,7 @@
  *   - SLIDERULE_V5_BACKEND=python
  *   - Real POST to the Node /api/sliderule/execute-capability
  *   - Goes through the real callPythonSlideRule (no mock)
- *   - Node returns python-rag + sources + non-template content
+ *   - Node returns Python provenance + non-template content
  *   - No Node LLM / pool code paths were exercised
  */
 
@@ -22,11 +22,12 @@ import express from 'express';
 import { createServer } from 'node:http';
 
 const LIVE_FLAG = 'LIVE_NODE_TO_PYTHON_SLIDERULE';
+const PYTHON_BASE_URL = process.env.PYTHON_SLIDE_RULE_BASE_URL || 'http://localhost:9700';
 
 describe.runIf(process.env[LIVE_FLAG] === '1')('live Node->Python delegation (real router + real :9700)', () => {
   it('report.write returns python-rag + sources via real Node delegation (no Node LLM/pool)', async () => {
     vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
-    vi.stubEnv('PYTHON_SLIDE_RULE_BASE_URL', 'http://localhost:9700');
+    vi.stubEnv('PYTHON_SLIDE_RULE_BASE_URL', PYTHON_BASE_URL);
     vi.stubEnv('PYTHON_SLIDE_RULE_INTERNAL_KEY', 'dev-slide-rule-internal');
 
     // Fresh import of the router in this file's context (no delegation mock declared here)
@@ -64,7 +65,7 @@ describe.runIf(process.env[LIVE_FLAG] === '1')('live Node->Python delegation (re
       expect(res.status).toBe(200);
       const body = await res.json();
 
-      expect(body.provenance).toMatch(/python-rag/);
+      expect(body.provenance).toMatch(/^python-/);
       expect(Array.isArray(body.sources) && body.sources.length > 0).toBe(true);
       expect((body.content || '').length).toBeGreaterThan(80);
       expect(String(body.content || '')).not.toMatch(/Capability .* completed with RAG evidence/i);
@@ -79,7 +80,7 @@ describe.runIf(process.env[LIVE_FLAG] === '1')('live Node->Python delegation (re
 
   it('structure.decompose also works end-to-end through Node delegation', async () => {
     vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
-    vi.stubEnv('PYTHON_SLIDE_RULE_BASE_URL', 'http://localhost:9700');
+    vi.stubEnv('PYTHON_SLIDE_RULE_BASE_URL', PYTHON_BASE_URL);
     vi.stubEnv('PYTHON_SLIDE_RULE_INTERNAL_KEY', 'dev-slide-rule-internal');
 
     const { default: liveRouter } = await import('../sliderule.js');
@@ -114,7 +115,7 @@ describe.runIf(process.env[LIVE_FLAG] === '1')('live Node->Python delegation (re
       expect(res.status).toBe(200);
       const body = await res.json();
 
-      expect(body.provenance).toMatch(/python-rag/);
+      expect(body.provenance).toMatch(/^python-/);
       expect(Array.isArray(body.sources) && body.sources.length > 0).toBe(true);
 
       expect(primarySpy).not.toHaveBeenCalled();
@@ -123,4 +124,147 @@ describe.runIf(process.env[LIVE_FLAG] === '1')('live Node->Python delegation (re
       liveSrv.close();
     }
   }, 60000);  // generous timeout for live RAG on structure.decompose
+
+  it('intent.clarify also works end-to-end through Node delegation', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+    vi.stubEnv('PYTHON_SLIDE_RULE_BASE_URL', PYTHON_BASE_URL);
+    vi.stubEnv('PYTHON_SLIDE_RULE_INTERNAL_KEY', 'dev-slide-rule-internal');
+
+    const { default: liveRouter } = await import('../sliderule.js');
+
+    const llmClient = await import('../../core/llm-client.js');
+    const poolJsonLlm = await import('../../sliderule/pool-json-llm.js');
+    const primarySpy = vi.spyOn(llmClient as any, 'callLLMJsonWithUsage');
+    const poolSpy = vi.spyOn(poolJsonLlm as any, 'callPoolJsonLlm');
+
+    const liveApp = express();
+    liveApp.use(express.json({ limit: '2mb' }));
+    liveApp.use('/api/sliderule', liveRouter);
+
+    const liveSrv = createServer(liveApp);
+    await new Promise<void>((resolve) => liveSrv.listen(0, resolve));
+    const addr: any = liveSrv.address();
+    const port = addr?.port || 0;
+    const base = `http://127.0.0.1:${port}/api/sliderule`;
+
+    try {
+      const res = await fetch(`${base}/execute-capability`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          capabilityId: 'intent.clarify',
+          state: { sessionId: 'live-delegation-intent', goal: { text: '澄清 RBAC 权限工作流的验收边界' } },
+          inputArtifactIds: [],
+          turnId: 'live-delegation-intent',
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+
+      expect(body.provenance).toMatch(/^python-/);
+      expect((body.content || '').length).toBeGreaterThan(80);
+
+      expect(primarySpy).not.toHaveBeenCalled();
+      expect(poolSpy).not.toHaveBeenCalled();
+    } finally {
+      liveSrv.close();
+    }
+  }, 60000);
+
+  it('gap.ask also works end-to-end through Node delegation', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+    vi.stubEnv('PYTHON_SLIDE_RULE_BASE_URL', PYTHON_BASE_URL);
+    vi.stubEnv('PYTHON_SLIDE_RULE_INTERNAL_KEY', 'dev-slide-rule-internal');
+
+    const { default: liveRouter } = await import('../sliderule.js');
+
+    const llmClient = await import('../../core/llm-client.js');
+    const poolJsonLlm = await import('../../sliderule/pool-json-llm.js');
+    const primarySpy = vi.spyOn(llmClient as any, 'callLLMJsonWithUsage');
+    const poolSpy = vi.spyOn(poolJsonLlm as any, 'callPoolJsonLlm');
+
+    const liveApp = express();
+    liveApp.use(express.json({ limit: '2mb' }));
+    liveApp.use('/api/sliderule', liveRouter);
+
+    const liveSrv = createServer(liveApp);
+    await new Promise<void>((resolve) => liveSrv.listen(0, resolve));
+    const addr: any = liveSrv.address();
+    const port = addr?.port || 0;
+    const base = `http://127.0.0.1:${port}/api/sliderule`;
+
+    try {
+      const res = await fetch(`${base}/execute-capability`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          capabilityId: 'gap.ask',
+          state: { sessionId: 'live-delegation-gap', goal: { text: '澄清宠物方块办公室游戏的工位任务分配缺口' } },
+          inputArtifactIds: [],
+          turnId: 'live-delegation-gap',
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+
+      expect(body.provenance).toMatch(/^python-/);
+      expect((body.content || '').length).toBeGreaterThan(80);
+      expect(String(body.content || '')).not.toMatch(/RBAC|data scoping/i);
+
+      expect(primarySpy).not.toHaveBeenCalled();
+      expect(poolSpy).not.toHaveBeenCalled();
+    } finally {
+      liveSrv.close();
+    }
+  }, 60000);
+
+  it('question.expand also works end-to-end through Node delegation', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+    vi.stubEnv('PYTHON_SLIDE_RULE_BASE_URL', PYTHON_BASE_URL);
+    vi.stubEnv('PYTHON_SLIDE_RULE_INTERNAL_KEY', 'dev-slide-rule-internal');
+
+    const { default: liveRouter } = await import('../sliderule.js');
+
+    const llmClient = await import('../../core/llm-client.js');
+    const poolJsonLlm = await import('../../sliderule/pool-json-llm.js');
+    const primarySpy = vi.spyOn(llmClient as any, 'callLLMJsonWithUsage');
+    const poolSpy = vi.spyOn(poolJsonLlm as any, 'callPoolJsonLlm');
+
+    const liveApp = express();
+    liveApp.use(express.json({ limit: '2mb' }));
+    liveApp.use('/api/sliderule', liveRouter);
+
+    const liveSrv = createServer(liveApp);
+    await new Promise<void>((resolve) => liveSrv.listen(0, resolve));
+    const addr: any = liveSrv.address();
+    const port = addr?.port || 0;
+    const base = `http://127.0.0.1:${port}/api/sliderule`;
+
+    try {
+      const res = await fetch(`${base}/execute-capability`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          capabilityId: 'question.expand',
+          state: { sessionId: 'live-delegation-question', goal: { text: '扩展宠物方块办公室游戏的新手引导问题' } },
+          inputArtifactIds: [],
+          turnId: 'live-delegation-question',
+        }),
+      });
+
+      expect(res.status).toBe(200);
+      const body = await res.json();
+
+      expect(body.provenance).toMatch(/^python-/);
+      expect((body.content || '').length).toBeGreaterThan(80);
+      expect(String(body.content || '')).not.toMatch(/RBAC|data scoping/i);
+
+      expect(primarySpy).not.toHaveBeenCalled();
+      expect(poolSpy).not.toHaveBeenCalled();
+    } finally {
+      liveSrv.close();
+    }
+  }, 60000);
 });

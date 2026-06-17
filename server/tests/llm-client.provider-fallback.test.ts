@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { costTracker } from "../core/cost-tracker.js";
-import { callLLMJson } from "../core/llm-client.js";
+import { callLLMJson, resetLLMProviderCooldownsForTest } from "../core/llm-client.js";
 
 describe("callLLMJson provider fallback", () => {
   let savedEnv: Record<string, string | undefined>;
@@ -11,6 +11,7 @@ describe("callLLMJson provider fallback", () => {
     savedEnv = { ...process.env };
     originalFetch = globalThis.fetch;
     costTracker.resetCurrentMission();
+    resetLLMProviderCooldownsForTest();
 
     delete process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_BASE_URL;
@@ -38,6 +39,7 @@ describe("callLLMJson provider fallback", () => {
 
   afterEach(() => {
     costTracker.resetCurrentMission();
+    resetLLMProviderCooldownsForTest();
     globalThis.fetch = originalFetch;
     vi.restoreAllMocks();
 
@@ -188,6 +190,38 @@ describe("callLLMJson provider fallback", () => {
         maxTokens: 3000,
       }),
     ).rejects.toThrow(/truncated.*max token/i);
+  });
+
+  it("opens provider cooldown after an HTTP 200 empty body", async () => {
+    process.env.LLM_WIRE_API = "chat_completions";
+    process.env.LLM_PROVIDER_COOLDOWN_MS = "60000";
+    delete process.env.FALLBACK_LLM_API_KEY;
+    delete process.env.FALLBACK_LLM_BASE_URL;
+
+    const fetchMock = vi.fn(async () =>
+      new Response("", {
+        status: 200,
+        headers: { "Content-Type": "application/json" },
+      }),
+    );
+
+    globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+    await expect(
+      callLLMJson<{ ok: boolean }>(
+        [{ role: "user", content: "Return JSON." }],
+        { model: "gpt-5.4", maxTokens: 32, retryAttempts: 1 },
+      ),
+    ).rejects.toThrow(/empty response body/i);
+
+    await expect(
+      callLLMJson<{ ok: boolean }>(
+        [{ role: "user", content: "Return JSON." }],
+        { model: "gpt-5.4", maxTokens: 32, retryAttempts: 1 },
+      ),
+    ).rejects.toThrow(/temporarily unavailable|provider cooling down/i);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("does not downgrade unlimited gpt-5.5 calls", async () => {
@@ -436,5 +470,39 @@ describe("callLLMJson provider fallback", () => {
       RequestInit,
     ];
     expect(primaryInit.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  it("uses SU8_COOLDOWN_MS for transient errors on su8 hosts", async () => {
+    process.env.LLM_BASE_URL = "https://www.su8.codes/codex/v1";
+    process.env.SU8_COOLDOWN_MS = "8000";
+    process.env.LLM_PROVIDER_COOLDOWN_MS = "15000";
+    process.env.LLM_WIRE_API = "chat_completions";
+    delete process.env.FALLBACK_LLM_API_KEY;
+    delete process.env.FALLBACK_LLM_BASE_URL;
+
+    const fetchMock = vi.fn(async () =>
+      new Response("gateway timeout", {
+        status: 504,
+        headers: { "Content-Type": "text/plain" },
+      }),
+    );
+
+    globalThis.fetch = fetchMock as typeof globalThis.fetch;
+
+    await expect(
+      callLLMJson<{ ok: boolean }>(
+        [{ role: "user", content: "Return JSON." }],
+        { model: "gpt-5.5", maxTokens: 32, retryAttempts: 1 },
+      ),
+    ).rejects.toThrow(/HTTP 504|Cannot reach LLM service/i);
+
+    await expect(
+      callLLMJson<{ ok: boolean }>(
+        [{ role: "user", content: "Return JSON." }],
+        { model: "gpt-5.5", maxTokens: 32, retryAttempts: 1 },
+      ),
+    ).rejects.toThrow(/Retry in about 8s/i);
+
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 });
