@@ -13,9 +13,11 @@ export function resolvePythonExe(repoRoot, pythonExe) {
   return path.isAbsolute(configured) ? configured : path.resolve(repoRoot, configured);
 }
 
-export function resolveQueueGate(gate, { repoRoot, pythonExe }) {
+export function resolveQueueGate(gate, { repoRoot, pythonExe, taskFile }) {
   const resolved = resolvePythonExe(repoRoot, pythonExe);
-  return String(gate).replaceAll('{{pythonExe}}', resolved);
+  return String(gate)
+    .replaceAll('{{pythonExe}}', resolved)
+    .replaceAll('{{taskFile}}', taskFile || '');
 }
 
 export function resolveQueueGates(gates, context) {
@@ -60,7 +62,7 @@ export function buildLoopArgsForQueueEntry({
   const worktreeName = sanitizeWorktreeName(entry.worktreeName || entry.id || `task-${index + 1}`);
   const rawGates = resolveEntryGates({ entry, gateSets, defaultGates, label });
   const pythonExe = entry.pythonExe ?? defaults.pythonExe;
-  const entryGates = resolveQueueGates(rawGates, { repoRoot, pythonExe });
+  const entryGates = resolveQueueGates(rawGates, { repoRoot, pythonExe, taskFile: entry.task });
 
   const args = [
     loopScript,
@@ -125,10 +127,47 @@ export function buildQueueSummaryFromState({ entry, state, exitCode = 0 }) {
     reviewAgent: state?.options?.skipReview ? null : (state?.options?.reviewAgent || 'grok'),
   });
 
-  return {
+  const summary = {
     id: label,
     task: entry.task,
     exitCode,
+    guardReason: state?.guardReason || null,
+    worktreeError: state?.worktreeError || null,
     ...runRecord,
   };
+  summary.outcome = classifyQueueOutcome({ summary, exitCode });
+  return summary;
+}
+
+/**
+ * Queue-level outcome for 24/7 triage:
+ * - done: gate green / reviewed
+ * - quarantined: suspected test tampering
+ * - crashed: loop died before a meaningful fix attempt (seed/worktree/agent infra)
+ * - failed: fix was attempted but task did not finish green
+ */
+export function classifyQueueOutcome({ summary, exitCode = 0 }) {
+  const status = String(summary?.status || '');
+  const iterations = Number(summary?.iterations ?? 0);
+  const grokRan = Boolean(summary?.grokRan);
+  const codexRan = Boolean(summary?.codexRan);
+  const guardReason = summary?.guardReason || null;
+  const worktreeError = summary?.worktreeError || null;
+
+  if (status.startsWith('DONE_') && exitCode === 0) return 'done';
+  if (guardReason === 'POSSIBLE_TEST_TAMPER') return 'quarantined';
+
+  if (worktreeError) return 'crashed';
+  if (status === 'HALT_AGENT_NOT_FOUND') return 'crashed';
+
+  const fixAttempted = grokRan || codexRan || iterations > 0;
+  const infraStuck = !fixAttempted && !status.startsWith('DONE_');
+  if (infraStuck && (exitCode !== 0 || status === 'PROBED' || status === 'INIT')) {
+    return 'crashed';
+  }
+  if (status === 'HALT_HUMAN' && !fixAttempted) {
+    return 'crashed';
+  }
+
+  return 'failed';
 }

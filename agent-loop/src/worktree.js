@@ -114,33 +114,92 @@ export async function seedWorktreeFromRepo({
     }
   }
 
-  await applyRepoDiff({
-    repoRoot,
-    worktreePath,
-    run,
-    timeoutMs,
-    diffArgs: ['diff', 'HEAD', '--binary'],
-  });
+  await syncWorkingTreeChanges({ repoRoot, worktreePath, run, timeoutMs });
   await copyUntrackedFiles({ repoRoot, worktreePath, run, timeoutMs });
+  await syncAgentLoopTaskDocsFromRepo({ repoRoot, worktreePath });
 }
 
-async function applyRepoDiff({ repoRoot, worktreePath, run, timeoutMs, diffArgs }) {
-  const diff = await run('git', diffArgs, { cwd: repoRoot, timeoutMs });
-  if (!diff.stdout?.trim()) return;
-  const applied = await run('git', ['apply', '--whitespace=nowarn'], {
-    cwd: worktreePath,
-    timeoutMs,
-    input: diff.stdout,
-  });
-  if (applied.exitCode !== 0 || applied.timedOut || applied.spawnError) {
-    const repoHead = await resolveRepoHead({ repoRoot, run, timeoutMs }).catch(() => 'unknown');
-    const worktreeHead = await run('git', ['rev-parse', 'HEAD'], { cwd: worktreePath, timeoutMs })
-      .then((result) => (result.exitCode === 0 ? result.stdout.trim() : 'unknown'))
-      .catch(() => 'unknown');
+export async function syncWorkingTreeChanges({
+  repoRoot,
+  worktreePath,
+  run = runProcess,
+  timeoutMs = 120000,
+}) {
+  const listed = await run('git', ['diff', '--name-status', 'HEAD'], { cwd: repoRoot, timeoutMs });
+  if (listed.exitCode !== 0 || listed.timedOut || listed.spawnError) {
     throw new Error(
-      `seed worktree from ${diffArgs.join(' ')} failed `
-      + `(repo=${repoRoot}@${repoHead}, worktree=${worktreePath}@${worktreeHead}): `
-      + `${applied.stderr || applied.spawnError || applied.exitCode}`,
+      `list repo working tree changes failed: ${listed.stderr || listed.spawnError || listed.exitCode}`,
+    );
+  }
+
+  for (const entry of parseNameStatusLines(listed.stdout)) {
+    await applyWorkingTreeEntry({ repoRoot, worktreePath, entry });
+  }
+}
+
+export function parseNameStatusLines(stdout) {
+  const entries = [];
+  for (const line of String(stdout ?? '').split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    const tab = trimmed.indexOf('\t');
+    if (tab < 0) continue;
+    const status = trimmed.slice(0, tab);
+    const rest = trimmed.slice(tab + 1);
+    const code = status.charAt(0);
+    if (code === 'R' || code === 'C') {
+      const split = rest.split('\t');
+      if (split.length < 2) continue;
+      entries.push({ code, oldPath: split[0], newPath: split[1] });
+      continue;
+    }
+    entries.push({ code, path: rest });
+  }
+  return entries;
+}
+
+export async function syncAgentLoopTaskDocsFromRepo({ repoRoot, worktreePath }) {
+  const tasksDir = path.join(repoRoot, 'agent-loop', 'tasks');
+  let entries;
+  try {
+    entries = await fs.readdir(tasksDir, { withFileTypes: true });
+  } catch (error) {
+    if (error.code === 'ENOENT') return;
+    throw error;
+  }
+
+  for (const entry of entries) {
+    if (!entry.isFile() || !entry.name.endsWith('.md')) continue;
+    const relPath = path.join('agent-loop', 'tasks', entry.name);
+    const source = path.join(repoRoot, relPath);
+    const target = path.join(worktreePath, relPath);
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.copyFile(source, target);
+  }
+}
+
+async function applyWorkingTreeEntry({ repoRoot, worktreePath, entry }) {
+  if (entry.code === 'D') {
+    await fs.rm(path.join(worktreePath, entry.path), { force: true });
+    return;
+  }
+  if (entry.code === 'R' || entry.code === 'C') {
+    await fs.rm(path.join(worktreePath, entry.oldPath), { force: true });
+    await copyRepoPathToWorktree({ repoRoot, worktreePath, relPath: entry.newPath });
+    return;
+  }
+  await copyRepoPathToWorktree({ repoRoot, worktreePath, relPath: entry.path });
+}
+
+async function copyRepoPathToWorktree({ repoRoot, worktreePath, relPath }) {
+  const source = path.join(repoRoot, relPath);
+  const target = path.join(worktreePath, relPath);
+  try {
+    await fs.mkdir(path.dirname(target), { recursive: true });
+    await fs.copyFile(source, target);
+  } catch (error) {
+    throw new Error(
+      `seed worktree copy failed (repo=${repoRoot}, worktree=${worktreePath}, path=${relPath}): ${error.message}`,
     );
   }
 }
@@ -166,4 +225,90 @@ async function ensureWorktreesIgnored({ repoRoot, run, timeoutMs }) {
   });
   if (ignored.exitCode === 0) return;
   throw new Error('.worktrees must be ignored before creating agent-loop worktrees');
+}
+
+export function parseWorktreeListPorcelain(stdout) {
+  const worktrees = [];
+  let current = null;
+  for (const line of String(stdout ?? '').split(/\r?\n/)) {
+    if (!line) continue;
+    if (line.startsWith('worktree ')) {
+      if (current) worktrees.push(current);
+      current = { path: line.slice('worktree '.length).trim(), head: null, branch: null, bare: false, detached: false };
+      continue;
+    }
+    if (!current) continue;
+    if (line.startsWith('HEAD ')) current.head = line.slice('HEAD '.length).trim();
+    if (line.startsWith('branch ')) current.branch = line.slice('branch '.length).trim();
+    if (line === 'bare') current.bare = true;
+    if (line === 'detached') current.detached = true;
+  }
+  if (current) worktrees.push(current);
+  return worktrees;
+}
+
+export async function listRegisteredWorktrees({
+  repoRoot,
+  run = runProcess,
+  timeoutMs = 120000,
+}) {
+  const result = await run('git', ['worktree', 'list', '--porcelain'], { cwd: repoRoot, timeoutMs });
+  if (result.exitCode !== 0 || result.timedOut || result.spawnError) {
+    throw new Error(`git worktree list failed: ${result.stderr || result.spawnError || result.exitCode}`);
+  }
+  return parseWorktreeListPorcelain(result.stdout);
+}
+
+export function isAgentLoopManagedWorktree(worktree, repoRoot) {
+  const managedRoot = path.join(path.resolve(repoRoot), '.worktrees');
+  const wtPath = path.resolve(worktree.path);
+  if (!wtPath.startsWith(managedRoot)) return false;
+  if (!worktree.branch) return false;
+  return worktree.branch.startsWith('refs/heads/agent-loop/');
+}
+
+export async function removeWorktree({
+  repoRoot,
+  name,
+  run = runProcess,
+  timeoutMs = 120000,
+  force = true,
+}) {
+  const worktreePath = getWorktreePath({ repoRoot, name });
+  const args = ['worktree', 'remove'];
+  if (force) args.push('--force');
+  args.push(worktreePath);
+  const result = await run('git', args, { cwd: repoRoot, timeoutMs });
+  if (result.exitCode !== 0 || result.timedOut || result.spawnError) {
+    throw new Error(`git worktree remove failed: ${result.stderr || result.spawnError || result.exitCode}`);
+  }
+  return { path: worktreePath, removed: true };
+}
+
+export async function removeAgentLoopWorktrees({
+  repoRoot,
+  keepNames = [],
+  run = runProcess,
+  timeoutMs = 120000,
+  force = true,
+}) {
+  const keep = new Set(keepNames);
+  const removed = [];
+  const worktrees = await listRegisteredWorktrees({ repoRoot, run, timeoutMs });
+  for (const worktree of worktrees) {
+    if (!isAgentLoopManagedWorktree(worktree, repoRoot)) continue;
+    const name = path.basename(worktree.path);
+    if (keep.has(name)) continue;
+    const args = ['worktree', 'remove'];
+    if (force) args.push('--force');
+    args.push(worktree.path);
+    const result = await run('git', args, { cwd: repoRoot, timeoutMs });
+    if (result.exitCode !== 0 || result.timedOut || result.spawnError) {
+      throw new Error(
+        `git worktree remove failed (${worktree.path}): ${result.stderr || result.spawnError || result.exitCode}`,
+      );
+    }
+    removed.push({ name, path: worktree.path, branch: worktree.branch });
+  }
+  return removed;
 }

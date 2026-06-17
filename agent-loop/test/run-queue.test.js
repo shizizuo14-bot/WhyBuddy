@@ -7,10 +7,15 @@ import { evaluateGate } from '../src/gates.js';
 import {
   buildLoopArgsForQueueEntry,
   buildQueueSummaryFromState,
+  classifyQueueOutcome,
   resolveEntryGates,
   resolvePythonExe,
   resolveQueueGate,
 } from '../src/runQueue.js';
+import {
+  shouldSkipAutoDisabledTask,
+  updateQueueOutcomeRecord,
+} from '../src/queueOutcomes.js';
 
 const agentLoopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const repoRoot = 'C:\\repo';
@@ -41,6 +46,20 @@ test('resolveQueueGate substitutes repo-root pythonExe for worktree gates', () =
   );
   assert.match(resolved, /& "/);
   assert.equal(resolvePythonExe(repoRoot, null).endsWith(`${path.sep}python.exe`), process.platform === 'win32');
+});
+
+test('resolveQueueGate substitutes taskFile for scoped mojibake gates', () => {
+  const gate = 'node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/client.py';
+  const resolved = resolveQueueGate(gate, {
+    repoRoot,
+    pythonExe: 'tws-ai-slide-rule-python/.venv/Scripts/python.exe',
+    taskFile: 'agent-loop/tasks/backend-python-llm-client-parity.md',
+  });
+
+  assert.equal(
+    resolved,
+    'node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-llm-client-parity.md tws-ai-slide-rule-python/sliderule_llm/client.py',
+  );
 });
 
 test('evaluateGate runs powershell call operator with resolved pythonExe', async (t) => {
@@ -133,4 +152,116 @@ test('buildQueueSummaryFromState exposes grokRan codexRan and runMode', () => {
   assert.equal(summary.codexRan, true);
   assert.equal(summary.runMode, 'grok-fix+codex-review');
   assert.equal(summary.status, 'DONE_REVIEWED');
+  assert.equal(summary.guardReason, null);
+});
+
+test('buildQueueSummaryFromState surfaces guardReason for quarantine detection', () => {
+  const summary = buildQueueSummaryFromState({
+    entry: { id: 'task-tamper', task: 'agent-loop/tasks/task-tamper.md' },
+    state: {
+      runId: '2026-06-17T04-00-00-000Z',
+      status: 'HALT_HUMAN',
+      guardReason: 'POSSIBLE_TEST_TAMPER',
+      options: { fixAgent: 'grok', skipReview: true },
+      iterations: [{ iteration: 1, grokFix: { exitCode: 0 } }],
+    },
+    exitCode: 1,
+  });
+
+  assert.equal(summary.status, 'HALT_HUMAN');
+  assert.equal(summary.guardReason, 'POSSIBLE_TEST_TAMPER');
+});
+
+test('classifyQueueOutcome separates crashed infra from task failures', () => {
+  assert.equal(classifyQueueOutcome({
+    summary: { status: 'PROBED', iterations: 0, grokRan: false, codexRan: false },
+    exitCode: 1,
+  }), 'crashed');
+
+  assert.equal(classifyQueueOutcome({
+    summary: {
+      status: 'HALT_HUMAN',
+      iterations: 0,
+      grokRan: false,
+      worktreeError: 'seed worktree copy failed',
+    },
+    exitCode: 1,
+  }), 'crashed');
+
+  assert.equal(classifyQueueOutcome({
+    summary: { status: 'HALT_NO_CHANGES', iterations: 1, grokRan: true },
+    exitCode: 1,
+  }), 'failed');
+
+  assert.equal(classifyQueueOutcome({
+    summary: { status: 'DONE_REVIEWED', iterations: 0, grokRan: true },
+    exitCode: 0,
+  }), 'done');
+
+  assert.equal(classifyQueueOutcome({
+    summary: { status: 'HALT_HUMAN', guardReason: 'POSSIBLE_TEST_TAMPER', iterations: 1, grokRan: true },
+    exitCode: 1,
+  }), 'quarantined');
+});
+
+test('buildQueueSummaryFromState sets outcome from classifyQueueOutcome', () => {
+  const summary = buildQueueSummaryFromState({
+    entry: { id: 'task-a', task: 'agent-loop/tasks/task-a.md' },
+    state: {
+      status: 'HALT_NO_CHANGES',
+      iterations: [{ iteration: 1 }],
+      grokFix: { exitCode: 1 },
+      options: { fixAgent: 'grok', skipReview: true },
+    },
+    exitCode: 1,
+  });
+
+  assert.equal(summary.outcome, 'failed');
+  assert.equal(summary.grokRan, true);
+});
+
+test('buildLoopArgsForQueueEntry passes --no-sync-task-status from defaults', () => {
+  const args = buildLoopArgsForQueueEntry({
+    agentLoopRoot,
+    repoRoot,
+    entry: { id: 'task-a', task: 'agent-loop/tasks/task-a.md' },
+    defaults: { noSyncTaskStatus: true, useWorktree: false, maxIterations: 1 },
+    gateSets: { gates: ['npm test'] },
+    defaultGates: ['npm test'],
+  });
+
+  assert.ok(args.includes('--no-sync-task-status'));
+});
+
+test('updateQueueOutcomeRecord auto-disables after consecutive HALT_NO_CHANGES', () => {
+  let record = updateQueueOutcomeRecord({
+    record: {},
+    status: 'HALT_NO_CHANGES',
+    outcome: 'failed',
+    maxConsecutiveNoChanges: 3,
+  });
+  assert.equal(record.consecutiveNoChanges, 1);
+  assert.equal(record.autoDisabled, false);
+
+  record = updateQueueOutcomeRecord({
+    record,
+    status: 'HALT_NO_CHANGES',
+    outcome: 'failed',
+    maxConsecutiveNoChanges: 3,
+  });
+  record = updateQueueOutcomeRecord({
+    record,
+    status: 'HALT_NO_CHANGES',
+    outcome: 'failed',
+    maxConsecutiveNoChanges: 3,
+  });
+  assert.equal(record.consecutiveNoChanges, 3);
+  assert.equal(record.autoDisabled, true);
+
+  const skip = shouldSkipAutoDisabledTask({
+    entry: { id: 'sliderule-synthesis-merge' },
+    outcomes: { tasks: { 'sliderule-synthesis-merge': record } },
+    maxConsecutiveNoChanges: 3,
+  });
+  assert.equal(skip.skip, true);
 });

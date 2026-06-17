@@ -11,6 +11,10 @@
     "reviewMaxTurns": 6,
     "guardTests": true,
     "maxIterations": 3,
+    "noSyncTaskStatus": true,
+    "cleanupWorktree": true,
+    "autoDisableOnNoChanges": true,
+    "maxConsecutiveNoChanges": 3,
     "timeoutMs": 1800000,
     "lang": "zh-CN",
     "pythonExe": "tws-ai-slide-rule-python/.venv/Scripts/python.exe"
@@ -23,15 +27,15 @@
   ],
   "infraGates": [
     "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_client_parity.py tests/test_config.py -q --tb=short",
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_client_parity.py"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_client_parity.py"
   ],
   "poolGates": [
     "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_pool_parity.py tests/test_pool.py tests/test_config.py -q --tb=short",
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks tws-ai-slide-rule-python/sliderule_llm/pool.py tws-ai-slide-rule-python/tests/test_pool_parity.py"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/pool.py tws-ai-slide-rule-python/tests/test_pool_parity.py"
   ],
   "jsonGates": [
     "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_json_hardening.py tests/test_client_parity.py -q --tb=short",
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_json_hardening.py"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_json_hardening.py"
   ],
   "tasks": [
     {

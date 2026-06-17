@@ -1,13 +1,15 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { readQueueOutcomes, recordQueueTaskOutcome, shouldSkipAutoDisabledTask } from '../src/queueOutcomes.js';
 import { runProcess } from '../src/runProcess.js';
-import { buildLoopArgsForQueueEntry, buildQueueSummaryFromState } from '../src/runQueue.js';
+import { buildLoopArgsForQueueEntry, buildQueueSummaryFromState, sanitizeWorktreeName } from '../src/runQueue.js';
 import {
   createLoopProgressWatcher,
   formatProgressLine,
   readLatestState,
 } from '../src/runQueueProgress.js';
+import { removeWorktree } from '../src/worktree.js';
 
 const agentLoopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const defaultQueuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
@@ -26,6 +28,10 @@ async function main() {
     poolGates: queue.poolGates || defaultGates,
     jsonGates: queue.jsonGates || defaultGates,
   };
+  const maxConsecutiveNoChanges = defaults.maxConsecutiveNoChanges ?? 3;
+  const autoDisableOnNoChanges = defaults.autoDisableOnNoChanges ?? true;
+  const cleanupWorktree = defaults.cleanupWorktree ?? true;
+  const outcomes = await readQueueOutcomes(repoRoot);
   const tasks = (queue.tasks || []).filter((entry) => entry.enabled !== false);
 
   if (!tasks.length) {
@@ -41,8 +47,32 @@ async function main() {
   }
 
   const results = [];
+  let skippedCount = 0;
   for (const [index, entry] of tasks.entries()) {
     const label = entry.id || entry.task;
+    const skipCheck = shouldSkipAutoDisabledTask({
+      entry,
+      outcomes,
+      maxConsecutiveNoChanges,
+    });
+    if (skipCheck.skip) {
+      skippedCount += 1;
+      const skippedSummary = {
+        id: label,
+        task: entry.task,
+        exitCode: 0,
+        status: 'SKIPPED_AUTO_DISABLED',
+        outcome: 'skipped',
+        skipReason: skipCheck.reason,
+        consecutiveNoChanges: skipCheck.record?.consecutiveNoChanges ?? 0,
+      };
+      results.push(skippedSummary);
+      process.stderr.write(
+        `\n[run-queue] ${index + 1}/${tasks.length} skip ${label}: auto-disabled after ${skipCheck.record?.consecutiveNoChanges ?? 0} HALT_NO_CHANGES\n`,
+      );
+      continue;
+    }
+
     process.stderr.write(`\n[run-queue] ${index + 1}/${tasks.length} starting ${label}\n`);
 
     const args = buildLoopArgsForQueueEntry({
@@ -106,17 +136,71 @@ async function main() {
       if (run.stdout) process.stderr.write(run.stdout);
     }
 
-    const done = summary.status?.startsWith('DONE_');
-    const halted = summary.status?.startsWith('HALT_');
-    if (!done || run.exitCode !== 0) {
-      process.stderr.write(`[run-queue] stopping queue after ${label}\n`);
-      process.stdout.write(`${JSON.stringify({ stopped: true, results }, null, 2)}\n`);
-      process.exitCode = run.exitCode || (halted ? 1 : 1);
-      return;
+    const outcomeRecord = await recordQueueTaskOutcome({
+      repoRoot,
+      entry,
+      summary,
+      maxConsecutiveNoChanges,
+      autoDisableOnNoChanges,
+    });
+    if (outcomeRecord.autoDisabled) {
+      process.stderr.write(
+        `[run-queue] ⏸ AUTO-DISABLE ${label}: ${outcomeRecord.consecutiveNoChanges} consecutive HALT_NO_CHANGES — 后续队列将跳过，需人工 re-enable\n`,
+      );
+    }
+
+    // 24/7 unattended mode: never stop the whole queue on a single task. Record the outcome
+    // and move on so the rest of the enabled tasks still get their turn. Quarantined tasks
+    // (suspected test tampering) are flagged loudly and left for a human — their changes are
+    // never auto-merged here — but they do not block the queue either.
+    if (summary.outcome === 'quarantined') {
+      process.stderr.write(`[run-queue] ⚠ QUARANTINE ${label}: ${summary.status} (POSSIBLE_TEST_TAMPER) — 需人工复核，不自动合并，继续下一条\n`);
+    } else if (summary.outcome === 'crashed') {
+      process.stderr.write(`[run-queue] 💥 CRASHED ${label}: ${summary.status} exit=${run.exitCode} — 基建/seed 问题，继续下一条\n`);
+    } else if (summary.outcome === 'failed') {
+      process.stderr.write(`[run-queue] ✗ TASK-FAILED ${label}: ${summary.status} exit=${run.exitCode} — 记录后继续下一条\n`);
+    }
+
+    const useWorktree = entry.useWorktree ?? defaults.useWorktree ?? false;
+    if (cleanupWorktree && useWorktree) {
+      const worktreeName = sanitizeWorktreeName(entry.worktreeName || entry.id || `task-${index + 1}`);
+      try {
+        await removeWorktree({ repoRoot, name: worktreeName });
+        process.stderr.write(`[run-queue] worktree removed: ${worktreeName}\n`);
+      } catch (error) {
+        process.stderr.write(`[run-queue] worktree remove warning (${worktreeName}): ${error.message}\n`);
+      }
     }
   }
 
-  process.stdout.write(`${JSON.stringify({ stopped: false, results }, null, 2)}\n`);
+  const doneCount = results.filter((r) => r.outcome === 'done').length;
+  const failedCount = results.filter((r) => r.outcome === 'failed').length;
+  const crashedCount = results.filter((r) => r.outcome === 'crashed').length;
+  const quarantinedCount = results.filter((r) => r.outcome === 'quarantined').length;
+  process.stderr.write(
+    `\n[run-queue] queue complete: ${doneCount} done, ${failedCount} task-failed, ${crashedCount} crashed, ${quarantinedCount} quarantined, ${skippedCount} skipped (of ${results.length})\n`,
+  );
+  for (const r of results) {
+    if (r.outcome !== 'done' && r.outcome !== 'skipped') {
+      process.stderr.write(`[run-queue]   - ${r.outcome.toUpperCase()} ${r.id}: ${r.status} exit=${r.exitCode}\n`);
+    }
+  }
+
+  process.stdout.write(`${JSON.stringify({
+    stopped: false,
+    done: doneCount,
+    failed: failedCount,
+    crashed: crashedCount,
+    quarantined: quarantinedCount,
+    skipped: skippedCount,
+    results,
+  }, null, 2)}\n`);
+
+  // Non-zero exit if anything did not cleanly finish, so callers/CI still notice — but only
+  // after every enabled task has had its turn.
+  if (failedCount > 0 || crashedCount > 0 || quarantinedCount > 0) {
+    process.exitCode = 1;
+  }
 }
 
 function resolveQueuePath(argv) {

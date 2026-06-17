@@ -11,7 +11,7 @@ import {
 } from './agentRoles.js';
 import { buildAgentChecklistFixPrompt, buildAgentFixPrompt, buildAgentReviewPrompt } from './grokPrompt.js';
 import { parseAgentReviewOutput, reviewVerdictAllowsDone } from './reviewParser.js';
-import { parseTaskChecklist, shouldRunDevFix } from './taskChecklist.js';
+import { markAllChecklistItemsDone, parseTaskChecklist, shouldRunDevFix } from './taskChecklist.js';
 import { ensureWorktree as defaultEnsureWorktree } from './worktree.js';
 import { resolveAgents as defaultResolveAgents } from './resolveAgents.js';
 import { runProcess as defaultRunProcess } from './runProcess.js';
@@ -79,16 +79,23 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
   }
 
   const taskPath = path.resolve(options.cwd, options.task);
-  const taskText = await fs.readFile(taskPath, 'utf8');
+  let taskText = await fs.readFile(taskPath, 'utf8');
   if (!resumeState) await writeArtifact('task.md', taskText, 'text');
 
   let worktree = null;
   if (!resumeState && options.createWorktree) {
-    worktree = await ensureWorktree({
-      repoRoot: options.cwd,
-      name: options.createWorktree,
-      timeoutMs: options.timeoutMs,
-    });
+    try {
+      worktree = await ensureWorktree({
+        repoRoot: options.cwd,
+        name: options.createWorktree,
+        timeoutMs: options.timeoutMs,
+      });
+    } catch (error) {
+      await transition('HALT_HUMAN', {
+        worktreeError: error instanceof Error ? error.message : String(error),
+      });
+      return snapshotState(state);
+    }
   }
   const fixCwd = options.fixCwd || state.worktree?.fixCwd || worktree?.path || options.cwd;
   let baselineGate = state.baselineGateSnapshot;
@@ -131,6 +138,7 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
 
   if (!resumeState && baselineGate.ok && !baselineDevFix) {
     if (options.skipReview) {
+      taskText = await completeTaskChecklistOnSuccess({ options, fixCwd, taskText });
       await transition('DONE_GATE_ONLY');
       return snapshotState(state);
     }
@@ -299,6 +307,7 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
         return finalizeState(state, options);
       }
       if (options.skipReview) {
+        taskText = await completeTaskChecklistOnSuccess({ options, fixCwd, taskText });
         await transition('DONE_FIXED', { iterations });
         return finalizeState(state, options);
       }
@@ -524,6 +533,7 @@ async function runFinalReview({
   );
 
   if (reviewPassed) {
+    taskText = await completeTaskChecklistOnSuccess({ options, fixCwd, taskText });
     await transition('DONE_REVIEWED', {
       iterations,
       ...legacyReviewPatch,
@@ -576,6 +586,21 @@ async function writeFixOutputArtifacts({
     await writeArtifact(`${baseStem}.stderr.log`, agentFix.stderr || '', 'text');
     await writeArtifact(`${baseStem}.exit.json`, summarizeRun(agentFix), 'json');
   }
+}
+
+async function completeTaskChecklistOnSuccess({ options, fixCwd, taskText }) {
+  const updated = markAllChecklistItemsDone(taskText);
+  if (updated === taskText) return taskText;
+
+  const targets = new Set([
+    path.resolve(options.cwd, options.task),
+    path.resolve(fixCwd, options.task),
+  ]);
+
+  for (const target of targets) {
+    await fs.writeFile(target, updated, 'utf8');
+  }
+  return updated;
 }
 
 function finalizeState(state, options) {
