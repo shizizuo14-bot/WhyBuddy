@@ -582,6 +582,13 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
         }))
       );
 
+      // Prefer the exact DLEDGER.chose list for selectedCapabilities. This ensures the
+      // final routeFacts (and thus the right-upper C_RISK/C_SYN/C_TOOL tree in TurnRouteTimeline)
+      // matches what ORCH actually scheduled, even for completed turns and after refresh.
+      const finalSelected = (dledger && Array.isArray(dledger.chose) && dledger.chose.length > 0)
+        ? dledger.chose.map((cid: any) => ({ capabilityId: String(cid), roleId: "agent" }))
+        : selectedCapabilities;
+
       const completeRouteFacts = {
         turnId,
         timestamp: turnTimestamp,
@@ -592,12 +599,12 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
         staleArtifactIdsBefore,
         staleArtifactIdsAfter: [...(final.staleArtifactIds || [])],
         planReason,
-        planSelectedCount,
+        planSelectedCount: finalSelected.length,
         planSource,
         planOrchestrateReason,
         dledgerDecisionId: dledger?.id ?? null,
         rounds,
-        selectedCapabilities,
+        selectedCapabilities: finalSelected,
         committedCount: committed.length,
         trustPassedCount,
         trustTotalCount,

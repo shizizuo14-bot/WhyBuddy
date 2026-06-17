@@ -94,6 +94,7 @@ import {
   authorCoverageContract,
   evaluateCoverageGate,
   hasTrustedCommittedForCap,
+  reconcileCoverageContract,
 } from "@shared/blueprint/sliderule-coverage-gate";
 export { authorCoverageContract, evaluateCoverageGate, hasTrustedCommittedForCap };
 import {
@@ -1942,8 +1943,6 @@ export class LlmCapabilityExecutor implements CapabilityExecutor {
       'requirement.write',
       'repo.inspect',
       'evidence.search',
-      'mcp.call',
-      'skill.invoke',
       'memory.recall',
       'counter.argue',
       'critique.generate',
@@ -3640,7 +3639,9 @@ export function orchestrateReasoningTurn(
       decisionLedger: [...(working.decisionLedger || []), convergenceDecision],
     };
 
+    working = reconcileCoverageContract(working, turnId);
     if (!working.coverageContract) {
+      // Fallback authoring (should rarely hit after reconcile)
       const goalForContract = working.goal?.text || userTextForPick || "";
       const { contract, gaps } = authorCoverageContract(goalForContract, turnId);
       working = {
@@ -3825,9 +3826,10 @@ export function orchestrateReasoningTurn(
   // On !passed: set coverageGate, prepend missing (capped by budget), patch latest DLEDGER decision (addresses + chose), adjust effective plan.
   const hasConvergeIntent = selected.some((s: any) => s.capabilityId === 'report.write') ||
     /报告|report|总结|收敛|converge/.test(userTextForPick);
+  working = reconcileCoverageContract(working, turnId);
   if (!working.coverageContract) {
-    // Contract is goal/session level; prioritize goal.text for mode (simple vs complex) even if this turn's userText is short.
-    // Knife 7: author + freeze baseline + init gaps on first use.
+    // Fallback (reconcile should have populated); prioritize goal.text for mode (simple vs complex).
+    // Knife 7 + audit gap closure: old simple contracts get upgraded for complex goals (e.g. RPG / multi-agent game).
     const goalForContract = working.goal?.text || userTextForPick || "";
     const { contract, gaps } = authorCoverageContract(goalForContract, turnId);
     working = {

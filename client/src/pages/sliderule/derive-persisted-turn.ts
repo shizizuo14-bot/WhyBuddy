@@ -8,6 +8,10 @@ import type { UiTurn } from "./types";
  * decisionLedger / capabilityRuns / goal / runtimePhase / lastTurnId 派生出「最近一轮」的
  * 精简 UiTurn,让执行记录在刷新后可重建。
  *
+ * 改进:优先使用 dledger.chose 作为 selectedCapabilities（ORCH 实际选定的能力列表）。
+ * 这保证刷新后重建的 deriveTurnRoute 能产出与执行时一致的 C_RISK / C_SYN / C_TOOL … 树形，
+ * 而不是退化成“垃圾”单轮视图。
+ *
  * 取舍:多轮折叠的细节(rounds)是运行期 drive 的产物,持久化里没有逐 loop 记录,
  * 故重建为「单轮合并视图」—— deriveTurnRoute 仍能据此渲染 INTAKE→BUDGET→ORCH→C_*→
  * T_GATE→GCOV 的完整站点序列。steps/actions(逐能力叙述)同样是运行期产物,留空不影响站点。
@@ -44,7 +48,7 @@ export function deriveLatestTurnFromState(
   const turnRuns = runs.filter((r) => belongs(r.turnId));
   const effectiveRuns = turnRuns.length > 0 ? turnRuns : runs;
 
-  let dledger: { id?: string; source?: string } | null = null;
+  let dledger: any = null;
   for (let i = ledger.length - 1; i >= 0; i--) {
     if (belongs(ledger[i].turnId)) {
       dledger = ledger[i];
@@ -53,10 +57,20 @@ export function deriveLatestTurnFromState(
   }
   if (!dledger) dledger = ledger[ledger.length - 1] || null;
 
-  const selectedCapabilities = effectiveRuns.map((r) => ({
-    capabilityId: String(r.capabilityId),
-    roleId: String(r.roleId || "agent"),
-  }));
+  // Prefer DLEDGER.chose (the exact "DLEDGER 选定" list that drives the C_RISK/C_SYN/C_TOOL tree)
+  // This makes post-refresh / post-completion reconstruction match the live execution tree.
+  let selectedCapabilities: { capabilityId: string; roleId: string }[] = [];
+  if (dledger && Array.isArray(dledger.chose) && dledger.chose.length > 0) {
+    selectedCapabilities = dledger.chose.map((cid: any) => ({
+      capabilityId: String(cid),
+      roleId: "agent", // role often not stored per chose in ledger; sufficient for C_ bucket grouping
+    }));
+  } else {
+    selectedCapabilities = effectiveRuns.map((r) => ({
+      capabilityId: String(r.capabilityId),
+      roleId: String(r.roleId || "agent"),
+    }));
+  }
   const trustTotalCount = effectiveRuns.length;
   const trustPassedCount = effectiveRuns.filter((r) => {
     const gates = r.gateResults || [];
@@ -68,7 +82,7 @@ export function deriveLatestTurnFromState(
     timestamp: new Date().toISOString(),
     goalStatusBefore: state.goal?.status,
     goalStatusAfter: state.goal?.status,
-    planReason: "restored",
+    planReason: dledger?.rationale || "restored",
     planSelectedCount: selectedCapabilities.length,
     planSource: dledger?.source === "llm" ? "llm" : "local_heuristic",
     dledgerDecisionId: dledger?.id ?? null,
@@ -77,6 +91,8 @@ export function deriveLatestTurnFromState(
     trustTotalCount,
     runtimePhase: state.runtimePhase,
     selectedCapabilities,
+    // carry full dledger for richer deriveTurnRoute (C_ buckets etc.)
+    // (deriveTurnRoute only needs selectedCapabilities today, but future-proof)
   } as unknown as TurnRouteFacts;
 
   return {

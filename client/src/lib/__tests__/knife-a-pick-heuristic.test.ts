@@ -67,3 +67,16 @@ describe("R2 #3 · findInputsForCapability 全上下文", () => {
     expect(inputs.length).toBeGreaterThanOrEqual(5);
   });
 });
+
+describe("V5.2/V5.3 audit closure: complex roleMode forces brainstorm primers (pick-heuristic + heuristic fallback path)", () => {
+  it("sufficiently specified complex game/RPG goal reaches the roleMode unshift and primes critique.generate + synthesis.merge (no readiness short-circuit)", () => {
+    // Detailed/longer goal (>~80 chars or not under-specified per isUnderSpecifiedGoal) containing build + multi-agent + game keywords.
+    // This ensures needsReadinessChain returns false, so we exercise the late complex block + unshift.
+    const detailedGoal = "实现一个完整的LLM驱动的多Agent RPG游戏引擎，包含产品视角、架构安全评审、证据检索、风险分析、合成收敛与最终报告，支持多角色头脑风暴面板与真实执行器试点";
+    const state = createInitialSessionState(detailedGoal, "heuristic-complex-guard");
+    const picks = pickNextCapabilities(state, "开始推演这个多Agent RPG项目");
+    // Heuristic path must produce the panel primers for complex (unshifted before other caps).
+    expect(picks.some((p) => p.capabilityId === "critique.generate")).toBe(true);
+    expect(picks.some((p) => p.capabilityId === "synthesis.merge")).toBe(true);
+  });
+});

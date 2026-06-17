@@ -19,8 +19,10 @@ import { userClearsReadiness } from "@shared/blueprint/sliderule-interactive-gat
 
 describe("S11 · G_READY readiness chain", () => {
   it("C_GAP→C_QEXP: vague cold start routes to gap.ask then question.expand", () => {
-    const s = createInitialSessionState("做一个系统", "S11-pick");
-    const picks = pickNextCapabilities(s, "做一个系统");
+    // Use a clearly non-product-build vague goal so readiness wins strictly (product/game goals
+    // now front-load critique per V5.2 complex contract + audit fixes for RPG marathon runs).
+    const s = createInitialSessionState("解释光合作用原理", "S11-pick");
+    const picks = pickNextCapabilities(s, "解释一下光合作用是怎么回事");
     expect(picks[0]?.capabilityId).toBe("gap.ask");
     expect(picks.some((p) => p.capabilityId === "question.expand")).toBe(true);
   });

@@ -45,12 +45,14 @@ export function SettingsDialog(props: SettingsDialogProps) {
   React.useEffect(() => {
     if (open) {
       setCategory("llm");
+      setShowUnsavedConfirm(false);
       const loaded = loadProvidersConfig();
       setDraft(loaded);
       // Deep copy for comparison (simple + sufficient for this config shape).
       initialLlmDraftRef.current = loaded ? JSON.parse(JSON.stringify(loaded)) : null;
     } else {
       initialLlmDraftRef.current = null;
+      setShowUnsavedConfirm(false);
     }
   }, [open]);
 
@@ -59,13 +61,26 @@ export function SettingsDialog(props: SettingsDialogProps) {
     return JSON.stringify(draft) !== JSON.stringify(initialLlmDraftRef.current);
   }, [draft]);
 
+  const [showUnsavedConfirm, setShowUnsavedConfirm] = React.useState(false);
+
   if (!open) return null;
 
   const guardedClose = () => {
-    if (isLlmDirty) {
-      const ok = window.confirm("有未保存的更改，确定要关闭吗？（更改将丢失）");
-      if (!ok) return;
+    if (showUnsavedConfirm) {
+      // Click outside / X while confirm is shown → cancel the confirm (common UX)
+      setShowUnsavedConfirm(false);
+      return;
     }
+    if (isLlmDirty) {
+      setShowUnsavedConfirm(true);
+      return;
+    }
+    onClose();
+  };
+
+  const cancelUnsaved = () => setShowUnsavedConfirm(false);
+  const forceClose = () => {
+    setShowUnsavedConfirm(false);
     onClose();
   };
 
@@ -73,6 +88,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     if (!draft) return;
     // Only persist + toast when there is a meaningful change (avoids "设置已保存" spam on no-op).
     if (!isLlmDirty) {
+      setShowUnsavedConfirm(false);
       onClose();
       return;
     }
@@ -87,6 +103,7 @@ export function SettingsDialog(props: SettingsDialogProps) {
     saveProvidersConfig(draft);
     // After a real save, treat current draft as the new baseline so further accidental Save is no-op.
     initialLlmDraftRef.current = JSON.parse(JSON.stringify(draft));
+    setShowUnsavedConfirm(false);
     const enabled = draft.providers.filter((p) => p.enabled).length ?? 0;
     toast.success("设置已保存", {
       description: enabled > 0 ? `已启用 ${enabled} 个厂商，下一轮推演生效。` : "未启用厂商，使用服务端 LLM。",
@@ -161,20 +178,43 @@ export function SettingsDialog(props: SettingsDialogProps) {
 
           {/* 底部操作 */}
           <div className="flex items-center justify-end gap-2 border-t border-slate-200 px-4 py-3">
-            <button
-              onClick={guardedClose}
-              className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[13px] font-semibold text-slate-600 transition hover:bg-slate-50"
-            >
-              关闭
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={!isLlmDirty}
-              className="rounded-lg bg-indigo-600 px-5 py-2 text-[13px] font-bold text-white shadow-sm transition hover:bg-indigo-500 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
-              data-testid="sliderule-settings-save"
-            >
-              保存
-            </button>
+            {showUnsavedConfirm ? (
+              <div className="flex w-full items-center justify-between gap-3 text-[12px]">
+                <span className="text-rose-600">有未保存的更改，关闭将丢失更改。</span>
+                <div className="flex shrink-0 items-center gap-2">
+                  <button
+                    onClick={cancelUnsaved}
+                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[13px] font-semibold text-slate-600 transition hover:bg-slate-50"
+                  >
+                    取消
+                  </button>
+                  <button
+                    onClick={forceClose}
+                    className="rounded-lg bg-rose-600 px-5 py-2 text-[13px] font-bold text-white shadow-sm transition hover:bg-rose-500"
+                  >
+                    确认关闭
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <button
+                  onClick={guardedClose}
+                  className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-[13px] font-semibold text-slate-600 transition hover:bg-slate-50"
+                  data-testid="sliderule-settings-close"
+                >
+                  关闭
+                </button>
+                <button
+                  onClick={handleSave}
+                  disabled={!isLlmDirty}
+                  className="rounded-lg bg-indigo-600 px-5 py-2 text-[13px] font-bold text-white shadow-sm transition hover:bg-indigo-500 active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-indigo-600"
+                  data-testid="sliderule-settings-save"
+                >
+                  保存
+                </button>
+              </>
+            )}
           </div>
         </div>
       </div>

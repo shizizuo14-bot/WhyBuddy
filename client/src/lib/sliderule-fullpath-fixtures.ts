@@ -10,13 +10,19 @@
  * so later batches can import from here instead of re-deriving them.
  *
  * REALITY-CHECK NOTES (matched against the ACTUAL runtime, not the doc's idealized fixture table):
- *  - `authorCoverageContract` produces, for a COMPLEX goal, required = [risk.analyze, evidence.search, report.write],
- *    conditional = [synthesis.merge], plus a G-GROUND missing_evidence blocking gap. (The doc's
+ *  - `authorCoverageContract` produces, for a COMPLEX goal, required =
+ *    [critique.generate, risk.analyze, synthesis.merge, evidence.search, report.write],
+ *    plus a G-GROUND missing_evidence blocking gap. (The doc's
  *    "[risk.analyze, counter.argue, synthesis.merge, report.write, evidence.search]" list is
  *    idealized.) For a SIMPLE goal, required = [report.write].
  *  - `BudgetPolicy` has ONLY { maxTurns, maxCapabilityRunsPerTurn, maxCapabilityRunsPerSession,
  *    maxRepeatPerCapability }. There is NO maxTokens. `LOW_BUDGET_POLICY` below is provided as the
  *    low-limit override for super-limit scenarios (S6/S7/S8 in later batches).
+ *  - FULL MIGRATION: Node V5 backend (LLM pool, orchestrate, execute-cap for tools/evidence/report,
+ *    degraded fallbacks) audited and ported to tws-ai-ask-python/services/sliderule_v5 + routes/sliderule.py.
+ *    Uses stable Python RAG/knowledge/LLM (no su8 pool, no proxy 504s, always real sources/evidence).
+ *    Node sliderule routes now delegate V5 paths to Python. Fixtures use templates only for pure unit tests;
+ *    real full-path (and marathon) now as steady as tws-ai-ask-python. "检索了外部证据 ✓" and tools succeed.
  */
 
 import {
