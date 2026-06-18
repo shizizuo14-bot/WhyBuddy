@@ -89,8 +89,8 @@ class DashboardPanel {
             payload: {
                 ...snapshot,
                 elapsedText: (0, phaseLabels_1.formatElapsed)(snapshot.elapsedMs),
-                gateText,
-                gateOk,
+                gateText: snapshot.displayGate.text,
+                gateOk: snapshot.displayGate.ok,
                 agentText: `${agentText}${agentSuffix}`,
                 pipelineSteps: snapshot.pipelineSteps,
                 roleText: `${snapshot.fixAgent}修${snapshot.reviewAgent ? ` + ${snapshot.reviewAgent}审` : ''}`,

@@ -1,7 +1,7 @@
 import * as vscode from 'vscode';
 import { DashboardPanel } from './dashboardPanel';
 import { formatElapsed, phaseLabel, statusIcon } from './phaseLabels';
-import { latestDir } from './paths';
+import { latestDir, queuePath } from './paths';
 import { buildRunSnapshot, snapshotStatusLine } from './stateReader';
 import type { RunSnapshot } from './types';
 
@@ -15,6 +15,7 @@ export class StateMonitor implements vscode.Disposable {
   private phaseStartedAt = Date.now();
   private lastStatus: string | undefined;
   private latestSnapshot: RunSnapshot | null = null;
+  private dashboardStatePath: string | null = null;
   private statusBarItem: vscode.StatusBarItem;
 
   constructor(
@@ -64,13 +65,40 @@ export class StateMonitor implements vscode.Disposable {
   }
 
   public markRunStarted(): void {
+    this.dashboardStatePath = null;
     this.runStartedAt = Date.now();
     this.phaseStartedAt = Date.now();
     this.lastStatus = undefined;
   }
 
+  public showLatestInDashboard(): void {
+    this.dashboardStatePath = null;
+    if (this.latestSnapshot && DashboardPanel.current) {
+      DashboardPanel.current.update(this.latestSnapshot);
+    }
+  }
+
+  public async showStatePathInDashboard(statePath: string): Promise<RunSnapshot> {
+    this.dashboardStatePath = statePath;
+    const snapshot = this.enrichSnapshot(await buildRunSnapshot(
+      this.repoRoot,
+      this.phaseStartedAt,
+      this.runStartedAt,
+      { statePath, queueFilePath: queuePath(this.repoRoot) },
+    ));
+    if (DashboardPanel.current) {
+      DashboardPanel.current.update(snapshot);
+    }
+    return snapshot;
+  }
+
   public async refresh(): Promise<RunSnapshot> {
-    const snapshot = this.enrichSnapshot(await buildRunSnapshot(this.repoRoot, this.phaseStartedAt, this.runStartedAt));
+    const snapshot = this.enrichSnapshot(await buildRunSnapshot(
+      this.repoRoot,
+      this.phaseStartedAt,
+      this.runStartedAt,
+      { queueFilePath: queuePath(this.repoRoot) },
+    ));
     const status = snapshot.state?.status;
 
     if (status && status !== this.lastStatus) {
@@ -82,6 +110,7 @@ export class StateMonitor implements vscode.Disposable {
     this.latestSnapshot = snapshot;
     this.updateChrome(snapshot);
     for (const listener of this.listeners) listener(snapshot);
+    await this.updateDashboard(snapshot);
     return snapshot;
   }
 
@@ -94,13 +123,25 @@ export class StateMonitor implements vscode.Disposable {
     this.statusBarItem.text = text;
     this.statusBarItem.tooltip = snapshot.details.join('\n') || '打开 AgentLoop 面板';
 
-    if (DashboardPanel.current) {
-      DashboardPanel.current.update(snapshot);
-    }
   }
 
   private enrichSnapshot(snapshot: RunSnapshot): RunSnapshot {
     return { ...snapshot, queueRunning: this.isQueueRunning() };
+  }
+
+  private async updateDashboard(latestSnapshot: RunSnapshot): Promise<void> {
+    if (!DashboardPanel.current) return;
+    if (!this.dashboardStatePath) {
+      DashboardPanel.current.update(latestSnapshot);
+      return;
+    }
+    const selected = this.enrichSnapshot(await buildRunSnapshot(
+      this.repoRoot,
+      this.phaseStartedAt,
+      this.runStartedAt,
+      { statePath: this.dashboardStatePath, queueFilePath: queuePath(this.repoRoot) },
+    ));
+    DashboardPanel.current.update(selected);
   }
 
   private startPolling(): void {

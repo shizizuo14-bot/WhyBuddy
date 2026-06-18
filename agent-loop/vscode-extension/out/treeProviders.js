@@ -82,6 +82,11 @@ class QueueTaskNode extends BaseNode {
         this.description = enabled ? '' : 'disabled';
         this.iconPath = new vscode.ThemeIcon(enabled ? 'circle-outline' : 'circle-slash');
         this.tooltip = taskPath;
+        this.command = {
+            command: 'agentLoop.openQueueTask',
+            title: '打开任务运行面板',
+            arguments: [{ taskId, taskPath }],
+        };
     }
 }
 class RunsRootNode extends BaseNode {
@@ -106,9 +111,9 @@ class RunHistoryNode extends BaseNode {
             `迭代: ${run.iterations}`,
         ].join('\n');
         this.command = {
-            command: 'vscode.open',
+            command: 'agentLoop.openRunDashboard',
             title: '打开运行 state.json',
-            arguments: [vscode.Uri.file(run.stateUri)],
+            arguments: [run.stateUri],
         };
     }
 }

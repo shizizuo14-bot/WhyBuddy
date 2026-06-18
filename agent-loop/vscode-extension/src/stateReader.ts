@@ -1,14 +1,21 @@
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import { formatAgentLogTail, resolveActiveLogPath, resolveLogRoot } from './activeLog';
+import { resolveDisplayGate } from './gateSummary';
 import { activeAgentLabel, buildPipelineSteps, describeSnapshot, formatElapsed, phaseLabel, resolveAgentRoles } from './phaseLabels';
-import { latestDir, queuePath } from './paths';
-import { summarizeStateRun } from './runSummary';
+import { parseRunIdDate, summarizeStateRun } from './runSummary';
 
 export { findNewestFixLog, formatAgentLogTail, resolveActiveLogCandidates, resolveActiveLogPath, resolveLogRoot } from './activeLog';
 import type { LoopState, QueueFile, RunSnapshot, RunSummaryItem } from './types';
 
 const ANSI_ESCAPE_RE = /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
+const TERMINAL_STATUS_RE = /^(DONE_|HALT_|PAUSED_)/;
+
+export interface BuildSnapshotOptions {
+  statePath?: string;
+  queueFilePath?: string;
+  now?: () => number;
+}
 
 export async function readJsonFile<T>(filePath: string): Promise<T | null> {
   try {
@@ -29,9 +36,27 @@ export async function readTextTail(filePath: string, maxLines = 6): Promise<{ ta
   }
 }
 
-export async function buildRunSnapshot(repoRoot: string, phaseStartedAt: number, runStartedAt: number): Promise<RunSnapshot> {
-  const state = await readJsonFile<LoopState>(path.join(latestDir(repoRoot), 'state.json'));
-  const queue = await readJsonFile<QueueFile>(queuePath(repoRoot));
+export async function buildRunSnapshot(
+  repoRoot: string,
+  phaseStartedAt: number,
+  runStartedAt: number,
+  options: BuildSnapshotOptions = {},
+): Promise<RunSnapshot> {
+  const statePath = options.statePath || path.join(defaultLatestDir(repoRoot), 'state.json');
+  return buildRunSnapshotFromStatePath(repoRoot, statePath, {
+    ...options,
+    phaseStartedAt,
+    runStartedAt,
+  });
+}
+
+export async function buildRunSnapshotFromStatePath(
+  repoRoot: string,
+  statePath: string,
+  options: BuildSnapshotOptions & { phaseStartedAt?: number; runStartedAt?: number } = {},
+): Promise<RunSnapshot> {
+  const state = await readJsonFile<LoopState>(statePath);
+  const queue = await readJsonFile<QueueFile>(options.queueFilePath || defaultQueuePath(repoRoot));
   const queueDefaults = queue?.defaults ?? null;
   const logRoot = resolveLogRoot(state, repoRoot);
   const activeLogPath = await resolveActiveLogPath(logRoot, state);
@@ -42,23 +67,29 @@ export async function buildRunSnapshot(repoRoot: string, phaseStartedAt: number,
   const { details, taskLabel } = describeSnapshot(state, queueDefaults);
   const summary = state ? summarizeStateRun(state, state.runId || 'latest') : null;
   const { fixAgent, reviewAgent } = resolveAgentRoles(state, queueDefaults);
-  const now = Date.now();
+  const now = options.now?.() ?? Date.now();
+  const runStartedAt = options.runStartedAt ?? inferRunStartedAt(state, now);
+  const terminalEndedAt = await inferTerminalEndedAt(state, statePath);
+  const elapsedAt = terminalEndedAt ?? now;
+  const displayGate = resolveDisplayGate(state);
 
   return {
     state,
+    statePath,
     queueRunning: false,
     agentTail: activeLog.tail,
     agentLogBytes: activeLog.bytes,
     taskLabel,
     phaseLabel: phaseLabel(state?.status),
     details,
-    elapsedMs: now - runStartedAt,
-    phaseElapsedMs: now - phaseStartedAt,
+    elapsedMs: Math.max(0, elapsedAt - runStartedAt),
+    phaseElapsedMs: Math.max(0, now - (options.phaseStartedAt ?? runStartedAt)),
     updatedAt: now,
     pipelineSteps: buildPipelineSteps(state, queueDefaults),
     fixAgent,
     reviewAgent,
     runMode: summary?.runMode || 'unknown',
+    displayGate,
   };
 }
 
@@ -101,6 +132,37 @@ export async function listRecentRuns(repoRoot: string, limit = 20): Promise<RunS
   return items.sort((a, b) => b.mtimeMs - a.mtimeMs).slice(0, limit);
 }
 
+export async function findLatestRunForTask(
+  repoRoot: string,
+  taskPath: string,
+): Promise<{ runId: string; statePath: string } | null> {
+  const dir = path.join(repoRoot, '.agent-loop', 'runs');
+  let entries: string[] = [];
+  try {
+    entries = await fs.readdir(dir);
+  } catch {
+    return null;
+  }
+
+  const normalizedTask = normalizeTaskPath(taskPath);
+  let best: { runId: string; statePath: string; mtimeMs: number } | null = null;
+  for (const runId of entries) {
+    const statePath = path.join(dir, runId, 'state.json');
+    const state = await readJsonFile<LoopState>(statePath);
+    if (!state || normalizeTaskPath(state.options?.task || '') !== normalizedTask) continue;
+    let mtimeMs = 0;
+    try {
+      mtimeMs = (await fs.stat(statePath)).mtimeMs;
+    } catch {
+      mtimeMs = 0;
+    }
+    if (!best || mtimeMs > best.mtimeMs) {
+      best = { runId, statePath, mtimeMs };
+    }
+  }
+  return best ? { runId: best.runId, statePath: best.statePath } : null;
+}
+
 export function snapshotStatusLine(snapshot: RunSnapshot): string {
   const status = snapshot.state?.status || 'IDLE';
   const parts = [
@@ -115,6 +177,75 @@ export function snapshotStatusLine(snapshot: RunSnapshot): string {
 
 function stripAnsi(text: string): string {
   return text.replace(ANSI_ESCAPE_RE, '');
+}
+
+function defaultLatestDir(repoRoot: string): string {
+  return path.join(repoRoot, '.agent-loop', 'latest');
+}
+
+function defaultQueuePath(repoRoot: string): string {
+  return path.join(repoRoot, 'agent-loop', 'scripts', 'migration-queue.json');
+}
+
+function normalizeTaskPath(taskPath: string): string {
+  return taskPath.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^agent-loop\//, '');
+}
+
+function inferRunStartedAt(state: LoopState | null, fallback: number): number {
+  const parsed = parseRunIdDate(state?.runId);
+  return parsed?.getTime() ?? fallback;
+}
+
+async function inferTerminalEndedAt(state: LoopState | null, statePath: string): Promise<number | null> {
+  const status = state?.status || '';
+  if (!TERMINAL_STATUS_RE.test(status)) return null;
+
+  const candidates = collectEndedAtValues(state);
+  for (const value of candidates) {
+    const ms = Date.parse(value);
+    if (Number.isFinite(ms)) return ms;
+  }
+
+  try {
+    return (await fs.stat(statePath)).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
+function collectEndedAtValues(state: LoopState | null): string[] {
+  const values: string[] = [];
+  const push = (value: unknown): void => {
+    if (typeof value === 'string' && value) values.push(value);
+  };
+  push(state?.agentReview?.endedAt);
+  push(state?.codexReview?.endedAt);
+  push(state?.grokReview?.endedAt);
+  push(state?.agentFix?.endedAt);
+  push(state?.grokFix?.endedAt);
+
+  const iterations = Array.isArray(state?.iterations) ? state.iterations : [];
+  for (let i = iterations.length - 1; i >= 0; i -= 1) {
+    const iteration = iterations[i];
+    push(iteration?.agentFix?.endedAt);
+    push(iteration?.grokFix?.endedAt);
+    const attempts = Array.isArray(iteration?.attempts) ? iteration.attempts : [];
+    for (let j = attempts.length - 1; j >= 0; j -= 1) {
+      push(attempts[j]?.agentFix?.endedAt);
+      push(attempts[j]?.grokFix?.endedAt);
+    }
+    const gateRuns = Array.isArray(iteration?.gateSnapshot?.runs) ? iteration.gateSnapshot.runs : [];
+    for (let j = gateRuns.length - 1; j >= 0; j -= 1) {
+      push(gateRuns[j]?.endedAt);
+    }
+  }
+
+  const baselineRuns = Array.isArray(state?.baselineGateSnapshot?.runs) ? state.baselineGateSnapshot.runs : [];
+  for (let i = baselineRuns.length - 1; i >= 0; i -= 1) {
+    push(baselineRuns[i]?.endedAt);
+  }
+
+  return values;
 }
 
 async function readProgressHint(

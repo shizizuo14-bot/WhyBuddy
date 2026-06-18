@@ -35,6 +35,7 @@ var __importStar = (this && this.__importStar) || (function () {
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.RunController = void 0;
 const node_child_process_1 = require("node:child_process");
+const fs = __importStar(require("node:fs/promises"));
 const path = __importStar(require("node:path"));
 const vscode = __importStar(require("vscode"));
 const paths_1 = require("./paths");
@@ -99,7 +100,8 @@ class RunController {
             return;
         }
         this.output.appendLine(`[${new Date().toLocaleTimeString()}] 请求停止任务队列`);
-        this.child.kill('SIGTERM');
+        void markLatestStopped(this.repoRoot);
+        terminateProcessTree(this.child);
     }
     async finishRun(exitCode) {
         this.output.appendLine(`[${new Date().toLocaleTimeString()}] 任务队列结束，exit=${exitCode ?? 'null'}`);
@@ -109,7 +111,7 @@ class RunController {
     }
     dispose() {
         if (this.child) {
-            this.child.kill('SIGTERM');
+            terminateProcessTree(this.child);
             this.child = null;
             void setQueueRunning(false);
         }
@@ -118,5 +120,32 @@ class RunController {
 exports.RunController = RunController;
 async function setQueueRunning(running) {
     await vscode.commands.executeCommand('setContext', 'agentLoop.queueRunning', running);
+}
+async function markLatestStopped(repoRoot) {
+    const statePath = (0, paths_1.latestStatePath)(repoRoot);
+    try {
+        const raw = await fs.readFile(statePath, 'utf8');
+        const state = JSON.parse(raw);
+        if (typeof state?.status === 'string' && /^(DONE_|HALT_|PAUSED_)/.test(state.status)) {
+            return;
+        }
+        state.status = 'HALT_STOPPED';
+        state.stoppedAt = new Date().toISOString();
+        await fs.writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+    }
+    catch {
+        // Best effort only; stopping the process tree is the source of truth.
+    }
+}
+function terminateProcessTree(child) {
+    if (process.platform === 'win32' && child.pid) {
+        const killer = (0, node_child_process_1.spawn)('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], {
+            windowsHide: true,
+            stdio: 'ignore',
+        });
+        killer.on('error', () => child.kill('SIGTERM'));
+        return;
+    }
+    child.kill('SIGTERM');
 }
 //# sourceMappingURL=runController.js.map

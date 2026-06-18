@@ -3,6 +3,7 @@ import { DashboardPanel } from './dashboardPanel';
 import { getRepoRoot, latestReportPath, latestStatePath } from './paths';
 import { RunController } from './runController';
 import { StateMonitor } from './stateMonitor';
+import { findLatestRunForTask } from './stateReader';
 import { CurrentRunTreeProvider, QueueTreeProvider, RunsTreeProvider } from './treeProviders';
 
 let monitor: StateMonitor | undefined;
@@ -60,7 +61,25 @@ export function activate(context: vscode.ExtensionContext): void {
     }),
     vscode.commands.registerCommand('agentLoop.openDashboard', () => {
       const panel = DashboardPanel.show(context.extensionUri);
+      monitor?.showLatestInDashboard();
       const snapshot = monitor?.getSnapshot();
+      if (snapshot) panel.update(snapshot);
+    }),
+    vscode.commands.registerCommand('agentLoop.openRunDashboard', async (statePath: string) => {
+      const panel = DashboardPanel.show(context.extensionUri);
+      const snapshot = await monitor?.showStatePathInDashboard(statePath);
+      if (snapshot) panel.update(snapshot);
+    }),
+    vscode.commands.registerCommand('agentLoop.openQueueTask', async (item: { taskPath?: string } | undefined) => {
+      const taskPath = item?.taskPath;
+      if (!taskPath) return;
+      const run = await findLatestRunForTask(repoRoot, taskPath);
+      if (!run) {
+        vscode.window.showInformationMessage(`AgentLoop: ${taskPath} 暂无运行记录`);
+        return;
+      }
+      const panel = DashboardPanel.show(context.extensionUri);
+      const snapshot = await monitor?.showStatePathInDashboard(run.statePath);
       if (snapshot) panel.update(snapshot);
     }),
     vscode.commands.registerCommand('agentLoop.openFinalReport', async () => {

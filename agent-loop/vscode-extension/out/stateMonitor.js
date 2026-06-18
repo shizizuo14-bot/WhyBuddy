@@ -51,6 +51,7 @@ class StateMonitor {
     phaseStartedAt = Date.now();
     lastStatus;
     latestSnapshot = null;
+    dashboardStatePath = null;
     statusBarItem;
     constructor(repoRoot, extensionUri, output, isQueueRunning = () => false) {
         this.repoRoot = repoRoot;
@@ -93,12 +94,27 @@ class StateMonitor {
         return this.latestSnapshot;
     }
     markRunStarted() {
+        this.dashboardStatePath = null;
         this.runStartedAt = Date.now();
         this.phaseStartedAt = Date.now();
         this.lastStatus = undefined;
     }
+    showLatestInDashboard() {
+        this.dashboardStatePath = null;
+        if (this.latestSnapshot && dashboardPanel_1.DashboardPanel.current) {
+            dashboardPanel_1.DashboardPanel.current.update(this.latestSnapshot);
+        }
+    }
+    async showStatePathInDashboard(statePath) {
+        this.dashboardStatePath = statePath;
+        const snapshot = this.enrichSnapshot(await (0, stateReader_1.buildRunSnapshot)(this.repoRoot, this.phaseStartedAt, this.runStartedAt, { statePath, queueFilePath: (0, paths_1.queuePath)(this.repoRoot) }));
+        if (dashboardPanel_1.DashboardPanel.current) {
+            dashboardPanel_1.DashboardPanel.current.update(snapshot);
+        }
+        return snapshot;
+    }
     async refresh() {
-        const snapshot = this.enrichSnapshot(await (0, stateReader_1.buildRunSnapshot)(this.repoRoot, this.phaseStartedAt, this.runStartedAt));
+        const snapshot = this.enrichSnapshot(await (0, stateReader_1.buildRunSnapshot)(this.repoRoot, this.phaseStartedAt, this.runStartedAt, { queueFilePath: (0, paths_1.queuePath)(this.repoRoot) }));
         const status = snapshot.state?.status;
         if (status && status !== this.lastStatus) {
             this.lastStatus = status;
@@ -109,6 +125,7 @@ class StateMonitor {
         this.updateChrome(snapshot);
         for (const listener of this.listeners)
             listener(snapshot);
+        await this.updateDashboard(snapshot);
         return snapshot;
     }
     updateChrome(snapshot) {
@@ -119,12 +136,19 @@ class StateMonitor {
             : '$(circle-outline) AgentLoop: 空闲';
         this.statusBarItem.text = text;
         this.statusBarItem.tooltip = snapshot.details.join('\n') || '打开 AgentLoop 面板';
-        if (dashboardPanel_1.DashboardPanel.current) {
-            dashboardPanel_1.DashboardPanel.current.update(snapshot);
-        }
     }
     enrichSnapshot(snapshot) {
         return { ...snapshot, queueRunning: this.isQueueRunning() };
+    }
+    async updateDashboard(latestSnapshot) {
+        if (!dashboardPanel_1.DashboardPanel.current)
+            return;
+        if (!this.dashboardStatePath) {
+            dashboardPanel_1.DashboardPanel.current.update(latestSnapshot);
+            return;
+        }
+        const selected = this.enrichSnapshot(await (0, stateReader_1.buildRunSnapshot)(this.repoRoot, this.phaseStartedAt, this.runStartedAt, { statePath: this.dashboardStatePath, queueFilePath: (0, paths_1.queuePath)(this.repoRoot) }));
+        dashboardPanel_1.DashboardPanel.current.update(selected);
     }
     startPolling() {
         const interval = vscode.workspace.getConfiguration('agentLoop').get('pollIntervalMs', 1500);

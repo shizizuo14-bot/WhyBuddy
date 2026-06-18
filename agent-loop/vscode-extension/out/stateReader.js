@@ -37,13 +37,15 @@ exports.resolveLogRoot = exports.resolveActiveLogPath = exports.resolveActiveLog
 exports.readJsonFile = readJsonFile;
 exports.readTextTail = readTextTail;
 exports.buildRunSnapshot = buildRunSnapshot;
+exports.buildRunSnapshotFromStatePath = buildRunSnapshotFromStatePath;
 exports.listRecentRuns = listRecentRuns;
+exports.findLatestRunForTask = findLatestRunForTask;
 exports.snapshotStatusLine = snapshotStatusLine;
 const fs = __importStar(require("node:fs/promises"));
 const path = __importStar(require("node:path"));
 const activeLog_1 = require("./activeLog");
+const gateSummary_1 = require("./gateSummary");
 const phaseLabels_1 = require("./phaseLabels");
-const paths_1 = require("./paths");
 const runSummary_1 = require("./runSummary");
 var activeLog_2 = require("./activeLog");
 Object.defineProperty(exports, "findNewestFixLog", { enumerable: true, get: function () { return activeLog_2.findNewestFixLog; } });
@@ -52,6 +54,7 @@ Object.defineProperty(exports, "resolveActiveLogCandidates", { enumerable: true,
 Object.defineProperty(exports, "resolveActiveLogPath", { enumerable: true, get: function () { return activeLog_2.resolveActiveLogPath; } });
 Object.defineProperty(exports, "resolveLogRoot", { enumerable: true, get: function () { return activeLog_2.resolveLogRoot; } });
 const ANSI_ESCAPE_RE = /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
+const TERMINAL_STATUS_RE = /^(DONE_|HALT_|PAUSED_)/;
 async function readJsonFile(filePath) {
     try {
         const raw = await fs.readFile(filePath, 'utf8');
@@ -71,9 +74,17 @@ async function readTextTail(filePath, maxLines = 6) {
         return { tail: '', bytes: 0 };
     }
 }
-async function buildRunSnapshot(repoRoot, phaseStartedAt, runStartedAt) {
-    const state = await readJsonFile(path.join((0, paths_1.latestDir)(repoRoot), 'state.json'));
-    const queue = await readJsonFile((0, paths_1.queuePath)(repoRoot));
+async function buildRunSnapshot(repoRoot, phaseStartedAt, runStartedAt, options = {}) {
+    const statePath = options.statePath || path.join(defaultLatestDir(repoRoot), 'state.json');
+    return buildRunSnapshotFromStatePath(repoRoot, statePath, {
+        ...options,
+        phaseStartedAt,
+        runStartedAt,
+    });
+}
+async function buildRunSnapshotFromStatePath(repoRoot, statePath, options = {}) {
+    const state = await readJsonFile(statePath);
+    const queue = await readJsonFile(options.queueFilePath || defaultQueuePath(repoRoot));
     const queueDefaults = queue?.defaults ?? null;
     const logRoot = (0, activeLog_1.resolveLogRoot)(state, repoRoot);
     const activeLogPath = await (0, activeLog_1.resolveActiveLogPath)(logRoot, state);
@@ -84,22 +95,28 @@ async function buildRunSnapshot(repoRoot, phaseStartedAt, runStartedAt) {
     const { details, taskLabel } = (0, phaseLabels_1.describeSnapshot)(state, queueDefaults);
     const summary = state ? (0, runSummary_1.summarizeStateRun)(state, state.runId || 'latest') : null;
     const { fixAgent, reviewAgent } = (0, phaseLabels_1.resolveAgentRoles)(state, queueDefaults);
-    const now = Date.now();
+    const now = options.now?.() ?? Date.now();
+    const runStartedAt = options.runStartedAt ?? inferRunStartedAt(state, now);
+    const terminalEndedAt = await inferTerminalEndedAt(state, statePath);
+    const elapsedAt = terminalEndedAt ?? now;
+    const displayGate = (0, gateSummary_1.resolveDisplayGate)(state);
     return {
         state,
+        statePath,
         queueRunning: false,
         agentTail: activeLog.tail,
         agentLogBytes: activeLog.bytes,
         taskLabel,
         phaseLabel: (0, phaseLabels_1.phaseLabel)(state?.status),
         details,
-        elapsedMs: now - runStartedAt,
-        phaseElapsedMs: now - phaseStartedAt,
+        elapsedMs: Math.max(0, elapsedAt - runStartedAt),
+        phaseElapsedMs: Math.max(0, now - (options.phaseStartedAt ?? runStartedAt)),
         updatedAt: now,
         pipelineSteps: (0, phaseLabels_1.buildPipelineSteps)(state, queueDefaults),
         fixAgent,
         reviewAgent,
         runMode: summary?.runMode || 'unknown',
+        displayGate,
     };
 }
 async function listRecentRuns(repoRoot, limit = 20) {
@@ -141,6 +158,35 @@ async function listRecentRuns(repoRoot, limit = 20) {
     }
     return items.sort((a, b) => b.mtimeMs - a.mtimeMs).slice(0, limit);
 }
+async function findLatestRunForTask(repoRoot, taskPath) {
+    const dir = path.join(repoRoot, '.agent-loop', 'runs');
+    let entries = [];
+    try {
+        entries = await fs.readdir(dir);
+    }
+    catch {
+        return null;
+    }
+    const normalizedTask = normalizeTaskPath(taskPath);
+    let best = null;
+    for (const runId of entries) {
+        const statePath = path.join(dir, runId, 'state.json');
+        const state = await readJsonFile(statePath);
+        if (!state || normalizeTaskPath(state.options?.task || '') !== normalizedTask)
+            continue;
+        let mtimeMs = 0;
+        try {
+            mtimeMs = (await fs.stat(statePath)).mtimeMs;
+        }
+        catch {
+            mtimeMs = 0;
+        }
+        if (!best || mtimeMs > best.mtimeMs) {
+            best = { runId, statePath, mtimeMs };
+        }
+    }
+    return best ? { runId: best.runId, statePath: best.statePath } : null;
+}
 function snapshotStatusLine(snapshot) {
     const status = snapshot.state?.status || 'IDLE';
     const parts = [
@@ -155,6 +201,68 @@ function snapshotStatusLine(snapshot) {
 }
 function stripAnsi(text) {
     return text.replace(ANSI_ESCAPE_RE, '');
+}
+function defaultLatestDir(repoRoot) {
+    return path.join(repoRoot, '.agent-loop', 'latest');
+}
+function defaultQueuePath(repoRoot) {
+    return path.join(repoRoot, 'agent-loop', 'scripts', 'migration-queue.json');
+}
+function normalizeTaskPath(taskPath) {
+    return taskPath.replace(/\\/g, '/').replace(/^\.\//, '').replace(/^agent-loop\//, '');
+}
+function inferRunStartedAt(state, fallback) {
+    const parsed = (0, runSummary_1.parseRunIdDate)(state?.runId);
+    return parsed?.getTime() ?? fallback;
+}
+async function inferTerminalEndedAt(state, statePath) {
+    const status = state?.status || '';
+    if (!TERMINAL_STATUS_RE.test(status))
+        return null;
+    const candidates = collectEndedAtValues(state);
+    for (const value of candidates) {
+        const ms = Date.parse(value);
+        if (Number.isFinite(ms))
+            return ms;
+    }
+    try {
+        return (await fs.stat(statePath)).mtimeMs;
+    }
+    catch {
+        return null;
+    }
+}
+function collectEndedAtValues(state) {
+    const values = [];
+    const push = (value) => {
+        if (typeof value === 'string' && value)
+            values.push(value);
+    };
+    push(state?.agentReview?.endedAt);
+    push(state?.codexReview?.endedAt);
+    push(state?.grokReview?.endedAt);
+    push(state?.agentFix?.endedAt);
+    push(state?.grokFix?.endedAt);
+    const iterations = Array.isArray(state?.iterations) ? state.iterations : [];
+    for (let i = iterations.length - 1; i >= 0; i -= 1) {
+        const iteration = iterations[i];
+        push(iteration?.agentFix?.endedAt);
+        push(iteration?.grokFix?.endedAt);
+        const attempts = Array.isArray(iteration?.attempts) ? iteration.attempts : [];
+        for (let j = attempts.length - 1; j >= 0; j -= 1) {
+            push(attempts[j]?.agentFix?.endedAt);
+            push(attempts[j]?.grokFix?.endedAt);
+        }
+        const gateRuns = Array.isArray(iteration?.gateSnapshot?.runs) ? iteration.gateSnapshot.runs : [];
+        for (let j = gateRuns.length - 1; j >= 0; j -= 1) {
+            push(gateRuns[j]?.endedAt);
+        }
+    }
+    const baselineRuns = Array.isArray(state?.baselineGateSnapshot?.runs) ? state.baselineGateSnapshot.runs : [];
+    for (let i = baselineRuns.length - 1; i >= 0; i -= 1) {
+        push(baselineRuns[i]?.endedAt);
+    }
+    return values;
 }
 async function readProgressHint(logRoot, state) {
     const status = state?.status || '';

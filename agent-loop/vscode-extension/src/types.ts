@@ -16,11 +16,23 @@ export interface LoopState {
     failureCount?: number;
     progress?: { effectiveFailureCount?: number };
   };
+  baselineGateSnapshot?: GateSnapshot | null;
   worktree?: {
     fixCwd?: string;
     targetCwd?: string;
   };
-  iterations?: Array<{ iteration: number; grokFix?: AgentRunSummary | null; agentFix?: AgentRunSummary | null }>;
+  iterations?: Array<{
+    iteration: number;
+    grokFix?: AgentRunSummary | null;
+    agentFix?: AgentRunSummary | null;
+    gate?: GateSummary | null;
+    gateSnapshot?: GateSnapshot | null;
+    attempts?: Array<{
+      attempt?: number;
+      grokFix?: AgentRunSummary | null;
+      agentFix?: AgentRunSummary | null;
+    }>;
+  }>;
   agentFix?: AgentRunSummary | null;
   grokFix?: AgentRunSummary | null;
   agentReview?: AgentRunSummary | null;
@@ -30,6 +42,20 @@ export interface LoopState {
     runDir?: string;
     latestDir?: string;
   };
+  worktreeError?: string | null;
+}
+
+export interface GateSummary {
+  ok?: boolean;
+  failureCount?: number;
+  progress?: { effectiveFailureCount?: number };
+}
+
+export interface GateSnapshot extends GateSummary {
+  runs?: Array<{
+    startedAt?: string;
+    endedAt?: string;
+  }>;
 }
 
 export interface AgentRunSummary {
@@ -68,6 +94,7 @@ export interface PipelineStep {
 
 export interface RunSnapshot {
   state: LoopState | null;
+  statePath?: string | null;
   queueRunning: boolean;
   agentTail: string;
   agentLogBytes: number;
@@ -81,6 +108,12 @@ export interface RunSnapshot {
   fixAgent: string;
   reviewAgent: string | null;
   runMode: string;
+  displayGate: {
+    ok: boolean | null;
+    text: string;
+    source: 'post-fix' | 'baseline' | 'none';
+    failureCount: number | null;
+  };
 }
 
 export interface RunSummaryItem {

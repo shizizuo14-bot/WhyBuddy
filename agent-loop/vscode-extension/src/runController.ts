@@ -1,7 +1,8 @@
 import { spawn, type ChildProcess } from 'node:child_process';
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { getAgentLoopRoot } from './paths';
+import { getAgentLoopRoot, latestStatePath } from './paths';
 
 export class RunController implements vscode.Disposable {
   private child: ChildProcess | null = null;
@@ -67,7 +68,8 @@ export class RunController implements vscode.Disposable {
       return;
     }
     this.output.appendLine(`[${new Date().toLocaleTimeString()}] 请求停止任务队列`);
-    this.child.kill('SIGTERM');
+    void markLatestStopped(this.repoRoot);
+    terminateProcessTree(this.child);
   }
 
   private async finishRun(exitCode: number | null): Promise<void> {
@@ -79,7 +81,7 @@ export class RunController implements vscode.Disposable {
 
   dispose(): void {
     if (this.child) {
-      this.child.kill('SIGTERM');
+      terminateProcessTree(this.child);
       this.child = null;
       void setQueueRunning(false);
     }
@@ -88,4 +90,32 @@ export class RunController implements vscode.Disposable {
 
 async function setQueueRunning(running: boolean): Promise<void> {
   await vscode.commands.executeCommand('setContext', 'agentLoop.queueRunning', running);
+}
+
+async function markLatestStopped(repoRoot: string): Promise<void> {
+  const statePath = latestStatePath(repoRoot);
+  try {
+    const raw = await fs.readFile(statePath, 'utf8');
+    const state = JSON.parse(raw);
+    if (typeof state?.status === 'string' && /^(DONE_|HALT_|PAUSED_)/.test(state.status)) {
+      return;
+    }
+    state.status = 'HALT_STOPPED';
+    state.stoppedAt = new Date().toISOString();
+    await fs.writeFile(statePath, `${JSON.stringify(state, null, 2)}\n`, 'utf8');
+  } catch {
+    // Best effort only; stopping the process tree is the source of truth.
+  }
+}
+
+function terminateProcessTree(child: ChildProcess): void {
+  if (process.platform === 'win32' && child.pid) {
+    const killer = spawn('taskkill.exe', ['/PID', String(child.pid), '/T', '/F'], {
+      windowsHide: true,
+      stdio: 'ignore',
+    });
+    killer.on('error', () => child.kill('SIGTERM'));
+    return;
+  }
+  child.kill('SIGTERM');
 }

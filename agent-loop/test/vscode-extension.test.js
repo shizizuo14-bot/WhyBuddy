@@ -186,6 +186,83 @@ test('resolveLogRoot prefers run artifacts directory over latest', async () => {
   );
 });
 
+test('resolveDisplayGate prefers post-fix gate over baseline gate', async () => {
+  const { resolveDisplayGate } = requireFromExtension('./out/gateSummary.js');
+
+  const gate = resolveDisplayGate({
+    baselineGate: { ok: false, failureCount: 2 },
+    iterations: [
+      { iteration: 1, gate: { ok: true, failureCount: 0 } },
+    ],
+  });
+
+  assert.deepEqual(gate, {
+    ok: true,
+    text: '修复 Gate 绿',
+    source: 'post-fix',
+    failureCount: 0,
+  });
+});
+
+test('buildRunSnapshot can read a historical run and freeze terminal elapsed', async () => {
+  const { buildRunSnapshotFromStatePath } = requireFromExtension('./out/stateReader.js');
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-snapshot-repo-'));
+  const runId = '2026-06-17T15-34-38-183Z';
+  const runDir = path.join(repo, '.agent-loop', 'runs', runId);
+  await fs.mkdir(runDir, { recursive: true });
+  const statePath = path.join(runDir, 'state.json');
+  await fs.writeFile(statePath, JSON.stringify({
+    runId,
+    status: 'HALT_NO_CHANGES',
+    options: { task: 'agent-loop/tasks/migrate-sliderule-critique-generate.md' },
+    baselineGate: { ok: false, failureCount: 2 },
+    iterations: [
+      {
+        iteration: 1,
+        agentFix: {
+          startedAt: '2026-06-17T15:34:46.734Z',
+          endedAt: '2026-06-17T15:36:00.631Z',
+        },
+        gate: null,
+      },
+    ],
+    artifacts: { runDir },
+  }), 'utf8');
+
+  const snapshot = await buildRunSnapshotFromStatePath(repo, statePath, {
+    now: () => Date.parse('2026-06-17T15:40:00.000Z'),
+  });
+
+  assert.equal(snapshot.state.runId, runId);
+  assert.equal(snapshot.taskLabel, 'migrate-sliderule-critique-generate');
+  assert.equal(snapshot.elapsedMs, 82448);
+});
+
+test('findLatestRunForTask maps a queue task to its newest run', async () => {
+  const { findLatestRunForTask } = requireFromExtension('./out/stateReader.js');
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-task-run-'));
+  const runs = path.join(repo, '.agent-loop', 'runs');
+  await fs.mkdir(path.join(runs, 'older'), { recursive: true });
+  await fs.mkdir(path.join(runs, 'newer'), { recursive: true });
+  await fs.writeFile(path.join(runs, 'older', 'state.json'), JSON.stringify({
+    status: 'DONE_GATE_ONLY',
+    options: { task: 'agent-loop/tasks/migrate-sliderule-report-write.md' },
+  }), 'utf8');
+  await fs.writeFile(path.join(runs, 'newer', 'state.json'), JSON.stringify({
+    status: 'HALT_HUMAN',
+    options: { task: 'agent-loop/tasks/migrate-sliderule-report-write.md' },
+  }), 'utf8');
+  const olderTime = new Date('2026-06-17T15:00:00.000Z');
+  const newerTime = new Date('2026-06-17T15:00:01.000Z');
+  await fs.utimes(path.join(runs, 'older', 'state.json'), olderTime, olderTime);
+  await fs.utimes(path.join(runs, 'newer', 'state.json'), newerTime, newerTime);
+
+  const match = await findLatestRunForTask(repo, 'agent-loop/tasks/migrate-sliderule-report-write.md');
+
+  assert.equal(match.runId, 'newer');
+  assert.equal(path.basename(path.dirname(match.statePath)), 'newer');
+});
+
 test('formatAgentLogTail formats grok review json into readable lines', async () => {
   const { formatAgentLogTail } = requireFromExtension('./out/activeLog.js');
   const tail = formatAgentLogTail(JSON.stringify({
@@ -194,6 +271,15 @@ test('formatAgentLogTail formats grok review json into readable lines', async ()
 
   assert.match(tail, /verdict: pass/);
   assert.match(tail, /gate 全绿，审查通过/);
+});
+
+test('dashboard view title command is contributed only once', async () => {
+  const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
+  const viewTitleMenus = packageJson.contributes.menus['view/title'];
+  const dashboardMenus = viewTitleMenus.filter((item) => item.command === 'agentLoop.openDashboard');
+
+  assert.equal(dashboardMenus.length, 1);
+  assert.equal(dashboardMenus[0].when, 'view == agentLoop.currentRun');
 });
 
 test('packaged extension sources do not require external agent-loop runSummary.js', async () => {
@@ -226,4 +312,5 @@ test('VSIX contents are self-contained for run summary', async () => {
   assert.doesNotMatch(listing, /agent-loop\/src\/runSummary\.js/);
   assert.match(listing, /extension\/out\/runSummary\.js/);
   assert.match(listing, /extension\/out\/activeLog\.js/);
+  assert.match(listing, /extension\/out\/gateSummary\.js/);
 });

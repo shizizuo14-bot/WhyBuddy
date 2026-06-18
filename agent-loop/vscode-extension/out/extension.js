@@ -40,6 +40,7 @@ const dashboardPanel_1 = require("./dashboardPanel");
 const paths_1 = require("./paths");
 const runController_1 = require("./runController");
 const stateMonitor_1 = require("./stateMonitor");
+const stateReader_1 = require("./stateReader");
 const treeProviders_1 = require("./treeProviders");
 let monitor;
 let runController;
@@ -78,7 +79,26 @@ function activate(context) {
         runController?.stop();
     }), vscode.commands.registerCommand('agentLoop.openDashboard', () => {
         const panel = dashboardPanel_1.DashboardPanel.show(context.extensionUri);
+        monitor?.showLatestInDashboard();
         const snapshot = monitor?.getSnapshot();
+        if (snapshot)
+            panel.update(snapshot);
+    }), vscode.commands.registerCommand('agentLoop.openRunDashboard', async (statePath) => {
+        const panel = dashboardPanel_1.DashboardPanel.show(context.extensionUri);
+        const snapshot = await monitor?.showStatePathInDashboard(statePath);
+        if (snapshot)
+            panel.update(snapshot);
+    }), vscode.commands.registerCommand('agentLoop.openQueueTask', async (item) => {
+        const taskPath = item?.taskPath;
+        if (!taskPath)
+            return;
+        const run = await (0, stateReader_1.findLatestRunForTask)(repoRoot, taskPath);
+        if (!run) {
+            vscode.window.showInformationMessage(`AgentLoop: ${taskPath} 暂无运行记录`);
+            return;
+        }
+        const panel = dashboardPanel_1.DashboardPanel.show(context.extensionUri);
+        const snapshot = await monitor?.showStatePathInDashboard(run.statePath);
         if (snapshot)
             panel.update(snapshot);
     }), vscode.commands.registerCommand('agentLoop.openFinalReport', async () => {

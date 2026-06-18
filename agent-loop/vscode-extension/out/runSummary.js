@@ -34,6 +34,8 @@ function classifyRunMode({ status, iterations = [], grokFix = null, agentFix = n
         return 'halt-no-progress';
     if (normalizedStatus === 'HALT_AGENT_NOT_FOUND')
         return 'agent-missing';
+    if (normalizedStatus === 'HALT_STOPPED')
+        return 'stopped';
     if (normalizedStatus === 'HALT_HUMAN') {
         if (reviewSummary)
             return `halt-human-after-${effectiveReviewAgent || 'agent'}-review`;
