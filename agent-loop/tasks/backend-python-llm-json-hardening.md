@@ -7,14 +7,23 @@
 - 前置：`backend-python-llm-client-parity.md` 应先完成或并行
 - 注意：不发 live LLM；只测解析、重试、shape 校验逻辑。
 
+- 最近执行：2026-06-17
+- 最近确认：2026-06-17
+- AgentLoop run id：`2026-06-17T14-08-24-816Z`
+- AgentLoop 本地时间：`2026-06-17 22:08:24 (Asia/Shanghai)`
+- AgentLoop 结果：`DONE_REVIEWED`
+- AgentLoop 运行模式：`grok-review`
+- Grok 已运行：`true`
+- Codex 已运行：`false`
+- gate 结果：最终状态为 `DONE_REVIEWED`
 ### 状态清单
 
-- [ ] 空 JSON / 缺字段 / 错 schema 时有明确 `LlmError`
-- [ ] 支持 required keys 校验（如 `title`/`content`）
-- [ ] 空对象重试或 shape-retry 策略（mock 级，对齐 Node `SLIDERULE_JSON_LLM_MAX_TOKENS` 精神）
-- [ ] finish_reason=`length` 时有处理分支
-- [ ] `tests/test_json_hardening.py` 绿灯
-- [ ] 现有 `test_capabilities.py` 对话类能力无回归
+- [x] 空 JSON / 缺字段 / 错 schema 时有明确 `LlmError`
+- [x] 支持 required keys 校验（如 `title`/`content`）
+- [x] 空对象重试或 shape-retry 策略（mock 级，对齐 Node `SLIDERULE_JSON_LLM_MAX_TOKENS` 精神）
+- [x] finish_reason=`length` 时有处理分支
+- [x] `tests/test_json_hardening.py` 绿灯
+- [x] 现有 `test_capabilities.py` 对话类能力无回归
 
 ## 目标
 
@@ -43,7 +52,7 @@ cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_jso
 ```
 
 ```powershell
-node agent-loop/src/check-mojibake.js agent-loop/tasks tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_json_hardening.py
+node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-llm-json-hardening.md tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_json_hardening.py
 ```
 
 ## 成功标准

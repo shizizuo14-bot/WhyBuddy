@@ -2,11 +2,20 @@
 
 ## 执行状态
 
-- 状态：已实现 — pool parity 代码与单测已补齐，待 AgentLoop 审查闭环
+- 状态：进行中 — 红灯测试已落地，等待 AgentLoop + Grok 修复
 - 目标：让 Python `sliderule_llm.pool` 对齐 Node `pool-json-llm` 关键运行语义
-- 前置：`backend-python-llm-config-parity.md` 已完成；`client-parity` 已完成
+- 前置：`backend-python-llm-config-parity.md` 已完成；`client-parity` 建议先完成
 - 注意：用 mock caller，不发 live pool 请求。
 
+- 最近执行：2026-06-17
+- 最近确认：2026-06-17
+- AgentLoop run id：`2026-06-17T14-08-00-495Z`
+- AgentLoop 本地时间：`2026-06-17 22:08:00 (Asia/Shanghai)`
+- AgentLoop 结果：`DONE_REVIEWED`
+- AgentLoop 运行模式：`grok-review`
+- Grok 已运行：`true`
+- Codex 已运行：`false`
+- gate 结果：最终状态为 `DONE_REVIEWED`
 ### 状态清单
 
 - [x] 代理环境下默认 `sequential` race mode
@@ -43,7 +52,7 @@ cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_poo
 ```
 
 ```powershell
-node agent-loop/src/check-mojibake.js agent-loop/tasks tws-ai-slide-rule-python/sliderule_llm/pool.py tws-ai-slide-rule-python/tests/test_pool_parity.py
+node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-llm-pool-parity.md tws-ai-slide-rule-python/sliderule_llm/pool.py tws-ai-slide-rule-python/tests/test_pool_parity.py
 ```
 
 ## 成功标准

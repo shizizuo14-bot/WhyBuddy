@@ -2,15 +2,15 @@
 
 ## 执行状态
 
-- 状态：已实现 — client parity 代码与单测已补齐，待 AgentLoop 审查闭环
+- 状态：进行中 — 红灯测试已落地，等待 AgentLoop + Grok 修复
 - 目标：让 Python `sliderule_llm.client` 从「能调用」升级到「可承压的后端底座切片」
 - 前置：`backend-python-llm-config-parity.md` 已完成
 - 注意：本任务不发 live LLM；用 mock HTTP / 纯单测锁住行为。
 
 - 最近执行：2026-06-17
 - 最近确认：2026-06-17
-- AgentLoop run id：`2026-06-17T11-44-32-372Z`
-- AgentLoop 本地时间：`2026-06-17 19:44:32 (Asia/Shanghai)`
+- AgentLoop run id：`2026-06-17T14-07-19-291Z`
+- AgentLoop 本地时间：`2026-06-17 22:07:19 (Asia/Shanghai)`
 - AgentLoop 结果：`DONE_REVIEWED`
 - AgentLoop 运行模式：`grok-review`
 - Grok 已运行：`true`
@@ -56,7 +56,7 @@ cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_cli
 ```
 
 ```powershell
-node agent-loop/src/check-mojibake.js agent-loop/tasks tws-ai-slide-rule-python/sliderule_llm tws-ai-slide-rule-python/tests/test_client_parity.py
+node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-llm-client-parity.md tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_client_parity.py
 ```
 
 ## 成功标准
