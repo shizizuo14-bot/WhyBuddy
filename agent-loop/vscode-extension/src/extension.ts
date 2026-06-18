@@ -28,8 +28,8 @@ export function activate(context: vscode.ExtensionContext): void {
     () => {
       monitor?.markRunStarted();
       if (vscode.workspace.getConfiguration('agentLoop').get<boolean>('openDashboardOnRun', true)) {
-        const panel = DashboardPanel.show(context.extensionUri);
-        void monitor?.refresh().then((snapshot) => panel.update(snapshot));
+        DashboardPanel.show(context.extensionUri);
+        void monitor?.refresh().then(() => monitor?.pushOverview());
       } else {
         void monitor?.refresh();
       }
@@ -60,10 +60,20 @@ export function activate(context: vscode.ExtensionContext): void {
       runController?.stop();
     }),
     vscode.commands.registerCommand('agentLoop.openDashboard', () => {
-      const panel = DashboardPanel.show(context.extensionUri);
-      monitor?.showLatestInDashboard();
-      const snapshot = monitor?.getSnapshot();
-      if (snapshot) panel.update(snapshot);
+      DashboardPanel.show(context.extensionUri);
+      void monitor?.pushOverview();
+    }),
+    vscode.commands.registerCommand('agentLoop.showOverview', () => {
+      DashboardPanel.show(context.extensionUri);
+      void monitor?.pushOverview();
+    }),
+    vscode.commands.registerCommand('agentLoop.openFile', async (filePath?: string) => {
+      if (!filePath) return;
+      try {
+        await vscode.window.showTextDocument(vscode.Uri.file(filePath), { preview: false });
+      } catch {
+        vscode.window.showWarningMessage(`AgentLoop: 打不开 ${filePath}`);
+      }
     }),
     vscode.commands.registerCommand('agentLoop.openRunDashboard', async (statePath: string) => {
       const panel = DashboardPanel.show(context.extensionUri);

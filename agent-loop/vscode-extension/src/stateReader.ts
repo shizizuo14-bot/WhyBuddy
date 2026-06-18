@@ -6,7 +6,16 @@ import { activeAgentLabel, buildPipelineSteps, describeSnapshot, formatElapsed, 
 import { parseRunIdDate, summarizeStateRun } from './runSummary';
 
 export { findNewestFixLog, formatAgentLogTail, resolveActiveLogCandidates, resolveActiveLogPath, resolveLogRoot } from './activeLog';
-import type { LoopState, QueueFile, RunSnapshot, RunSummaryItem } from './types';
+import type { LoopState, QueueFile, QueueOverview, QueueOverviewItem, RunSnapshot, RunSummaryItem } from './types';
+
+interface QueueOutcomesFile {
+  tasks?: Record<string, {
+    lastStatus?: string;
+    lastOutcome?: string;
+    lastRunId?: string;
+    autoDisabled?: boolean;
+  }>;
+}
 
 const ANSI_ESCAPE_RE = /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
 const TERMINAL_STATUS_RE = /^(DONE_|HALT_|PAUSED_)/;
@@ -161,6 +170,69 @@ export async function findLatestRunForTask(
     }
   }
   return best ? { runId: best.runId, statePath: best.statePath } : null;
+}
+
+export async function readQueueOutcomes(repoRoot: string): Promise<QueueOutcomesFile> {
+  const file = await readJsonFile<QueueOutcomesFile>(
+    path.join(repoRoot, '.agent-loop', 'queue-outcomes.json'),
+  );
+  return file ?? { tasks: {} };
+}
+
+// Merge the queue definition (membership/order) with per-task queue outcomes and
+// the currently-running task, into the model the overview view renders.
+export async function buildQueueOverview(
+  repoRoot: string,
+  options: { queueFilePath?: string; runningTaskPath?: string | null; queueRunning?: boolean } = {},
+): Promise<QueueOverview> {
+  const queue = await readJsonFile<QueueFile>(options.queueFilePath || defaultQueuePath(repoRoot));
+  const outcomes = await readQueueOutcomes(repoRoot);
+  const runningTask = options.runningTaskPath ? normalizeTaskPath(options.runningTaskPath) : null;
+
+  const tasks: QueueOverviewItem[] = (queue?.tasks || []).map((task) => {
+    const id = task.id || task.task;
+    const record = outcomes.tasks?.[id];
+    const running = Boolean(options.queueRunning)
+      && runningTask !== null
+      && normalizeTaskPath(task.task) === runningTask;
+    return {
+      id,
+      task: task.task,
+      enabled: task.enabled !== false,
+      outcome: record?.lastOutcome ?? null,
+      status: record?.lastStatus ?? null,
+      lastRunId: record?.lastRunId ?? null,
+      autoDisabled: Boolean(record?.autoDisabled),
+      running,
+    };
+  });
+
+  const counts = {
+    total: tasks.length,
+    done: 0,
+    failed: 0,
+    crashed: 0,
+    quarantined: 0,
+    running: 0,
+    pending: 0,
+  };
+  for (const item of tasks) {
+    if (item.running) {
+      counts.running += 1;
+    } else if (item.outcome === 'done') {
+      counts.done += 1;
+    } else if (item.outcome === 'failed') {
+      counts.failed += 1;
+    } else if (item.outcome === 'crashed') {
+      counts.crashed += 1;
+    } else if (item.outcome === 'quarantined') {
+      counts.quarantined += 1;
+    } else {
+      counts.pending += 1;
+    }
+  }
+
+  return { tasks, counts, queueRunning: Boolean(options.queueRunning) };
 }
 
 export function snapshotStatusLine(snapshot: RunSnapshot): string {

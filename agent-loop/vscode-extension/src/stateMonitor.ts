@@ -2,7 +2,7 @@ import * as vscode from 'vscode';
 import { DashboardPanel } from './dashboardPanel';
 import { formatElapsed, phaseLabel, statusIcon } from './phaseLabels';
 import { latestDir, queuePath } from './paths';
-import { buildRunSnapshot, snapshotStatusLine } from './stateReader';
+import { buildQueueOverview, buildRunSnapshot, snapshotStatusLine } from './stateReader';
 import type { RunSnapshot } from './types';
 
 export type SnapshotListener = (snapshot: RunSnapshot) => void;
@@ -78,6 +78,17 @@ export class StateMonitor implements vscode.Disposable {
     }
   }
 
+  public async pushOverview(): Promise<void> {
+    if (!DashboardPanel.current) return;
+    this.dashboardStatePath = null;
+    const overview = await buildQueueOverview(this.repoRoot, {
+      queueFilePath: queuePath(this.repoRoot),
+      runningTaskPath: this.latestSnapshot?.state?.options?.task ?? null,
+      queueRunning: this.isQueueRunning(),
+    });
+    DashboardPanel.current.showOverview(overview, this.latestSnapshot);
+  }
+
   public async showStatePathInDashboard(statePath: string): Promise<RunSnapshot> {
     this.dashboardStatePath = statePath;
     const snapshot = this.enrichSnapshot(await buildRunSnapshot(
@@ -131,6 +142,10 @@ export class StateMonitor implements vscode.Disposable {
 
   private async updateDashboard(latestSnapshot: RunSnapshot): Promise<void> {
     if (!DashboardPanel.current) return;
+    if (DashboardPanel.current.view === 'overview') {
+      await this.pushOverview();
+      return;
+    }
     if (!this.dashboardStatePath) {
       DashboardPanel.current.update(latestSnapshot);
       return;

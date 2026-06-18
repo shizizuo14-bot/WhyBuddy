@@ -27,22 +27,65 @@ export interface LoopState {
     agentFix?: AgentRunSummary | null;
     gate?: GateSummary | null;
     gateSnapshot?: GateSnapshot | null;
+    gateProgress?: { effectiveFailureCount?: number; innerFailureCount?: number | null };
+    diff?: { bytes?: number };
+    diffGuard?: { hasFindings?: boolean; findings?: Array<{ path?: string; reason?: string }> };
     attempts?: Array<{
       attempt?: number;
       grokFix?: AgentRunSummary | null;
       agentFix?: AgentRunSummary | null;
+      failure?: { kind?: string; retryable?: boolean };
+      diffChanged?: boolean;
     }>;
   }>;
+  reviewRounds?: ReviewRound[];
+  pendingReview?: { verdict?: string | null } | null;
+  admission?: { admissible?: boolean; reason?: string | null } | null;
+  guardReason?: string | null;
   agentFix?: AgentRunSummary | null;
   grokFix?: AgentRunSummary | null;
   agentReview?: AgentRunSummary | null;
   grokReview?: AgentRunSummary | null;
   codexReview?: AgentRunSummary | null;
+  reviewVerdict?: string | null;
   artifacts?: {
     runDir?: string;
     latestDir?: string;
   };
   worktreeError?: string | null;
+}
+
+export interface ReviewRound {
+  round?: number;
+  verdict?: string | null;
+  decision?: 'pass' | 'needs_changes' | 'halt' | string;
+  summary?: string | null;
+  findings?: Array<{ severity?: string; path?: string; message?: string }>;
+}
+
+export interface QueueOverviewItem {
+  id: string;
+  task: string;
+  enabled: boolean;
+  outcome: string | null;
+  status: string | null;
+  lastRunId: string | null;
+  autoDisabled: boolean;
+  running: boolean;
+}
+
+export interface QueueOverview {
+  tasks: QueueOverviewItem[];
+  counts: {
+    total: number;
+    done: number;
+    failed: number;
+    crashed: number;
+    quarantined: number;
+    running: number;
+    pending: number;
+  };
+  queueRunning: boolean;
 }
 
 export interface GateSummary {

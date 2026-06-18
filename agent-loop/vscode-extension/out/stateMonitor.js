@@ -105,6 +105,17 @@ class StateMonitor {
             dashboardPanel_1.DashboardPanel.current.update(this.latestSnapshot);
         }
     }
+    async pushOverview() {
+        if (!dashboardPanel_1.DashboardPanel.current)
+            return;
+        this.dashboardStatePath = null;
+        const overview = await (0, stateReader_1.buildQueueOverview)(this.repoRoot, {
+            queueFilePath: (0, paths_1.queuePath)(this.repoRoot),
+            runningTaskPath: this.latestSnapshot?.state?.options?.task ?? null,
+            queueRunning: this.isQueueRunning(),
+        });
+        dashboardPanel_1.DashboardPanel.current.showOverview(overview, this.latestSnapshot);
+    }
     async showStatePathInDashboard(statePath) {
         this.dashboardStatePath = statePath;
         const snapshot = this.enrichSnapshot(await (0, stateReader_1.buildRunSnapshot)(this.repoRoot, this.phaseStartedAt, this.runStartedAt, { statePath, queueFilePath: (0, paths_1.queuePath)(this.repoRoot) }));
@@ -143,6 +154,10 @@ class StateMonitor {
     async updateDashboard(latestSnapshot) {
         if (!dashboardPanel_1.DashboardPanel.current)
             return;
+        if (dashboardPanel_1.DashboardPanel.current.view === 'overview') {
+            await this.pushOverview();
+            return;
+        }
         if (!this.dashboardStatePath) {
             dashboardPanel_1.DashboardPanel.current.update(latestSnapshot);
             return;

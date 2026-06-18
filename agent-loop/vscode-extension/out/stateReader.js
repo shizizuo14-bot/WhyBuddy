@@ -40,6 +40,8 @@ exports.buildRunSnapshot = buildRunSnapshot;
 exports.buildRunSnapshotFromStatePath = buildRunSnapshotFromStatePath;
 exports.listRecentRuns = listRecentRuns;
 exports.findLatestRunForTask = findLatestRunForTask;
+exports.readQueueOutcomes = readQueueOutcomes;
+exports.buildQueueOverview = buildQueueOverview;
 exports.snapshotStatusLine = snapshotStatusLine;
 const fs = __importStar(require("node:fs/promises"));
 const path = __importStar(require("node:path"));
@@ -186,6 +188,64 @@ async function findLatestRunForTask(repoRoot, taskPath) {
         }
     }
     return best ? { runId: best.runId, statePath: best.statePath } : null;
+}
+async function readQueueOutcomes(repoRoot) {
+    const file = await readJsonFile(path.join(repoRoot, '.agent-loop', 'queue-outcomes.json'));
+    return file ?? { tasks: {} };
+}
+// Merge the queue definition (membership/order) with per-task queue outcomes and
+// the currently-running task, into the model the overview view renders.
+async function buildQueueOverview(repoRoot, options = {}) {
+    const queue = await readJsonFile(options.queueFilePath || defaultQueuePath(repoRoot));
+    const outcomes = await readQueueOutcomes(repoRoot);
+    const runningTask = options.runningTaskPath ? normalizeTaskPath(options.runningTaskPath) : null;
+    const tasks = (queue?.tasks || []).map((task) => {
+        const id = task.id || task.task;
+        const record = outcomes.tasks?.[id];
+        const running = Boolean(options.queueRunning)
+            && runningTask !== null
+            && normalizeTaskPath(task.task) === runningTask;
+        return {
+            id,
+            task: task.task,
+            enabled: task.enabled !== false,
+            outcome: record?.lastOutcome ?? null,
+            status: record?.lastStatus ?? null,
+            lastRunId: record?.lastRunId ?? null,
+            autoDisabled: Boolean(record?.autoDisabled),
+            running,
+        };
+    });
+    const counts = {
+        total: tasks.length,
+        done: 0,
+        failed: 0,
+        crashed: 0,
+        quarantined: 0,
+        running: 0,
+        pending: 0,
+    };
+    for (const item of tasks) {
+        if (item.running) {
+            counts.running += 1;
+        }
+        else if (item.outcome === 'done') {
+            counts.done += 1;
+        }
+        else if (item.outcome === 'failed') {
+            counts.failed += 1;
+        }
+        else if (item.outcome === 'crashed') {
+            counts.crashed += 1;
+        }
+        else if (item.outcome === 'quarantined') {
+            counts.quarantined += 1;
+        }
+        else {
+            counts.pending += 1;
+        }
+    }
+    return { tasks, counts, queueRunning: Boolean(options.queueRunning) };
 }
 function snapshotStatusLine(snapshot) {
     const status = snapshot.state?.status || 'IDLE';

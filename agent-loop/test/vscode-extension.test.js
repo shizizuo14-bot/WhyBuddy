@@ -273,6 +273,54 @@ test('formatAgentLogTail formats grok review json into readable lines', async ()
   assert.match(tail, /gate 全绿，审查通过/);
 });
 
+test('buildQueueOverview merges queue membership with per-task outcomes', async () => {
+  const { buildQueueOverview } = requireFromExtension('./out/stateReader.js');
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-overview-'));
+  const queueFilePath = path.join(repo, 'queue.json');
+  await fs.writeFile(queueFilePath, JSON.stringify({
+    tasks: [
+      { id: 'a', task: 'agent-loop/tasks/a.md' },
+      { id: 'b', task: 'agent-loop/tasks/b.md' },
+      { id: 'c', task: 'agent-loop/tasks/c.md', enabled: false },
+    ],
+  }), 'utf8');
+  await fs.mkdir(path.join(repo, '.agent-loop'), { recursive: true });
+  await fs.writeFile(path.join(repo, '.agent-loop', 'queue-outcomes.json'), JSON.stringify({
+    tasks: {
+      a: { lastOutcome: 'done', lastStatus: 'DONE_REVIEWED', lastRunId: 'run-a' },
+      b: { lastOutcome: 'failed', lastStatus: 'HALT_HUMAN', lastRunId: 'run-b' },
+    },
+  }), 'utf8');
+
+  const overview = await buildQueueOverview(repo, { queueFilePath, queueRunning: false });
+
+  assert.equal(overview.counts.total, 3);
+  assert.equal(overview.counts.done, 1);
+  assert.equal(overview.counts.failed, 1);
+  assert.equal(overview.counts.pending, 1);
+  assert.equal(overview.tasks[0].outcome, 'done');
+  assert.equal(overview.tasks[2].enabled, false);
+});
+
+test('buildQueueOverview flags the running task from the live run', async () => {
+  const { buildQueueOverview } = requireFromExtension('./out/stateReader.js');
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-overview-run-'));
+  const queueFilePath = path.join(repo, 'queue.json');
+  await fs.writeFile(queueFilePath, JSON.stringify({
+    tasks: [{ id: 'a', task: 'agent-loop/tasks/a.md' }, { id: 'b', task: 'agent-loop/tasks/b.md' }],
+  }), 'utf8');
+
+  const overview = await buildQueueOverview(repo, {
+    queueFilePath,
+    queueRunning: true,
+    runningTaskPath: 'agent-loop/tasks/b.md',
+  });
+
+  assert.equal(overview.tasks[1].running, true);
+  assert.equal(overview.tasks[0].running, false);
+  assert.equal(overview.counts.running, 1);
+});
+
 test('dashboard view title command is contributed only once', async () => {
   const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
   const viewTitleMenus = packageJson.contributes.menus['view/title'];
