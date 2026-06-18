@@ -8,6 +8,7 @@ export function runProcess(command, args, options = {}) {
     input,
     onStdout,
     onStderr,
+    signal,
   } = options;
 
   return new Promise((resolve) => {
@@ -22,11 +23,32 @@ export function runProcess(command, args, options = {}) {
     let stdout = '';
     let stderr = '';
     let timedOut = false;
+    let aborted = false;
+    let settled = false;
 
     const timer = setTimeout(() => {
       timedOut = true;
       child.kill('SIGTERM');
     }, timeoutMs);
+
+    const abort = () => {
+      aborted = true;
+      child.kill('SIGTERM');
+      setTimeout(() => {
+        if (!settled && !child.killed) child.kill('SIGKILL');
+      }, 2000).unref?.();
+    };
+    if (signal?.aborted) {
+      abort();
+    } else {
+      signal?.addEventListener('abort', abort, { once: true });
+    }
+
+    const cleanup = () => {
+      settled = true;
+      clearTimeout(timer);
+      signal?.removeEventListener('abort', abort);
+    };
 
     child.stdout?.on('data', (chunk) => {
       const text = chunk.toString();
@@ -39,7 +61,7 @@ export function runProcess(command, args, options = {}) {
       onStderr?.(text);
     });
     child.on('error', (error) => {
-      clearTimeout(timer);
+      cleanup();
       resolve({
         command,
         args,
@@ -49,13 +71,14 @@ export function runProcess(command, args, options = {}) {
         exitCode: null,
         signal: null,
         timedOut,
+        aborted,
         spawnError: error.message,
         stdout,
         stderr,
       });
     });
     child.on('close', (exitCode, signal) => {
-      clearTimeout(timer);
+      cleanup();
       resolve({
         command,
         args,
@@ -65,6 +88,7 @@ export function runProcess(command, args, options = {}) {
         exitCode,
         signal,
         timedOut,
+        aborted,
         stdout,
         stderr,
       });

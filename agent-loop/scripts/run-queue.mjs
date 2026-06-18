@@ -15,6 +15,15 @@ const agentLoopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const defaultQueuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
 
 async function main() {
+  const abortController = new AbortController();
+  let stopRequested = false;
+  const requestStop = () => {
+    stopRequested = true;
+    abortController.abort();
+  };
+  process.once('SIGTERM', requestStop);
+  process.once('SIGINT', requestStop);
+
   const argv = process.argv.slice(2);
   const follow = !argv.includes('--no-follow');
   const queuePath = resolveQueuePath(argv);
@@ -49,6 +58,7 @@ async function main() {
   const results = [];
   let skippedCount = 0;
   for (const [index, entry] of tasks.entries()) {
+    if (stopRequested) break;
     const label = entry.id || entry.task;
     const skipCheck = shouldSkipAutoDisabledTask({
       entry,
@@ -108,6 +118,7 @@ async function main() {
         AGENT_LOOP_PROGRESS: follow ? '1' : '0',
       },
       timeoutMs: (entry.timeoutMs || defaults.timeoutMs || 1800000) + 120000,
+      signal: abortController.signal,
       onStderr: follow
         ? (chunk) => {
           process.stderr.write(chunk);
@@ -121,6 +132,33 @@ async function main() {
     });
 
     watcher?.stop();
+
+    if (run.aborted || stopRequested) {
+      const stoppedSummary = {
+        id: label,
+        task: entry.task,
+        exitCode: run.exitCode,
+        guardReason: null,
+        worktreeError: null,
+        runId: null,
+        runTimeLocal: '',
+        runTimeUtc: '',
+        status: 'HALT_STOPPED',
+        fixAgent: entry.fixAgent ?? defaults.fixAgent ?? 'grok',
+        reviewAgent: (entry.skipReview ?? defaults.skipReview ?? true)
+          ? null
+          : (entry.reviewAgent ?? defaults.reviewAgent ?? 'grok'),
+        runMode: 'stopped',
+        grokRan: false,
+        codexRan: false,
+        reviewAgentRan: false,
+        iterations: 0,
+        outcome: 'stopped',
+      };
+      results.push(stoppedSummary);
+      process.stderr.write(`[run-queue] stopped ${label}: user requested stop\n`);
+      break;
+    }
 
     const state = await readLatestState(repoRoot);
     const summary = buildQueueSummaryFromState({
@@ -177,8 +215,9 @@ async function main() {
   const failedCount = results.filter((r) => r.outcome === 'failed').length;
   const crashedCount = results.filter((r) => r.outcome === 'crashed').length;
   const quarantinedCount = results.filter((r) => r.outcome === 'quarantined').length;
+  const stoppedCount = results.filter((r) => r.outcome === 'stopped').length;
   process.stderr.write(
-    `\n[run-queue] queue complete: ${doneCount} done, ${failedCount} task-failed, ${crashedCount} crashed, ${quarantinedCount} quarantined, ${skippedCount} skipped (of ${results.length})\n`,
+    `\n[run-queue] queue complete: ${doneCount} done, ${failedCount} task-failed, ${crashedCount} crashed, ${quarantinedCount} quarantined, ${skippedCount} skipped, ${stoppedCount} stopped (of ${results.length})\n`,
   );
   for (const r of results) {
     if (r.outcome !== 'done' && r.outcome !== 'skipped') {
@@ -187,7 +226,8 @@ async function main() {
   }
 
   process.stdout.write(`${JSON.stringify({
-    stopped: false,
+    stopped: stoppedCount > 0,
+    stoppedByUser: stoppedCount > 0,
     done: doneCount,
     failed: failedCount,
     crashed: crashedCount,
@@ -198,7 +238,7 @@ async function main() {
 
   // Non-zero exit if anything did not cleanly finish, so callers/CI still notice — but only
   // after every enabled task has had its turn.
-  if (failedCount > 0 || crashedCount > 0 || quarantinedCount > 0) {
+  if (failedCount > 0 || crashedCount > 0 || quarantinedCount > 0 || stoppedCount > 0) {
     process.exitCode = 1;
   }
 }
