@@ -50,7 +50,7 @@ class BaseNode extends vscode.TreeItem {
 class CurrentRunNode extends BaseNode {
     constructor(snapshot) {
         const status = snapshot?.state?.status;
-        const label = status ? `${(0, phaseLabels_1.phaseLabel)(status)} · ${snapshot?.taskLabel}` : '暂无活动运行';
+        const label = status ? `${(0, phaseLabels_1.phaseLabel)(status)} / ${snapshot?.taskLabel}` : '暂无活动运行';
         super('current-run', label, vscode.TreeItemCollapsibleState.None);
         this.iconPath = new vscode.ThemeIcon((0, phaseLabels_1.statusIcon)(status).replace(/^\$\((.+)\)$/, '$1'));
         this.description = snapshot?.state?.runId || '';
@@ -106,8 +106,8 @@ class RunHistoryNode extends BaseNode {
         this.tooltip = [
             run.runId,
             `模式: ${run.runMode}`,
-            `工人: ${run.fixAgent} · 审查: ${run.reviewAgent || '—'}`,
-            `Grok: ${run.grokRan ? '是' : '否'} · Codex: ${run.codexRan ? '是' : '否'}`,
+            `工人: ${run.fixAgent} / 审查: ${run.reviewAgent || '-'}`,
+            `Grok: ${run.grokRan ? '是' : '否'} / Codex: ${run.codexRan ? '是' : '否'}`,
             `迭代: ${run.iterations}`,
         ].join('\n');
         this.command = {

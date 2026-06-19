@@ -102,6 +102,8 @@ async function buildRunSnapshotFromStatePath(repoRoot, statePath, options = {}) 
     const terminalEndedAt = await inferTerminalEndedAt(state, statePath);
     const elapsedAt = terminalEndedAt ?? now;
     const displayGate = (0, gateSummary_1.resolveDisplayGate)(state);
+    const landing = await readRunArtifact(state, repoRoot, 'landing.json');
+    const finalReport = await readRunArtifact(state, repoRoot, 'final-report.json');
     return {
         state,
         statePath,
@@ -119,7 +121,14 @@ async function buildRunSnapshotFromStatePath(repoRoot, statePath, options = {}) 
         reviewAgent,
         runMode: summary?.runMode || 'unknown',
         displayGate,
+        landing,
+        finalReport,
+        guardPolicy: state?.guardPolicy ?? finalReport?.guardPolicy ?? null,
     };
+}
+async function readRunArtifact(state, repoRoot, fileName) {
+    const runDir = (0, activeLog_1.resolveLogRoot)(state, repoRoot);
+    return readJsonFile(path.join(runDir, fileName));
 }
 async function listRecentRuns(repoRoot, limit = 20) {
     const dir = path.join(repoRoot, '.agent-loop', 'runs');

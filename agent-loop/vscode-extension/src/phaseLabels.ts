@@ -20,6 +20,8 @@ export const PHASE_LABELS_ZH: Record<string, string> = {
   HALT_NO_PROGRESS: 'gate 无进展',
   HALT_BUDGET: '达到最大轮次',
   HALT_AGENT_NOT_FOUND: '缺少 agent',
+  HALT_NO_SUCCESS_CRITERIA: '缺少成功标准',
+  HALT_STOPPED: '已停止',
   PAUSED_BEFORE_FIX: '修复前暂停',
   PAUSED_AFTER_ITERATION: '迭代后暂停',
 };
@@ -77,16 +79,16 @@ export function activeAgentLabel(
   resolvedRoles: ResolvedAgentRoles | null = null,
   queueDefaults: QueueDefaults | null = null,
 ): string {
-  if (!status) return '—';
+  if (!status) return '-';
   if (status === 'GROK_FIX' || status === 'GROK_REVIEW') return 'Grok';
   if (status === 'CODEX_FIX' || status === 'CODEX_REVIEW') return 'Codex';
   const { fixAgent, reviewAgent } = resolvedRoles ?? resolveAgentRoles(state, queueDefaults);
   if (status === 'BUDGET_LOOP_HEAD') return fixAgent === 'codex' ? 'Codex' : 'Grok';
   if (status.startsWith('DONE_') || status.startsWith('HALT_')) {
     const parts = [fixAgent, reviewAgent].filter(Boolean);
-    return parts.length ? parts.join(' + ') : '—';
+    return parts.length ? parts.join(' + ') : '-';
   }
-  return '—';
+  return '-';
 }
 
 export function phaseLabel(status: string | undefined): string {
@@ -119,11 +121,11 @@ export function describeSnapshot(
   queueDefaults: QueueDefaults | null = null,
 ): { details: string[]; taskLabel: string } {
   if (!state) {
-    return { details: ['尚无运行记录'], taskLabel: '—' };
+    return { details: ['暂无运行记录'], taskLabel: '-' };
   }
 
   const details: string[] = [];
-  const taskLabel = state.options?.task?.split('/').pop()?.replace(/\.md$/, '') || '—';
+  const taskLabel = state.options?.task?.split('/').pop()?.replace(/\.md$/, '') || '-';
 
   if (state.currentIteration) details.push(`轮次 ${state.currentIteration}`);
   if (state.baselineGate?.ok === true) details.push('基线 gate 绿');

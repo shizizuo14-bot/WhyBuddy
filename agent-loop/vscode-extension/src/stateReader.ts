@@ -6,7 +6,7 @@ import { activeAgentLabel, buildPipelineSteps, describeSnapshot, formatElapsed, 
 import { parseRunIdDate, summarizeStateRun } from './runSummary';
 
 export { findNewestFixLog, formatAgentLogTail, resolveActiveLogCandidates, resolveActiveLogPath, resolveLogRoot } from './activeLog';
-import type { LoopState, QueueFile, QueueOverview, QueueOverviewItem, RunSnapshot, RunSummaryItem } from './types';
+import type { FinalReportJson, LandingStatus, LoopState, QueueFile, QueueOverview, QueueOverviewItem, RunSnapshot, RunSummaryItem } from './types';
 
 interface QueueOutcomesFile {
   tasks?: Record<string, {
@@ -81,6 +81,8 @@ export async function buildRunSnapshotFromStatePath(
   const terminalEndedAt = await inferTerminalEndedAt(state, statePath);
   const elapsedAt = terminalEndedAt ?? now;
   const displayGate = resolveDisplayGate(state);
+  const landing = await readRunArtifact<LandingStatus>(state, repoRoot, 'landing.json');
+  const finalReport = await readRunArtifact<FinalReportJson>(state, repoRoot, 'final-report.json');
 
   return {
     state,
@@ -99,7 +101,15 @@ export async function buildRunSnapshotFromStatePath(
     reviewAgent,
     runMode: summary?.runMode || 'unknown',
     displayGate,
+    landing,
+    finalReport,
+    guardPolicy: state?.guardPolicy ?? finalReport?.guardPolicy ?? null,
   };
+}
+
+async function readRunArtifact<T>(state: LoopState | null, repoRoot: string, fileName: string): Promise<T | null> {
+  const runDir = resolveLogRoot(state, repoRoot);
+  return readJsonFile<T>(path.join(runDir, fileName));
 }
 
 export async function listRecentRuns(repoRoot: string, limit = 20): Promise<RunSummaryItem[]> {

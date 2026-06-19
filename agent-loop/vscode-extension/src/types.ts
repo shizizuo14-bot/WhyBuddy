@@ -42,6 +42,7 @@ export interface LoopState {
   pendingReview?: { verdict?: string | null } | null;
   admission?: { admissible?: boolean; reason?: string | null } | null;
   guardReason?: string | null;
+  guardPolicy?: GuardPolicy | null;
   agentFix?: AgentRunSummary | null;
   grokFix?: AgentRunSummary | null;
   agentReview?: AgentRunSummary | null;
@@ -60,7 +61,31 @@ export interface ReviewRound {
   verdict?: string | null;
   decision?: 'pass' | 'needs_changes' | 'halt' | string;
   summary?: string | null;
+  riskLevel?: string | null;
+  applyRecommendation?: string | null;
+  verifiedBoundaries?: string[];
   findings?: Array<{ severity?: string; path?: string; message?: string }>;
+}
+
+export interface GuardPolicy {
+  protectTests?: boolean;
+  protectTaskDocs?: boolean;
+  protectedGlobs?: string[];
+}
+
+export interface LandingStatus {
+  status?: string;
+  appliedToMain?: boolean;
+  mainGateGreen?: boolean;
+  committed?: boolean;
+  commit?: string;
+}
+
+export interface FinalReportJson {
+  schemaVersion?: number;
+  status?: string;
+  runMode?: string;
+  guardPolicy?: GuardPolicy | null;
 }
 
 export interface QueueOverviewItem {
@@ -157,6 +182,9 @@ export interface RunSnapshot {
     source: 'post-fix' | 'baseline' | 'none';
     failureCount: number | null;
   };
+  landing: LandingStatus | null;
+  finalReport: FinalReportJson | null;
+  guardPolicy: GuardPolicy | null;
 }
 
 export interface RunSummaryItem {

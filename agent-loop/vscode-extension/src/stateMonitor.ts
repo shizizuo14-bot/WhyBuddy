@@ -133,7 +133,6 @@ export class StateMonitor implements vscode.Disposable {
       : '$(circle-outline) AgentLoop: 空闲';
     this.statusBarItem.text = text;
     this.statusBarItem.tooltip = snapshot.details.join('\n') || '打开 AgentLoop 面板';
-
   }
 
   private enrichSnapshot(snapshot: RunSnapshot): RunSnapshot {

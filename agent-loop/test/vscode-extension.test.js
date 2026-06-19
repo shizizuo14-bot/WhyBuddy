@@ -238,6 +238,43 @@ test('buildRunSnapshot can read a historical run and freeze terminal elapsed', a
   assert.equal(snapshot.elapsedMs, 82448);
 });
 
+test('buildRunSnapshot reads landing status and structured final report', async () => {
+  const { buildRunSnapshotFromStatePath } = requireFromExtension('./out/stateReader.js');
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-snapshot-report-'));
+  const runId = '2026-06-20T10-00-00-000Z';
+  const runDir = path.join(repo, '.agent-loop', 'runs', runId);
+  await fs.mkdir(runDir, { recursive: true });
+  const statePath = path.join(runDir, 'state.json');
+  await fs.writeFile(statePath, JSON.stringify({
+    runId,
+    status: 'DONE_REVIEWED',
+    options: { task: 'agent-loop/tasks/task-a.md' },
+    artifacts: { runDir },
+    guardPolicy: { protectedGlobs: ['src/generated/**'], protectTaskDocs: true },
+    iterations: [],
+  }), 'utf8');
+  await fs.writeFile(path.join(runDir, 'landing.json'), JSON.stringify({
+    status: 'MAIN_GATE_GREEN',
+    appliedToMain: true,
+    mainGateGreen: true,
+    committed: false,
+  }), 'utf8');
+  await fs.writeFile(path.join(runDir, 'final-report.json'), JSON.stringify({
+    schemaVersion: 1,
+    status: 'DONE_REVIEWED',
+    runMode: 'grok-fix+grok-review',
+    guardPolicy: { protectedGlobs: ['src/generated/**'], protectTaskDocs: true },
+  }), 'utf8');
+
+  const snapshot = await buildRunSnapshotFromStatePath(repo, statePath, {
+    now: () => Date.parse('2026-06-20T10:01:00.000Z'),
+  });
+
+  assert.equal(snapshot.landing.status, 'MAIN_GATE_GREEN');
+  assert.equal(snapshot.finalReport.status, 'DONE_REVIEWED');
+  assert.deepEqual(snapshot.guardPolicy, { protectedGlobs: ['src/generated/**'], protectTaskDocs: true });
+});
+
 test('findLatestRunForTask maps a queue task to its newest run', async () => {
   const { findLatestRunForTask } = requireFromExtension('./out/stateReader.js');
   const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-task-run-'));
@@ -321,6 +358,16 @@ test('buildQueueOverview flags the running task from the live run', async () => 
   assert.equal(overview.counts.running, 1);
 });
 
+test('extension phase labels render clean Chinese status text', async () => {
+  const { phaseLabel, formatElapsed, activeAgentLabel } = requireFromExtension('./out/phaseLabels.js');
+
+  assert.equal(phaseLabel(undefined), '等待运行');
+  assert.equal(phaseLabel('INIT'), '初始化');
+  assert.equal(phaseLabel('HALT_NO_CHANGES'), '修复无有效 diff');
+  assert.equal(formatElapsed(62000), '1 分 02 秒');
+  assert.equal(activeAgentLabel(undefined, null), '-');
+});
+
 test('dashboard view title command is contributed only once', async () => {
   const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
   const viewTitleMenus = packageJson.contributes.menus['view/title'];
@@ -328,6 +375,47 @@ test('dashboard view title command is contributed only once', async () => {
 
   assert.equal(dashboardMenus.length, 1);
   assert.equal(dashboardMenus[0].when, 'view == agentLoop.currentRun');
+});
+
+test('extension package contributes clean Chinese labels for 0.1.8', async () => {
+  const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
+
+  assert.equal(packageJson.version, '0.1.8');
+  assert.deepEqual(
+    packageJson.contributes.views['agent-loop'].map((view) => view.name),
+    ['当前运行', '任务队列', '历史运行'],
+  );
+
+  const titles = Object.fromEntries(
+    packageJson.contributes.commands.map((command) => [command.command, command.title]),
+  );
+  assert.equal(titles['agentLoop.runQueue'], 'AgentLoop: 运行任务队列');
+  assert.equal(titles['agentLoop.stopRun'], 'AgentLoop: 停止当前运行');
+  assert.equal(titles['agentLoop.openDashboard'], 'AgentLoop: 打开可视化面板');
+  assert.equal(titles['agentLoop.openFinalReport'], 'AgentLoop: 打开最终报告');
+  assert.equal(titles['agentLoop.openStateJson'], 'AgentLoop: 打开 state.json');
+  assert.equal(titles['agentLoop.refresh'], '刷新');
+});
+
+test('compiled extension UI sources do not contain mojibake markers', async () => {
+  const markers = /鈥|鎬|妯|褰|杩|浠|鍘|淇|瀹|锛|鐨|姝|闈|鍔|钀|绛|宸|鏈|寰|鏌|闅|鍋|鎵|鍒|绌|杞|繍|涓|鏆|瘯|绉/;
+  const files = [
+    path.join(extensionOut, 'extension.js'),
+    path.join(extensionOut, 'phaseLabels.js'),
+    path.join(extensionOut, 'runController.js'),
+    path.join(extensionOut, 'stateMonitor.js'),
+    path.join(extensionOut, 'treeProviders.js'),
+    path.join(extensionOut, 'dashboardPanel.js'),
+    path.join(extensionRoot, 'media', 'dashboard.js'),
+  ];
+
+  const offenders = [];
+  for (const file of files) {
+    const raw = await fs.readFile(file, 'utf8');
+    if (markers.test(raw)) offenders.push(path.relative(extensionRoot, file));
+  }
+
+  assert.deepEqual(offenders, []);
 });
 
 test('packaged extension sources do not require external agent-loop runSummary.js', async () => {
