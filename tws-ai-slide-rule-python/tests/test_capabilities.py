@@ -378,6 +378,40 @@ def test_outcome_visualize_returns_v5_shape_with_python_llm_provenance():
     assert "RBAC" not in out["content"]
 
 
+def test_handoff_package_returns_v5_shape_with_python_llm_provenance():
+    body = {
+        "capabilityId": "handoff.package",
+        "state": {"goal": {"text": "bundle pet office delivery evidence for engineering handoff"}},
+        "userText": "package report, matrix, prompts, visual preview, risks, and next steps",
+        "roleId": "工程",
+        "turnId": "t-handoff-package",
+    }
+
+    out = execute_capability(
+        body,
+        caller=lambda *a, **k: _fake_result(
+            "## Report bundle\n"
+            "- report.md captures the pet office delivery decision.\n"
+            "## Traceability matrix bundle\n"
+            "- traceability matrix links requirement, evidence, risk, and decision.\n"
+            "## Prompt pack bundle\n"
+            "- prompt pack includes operator, engineering, evidence, and verification prompts.\n"
+            "## Visual preview bundle\n"
+            "- visual preview includes Mermaid flow and provenance notes.\n"
+            "## Risk bundle\n"
+            "- risk: desk progression may feel grindy without milestone evidence.\n"
+            "## Next steps\n"
+            "- next steps: assign owners and rerun deliveryGates."
+        ),
+    )
+    assert out["provenance"] == "python-llm"
+    assert out["title"] == "Engineering handoff package"
+    content = out["content"].lower()
+    for expected in ["report", "traceability matrix", "prompt pack", "visual preview", "risk", "next steps"]:
+        assert expected in content
+    assert "RBAC" not in out["content"]
+
+
 def test_risk_analyze_returns_v5_shape_with_python_llm_provenance():
     body = {
         "capabilityId": "risk.analyze",
@@ -511,6 +545,7 @@ def test_unsupported_capability_raises():
     assert is_python_native_capability("task.write") is True
     assert is_python_native_capability("instruction.package") is True
     assert is_python_native_capability("outcome.visualize") is True
+    assert is_python_native_capability("handoff.package") is True
     assert is_python_native_capability("risk.analyze") is True
     assert is_python_native_capability("evidence.search") is True
     assert is_python_native_capability("report.write") is True

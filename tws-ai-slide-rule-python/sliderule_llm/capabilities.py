@@ -119,6 +119,13 @@ CAPABILITY_PROMPTS: dict[str, str] = {
         "Stay strictly grounded in the user's actual goal. Do not return a generic dashboard mockup. "
         "Output markdown only: no JSON, no preamble."
     ),
+    "handoff.package": (
+        "You are SlideRule V5's engineering-handoff role. Given the user's goal, state, and message, write a "
+        "concise **markdown handoff package** that explicitly bundles report, traceability matrix, prompt pack, "
+        "visual preview, risk, and next steps. Include owner-ready acceptance notes and unresolved gaps. "
+        "Stay strictly grounded in the user's actual goal. Do not return a generic summary. "
+        "Output markdown only: no JSON, no code fence, no preamble."
+    ),
     "risk.analyze": (
         "You are SlideRule V5's risk-analysis role. Given the user's goal and message, write a "
         "concise **markdown** risk scan with three short sections: (1) risk inventory, "
@@ -149,6 +156,7 @@ CAPABILITY_TITLES: dict[str, str] = {
     "task.write": "Engineering task list",
     "instruction.package": "Instruction package",
     "outcome.visualize": "Outcome visualization",
+    "handoff.package": "Engineering handoff package",
     "risk.analyze": "Risk analysis",
     "evidence.search": "Evidence search",
     "report.write": "Feasibility report",

@@ -908,6 +908,60 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
     );
   });
 
+  it('handoff.package delegates to Python V5 backend in python mode and skips Node LLM/pool', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+    vi.stubEnv('SLIDERULE_CAPABILITY_POOL_ENABLED', 'true');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS', 'k1');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL', 'https://example.test/v1');
+    poolJsonLlm.resetSlideRuleCapabilityPoolCache();
+
+    const primarySpy = vi.spyOn(llmClient, 'callLLMJsonWithUsage');
+    const poolSpy = vi.spyOn(poolJsonLlm, 'callPoolJsonLlm');
+    pythonDelegation.callPythonSlideRule.mockResolvedValueOnce({
+      title: 'Engineering handoff package',
+      summary: 'Report bundle',
+      content: '## Report bundle\n- report.md captures the delivery decision.\n## Traceability matrix bundle\n- traceability matrix links requirement, evidence, risk, and decision.\n## Prompt pack bundle\n- prompt pack includes operator and verification prompts.\n## Visual preview bundle\n- visual preview includes Mermaid flow and provenance notes.\n## Risk bundle\n- risk: progression may feel grindy.\n## Next steps\n- next steps: assign owners and rerun deliveryGates.',
+      provenance: 'python-llm',
+      model: 'fake-python-model',
+      usage: { total_tokens: 54 },
+    });
+
+    const res = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        capabilityId: 'handoff.package',
+        state: { sessionId: 't-handoff.package', goal: { text: 'Package pet office delivery handoff' }, artifacts: [] },
+        inputArtifactIds: ['goal-1'],
+        roleId: '工程',
+        turnId: 't-handoff.package',
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.provenance).toBe('python-llm');
+    expect(body.content).toContain('Report bundle');
+    expect(body.content).toContain('Traceability matrix');
+    expect(body.content).toContain('Prompt pack');
+    expect(body.content).toContain('Visual preview');
+    expect(body.content).toContain('Next steps');
+    expect(primarySpy).not.toHaveBeenCalled();
+    expect(poolSpy).not.toHaveBeenCalled();
+    expect(pythonDelegation.callPythonSlideRule).toHaveBeenCalledWith(
+      expect.stringContaining('localhost:9700'),
+      '/api/sliderule/execute-capability',
+      expect.objectContaining({
+        capabilityId: 'handoff.package',
+        inputArtifactIds: ['goal-1'],
+        roleId: '工程',
+        turnId: 't-handoff.package',
+        userText: 'Package pet office delivery handoff',
+      }),
+      expect.any(String),
+    );
+  });
+
   it('risk.analyze delegates to Python V5 backend in python mode and skips Node LLM/pool', async () => {
     vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
     vi.stubEnv('SLIDERULE_CAPABILITY_POOL_ENABLED', 'true');
