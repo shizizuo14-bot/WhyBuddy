@@ -15,6 +15,7 @@ export async function buildLoopApplyPlan({
 } = {}) {
   const runDir = resolveRunDir({ repoRoot, run });
   const state = JSON.parse(await fs.readFile(path.join(runDir, 'state.json'), 'utf8'));
+  const landing = await readJsonIfExists(path.join(runDir, 'landing.json')) || defaultLandingStatus();
   const patchPath = await findLatestDiffPatch(runDir);
   const taskFile = state.options?.task || state.task || null;
   const excludes = [
@@ -27,11 +28,48 @@ export async function buildLoopApplyPlan({
     run,
     runDir,
     patchPath,
+    landing,
     taskFile,
     excludes,
     gates: state.options?.gates || [],
     checkCommand: buildGitApplyCommand({ patchPath, excludes, check: true }),
     applyCommand: buildGitApplyCommand({ patchPath, excludes, check: false }),
+  };
+}
+
+function defaultLandingStatus() {
+  return {
+    status: 'PENDING_APPLY',
+    appliedToMain: false,
+    mainGateGreen: false,
+    committed: false,
+  };
+}
+
+export async function markLandingStatus({
+  repoRoot,
+  run = 'latest',
+  status,
+  details = {},
+} = {}) {
+  if (!repoRoot) throw new Error('repoRoot is required');
+  const runDir = resolveRunDir({ repoRoot, run });
+  const landingPath = path.join(runDir, 'landing.json');
+  const previous = await readJsonIfExists(landingPath);
+  const landing = normalizeLandingStatus({
+    ...(previous || {}),
+    ...details,
+    status,
+    updatedAt: new Date().toISOString(),
+  });
+
+  await fs.writeFile(landingPath, `${JSON.stringify(landing, null, 2)}\n`, 'utf8');
+  return {
+    repoRoot,
+    run,
+    runDir,
+    landingPath,
+    landing,
   };
 }
 
@@ -47,6 +85,29 @@ export async function findLatestDiffPatch(runDir) {
 
   if (!patches.length) throw new Error(`no diff.N.patch found in ${runDir}`);
   return path.join(runDir, patches[0].name);
+}
+
+function normalizeLandingStatus(landing) {
+  const status = landing.status;
+  if (!['APPLIED_TO_MAIN', 'MAIN_GATE_GREEN', 'COMMITTED'].includes(status)) {
+    throw new Error(`unknown landing status: ${status}`);
+  }
+
+  return {
+    ...landing,
+    appliedToMain: ['APPLIED_TO_MAIN', 'MAIN_GATE_GREEN', 'COMMITTED'].includes(status),
+    mainGateGreen: ['MAIN_GATE_GREEN', 'COMMITTED'].includes(status),
+    committed: status === 'COMMITTED',
+  };
+}
+
+async function readJsonIfExists(filePath) {
+  try {
+    return JSON.parse(await fs.readFile(filePath, 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') return null;
+    throw error;
+  }
 }
 
 export function buildGitApplyCommand({ patchPath, excludes = [], check = false }) {

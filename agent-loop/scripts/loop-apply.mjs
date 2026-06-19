@@ -1,6 +1,6 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildLoopApplyPlan } from '../src/loopApply.js';
+import { buildLoopApplyPlan, markLandingStatus } from '../src/loopApply.js';
 
 const agentLoopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 
@@ -8,6 +8,21 @@ async function main() {
   const argv = process.argv.slice(2);
   const repoRoot = path.resolve(agentLoopRoot, valueAfter(argv, '--cwd') || '..');
   const run = valueAfter(argv, '--run') || 'latest';
+  const markStatus = valueAfter(argv, '--mark');
+  if (markStatus) {
+    const marked = await markLandingStatus({
+      repoRoot,
+      run,
+      status: markStatus,
+      details: {
+        commit: valueAfter(argv, '--commit') || undefined,
+        note: valueAfter(argv, '--note') || undefined,
+      },
+    });
+    process.stdout.write(`${JSON.stringify(marked, null, 2)}\n`);
+    return;
+  }
+
   const excludeTaskDoc = !argv.includes('--include-task-doc');
   const extraExcludes = valuesAfter(argv, '--exclude');
   const plan = await buildLoopApplyPlan({
