@@ -1,0 +1,157 @@
+"""Smoke tests for the fake embedding + in-memory vector retrieval path.
+
+These tests exercise the full retrieve() chain without real Qdrant, embedding
+keys, or LLM calls. They prove retrieved provenance only appears when the
+in-memory store returns hits.
+"""
+import os
+import sys
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from sliderule_llm.evidence import EvidenceRetriever  # noqa: E402
+from sliderule_llm.vector import VectorClientUnavailable, VectorSearchHit  # noqa: E402
+
+
+class TrackingEmbeddingProvider:
+    def __init__(self, vector: list[float] | None = None):
+        self.vector = vector or [1.0, 0.0, 0.0, 0.0]
+        self.calls: list[str] = []
+
+    def embed_query(self, text: str) -> list[float]:
+        assert text.strip()
+        self.calls.append(text)
+        return self.vector
+
+
+def _cosine_similarity(left, right):
+    dot = sum(a * b for a, b in zip(left, right))
+    left_norm = sum(value * value for value in left) ** 0.5
+    right_norm = sum(value * value for value in right) ** 0.5
+    if left_norm == 0.0 or right_norm == 0.0:
+        return 0.0
+    return dot / (left_norm * right_norm)
+
+
+class InMemoryVectorClient:
+    """Test fake only: exercises the retrieval chain without network access."""
+
+    def __init__(self, *, unavailable: bool = False):
+        self._records = {}
+        self._unavailable = unavailable
+
+    def upsert(self, records):
+        if self._unavailable:
+            raise VectorClientUnavailable("in-memory vector store unavailable")
+        for record in records:
+            self._records[str(record["id"])] = {
+                "vector": [float(value) for value in record["vector"]],
+                "content": str(record.get("content") or ""),
+                "metadata": dict(record.get("metadata") or {}),
+            }
+
+    def search(self, query_vector, *, top_k=10):
+        if self._unavailable:
+            raise VectorClientUnavailable("in-memory vector store unavailable")
+
+        scored = []
+        query = [float(value) for value in query_vector]
+        for record_id, record in self._records.items():
+            scored.append((_cosine_similarity(query, record["vector"]), record_id))
+        scored.sort(key=lambda item: item[0], reverse=True)
+
+        hits = []
+        for score, record_id in scored[:top_k]:
+            record = self._records[record_id]
+            hits.append(
+                VectorSearchHit(
+                    id=record_id,
+                    score=score,
+                    content=record["content"],
+                    metadata=record["metadata"],
+                )
+            )
+        return hits
+
+
+def _seed_store(client: InMemoryVectorClient) -> None:
+    client.upsert(
+        [
+            {
+                "id": "chunk-table-1",
+                "vector": [1.0, 0.0, 0.0, 0.0],
+                "content": "table upgrade experiment evidence from smoke fixture",
+                "metadata": {
+                    "sourceId": "doc-table-1",
+                    "title": "Table playtest notes",
+                    "sourceType": "document",
+                },
+            }
+        ]
+    )
+
+
+def test_smoke_retrieved_path_uses_fake_embedding_and_in_memory_vector_store():
+    vector_client = InMemoryVectorClient()
+    _seed_store(vector_client)
+    embedding_provider = TrackingEmbeddingProvider([1.0, 0.0, 0.0, 0.0])
+    retriever = EvidenceRetriever(
+        vector_client=vector_client,
+        embedding_provider=embedding_provider,
+    )
+
+    result = retriever.retrieve("table progression evidence")
+
+    assert embedding_provider.calls == ["table progression evidence"]
+    assert result.provenance == "retrieved"
+    assert result.fallback_reason is None
+
+    source_dict = result.sources_as_dicts()[0]
+    assert source_dict["provenance"] == "retrieved"
+    assert source_dict["sourceId"] == "doc-table-1"
+    assert source_dict["score"] > 0.99
+    assert "table upgrade experiment evidence" in source_dict["snippet"]
+    assert "fallbackReason" not in source_dict
+
+
+def test_smoke_empty_in_memory_store_returns_honest_fallback():
+    vector_client = InMemoryVectorClient()
+    embedding_provider = TrackingEmbeddingProvider([1.0, 0.0, 0.0, 0.0])
+    retriever = EvidenceRetriever(
+        vector_client=vector_client,
+        embedding_provider=embedding_provider,
+    )
+
+    result = retriever.retrieve("unknown evidence")
+
+    assert embedding_provider.calls == ["unknown evidence"]
+    assert result.provenance == "fallback"
+    assert result.fallback_reason == "no_retrieval_hits"
+
+    source_dict = result.sources_as_dicts()[0]
+    assert source_dict["provenance"] == "fallback"
+    assert source_dict["fallbackReason"] == "no_retrieval_hits"
+    assert "not as real RAG retrieval" in source_dict["snippet"]
+    assert "score" not in source_dict
+    assert "sourceId" not in source_dict
+
+
+def test_smoke_unavailable_in_memory_store_returns_honest_fallback():
+    vector_client = InMemoryVectorClient(unavailable=True)
+    embedding_provider = TrackingEmbeddingProvider([1.0, 0.0, 0.0, 0.0])
+    retriever = EvidenceRetriever(
+        vector_client=vector_client,
+        embedding_provider=embedding_provider,
+    )
+
+    result = retriever.retrieve("table progression evidence")
+
+    assert embedding_provider.calls == ["table progression evidence"]
+    assert result.provenance == "fallback"
+    assert result.fallback_reason == "vector_unavailable:VectorClientUnavailable"
+
+    source_dict = result.sources_as_dicts()[0]
+    assert source_dict["provenance"] == "fallback"
+    assert source_dict["fallbackReason"] == "vector_unavailable:VectorClientUnavailable"
+    assert "score" not in source_dict
+    assert "sourceId" not in source_dict

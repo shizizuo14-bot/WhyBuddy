@@ -2,18 +2,18 @@
 
 ## 执行状态
 
-- 状态：待执行
+- 状态：已完成
 - 目标：把 Python evidence retrieval（证据检索）从 contract（契约）推进到可测的 real vector retrieval smoke（真实向量检索冒烟）
 - 角色分工：Grok 负责补最小可测实现与测试；Codex 负责审查是否夸大成生产级 RAG
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] 已新增或更新 `tws-ai-slide-rule-python/tests/test_real_vector_retrieval_smoke.py`
-- [ ] fake/in-memory vector store 能跑通 retrieved 路径
-- [ ] fallback 路径仍然诚实标记，不伪装成 retrieved
-- [ ] gate 全绿
-- [ ] Codex review（审查）已确认没有接真实 Qdrant、真实 embedding key 或真实 LLM key
+- [x] 已执行 AgentLoop
+- [x] 已新增或更新 `tws-ai-slide-rule-python/tests/test_real_vector_retrieval_smoke.py`
+- [x] fake/in-memory vector store 能跑通 retrieved 路径
+- [x] fallback 路径仍然诚实标记，不伪装成 retrieved
+- [x] gate 全绿
+- [x] Codex review（审查）已确认没有接真实 Qdrant、真实 embedding key 或真实 LLM key
 
 ## 目标
 
