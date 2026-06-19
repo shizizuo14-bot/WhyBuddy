@@ -1,0 +1,28 @@
+{
+  "request": {
+    "turnId": "turn-golden-orch",
+    "userText": "Create a migration handoff plan with evidence and risks.",
+    "state": {
+      "sessionId": "orch-golden",
+      "goal": {
+        "text": "Create a migration handoff plan with evidence and risks.",
+        "status": "needs_refinement"
+      },
+      "artifacts": [],
+      "capabilityRuns": []
+    }
+  },
+  "expected": {
+    "source": "python-rag",
+    "requiredCapabilityIds": [
+      "evidence.search",
+      "risk.analyze"
+    ],
+    "forbiddenTopLevelKeys": [
+      "state",
+      "artifacts",
+      "capabilityRuns",
+      "coverageGate"
+    ]
+  }
+}

@@ -2,18 +2,18 @@
 
 ## 执行状态
 
-- 状态：待执行
+- 状态：已完成
 - 目标：在 contract（契约）之后补一个 golden smoke（黄金样例冒烟），验证 Python 规划输出可被 Node 消费
 - 角色分工：Grok 负责补最小 golden fixture（黄金样例）和测试；Codex 负责审查是否越界迁主编排
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] 已新增 Python golden smoke 测试
-- [ ] 已新增或更新 Node 消费 Python plan 的契约测试
-- [ ] golden fixture 不依赖真实 LLM key
-- [ ] gate 全绿
-- [ ] Codex review（审查）已确认没有把 smoke 当成完整 orchestrator 迁移
+- [x] 已执行 AgentLoop
+- [x] 已新增 Python golden smoke 测试
+- [x] 已新增或更新 Node 消费 Python plan 的契约测试
+- [x] golden fixture 不依赖真实 LLM key
+- [x] gate 全绿
+- [x] Codex review（审查）已确认没有把 smoke 当成完整 orchestrator 迁移
 
 ## 目标
 

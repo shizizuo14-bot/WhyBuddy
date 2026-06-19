@@ -1,6 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach, beforeAll } from 'vitest';
 import express from 'express';
 import { createServer } from 'node:http';
+import fs from 'node:fs';
+import path from 'node:path';
 
 import { withStubbedLlmKey } from './helpers/with-stubbed-llm-key.js';
 
@@ -30,6 +32,13 @@ const planRequestBody = {
   roleId: 'planner',
   turnId: 't-orch-python-proxy',
 };
+
+const goldenFixture = JSON.parse(
+  fs.readFileSync(
+    path.resolve(process.cwd(), 'tws-ai-slide-rule-python/tests/fixtures/orchestrate_plan_golden.json'),
+    'utf8',
+  ),
+);
 
 describe('orchestrate.plan Node -> Python proxy contract', () => {
   let app: any;
@@ -113,5 +122,38 @@ describe('orchestrate.plan Node -> Python proxy contract', () => {
     expect(body.error).toBe('python_unavailable');
     expect(body.selected).toBeUndefined();
     warnSpy.mockRestore();
+  });
+
+  it('accepts the shared golden Python plan fixture shape', async () => {
+    const pythonPayload = {
+      selected: goldenFixture.expected.requiredCapabilityIds.map((capabilityId: string) => ({
+        capabilityId,
+        roleId: 'grounding',
+        why: 'Golden fixture capability',
+      })),
+      rationale: 'Golden fixture plan',
+      source: goldenFixture.expected.source,
+    };
+    pythonDelegation.callPythonSlideRule.mockResolvedValueOnce(pythonPayload);
+
+    const res = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ...planRequestBody,
+        state: goldenFixture.request.state,
+        turnId: goldenFixture.request.turnId,
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.source).toBe('python-rag');
+    for (const key of goldenFixture.expected.forbiddenTopLevelKeys) {
+      expect(body[key]).toBeUndefined();
+    }
+    for (const capId of goldenFixture.expected.requiredCapabilityIds) {
+      expect(body.selected.some((item: any) => item.capabilityId === capId)).toBe(true);
+    }
   });
 });
