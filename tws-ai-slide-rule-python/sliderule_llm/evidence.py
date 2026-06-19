@@ -1,12 +1,26 @@
 """Evidence retrieval boundary for Python SlideRule capabilities.
 
-This layer separates real retrieval hits from fallback/generated citations so
+This layer separates real retrieval hits from fallback/generated/degraded shapes so
 `sources` never pretend to be vector-backed when they are not.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Protocol
+from typing import Any, Final, Protocol
+
+RETRIEVED_PROVENANCE: Final = "retrieved"
+FALLBACK_PROVENANCE: Final = "fallback"
+GENERATED_PROVENANCE: Final = "generated"
+DEGRADED_PROVENANCE: Final = "degraded"
+
+EVIDENCE_RUNTIME_PROVENANCE: Final = frozenset(
+    {
+        RETRIEVED_PROVENANCE,
+        FALLBACK_PROVENANCE,
+        GENERATED_PROVENANCE,
+        DEGRADED_PROVENANCE,
+    }
+)
 
 from .vector import (
     QdrantVectorClient,
@@ -53,9 +67,21 @@ class EvidenceRetrievalResult:
     sources: list[EvidenceSource]
     provenance: str
     fallback_reason: str | None = None
+    error: str | None = None
 
     def sources_as_dicts(self) -> list[dict[str, Any]]:
         return [source.to_dict() for source in self.sources]
+
+    def to_payload_fields(self) -> dict[str, Any]:
+        payload: dict[str, Any] = {
+            "evidenceProvenance": self.provenance,
+            "sources": self.sources_as_dicts(),
+        }
+        if self.fallback_reason:
+            payload["fallbackReason"] = self.fallback_reason
+        if self.error:
+            payload["error"] = self.error
+        return payload
 
 
 class EvidenceRetriever:
@@ -94,7 +120,7 @@ class EvidenceRetriever:
             return fallback_evidence(query, reason="no_retrieval_hits")
         return EvidenceRetrievalResult(
             sources=[source_from_vector_hit(hit) for hit in hits],
-            provenance="retrieved",
+            provenance=RETRIEVED_PROVENANCE,
         )
 
 
@@ -103,7 +129,7 @@ def source_from_vector_hit(hit: VectorSearchHit) -> EvidenceSource:
     return EvidenceSource(
         title=title[:120],
         snippet=hit.content[:500],
-        provenance="retrieved",
+        provenance=RETRIEVED_PROVENANCE,
         source_id=str(hit.metadata.get("sourceId") or hit.id),
         score=hit.score,
         metadata=hit.metadata,
@@ -121,7 +147,7 @@ def generated_sources_from_content(content: str, *, limit: int = 4) -> list[Evid
             EvidenceSource(
                 title=snippet[:80],
                 snippet=snippet[:240],
-                provenance="generated",
+                provenance=GENERATED_PROVENANCE,
                 fallback_reason="llm_prose_only",
             )
         )
@@ -132,7 +158,7 @@ def generated_sources_from_content(content: str, *, limit: int = 4) -> list[Evid
             EvidenceSource(
                 title="Generated reasoning",
                 snippet=content[:240],
-                provenance="generated",
+                provenance=GENERATED_PROVENANCE,
                 fallback_reason="llm_prose_only",
             )
         )
@@ -151,10 +177,23 @@ def fallback_evidence(query: str, *, reason: str) -> EvidenceRetrievalResult:
             EvidenceSource(
                 title="Fallback evidence",
                 snippet=snippet,
-                provenance="fallback",
+                provenance=FALLBACK_PROVENANCE,
                 fallback_reason=reason,
             )
         ],
-        provenance="fallback",
+        provenance=FALLBACK_PROVENANCE,
         fallback_reason=reason,
+    )
+
+
+def degraded_evidence(query: str, *, error: str, reason: str | None = None) -> EvidenceRetrievalResult:
+    """Hard runtime failure — no sources masquerading as retrieval."""
+    detail = reason or error
+    if query.strip():
+        detail = f"{detail}; query={query.strip()[:120]}"
+    return EvidenceRetrievalResult(
+        sources=[],
+        provenance=DEGRADED_PROVENANCE,
+        fallback_reason=detail,
+        error=error,
     )

@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] Python test 覆盖 retrieved / fallback / generated / degraded 四类来源
-- [ ] Node proxy contract（代理契约）没有丢失 provenance 字段
-- [ ] 错误路径有明确 `fallbackReason` 或 `error`
-- [ ] gate 全绿
-- [ ] Codex review（审查）确认来源字段没有混淆
+- [x] 已执行 AgentLoop
+- [x] Python test 覆盖 retrieved / fallback / generated / degraded 四类来源
+- [x] Node proxy contract（代理契约）没有丢失 provenance 字段
+- [x] 错误路径有明确 `fallbackReason` 或 `error`
+- [x] gate 全绿
+- [x] Codex review（审查）确认来源字段没有混淆
 
 ## 目标
 
