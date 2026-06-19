@@ -6,11 +6,21 @@ const DEFAULT_PROTECTED_PATTERNS = [
   /(^|\/)package\.json$/i,
 ];
 
-export function analyzeDiffGuard(diffText, { protectedPatterns = DEFAULT_PROTECTED_PATTERNS } = {}) {
+export function analyzeDiffGuard(diffText, { protectedPatterns = DEFAULT_PROTECTED_PATTERNS, policy = {} } = {}) {
+  const effectivePolicy = normalizeGuardPolicy(policy);
+  const protectedGlobMatchers = effectivePolicy.protectedGlobs.map(globToRegExp);
   const files = parseDiffFiles(diffText).map((file) => {
-    const isProtected = protectedPatterns.some((pattern) => pattern.test(file.path));
+    const isDefaultProtected = effectivePolicy.protectTests
+      && protectedPatterns.some((pattern) => pattern.test(file.path));
+    const isGlobProtected = protectedGlobMatchers.some((pattern) => pattern.test(file.path));
+    const isTaskDocProtected = effectivePolicy.protectTaskDocs && isTaskDoc(file.path);
+    const isProtected = isDefaultProtected || isGlobProtected || isTaskDocProtected;
     const reasons = [];
-    if (isProtected) reasons.push('protected_path_changed');
+    if (isTaskDocProtected) {
+      reasons.push('protected_task_doc_changed');
+    } else if (isProtected) {
+      reasons.push('protected_path_changed');
+    }
     if (isProtected && file.deletedLines > file.addedLines) reasons.push('protected_file_net_deletion');
     return {
       path: file.path,
@@ -35,6 +45,32 @@ export function analyzeDiffGuard(diffText, { protectedPatterns = DEFAULT_PROTECT
     findings,
     files,
   };
+}
+
+export function normalizeGuardPolicy(policy = {}) {
+  return {
+    protectTests: policy.protectTests ?? true,
+    protectTaskDocs: policy.protectTaskDocs ?? false,
+    protectedGlobs: Array.isArray(policy.protectedGlobs) ? policy.protectedGlobs : [],
+  };
+}
+
+function isTaskDoc(filePath) {
+  return /^agent-loop\/tasks\/[^/]+\.md$/i.test(normalizePath(filePath));
+}
+
+function globToRegExp(glob) {
+  const normalized = normalizePath(glob);
+  const escaped = normalized
+    .replace(/[.+^${}()|[\]\\]/g, '\\$&')
+    .replaceAll('**', '\u0000')
+    .replaceAll('*', '[^/]*')
+    .replaceAll('\u0000', '.*');
+  return new RegExp(`^${escaped}$`, 'i');
+}
+
+function normalizePath(filePath) {
+  return String(filePath || '').replaceAll('\\', '/');
 }
 
 function parseDiffFiles(diffText) {

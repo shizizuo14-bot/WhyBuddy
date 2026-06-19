@@ -165,6 +165,7 @@ export function buildLoopReportJson({
   maxIterations = 3,
   lang = 'en',
   runMode = 'unknown',
+  guardPolicy = null,
   grokRan = false,
   codexRan = false,
   runTimeLocal = '',
@@ -183,6 +184,7 @@ export function buildLoopReportJson({
     runTimeLocal,
     runTimeUtc,
     maxIterations,
+    guardPolicy,
     agents: {
       fixAgent,
       reviewAgent: reviewAgent || null,

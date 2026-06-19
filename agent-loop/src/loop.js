@@ -135,6 +135,7 @@ async function main() {
     maxIterations: activeOptions.maxIterations,
     lang: activeOptions.lang,
     runMode: runSummary.runMode,
+    guardPolicy: result.guardPolicy || null,
     grokRan: runSummary.grokRan,
     codexRan: runSummary.codexRan,
     runTimeLocal: runSummary.runTimeLocal,

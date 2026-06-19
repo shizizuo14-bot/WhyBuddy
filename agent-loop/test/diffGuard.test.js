@@ -67,3 +67,42 @@ test('analyzeDiffGuard ignores ordinary source edits', () => {
     },
   ]);
 });
+
+test('analyzeDiffGuard supports policy protected globs', () => {
+  const result = analyzeDiffGuard(`diff --git a/docs/contract.md b/docs/contract.md
+--- a/docs/contract.md
++++ b/docs/contract.md
+@@ -1 +1,2 @@
+ contract
++changed
+`, {
+    policy: {
+      protectedGlobs: ['docs/*.md'],
+    },
+  });
+
+  assert.equal(result.hasFindings, true);
+  assert.equal(result.findings[0].reason, 'protected_path_changed');
+  assert.equal(result.findings[0].path, 'docs/contract.md');
+});
+
+test('analyzeDiffGuard can protect or allow task markdown edits by policy', () => {
+  const diff = `diff --git a/agent-loop/tasks/task-a.md b/agent-loop/tasks/task-a.md
+--- a/agent-loop/tasks/task-a.md
++++ b/agent-loop/tasks/task-a.md
+@@ -1 +1,2 @@
+ task
++status
+`;
+
+  const protectedResult = analyzeDiffGuard(diff, {
+    policy: { protectTaskDocs: true },
+  });
+  assert.equal(protectedResult.hasFindings, true);
+  assert.equal(protectedResult.findings[0].reason, 'protected_task_doc_changed');
+
+  const allowedResult = analyzeDiffGuard(diff, {
+    policy: { protectTaskDocs: false },
+  });
+  assert.equal(allowedResult.hasFindings, false);
+});

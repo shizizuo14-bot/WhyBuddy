@@ -342,6 +342,47 @@ test('buildLoopArgsForQueueEntry passes --no-sync-task-status from defaults', ()
   assert.ok(args.includes('--no-sync-task-status'));
 });
 
+test('buildLoopArgsForQueueEntry passes guard policy from entry or defaults', () => {
+  const fromEntry = buildLoopArgsForQueueEntry({
+    agentLoopRoot: 'C:\\repo\\agent-loop',
+    repoRoot: 'C:\\repo',
+    entry: {
+      id: 'task-a',
+      task: 'agent-loop/tasks/task-a.md',
+      guardPolicy: 'agent-loop/policies/strict.json',
+      useWorktree: true,
+    },
+    defaults: {
+      guardPolicy: 'agent-loop/policies/default.json',
+    },
+    index: 0,
+    gateSets: { gates: ['npm test'] },
+    defaultGates: ['npm test'],
+  });
+
+  assert.equal(fromEntry.includes('--guard-policy'), true);
+  assert.equal(fromEntry[fromEntry.indexOf('--guard-policy') + 1], 'agent-loop/policies/strict.json');
+
+  const fromDefault = buildLoopArgsForQueueEntry({
+    agentLoopRoot: 'C:\\repo\\agent-loop',
+    repoRoot: 'C:\\repo',
+    entry: {
+      id: 'task-b',
+      task: 'agent-loop/tasks/task-b.md',
+      useWorktree: true,
+    },
+    defaults: {
+      guardPolicy: 'agent-loop/policies/default.json',
+    },
+    index: 1,
+    gateSets: { gates: ['npm test'] },
+    defaultGates: ['npm test'],
+  });
+
+  assert.equal(fromDefault.includes('--guard-policy'), true);
+  assert.equal(fromDefault[fromDefault.indexOf('--guard-policy') + 1], 'agent-loop/policies/default.json');
+});
+
 test('updateQueueOutcomeRecord auto-disables after consecutive HALT_NO_CHANGES', () => {
   let record = updateQueueOutcomeRecord({
     record: {},

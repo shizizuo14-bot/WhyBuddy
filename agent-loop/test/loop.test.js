@@ -48,10 +48,11 @@ test('parseLoopArgs requires cwd, task, and at least one gate', () => {
       grokMaxTurns: 4,
       grokMaxRetries: 1,
       retryBackoffMs: 1000,
-      pauseBeforeFix: false,
-      pauseAfterIteration: false,
-      guardTests: false,
-      lang: 'en',
+    pauseBeforeFix: false,
+    pauseAfterIteration: false,
+    guardTests: false,
+    guardPolicyPath: null,
+    lang: 'en',
       syncTaskStatus: true,
       syncMigrationStatus: true,
       resume: null,
@@ -229,6 +230,23 @@ test('parseLoopArgs supports test tamper guard', () => {
   ]);
 
   assert.equal(parsed.guardTests, true);
+});
+
+test('parseLoopArgs supports guard policy file', () => {
+  const parsed = parseLoopArgs([
+    '--cwd',
+    'C:\\repo',
+    '--task',
+    'task.md',
+    '--gate',
+    'npm test',
+    '--guard-tests',
+    '--guard-policy',
+    'agent-loop/guard-policy.json',
+  ]);
+
+  assert.equal(parsed.guardTests, true);
+  assert.equal(parsed.guardPolicyPath, 'agent-loop/guard-policy.json');
 });
 
 test('parseLoopArgs supports max iteration budget', () => {

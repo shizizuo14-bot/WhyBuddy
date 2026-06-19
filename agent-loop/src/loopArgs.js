@@ -23,6 +23,7 @@ export function parseLoopArgs(argv) {
     pauseBeforeFix: false,
     pauseAfterIteration: false,
     guardTests: false,
+    guardPolicyPath: null,
     lang: 'en',
     syncTaskStatus: true,
     syncMigrationStatus: true,
@@ -74,6 +75,8 @@ export function parseLoopArgs(argv) {
       parsed.pauseAfterIteration = true;
     } else if (arg === '--guard-tests') {
       parsed.guardTests = true;
+    } else if (arg === '--guard-policy') {
+      parsed.guardPolicyPath = readValue(argv, ++i, '--guard-policy');
     } else if (arg === '--lang') {
       parsed.lang = readValue(argv, ++i, '--lang');
       if (!['en', 'zh-CN'].includes(parsed.lang)) {

@@ -70,6 +70,8 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
   // read them unconditionally.
   state.reviewRounds = state.reviewRounds || [];
   if (state.pendingReview === undefined) state.pendingReview = null;
+  const guardPolicy = await loadGuardPolicy(options);
+  state.guardPolicy = guardPolicy;
 
   async function transition(status, patch = {}) {
     Object.assign(state, patch, { status });
@@ -336,7 +338,7 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
       gateProgress: summarizeGateProgress(postFixGate),
       diff: summarizeDiff(postFixDiff.text),
       diffText: postFixDiff.text,
-      diffGuard: analyzeDiffGuard(postFixDiff.text),
+      diffGuard: analyzeDiffGuard(postFixDiff.text, { policy: guardPolicy }),
     };
     iterations.push(iterationRecord);
     pendingReview = null;
@@ -786,6 +788,14 @@ function summarizeDiff(text) {
   return {
     bytes: Buffer.byteLength(text || '', 'utf8'),
   };
+}
+
+async function loadGuardPolicy(options) {
+  if (!options.guardPolicyPath) return {};
+  const policyPath = path.isAbsolute(options.guardPolicyPath)
+    ? options.guardPolicyPath
+    : path.resolve(options.cwd, options.guardPolicyPath);
+  return JSON.parse(await fs.readFile(policyPath, 'utf8'));
 }
 
 export function summarizeRun(result) {

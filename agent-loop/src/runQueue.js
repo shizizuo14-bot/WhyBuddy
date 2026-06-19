@@ -161,6 +161,8 @@ export function buildLoopArgsForQueueEntry({
   const reviewMaxTurns = entry.reviewMaxTurns ?? defaults.reviewMaxTurns;
   if (reviewMaxTurns != null) args.push('--review-max-turns', String(reviewMaxTurns));
   if (entry.guardTests ?? defaults.guardTests ?? true) args.push('--guard-tests');
+  const guardPolicy = entry.guardPolicy ?? defaults.guardPolicy;
+  if (guardPolicy) args.push('--guard-policy', guardPolicy);
   if (entry.noSyncTaskStatus || defaults.noSyncTaskStatus) args.push('--no-sync-task-status');
   if (entry.noSyncMigrationStatus || defaults.noSyncMigrationStatus) args.push('--no-sync-migration-status');
 

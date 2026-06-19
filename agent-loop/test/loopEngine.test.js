@@ -700,6 +700,54 @@ test('runLoop halts when guardTests sees protected test tampering', async () => 
   assert.equal(result.iterations[0].diffGuard.hasFindings, true);
 });
 
+test('runLoop applies guardPolicy protected globs during diff guard', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-test-'));
+  const taskPath = path.join(cwd, 'task.md');
+  const policyPath = path.join(cwd, 'guard-policy.json');
+  await fs.writeFile(taskPath, 'fix gate to green\n\n## 成功标准\n\n- gate 全绿\n', 'utf8');
+  await fs.writeFile(policyPath, JSON.stringify({
+    protectedGlobs: ['src/generated/**'],
+  }), 'utf8');
+
+  const gateResults = [
+    gate(false, 1, 'Tests: 1 failed'),
+    gate(true, 0, 'Tests: 1 passed'),
+  ];
+  const diffs = [
+    '',
+    'diff --git a/src/generated/client.js b/src/generated/client.js\n--- a/src/generated/client.js\n+++ b/src/generated/client.js\n@@ -1 +1,2 @@\n export const value = 1;\n+export const patched = true;\n',
+  ];
+
+  const result = await runLoop({
+    options: {
+      cwd,
+      fixCwd: cwd,
+      task: taskPath,
+      gates: ['npm test'],
+      autoFix: true,
+      skipReview: true,
+      timeoutMs: 1000,
+      maxIterations: 2,
+      guardTests: true,
+      guardPolicyPath: policyPath,
+    },
+    runDir: cwd,
+    latestDir: cwd,
+    deps: {
+      resolveAgents: async () => ({ codex: 'codex.exe', grok: 'grok.exe' }),
+      evaluateGate: async () => gateResults.shift(),
+      captureDiff: async () => ({ text: diffs.shift() ?? diffs.at(-1) ?? '' }),
+      runProcess: async (command, args, options) => runOk(command, args, options.cwd, '{"verdict":"changed"}'),
+      writeArtifact: artifactWriter(cwd),
+      onState: async () => {},
+    },
+  });
+
+  assert.equal(result.status, 'HALT_HUMAN');
+  assert.equal(result.guardReason, 'POSSIBLE_TEST_TAMPER');
+  assert.equal(result.iterations[0].diffGuard.findings[0].path, 'src/generated/client.js');
+});
+
 test('runLoop records a single iteration when a retryable Grok failure changes files and the gate remains red', async () => {
   const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-test-'));
   const taskPath = path.join(cwd, 'task.md');

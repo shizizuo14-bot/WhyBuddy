@@ -156,6 +156,7 @@ test('buildLoopReportJson exposes stable structured fields for dashboards', () =
     maxIterations: 2,
     lang: 'zh-CN',
     runMode: 'codex-fix+codex-review',
+    guardPolicy: { protectedGlobs: ['src/generated/**'], protectTaskDocs: true },
     grokRan: false,
     codexRan: true,
     runTimeLocal: '2026-06-20 05:00:00 (Asia/Shanghai)',
@@ -175,6 +176,7 @@ test('buildLoopReportJson exposes stable structured fields for dashboards', () =
   assert.equal(report.reviewRounds[0].riskLevel, 'low');
   assert.equal(report.reviewRounds[0].applyRecommendation, 'apply');
   assert.deepEqual(report.reviewRounds[0].verifiedBoundaries, ['gate green', 'allowed files']);
+  assert.deepEqual(report.guardPolicy, { protectedGlobs: ['src/generated/**'], protectTaskDocs: true });
 });
 
 test('buildLoopReport survives codex fix attempts without grokFix fields', () => {
