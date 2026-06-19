@@ -37,6 +37,61 @@
     "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_json_hardening.py tests/test_client_parity.py -q --tb=short",
     "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_json_hardening.py"
   ],
+  "fallbackGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_fallback_parity.py tests/test_client_parity.py tests/test_config.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/sliderule_llm/config.py tws-ai-slide-rule-python/tests/test_fallback_parity.py"
+  ],
+  "telemetryGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_telemetry_cost.py tests/test_client_parity.py tests/test_pool_parity.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm tws-ai-slide-rule-python/tests/test_telemetry_cost.py"
+  ],
+  "uxPreviewGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/sliderule/__tests__/visual-exec-map.test.ts server/routes/__tests__/sliderule.execute-capability.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python server/sliderule server/routes/__tests__/sliderule.execute-capability.test.ts"
+  ],
+  "nativeAuditGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_capabilities.py tests/test_v5_contract_expansion.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.execute-capability.test.ts --reporter=dot",
+    "if (!(Test-Path docs/sliderule-python-native-capability-audit.md)) { throw 'missing docs/sliderule-python-native-capability-audit.md' }; node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/tasks/sliderule-python-migration-status.md docs/sliderule-python-native-capability-audit.md"
+  ],
+  "liveSmokeGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_v5_live_smoke.py tests/test_v5_smoke.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.live-delegation.test.ts --reporter=dot",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/tests/test_v5_live_smoke.py server/routes/__tests__/sliderule.live-delegation.test.ts"
+  ],
+  "ragInventoryGates": [
+    "if (!(Test-Path docs/backend-python-rag-inventory.md)) { throw 'missing docs/backend-python-rag-inventory.md' }; node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-rag-inventory.md"
+  ],
+  "vectorGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_vector_client_parity.py tests/test_config.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/vector.py tws-ai-slide-rule-python/tests/test_vector_client_parity.py"
+  ],
+  "evidenceRetrievalGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_evidence_retrieval_parity.py tests/test_capabilities.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/evidence.py tws-ai-slide-rule-python/tests/test_evidence_retrieval_parity.py"
+  ],
+  "blueprintInventoryGates": [
+    "if (!(Test-Path docs/backend-python-blueprint-spec-docs-inventory.md)) { throw 'missing docs/backend-python-blueprint-spec-docs-inventory.md' }; node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-blueprint-spec-docs-inventory.md"
+  ],
+  "blueprintProxyGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_spec_docs_proxy.py tests/test_config.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/blueprint.spec-docs-python-proxy.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/routes/blueprint_spec_docs.py server/routes/__tests__/blueprint.spec-docs-python-proxy.test.ts"
+  ],
+  "blueprintSmokeGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_spec_docs_smoke.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/blueprint.spec-docs-smoke.test.ts --reporter=dot",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/tests/test_blueprint_spec_docs_smoke.py server/routes/__tests__/blueprint.spec-docs-smoke.test.ts"
+  ],
+  "runtimeConfigGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_runtime_config_boundary.py tests/test_config.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/python-runtime-config-boundary.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-runtime-config-boundary.md tws-ai-slide-rule-python/tests/test_runtime_config_boundary.py server/routes/__tests__/python-runtime-config-boundary.test.ts"
+  ],
   "deliveryGates": [
     "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short",
     "pnpm exec vitest run --config vitest.config.server.ts shared/blueprint/__tests__/sliderule-delivery-chain.test.ts server/sliderule/__tests__/delivery-exec-map.test.ts server/sliderule/__tests__/visual-exec-map.test.ts server/routes/__tests__/sliderule.execute-capability.test.ts --reporter=dot",
@@ -63,79 +118,75 @@
       "enabled": true
     },
     {
-      "id": "sliderule-synthesis-merge",
-      "task": "agent-loop/tasks/migrate-sliderule-synthesis-merge.md",
+      "id": "backend-python-llm-fallback-parity",
+      "task": "agent-loop/tasks/backend-python-llm-fallback-parity.md",
+      "gatesKey": "fallbackGates",
       "enabled": true
     },
     {
-      "id": "sliderule-rebuttal-resolve",
-      "task": "agent-loop/tasks/migrate-sliderule-rebuttal-resolve.md",
+      "id": "backend-python-llm-telemetry-cost",
+      "task": "agent-loop/tasks/backend-python-llm-telemetry-cost.md",
+      "gatesKey": "telemetryGates",
       "enabled": true
     },
     {
-      "id": "sliderule-counter-argue",
-      "task": "agent-loop/tasks/migrate-sliderule-counter-argue.md",
+      "id": "sliderule-ux-preview",
+      "task": "agent-loop/tasks/migrate-sliderule-ux-preview.md",
+      "gatesKey": "uxPreviewGates",
       "enabled": true
     },
     {
-      "id": "sliderule-report-write",
-      "task": "agent-loop/tasks/migrate-sliderule-report-write.md",
+      "id": "sliderule-native-capability-audit",
+      "task": "agent-loop/tasks/sliderule-python-native-capability-audit.md",
+      "gatesKey": "nativeAuditGates",
       "enabled": true
     },
     {
-      "id": "sliderule-structure-decompose",
-      "task": "agent-loop/tasks/migrate-sliderule-structure-decompose.md",
+      "id": "sliderule-live-smoke-suite",
+      "task": "agent-loop/tasks/sliderule-python-live-smoke-suite.md",
+      "gatesKey": "liveSmokeGates",
       "enabled": true
     },
     {
-      "id": "sliderule-risk-analyze",
-      "task": "agent-loop/tasks/migrate-sliderule-risk-analyze.md",
+      "id": "backend-python-rag-inventory",
+      "task": "agent-loop/tasks/backend-python-rag-inventory.md",
+      "gatesKey": "ragInventoryGates",
       "enabled": true
     },
     {
-      "id": "sliderule-evidence-search",
-      "task": "agent-loop/tasks/migrate-sliderule-evidence-search.md",
+      "id": "backend-python-vector-client-parity",
+      "task": "agent-loop/tasks/backend-python-vector-client-parity.md",
+      "gatesKey": "vectorGates",
       "enabled": true
     },
     {
-      "id": "sliderule-critique-generate",
-      "task": "agent-loop/tasks/migrate-sliderule-critique-generate.md",
+      "id": "backend-python-evidence-retrieval-parity",
+      "task": "agent-loop/tasks/backend-python-evidence-retrieval-parity.md",
+      "gatesKey": "evidenceRetrievalGates",
       "enabled": true
     },
     {
-      "id": "sliderule-document-draft",
-      "task": "agent-loop/tasks/migrate-sliderule-document-draft.md",
-      "gatesKey": "deliveryGates",
+      "id": "backend-python-blueprint-spec-docs-inventory",
+      "task": "agent-loop/tasks/backend-python-blueprint-spec-docs-inventory.md",
+      "gatesKey": "blueprintInventoryGates",
       "enabled": true
     },
     {
-      "id": "sliderule-traceability-matrix",
-      "task": "agent-loop/tasks/migrate-sliderule-traceability-matrix.md",
-      "gatesKey": "deliveryGates",
+      "id": "backend-python-blueprint-spec-docs-proxy-contract",
+      "task": "agent-loop/tasks/backend-python-blueprint-spec-docs-proxy-contract.md",
+      "gatesKey": "blueprintProxyGates",
       "enabled": true
     },
     {
-      "id": "sliderule-task-write",
-      "task": "agent-loop/tasks/migrate-sliderule-task-write.md",
-      "gatesKey": "deliveryGates",
+      "id": "backend-python-blueprint-spec-docs-smoke-gate",
+      "task": "agent-loop/tasks/backend-python-blueprint-spec-docs-smoke-gate.md",
+      "gatesKey": "blueprintSmokeGates",
       "enabled": true
     },
     {
-      "id": "sliderule-instruction-package",
-      "task": "agent-loop/tasks/migrate-sliderule-instruction-package.md",
-      "gatesKey": "deliveryGates",
-      "enabled": true
-    },
-    {
-      "id": "sliderule-outcome-visualize",
-      "task": "agent-loop/tasks/migrate-sliderule-outcome-visualize.md",
-      "gatesKey": "deliveryGates",
-      "enabled": true
-    },
-    {
-      "id": "sliderule-handoff-package",
-      "task": "agent-loop/tasks/migrate-sliderule-handoff-package.md",
-      "gatesKey": "deliveryGates",
+      "id": "backend-python-runtime-config-boundary",
+      "task": "agent-loop/tasks/backend-python-runtime-config-boundary.md",
+      "gatesKey": "runtimeConfigGates",
       "enabled": true
     }
   ]
