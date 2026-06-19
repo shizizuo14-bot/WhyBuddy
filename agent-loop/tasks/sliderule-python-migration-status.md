@@ -179,7 +179,19 @@ LLM config parity 任务文档：`agent-loop/tasks/backend-python-llm-config-par
 | 4 | 迁移 `gap.ask` | 已完成 | 同属对话类能力，已验证 `python-llm`。 |
 | 5 | 迁移 `question.expand` | 已完成 | 同属对话类能力，沿用 markdown 输出策略。 |
 | 6 | 迁移 `critique.generate` | 已完成 | 审议族第一片。 |
-| 7 | 队列 batch-2（infra + 审议族 + 结构化） | 进行中 | 见 `agent-loop/scripts/migration-queue.json` 10 项。 |
+| 7 | 队列 batch-2（infra + 审议族 + 结构化） | 已完成 | 11/11 `DONE_REVIEWED`，但只代表这些切片通过当前 gate，不代表整个 Node backend 迁移完成。 |
+| 8 | 队列 batch-3（delivery + visual + artifact capabilities） | 待执行 | 已新增 6 个任务文档并追加到 `agent-loop/scripts/migration-queue.json`，不提前计入已完成进度。 |
+
+### batch-3 任务
+
+这批不提前打勾。每个任务都必须跑过 `deliveryGates` 后，才能把对应 capability（能力）标为迁移完成。
+
+- [x] `document.draft`：`agent-loop/tasks/migrate-sliderule-document-draft.md`（2026-06-19，人工接手完成，`deliveryGates` 全绿）
+- [ ] `traceability.matrix`：`agent-loop/tasks/migrate-sliderule-traceability-matrix.md`
+- [ ] `task.write`：`agent-loop/tasks/migrate-sliderule-task-write.md`
+- [ ] `instruction.package`：`agent-loop/tasks/migrate-sliderule-instruction-package.md`
+- [ ] `outcome.visualize`：`agent-loop/tasks/migrate-sliderule-outcome-visualize.md`
+- [ ] `handoff.package`：`agent-loop/tasks/migrate-sliderule-handoff-package.md`
 
 ### 推荐 AgentLoop 命令形态
 

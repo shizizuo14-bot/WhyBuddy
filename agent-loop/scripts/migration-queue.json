@@ -37,6 +37,12 @@
     "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_json_hardening.py tests/test_client_parity.py -q --tb=short",
     "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_json_hardening.py"
   ],
+  "deliveryGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts shared/blueprint/__tests__/sliderule-delivery-chain.test.ts server/sliderule/__tests__/delivery-exec-map.test.ts server/sliderule/__tests__/visual-exec-map.test.ts server/routes/__tests__/sliderule.execute-capability.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python server/sliderule server/routes/__tests__/sliderule.execute-capability.test.ts"
+  ],
   "tasks": [
     {
       "id": "backend-python-llm-client-parity",
@@ -94,6 +100,42 @@
     {
       "id": "sliderule-critique-generate",
       "task": "agent-loop/tasks/migrate-sliderule-critique-generate.md",
+      "enabled": true
+    },
+    {
+      "id": "sliderule-document-draft",
+      "task": "agent-loop/tasks/migrate-sliderule-document-draft.md",
+      "gatesKey": "deliveryGates",
+      "enabled": true
+    },
+    {
+      "id": "sliderule-traceability-matrix",
+      "task": "agent-loop/tasks/migrate-sliderule-traceability-matrix.md",
+      "gatesKey": "deliveryGates",
+      "enabled": true
+    },
+    {
+      "id": "sliderule-task-write",
+      "task": "agent-loop/tasks/migrate-sliderule-task-write.md",
+      "gatesKey": "deliveryGates",
+      "enabled": true
+    },
+    {
+      "id": "sliderule-instruction-package",
+      "task": "agent-loop/tasks/migrate-sliderule-instruction-package.md",
+      "gatesKey": "deliveryGates",
+      "enabled": true
+    },
+    {
+      "id": "sliderule-outcome-visualize",
+      "task": "agent-loop/tasks/migrate-sliderule-outcome-visualize.md",
+      "gatesKey": "deliveryGates",
+      "enabled": true
+    },
+    {
+      "id": "sliderule-handoff-package",
+      "task": "agent-loop/tasks/migrate-sliderule-handoff-package.md",
+      "gatesKey": "deliveryGates",
       "enabled": true
     }
   ]

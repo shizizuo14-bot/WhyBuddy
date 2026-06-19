@@ -31,12 +31,7 @@ async function main() {
   const repoRoot = path.resolve(agentLoopRoot, queue.cwd || '..');
   const defaults = queue.defaults || {};
   const defaultGates = queue.gates || [];
-  const gateSets = {
-    gates: defaultGates,
-    infraGates: queue.infraGates || defaultGates,
-    poolGates: queue.poolGates || defaultGates,
-    jsonGates: queue.jsonGates || defaultGates,
-  };
+  const gateSets = collectGateSets(queue, defaultGates);
   const maxConsecutiveNoChanges = defaults.maxConsecutiveNoChanges ?? 3;
   const autoDisableOnNoChanges = defaults.autoDisableOnNoChanges ?? true;
   const cleanupWorktree = defaults.cleanupWorktree ?? true;
@@ -253,6 +248,16 @@ function resolveQueuePath(argv) {
     return path.resolve(process.cwd(), value);
   }
   return defaultQueuePath;
+}
+
+function collectGateSets(queue, defaultGates) {
+  const gateSets = { gates: defaultGates };
+  for (const [key, value] of Object.entries(queue)) {
+    if (key === 'gates') continue;
+    if (!key.endsWith('Gates')) continue;
+    if (Array.isArray(value)) gateSets[key] = value;
+  }
+  return gateSets;
 }
 
 main().catch((error) => {

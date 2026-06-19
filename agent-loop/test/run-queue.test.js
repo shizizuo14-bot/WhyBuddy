@@ -81,6 +81,20 @@ test('resolveQueueGate substitutes taskFile for scoped mojibake gates', () => {
   );
 });
 
+test('resolveEntryGates accepts custom delivery gate sets', () => {
+  const gates = resolveEntryGates({
+    entry: { gatesKey: 'deliveryGates' },
+    gateSets: {
+      gates: ['default-gate'],
+      deliveryGates: ['delivery-gate'],
+    },
+    defaultGates: ['default-gate'],
+    label: 'sliderule-document-draft',
+  });
+
+  assert.deepEqual(gates, ['delivery-gate']);
+});
+
 test('resolveQueueGate uses repo-root node bins for worktree Node gates', () => {
   const vitest = resolveQueueGate(
     'pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.execute-capability.test.ts --reporter=dot',

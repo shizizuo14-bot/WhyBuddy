@@ -232,6 +232,31 @@ def test_structure_decompose_returns_v5_shape_with_python_llm_provenance():
     assert "RBAC" not in out["content"]
 
 
+def test_document_draft_returns_v5_shape_with_python_llm_provenance():
+    body = {
+        "capabilityId": "document.draft",
+        "state": {"goal": {"text": "draft a pet office progression spec"}},
+        "userText": "write requirements, design notes, tasks, and acceptance criteria",
+        "roleId": "工程",
+        "turnId": "t-document",
+    }
+
+    out = execute_capability(
+        body,
+        caller=lambda *a, **k: _fake_result(
+            "## Requirements\n- Pet office desks unlock through progression milestones\n"
+            "## Design notes\n- Desk upgrades affect task assignment and player pacing\n"
+            "## Tasks\n- Implement desk milestone rules\n"
+            "## Acceptance criteria\n- A playtest can verify first desk unlock timing"
+        ),
+    )
+    assert out["provenance"] == "python-llm"
+    assert out["title"] == "SPEC document draft"
+    assert "Requirements" in out["content"]
+    assert "Acceptance criteria" in out["content"]
+    assert "RBAC" not in out["content"]
+
+
 def test_risk_analyze_returns_v5_shape_with_python_llm_provenance():
     body = {
         "capabilityId": "risk.analyze",
@@ -360,6 +385,7 @@ def test_unsupported_capability_raises():
     assert is_python_native_capability("rebuttal.resolve") is True
     assert is_python_native_capability("counter.argue") is True
     assert is_python_native_capability("structure.decompose") is True
+    assert is_python_native_capability("document.draft") is True
     assert is_python_native_capability("risk.analyze") is True
     assert is_python_native_capability("evidence.search") is True
     assert is_python_native_capability("report.write") is True

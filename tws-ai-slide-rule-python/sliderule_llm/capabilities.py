@@ -83,6 +83,14 @@ CAPABILITY_PROMPTS: dict[str, str] = {
         "Stay strictly grounded in the user's actual goal. Do not invent an unrelated domain. "
         "Output markdown only: no JSON, no code fence, no preamble."
     ),
+    "document.draft": (
+        "You are SlideRule V5's document-drafting role. Given the user's goal, state, and message, write a "
+        "concise **markdown** delivery document with these sections: (1) Requirements, "
+        "(2) Design notes, (3) Tasks, (4) Acceptance criteria. "
+        "Use concrete bullets grounded in the user's actual goal. Do not invent an unrelated domain. "
+        "Do not return a generic template; every section must mention the actual goal or its domain. "
+        "Output markdown only: no JSON, no code fence, no preamble."
+    ),
     "risk.analyze": (
         "You are SlideRule V5's risk-analysis role. Given the user's goal and message, write a "
         "concise **markdown** risk scan with three short sections: (1) risk inventory, "
@@ -108,6 +116,7 @@ CAPABILITY_TITLES: dict[str, str] = {
     "rebuttal.resolve": "Rebuttal resolution",
     "counter.argue": "Counter argument",
     "structure.decompose": "Structure decomposition",
+    "document.draft": "SPEC document draft",
     "risk.analyze": "Risk analysis",
     "evidence.search": "Evidence search",
     "report.write": "Feasibility report",
