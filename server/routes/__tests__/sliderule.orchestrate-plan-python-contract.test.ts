@@ -5,6 +5,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 
 import { withStubbedLlmKey } from './helpers/with-stubbed-llm-key.js';
+import * as llmClient from '../../core/llm-client.js';
 
 vi.mock('../../sliderule/python-delegation.js', () => ({
   callPythonSlideRule: vi.fn(),
@@ -100,6 +101,63 @@ describe('orchestrate.plan Node -> Python proxy contract', () => {
         turnId: 't-orch-python-proxy',
         userText: 'Plan a migration boundary slice',
       }),
+      expect.any(String),
+      expect.any(Object),
+    );
+  });
+
+  it('keeps direct orchestrate-plan owned by Node while execute-capability proxies only the planner fragment', async () => {
+    const nodeLlmSpy = vi.spyOn(llmClient, 'callLLMJsonWithUsage').mockResolvedValueOnce({
+      json: {
+        selected: [{ capabilityId: 'risk.analyze', roleId: '安全', why: 'Node owns main planning' }],
+        rationale: 'Node orchestrator result',
+      },
+      usage: { prompt_tokens: 12, completion_tokens: 8, total_tokens: 20 },
+    } as any);
+    const pythonPayload = {
+      selected: [{ capabilityId: 'evidence.search', roleId: 'grounding', why: 'Python thin planner fragment' }],
+      rationale: 'Python fragment only',
+      source: 'python-rag',
+    };
+    pythonDelegation.callPythonSlideRule.mockResolvedValueOnce(pythonPayload);
+
+    const directPlan = await fetch(`${base}/orchestrate-plan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        state: {
+          ...planRequestBody.state,
+          goal: { text: 'Audit one migration risk' },
+        },
+        turnId: planRequestBody.turnId,
+        userText: 'Audit one migration risk',
+      }),
+    });
+
+    expect(directPlan.status).toBe(200);
+    const directBody = await directPlan.json();
+    expect(directBody.source).toBe('llm');
+    expect(directBody.selected[0].capabilityId).toBe('risk.analyze');
+    expect(nodeLlmSpy).toHaveBeenCalledTimes(1);
+    expect(pythonDelegation.callPythonSlideRule).not.toHaveBeenCalled();
+
+    const proxiedFragment = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(planRequestBody),
+    });
+
+    expect(proxiedFragment.status).toBe(200);
+    const fragmentBody = await proxiedFragment.json();
+    expect(fragmentBody).toEqual(pythonPayload);
+    expect(fragmentBody.state).toBeUndefined();
+    expect(fragmentBody.artifacts).toBeUndefined();
+    expect(fragmentBody.capabilityRuns).toBeUndefined();
+    expect(fragmentBody.coverageGate).toBeUndefined();
+    expect(pythonDelegation.callPythonSlideRule).toHaveBeenCalledWith(
+      expect.any(String),
+      '/api/sliderule/orchestrate-plan',
+      expect.objectContaining({ capabilityId: 'orchestrate.plan' }),
       expect.any(String),
       expect.any(Object),
     );

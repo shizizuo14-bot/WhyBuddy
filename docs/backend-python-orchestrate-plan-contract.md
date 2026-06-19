@@ -10,6 +10,12 @@ Node owns session state, artifact mutation, coverage gates, budget accounting,
 and the full Blueprint/Autopilot state machine. Python may propose a next-plan
 shape that Node can consume or reject.
 
+The thin planner slice adds only deterministic plan-draft selection on the
+Python side. For a fixed request, Python may choose a stable ordered capability
+fragment such as evidence, risk, and delivery packaging steps. It still does
+not drive the session loop, retry policy, fallback decision, state stream, Trust
+Gate, GCOV, artifact commits, or final execution.
+
 The Python response shape is intentionally small:
 
 ```json
@@ -24,13 +30,19 @@ The Python response shape is intentionally small:
 
 Allowed source values in this slice are `python-rag`, `heuristic_fallback`, or
 `llm`. A Python plan must not include mutated session state, artifacts,
-capability run records, or coverage gate decisions.
+capability run records, coverage contracts, coverage gaps, or coverage gate
+decisions.
 
 ## Node proxy behavior
 
 When `SLIDERULE_V5_BACKEND=python`, Node delegates `orchestrate.plan` through
 the Python-specific endpoint `/api/sliderule/orchestrate-plan`, not the generic
 `/api/sliderule/execute-capability` endpoint.
+
+Direct calls to Node `/api/sliderule/orchestrate-plan` still execute the Node
+orchestrator in `server/sliderule/orchestrate-plan.ts`. The
+`/api/sliderule/execute-capability` proxy path delegates only the
+`orchestrate.plan` planner fragment to Python.
 
 If Python is unavailable, Node returns HTTP 502 with:
 
@@ -56,5 +68,6 @@ This is a hard degraded shape, not a pseudo-successful plan.
 The migration gate locks the contract with:
 
 - `tws-ai-slide-rule-python/tests/test_orchestrate_plan_contract.py`
+- `tws-ai-slide-rule-python/tests/test_orchestrate_plan_thin_planner.py`
 - `server/routes/__tests__/sliderule.orchestrate-plan-python-contract.test.ts`
 - existing `server/routes/__tests__/sliderule.orchestrate-plan.test.ts`

@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] Python test 覆盖 thin planner 的最小 deterministic plan
-- [ ] Node contract test 确认仍由 Node 控制主编排，只代理规划片段
-- [ ] 文档边界没有把 thin planner 写成完整 orchestrator
-- [ ] gate 全绿
-- [ ] Codex review（审查）确认没有重写 `server/sliderule/orchestrate-plan.ts`
+- [x] 已执行 AgentLoop
+- [x] Python test 覆盖 thin planner 的最小 deterministic plan
+- [x] Node contract test 确认仍由 Node 控制主编排，只代理规划片段
+- [x] 文档边界没有把 thin planner 写成完整 orchestrator
+- [x] gate 全绿
+- [x] Codex review（审查）确认没有重写 `server/sliderule/orchestrate-plan.ts`
 
 ## 目标
 
