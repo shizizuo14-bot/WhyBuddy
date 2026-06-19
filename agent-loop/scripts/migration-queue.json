@@ -147,74 +147,113 @@
     "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_pool_resilience.py tests/test_pool_parity.py tests/test_telemetry_cost.py -q --tb=short",
     "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/pool.py tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_pool_resilience.py"
   ],
+  "realVectorRetrievalRuntimeGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_real_vector_retrieval_runtime.py tests/test_real_vector_retrieval_smoke.py tests/test_evidence_vector_contract.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/evidence.py tws-ai-slide-rule-python/sliderule_llm/vector.py tws-ai-slide-rule-python/tests/test_real_vector_retrieval_runtime.py"
+  ],
+  "evidenceRuntimeProvenanceGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_evidence_runtime_provenance.py tests/test_evidence_retrieval_parity.py tests/test_evidence_vector_contract.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.evidence-python-proxy-contract.test.ts --reporter=dot",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/evidence.py tws-ai-slide-rule-python/tests/test_evidence_runtime_provenance.py server/routes/__tests__/sliderule.evidence-python-proxy-contract.test.ts"
+  ],
+  "mcpCallRuntimeSmokeGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_mcp_call_runtime_smoke.py tests/test_mcp_call_contract.py tests/test_evidence_retrieval_parity.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.mcp-call-contract.test.ts --reporter=dot",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/tests/test_mcp_call_runtime_smoke.py tws-ai-slide-rule-python/tests/test_mcp_call_contract.py server/routes/__tests__/sliderule.mcp-call-contract.test.ts"
+  ],
+  "skillInvokeRuntimeSmokeGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_skill_invoke_runtime_smoke.py tests/test_skill_invoke_contract.py tests/test_evidence_retrieval_parity.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.skill-invoke-contract.test.ts --reporter=dot",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/tests/test_skill_invoke_runtime_smoke.py tws-ai-slide-rule-python/tests/test_skill_invoke_contract.py server/routes/__tests__/sliderule.skill-invoke-contract.test.ts"
+  ],
+  "orchestratePlanThinPlannerGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_orchestrate_plan_thin_planner.py tests/test_orchestrate_plan_contract.py tests/test_orchestrate_plan_golden_smoke.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.orchestrate-plan-python-contract.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-orchestrate-plan-contract.md tws-ai-slide-rule-python/tests/test_orchestrate_plan_thin_planner.py server/routes/__tests__/sliderule.orchestrate-plan-python-contract.test.ts"
+  ],
+  "orchestratePlanErrorRecoveryGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_orchestrate_plan_error_recovery.py tests/test_orchestrate_plan_contract.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.orchestrate-plan-python-contract.test.ts server/routes/__tests__/sliderule.orchestrate-plan.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-orchestrate-plan-contract.md tws-ai-slide-rule-python/tests/test_orchestrate_plan_error_recovery.py server/routes/__tests__/sliderule.orchestrate-plan-python-contract.test.ts"
+  ],
+  "llmStreamRuntimeAdapterGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_stream_runtime_adapter.py tests/test_stream_contract.py tests/test_client_parity.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_stream_runtime_adapter.py tws-ai-slide-rule-python/tests/test_stream_contract.py"
+  ],
+  "llmPoolObservabilityGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_pool_observability.py tests/test_pool_resilience.py tests/test_pool_parity.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/pool.py tws-ai-slide-rule-python/tests/test_pool_observability.py tws-ai-slide-rule-python/tests/test_pool_resilience.py"
+  ],
   "tasks": [
     {
-      "id": "backend-python-real-vector-retrieval-smoke",
-      "task": "agent-loop/tasks/backend-python-real-vector-retrieval-smoke.md",
-      "gatesKey": "realVectorRetrievalSmokeGates",
+      "id": "backend-python-real-vector-retrieval-runtime",
+      "task": "agent-loop/tasks/backend-python-real-vector-retrieval-runtime.md",
+      "gatesKey": "realVectorRetrievalRuntimeGates",
       "enabled": true,
       "guardTests": false,
       "grokMaxTurns": 12,
       "maxIterations": 2
     },
     {
-      "id": "backend-python-evidence-node-proxy-contract",
-      "task": "agent-loop/tasks/backend-python-evidence-node-proxy-contract.md",
-      "gatesKey": "evidenceNodeProxyContractGates",
+      "id": "backend-python-evidence-runtime-provenance",
+      "task": "agent-loop/tasks/backend-python-evidence-runtime-provenance.md",
+      "gatesKey": "evidenceRuntimeProvenanceGates",
       "enabled": true,
       "guardTests": false,
       "grokMaxTurns": 12,
       "maxIterations": 2
     },
     {
-      "id": "backend-python-orchestrate-plan-contract",
-      "task": "agent-loop/tasks/backend-python-orchestrate-plan-contract.md",
-      "gatesKey": "orchestratePlanContractGates",
+      "id": "backend-python-mcp-call-runtime-smoke",
+      "task": "agent-loop/tasks/backend-python-mcp-call-runtime-smoke.md",
+      "gatesKey": "mcpCallRuntimeSmokeGates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 12,
+      "maxIterations": 2
+    },
+    {
+      "id": "backend-python-skill-invoke-runtime-smoke",
+      "task": "agent-loop/tasks/backend-python-skill-invoke-runtime-smoke.md",
+      "gatesKey": "skillInvokeRuntimeSmokeGates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 12,
+      "maxIterations": 2
+    },
+    {
+      "id": "backend-python-orchestrate-plan-thin-planner",
+      "task": "agent-loop/tasks/backend-python-orchestrate-plan-thin-planner.md",
+      "gatesKey": "orchestratePlanThinPlannerGates",
       "enabled": true,
       "guardTests": false,
       "grokMaxTurns": 14,
       "maxIterations": 2
     },
     {
-      "id": "backend-python-orchestrate-plan-golden-smoke",
-      "task": "agent-loop/tasks/backend-python-orchestrate-plan-golden-smoke.md",
-      "gatesKey": "orchestratePlanGoldenSmokeGates",
+      "id": "backend-python-orchestrate-plan-error-recovery",
+      "task": "agent-loop/tasks/backend-python-orchestrate-plan-error-recovery.md",
+      "gatesKey": "orchestratePlanErrorRecoveryGates",
       "enabled": true,
       "guardTests": false,
       "grokMaxTurns": 14,
       "maxIterations": 2
     },
     {
-      "id": "backend-python-mcp-call-contract",
-      "task": "agent-loop/tasks/backend-python-mcp-call-contract.md",
-      "gatesKey": "mcpCallContractGates",
+      "id": "backend-python-llm-stream-runtime-adapter",
+      "task": "agent-loop/tasks/backend-python-llm-stream-runtime-adapter.md",
+      "gatesKey": "llmStreamRuntimeAdapterGates",
       "enabled": true,
       "guardTests": false,
       "grokMaxTurns": 12,
       "maxIterations": 2
     },
     {
-      "id": "backend-python-skill-invoke-contract",
-      "task": "agent-loop/tasks/backend-python-skill-invoke-contract.md",
-      "gatesKey": "skillInvokeContractGates",
-      "enabled": true,
-      "guardTests": false,
-      "grokMaxTurns": 12,
-      "maxIterations": 2
-    },
-    {
-      "id": "backend-python-llm-stream-contract",
-      "task": "agent-loop/tasks/backend-python-llm-stream-contract.md",
-      "gatesKey": "llmStreamContractGates",
-      "enabled": true,
-      "guardTests": false,
-      "grokMaxTurns": 12,
-      "maxIterations": 2
-    },
-    {
-      "id": "backend-python-llm-pool-resilience",
-      "task": "agent-loop/tasks/backend-python-llm-pool-resilience.md",
-      "gatesKey": "llmPoolResilienceGates",
+      "id": "backend-python-llm-pool-observability",
+      "task": "agent-loop/tasks/backend-python-llm-pool-observability.md",
+      "gatesKey": "llmPoolObservabilityGates",
       "enabled": true,
       "guardTests": false,
       "grokMaxTurns": 12,
