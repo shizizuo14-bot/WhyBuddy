@@ -99,6 +99,45 @@ describe('skill.invoke Node -> Python proxy contract', () => {
     expect(poolSpy).not.toHaveBeenCalled();
   });
 
+  it('passes through fake skill runtime provenance without claiming production skill:*', async () => {
+    const primarySpy = vi.spyOn(llmClient, 'callLLMJsonWithUsage');
+    const poolSpy = vi.spyOn(poolJsonLlm, 'callPoolJsonLlm');
+    const pythonPayload = {
+      title: 'skill.invoke fake.summarize',
+      summary: 'Fake skill registry returned a deterministic skill result',
+      content: 'fake summary for migration boundaries',
+      provenance: 'python-fake-skill',
+      degraded: false,
+      skillId: 'fake.summarize',
+      arguments: { topic: 'migration boundaries' },
+      skillResult: {
+        summary: 'deterministic:migration boundaries',
+        skillId: 'fake.summarize',
+      },
+      sources: [],
+    };
+    pythonDelegation.callPythonSlideRule.mockResolvedValueOnce(pythonPayload);
+
+    const res = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(skillRequestBody),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body).toEqual(pythonPayload);
+    expect(body.provenance).toBe('python-fake-skill');
+    expect(body.provenance).not.toBe('python-rag');
+    expect(body.provenance).not.toMatch(/^skill:/);
+    expect(body.skillResult).toEqual({
+      summary: 'deterministic:migration boundaries',
+      skillId: 'fake.summarize',
+    });
+    expect(primarySpy).not.toHaveBeenCalled();
+    expect(poolSpy).not.toHaveBeenCalled();
+  });
+
   it('returns explicit degraded 502 when Python delegation fails', async () => {
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     pythonDelegation.callPythonSlideRule.mockRejectedValueOnce(new Error('connection refused'));

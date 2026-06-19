@@ -10,7 +10,9 @@ from models.v5_state import V5SessionState
 from .slide_rule_executor import (  # main one
     execute_capability,
     execute_mcp_call_with_runtime,
+    execute_skill_invoke_with_runtime,
     get_mcp_runtime,
+    get_skill_runtime,
 )
 from .slide_rule_llm import call_stable_llm_for_capability
 from .rag_service import generate_with_rag, retrieve_evidence
@@ -66,6 +68,8 @@ def execute_report(state: V5SessionState, cap_id: str, role: str, turn: str, inp
 def execute_mcp_or_skill(state: V5SessionState, cap_id: str, role: str, turn: str, inputs: List[str]) -> Dict[str, Any]:
     if cap_id == "mcp.call" and get_mcp_runtime() is not None:
         return execute_mcp_call_with_runtime(state, role, turn, inputs)
+    if cap_id == "skill.invoke" and get_skill_runtime() is not None:
+        return execute_skill_invoke_with_runtime(state, role, turn, inputs)
     return execute_capability(cap_id, state, inputs, role, turn).model_dump()
 
 def execute_evidence(state: V5SessionState, cap_id: str, role: str, turn: str, inputs: List[str]) -> Dict[str, Any]:

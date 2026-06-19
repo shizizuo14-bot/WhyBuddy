@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] Python test 覆盖 fake skill 成功执行
-- [ ] Python test 覆盖 skill 不存在、参数错误、runtime 不可用
-- [ ] Node test 确认 provenance（来源）不伪装
-- [ ] gate 全绿
-- [ ] Codex review（审查）确认没有接真实外部工具或权限系统
+- [x] 已执行 AgentLoop
+- [x] Python test 覆盖 fake skill 成功执行
+- [x] Python test 覆盖 skill 不存在、参数错误、runtime 不可用
+- [x] Node test 确认 provenance（来源）不伪装
+- [x] gate 全绿
+- [x] Codex review（审查）确认没有接真实外部工具或权限系统
 
 ## 目标
 
