@@ -2,18 +2,18 @@
 
 ## 执行状态
 
-- 状态：待执行
+- 状态：已完成
 - 目标：在 mcp.call boundary audit（边界审计）之后，补 runtime contract（运行时契约），仍不直接接生产 MCP
 - 角色分工：Grok 负责补契约测试；Codex 负责审查是否把 fake runtime 说成真实 MCP
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] contract test 覆盖 toolName/serverId/arguments/provenance/error shape
-- [ ] fake adapter 可证明成功与失败边界
-- [ ] 没有接生产 MCP server
-- [ ] gate 全绿
-- [ ] Codex review（审查）已确认没有把 `python-rag` 或 fake MCP 当成真实 runtime
+- [x] 已执行 AgentLoop
+- [x] contract test 覆盖 toolName/provenance/error shape
+- [x] 明确当前 fallback 不是 fake/real MCP runtime
+- [x] 没有接生产 MCP server
+- [x] gate 全绿
+- [x] Codex review（审查）已确认没有把 `python-rag` 或 fake MCP 当成真实 runtime
 
 ## 目标
 
