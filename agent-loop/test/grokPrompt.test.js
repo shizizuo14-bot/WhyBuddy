@@ -1,6 +1,43 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { buildAgentReviewPrompt } from '../src/grokPrompt.js';
+import {
+  buildAgentFixPrompt,
+  buildAgentReviewFixPrompt,
+  buildAgentReviewPrompt,
+} from '../src/grokPrompt.js';
+
+test('buildAgentFixPrompt includes migration boundary guardrails for worker agents', () => {
+  const prompt = buildAgentFixPrompt({
+    taskText: '# Task\n\n## 成功标准\n\n- gate 通过\n',
+    gate: { runs: [] },
+    workerAgent: 'grok',
+  });
+
+  assert.match(prompt, /Migration Boundary Guardrails/);
+  assert.match(prompt, /修复 worker 负责落地当前任务内/);
+  assert.match(prompt, /不要把一个切片扩大成“大迁移”/);
+  assert.match(prompt, /Node thin proxy、Python baseline、LLM infra、RAG\/vector\/evidence/);
+  assert.match(prompt, /mcp\.call/);
+  assert.match(prompt, /orchestrate\.plan/);
+  assert.match(prompt, /输出 blocked/);
+});
+
+test('buildAgentReviewFixPrompt keeps review-driven fixes inside migration boundaries', () => {
+  const prompt = buildAgentReviewFixPrompt({
+    taskText: '# Task',
+    review: {
+      verdict: 'needs_changes',
+      summary: 'tighten boundary',
+      findings: [{ severity: 'major', path: 'src/a.js', message: 'scope expanded' }],
+    },
+    diffText: 'diff --git a/src/a.js b/src/a.js\n+change\n',
+    workerAgent: 'grok',
+  });
+
+  assert.match(prompt, /Migration Boundary Guardrails/);
+  assert.match(prompt, /proxy contract、smoke gate、generated\/fallback evidence/);
+  assert.match(prompt, /如果任务没有明确 allowed files、gate、成功标准/);
+});
 
 test('buildAgentReviewPrompt includes gate evidence and head-review guidance when diff is empty', () => {
   const prompt = buildAgentReviewPrompt({
@@ -29,6 +66,9 @@ test('buildAgentReviewPrompt includes gate evidence and head-review guidance whe
   assert.match(prompt, /HEAD 提交/);
   assert.match(prompt, /勿重跑/);
   assert.match(prompt, /禁止调用 Shell/);
+  assert.match(prompt, /Codex Boundary Review Checklist/);
+  assert.match(prompt, /fallback\/proxy 冒充完整实现/);
+  assert.match(prompt, /整体 Node backend、SlideRule V5、Node thin proxy/);
   assert.match(prompt, /未提交 diff 为空/);
   assert.doesNotMatch(prompt, /请审查当前 worktree 里的未提交改动。/);
 });

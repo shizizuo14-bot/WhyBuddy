@@ -11,6 +11,7 @@
 - 当前已实现 “review needs_changes -> 自动回喂修复工人进入下一轮” 的闭环：verdict 优先于退出码（exitCode 0 + needs_changes 不会误判成功）；review-driven fix 与 gate fix 共用 `--max-iterations` 预算，预算耗尽即 `HALT_BUDGET`。
 - 当前 **ship / no-ship 的决定权交给 reviewer 本身**：审查对照任务的 `## 成功标准` 判断，小瑕疵记进 summary 但仍 `pass`，只有真阻断才 `needs_changes`，做不出来则 `blocked`（交还人工）。引擎不再用「连续 findings 相同就 halt」这类自作聪明的启发式去二次猜测。
 - 当前是 **入口契约**：每个 task 必须有非空 `## 成功标准`（由 spec 派生）；缺失则 `HALT_NO_SUCCESS_CRITERIA`，**不入环**，直接退回补全——不在引擎里给「无标准」开运行时分支。
+- 当前迁移任务默认角色分工是：**Grok 做任务内实现，Codex 守硬边界**。Grok 不负责决定是否扩大迁移范围；Codex review 必须审查 allowed files、gate 证据、分层进度口径、是否把 proxy/fallback/smoke 夸大成完整迁移。
 - 当前 VS Code 插件薄壳、完整 worktree 生命周期属于设计规划或待补强部分，不要当成已经完整落地。
 
 > 文档/源码编码自检：`node src/check-mojibake.js src test scripts package.json agent_loop_v1.md`（`npm test` 也含 mojibake gate）。读出乱码多半是编辑器编码设置问题，不是文件损坏。
@@ -92,6 +93,7 @@ npm run smoke:live -- --timeout-ms 180000
 | review needs_changes -> 修复工人二次修复 | 已实现 | findings 经 `buildAgentReviewFixPrompt` 回喂；与 gate fix 共用 `--max-iterations` 预算，耗尽即 `HALT_BUDGET` |
 | reviewer 自主 ship/no-ship | 已实现 | 严重度与放行权交给 reviewer（对照 `## 成功标准`）；引擎只 honor `pass/needs_changes/blocked`，不做 findings 去重启发式 |
 | 入口契约：`## 成功标准` 必填 | 已实现 | 缺失即 `HALT_NO_SUCCESS_CRITERIA` 不入环（`src/taskContract.js`）；不给「无标准」开运行时例外 |
+| 迁移边界护栏 | 已实现 | fix / review prompt 内置角色分工：Grok 做实现，Codex 审边界；要求分清 Node thin proxy、Python baseline、LLM infra、RAG/vector/evidence、Blueprint/Autopilot 等层级 |
 | review-driven fix resume 上下文 | 已实现 | 延后清 `pendingReview` 到迭代记录后；`resolvePendingReview` 回退到 `reviewRounds` 最近 needs_changes；有 resume 重建上下文的专项测试 |
 | VS Code Extension Shell | 未来规划/外壳说明 | 当前核心能力在 CLI 内，插件薄壳不要当成已完整交付 |
 | 完整隔离 worktree 生命周期 | 部分实现/待补强 | 当前可用 `--fix-cwd` 或相关 worktree 参数，但还需要更多真实场景验证 |
@@ -927,9 +929,9 @@ baseline gate 红
 你可以把整个系统理解成四个角色：
 
 ```text
-Grok = 工人，负责改代码
+Grok = 工人，负责按任务内边界改代码
 Gate = 裁判，负责判断客观是否过关
-Codex = 审查员，负责指出质量风险
+Codex = 审查员，负责指出质量风险和迁移硬边界
 AgentLoop = 项目经理，负责编排、记账、停机、写报告
 ```
 
@@ -950,3 +952,37 @@ AgentLoop = 项目经理，负责编排、记账、停机、写报告
 ```text
 先 Probe，再隔离，再跑基线 gate；红灯让 Grok 修，绿灯让 Codex 审；每轮都过 Budget，每次都存日志；agent 挂、没进展、输出坏、超预算就停给人。
 ```
+
+## 迁移任务的角色分工
+
+以后做 NodeJS 到 Python 迁移时，不再靠临场经验提醒，而是把经验写进任务和 prompt：
+
+```text
+Grok 干活：
+  - 只实现当前 task 点名的 capability / endpoint / contract / gate。
+  - 只改 allowed files。
+  - 不决定“顺手迁更多”。
+  - 不把 smoke gate / proxy contract / fallback evidence 说成完整迁移。
+  - 边界不清楚就 blocked。
+
+Codex 守边界：
+  - 看成功标准是否真的覆盖。
+  - 看 gate 证据是否足够。
+  - 看 diff 是否越界。
+  - 看进度表是否把不同层级混在一起。
+  - 对 mcp.call / skill.invoke / orchestrate.plan / real vector retrieval 这类硬边界，优先要求 audit / contract / smoke，而不是放大迁移结论。
+```
+
+迁移进度必须分层表达：
+
+```text
+整体 Node backend
+SlideRule V5 子系统
+Node thin proxy
+Python V5 baseline
+LLM infra
+RAG / vector / evidence
+Blueprint / Autopilot 主流程
+```
+
+所以一句“gate 绿了”只代表当前 task 的 gate 绿了，不代表整个后端迁完；一句“proxy 通了”只代表代理边界通了，不代表业务主流程已迁完。

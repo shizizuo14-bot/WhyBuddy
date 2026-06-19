@@ -1,5 +1,26 @@
 import { stripAnsi } from './ansi.js';
 
+const MIGRATION_BOUNDARY_GUARDRAILS = [
+  '## Migration Boundary Guardrails（迁移边界护栏）',
+  '',
+  '- 角色分工：修复 worker 负责落地当前任务内的代码/测试/文档；边界判断、进度口径、是否扩大迁移范围由 reviewer / 人工决定。',
+  '- 不要把一个切片扩大成“大迁移”：只做 task 里点名的 capability、endpoint、contract 或 gate。',
+  '- 如果任务涉及 Node -> Python 迁移，必须保持分层口径：Node thin proxy、Python baseline、LLM infra、RAG/vector/evidence、Blueprint/Autopilot 主流程要分开描述。',
+  '- 不要把 proxy contract、smoke gate、generated/fallback evidence 宣传成完整迁移或生产级 retrieval。',
+  '- 遇到 `mcp.call`、`skill.invoke`、`orchestrate.plan`、真实 vector retrieval 这类硬边界，先补 audit/contract/smoke，不要直接迁大编排。',
+  '- 如果任务没有明确 allowed files、gate、成功标准，或需要扩大边界，请输出 blocked，不要自作主张。',
+].join('\n');
+
+const REVIEW_BOUNDARY_CHECKLIST = [
+  '## Codex Boundary Review Checklist（Codex 边界审查清单）',
+  '',
+  '- 先审 task 的成功标准、允许文件、gate 是否足以证明完成；不要只看“有 diff / gate 绿”。',
+  '- 检查 Grok 是否扩大迁移范围、改了无关系统、绕过测试或把 fallback/proxy 冒充完整实现。',
+  '- 对迁移进度保持分层判断：整体 Node backend、SlideRule V5、Node thin proxy、Python baseline、LLM infra、RAG/vector/evidence、Blueprint/Autopilot 不要混成一个百分比。',
+  '- 对 `mcp.call`、`skill.invoke`、`orchestrate.plan`、真实 vector retrieval 这类硬边界，若没有 audit/contract/smoke 证据，应要求补边界任务，而不是放大完成声明。',
+  '- 小的文案或风格问题不要阻断；边界错、证据不足、任务越界、进度夸大才是 blocker/major。',
+].join('\n');
+
 export function buildAgentFixPrompt({ taskText, gate, workerAgent = 'grok' }) {
   const failureBlocks = gate.runs
     .filter((run) => run.exitCode !== 0 || run.timedOut || run.spawnError)
@@ -38,6 +59,8 @@ export function buildAgentFixPrompt({ taskText, gate, workerAgent = 'grok' }) {
     '- Do not delete, weaken, skip, or rewrite tests to make the gate pass.',
     '- Do not change gate commands, test scripts, CI config, or test runner config unless the task explicitly asks for that.',
     '- Do not bypass assertions, mark tests skipped/only, lower coverage, or replace checks with placeholders.',
+    '',
+    MIGRATION_BOUNDARY_GUARDRAILS,
     '',
     '## 失败信息',
     '',
@@ -80,6 +103,8 @@ export function buildAgentChecklistFixPrompt({ taskText, pendingItems = [], work
     '- Do not delete, weaken, skip, or rewrite tests to make the gate pass.',
     '- Do not change gate commands, test scripts, CI config, or test runner config unless the task explicitly asks for that.',
     '- Do not bypass assertions, mark tests skipped/only, lower coverage, or replace checks with placeholders.',
+    '',
+    MIGRATION_BOUNDARY_GUARDRAILS,
     '',
     '## 规则',
     '',
@@ -134,6 +159,8 @@ export function buildAgentReviewFixPrompt({ taskText, review = {}, gate = null, 
     '- Do not delete, weaken, skip, or rewrite tests to make the gate pass.',
     '- Do not change gate commands, test scripts, CI config, or test runner config unless the task explicitly asks for that.',
     '- Do not bypass assertions, mark tests skipped/only, lower coverage, or replace checks with placeholders.',
+    '',
+    MIGRATION_BOUNDARY_GUARDRAILS,
     '',
     '## 当前未提交 diff',
     '',
@@ -240,6 +267,8 @@ export function buildAgentReviewPrompt({
     '- 只有**真正阻断达标**的问题才用 `needs_changes`；小瑕疵、风格、可选优化写进 `summary` 但仍判 `pass`，不要因为吹毛求疵让任务无谓回炉。',
     '- 若你判断任务在当前约束下根本做不出来、或多轮仍无法满足成功标准，用 `blocked` 并在 summary 说明原因——这会交还给人。',
     '- `findings[].severity` 由你定（blocker / major / minor）；只有 blocker / major 才应配 `needs_changes`。',
+    '',
+    REVIEW_BOUNDARY_CHECKLIST,
     '',
     `你是代码审查员。${workerAgent} 已完成修改，或 AgentLoop gate 已通过等待你审查。`,
     '请根据下方证据审查任务是否完成；不要依赖你自己重跑 gate。',
