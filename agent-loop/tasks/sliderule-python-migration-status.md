@@ -98,6 +98,18 @@
 2. `backend-python-evidence-retrieval-parity`：再把 evidence retrieval（证据检索）从 keyword baseline 拆成明确的 retrieval service。
 3. `mcp.call` / `skill.invoke` / `orchestrate.plan`：继续按单独 audit / contract gate（契约门禁）推进，不混入 native LLM 完成数。
 
+### Blueprint/spec-docs 当前结论
+
+2026-06-19 已完成 `backend-python-blueprint-spec-docs-inventory` 盘点，报告见 `docs/backend-python-blueprint-spec-docs-inventory.md`。
+
+大白话结论：Blueprint/spec-docs（蓝图规格文档）仍是 Node 侧主导。Node 已有 prompt（提示词）、schema（结构校验）、fallback（回退）、progress events（进度事件）和 artifact（产物）落盘链路。Python 下一步最适合先承接“单份文档生成”的 proxy contract（代理契约），不要一口气迁整个 Blueprint 状态机。
+
+后续顺序应是：
+
+1. `backend-python-blueprint-spec-docs-proxy-contract`：Python 先提供单文档生成 endpoint，Node 以开关方式代理。
+2. `backend-python-blueprint-spec-docs-smoke-gate`：再补默认安全 smoke gate（冒烟门禁）。
+3. Blueprint batch loop（批量循环）、artifact store（产物存储）、review/export/UI 仍留在 Node，等 proxy contract 稳定后再评估。
+
 ## 整体迁移进度
 
 ### 当前结论

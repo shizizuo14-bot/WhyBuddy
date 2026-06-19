@@ -2,18 +2,25 @@
 
 ## 执行状态
 
-- 状态：待执行
+- 状态：已完成 — Blueprint spec-docs 迁移边界已盘点
 - 目标：盘点 Blueprint/spec-docs（蓝图/规格文档）LLM 链路，准备切出 Python proxy（代理）迁移片
 - 前置：LLM infra Phase 1 parity 建议先完成或保持全绿
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] Node 侧 spec-docs LLM route/helper 已盘点
-- [ ] prompt / response shape / gate 已列出
-- [ ] Python proxy 可切片边界已定义
-- [ ] mojibake 检查通过
-- [ ] 人工 review（审查）已确认 diff 干净
+- [x] 已执行本地审计
+- [x] Node 侧 spec-docs LLM route/helper 已盘点
+- [x] prompt / response shape / gate 已列出
+- [x] Python proxy 可切片边界已定义
+- [x] mojibake 检查通过
+- [x] 人工 review（审查）已确认 diff 干净
+
+## 最近执行
+
+- 最近执行：2026-06-19
+- 执行方式：Codex 本地审计，不发 live LLM，不迁业务代码
+- 审计报告：`docs/backend-python-blueprint-spec-docs-inventory.md`
+- gate 结果：`blueprintInventoryGates` 通过
 
 ## 目标
 
