@@ -2,18 +2,18 @@
 
 ## 执行状态
 
-- 状态：待执行
+- 状态：已完成
 - 目标：锁住 Node 调 Python evidence retrieval（证据检索）的代理契约
 - 角色分工：Grok 负责补最小 Node/Python contract test；Codex 负责审查是否越界改大路由
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] Python evidence contract 测试全绿
-- [ ] Node route/proxy contract 测试全绿
-- [ ] degraded/fallback provenance（降级/回退来源）有明确测试
-- [ ] gate 全绿
-- [ ] Codex review（审查）已确认没有把 fallback 当作生产 retrieval 成功
+- [x] 已执行 AgentLoop
+- [x] Python evidence contract 测试全绿
+- [x] Node route/proxy contract 测试全绿
+- [x] degraded/fallback provenance（降级/回退来源）有明确测试
+- [x] gate 全绿
+- [x] Codex review（审查）已确认没有把 fallback 当作生产 retrieval 成功
 
 ## 目标
 
