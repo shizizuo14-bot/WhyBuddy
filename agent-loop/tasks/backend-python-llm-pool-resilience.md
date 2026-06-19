@@ -2,18 +2,18 @@
 
 ## 执行状态
 
-- 状态：待执行
+- 状态：已完成
 - 目标：补 Python LLM pool（模型池）的 resilience（韧性）测试：并发、熔断、退避和失败归因
 - 角色分工：Grok 负责补测试和最小实现；Codex 负责审查是否改出假成功或吞错误
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] pool resilience test 覆盖并发/失败/退避
-- [ ] 失败归因不会被吞掉
-- [ ] 不发真实 LLM 请求
-- [ ] gate 全绿
-- [ ] Codex review（审查）已确认没有把 fake provider 稳定性当成真实供应商稳定性
+- [x] 已执行 AgentLoop
+- [x] pool resilience test 覆盖并发/失败/fallback/熔断过期
+- [x] 失败归因不会被吞掉
+- [x] 不发真实 LLM 请求
+- [x] gate 全绿
+- [x] Codex review（审查）已确认没有把 fake provider 稳定性当成真实供应商稳定性
 
 ## 目标
 

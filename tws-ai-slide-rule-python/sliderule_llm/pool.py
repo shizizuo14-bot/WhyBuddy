@@ -14,15 +14,40 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from dataclasses import dataclass, field, replace
 from typing import Any
 
-from .client import LlmError, LlmResult, build_llm_telemetry, call_llm, call_llm_json
+from .client import (
+    LlmError,
+    LlmResult,
+    build_llm_telemetry,
+    call_llm,
+    call_llm_json,
+    classify_llm_failure_kind,
+)
 from .config import LlmConfig, PoolConfig, get_pool_config
 
 POOL_504_PENALTY_MS = 8000
 _recent_504_penalty_until: dict[str, float] = {}
+_last_pool_failures: list[dict[str, Any]] = []
 
 
 def clear_pool_penalties() -> None:
     _recent_504_penalty_until.clear()
+    _last_pool_failures.clear()
+
+
+def get_last_pool_failures() -> list[dict[str, Any]]:
+    return list(_last_pool_failures)
+
+
+def _record_pool_failure(label: str, error: LlmError) -> None:
+    _last_pool_failures.append(
+        {
+            "pool_label": label,
+            "failure_kind": classify_llm_failure_kind(error),
+            "message": str(error),
+            "status": error.status,
+            "transient": error.transient,
+        }
+    )
 
 
 def _record_504_penalty(label: str) -> None:
@@ -124,6 +149,7 @@ def _run_pool_attempts(
                 return runner(state)
             except LlmError as error:
                 state.mark_http_failure(error)
+                _record_pool_failure(state.label, error)
                 continue
         return None
 
@@ -136,6 +162,7 @@ def _run_pool_attempts(
                     return fut.result()
                 except LlmError as error:
                     state.mark_http_failure(error)
+                    _record_pool_failure(state.label, error)
                     continue
         finally:
             for fut in futures:
