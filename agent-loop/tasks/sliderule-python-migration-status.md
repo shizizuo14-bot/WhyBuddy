@@ -86,6 +86,18 @@
 | LLM infra 迁移 | 约 35-45% | Python `sliderule_llm` 已支撑 chat、JSON hardening、基础 pool、provider/model fallback、telemetry metadata 和当前 SlideRule 能力；并发/熔断、stream、多模态、真实成本计算等全后端底座仍未完全对齐 Node。 |
 | 能力覆盖 | 高 | 当前已记录的主要 SlideRule V5 `python-llm` 能力包括对话、审议、report、structure、risk/evidence、delivery chain、`outcome.visualize`、`ux.preview`；未审计边界仍不能自动视为完成。 |
 
+### RAG/vector 当前结论
+
+2026-06-19 已完成 `backend-python-rag-inventory` 盘点，报告见 `docs/backend-python-rag-inventory.md`。
+
+大白话结论：Node 侧已经有比较完整的 RAG/vector（检索/向量）基础设施；Python SlideRule 侧当前已经有 18 个 `python-llm`（Python 真大模型）能力，但真实 retrieval（检索）还没有接上 vector store（向量库）。现有 `services/rag_service.py` 主要是 keyword RAG（关键词检索）和内置 knowledge base（知识库）兜底，不能把它宣传成生产级 vector RAG。
+
+因此接下来顺序应是：
+
+1. `backend-python-vector-client-parity`：先补 Python vector client（向量客户端）最小契约。
+2. `backend-python-evidence-retrieval-parity`：再把 evidence retrieval（证据检索）从 keyword baseline 拆成明确的 retrieval service。
+3. `mcp.call` / `skill.invoke` / `orchestrate.plan`：继续按单独 audit / contract gate（契约门禁）推进，不混入 native LLM 完成数。
+
 ## 整体迁移进度
 
 ### 当前结论

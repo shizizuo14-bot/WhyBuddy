@@ -2,18 +2,25 @@
 
 ## 执行状态
 
-- 状态：待执行
+- 状态：已完成 — RAG/vector 盘点文档已落地
 - 目标：盘点 Node 侧 RAG/vector（检索/向量）资产，为 Python 迁移拆出可执行切片
 - 前置：SlideRule capability 覆盖已明显推进，但真实检索/向量仍不足
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] Node RAG/vector 入口已盘点
-- [ ] Python 侧已有/缺失能力已列清
-- [ ] 切片建议和 gate 建议已写入文档
-- [ ] mojibake 检查通过
-- [ ] 人工 review（审查）已确认 diff 干净
+- [x] 已执行本地审计
+- [x] Node RAG/vector 入口已盘点
+- [x] Python 侧已有/缺失能力已列清
+- [x] 切片建议和 gate 建议已写入文档
+- [x] mojibake 检查通过
+- [x] 人工 review（审查）已确认 diff 干净
+
+## 最近执行
+
+- 最近执行：2026-06-19
+- 执行方式：Codex 本地审计，不发 live LLM，不迁业务代码
+- 审计报告：`docs/backend-python-rag-inventory.md`
+- gate 结果：`ragInventoryGates` 通过
 
 ## 目标
 
