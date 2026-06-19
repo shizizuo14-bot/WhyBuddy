@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] Python test 覆盖 last failures、selected key metadata、penalty window metadata
-- [ ] 元数据不包含真实 API key
-- [ ] 旧 pool parity 和 resilience 测试不退化
-- [ ] gate 全绿
-- [ ] Codex review（审查）确认没有泄露密钥
+- [x] 已执行 AgentLoop
+- [x] Python test 覆盖 last failures、selected key metadata、penalty window metadata
+- [x] 元数据不包含真实 API key
+- [x] 旧 pool parity 和 resilience 测试不退化
+- [x] gate 全绿
+- [x] Codex review（审查）确认没有泄露密钥
 
 ## 目标
 
