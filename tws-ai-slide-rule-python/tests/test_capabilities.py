@@ -378,6 +378,39 @@ def test_outcome_visualize_returns_v5_shape_with_python_llm_provenance():
     assert "RBAC" not in out["content"]
 
 
+def test_ux_preview_returns_v5_shape_with_python_llm_provenance():
+    body = {
+        "capabilityId": "ux.preview",
+        "state": {"goal": {"text": "preview the pet office onboarding and desk assignment flow"}},
+        "userText": "show the key screens and states before implementation",
+        "roleId": "产品",
+        "turnId": "t-ux-preview",
+    }
+
+    out = execute_capability(
+        body,
+        caller=lambda *a, **k: _fake_result(
+            "## Screen/state preview\n"
+            "- Screen: Onboarding desk assignment state, grounded in the pet office goal.\n"
+            "## Primary user flow\n"
+            "- Player confirms the first desk, then sees task assignment feedback.\n"
+            "## Interaction notes\n"
+            "- Show disabled states before the desk milestone is met.\n"
+            "## Source/provenance notes\n"
+            "- provenance: generated from goal text and current state only."
+        ),
+    )
+
+    assert out["title"] == "UX preview"
+    assert out["provenance"] == "python-llm"
+    assert out["model"] == "fake-model"
+    content = out["content"].lower()
+    assert "screen" in content
+    assert "state" in content
+    assert "provenance" in content
+    assert "rbac" not in content
+
+
 def test_handoff_package_returns_v5_shape_with_python_llm_provenance():
     body = {
         "capabilityId": "handoff.package",
@@ -545,6 +578,7 @@ def test_unsupported_capability_raises():
     assert is_python_native_capability("task.write") is True
     assert is_python_native_capability("instruction.package") is True
     assert is_python_native_capability("outcome.visualize") is True
+    assert is_python_native_capability("ux.preview") is True
     assert is_python_native_capability("handoff.package") is True
     assert is_python_native_capability("risk.analyze") is True
     assert is_python_native_capability("evidence.search") is True

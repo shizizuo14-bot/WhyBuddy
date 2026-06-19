@@ -61,6 +61,7 @@ def test_python_native_dialogue_caps_use_real_llm_not_rag_stub(monkeypatch):
         "task.write",
         "instruction.package",
         "outcome.visualize",
+        "ux.preview",
         "handoff.package",
         "risk.analyze",
         "evidence.search",

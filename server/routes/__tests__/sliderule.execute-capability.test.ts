@@ -908,6 +908,57 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
     );
   });
 
+  it('ux.preview delegates to Python V5 backend in python mode and skips Node LLM/pool', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+    vi.stubEnv('SLIDERULE_CAPABILITY_POOL_ENABLED', 'true');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS', 'k1');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL', 'https://example.test/v1');
+    poolJsonLlm.resetSlideRuleCapabilityPoolCache();
+
+    const primarySpy = vi.spyOn(llmClient, 'callLLMJsonWithUsage');
+    const poolSpy = vi.spyOn(poolJsonLlm, 'callPoolJsonLlm');
+    pythonDelegation.callPythonSlideRule.mockResolvedValueOnce({
+      title: 'UX preview',
+      summary: 'Screen/state preview',
+      content: '## Screen/state preview\n- Screen: Onboarding desk assignment state.\n## Primary user flow\n- Confirm first desk, then inspect assignment feedback.\n## Source/provenance notes\n- provenance: generated from goal and current state only.',
+      provenance: 'python-llm',
+      model: 'fake-python-model',
+      usage: { total_tokens: 54 },
+    });
+
+    const res = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        capabilityId: 'ux.preview',
+        state: { sessionId: 't-ux.preview', goal: { text: 'Preview pet office onboarding screens' }, artifacts: [] },
+        inputArtifactIds: ['goal-1'],
+        roleId: '产品',
+        turnId: 't-ux.preview',
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.provenance).toBe('python-llm');
+    expect(body.content).toContain('Screen/state preview');
+    expect(body.content).toContain('provenance');
+    expect(primarySpy).not.toHaveBeenCalled();
+    expect(poolSpy).not.toHaveBeenCalled();
+    expect(pythonDelegation.callPythonSlideRule).toHaveBeenCalledWith(
+      expect.stringContaining('localhost:9700'),
+      '/api/sliderule/execute-capability',
+      expect.objectContaining({
+        capabilityId: 'ux.preview',
+        inputArtifactIds: ['goal-1'],
+        roleId: '产品',
+        turnId: 't-ux.preview',
+        userText: 'Preview pet office onboarding screens',
+      }),
+      expect.any(String),
+    );
+  });
+
   it('handoff.package delegates to Python V5 backend in python mode and skips Node LLM/pool', async () => {
     vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
     vi.stubEnv('SLIDERULE_CAPABILITY_POOL_ENABLED', 'true');

@@ -2,18 +2,23 @@
 
 ## 执行状态
 
-- 状态：待执行
+- 状态：已完成 — Python native implementation 与 Node delegation 契约已验证
 - 目标 capability：`ux.preview`
 - 预期 provenance：`python-llm`
 - 前置：`outcome.visualize` 已迁到 Python native LLM；本任务只处理 `ux.preview`
 
+- 最近执行：2026-06-19
+- 最近确认：2026-06-19
+- 执行方式：Codex 直接小切片实现，未发 live LLM
+- gate 结果：`uxPreviewGates` 全绿
+
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] Python native implementation（Python 原生实现）已落地
-- [ ] Node delegation（Node 委托）契约已验证
-- [ ] `uxPreviewGates` 全绿
-- [ ] 人工 review（审查）已确认 diff 干净
+- [x] 已执行本地实现与验证
+- [x] Python native implementation（Python 原生实现）已落地
+- [x] Node delegation（Node 委托）契约已验证
+- [x] `uxPreviewGates` 全绿
+- [x] 人工 review（审查）已确认 diff 干净
 
 ## 目标
 
