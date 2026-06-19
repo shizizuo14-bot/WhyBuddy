@@ -2,19 +2,27 @@
 
 ## 执行状态
 
-- 状态：待执行
+- 状态：已完成 — Python vector client 最小契约已落地
 - 目标：建立 Python vector client（向量客户端）最小等价能力
 - 前置：`backend-python-rag-inventory.md` 建议先完成
 - 注意：用 fake/in-memory client 或 mock Qdrant，不连真实生产向量库。
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] Python vector config（向量配置）可读取
-- [ ] query/search（查询/搜索）接口有最小实现
-- [ ] timeout/error handling（超时/错误处理）可测
-- [ ] gate 全绿
-- [ ] 人工 review（审查）已确认 diff 干净
+- [x] 已执行本地实现
+- [x] Python vector config（向量配置）可读取
+- [x] query/search（查询/搜索）接口有最小实现
+- [x] timeout/error handling（超时/错误处理）可测
+- [x] gate 全绿
+- [x] 人工 review（审查）已确认 diff 干净
+
+## 最近执行
+
+- 最近执行：2026-06-19
+- 执行方式：Codex 本地实现，测试使用 fake transport，不连接真实 Qdrant
+- 新增实现：`tws-ai-slide-rule-python/sliderule_llm/vector.py`
+- 新增测试：`tws-ai-slide-rule-python/tests/test_vector_client_parity.py`
+- gate 结果：`vectorGates` 通过
 
 ## 目标
 
