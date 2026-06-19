@@ -2,6 +2,19 @@
 
 这个文件是给人看的迁移总表，用来回答“哪一片已经执行完、哪一片还没做”。详细的机器运行记录仍然放在 `.agent-loop/latest/` 和 `.agent-loop/runs/`，这些目录是运行产物，不提交。
 
+## 分层进度口径
+
+这些比例只用于把范围说清楚，不要把它们混成一个总数。尤其不能把 SlideRule 某条链路的高进度，误报成整个 NodeJS 后端的迁移进度。
+
+| 范围 | 当前判断 | 进度条 | 说明 |
+|---|---:|---|---|
+| 整体 NodeJS 后端迁 Python | 约 12-16% | `[█░░░░░░░░░]` | 大分母仍是整个 NodeJS backend。SlideRule V5 能力覆盖、LLM infra 第一批、RAG/vector/evidence 边界、Blueprint/spec-docs 单文档 proxy 都已推进；但 Blueprint/Autopilot 主状态机、auth/admin/audit/permission、executor/tasks 等大块仍在 Node。 |
+| SlideRule V5 子系统迁移 | 约 84-88% | `[█████████░]` | 对话、审议、结构化报告、delivery chain（交付链）、`outcome.visualize`、`ux.preview`、evidence provenance（证据来源）和 runtime config（运行配置）边界已成片通过 gate；剩余重点是 `mcp.call`/`skill.invoke`/`orchestrate.plan` 深水区、真实 vector retrieval（向量检索）接线和部署观测。 |
+| SlideRule V5 Node 到 Python 薄代理链路 | 约 96-98% | `[██████████]` | Python mode、delegation helper、timeout（超时）、health check（健康检查）、contract smoke、delivery/visual/artifact capability 白名单已比较完整；仍需继续守住 live smoke、部署配置和非 capability 编排边界。 |
+| Python V5 可运行基线 | 约 82-87% | `[████████░░]` | Python 服务、核心 smoke、contract expansion、native LLM capability 路径、vector client、evidence provenance、runtime config 测试已稳定；真实检索、生产部署策略和运行观测仍要继续补。 |
+| LLM infra 迁移 | 约 40-50% | `[█████░░░░░]` | Python `sliderule_llm` 已支撑 chat、JSON hardening、基础 pool、provider/model fallback、telemetry metadata、vector client 和当前 SlideRule 能力；并发/熔断、stream、多模态、真实成本计算等全后端底座仍未完全对齐 Node。 |
+| 能力覆盖 | 高 | `[████████░░]` | 当前已记录的主要 SlideRule V5 `python-llm` 能力包括对话、审议、report、structure、risk/evidence、delivery chain、`outcome.visualize`、`ux.preview`；未审计边界仍不能自动视为完成。 |
+
 ## 重要口径
 
 2026-06-19 的 15 项 migration queue（迁移队列）已经收尾并分片提交，但这批主要是 **Codex 人工接管实现 + gate 验证**，不是 Grok 自动批量干活的证明。
@@ -82,19 +95,6 @@
 - [x] Node vitest：`sliderule.execute-capability.test.ts` 和 `sliderule.live-delegation.test.ts` 默认 gate
 - [x] TypeScript：`pnpm exec tsc --noEmit --pretty false`
 - [x] mojibake：`node agent-loop/src/check-mojibake.js ...`
-
-## 分层进度口径
-
-这些比例只用于把范围说清楚，不要把它们混成一个总数。尤其不能把 SlideRule 某条链路的高进度，误报成整个 NodeJS 后端的迁移进度。
-
-| 范围 | 当前判断 | 说明 |
-|---|---:|---|
-| 整体 NodeJS 后端迁 Python | 约 12-16% | 大分母仍是整个 NodeJS backend。SlideRule V5 能力覆盖、LLM infra 第一批、RAG/vector/evidence 边界、Blueprint/spec-docs 单文档 proxy 都已推进；但 Blueprint/Autopilot 主状态机、auth/admin/audit/permission、executor/tasks 等大块仍在 Node。 |
-| SlideRule V5 子系统迁移 | 约 84-88% | 对话、审议、结构化报告、delivery chain（交付链）、`outcome.visualize`、`ux.preview`、evidence provenance（证据来源）和 runtime config（运行配置）边界已成片通过 gate；剩余重点是 `mcp.call`/`skill.invoke`/`orchestrate.plan` 深水区、真实 vector retrieval（向量检索）接线和部署观测。 |
-| SlideRule V5 Node 到 Python 薄代理链路 | 约 96-98% | Python mode、delegation helper、timeout（超时）、health check（健康检查）、contract smoke、delivery/visual/artifact capability 白名单已比较完整；仍需继续守住 live smoke、部署配置和非 capability 编排边界。 |
-| Python V5 可运行基线 | 约 82-87% | Python 服务、核心 smoke、contract expansion、native LLM capability 路径、vector client、evidence provenance、runtime config 测试已稳定；真实检索、生产部署策略和运行观测仍要继续补。 |
-| LLM infra 迁移 | 约 40-50% | Python `sliderule_llm` 已支撑 chat、JSON hardening、基础 pool、provider/model fallback、telemetry metadata、vector client 和当前 SlideRule 能力；并发/熔断、stream、多模态、真实成本计算等全后端底座仍未完全对齐 Node。 |
-| 能力覆盖 | 高 | 当前已记录的主要 SlideRule V5 `python-llm` 能力包括对话、审议、report、structure、risk/evidence、delivery chain、`outcome.visualize`、`ux.preview`；未审计边界仍不能自动视为完成。 |
 
 ### RAG/vector 当前结论
 

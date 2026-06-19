@@ -108,24 +108,117 @@
     "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_evidence_vector_contract.py tests/test_evidence_retrieval_parity.py -q --tb=short",
     "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/tests/test_evidence_vector_contract.py tws-ai-slide-rule-python/tests/test_evidence_retrieval_parity.py"
   ],
+  "realVectorRetrievalSmokeGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_real_vector_retrieval_smoke.py tests/test_evidence_vector_contract.py tests/test_evidence_retrieval_parity.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/evidence.py tws-ai-slide-rule-python/sliderule_llm/vector.py tws-ai-slide-rule-python/tests/test_real_vector_retrieval_smoke.py"
+  ],
+  "evidenceNodeProxyContractGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_evidence_retrieval_parity.py tests/test_evidence_vector_contract.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.evidence-python-proxy-contract.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} server/routes/__tests__/sliderule.evidence-python-proxy-contract.test.ts tws-ai-slide-rule-python/tests/test_evidence_retrieval_parity.py"
+  ],
+  "orchestratePlanContractGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_orchestrate_plan_contract.py tests/test_config.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.orchestrate-plan-python-contract.test.ts server/routes/__tests__/sliderule.orchestrate-plan.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "if (!(Test-Path docs/backend-python-orchestrate-plan-contract.md)) { throw 'missing docs/backend-python-orchestrate-plan-contract.md' }; node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-orchestrate-plan-contract.md tws-ai-slide-rule-python/tests/test_orchestrate_plan_contract.py server/routes/__tests__/sliderule.orchestrate-plan-python-contract.test.ts"
+  ],
+  "orchestratePlanGoldenSmokeGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_orchestrate_plan_golden_smoke.py tests/test_orchestrate_plan_contract.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.orchestrate-plan-python-contract.test.ts --reporter=dot",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/tests/test_orchestrate_plan_golden_smoke.py tws-ai-slide-rule-python/tests/fixtures/orchestrate_plan_golden.json docs/backend-python-orchestrate-plan-contract.md"
+  ],
+  "mcpCallContractGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_mcp_call_contract.py tests/test_evidence_retrieval_parity.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.mcp-call-contract.test.ts --reporter=dot",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-mcp-call-boundary-audit.md tws-ai-slide-rule-python/tests/test_mcp_call_contract.py server/routes/__tests__/sliderule.mcp-call-contract.test.ts"
+  ],
+  "skillInvokeContractGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_skill_invoke_contract.py tests/test_evidence_retrieval_parity.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.skill-invoke-contract.test.ts --reporter=dot",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-skill-invoke-boundary-audit.md tws-ai-slide-rule-python/tests/test_skill_invoke_contract.py server/routes/__tests__/sliderule.skill-invoke-contract.test.ts"
+  ],
+  "llmStreamContractGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_stream_contract.py tests/test_telemetry_cost.py tests/test_client_parity.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/sliderule_llm/pool.py tws-ai-slide-rule-python/tests/test_stream_contract.py"
+  ],
+  "llmPoolResilienceGates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_pool_resilience.py tests/test_pool_parity.py tests/test_telemetry_cost.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/pool.py tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_pool_resilience.py"
+  ],
   "tasks": [
     {
-      "id": "backend-python-mcp-call-boundary-audit",
-      "task": "agent-loop/tasks/backend-python-mcp-call-boundary-audit.md",
-      "gatesKey": "mcpBoundaryAuditGates",
-      "enabled": true
+      "id": "backend-python-real-vector-retrieval-smoke",
+      "task": "agent-loop/tasks/backend-python-real-vector-retrieval-smoke.md",
+      "gatesKey": "realVectorRetrievalSmokeGates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 12,
+      "maxIterations": 2
     },
     {
-      "id": "backend-python-skill-invoke-boundary-audit",
-      "task": "agent-loop/tasks/backend-python-skill-invoke-boundary-audit.md",
-      "gatesKey": "skillBoundaryAuditGates",
-      "enabled": true
+      "id": "backend-python-evidence-node-proxy-contract",
+      "task": "agent-loop/tasks/backend-python-evidence-node-proxy-contract.md",
+      "gatesKey": "evidenceNodeProxyContractGates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 12,
+      "maxIterations": 2
     },
     {
-      "id": "backend-python-evidence-vector-contract",
-      "task": "agent-loop/tasks/backend-python-evidence-vector-contract.md",
-      "gatesKey": "evidenceVectorContractGates",
-      "enabled": true
+      "id": "backend-python-orchestrate-plan-contract",
+      "task": "agent-loop/tasks/backend-python-orchestrate-plan-contract.md",
+      "gatesKey": "orchestratePlanContractGates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 14,
+      "maxIterations": 2
+    },
+    {
+      "id": "backend-python-orchestrate-plan-golden-smoke",
+      "task": "agent-loop/tasks/backend-python-orchestrate-plan-golden-smoke.md",
+      "gatesKey": "orchestratePlanGoldenSmokeGates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 14,
+      "maxIterations": 2
+    },
+    {
+      "id": "backend-python-mcp-call-contract",
+      "task": "agent-loop/tasks/backend-python-mcp-call-contract.md",
+      "gatesKey": "mcpCallContractGates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 12,
+      "maxIterations": 2
+    },
+    {
+      "id": "backend-python-skill-invoke-contract",
+      "task": "agent-loop/tasks/backend-python-skill-invoke-contract.md",
+      "gatesKey": "skillInvokeContractGates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 12,
+      "maxIterations": 2
+    },
+    {
+      "id": "backend-python-llm-stream-contract",
+      "task": "agent-loop/tasks/backend-python-llm-stream-contract.md",
+      "gatesKey": "llmStreamContractGates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 12,
+      "maxIterations": 2
+    },
+    {
+      "id": "backend-python-llm-pool-resilience",
+      "task": "agent-loop/tasks/backend-python-llm-pool-resilience.md",
+      "gatesKey": "llmPoolResilienceGates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 12,
+      "maxIterations": 2
     }
   ]
 }
