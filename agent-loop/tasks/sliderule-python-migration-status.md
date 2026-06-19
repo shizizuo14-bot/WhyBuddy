@@ -79,11 +79,11 @@
 
 | 范围 | 当前判断 | 说明 |
 |---|---:|---|
-| 整体 NodeJS 后端迁 Python | 约 10-14% | 大分母仍是整个 NodeJS backend。SlideRule V5 能力覆盖明显前进，但 Blueprint/Autopilot、LLM infra、RAG/vector、auth/admin/audit/permission、executor/tasks 等大块仍在 Node。 |
-| SlideRule V5 子系统迁移 | 约 82-86% | 对话、审议、结构化报告、delivery chain（交付链）、`outcome.visualize` 和 `ux.preview` 已成片通过 gate；剩余重点是 live/部署策略、RAG/vector、`mcp.call`/`skill.invoke`/`orchestrate.plan` 边界审计。 |
-| SlideRule V5 Node 到 Python 薄代理链路 | 约 94-96% | Python mode、delegation helper、contract smoke、delivery/visual/artifact capability 白名单已比较完整；仍需继续守住 live smoke、错误处理和非 capability 编排边界。 |
-| Python V5 可运行基线 | 约 80-85% | Python 服务、核心 smoke、contract expansion、native LLM capability 路径已稳定；RAG/vector、配置清理、部署策略、真实检索与运行观测仍要继续补。 |
-| LLM infra 迁移 | 约 35-45% | Python `sliderule_llm` 已支撑 chat、JSON hardening、基础 pool、provider/model fallback、telemetry metadata 和当前 SlideRule 能力；并发/熔断、stream、多模态、真实成本计算等全后端底座仍未完全对齐 Node。 |
+| 整体 NodeJS 后端迁 Python | 约 12-16% | 大分母仍是整个 NodeJS backend。SlideRule V5 能力覆盖、LLM infra 第一批、RAG/vector/evidence 边界、Blueprint/spec-docs 单文档 proxy 都已推进；但 Blueprint/Autopilot 主状态机、auth/admin/audit/permission、executor/tasks 等大块仍在 Node。 |
+| SlideRule V5 子系统迁移 | 约 84-88% | 对话、审议、结构化报告、delivery chain（交付链）、`outcome.visualize`、`ux.preview`、evidence provenance（证据来源）和 runtime config（运行配置）边界已成片通过 gate；剩余重点是 `mcp.call`/`skill.invoke`/`orchestrate.plan` 深水区、真实 vector retrieval（向量检索）接线和部署观测。 |
+| SlideRule V5 Node 到 Python 薄代理链路 | 约 96-98% | Python mode、delegation helper、timeout（超时）、health check（健康检查）、contract smoke、delivery/visual/artifact capability 白名单已比较完整；仍需继续守住 live smoke、部署配置和非 capability 编排边界。 |
+| Python V5 可运行基线 | 约 82-87% | Python 服务、核心 smoke、contract expansion、native LLM capability 路径、vector client、evidence provenance、runtime config 测试已稳定；真实检索、生产部署策略和运行观测仍要继续补。 |
+| LLM infra 迁移 | 约 40-50% | Python `sliderule_llm` 已支撑 chat、JSON hardening、基础 pool、provider/model fallback、telemetry metadata、vector client 和当前 SlideRule 能力；并发/熔断、stream、多模态、真实成本计算等全后端底座仍未完全对齐 Node。 |
 | 能力覆盖 | 高 | 当前已记录的主要 SlideRule V5 `python-llm` 能力包括对话、审议、report、structure、risk/evidence、delivery chain、`outcome.visualize`、`ux.preview`；未审计边界仍不能自动视为完成。 |
 
 ### RAG/vector 当前结论
@@ -104,11 +104,13 @@
 
 大白话结论：Blueprint/spec-docs（蓝图规格文档）仍是 Node 侧主导。Node 已有 prompt（提示词）、schema（结构校验）、fallback（回退）、progress events（进度事件）和 artifact（产物）落盘链路。Python 下一步最适合先承接“单份文档生成”的 proxy contract（代理契约），不要一口气迁整个 Blueprint 状态机。
 
-后续顺序应是：
+已完成的边界：
 
-1. `backend-python-blueprint-spec-docs-proxy-contract`：Python 先提供单文档生成 endpoint，Node 以开关方式代理。
-2. `backend-python-blueprint-spec-docs-smoke-gate`：再补默认安全 smoke gate（冒烟门禁）。
-3. Blueprint batch loop（批量循环）、artifact store（产物存储）、review/export/UI 仍留在 Node，等 proxy contract 稳定后再评估。
+1. `backend-python-blueprint-spec-docs-proxy-contract`：Python 已提供单文档生成 endpoint，Node 已支持开关式 proxy（代理）。
+2. `backend-python-blueprint-spec-docs-smoke-gate`：已补默认安全 smoke gate（冒烟门禁），不依赖真实 LLM key。
+3. `backend-python-runtime-config-boundary`：已固化 Node 调 Python 的 base URL、timeout（超时）、proxy（代理）规则、health check（健康检查）和错误分类。
+
+仍然不能过度宣传：Blueprint batch loop（批量循环）、artifact store（产物存储）、review/export/UI 仍留在 Node。当前完成的是“单文档生成代理边界”，不是整个 Blueprint 迁移。
 
 ## 整体迁移进度
 
@@ -251,7 +253,7 @@ node agent-loop/src/loop.js `
 
 ## 下一步候选
 
-batch-3 delivery chain（交付链）已完成，`backend-python-llm-infra-audit` 已形成审计结论。下一片建议回到 LLM infra 的 Phase 1 parity，把底座补硬；不要直接冲 `orchestrate.plan` 这类更大范围的结构化编排能力。
+batch-3 delivery chain（交付链）已完成，15 项 migration queue（迁移队列）也已跑完并分片提交。下一片建议不要继续堆“看起来很大”的迁移口号，而是补三类硬边界：真实 vector retrieval（向量检索）接线、`mcp.call`/`skill.invoke` 工具边界审计、`orchestrate.plan` 结构化编排前置契约。
 
 | 顺序 | 建议任务 | 目标 |
 |---|---|---|
@@ -260,7 +262,12 @@ batch-3 delivery chain（交付链）已完成，`backend-python-llm-infra-audit
 | 3 | `backend-python-llm-pool-parity.md` | 已建任务 + 红灯测试，在队列第 2 项。 |
 | 4 | `backend-python-llm-json-hardening.md` | 已建任务 + 红灯测试，在队列第 3 项。 |
 | 5 | `ux.preview` 审计/迁移任务 | 已完成：Python native LLM + Node Python-mode delegation gate 全绿。 |
-| 6 | `orchestrate.plan` / 更大结构化编排能力 | 等 JSON hardening、pool/client parity 更稳后再切，不建议现在直接上。 |
+| 6 | `backend-python-rag-inventory.md` | 已完成：确认 Python 还不是生产级 vector RAG。 |
+| 7 | `backend-python-vector-client-parity.md` | 已完成：Python vector client（向量客户端）最小契约已补。 |
+| 8 | `backend-python-evidence-retrieval-parity.md` | 已完成：evidence provenance（证据来源）已拆成 `retrieved` / `fallback` / `generated`。 |
+| 9 | `backend-python-blueprint-spec-docs-*` 三片 | 已完成：inventory、proxy contract、smoke gate、runtime config boundary 已补齐。 |
+| 10 | `mcp.call` / `skill.invoke` 边界审计 | 下一批建议：先审计工具调用真实边界，不直接宣称 Python 已完整迁移外部工具运行时。 |
+| 11 | `orchestrate.plan` / 更大结构化编排能力 | 等工具边界、真实 retrieval 和结构化错误恢复更稳后再切。 |
 
 结构化 JSON 类能力不要直接套 `question.expand` 的散文策略。`report.write` 已先迁成 Python native JSON LLM，后续更大的 `orchestrate.plan` 仍应等 JSON hardening、pool/client parity、错误恢复都更稳后再动。
 
