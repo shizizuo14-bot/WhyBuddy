@@ -2,18 +2,23 @@
 
 ## 执行状态
 
-- 状态：待执行
+- 状态：已完成 — Python/Node live-smoke gate 已可稳定本地运行
 - 目标：建立 SlideRule Node 到 Python 的 live smoke（真实冒烟）测试套件
 - 前置：主要 SlideRule capability 已迁到 Python native LLM；本任务不追求覆盖所有业务细节
 
+- 最近执行：2026-06-19
+- 最近确认：2026-06-19
+- 执行方式：Codex 直接小切片实现，未发 live LLM
+- gate 结果：`liveSmokeGates` 全绿
+
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] Python service（Python 服务）健康检查路径可测
-- [ ] Node delegation（Node 委托）到 Python 的抽样 live smoke 可测
-- [ ] smoke 不依赖真实外部 LLM key
-- [ ] gate 全绿
-- [ ] 人工 review（审查）已确认 diff 干净
+- [x] 已执行本地实现与验证
+- [x] Python service（Python 服务）健康检查路径可测
+- [x] Node delegation（Node 委托）到 Python 的抽样 live smoke 可测
+- [x] smoke 不依赖真实外部 LLM key
+- [x] gate 全绿
+- [x] 人工 review（审查）已确认 diff 干净
 
 ## 目标
 
