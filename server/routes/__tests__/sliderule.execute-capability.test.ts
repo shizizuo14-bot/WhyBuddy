@@ -804,6 +804,59 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
     );
   });
 
+  it('instruction.package delegates to Python V5 backend in python mode and skips Node LLM/pool', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+    vi.stubEnv('SLIDERULE_CAPABILITY_POOL_ENABLED', 'true');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS', 'k1');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL', 'https://example.test/v1');
+    poolJsonLlm.resetSlideRuleCapabilityPoolCache();
+
+    const primarySpy = vi.spyOn(llmClient, 'callLLMJsonWithUsage');
+    const poolSpy = vi.spyOn(poolJsonLlm, 'callPoolJsonLlm');
+    pythonDelegation.callPythonSlideRule.mockResolvedValueOnce({
+      title: 'Instruction package',
+      summary: 'Operator prompt',
+      content: '## Operator prompt\n- Keep scope to pet office delivery and stop on missing evidence.\n## Engineering prompt\n- Implement desk progression with source-linked checks.\n## Evidence prompt\n- Gather SPEC tree and playtest evidence.\n## Verification prompt\n- Prove outputs are non-template and pass delivery gates.',
+      provenance: 'python-llm',
+      model: 'fake-python-model',
+      usage: { total_tokens: 52 },
+    });
+
+    const res = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        capabilityId: 'instruction.package',
+        state: { sessionId: 't-instruction.package', goal: { text: 'Package prompts for pet office delivery' }, artifacts: [] },
+        inputArtifactIds: ['goal-1'],
+        roleId: '工程',
+        turnId: 't-instruction.package',
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.provenance).toBe('python-llm');
+    expect(body.content).toContain('Operator prompt');
+    expect(body.content).toContain('Engineering prompt');
+    expect(body.content).toContain('Evidence prompt');
+    expect(body.content).toContain('Verification prompt');
+    expect(primarySpy).not.toHaveBeenCalled();
+    expect(poolSpy).not.toHaveBeenCalled();
+    expect(pythonDelegation.callPythonSlideRule).toHaveBeenCalledWith(
+      expect.stringContaining('localhost:9700'),
+      '/api/sliderule/execute-capability',
+      expect.objectContaining({
+        capabilityId: 'instruction.package',
+        inputArtifactIds: ['goal-1'],
+        roleId: '工程',
+        turnId: 't-instruction.package',
+        userText: 'Package prompts for pet office delivery',
+      }),
+      expect.any(String),
+    );
+  });
+
   it('risk.analyze delegates to Python V5 backend in python mode and skips Node LLM/pool', async () => {
     vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
     vi.stubEnv('SLIDERULE_CAPABILITY_POOL_ENABLED', 'true');

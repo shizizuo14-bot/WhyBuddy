@@ -312,6 +312,39 @@ def test_task_write_returns_v5_shape_with_python_llm_provenance():
     assert "RBAC" not in out["content"]
 
 
+def test_instruction_package_returns_v5_shape_with_python_llm_provenance():
+    body = {
+        "capabilityId": "instruction.package",
+        "state": {"goal": {"text": "package prompts for pet office delivery implementation"}},
+        "userText": "create operator, engineering, evidence, and verification prompts",
+        "roleId": "工程",
+        "turnId": "t-instruction-package",
+    }
+
+    out = execute_capability(
+        body,
+        caller=lambda *a, **k: _fake_result(
+            "## Operator prompt\n"
+            "- Keep scope to pet office delivery and stop when acceptance evidence is missing.\n"
+            "## Engineering prompt\n"
+            "- Implement desk progression tasks with source-linked acceptance checks.\n"
+            "## Evidence prompt\n"
+            "- Gather playtest notes, SPEC tree links, and risk evidence before execution.\n"
+            "## Verification prompt\n"
+            "- Prove each output is non-template and passes delivery gate checks."
+        ),
+    )
+    assert out["provenance"] == "python-llm"
+    assert out["title"] == "Instruction package"
+    content = out["content"].lower()
+    assert "operator prompt" in content
+    assert "engineering prompt" in content
+    assert "evidence prompt" in content
+    assert "verification prompt" in content
+    assert "acceptance" in content
+    assert "RBAC" not in out["content"]
+
+
 def test_risk_analyze_returns_v5_shape_with_python_llm_provenance():
     body = {
         "capabilityId": "risk.analyze",
@@ -443,6 +476,7 @@ def test_unsupported_capability_raises():
     assert is_python_native_capability("document.draft") is True
     assert is_python_native_capability("traceability.matrix") is True
     assert is_python_native_capability("task.write") is True
+    assert is_python_native_capability("instruction.package") is True
     assert is_python_native_capability("risk.analyze") is True
     assert is_python_native_capability("evidence.search") is True
     assert is_python_native_capability("report.write") is True

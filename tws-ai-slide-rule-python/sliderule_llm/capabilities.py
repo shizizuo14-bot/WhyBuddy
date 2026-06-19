@@ -105,6 +105,13 @@ CAPABILITY_PROMPTS: dict[str, str] = {
         "Use concrete tasks grounded in the user's actual goal. Do not return a generic template or a prose document. "
         "Output markdown only: no JSON, no code fence, no preamble."
     ),
+    "instruction.package": (
+        "You are SlideRule V5's instruction-package role. Given the user's goal, state, and message, write a "
+        "concise **markdown prompt pack** with exactly these sections: Operator prompt, Engineering prompt, "
+        "Evidence prompt, and Verification prompt. Each section must include concrete constraints and an "
+        "acceptance or stopping check grounded in the actual goal. Do not write a generic prompt template. "
+        "Output markdown only: no JSON, no code fence, no preamble."
+    ),
     "risk.analyze": (
         "You are SlideRule V5's risk-analysis role. Given the user's goal and message, write a "
         "concise **markdown** risk scan with three short sections: (1) risk inventory, "
@@ -133,6 +140,7 @@ CAPABILITY_TITLES: dict[str, str] = {
     "document.draft": "SPEC document draft",
     "traceability.matrix": "Traceability matrix",
     "task.write": "Engineering task list",
+    "instruction.package": "Instruction package",
     "risk.analyze": "Risk analysis",
     "evidence.search": "Evidence search",
     "report.write": "Feasibility report",

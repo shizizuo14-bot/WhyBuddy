@@ -28,7 +28,6 @@ def test_structure_visual_delivery_caps_have_real_outputs():
         "coverageContract": None,
     }
     caps = [
-        "instruction.package",
         "handoff.package",
     ]
     for cap in caps:
@@ -109,6 +108,7 @@ def test_python_native_dialogue_caps_use_real_llm_not_rag_stub(monkeypatch):
         "document.draft",
         "traceability.matrix",
         "task.write",
+        "instruction.package",
         "risk.analyze",
         "evidence.search",
     ]:
