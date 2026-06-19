@@ -282,6 +282,36 @@ def test_traceability_matrix_returns_v5_shape_with_python_llm_provenance():
     assert "RBAC" not in out["content"]
 
 
+def test_task_write_returns_v5_shape_with_python_llm_provenance():
+    body = {
+        "capabilityId": "task.write",
+        "state": {"goal": {"text": "turn a pet office progression spec into engineering work"}},
+        "userText": "write implementation tasks with checks and dependencies",
+        "roleId": "工程",
+        "turnId": "t-task-write",
+    }
+
+    out = execute_capability(
+        body,
+        caller=lambda *a, **k: _fake_result(
+            "## Implementation tasks\n"
+            "- TASK-001 Desk unlock rules\n"
+            "  - Acceptance checks: first desk unlocks after milestone evidence\n"
+            "  - Depends on: progression spec\n"
+            "- TASK-002 Assignment telemetry\n"
+            "  - Acceptance checks: task assignment emits reviewable events\n"
+            "  - Blocked by: analytics schema decision"
+        ),
+    )
+    assert out["provenance"] == "python-llm"
+    assert out["title"] == "Engineering task list"
+    assert "TASK-001" in out["content"]
+    assert "Acceptance checks" in out["content"]
+    assert "Depends on" in out["content"]
+    assert "Blocked by" in out["content"]
+    assert "RBAC" not in out["content"]
+
+
 def test_risk_analyze_returns_v5_shape_with_python_llm_provenance():
     body = {
         "capabilityId": "risk.analyze",
@@ -412,6 +442,7 @@ def test_unsupported_capability_raises():
     assert is_python_native_capability("structure.decompose") is True
     assert is_python_native_capability("document.draft") is True
     assert is_python_native_capability("traceability.matrix") is True
+    assert is_python_native_capability("task.write") is True
     assert is_python_native_capability("risk.analyze") is True
     assert is_python_native_capability("evidence.search") is True
     assert is_python_native_capability("report.write") is True

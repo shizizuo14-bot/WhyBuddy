@@ -108,6 +108,7 @@ def test_python_native_dialogue_caps_use_real_llm_not_rag_stub(monkeypatch):
         "structure.decompose",
         "document.draft",
         "traceability.matrix",
+        "task.write",
         "risk.analyze",
         "evidence.search",
     ]:

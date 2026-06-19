@@ -752,6 +752,58 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
     );
   });
 
+  it('task.write delegates to Python V5 backend in python mode and skips Node LLM/pool', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+    vi.stubEnv('SLIDERULE_CAPABILITY_POOL_ENABLED', 'true');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_KEYS', 'k1');
+    vi.stubEnv('BLUEPRINT_SPEC_DOCS_LLM_POOL_BASE_URL', 'https://example.test/v1');
+    poolJsonLlm.resetSlideRuleCapabilityPoolCache();
+
+    const primarySpy = vi.spyOn(llmClient, 'callLLMJsonWithUsage');
+    const poolSpy = vi.spyOn(poolJsonLlm, 'callPoolJsonLlm');
+    pythonDelegation.callPythonSlideRule.mockResolvedValueOnce({
+      title: 'Engineering task list',
+      summary: 'Implementation tasks',
+      content: '## Implementation tasks\n- TASK-001 Desk unlock rules\n  - Acceptance checks: first desk unlocks after milestone evidence\n  - Depends on: progression spec\n- TASK-002 Assignment telemetry\n  - Acceptance checks: emits assignment events\n  - Blocked by: analytics schema decision',
+      provenance: 'python-llm',
+      model: 'fake-python-model',
+      usage: { total_tokens: 51 },
+    });
+
+    const res = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        capabilityId: 'task.write',
+        state: { sessionId: 't-task.write', goal: { text: 'Write engineering tasks for pet office progression' }, artifacts: [] },
+        inputArtifactIds: ['goal-1'],
+        roleId: '工程',
+        turnId: 't-task.write',
+      }),
+    });
+
+    expect(res.status).toBe(200);
+    const body = await res.json();
+    expect(body.provenance).toBe('python-llm');
+    expect(body.content).toContain('TASK-001');
+    expect(body.content).toContain('Acceptance checks');
+    expect(body.content).toContain('Depends on');
+    expect(primarySpy).not.toHaveBeenCalled();
+    expect(poolSpy).not.toHaveBeenCalled();
+    expect(pythonDelegation.callPythonSlideRule).toHaveBeenCalledWith(
+      expect.stringContaining('localhost:9700'),
+      '/api/sliderule/execute-capability',
+      expect.objectContaining({
+        capabilityId: 'task.write',
+        inputArtifactIds: ['goal-1'],
+        roleId: '工程',
+        turnId: 't-task.write',
+        userText: 'Write engineering tasks for pet office progression',
+      }),
+      expect.any(String),
+    );
+  });
+
   it('risk.analyze delegates to Python V5 backend in python mode and skips Node LLM/pool', async () => {
     vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
     vi.stubEnv('SLIDERULE_CAPABILITY_POOL_ENABLED', 'true');

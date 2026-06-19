@@ -188,7 +188,7 @@ LLM config parity 任务文档：`agent-loop/tasks/backend-python-llm-config-par
 
 - [x] `document.draft`：`agent-loop/tasks/migrate-sliderule-document-draft.md`（2026-06-19，人工接手完成，`deliveryGates` 全绿）
 - [x] `traceability.matrix`：`agent-loop/tasks/migrate-sliderule-traceability-matrix.md`（2026-06-19，AgentLoop `DONE_REVIEWED` 为空 diff 假完成，人工接手完成，`deliveryGates` 全绿）
-- [ ] `task.write`：`agent-loop/tasks/migrate-sliderule-task-write.md`
+- [x] `task.write`：`agent-loop/tasks/migrate-sliderule-task-write.md`（2026-06-19，人工接手完成，`deliveryGates` 全绿）
 - [ ] `instruction.package`：`agent-loop/tasks/migrate-sliderule-instruction-package.md`
 - [ ] `outcome.visualize`：`agent-loop/tasks/migrate-sliderule-outcome-visualize.md`
 - [ ] `handoff.package`：`agent-loop/tasks/migrate-sliderule-handoff-package.md`
