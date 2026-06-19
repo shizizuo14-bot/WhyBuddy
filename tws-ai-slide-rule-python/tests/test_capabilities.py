@@ -19,6 +19,7 @@ from sliderule_llm.capabilities import (  # noqa: E402
     UnsupportedCapability,
 )
 from sliderule_llm.client import LlmResult, LlmError  # noqa: E402
+from sliderule_llm.evidence import EvidenceRetrievalResult, EvidenceSource  # noqa: E402
 
 
 def _fake_result(content="## restated goal\n- x"):
@@ -489,7 +490,80 @@ def test_evidence_search_returns_sources_with_python_llm_provenance():
     assert out["title"] == "Evidence search"
     assert "grounding reference" in out["content"]
     assert out.get("sources")
-    assert out["sources"][0]["provenance"] == "python-llm"
+    assert out["sources"][0]["provenance"] == "generated"
+    assert out["evidenceProvenance"] == "generated"
+    assert out["fallbackReason"] == "llm_prose_only"
+
+
+def test_evidence_search_consumes_retrieved_sources_when_injected():
+    body = {
+        "capabilityId": "evidence.search",
+        "state": {"goal": {"text": "find evidence for a pet office progression system"}},
+        "userText": "ground the roadmap with references",
+        "roleId": "接地",
+        "turnId": "t-evidence-retrieved",
+    }
+
+    def fake_retriever(query):
+        assert "pet office progression system" in query
+        return EvidenceRetrievalResult(
+            provenance="retrieved",
+            sources=[
+                EvidenceSource(
+                    title="Playtest notes",
+                    snippet="desk assignment evidence",
+                    provenance="retrieved",
+                    source_id="doc-1",
+                    score=0.93,
+                )
+            ],
+        )
+
+    out = execute_capability(
+        body,
+        caller=lambda *a, **k: _fake_result("## Grounding references\n- use retrieved evidence"),
+        evidence_retriever=fake_retriever,
+    )
+
+    assert out["provenance"] == "python-llm"
+    assert out["evidenceProvenance"] == "retrieved"
+    assert out["sources"][0]["provenance"] == "retrieved"
+    assert out["sources"][0]["sourceId"] == "doc-1"
+    assert "fallbackReason" not in out
+
+
+def test_evidence_search_preserves_fallback_reason_when_retrieval_falls_back():
+    body = {
+        "capabilityId": "evidence.search",
+        "state": {"goal": {"text": "find evidence for a pet office progression system"}},
+        "userText": "ground the roadmap with references",
+        "roleId": "接地",
+        "turnId": "t-evidence-fallback",
+    }
+
+    def fake_retriever(query):
+        return EvidenceRetrievalResult(
+            provenance="fallback",
+            fallback_reason="no_retrieval_hits",
+            sources=[
+                EvidenceSource(
+                    title="Fallback evidence",
+                    snippet="no vector-backed evidence was retrieved",
+                    provenance="fallback",
+                    fallback_reason="no_retrieval_hits",
+                )
+            ],
+        )
+
+    out = execute_capability(
+        body,
+        caller=lambda *a, **k: _fake_result("## Grounding references\n- fallback only"),
+        evidence_retriever=fake_retriever,
+    )
+
+    assert out["evidenceProvenance"] == "fallback"
+    assert out["fallbackReason"] == "no_retrieval_hits"
+    assert out["sources"][0]["provenance"] == "fallback"
 
 
 def _fake_report_json(messages, **kwargs):

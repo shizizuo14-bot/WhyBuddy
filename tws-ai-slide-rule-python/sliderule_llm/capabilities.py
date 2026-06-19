@@ -19,6 +19,7 @@ import re
 from typing import Any, Callable
 
 from .client import LlmError, LlmResult, call_llm_json_with_shape, call_llm_with_retry
+from .evidence import EvidenceRetrievalResult, generated_sources_from_content
 
 
 class UnsupportedCapability(Exception):
@@ -239,29 +240,6 @@ def _first_line(text: str, limit: int = 120) -> str:
     return ""
 
 
-def _evidence_sources_from_content(content: str) -> list[dict[str, str]]:
-    """Honest python-llm citations derived from model prose (not fake RAG retrieval)."""
-    sources: list[dict[str, str]] = []
-    for line in content.splitlines():
-        snippet = line.strip().lstrip("-*#").strip()
-        if len(snippet) < 12:
-            continue
-        sources.append({
-            "title": snippet[:80],
-            "snippet": snippet[:240],
-            "provenance": "python-llm",
-        })
-        if len(sources) >= 4:
-            break
-    if not sources:
-        sources.append({
-            "title": "Grounded reasoning",
-            "snippet": content[:240],
-            "provenance": "python-llm",
-        })
-    return sources
-
-
 def _goal_and_user(body: dict[str, Any]) -> tuple[str, str]:
     state = body.get("state") or {}
     goal = ((state.get("goal") or {}).get("text") or "").strip()
@@ -324,6 +302,7 @@ def execute_capability(
     *,
     caller: Callable[..., LlmResult] | None = None,
     json_caller: Callable[..., tuple[dict[str, Any], LlmResult]] | None = None,
+    evidence_retriever: Callable[[str], EvidenceRetrievalResult] | None = None,
     max_tokens: int = 2000,
 ) -> dict[str, Any]:
     """Run one capability via a REAL LLM call. Raises UnsupportedCapability / LlmError on failure
@@ -351,5 +330,15 @@ def execute_capability(
         "usage": result.usage,
     }
     if capability_id == "evidence.search":
-        payload["sources"] = _evidence_sources_from_content(content)
+        query = "\n".join(part for part in _goal_and_user(body) if part)
+        if evidence_retriever:
+            retrieval = evidence_retriever(query)
+            payload["sources"] = retrieval.sources_as_dicts()
+            payload["evidenceProvenance"] = retrieval.provenance
+            if retrieval.fallback_reason:
+                payload["fallbackReason"] = retrieval.fallback_reason
+        else:
+            payload["sources"] = [source.to_dict() for source in generated_sources_from_content(content)]
+            payload["evidenceProvenance"] = "generated"
+            payload["fallbackReason"] = "llm_prose_only"
     return payload

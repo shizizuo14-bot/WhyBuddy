@@ -2,18 +2,26 @@
 
 ## 执行状态
 
-- 状态：待执行
+- 状态：已完成 — evidence retrieval 诚实来源边界已落地
 - 目标：让 Python evidence retrieval（证据检索）从“LLM 生成说明”升级到“可接真实检索结果或诚实 fallback”
 - 前置：`backend-python-vector-client-parity.md` 建议先完成
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] Python evidence retrieval 接口已建立
-- [ ] sources（来源）字段有真实/诚实来源
-- [ ] fallback（回退）时不会伪装成真实 RAG
-- [ ] gate 全绿
-- [ ] 人工 review（审查）已确认 diff 干净
+- [x] 已执行本地实现
+- [x] Python evidence retrieval 接口已建立
+- [x] sources（来源）字段有真实/诚实来源
+- [x] fallback（回退）时不会伪装成真实 RAG
+- [x] gate 全绿
+- [x] 人工 review（审查）已确认 diff 干净
+
+## 最近执行
+
+- 最近执行：2026-06-19
+- 执行方式：Codex 本地实现，测试使用 fake vector client / fake embedding，不连接真实检索服务
+- 新增实现：`tws-ai-slide-rule-python/sliderule_llm/evidence.py`
+- 关键行为：`sources[].provenance` 可区分 `retrieved` / `fallback` / `generated`
+- gate 结果：`evidenceRetrievalGates` 通过
 
 ## 目标
 
