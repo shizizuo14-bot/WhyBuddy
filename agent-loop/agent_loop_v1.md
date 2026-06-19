@@ -12,6 +12,7 @@
 - 当前 **ship / no-ship 的决定权交给 reviewer 本身**：审查对照任务的 `## 成功标准` 判断，小瑕疵记进 summary 但仍 `pass`，只有真阻断才 `needs_changes`，做不出来则 `blocked`（交还人工）。引擎不再用「连续 findings 相同就 halt」这类自作聪明的启发式去二次猜测。
 - 当前是 **入口契约**：每个 task 必须有非空 `## 成功标准`（由 spec 派生）；缺失则 `HALT_NO_SUCCESS_CRITERIA`，**不入环**，直接退回补全——不在引擎里给「无标准」开运行时分支。
 - 当前迁移任务默认角色分工是：**Grok 做任务内实现，Codex 守硬边界**。Grok 不负责决定是否扩大迁移范围；Codex review 必须审查 allowed files、gate 证据、分层进度口径、是否把 proxy/fallback/smoke 夸大成完整迁移。
+- 当前迁移队列进度口径要分清：2026-06-19 这批 15 项 migration queue 已完成并提交，但主要是 **Codex 人工接管实现 + gate 验证**，不是 Grok 自动批量干活的证明。真实目标仍是下一批让 Grok 做 worker、Codex 只做边界审查。
 - 当前 VS Code 插件薄壳、完整 worktree 生命周期属于设计规划或待补强部分，不要当成已经完整落地。
 
 > 文档/源码编码自检：`node src/check-mojibake.js src test scripts package.json agent_loop_v1.md`（`npm test` 也含 mojibake gate）。读出乱码多半是编辑器编码设置问题，不是文件损坏。
@@ -95,6 +96,7 @@ npm run smoke:live -- --timeout-ms 180000
 | 入口契约：`## 成功标准` 必填 | 已实现 | 缺失即 `HALT_NO_SUCCESS_CRITERIA` 不入环（`src/taskContract.js`）；不给「无标准」开运行时例外 |
 | 迁移边界护栏 | 已实现 | fix / review prompt 内置角色分工：Grok 做实现，Codex 审边界；要求分清 Node thin proxy、Python baseline、LLM infra、RAG/vector/evidence、Blueprint/Autopilot 等层级 |
 | review-driven fix resume 上下文 | 已实现 | 延后清 `pendingReview` 到迭代记录后；`resolvePendingReview` 回退到 `reviewRounds` 最近 needs_changes；有 resume 重建上下文的专项测试 |
+| Grok 真实批量迁移能力 | 待验证 | stub/live smoke 能证明链路可跑；2026-06-19 的 15 项迁移切片主要由 Codex 人工完成，下一批需要专门用 `fixAgent=grok` 验证 Grok worker 能力 |
 | VS Code Extension Shell | 未来规划/外壳说明 | 当前核心能力在 CLI 内，插件薄壳不要当成已完整交付 |
 | 完整隔离 worktree 生命周期 | 部分实现/待补强 | 当前可用 `--fix-cwd` 或相关 worktree 参数，但还需要更多真实场景验证 |
 
@@ -986,3 +988,29 @@ Blueprint / Autopilot 主流程
 ```
 
 所以一句“gate 绿了”只代表当前 task 的 gate 绿了，不代表整个后端迁完；一句“proxy 通了”只代表代理边界通了，不代表业务主流程已迁完。
+
+## 当前迁移执行口径
+
+2026-06-19 这批 15 项 migration queue 的结论要这样读：
+
+```text
+已经证明：
+  - 任务拆分方式有效。
+  - Codex 人工接管可以按切片补代码、测试、文档。
+  - 这些切片的 gate 能跑通，并已分片提交。
+  - AgentLoop 的边界护栏、模板和 review prompt 已经补强。
+
+还没证明：
+  - Grok 能稳定按这些 task 自己改代码。
+  - Grok 产出的 diff 能稳定保持在 allowed files 内。
+  - Codex review 能长期稳定拦住 Grok 的越界、夸大和偷懒。
+  - Grok fix -> gate -> Codex review -> Grok 回修 这条真实迁移闭环能批量跑通。
+```
+
+所以下一批任务的目的应该从“继续让 Codex 手搓迁移”切换成：
+
+```text
+Codex 写 task / 定 gate / 审边界；
+Grok 按 task 干活；
+AgentLoop 负责记录、暂停、报告和失败刹车。
+```

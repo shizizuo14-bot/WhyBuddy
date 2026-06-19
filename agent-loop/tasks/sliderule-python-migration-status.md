@@ -2,6 +2,16 @@
 
 这个文件是给人看的迁移总表，用来回答“哪一片已经执行完、哪一片还没做”。详细的机器运行记录仍然放在 `.agent-loop/latest/` 和 `.agent-loop/runs/`，这些目录是运行产物，不提交。
 
+## 重要口径
+
+2026-06-19 的 15 项 migration queue（迁移队列）已经收尾并分片提交，但这批主要是 **Codex 人工接管实现 + gate 验证**，不是 Grok 自动批量干活的证明。
+
+这代表：
+
+- 这些迁移切片本身已经有代码、测试、文档和 commit。
+- AgentLoop 的任务拆分、gate、review 边界逐步变清楚了。
+- 但还不能说“Grok 已经能稳定自动迁移”。下一批应该专门验证 `Grok worker（工人） + Codex boundary review（边界审查）` 这条真实闭环。
+
 ## 状态规则
 
 - `[x]`：已经实现并通过当前记录的 gate 或 live 验证。
@@ -116,14 +126,14 @@
 
 ### 当前结论
 
-Phase 0 盘点之后，batch-2 和 batch-3 已继续推进：**整体 NodeJS 后端迁 Python 当前按约 10-14% 口径记录**。这是整体后端的大分母口径，不是 SlideRule 单子系统口径；SlideRule V5 单子系统已经明显高于这个比例。
+Phase 0 盘点之后，batch-2、batch-3 和 15 项 migration queue 已继续推进：**整体 NodeJS 后端迁 Python 当前按约 12-16% 口径记录**。这是整体后端的大分母口径，不是 SlideRule 单子系统口径；SlideRule V5 单子系统已经明显高于这个比例。
 
 关键原因：
 
 - `server/` 和 `shared/` 的主要资产仍在 Node/TypeScript，尤其是 Blueprint/Autopilot、LLM infra、RAG/vector、auth/admin/audit/permission、executor/tasks、web-aigc 工具路由。
 - `tws-ai-slide-rule-python/` 当前主要覆盖 SlideRule V5 baseline 和一批 native LLM capability（原生大模型能力），不是整个后端的 Python 替代服务。
 - `intent.clarify`、`gap.ask`、`question.expand`、审议族、`report.write`、`structure.decompose`、`risk.analyze`、`evidence.search`、batch-3 delivery chain（交付链）已是真 LLM 或 Python native JSON LLM。
-- 最近 batch-3 是人工接管的小切片迁移，并且每片都跑过 `deliveryGates`；这代表 SlideRule V5 能力覆盖前进，不代表 Grok 自动修复能力或整个后端迁移完成。
+- 最近 batch-3 和 15 项 migration queue 里，多数实现由 Codex 人工接管完成，并且每片跑过对应 gate；这代表迁移切片本身前进，不代表 Grok 自动修复能力或整个后端迁移完成。
 
 Phase 0 盘点任务文档：`agent-loop/tasks/backend-python-phase0-inventory.md`
 
@@ -253,7 +263,9 @@ node agent-loop/src/loop.js `
 
 ## 下一步候选
 
-batch-3 delivery chain（交付链）已完成，15 项 migration queue（迁移队列）也已跑完并分片提交。下一片建议不要继续堆“看起来很大”的迁移口号，而是补三类硬边界：真实 vector retrieval（向量检索）接线、`mcp.call`/`skill.invoke` 工具边界审计、`orchestrate.plan` 结构化编排前置契约。
+batch-3 delivery chain（交付链）已完成，15 项 migration queue（迁移队列）也已跑完并分片提交。注意：这批主要是 Codex 人工推进，下一批如果目标是让 Grok 真干活，就应该把任务设计成“小而真”的 worker 任务，让 Grok 负责改，Codex 只审边界。
+
+下一片建议不要继续堆“看起来很大”的迁移口号，而是补三类硬边界：真实 vector retrieval（向量检索）接线、`mcp.call`/`skill.invoke` 工具边界审计、`orchestrate.plan` 结构化编排前置契约。
 
 | 顺序 | 建议任务 | 目标 |
 |---|---|---|
