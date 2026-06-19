@@ -5,6 +5,7 @@ import { createServer } from "node:http";
 import slideruleRouter from "../sliderule.js";
 import * as llmClient from "../../core/llm-client.js";
 import { withStubbedLlmKey } from "./helpers/with-stubbed-llm-key.js";
+import * as poolJsonLlm from "../../sliderule/pool-json-llm.js";
 
 describe("POST /api/sliderule/orchestrate-plan (R1-B2)", () => {
   const app = express();
@@ -14,6 +15,7 @@ describe("POST /api/sliderule/orchestrate-plan (R1-B2)", () => {
   let server: any;
   let base: string;
   let restoreLlmKey: (() => void) | undefined;
+  let originalPoolEnabled: string | undefined;
 
   const baseBody = {
     turnId: "t-orch",
@@ -31,6 +33,9 @@ describe("POST /api/sliderule/orchestrate-plan (R1-B2)", () => {
   beforeEach(async () => {
     vi.restoreAllMocks();
     ({ restore: restoreLlmKey } = withStubbedLlmKey());
+    originalPoolEnabled = process.env.SLIDERULE_CAPABILITY_POOL_ENABLED;
+    process.env.SLIDERULE_CAPABILITY_POOL_ENABLED = "0";
+    poolJsonLlm.resetSlideRuleCapabilityPoolCache();
     server = createServer(app);
     await new Promise<void>((resolve) => server.listen(0, resolve));
     const addr = server.address();
@@ -40,6 +45,12 @@ describe("POST /api/sliderule/orchestrate-plan (R1-B2)", () => {
 
   afterEach(async () => {
     vi.restoreAllMocks();
+    if (originalPoolEnabled === undefined) {
+      delete process.env.SLIDERULE_CAPABILITY_POOL_ENABLED;
+    } else {
+      process.env.SLIDERULE_CAPABILITY_POOL_ENABLED = originalPoolEnabled;
+    }
+    poolJsonLlm.resetSlideRuleCapabilityPoolCache();
     restoreLlmKey?.();
     restoreLlmKey = undefined;
     if (server) {

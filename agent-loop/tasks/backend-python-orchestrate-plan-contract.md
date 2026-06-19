@@ -2,18 +2,18 @@
 
 ## 执行状态
 
-- 状态：待执行
+- 状态：已完成
 - 目标：先定义 `orchestrate.plan` 的 Python/Node 输入输出契约，不直接迁完整编排器
 - 角色分工：Grok 负责补 contract test（契约测试）与最小 schema；Codex 负责审查是否把契约误写成完整迁移
 
 ### 状态清单
 
-- [ ] 已执行 AgentLoop
-- [ ] Python 侧 contract test 已覆盖 plan input/output
-- [ ] Node 侧 route/proxy contract test 已覆盖 degraded shape
-- [ ] 明确哪些字段属于 Python 负责，哪些仍由 Node orchestration（编排）负责
-- [ ] gate 全绿
-- [ ] Codex review（审查）已确认没有迁整个 `orchestrate-plan.ts`
+- [x] 已执行 AgentLoop
+- [x] Python 侧 contract test 已覆盖 plan input/output
+- [x] Node 侧 route/proxy contract test 已覆盖 degraded shape
+- [x] 明确哪些字段属于 Python 负责，哪些仍由 Node orchestration（编排）负责
+- [x] gate 全绿
+- [x] Codex review（审查）已确认没有迁整个 `orchestrate-plan.ts`
 
 ## 目标
 

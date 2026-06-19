@@ -1,0 +1,60 @@
+# Backend Python `orchestrate.plan` contract
+
+This document defines the narrow Node/Python boundary for the first
+`orchestrate.plan` migration slice. It does not declare the full Node
+orchestrator migrated.
+
+## Current boundary
+
+Node owns session state, artifact mutation, coverage gates, budget accounting,
+and the full Blueprint/Autopilot state machine. Python may propose a next-plan
+shape that Node can consume or reject.
+
+The Python response shape is intentionally small:
+
+```json
+{
+  "selected": [
+    { "capabilityId": "evidence.search", "roleId": "grounding", "why": "Need evidence first" }
+  ],
+  "rationale": "Evidence boundary first",
+  "source": "python-rag"
+}
+```
+
+Allowed source values in this slice are `python-rag`, `heuristic_fallback`, or
+`llm`. A Python plan must not include mutated session state, artifacts,
+capability run records, or coverage gate decisions.
+
+## Node proxy behavior
+
+When `SLIDERULE_V5_BACKEND=python`, Node delegates `orchestrate.plan` through
+the Python-specific endpoint `/api/sliderule/orchestrate-plan`, not the generic
+`/api/sliderule/execute-capability` endpoint.
+
+If Python is unavailable, Node returns HTTP 502 with:
+
+```json
+{
+  "provenance": "python-delegated-failed",
+  "degraded": true,
+  "error": "python_unavailable"
+}
+```
+
+This is a hard degraded shape, not a pseudo-successful plan.
+
+## Out of scope
+
+- Rewriting `server/sliderule/orchestrate-plan.ts`.
+- Moving Blueprint/Autopilot state transitions to Python.
+- Connecting live LLM calls.
+- Updating global migration percentages.
+
+## Verification
+
+The migration gate locks the contract with:
+
+- `tws-ai-slide-rule-python/tests/test_orchestrate_plan_contract.py`
+- `server/routes/__tests__/sliderule.orchestrate-plan-python-contract.test.ts`
+- existing `server/routes/__tests__/sliderule.orchestrate-plan.test.ts`

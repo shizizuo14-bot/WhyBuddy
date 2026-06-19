@@ -438,7 +438,7 @@ export async function executeOrchestratePlan(
           modelLabel: `${pooled.model}@${pooled.poolLabel} (5+1 pool fallback)`,
         };
       }
-      return null;
+      throw e;
     }
   };
 
