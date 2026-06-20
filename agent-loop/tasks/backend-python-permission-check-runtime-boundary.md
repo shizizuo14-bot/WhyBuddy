@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 runtime boundary 和测试；reviewer 确认不绕过 Node 权限引擎。
 
 ### 状态清单
-- [ ] Python runtime boundary 覆盖 allow、deny、missing context、invalid policy。
-- [ ] Node permission engine test 能映射 Python result。
-- [ ] deny/failure 不 fallback 成 allow。
-- [ ] gate 全绿。
-- [ ] Codex review 确认生产权限语义不退化。
+- [x] Python runtime boundary 覆盖 allow、deny、missing context、invalid policy。
+- [x] Node permission engine test 能映射 Python result。
+- [x] deny/failure 不 fallback 成 allow。
+- [x] gate 全绿。
+- [x] Codex review 确认生产权限语义不退化。
 
 ## 目标
 

@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 runtime boundary 和测试；reviewer 确认不绕过 audit chain（审计链）。
 
 ### 状态清单
-- [ ] Python runtime boundary 覆盖 valid、invalid、redacted、rejected。
-- [ ] Node audit collector test 能映射 Python result。
-- [ ] invalid event 不伪装成成功写入。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有删除或绕过现有 audit 测试。
+- [x] Python runtime boundary 覆盖 valid、invalid、redacted、rejected。
+- [x] Node audit collector test 能映射 Python result。
+- [x] invalid event 不伪装成成功写入。
+- [x] gate 全绿。
+- [x] Codex review 确认没有删除或绕过现有 audit 测试。
 
 ## 目标
 

@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 runtime boundary 和测试；reviewer 确认不放宽限流。
 
 ### 状态清单
-- [ ] Python runtime boundary 覆盖 allowed、limited、reset、invalid key。
-- [ ] Node rate limiter test 能映射 Python result。
-- [ ] limited 不 fallback 成 allowed。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有绕过限流。
+- [x] Python runtime boundary 覆盖 allowed、limited、reset、invalid key。
+- [x] Node rate limiter test 能映射 Python result。
+- [x] limited 不 fallback 成 allowed。
+- [x] gate 全绿。
+- [x] Codex review 确认没有绕过限流。
 
 ## 目标
 
