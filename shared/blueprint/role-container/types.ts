@@ -114,3 +114,76 @@ export interface RoleCapabilityPackage {
   containerImage?: string;
   allowlistDomains?: string[];
 }
+
+export const ROLE_RUNTIME_PROXY_CONTRACT_VERSION =
+  "blueprint.role-runtime.proxy.v1" as const;
+
+export type RoleRuntimeProxyAction = "invoke" | "progress" | "callback";
+
+export interface RoleRuntimeProxyRuntimeInfo {
+  owner: "python";
+  mode: "proxy_contract";
+  agentExecution: "none";
+  toolsExecuted: false;
+  promptEchoed: false;
+}
+
+export interface RoleRuntimeInvokeProxySuccess {
+  ok: true;
+  action: "invoke";
+  contractVersion: typeof ROLE_RUNTIME_PROXY_CONTRACT_VERSION;
+  runtime: RoleRuntimeProxyRuntimeInfo;
+  jobId: string;
+  roleId: string;
+  stageId: string;
+  status: "completed" | "failed" | "aborted";
+  output: unknown;
+  executionMode: "lite";
+  iterations: number;
+  totalTokens: number;
+  durationMs: number;
+  trace: import("../agent-state.js").AgentTraceEntry[];
+  error?: string;
+}
+
+export interface RoleRuntimeProgressProxySuccess {
+  ok: true;
+  action: "progress";
+  contractVersion: typeof ROLE_RUNTIME_PROXY_CONTRACT_VERSION;
+  event: {
+    jobId: string;
+    phase: string;
+    iteration: number;
+    tokensUsed: number;
+    messageProvided: boolean;
+  };
+}
+
+export interface RoleRuntimeCallbackProxySuccess {
+  ok: true;
+  action: "callback";
+  contractVersion: typeof ROLE_RUNTIME_PROXY_CONTRACT_VERSION;
+  callback: {
+    jobId: string;
+    delivery: "declared";
+    callbackUrlProvided: boolean;
+    callbackSecretProvided: boolean;
+    secretEchoed: false;
+  };
+}
+
+export interface RoleRuntimeProxyFailure {
+  ok: false;
+  action: RoleRuntimeProxyAction;
+  contractVersion: typeof ROLE_RUNTIME_PROXY_CONTRACT_VERSION;
+  error: "runtime_error" | "schema_invalid" | "timeout";
+  message: string;
+  jobId?: string;
+  retryable?: boolean;
+}
+
+export type RoleRuntimeProxyResult =
+  | RoleRuntimeInvokeProxySuccess
+  | RoleRuntimeProgressProxySuccess
+  | RoleRuntimeCallbackProxySuccess
+  | RoleRuntimeProxyFailure;

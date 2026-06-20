@@ -6,11 +6,11 @@
 - 角色分工：worker 负责最小 runtime 契约；reviewer 确认不执行真实 agent/工具副作用。
 
 ### 状态清单
-- [ ] Python 侧有 role runtime invoke/progress/callback contract。
-- [ ] Node 侧测试覆盖 success/progress/error/schema_invalid。
-- [ ] trace sanitizer（轨迹脱敏）语义保留。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有泄漏 prompt/key/tool output。
+- [x] Python 侧有 role runtime invoke/progress/callback contract。
+- [x] Node 侧测试覆盖 success/progress/error/schema_invalid。
+- [x] trace sanitizer（轨迹脱敏）语义保留。
+- [x] gate 全绿。
+- [x] Codex review 确认没有泄漏 prompt/key/tool output。
 
 ## 目标
 
