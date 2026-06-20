@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 contract；reviewer 确认不伪造真实账单或监控数据。
 
 ### 状态清单
-- [ ] Python 侧有 telemetry contract。
-- [ ] Node 侧测试覆盖 metrics/events/cost/errors。
-- [ ] cost 和 token 字段明确 synthetic/estimated/actual。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有真实账单数据。
+- [x] Python 侧有 telemetry contract。
+- [x] Node 侧测试覆盖 metrics/events/cost/errors。
+- [x] cost 和用量字段明确 synthetic/estimated/actual。
+- [x] gate 全绿。
+- [x] Codex review 确认没有真实账单数据。
 
 ## 目标
 

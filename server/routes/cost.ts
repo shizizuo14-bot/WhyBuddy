@@ -15,9 +15,24 @@ import { costTracker } from '../core/cost-tracker.js';
 
 const router = Router();
 
+const COST_ROUTE_CONTRACT = {
+  costSource: "estimated",
+  tokenSource: "synthetic",
+  actualCost: false,
+} as const;
+
+function withCostRouteContract<T extends object>(snapshot: T) {
+  return {
+    ...snapshot,
+    contract: COST_ROUTE_CONTRACT,
+    synthetic: true,
+    actualCost: null,
+  };
+}
+
 // GET /api/cost/live — Req 6.1, 6.5
 router.get('/live', (_req, res) => {
-  res.json(costTracker.getSnapshot());
+  res.json(withCostRouteContract(costTracker.getSnapshot()));
 });
 
 // GET /api/cost/history — Req 6.2

@@ -185,3 +185,333 @@ export interface TelemetryAggregate {
     totalTokens: number;
   }>;
 }
+
+// ---------------------------------------------------------------------------
+// Python Contract Slice: Telemetry/Cost/Monitoring Routes
+// ---------------------------------------------------------------------------
+
+export const TELEMETRY_ROUTE_PYTHON_CONTRACT_VERSION =
+  "telemetry-route.runtime.v1" as const;
+
+export type TelemetryRoutePythonOperation =
+  | "metrics"
+  | "events"
+  | "cost"
+  | "error";
+
+export type TelemetryRoutePythonRoute = "telemetry" | "cost" | "monitoring";
+export type TelemetryRoutePythonSource = "synthetic" | "estimated" | "actual";
+
+export interface TelemetryRoutePythonProvenance {
+  source: string;
+  synthetic: boolean;
+  externalMonitoringRequest: false;
+  [key: string]: unknown;
+}
+
+export interface TelemetryRoutePythonTokens {
+  promptTokens: number;
+  completionTokens: number;
+  totalTokens: number;
+  source: TelemetryRoutePythonSource;
+}
+
+export interface TelemetryRoutePythonCost {
+  amountUsd: number;
+  source: TelemetryRoutePythonSource;
+  billingSource: string;
+  isEstimate: boolean;
+  estimatedUsd?: number | null;
+  syntheticUsd?: number | null;
+  actualUsd?: number | null;
+  currency?: "USD";
+  pricingSource?: string;
+}
+
+export interface TelemetryRoutePythonMetrics {
+  totalCalls: number;
+  errorCount: number;
+  latencyMs: {
+    average: number;
+    p95: number;
+  };
+  tokens: TelemetryRoutePythonTokens;
+  cost: TelemetryRoutePythonCost;
+  updatedAt: number;
+}
+
+export interface TelemetryRoutePythonEvent {
+  eventId: string;
+  type: string;
+  timestamp: number;
+  severity: "info" | "warning" | "error";
+  message: string;
+  source: TelemetryRoutePythonSource;
+  [key: string]: unknown;
+}
+
+export interface TelemetryRoutePythonError {
+  code: string;
+  message: string;
+  retryable: boolean;
+}
+
+interface TelemetryRoutePythonBaseResult {
+  contractVersion: typeof TELEMETRY_ROUTE_PYTHON_CONTRACT_VERSION;
+  runtime: "python-contract";
+  operation: TelemetryRoutePythonOperation;
+  route: TelemetryRoutePythonRoute;
+  ok: boolean;
+  status: "completed" | "failed";
+  generatedAt: string;
+  provenance: TelemetryRoutePythonProvenance;
+}
+
+export type TelemetryRoutePythonContractResult =
+  | (TelemetryRoutePythonBaseResult & {
+      operation: "metrics";
+      ok: true;
+      status: "completed";
+      metrics: TelemetryRoutePythonMetrics;
+    })
+  | (TelemetryRoutePythonBaseResult & {
+      operation: "events";
+      ok: true;
+      status: "completed";
+      events: TelemetryRoutePythonEvent[];
+      eventCount: number;
+    })
+  | (TelemetryRoutePythonBaseResult & {
+      operation: "cost";
+      ok: true;
+      status: "completed";
+      route: "cost";
+      cost: TelemetryRoutePythonCost;
+      tokens: TelemetryRoutePythonTokens;
+    })
+  | (TelemetryRoutePythonBaseResult & {
+      operation: "error";
+      ok: false;
+      status: "failed";
+      error: TelemetryRoutePythonError;
+      businessOutcome: {
+        ok: true;
+        telemetryErrorIgnored: true;
+      };
+    });
+
+const TELEMETRY_ROUTE_PYTHON_OPERATIONS: readonly TelemetryRoutePythonOperation[] = [
+  "metrics",
+  "events",
+  "cost",
+  "error",
+];
+
+const TELEMETRY_ROUTE_PYTHON_ROUTES: readonly TelemetryRoutePythonRoute[] = [
+  "telemetry",
+  "cost",
+  "monitoring",
+];
+
+const TELEMETRY_ROUTE_PYTHON_SOURCES: readonly TelemetryRoutePythonSource[] = [
+  "synthetic",
+  "estimated",
+  "actual",
+];
+
+export function isTelemetryRoutePythonContractResult(
+  value: unknown,
+): value is TelemetryRoutePythonContractResult {
+  const record = telemetryRouteAsRecord(value);
+  if (!record) return false;
+  if (record.contractVersion !== TELEMETRY_ROUTE_PYTHON_CONTRACT_VERSION) return false;
+  if (record.runtime !== "python-contract") return false;
+  if (!telemetryRouteOneOf(record.operation, TELEMETRY_ROUTE_PYTHON_OPERATIONS)) {
+    return false;
+  }
+  if (!telemetryRouteOneOf(record.route, TELEMETRY_ROUTE_PYTHON_ROUTES)) return false;
+  if (!telemetryRouteNonEmptyString(record.generatedAt)) return false;
+  const provenance = record.provenance;
+  if (!isTelemetryRoutePythonProvenance(provenance)) return false;
+
+  if (record.operation === "metrics") {
+    return (
+      record.ok === true &&
+      record.status === "completed" &&
+      isTelemetryRoutePythonMetrics(record.metrics, provenance)
+    );
+  }
+
+  if (record.operation === "events") {
+    return (
+      record.ok === true &&
+      record.status === "completed" &&
+      Array.isArray(record.events) &&
+      telemetryRouteNonNegativeNumber(record.eventCount) &&
+      record.eventCount === record.events.length &&
+      record.events.every(event =>
+        isTelemetryRoutePythonEvent(event, provenance),
+      )
+    );
+  }
+
+  if (record.operation === "cost") {
+    return (
+      record.ok === true &&
+      record.status === "completed" &&
+      record.route === "cost" &&
+      isTelemetryRoutePythonCost(record.cost, provenance) &&
+      isTelemetryRoutePythonTokens(record.tokens, provenance)
+    );
+  }
+
+  const businessOutcome = telemetryRouteAsRecord(record.businessOutcome);
+  return (
+    record.ok === false &&
+    record.status === "failed" &&
+    isTelemetryRoutePythonError(record.error) &&
+    businessOutcome !== null &&
+    businessOutcome.ok === true &&
+    businessOutcome.telemetryErrorIgnored === true
+  );
+}
+
+function isTelemetryRoutePythonProvenance(
+  value: unknown,
+): value is TelemetryRoutePythonProvenance {
+  const provenance = telemetryRouteAsRecord(value);
+  return (
+    provenance !== null &&
+    telemetryRouteNonEmptyString(provenance.source) &&
+    typeof provenance.synthetic === "boolean" &&
+    provenance.externalMonitoringRequest === false
+  );
+}
+
+function isTelemetryRoutePythonMetrics(
+  value: unknown,
+  provenance: TelemetryRoutePythonProvenance,
+): value is TelemetryRoutePythonMetrics {
+  const metrics = telemetryRouteAsRecord(value);
+  if (!metrics) return false;
+  const latency = telemetryRouteAsRecord(metrics.latencyMs);
+  return (
+    telemetryRouteNonNegativeNumber(metrics.totalCalls) &&
+    telemetryRouteNonNegativeNumber(metrics.errorCount) &&
+    latency !== null &&
+    telemetryRouteNonNegativeNumber(latency.average) &&
+    telemetryRouteNonNegativeNumber(latency.p95) &&
+    isTelemetryRoutePythonTokens(metrics.tokens, provenance) &&
+    isTelemetryRoutePythonCost(metrics.cost, provenance) &&
+    telemetryRouteNonNegativeNumber(metrics.updatedAt)
+  );
+}
+
+function isTelemetryRoutePythonTokens(
+  value: unknown,
+  provenance: TelemetryRoutePythonProvenance,
+): value is TelemetryRoutePythonTokens {
+  const tokens = telemetryRouteAsRecord(value);
+  if (!tokens) return false;
+  if (!telemetryRouteNonNegativeNumber(tokens.promptTokens)) return false;
+  if (!telemetryRouteNonNegativeNumber(tokens.completionTokens)) return false;
+  if (!telemetryRouteNonNegativeNumber(tokens.totalTokens)) return false;
+  if (tokens.totalTokens !== tokens.promptTokens + tokens.completionTokens) return false;
+  if (!telemetryRouteOneOf(tokens.source, TELEMETRY_ROUTE_PYTHON_SOURCES)) return false;
+  return !(provenance.synthetic && tokens.source === "actual");
+}
+
+function isTelemetryRoutePythonCost(
+  value: unknown,
+  provenance: TelemetryRoutePythonProvenance,
+): value is TelemetryRoutePythonCost {
+  const cost = telemetryRouteAsRecord(value);
+  if (!cost) return false;
+  if (!telemetryRouteNonNegativeNumber(cost.amountUsd)) return false;
+  if (!telemetryRouteOneOf(cost.source, TELEMETRY_ROUTE_PYTHON_SOURCES)) return false;
+  if (!telemetryRouteNonEmptyString(cost.billingSource)) return false;
+  if (typeof cost.isEstimate !== "boolean") return false;
+  if (cost.currency !== undefined && cost.currency !== "USD") return false;
+  if (cost.pricingSource !== undefined && !telemetryRouteNonEmptyString(cost.pricingSource)) {
+    return false;
+  }
+  if (cost.estimatedUsd !== undefined && cost.estimatedUsd !== null && !telemetryRouteNonNegativeNumber(cost.estimatedUsd)) {
+    return false;
+  }
+  if (cost.syntheticUsd !== undefined && cost.syntheticUsd !== null && !telemetryRouteNonNegativeNumber(cost.syntheticUsd)) {
+    return false;
+  }
+  if (cost.actualUsd !== undefined && cost.actualUsd !== null && !telemetryRouteNonNegativeNumber(cost.actualUsd)) {
+    return false;
+  }
+  if (provenance.synthetic && cost.source === "actual") return false;
+
+  if (cost.source === "actual") {
+    return (
+      cost.actualUsd !== undefined &&
+      cost.actualUsd !== null &&
+      cost.isEstimate === false &&
+      cost.estimatedUsd === undefined &&
+      cost.syntheticUsd === undefined
+    );
+  }
+
+  if (cost.actualUsd !== undefined && cost.actualUsd !== null) return false;
+  if (cost.isEstimate !== true) return false;
+  if (cost.source === "estimated") {
+    return cost.estimatedUsd !== undefined && cost.estimatedUsd !== null;
+  }
+  return cost.syntheticUsd !== undefined && cost.syntheticUsd !== null;
+}
+
+function isTelemetryRoutePythonEvent(
+  value: unknown,
+  provenance: TelemetryRoutePythonProvenance,
+): value is TelemetryRoutePythonEvent {
+  const event = telemetryRouteAsRecord(value);
+  return (
+    event !== null &&
+    telemetryRouteNonEmptyString(event.eventId) &&
+    telemetryRouteNonEmptyString(event.type) &&
+    telemetryRouteNonNegativeNumber(event.timestamp) &&
+    (event.severity === "info" ||
+      event.severity === "warning" ||
+      event.severity === "error") &&
+    telemetryRouteNonEmptyString(event.message) &&
+    telemetryRouteOneOf(event.source, TELEMETRY_ROUTE_PYTHON_SOURCES) &&
+    !(provenance.synthetic && event.source === "actual")
+  );
+}
+
+function isTelemetryRoutePythonError(
+  value: unknown,
+): value is TelemetryRoutePythonError {
+  const error = telemetryRouteAsRecord(value);
+  return (
+    error !== null &&
+    telemetryRouteNonEmptyString(error.code) &&
+    telemetryRouteNonEmptyString(error.message) &&
+    typeof error.retryable === "boolean"
+  );
+}
+
+function telemetryRouteAsRecord(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === "object"
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function telemetryRouteNonEmptyString(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function telemetryRouteNonNegativeNumber(value: unknown): value is number {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function telemetryRouteOneOf<T extends string>(
+  value: unknown,
+  options: readonly T[],
+): value is T {
+  return typeof value === "string" && options.includes(value as T);
+}
