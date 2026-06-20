@@ -18,6 +18,8 @@ export interface WebAigcAudioRecognitionSourceInput {
   audioUrl?: string;
   mimeType?: string;
   fileName?: string;
+  durationMs?: number | null;
+  metadata?: Record<string, unknown>;
 }
 
 export interface WebAigcAudioRecognitionWritebackInput {
@@ -48,6 +50,8 @@ export interface WebAigcAudioRecognitionSourceSummary {
   kind: WebAigcAudioRecognitionSourceKind;
   mimeType: string;
   byteLength: number;
+  durationMs: number | null;
+  metadata: Record<string, unknown>;
   fileName?: string;
   audioUrl?: string;
 }
@@ -77,6 +81,7 @@ export interface AudioRecognitionNodeExecutionResult {
       sourceKind: WebAigcAudioRecognitionSourceKind;
       mimeType: string;
       byteLength: number;
+      durationMs: number | null;
       latencyMs: number;
       transcriptLength: number;
     };

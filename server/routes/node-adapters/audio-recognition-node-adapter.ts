@@ -9,6 +9,7 @@ import type {
   AudioRecognitionNodeType,
   WebAigcAudioRecognitionSegment,
   WebAigcAudioRecognitionSourceKind,
+  WebAigcAudioRecognitionSourceSummary,
 } from "../../../shared/web-aigc-audio-recognition.js";
 
 const MAX_AUDIO_BYTES = 10 * 1024 * 1024;
@@ -23,24 +24,40 @@ export interface LoadedAudioSource {
   buffer: Buffer;
   mimeType?: string;
   fileName?: string;
+  durationMs?: number | null;
+  metadata?: Record<string, unknown>;
 }
 
 export interface AudioRecognitionNodeAdapterDeps {
   recognizeAudio?: (
     audioBuffer: Buffer,
     mimeType?: string,
-  ) => Promise<{ transcript: string }>;
+  ) => Promise<{
+    transcript: string;
+    confidence?: number | null;
+    durationMs?: number | null;
+    segments?: WebAigcAudioRecognitionSegment[];
+  }>;
   loadAudioFromUrl?: (url: string) => Promise<LoadedAudioSource>;
   getNow?: () => number;
 }
 
 export class AudioRecognitionNodeError extends Error {
   readonly status: number;
+  readonly errorCode: string;
+  readonly source?: WebAigcAudioRecognitionSourceSummary;
 
-  constructor(status: number, message: string) {
+  constructor(
+    status: number,
+    message: string,
+    errorCode = "audio_recognition_error",
+    source?: WebAigcAudioRecognitionSourceSummary,
+  ) {
     super(message);
     this.name = "AudioRecognitionNodeError";
     this.status = status;
+    this.errorCode = errorCode;
+    this.source = source;
   }
 }
 
@@ -50,6 +67,15 @@ interface ResolvedAudioSource {
   fileName?: string;
   audioUrl?: string;
   sourceKind: WebAigcAudioRecognitionSourceKind;
+  durationMs: number | null;
+  metadata: Record<string, unknown>;
+}
+
+interface RecognizedAudioPayload {
+  transcript: string;
+  confidence: number | null;
+  durationMs: number | null;
+  segments?: WebAigcAudioRecognitionSegment[];
 }
 
 function normalizeString(value: unknown): string | undefined {
@@ -80,6 +106,30 @@ function normalizeFileName(value: unknown): string | undefined {
   }
 
   return fileName.replace(/[\\/:*?"<>|]/g, "_");
+}
+
+function normalizeDurationMs(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return null;
+  }
+
+  return Math.floor(value);
+}
+
+function normalizeConfidence(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return Math.max(0, Math.min(1, value));
 }
 
 function normalizeLanguageHint(value: unknown): string | undefined {
@@ -114,11 +164,11 @@ function normalizeAudioUrl(value: unknown): string | undefined {
 
 function ensureAudioWithinLimit(buffer: Buffer): void {
   if (buffer.length === 0) {
-    throw new AudioRecognitionNodeError(400, "Audio data is required.");
+    throw new AudioRecognitionNodeError(400, "Audio data is required.", "audio_data_required");
   }
 
   if (buffer.length > MAX_AUDIO_BYTES) {
-    throw new AudioRecognitionNodeError(413, "Audio data exceeds 10 MB limit.");
+    throw new AudioRecognitionNodeError(413, "Audio data exceeds 10 MB limit.", "audio_data_too_large");
   }
 }
 
@@ -167,6 +217,8 @@ async function resolveAudioSource(
       mimeType,
       ...(fileName ? { fileName } : {}),
       sourceKind: "inline_base64",
+      durationMs: normalizeDurationMs(source.durationMs),
+      metadata: normalizeObject(source.metadata),
     };
   }
 
@@ -183,19 +235,25 @@ async function resolveAudioSource(
         : {}),
       audioUrl,
       sourceKind: "remote_url",
+      durationMs: normalizeDurationMs(loaded.durationMs ?? source.durationMs),
+      metadata: {
+        ...normalizeObject(source.metadata),
+        ...normalizeObject(loaded.metadata),
+      },
     };
   }
 
   throw new AudioRecognitionNodeError(
     400,
     "Audio recognition node input requires source.audioBase64 or source.audioUrl.",
+    "audio_source_required",
   );
 }
 
 async function recognizeWithVoiceStt(
   source: ResolvedAudioSource,
   deps: AudioRecognitionNodeAdapterDeps,
-): Promise<string> {
+): Promise<RecognizedAudioPayload> {
   try {
     if (deps.recognizeAudio) {
       const result = await deps.recognizeAudio(source.buffer, source.mimeType);
@@ -204,9 +262,16 @@ async function recognizeWithVoiceStt(
         throw new AudioRecognitionNodeError(
           503,
           "STT recognition failed: empty transcript.",
+          "audio_recognition_empty_transcript",
+          buildSourceSummary(source),
         );
       }
-      return transcript;
+      return {
+        transcript,
+        confidence: normalizeConfidence(result.confidence),
+        durationMs: normalizeDurationMs(result.durationMs ?? source.durationMs),
+        segments: Array.isArray(result.segments) ? result.segments : undefined,
+      };
     }
 
     const voiceConfig = getVoiceConfig();
@@ -214,6 +279,8 @@ async function recognizeWithVoiceStt(
       throw new AudioRecognitionNodeError(
         501,
         "STT service is not configured.",
+        "audio_recognition_unconfigured",
+        buildSourceSummary(source),
       );
     }
 
@@ -223,9 +290,15 @@ async function recognizeWithVoiceStt(
       throw new AudioRecognitionNodeError(
         503,
         "STT recognition failed: empty transcript.",
+        "audio_recognition_empty_transcript",
+        buildSourceSummary(source),
       );
     }
-    return transcript;
+    return {
+      transcript,
+      confidence: null,
+      durationMs: source.durationMs,
+    };
   } catch (error) {
     if (error instanceof AudioRecognitionNodeError) {
       throw error;
@@ -234,23 +307,65 @@ async function recognizeWithVoiceStt(
     throw new AudioRecognitionNodeError(
       503,
       `STT recognition failed: ${error instanceof Error ? error.message : String(error)}`,
+      "audio_recognition_failed",
+      buildSourceSummary(source),
     );
   }
 }
 
-function buildSegments(transcript: string): WebAigcAudioRecognitionSegment[] {
+function buildSegments(
+  transcript: string,
+  confidence: number | null,
+  durationMs: number | null,
+  segments?: WebAigcAudioRecognitionSegment[],
+): WebAigcAudioRecognitionSegment[] {
+  if (Array.isArray(segments) && segments.length > 0) {
+    return segments.map((segment, index) => ({
+      index:
+        typeof segment.index === "number" && Number.isFinite(segment.index)
+          ? segment.index
+          : index,
+      text: normalizeString(segment.text) ?? transcript,
+      confidence: normalizeConfidence(segment.confidence),
+      ...(typeof segment.startMs === "number" && Number.isFinite(segment.startMs)
+        ? { startMs: Math.max(0, Math.floor(segment.startMs)) }
+        : { startMs: 0 }),
+      ...(typeof segment.endMs === "number" && Number.isFinite(segment.endMs)
+        ? { endMs: Math.max(0, Math.floor(segment.endMs)) }
+        : durationMs !== null
+          ? { endMs: durationMs }
+          : {}),
+    }));
+  }
+
   return [
     {
       index: 0,
       text: transcript,
-      confidence: null,
+      confidence,
       startMs: 0,
+      ...(durationMs !== null ? { endMs: durationMs } : {}),
     },
   ];
 }
 
+function buildSourceSummary(
+  source: ResolvedAudioSource,
+): WebAigcAudioRecognitionSourceSummary {
+  return {
+    kind: source.sourceKind,
+    mimeType: source.mimeType,
+    byteLength: source.buffer.length,
+    durationMs: source.durationMs,
+    metadata: source.metadata,
+    ...(source.fileName ? { fileName: source.fileName } : {}),
+    ...(source.audioUrl ? { audioUrl: source.audioUrl } : {}),
+  };
+}
+
 function buildWritebackContext(input: AudioRecognitionNodeInput, data: {
   transcript: string;
+  confidence: number | null;
   segments: WebAigcAudioRecognitionSegment[];
   source: ResolvedAudioSource;
   languageHint?: string;
@@ -264,11 +379,12 @@ function buildWritebackContext(input: AudioRecognitionNodeInput, data: {
     audioRecognition: {
       ...audioRecognition,
       transcript: data.transcript,
-      confidence: null,
+      confidence: data.confidence,
       segments: data.segments,
       sourceKind: data.source.sourceKind,
       mimeType: data.source.mimeType,
       byteLength: data.source.buffer.length,
+      durationMs: data.source.durationMs,
       ...(data.source.audioUrl ? { audioUrl: data.source.audioUrl } : {}),
       ...(data.languageHint ? { languageHint: data.languageHint } : {}),
     },
@@ -302,15 +418,27 @@ export async function executeAudioRecognitionNode(
   const getNow = deps.getNow ?? Date.now;
   const startedAt = getNow();
   const source = await resolveAudioSource(input, deps);
-  const transcript = await recognizeWithVoiceStt(source, deps);
+  const recognition = await recognizeWithVoiceStt(source, deps);
+  const transcript = recognition.transcript;
   const latencyMs = Math.max(0, getNow() - startedAt);
-  const segments = buildSegments(transcript);
+  const durationMs = recognition.durationMs ?? source.durationMs;
+  const sourceWithRecognition: ResolvedAudioSource = {
+    ...source,
+    durationMs,
+  };
+  const segments = buildSegments(
+    transcript,
+    recognition.confidence,
+    durationMs,
+    recognition.segments,
+  );
   const writebackEnabled = input.writeback?.enabled !== false;
   const context = writebackEnabled
     ? buildWritebackContext(input, {
         transcript,
+        confidence: recognition.confidence,
         segments,
-        source,
+        source: sourceWithRecognition,
         languageHint,
       })
     : normalizeObject(input.context);
@@ -321,16 +449,10 @@ export async function executeAudioRecognitionNode(
     output: {
       status: "completed",
       transcript,
-      confidence: null,
+      confidence: recognition.confidence,
       ...(languageHint ? { languageHint } : {}),
       segments,
-      source: {
-        kind: source.sourceKind,
-        mimeType: source.mimeType,
-        byteLength: source.buffer.length,
-        ...(source.fileName ? { fileName: source.fileName } : {}),
-        ...(source.audioUrl ? { audioUrl: source.audioUrl } : {}),
-      },
+      source: buildSourceSummary(sourceWithRecognition),
       writeback: {
         enabled: writebackEnabled,
         transcriptPath: "multimodalContext.voiceTranscript",
@@ -341,9 +463,10 @@ export async function executeAudioRecognitionNode(
       observability: {
         eventKey: "multimodal.audio_recognition",
         nodeType: "audio_recognition",
-        sourceKind: source.sourceKind,
-        mimeType: source.mimeType,
-        byteLength: source.buffer.length,
+        sourceKind: sourceWithRecognition.sourceKind,
+        mimeType: sourceWithRecognition.mimeType,
+        byteLength: sourceWithRecognition.buffer.length,
+        durationMs: sourceWithRecognition.durationMs,
         latencyMs,
         transcriptLength: transcript.length,
       },

@@ -29,6 +29,7 @@ export interface WebAigcOcrTextFragment {
   text: string;
   page: number;
   region?: WebAigcOcrRegion;
+  confidence?: number | null;
 }
 
 export interface WebAigcOcrPageResult {
@@ -41,6 +42,8 @@ export interface WebAigcOcrRecognitionResult {
   fragments: WebAigcOcrTextFragment[];
   pages: WebAigcOcrPageResult[];
   rawResponse: string;
+  confidence?: number | null;
+  media?: WebAigcOcrRecognitionMediaSummary;
 }
 
 export interface WebAigcVisionOutputArtifact {
@@ -55,6 +58,9 @@ export interface WebAigcVisionOutputArtifact {
 export interface WebAigcOcrRecognitionImageInput {
   name: string;
   base64DataUrl: string;
+  mimeType?: string;
+  durationMs?: number | null;
+  metadata?: Record<string, unknown>;
 }
 
 export interface WebAigcOcrRecognitionArtifactInput {
@@ -82,12 +88,21 @@ export interface WebAigcOcrRecognitionItem {
   fragmentCount: number;
 }
 
+export interface WebAigcOcrRecognitionMediaSummary {
+  name: string;
+  mimeType: string;
+  durationMs: number | null;
+  metadata: Record<string, unknown>;
+}
+
 export interface OcrRecognitionNodeExecutionResult {
   ok: true;
   nodeType: OcrRecognitionNodeType;
   output: {
     status: "completed";
     text: string;
+    confidence: number | null;
+    media: WebAigcOcrRecognitionMediaSummary[];
     results: WebAigcOcrRecognitionItem[];
     pages: WebAigcOcrPageResult[];
     fragments: WebAigcOcrTextFragment[];

@@ -10,6 +10,98 @@
 import { getVoiceConfig, recognizeSpeech } from "./voice-provider.js";
 import { getAIConfig } from "./ai-config.js";
 
+export interface FakeAudioTranscriptionResult {
+  ok: true;
+  status: "success";
+  transcript: string;
+  confidence: number | null;
+  media: {
+    name: string;
+    mimeType: string;
+    durationMs: number | null;
+    metadata: Record<string, unknown>;
+  };
+  segments: Array<{
+    index: number;
+    text: string;
+    confidence: number | null;
+    startMs: number;
+    endMs?: number;
+  }>;
+  provenance: {
+    provider: "fake";
+    runtime: "python-contract";
+    kind: "audio_recognition";
+  };
+}
+
+function normalizeConfidence(value: unknown, fallback: number | null): number | null {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.max(0, Math.min(1, value));
+}
+
+function normalizeDurationMs(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return null;
+  }
+
+  return Math.floor(value);
+}
+
+function normalizeMetadata(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return { ...(value as Record<string, unknown>) };
+}
+
+export function buildFakeAudioTranscriptionResult(input: {
+  transcript: string;
+  mimeType?: string;
+  durationMs?: number | null;
+  confidence?: number | null;
+  metadata?: Record<string, unknown>;
+}): FakeAudioTranscriptionResult {
+  const transcript = input.transcript.trim() || "Fake audio transcript.";
+  const confidence = normalizeConfidence(input.confidence, 0.85);
+  const durationMs = normalizeDurationMs(input.durationMs);
+
+  return {
+    ok: true,
+    status: "success",
+    transcript,
+    confidence,
+    media: {
+      name: "fake-audio-input",
+      mimeType: input.mimeType?.trim() || "audio/webm",
+      durationMs,
+      metadata: normalizeMetadata(input.metadata),
+    },
+    segments: [
+      {
+        index: 0,
+        text: transcript,
+        confidence,
+        startMs: 0,
+        ...(durationMs !== null ? { endMs: durationMs } : {}),
+      },
+    ],
+    provenance: {
+      provider: "fake",
+      runtime: "python-contract",
+      kind: "audio_recognition",
+    },
+  };
+}
+
 /**
  * Attempt transcription via the Whisper-compatible `/v1/audio/transcriptions`
  * endpoint using the LLM provider's base URL and API key.

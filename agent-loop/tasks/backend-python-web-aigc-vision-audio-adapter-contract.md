@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 contract；reviewer 确认不发真实多模态请求。
 
 ### 状态清单
-- [ ] Python 侧有 vision/audio adapter contract。
-- [ ] Node 侧测试覆盖 ocr/audio/vision/voice 成功和错误。
-- [ ] media metadata、mime、duration、confidence 字段稳定。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有真实外部多模态调用。
+- [x] Python 侧有 vision/audio adapter contract。
+- [x] Node 侧测试覆盖 ocr/audio/vision/voice 成功和错误。
+- [x] media metadata、mime、duration、confidence 字段稳定。
+- [x] gate 全绿。
+- [x] Codex review 确认没有真实外部多模态调用。
 
 ## 目标
 

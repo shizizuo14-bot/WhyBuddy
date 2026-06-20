@@ -16,15 +16,35 @@ import type {
   OcrRecognitionNodeInput,
   OcrRecognitionNodeType,
   WebAigcOcrRecognitionImageInput,
+  WebAigcOcrRecognitionMediaSummary,
 } from "../../../shared/web-aigc-ocr-recognition.js";
+
+type ContractOCRTextFragment = OCRTextFragment & {
+  confidence?: number | null;
+};
+
+type ContractOCRRecognitionResult = Omit<OCRRecognitionResult, "fragments"> & {
+  fragments: ContractOCRTextFragment[];
+  confidence?: number | null;
+  media?: WebAigcOcrRecognitionMediaSummary;
+};
 
 export class OcrRecognitionNodeError extends Error {
   readonly status: number;
+  readonly errorCode: string;
+  readonly media?: WebAigcOcrRecognitionMediaSummary[];
 
-  constructor(status: number, message: string) {
+  constructor(
+    status: number,
+    message: string,
+    errorCode = "ocr_recognition_error",
+    media?: WebAigcOcrRecognitionMediaSummary[],
+  ) {
     super(message);
     this.name = "OcrRecognitionNodeError";
     this.status = status;
+    this.errorCode = errorCode;
+    this.media = media;
   }
 }
 
@@ -32,9 +52,9 @@ export interface OcrRecognitionNodeAdapterDeps {
   recognizeImages?: (
     images: Array<{ base64DataUrl: string; name: string }>,
     prompt?: string,
-  ) => Promise<Map<string, OCRRecognitionResult>>;
+  ) => Promise<Map<string, ContractOCRRecognitionResult>>;
   persistArtifacts?: (
-    results: Array<{ name: string; recognition: OCRRecognitionResult }>,
+    results: Array<{ name: string; recognition: ContractOCRRecognitionResult }>,
     options?: {
       outputId?: string;
       formats?: OCROutputFormat[];
@@ -72,6 +92,9 @@ function normalizeImages(value: unknown): WebAigcOcrRecognitionImageInput[] {
     const record = normalizeObject(item);
     const name = normalizeString(record.name);
     const base64DataUrl = normalizeString(record.base64DataUrl);
+    const mimeType = normalizeString(record.mimeType) ?? "image/png";
+    const durationMs = normalizeDurationMs(record.durationMs);
+    const metadata = normalizeObject(record.metadata);
 
     if (!name) {
       throw new OcrRecognitionNodeError(
@@ -90,8 +113,35 @@ function normalizeImages(value: unknown): WebAigcOcrRecognitionImageInput[] {
     return {
       name,
       base64DataUrl,
+      mimeType,
+      durationMs,
+      metadata,
     };
   });
+}
+
+function normalizeDurationMs(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return null;
+  }
+
+  return Math.floor(value);
+}
+
+function normalizeConfidence(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return Math.max(0, Math.min(1, value));
 }
 
 function normalizeOutputFormats(value: unknown): OCROutputFormat[] | undefined {
@@ -125,35 +175,94 @@ function normalizeOutputFormats(value: unknown): OCROutputFormat[] | undefined {
   return [...new Set(formats as OCROutputFormat[])];
 }
 
-function buildFallbackRecognition(name: string): OCRRecognitionResult {
+function buildImageMedia(
+  image: WebAigcOcrRecognitionImageInput,
+): WebAigcOcrRecognitionMediaSummary {
+  return {
+    name: image.name,
+    mimeType: normalizeString(image.mimeType) ?? "image/png",
+    durationMs: normalizeDurationMs(image.durationMs),
+    metadata: normalizeObject(image.metadata),
+  };
+}
+
+function buildFallbackRecognition(
+  image: WebAigcOcrRecognitionImageInput,
+): ContractOCRRecognitionResult {
   return {
     text: "",
     fragments: [],
     pages: [{ page: 1, text: "" }],
-    rawResponse: `fallback:${name}`,
+    rawResponse: `fallback:${image.name}`,
   };
 }
 
-function flattenPages(results: Array<{ recognition: OCRRecognitionResult }>): OCRPageResult[] {
+function flattenPages(
+  results: Array<{ recognition: ContractOCRRecognitionResult }>,
+): OCRPageResult[] {
   return results.flatMap(result => result.recognition.pages);
 }
 
 function flattenFragments(
-  results: Array<{ recognition: OCRRecognitionResult }>,
-): OCRTextFragment[] {
+  results: Array<{ recognition: ContractOCRRecognitionResult }>,
+): ContractOCRTextFragment[] {
   return results.flatMap(result => result.recognition.fragments);
 }
 
-function buildCombinedText(results: Array<{ recognition: OCRRecognitionResult }>): string {
+function buildCombinedText(
+  results: Array<{ recognition: ContractOCRRecognitionResult }>,
+): string {
   return results
     .map(result => result.recognition.text.trim())
     .filter(Boolean)
     .join("\n\n");
 }
 
+function buildRecognitionWithStableMedia(
+  recognition: ContractOCRRecognitionResult,
+): ContractOCRRecognitionResult {
+  return {
+    ...recognition,
+    ...(recognition.confidence !== undefined
+      ? { confidence: normalizeConfidence(recognition.confidence) }
+      : {}),
+    ...(recognition.media
+      ? {
+          media: {
+            name: recognition.media.name,
+            mimeType: normalizeString(recognition.media.mimeType) ?? "image/png",
+            durationMs: normalizeDurationMs(recognition.media.durationMs),
+            metadata: normalizeObject(recognition.media.metadata),
+          },
+        }
+      : {}),
+    fragments: recognition.fragments.map(fragment => ({
+      ...fragment,
+      ...(fragment.confidence === undefined
+        ? {}
+        : { confidence: normalizeConfidence(fragment.confidence) }),
+    })),
+  };
+}
+
+function buildAggregateConfidence(
+  results: Array<{ recognition: ContractOCRRecognitionResult }>,
+): number | null {
+  const values = results
+    .map(result => normalizeConfidence(result.recognition.confidence))
+    .filter((value): value is number => value !== null);
+
+  if (values.length === 0) {
+    return null;
+  }
+
+  const average = values.reduce((sum, value) => sum + value, 0) / values.length;
+  return Number(average.toFixed(4));
+}
+
 function buildContext(
   input: OcrRecognitionNodeInput,
-  results: Array<{ name: string; recognition: OCRRecognitionResult }>,
+  results: Array<{ name: string; recognition: ContractOCRRecognitionResult }>,
   artifact:
     | {
         outputId: string;
@@ -199,6 +308,7 @@ export async function executeOcrRecognitionNode(
     throw new OcrRecognitionNodeError(
       400,
       "Unsupported ocr_recognition node type.",
+      "unsupported_ocr_recognition_node_type",
     );
   }
 
@@ -216,20 +326,28 @@ export async function executeOcrRecognitionNode(
   const startedAt = now();
   const recognizeImages = deps.recognizeImages ?? recognizeImagesText;
 
-  let resultMap: Map<string, OCRRecognitionResult>;
+  let resultMap: Map<string, ContractOCRRecognitionResult>;
   try {
     resultMap = await recognizeImages(images, prompt);
   } catch (error) {
     throw new OcrRecognitionNodeError(
       500,
       `OCR recognition failed: ${error instanceof Error ? error.message : String(error)}`,
+      "ocr_recognition_failed",
+      images.map(buildImageMedia),
     );
   }
 
-  const results = images.map(image => ({
-    name: image.name,
-    recognition: resultMap.get(image.name) ?? buildFallbackRecognition(image.name),
-  }));
+  const results = images.map(image => {
+    const media = buildImageMedia(image);
+    return {
+      name: image.name,
+      media,
+      recognition: buildRecognitionWithStableMedia(
+        resultMap.get(image.name) ?? buildFallbackRecognition(image),
+      ),
+    };
+  });
   const warnings = images
     .filter(image => !resultMap.has(image.name))
     .map(image => `OCR provider returned no result for ${image.name}; fallback payload was used.`);
@@ -256,6 +374,8 @@ export async function executeOcrRecognitionNode(
       throw new OcrRecognitionNodeError(
         500,
         `OCR artifact persistence failed: ${error instanceof Error ? error.message : String(error)}`,
+        "ocr_artifact_persistence_failed",
+        images.map(buildImageMedia),
       );
     }
   }
@@ -263,6 +383,8 @@ export async function executeOcrRecognitionNode(
   const latencyMs = Math.max(0, now() - startedAt);
   const pages = flattenPages(results);
   const fragments = flattenFragments(results);
+  const confidence = buildAggregateConfidence(results);
+  const media = results.map(result => result.recognition.media ?? result.media);
 
   return {
     ok: true,
@@ -270,6 +392,8 @@ export async function executeOcrRecognitionNode(
     output: {
       status: "completed",
       text: buildCombinedText(results),
+      confidence,
+      media,
       results: results.map(result => ({
         name: result.name,
         recognition: result.recognition,

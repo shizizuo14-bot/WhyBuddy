@@ -23,6 +23,51 @@ export interface VoiceConfig {
   };
 }
 
+export interface VoiceMediaSummary {
+  name: string;
+  mimeType: string;
+  durationMs: number | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface VoiceContractProvenance {
+  provider: "fake";
+  runtime: "python-contract";
+  kind: "voice_synthesis" | "audio_recognition";
+}
+
+export interface FakeVoiceSynthesisResult {
+  ok: true;
+  status: "success";
+  text: string;
+  voice: string;
+  confidence: number;
+  audio: {
+    buffer: Buffer;
+    mimeType: string;
+    durationMs: number | null;
+    byteLength: number;
+  };
+  media: VoiceMediaSummary;
+  provenance: VoiceContractProvenance;
+}
+
+export interface FakeVoiceTranscriptionResult {
+  ok: true;
+  status: "success";
+  transcript: string;
+  confidence: number | null;
+  media: VoiceMediaSummary;
+  segments: Array<{
+    index: number;
+    text: string;
+    confidence: number | null;
+    startMs: number;
+    endMs?: number;
+  }>;
+  provenance: VoiceContractProvenance;
+}
+
 /**
  * Read TTS/STT configuration from environment variables.
  *
@@ -57,6 +102,116 @@ export function getVoiceConfig(): VoiceConfig {
       apiUrl: sttApiUrl,
       apiKey: sttApiKey,
       model: sttModel,
+    },
+  };
+}
+
+function normalizeConfidence(value: unknown, fallback: number | null): number | null {
+  if (value === null || value === undefined) {
+    return fallback;
+  }
+
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return fallback;
+  }
+
+  return Math.max(0, Math.min(1, value));
+}
+
+function normalizeDurationMs(value: unknown): number | null {
+  if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
+    return null;
+  }
+
+  return Math.floor(value);
+}
+
+function normalizeMetadata(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return { ...(value as Record<string, unknown>) };
+}
+
+export function buildFakeVoiceSynthesisResult(input: {
+  text: string;
+  voice?: string;
+  mimeType?: string;
+  durationMs?: number | null;
+  confidence?: number | null;
+  metadata?: Record<string, unknown>;
+}): FakeVoiceSynthesisResult {
+  const text = input.text.trim() || "Fake voice synthesis text.";
+  const mimeType = input.mimeType?.trim() || "audio/mpeg";
+  const durationMs = normalizeDurationMs(input.durationMs);
+  const buffer = Buffer.from(`fake voice audio:${text}`, "utf-8");
+  const media: VoiceMediaSummary = {
+    name: "fake-voice-output",
+    mimeType,
+    durationMs,
+    metadata: {
+      ...normalizeMetadata(input.metadata),
+      generated: true,
+    },
+  };
+
+  return {
+    ok: true,
+    status: "success",
+    text,
+    voice: input.voice?.trim() || "alloy",
+    confidence: normalizeConfidence(input.confidence, 1) ?? 1,
+    audio: {
+      buffer,
+      mimeType,
+      durationMs,
+      byteLength: buffer.length,
+    },
+    media,
+    provenance: {
+      provider: "fake",
+      runtime: "python-contract",
+      kind: "voice_synthesis",
+    },
+  };
+}
+
+export function buildFakeVoiceTranscriptionResult(input: {
+  transcript: string;
+  mimeType?: string;
+  durationMs?: number | null;
+  confidence?: number | null;
+  metadata?: Record<string, unknown>;
+}): FakeVoiceTranscriptionResult {
+  const transcript = input.transcript.trim() || "Fake audio transcript.";
+  const confidence = normalizeConfidence(input.confidence, 0.85);
+  const durationMs = normalizeDurationMs(input.durationMs);
+
+  return {
+    ok: true,
+    status: "success",
+    transcript,
+    confidence,
+    media: {
+      name: "fake-voice-input",
+      mimeType: input.mimeType?.trim() || "audio/webm",
+      durationMs,
+      metadata: normalizeMetadata(input.metadata),
+    },
+    segments: [
+      {
+        index: 0,
+        text: transcript,
+        confidence,
+        startMs: 0,
+        ...(durationMs !== null ? { endMs: durationMs } : {}),
+      },
+    ],
+    provenance: {
+      provider: "fake",
+      runtime: "python-contract",
+      kind: "audio_recognition",
     },
   };
 }

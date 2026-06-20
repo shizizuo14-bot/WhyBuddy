@@ -84,6 +84,30 @@ export interface VisionAnalysisResult {
   elements: string[];
   textContent: string;
   rawResponse: string;
+  confidence?: number | null;
+  media?: VisionMediaSummary;
+  provenance?: VisionContractProvenance;
+}
+
+export interface VisionMediaSummary {
+  name: string;
+  mimeType: string;
+  durationMs: number | null;
+  metadata: Record<string, unknown>;
+}
+
+export interface VisionContractProvenance {
+  provider: "fake";
+  runtime: "python-contract";
+  kind: "vision_analysis";
+}
+
+export interface FakeVisionAnalysisInput {
+  media?: Partial<VisionMediaSummary>;
+  description?: string;
+  elements?: string[];
+  textContent?: string;
+  confidence?: number | null;
 }
 
 const DEFAULT_VISION_PROMPT =
@@ -168,6 +192,57 @@ export function parseVisionResponse(raw: string): VisionAnalysisResult {
   return { description, elements, textContent, rawResponse: trimmed };
 }
 
+function normalizeConfidence(value: unknown): number | null {
+  if (value === null || value === undefined) {
+    return null;
+  }
+
+  if (typeof value !== "number" || !Number.isFinite(value)) {
+    return null;
+  }
+
+  return Math.max(0, Math.min(1, value));
+}
+
+function normalizeMedia(input: Partial<VisionMediaSummary> | undefined): VisionMediaSummary {
+  return {
+    name: typeof input?.name === "string" && input.name.trim()
+      ? input.name.trim()
+      : "fake-vision.png",
+    mimeType: typeof input?.mimeType === "string" && input.mimeType.trim()
+      ? input.mimeType.trim()
+      : "image/png",
+    durationMs:
+      typeof input?.durationMs === "number" && Number.isFinite(input.durationMs)
+        ? Math.max(0, Math.floor(input.durationMs))
+        : null,
+    metadata:
+      input?.metadata && typeof input.metadata === "object" && !Array.isArray(input.metadata)
+        ? { ...input.metadata }
+        : {},
+  };
+}
+
+export function buildFakeVisionAnalysisResult(
+  input: FakeVisionAnalysisInput = {},
+): VisionAnalysisResult {
+  const description = input.description?.trim() || "Fake vision description.";
+
+  return {
+    description,
+    elements: Array.isArray(input.elements) ? [...input.elements] : ["fake media subject"],
+    textContent: input.textContent ?? "",
+    rawResponse: description,
+    confidence: normalizeConfidence(input.confidence) ?? 0.8,
+    media: normalizeMedia(input.media),
+    provenance: {
+      provider: "fake",
+      runtime: "python-contract",
+      kind: "vision_analysis",
+    },
+  };
+}
+
 /**
  * Analyze a single image using the Vision LLM.
  *
@@ -178,8 +253,16 @@ export function parseVisionResponse(raw: string): VisionAnalysisResult {
  */
 export async function analyzeImage(
   base64DataUrl: string,
-  prompt?: string
+  prompt?: string,
+  options?: {
+    fakeRuntime?: boolean;
+    fakeResult?: VisionAnalysisResult;
+  },
 ): Promise<VisionAnalysisResult> {
+  if (options?.fakeRuntime) {
+    return options.fakeResult ?? buildFakeVisionAnalysisResult();
+  }
+
   const rawResponse = await runVisionPrompt(
     base64DataUrl,
     prompt || DEFAULT_VISION_PROMPT
