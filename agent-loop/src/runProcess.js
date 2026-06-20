@@ -10,6 +10,7 @@ export function runProcess(command, args, options = {}) {
     onStderr,
     signal,
     idleTimeoutMs = null,
+    agentTimeoutMs = null,
   } = options;
 
   return new Promise((resolve) => {
@@ -25,6 +26,7 @@ export function runProcess(command, args, options = {}) {
     let stderr = '';
     let timedOut = false;
     let idleTimedOut = false;
+    let agentTimedOut = false;
     let aborted = false;
     let settled = false;
 
@@ -32,6 +34,12 @@ export function runProcess(command, args, options = {}) {
       timedOut = true;
       child.kill('SIGTERM');
     }, timeoutMs);
+    const agentTimer = agentTimeoutMs
+      ? setTimeout(() => {
+        agentTimedOut = true;
+        child.kill('SIGTERM');
+      }, agentTimeoutMs)
+      : null;
     let idleTimer = null;
     const resetIdleTimer = () => {
       if (!idleTimeoutMs) return;
@@ -59,6 +67,7 @@ export function runProcess(command, args, options = {}) {
     const cleanup = () => {
       settled = true;
       clearTimeout(timer);
+      if (agentTimer) clearTimeout(agentTimer);
       if (idleTimer) clearTimeout(idleTimer);
       signal?.removeEventListener('abort', abort);
     };
@@ -87,6 +96,7 @@ export function runProcess(command, args, options = {}) {
         signal: null,
         timedOut,
         idleTimedOut,
+        agentTimedOut,
         aborted,
         spawnError: error.message,
         stdout,
@@ -105,6 +115,7 @@ export function runProcess(command, args, options = {}) {
         signal,
         timedOut,
         idleTimedOut,
+        agentTimedOut,
         aborted,
         stdout,
         stderr,

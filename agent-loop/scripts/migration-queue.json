@@ -14,6 +14,7 @@
     "guardTests": true,
     "maxIterations": 3,
     "agentIdleTimeoutMs": 300000,
+    "agentTimeoutMs": 600000,
     "noSyncTaskStatus": true,
     "cleanupWorktree": true,
     "autoDisableOnNoChanges": true,

@@ -248,6 +248,61 @@ test('runLoop halts for human when a fix agent idles out', async () => {
   assert.equal(result.iterations[0].attempts[0].failure.kind, 'idle_timeout');
 });
 
+test('runLoop halts for human when a noisy fix agent exceeds its wall-clock budget', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-test-'));
+  const taskPath = path.join(cwd, 'task.md');
+  await fs.writeFile(taskPath, 'fix gate to green\n\n## 成功标准\n\n- gate 全绿\n', 'utf8');
+
+  const result = await runLoop({
+    options: {
+      cwd,
+      fixCwd: cwd,
+      createWorktree: null,
+      task: taskPath,
+      gates: ['npm test'],
+      autoFix: true,
+      skipReview: true,
+      fixAgent: 'codex',
+      timeoutMs: 1000,
+      agentIdleTimeoutMs: 500,
+      agentTimeoutMs: 100,
+      maxIterations: 2,
+    },
+    runDir: cwd,
+    latestDir: cwd,
+    deps: {
+      resolveAgents: async () => ({ codex: 'codex.exe', grok: 'grok.exe' }),
+      evaluateGate: async () => gate(false, 1, '1 failed'),
+      captureDiff: async () => ({ text: '' }),
+      runProcess: async (command, args, options) => {
+        assert.equal(options.idleTimeoutMs, 500);
+        assert.equal(options.agentTimeoutMs, 100);
+        return {
+          command,
+          args,
+          cwd: options.cwd,
+          exitCode: null,
+          signal: 'SIGTERM',
+          timedOut: false,
+          idleTimedOut: false,
+          agentTimedOut: true,
+          spawnError: null,
+          stdout: '',
+          stderr: 'still noisy',
+          startedAt: '2026-06-16T00:00:00.000Z',
+          endedAt: '2026-06-16T00:00:01.000Z',
+        };
+      },
+      writeArtifact: artifactWriter(cwd),
+      onState: async () => {},
+    },
+  });
+
+  assert.equal(result.status, 'HALT_HUMAN');
+  assert.equal(result.agentFix.agentTimedOut, true);
+  assert.equal(result.iterations[0].attempts[0].failure.kind, 'agent_timeout');
+});
+
 test('runLoop continues when a single red gate reports fewer inner test failures', async () => {
   const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-test-'));
   const taskPath = path.join(cwd, 'task.md');

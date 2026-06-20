@@ -300,7 +300,7 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
       grokFix: fixAgent === 'grok' ? summarizedFix : null,
     };
 
-    if (agentFix.timedOut || agentFix.idleTimedOut || agentFix.spawnError) {
+    if (agentFix.timedOut || agentFix.idleTimedOut || agentFix.agentTimedOut || agentFix.spawnError) {
       iterations.push({ iteration, attempts, ...legacyFixPatch, gate: null, diff: summarizeDiff(postFixDiff.text) });
       await transition('HALT_HUMAN', { iterations, ...legacyFixPatch });
       return finalizeState(state, options);
@@ -460,6 +460,7 @@ async function runFixAttempt({
       cwd: fixCwd,
       timeoutMs: options.timeoutMs,
       idleTimeoutMs: options.agentIdleTimeoutMs,
+      agentTimeoutMs: options.agentTimeoutMs,
       onStderr: reporter.onStderr,
     });
   } else {
@@ -471,6 +472,7 @@ async function runFixAttempt({
       cwd: fixCwd,
       timeoutMs: options.timeoutMs,
       idleTimeoutMs: options.agentIdleTimeoutMs,
+      agentTimeoutMs: options.agentTimeoutMs,
       input: prompt,
       onStderr: reporter.onStderr,
     });
@@ -606,6 +608,7 @@ async function runReview({
       cwd: fixCwd,
       timeoutMs: options.timeoutMs,
       idleTimeoutMs: options.agentIdleTimeoutMs,
+      agentTimeoutMs: options.agentTimeoutMs,
       onStderr: reporter.onStderr,
     });
   } else if (scoped) {
@@ -616,6 +619,7 @@ async function runReview({
       cwd: fixCwd,
       timeoutMs: options.timeoutMs,
       idleTimeoutMs: options.agentIdleTimeoutMs,
+      agentTimeoutMs: options.agentTimeoutMs,
       input: promptInput,
       onStderr: reporter.onStderr,
     });
@@ -626,6 +630,7 @@ async function runReview({
       cwd: fixCwd,
       timeoutMs: options.timeoutMs,
       idleTimeoutMs: options.agentIdleTimeoutMs,
+      agentTimeoutMs: options.agentTimeoutMs,
       onStderr: reporter.onStderr,
     });
   }
@@ -814,6 +819,7 @@ export function summarizeRun(result) {
     signal: result.signal,
     timedOut: result.timedOut,
     idleTimedOut: result.idleTimedOut ?? false,
+    agentTimedOut: result.agentTimedOut ?? false,
     spawnError: result.spawnError ?? null,
     startedAt: result.startedAt,
     endedAt: result.endedAt,

@@ -60,6 +60,28 @@ test('runProcess kills an idle child before the total timeout', async () => {
   assert.notEqual(result.signal, null);
 });
 
+test('runProcess kills a noisy child at the agent timeout budget', async () => {
+  const script = [
+    'setInterval(() => console.error("still noisy"), 20);',
+    'setTimeout(() => {}, 30000);',
+  ].join('\n');
+
+  const startedAt = Date.now();
+  const result = await runProcess(process.execPath, ['-e', script], {
+    timeoutMs: 30000,
+    idleTimeoutMs: 1000,
+    agentTimeoutMs: 150,
+  });
+  const elapsedMs = Date.now() - startedAt;
+
+  assert.equal(result.agentTimedOut, true);
+  assert.equal(result.idleTimedOut, false);
+  assert.equal(result.timedOut, false);
+  assert.ok(elapsedMs < 5000, `expected agent timeout quickly, elapsed ${elapsedMs}ms`);
+  assert.match(result.stderr, /still noisy/);
+  assert.notEqual(result.signal, null);
+});
+
 test('resolveEntryGates throws for unknown gatesKey', () => {
   assert.throws(
     () => resolveEntryGates({
@@ -228,6 +250,7 @@ test('buildLoopArgsForQueueEntry uses worktree and omits fix-cwd', () => {
       maxIterations: 3,
       timeoutMs: 600000,
       agentIdleTimeoutMs: 120000,
+      agentTimeoutMs: 240000,
       lang: 'zh-CN',
       pythonExe: 'tws-ai-slide-rule-python/.venv/Scripts/python.exe',
     },
@@ -252,6 +275,7 @@ test('buildLoopArgsForQueueEntry uses worktree and omits fix-cwd', () => {
   assert.deepEqual(args.slice(args.indexOf('--fix-model'), args.indexOf('--fix-model') + 2), ['--fix-model', 'gpt-5.5']);
   assert.deepEqual(args.slice(args.indexOf('--review-model'), args.indexOf('--review-model') + 2), ['--review-model', 'gpt-5.5']);
   assert.deepEqual(args.slice(args.indexOf('--agent-idle-timeout-ms'), args.indexOf('--agent-idle-timeout-ms') + 2), ['--agent-idle-timeout-ms', '120000']);
+  assert.deepEqual(args.slice(args.indexOf('--agent-timeout-ms'), args.indexOf('--agent-timeout-ms') + 2), ['--agent-timeout-ms', '240000']);
   assert.match(gateArg, /test_client_parity\.py/);
   assert.match(gateArg, /& "/);
   assert.match(gateArg, /tws-ai-slide-rule-python[\\/]\.venv[\\/]Scripts[\\/]python\.exe/);

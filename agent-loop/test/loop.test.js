@@ -45,6 +45,7 @@ test('parseLoopArgs requires cwd, task, and at least one gate', () => {
       reviewMaxTurns: 2,
       timeoutMs: 120000,
       agentIdleTimeoutMs: null,
+      agentTimeoutMs: null,
       maxIterations: 3,
       grokMaxTurns: 4,
       grokMaxRetries: 1,
@@ -297,6 +298,28 @@ test('parseLoopArgs supports agent idle timeout budget', () => {
       '--agent-idle-timeout-ms', '0',
     ]),
     /--agent-idle-timeout-ms must be a positive integer/,
+  );
+});
+
+test('parseLoopArgs supports agent wall-clock timeout budget', () => {
+  const parsed = parseLoopArgs([
+    '--cwd', 'C:\\repo',
+    '--fix-cwd', 'C:\\repo',
+    '--task', 'task.md',
+    '--gate', 'npm test',
+    '--agent-timeout-ms', '600000',
+  ]);
+
+  assert.equal(parsed.agentTimeoutMs, 600000);
+  assert.throws(
+    () => parseLoopArgs([
+      '--cwd', 'C:\\repo',
+      '--fix-cwd', 'C:\\repo',
+      '--task', 'task.md',
+      '--gate', 'npm test',
+      '--agent-timeout-ms', '0',
+    ]),
+    /--agent-timeout-ms must be a positive integer/,
   );
 });
 
