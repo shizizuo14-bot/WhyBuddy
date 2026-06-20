@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 Python runtime bridge、Node executor client 映射和测试；reviewer 确认没有启动真实 executor worker 或扩大到完整任务系统。
 
 ### 状态清单
-- [ ] Python runtime bridge 支持 start/status/cancel/read envelope。
-- [ ] Node executor client 能映射 completed/failed/cancelled/error。
-- [ ] timeout/cancel/error 不伪装成 success。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有启动真实 executor。
+- [x] Python runtime bridge 支持 start/status/cancel/read envelope。
+- [x] Node executor client 能映射 completed/failed/cancelled/error。
+- [x] timeout/cancel/error 不伪装成 success。
+- [x] gate 全绿。
+- [x] Codex review 确认没有启动真实 executor。
 
 ## 目标
 
