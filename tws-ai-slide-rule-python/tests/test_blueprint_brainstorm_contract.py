@@ -168,6 +168,7 @@ def _partial_output() -> dict:
     payload["status"] = "partial"
     payload["partialReason"] = "reasoning graph projected, synthesis incomplete"
     payload.pop("decision")
+    payload.pop("reasoning")
     return payload
 
 
@@ -241,11 +242,15 @@ def _assert_contract_output(payload: dict) -> None:
         assert _is_non_empty_string(payload.get("partialReason"))
         _assert_graph_contract(payload["graph"])
         assert "decision" not in payload
+        assert "reasoning" not in payload
+        assert "error" not in payload
         return
 
     assert payload["status"] == "error"
     assert "graph" not in payload
     assert "decision" not in payload
+    assert "reasoning" not in payload
+    assert "partialReason" not in payload
     error = payload.get("error")
     assert isinstance(error, dict)
     assert _is_non_empty_string(error.get("code"))
@@ -301,3 +306,25 @@ def test_partial_output_cannot_be_promoted_to_completed_without_decision():
         return
 
     raise AssertionError("partial brainstorm output must not validate as completed")
+
+
+def test_status_specific_fields_do_not_cross_contract_boundaries():
+    partial_with_completed_reasoning = _partial_output()
+    partial_with_completed_reasoning["reasoning"] = "completed-only reasoning"
+
+    try:
+        _assert_contract_output(partial_with_completed_reasoning)
+    except AssertionError:
+        pass
+    else:
+        raise AssertionError("partial brainstorm output must not accept completed reasoning")
+
+    error_with_partial_reason = _error_output()
+    error_with_partial_reason["partialReason"] = "partial-only field"
+
+    try:
+        _assert_contract_output(error_with_partial_reason)
+    except AssertionError:
+        return
+
+    raise AssertionError("error brainstorm output must not accept partial fields")

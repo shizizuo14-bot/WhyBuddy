@@ -176,5 +176,17 @@ describe("Blueprint brainstorm Python contract", () => {
         status: "completed",
       }),
     ).toBe(false);
+    expect(
+      isBlueprintBrainstormPythonContractOutput({
+        ...partial,
+        reasoning: "completed-only reasoning",
+      }),
+    ).toBe(false);
+    expect(
+      isBlueprintBrainstormPythonContractOutput({
+        ...error,
+        partialReason: "partial-only field",
+      }),
+    ).toBe(false);
   });
 });

@@ -576,6 +576,7 @@ export function isBlueprintBrainstormPythonContractOutput(
       isBrainstormReasoningGraphContract(record.graph) &&
       isNonEmptyString(record.partialReason) &&
       record.decision === undefined &&
+      record.reasoning === undefined &&
       record.error === undefined
     );
   }
@@ -590,7 +591,8 @@ export function isBlueprintBrainstormPythonContractOutput(
       typeof error.retryable === "boolean" &&
       record.graph === undefined &&
       record.decision === undefined &&
-      record.reasoning === undefined
+      record.reasoning === undefined &&
+      record.partialReason === undefined
     );
   }
 
