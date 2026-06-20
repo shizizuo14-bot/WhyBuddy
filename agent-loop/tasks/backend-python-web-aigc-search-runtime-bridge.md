@@ -1,16 +1,16 @@
 # 后端 NodeJS 到 Python 迁移：Web AIGC search runtime bridge
 
 ## 执行状态
-- 状态：待执行
+- 状态：人工接管完成
 - 目标：把 Web AIGC search adapter（搜索适配器）从 contract-only（只有契约）推进到 Python runtime bridge（运行时桥）。
 - 角色分工：worker 负责 Python runtime bridge 和 Node proxy test；reviewer 确认不发真实外部搜索请求。
 
 ### 状态清单
-- [ ] Python search runtime bridge 支持 web/graph/image/static page 四类形状。
-- [ ] Node adapter 能在 Python backend 开关下调用 runtime bridge。
-- [ ] empty/error/permission denied 不伪装成 success。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有真实外部网络依赖。
+- [x] Python search runtime bridge 支持 web/graph/image/static page 四类形状。
+- [x] Node adapter 能在 Python backend 开关下调用 runtime bridge。
+- [x] empty/error/permission denied 不伪装成 success。
+- [x] gate 全绿。
+- [x] Codex review 确认没有真实外部网络依赖。
 
 ## 目标
 

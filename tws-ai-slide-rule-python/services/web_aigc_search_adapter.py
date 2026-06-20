@@ -72,6 +72,20 @@ class SearchAdapterError(BaseModel):
         return _non_empty(value)
 
 
+class SearchRuntimeBridgeMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    backend: Literal["python"] = "python"
+    provider: Literal["fake"] = "fake"
+    source: str
+    externalCalls: Literal[False] = False
+
+    @field_validator("source")
+    @classmethod
+    def _validate_non_empty(cls, value: str) -> str:
+        return _non_empty(value)
+
+
 class WebSearchResultItem(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -214,6 +228,7 @@ class WebSearchSuccessResponse(SearchAdapterBaseResponse):
     status: Literal["success"] = "success"
     results: List[WebSearchResultItem]
     totalCandidates: int
+    runtime: Optional[SearchRuntimeBridgeMetadata] = None
 
     @model_validator(mode="after")
     def _validate_results(self) -> "WebSearchSuccessResponse":
@@ -230,6 +245,7 @@ class GraphSearchSuccessResponse(SearchAdapterBaseResponse):
     status: Literal["success"] = "success"
     graph: GraphPayload
     metrics: GraphMetrics
+    runtime: Optional[SearchRuntimeBridgeMetadata] = None
 
     @model_validator(mode="after")
     def _validate_metrics(self) -> "GraphSearchSuccessResponse":
@@ -250,6 +266,7 @@ class ImageSearchSuccessResponse(SearchAdapterBaseResponse):
     status: Literal["success"] = "success"
     results: List[ImageSearchResultItem]
     totalCandidates: int
+    runtime: Optional[SearchRuntimeBridgeMetadata] = None
 
     @model_validator(mode="after")
     def _validate_results(self) -> "ImageSearchSuccessResponse":
@@ -265,6 +282,7 @@ class StaticWebpageReadSuccessResponse(SearchAdapterBaseResponse):
     kind: Literal["static_webpage_read"]
     status: Literal["success"] = "success"
     page: StaticWebpagePage
+    runtime: Optional[SearchRuntimeBridgeMetadata] = None
 
 
 class SearchAdapterEmptyResponse(SearchAdapterBaseResponse):
@@ -272,6 +290,7 @@ class SearchAdapterEmptyResponse(SearchAdapterBaseResponse):
     status: Literal["empty"] = "empty"
     results: List[Any] = Field(default_factory=list)
     totalCandidates: Literal[0] = 0
+    runtime: Optional[SearchRuntimeBridgeMetadata] = None
 
     @model_validator(mode="after")
     def _validate_empty(self) -> "SearchAdapterEmptyResponse":
@@ -284,6 +303,7 @@ class SearchAdapterErrorResponse(SearchAdapterBaseResponse):
     ok: Literal[False] = False
     status: Literal["error", "permission_denied"]
     error: SearchAdapterError
+    runtime: Optional[SearchRuntimeBridgeMetadata] = None
 
 
 SearchAdapterResponse = Union[
@@ -450,6 +470,21 @@ def execute_fake_search_adapter(payload: Dict[str, Any]) -> SearchAdapterRespons
     )
 
 
+def execute_search_runtime_bridge(payload: Dict[str, Any]) -> SearchAdapterResponse:
+    """Project a Python runtime bridge response without external calls.
+
+    This is intentionally backed by the fake provider. The runtime metadata is
+    the contract line that tells Node this came through Python and did not call
+    live search, graph, image, or webpage services.
+    """
+
+    response = execute_fake_search_adapter(payload)
+    response.runtime = SearchRuntimeBridgeMetadata(
+        source=_runtime_source_for_kind(response.kind),
+    )
+    return response
+
+
 def _read_kind(value: Any) -> SearchAdapterKind:
     if value in {"web_search", "graph_search", "image_search", "static_webpage_read"}:
         return value
@@ -484,6 +519,15 @@ def _source_for_kind(kind: SearchAdapterKind) -> str:
         "graph_search": "fake-graph-search",
         "image_search": "fake-image-search",
         "static_webpage_read": "fake-static-webpage-read",
+    }[kind]
+
+
+def _runtime_source_for_kind(kind: SearchAdapterKind) -> str:
+    return {
+        "web_search": "python-web-search-runtime",
+        "graph_search": "python-graph-search-runtime",
+        "image_search": "python-image-search-runtime",
+        "static_webpage_read": "python-static-webpage-read-runtime",
     }[kind]
 
 
