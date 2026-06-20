@@ -380,16 +380,16 @@ export interface RAGIngestionPythonRuntimeEmbedding {
 export interface RAGIngestionPythonRuntimeUpsert {
   collection: string;
   attempted: boolean;
-  stored: false;
-  upsertedCount: 0;
+  stored: boolean;
+  upsertedCount: number;
   recordIds: string[];
 }
 
 export interface RAGIngestionPythonRuntimeDelete {
   collection: string;
   attempted: boolean;
-  deleted: false;
-  deletedCount: 0;
+  deleted: boolean;
+  deletedCount: number;
   targetIds: string[];
 }
 
@@ -403,8 +403,8 @@ interface RAGIngestionPythonRuntimeBaseResult {
   projectId: string;
   sourceType: SourceType;
   sourceId: string;
-  storage: "contract-only";
-  migratedStorage: false;
+  storage: "contract-only" | "memory" | "unavailable";
+  migratedStorage: boolean;
   provenance: RAGIngestionPythonRuntimeProvenance;
   lifecycle: RAGIngestionPythonRuntimeLifecycle;
   feedback: RAGIngestionPythonRuntimeFeedback;
@@ -485,7 +485,17 @@ export function isRAGIngestionPythonRuntimeResult(
   if (!ragIngestionNonEmptyString(record.projectId)) return false;
   if (!ragIngestionOneOf(record.sourceType, SOURCE_TYPES)) return false;
   if (!ragIngestionNonEmptyString(record.sourceId)) return false;
-  if (record.storage !== "contract-only" || record.migratedStorage !== false) return false;
+  if (!ragIngestionOneOf(record.storage, ["contract-only", "memory", "unavailable"] as const)) {
+    return false;
+  }
+  const mutatesStorage = record.operation === "upsert" || record.operation === "delete";
+  if (record.status === "failed" || record.status === "unavailable") {
+    if (record.migratedStorage !== false) return false;
+  } else if (record.storage === "memory" && mutatesStorage) {
+    if (record.migratedStorage !== true) return false;
+  } else if (record.migratedStorage !== false) {
+    return false;
+  }
   if (!isRAGIngestionRuntimeProvenance(record.provenance)) return false;
   if (!isRAGIngestionRuntimeLifecycle(record.lifecycle)) return false;
   if (!isRAGIngestionRuntimeFeedback(record.feedback)) return false;
@@ -514,8 +524,10 @@ export function isRAGIngestionPythonRuntimeResult(
       record.embeddings.every(isRAGIngestionRuntimeEmbedding)
     );
   }
-  if (record.operation === "upsert") return isRAGIngestionRuntimeUpsert(record.upsert);
-  return isRAGIngestionRuntimeDelete(record.delete);
+  if (record.operation === "upsert") {
+    return isRAGIngestionRuntimeUpsert(record.upsert, record.storage);
+  }
+  return isRAGIngestionRuntimeDelete(record.delete, record.storage);
 }
 
 function isRAGIngestionRuntimeProvenance(
@@ -631,30 +643,38 @@ function isRAGIngestionRuntimeEmbedding(
 
 function isRAGIngestionRuntimeUpsert(
   value: unknown,
+  storage: "contract-only" | "memory" | "unavailable",
 ): value is RAGIngestionPythonRuntimeUpsert {
   const upsert = ragIngestionAsRecord(value);
-  return (
-    upsert !== null &&
-    ragIngestionNonEmptyString(upsert.collection) &&
-    typeof upsert.attempted === "boolean" &&
-    upsert.stored === false &&
-    upsert.upsertedCount === 0 &&
-    ragIngestionStringArray(upsert.recordIds)
-  );
+  if (!upsert) return false;
+  if (!ragIngestionNonEmptyString(upsert.collection)) return false;
+  if (typeof upsert.attempted !== "boolean") return false;
+  if (typeof upsert.stored !== "boolean") return false;
+  if (!ragIngestionNonNegativeNumber(upsert.upsertedCount)) return false;
+  if (!ragIngestionCountMatchesFlag(upsert.upsertedCount, upsert.stored)) return false;
+  if (!ragIngestionStringArray(upsert.recordIds)) return false;
+  if (storage === "contract-only") {
+    return upsert.stored === false && upsert.upsertedCount === 0;
+  }
+  return storage === "memory";
 }
 
 function isRAGIngestionRuntimeDelete(
   value: unknown,
+  storage: "contract-only" | "memory" | "unavailable",
 ): value is RAGIngestionPythonRuntimeDelete {
   const deleted = ragIngestionAsRecord(value);
-  return (
-    deleted !== null &&
-    ragIngestionNonEmptyString(deleted.collection) &&
-    typeof deleted.attempted === "boolean" &&
-    deleted.deleted === false &&
-    deleted.deletedCount === 0 &&
-    ragIngestionStringArray(deleted.targetIds)
-  );
+  if (!deleted) return false;
+  if (!ragIngestionNonEmptyString(deleted.collection)) return false;
+  if (typeof deleted.attempted !== "boolean") return false;
+  if (typeof deleted.deleted !== "boolean") return false;
+  if (!ragIngestionNonNegativeNumber(deleted.deletedCount)) return false;
+  if (!ragIngestionCountMatchesFlag(deleted.deletedCount, deleted.deleted)) return false;
+  if (!ragIngestionStringArray(deleted.targetIds)) return false;
+  if (storage === "contract-only") {
+    return deleted.deleted === false && deleted.deletedCount === 0;
+  }
+  return storage === "memory";
 }
 
 function hasAnyRAGIngestionRuntimePayload(record: Record<string, unknown>): boolean {
@@ -695,6 +715,10 @@ function ragIngestionStringArray(value: unknown): value is string[] {
 
 function ragIngestionNonNegativeNumber(value: unknown): value is number {
   return typeof value === "number" && Number.isFinite(value) && value >= 0;
+}
+
+function ragIngestionCountMatchesFlag(count: number, flag: boolean): boolean {
+  return flag ? count > 0 : count === 0;
 }
 
 function ragIngestionPositiveNumber(value: unknown): value is number {

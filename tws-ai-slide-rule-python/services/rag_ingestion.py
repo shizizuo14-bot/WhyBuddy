@@ -26,6 +26,7 @@ RAGIngestionRuntimeOperation = Literal[
     "delete",
 ]
 RAGIngestionRuntimeStatus = Literal["completed", "failed", "unavailable"]
+RAGIngestionStorageKind = Literal["contract-only", "memory", "unavailable"]
 RAGIngestionSourceType = Literal[
     "task_result",
     "code_snippet",
@@ -207,12 +208,6 @@ class RAGIngestionRuntimeUpsert(BaseModel):
     def _validate_record_ids(cls, value: List[str]) -> List[str]:
         return [_non_empty(item) for item in value]
 
-    @model_validator(mode="after")
-    def _validate_contract_only_storage(self) -> "RAGIngestionRuntimeUpsert":
-        if self.stored or self.upsertedCount != 0:
-            raise ValueError("contract-only upsert must not claim stored records")
-        return self
-
 
 class RAGIngestionRuntimeDelete(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -233,12 +228,6 @@ class RAGIngestionRuntimeDelete(BaseModel):
     def _validate_target_ids(cls, value: List[str]) -> List[str]:
         return [_non_empty(item) for item in value]
 
-    @model_validator(mode="after")
-    def _validate_contract_only_delete(self) -> "RAGIngestionRuntimeDelete":
-        if self.deleted or self.deletedCount != 0:
-            raise ValueError("contract-only delete must not claim deleted records")
-        return self
-
 
 class RAGIngestionRuntimeBaseResult(BaseModel):
     model_config = ConfigDict(extra="forbid")
@@ -254,8 +243,8 @@ class RAGIngestionRuntimeBaseResult(BaseModel):
     projectId: str
     sourceType: RAGIngestionSourceType
     sourceId: str
-    storage: Literal["contract-only"] = "contract-only"
-    migratedStorage: Literal[False] = False
+    storage: RAGIngestionStorageKind = "contract-only"
+    migratedStorage: bool = False
     provenance: RAGIngestionRuntimeProvenance
     lifecycle: RAGIngestionRuntimeLifecycle
     feedback: RAGIngestionRuntimeFeedback
@@ -294,6 +283,14 @@ class RAGIngestionRuntimeCompletedResult(RAGIngestionRuntimeBaseResult):
         ]
         if extras:
             raise ValueError("completed result contains mismatched operation payload")
+        if self.storage == "contract-only" and self.migratedStorage:
+            raise ValueError("contract-only result must not claim migrated storage")
+        if self.storage == "contract-only" and self.upsert is not None:
+            if self.upsert.stored or self.upsert.upsertedCount != 0:
+                raise ValueError("contract-only upsert must not claim stored records")
+        if self.storage == "contract-only" and self.delete is not None:
+            if self.delete.deleted or self.delete.deletedCount != 0:
+                raise ValueError("contract-only delete must not claim deleted records")
         return self
 
 
@@ -305,7 +302,10 @@ class RAGIngestionRuntimeFailureResult(RAGIngestionRuntimeBaseResult):
     @model_validator(mode="after")
     def _validate_failure_payload(self) -> "RAGIngestionRuntimeFailureResult":
         if self.status == "unavailable" and self.error.code != "python_rag_ingestion_unavailable":
-            raise ValueError("unavailable result requires python_rag_ingestion_unavailable error")
+            if self.error.code != "python_rag_ingestion_storage_unavailable":
+                raise ValueError("unavailable result requires python rag ingestion unavailable error")
+        if self.migratedStorage:
+            raise ValueError("failure result must not claim migrated storage")
         return self
 
 
@@ -387,6 +387,21 @@ def project_rag_ingestion_runtime_contract(payload: Dict[str, Any]) -> RAGIngest
             targetIds=[chunk.chunkId for chunk in chunks],
         ),
     )
+
+
+def project_rag_ingestion_production_storage(
+    payload: Dict[str, Any],
+    *,
+    storage: Any,
+) -> RAGIngestionRuntimeResult:
+    """Project the production storage adapter through the main contract module."""
+
+    from services.rag_service import run_rag_ingestion_production_storage
+
+    result = run_rag_ingestion_production_storage(payload, storage=storage)
+    if result.get("ok") is False:
+        return RAGIngestionRuntimeFailureResult(**result)
+    return RAGIngestionRuntimeCompletedResult(**result)
 
 
 def _read_operation(value: Any) -> RAGIngestionRuntimeOperation:

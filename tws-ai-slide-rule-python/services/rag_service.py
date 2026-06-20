@@ -8,7 +8,8 @@ For production, replace retrieve with real Qdrant embedding search (see referenc
 Always returns structured external evidence/sources so mcp/skill/evidence/report succeed with "检索了外部证据".
 """
 
-from typing import Dict, List, Any
+import hashlib
+from typing import Dict, List, Any, Optional
 import re
 
 # Permission/RBAC knowledge base (expanded for real V5 use cases like the fixtures goal "分析权限系统的风险并给出最终报告")
@@ -194,3 +195,314 @@ def knowledge_admin_proxy_contract(payload: Dict[str, Any]) -> Dict[str, Any]:
         "deletedId": str(payload.get("itemId") or payload.get("id") or ""),
         "deleted": False,
     }
+
+
+RAG_INGESTION_PRODUCTION_CONTRACT_VERSION = "rag-ingestion.runtime.v1"
+RAG_INGESTION_FAKE_EMBEDDING_PROVIDER = "fake-contract-embedding"
+RAG_INGESTION_FAKE_EMBEDDING_MODEL = "fake-rag-ingestion-v1"
+RAG_INGESTION_SOURCE_TYPES = {
+    "task_result",
+    "code_snippet",
+    "conversation",
+    "mission_log",
+    "document",
+    "architecture_decision",
+    "bug_report",
+}
+
+
+class RAGIngestionStorageUnavailable(Exception):
+    """Raised when the configured ingestion storage cannot accept writes."""
+
+
+class MemoryRAGIngestionStorageAdapter:
+    """In-memory storage adapter for production-wiring tests.
+
+    It proves the storage boundary can mutate an injected adapter without
+    connecting to a real vector store or production knowledge base.
+    """
+
+    storage_name = "memory"
+
+    def __init__(self) -> None:
+        self.records: Dict[str, Dict[str, Any]] = {}
+
+    def upsert(self, records: List[Dict[str, Any]], collection: str) -> Dict[str, Any]:
+        for record in records:
+            self.records[str(record["id"])] = {**record, "collection": collection}
+        return {
+            "collection": collection,
+            "attempted": True,
+            "stored": True,
+            "upsertedCount": len(records),
+            "recordIds": [str(record["id"]) for record in records],
+        }
+
+    def delete(self, ids: List[str], collection: str) -> Dict[str, Any]:
+        deleted = 0
+        for item_id in ids:
+            if self.records.pop(item_id, None) is not None:
+                deleted += 1
+        # This adapter is intentionally idempotent: a delete request for known
+        # target IDs is considered accepted even when the test did not preseed.
+        return {
+            "collection": collection,
+            "attempted": True,
+            "deleted": True,
+            "deletedCount": len(ids) if ids else deleted,
+            "targetIds": ids,
+        }
+
+
+class UnavailableRAGIngestionStorageAdapter:
+    storage_name = "unavailable"
+
+    def __init__(self, message: str = "RAG ingestion storage is unavailable.") -> None:
+        self.message = message
+
+    def upsert(self, records: List[Dict[str, Any]], collection: str) -> Dict[str, Any]:
+        raise RAGIngestionStorageUnavailable(self.message)
+
+    def delete(self, ids: List[str], collection: str) -> Dict[str, Any]:
+        raise RAGIngestionStorageUnavailable(self.message)
+
+
+def run_rag_ingestion_production_storage(
+    payload: Dict[str, Any],
+    *,
+    storage: Optional[Any] = None,
+) -> Dict[str, Any]:
+    """Run the minimal production-storage boundary for RAG ingestion.
+
+    The caller injects storage. No default Qdrant/Postgres/object-store client is
+    created here, so tests and routine gates never touch external services.
+    """
+
+    operation = _read_rag_ingestion_operation(payload.get("operation"))
+    storage_adapter = storage or UnavailableRAGIngestionStorageAdapter()
+    base = _build_rag_ingestion_base(payload, storage_name=storage_adapter.storage_name)
+    chunks = _build_rag_ingestion_chunks(payload)
+    collection = _rag_ingestion_collection(base["projectId"])
+
+    if operation == "ingest":
+        return {
+            **base,
+            "operation": "ingest",
+            "ok": True,
+            "status": "completed",
+            "migratedStorage": False,
+            "ingest": {
+                "accepted": True,
+                "chunkCount": len(chunks),
+                "deduplicated": False,
+                "contentHash": _rag_ingestion_hash(_read_rag_ingestion_content(payload)),
+            },
+        }
+
+    if operation == "chunk":
+        return {
+            **base,
+            "operation": "chunk",
+            "ok": True,
+            "status": "completed",
+            "migratedStorage": False,
+            "chunks": chunks,
+        }
+
+    if operation == "embed":
+        return {
+            **base,
+            "operation": "embed",
+            "ok": True,
+            "status": "completed",
+            "migratedStorage": False,
+            "embeddings": [_fake_rag_ingestion_embedding(chunk) for chunk in chunks],
+        }
+
+    try:
+        if operation == "upsert":
+            records = [
+                {
+                    "id": chunk["chunkId"],
+                    "content": chunk["content"],
+                    "metadata": chunk["metadata"],
+                    "vector": _fake_rag_ingestion_embedding(chunk)["vector"],
+                }
+                for chunk in chunks
+            ]
+            return {
+                **base,
+                "operation": "upsert",
+                "ok": True,
+                "status": "completed",
+                "migratedStorage": True,
+                "upsert": storage_adapter.upsert(records, collection),
+            }
+        return {
+            **base,
+            "operation": "delete",
+            "ok": True,
+            "status": "completed",
+            "migratedStorage": True,
+            "delete": storage_adapter.delete(
+                [chunk["chunkId"] for chunk in chunks],
+                collection,
+            ),
+        }
+    except RAGIngestionStorageUnavailable as exc:
+        return _rag_ingestion_storage_unavailable(
+            base,
+            operation=operation,
+            message=str(exc),
+        )
+
+
+def _rag_ingestion_storage_unavailable(
+    base: Dict[str, Any],
+    *,
+    operation: str,
+    message: str,
+) -> Dict[str, Any]:
+    return {
+        **base,
+        "operation": operation,
+        "ok": False,
+        "status": "unavailable",
+        "migratedStorage": False,
+        "deadLetter": {
+            "entryId": f"dlq-{base['ingestionId']}",
+            "retryCount": 0,
+            "stage": "store",
+            "error": message,
+        },
+        "error": {
+            "code": "python_rag_ingestion_storage_unavailable",
+            "message": message,
+            "retryable": True,
+        },
+    }
+
+
+def _build_rag_ingestion_base(
+    payload: Dict[str, Any],
+    *,
+    storage_name: str,
+) -> Dict[str, Any]:
+    return {
+        "contractVersion": RAG_INGESTION_PRODUCTION_CONTRACT_VERSION,
+        "runtime": "python-contract",
+        "ingestionId": _read_rag_ingestion_non_empty(payload.get("ingestionId"), "ingestionId"),
+        "projectId": _read_rag_ingestion_non_empty(payload.get("projectId"), "projectId"),
+        "sourceType": _read_rag_ingestion_source_type(payload.get("sourceType")),
+        "sourceId": _read_rag_ingestion_non_empty(payload.get("sourceId"), "sourceId"),
+        "storage": storage_name,
+        "provenance": _read_rag_ingestion_provenance(payload.get("provenance")),
+        "lifecycle": _read_rag_ingestion_lifecycle(payload.get("lifecycle")),
+        "feedback": _read_rag_ingestion_feedback(payload.get("feedback")),
+    }
+
+
+def _read_rag_ingestion_operation(value: Any) -> str:
+    if value in {"ingest", "chunk", "embed", "upsert", "delete"}:
+        return str(value)
+    raise ValueError("operation must be ingest, chunk, embed, upsert, or delete")
+
+
+def _read_rag_ingestion_non_empty(value: Any, field_name: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{field_name} must be a non-empty string")
+    return value.strip()
+
+
+def _read_rag_ingestion_source_type(value: Any) -> str:
+    if value in RAG_INGESTION_SOURCE_TYPES:
+        return str(value)
+    raise ValueError("sourceType must be a supported RAG source type")
+
+
+def _read_rag_ingestion_content(payload: Dict[str, Any]) -> str:
+    return _read_rag_ingestion_non_empty(payload.get("content"), "content")
+
+
+def _read_rag_ingestion_provenance(value: Any) -> Dict[str, Any]:
+    data = value if isinstance(value, dict) else {}
+    return {
+        "provider": str(data.get("provider") or "memory"),
+        "source": str(data.get("source") or "python-rag-ingestion-production-storage"),
+        **({"auditId": str(data["auditId"])} if data.get("auditId") else {}),
+    }
+
+
+def _read_rag_ingestion_lifecycle(value: Any) -> Dict[str, Any]:
+    data = value if isinstance(value, dict) else {}
+    return {
+        "state": str(data.get("state") or "active"),
+        **({"archiveAfterDays": int(data["archiveAfterDays"])} if data.get("archiveAfterDays") is not None else {}),
+        **({"deleteAfterDays": int(data["deleteAfterDays"])} if data.get("deleteAfterDays") is not None else {}),
+    }
+
+
+def _read_rag_ingestion_feedback(value: Any) -> Dict[str, Any]:
+    data = value if isinstance(value, dict) else {}
+    helpful = data.get("helpfulChunkIds") if isinstance(data.get("helpfulChunkIds"), list) else []
+    irrelevant = (
+        data.get("irrelevantChunkIds")
+        if isinstance(data.get("irrelevantChunkIds"), list)
+        else []
+    )
+    return {
+        "helpfulChunkIds": [str(item) for item in helpful],
+        "irrelevantChunkIds": [str(item) for item in irrelevant],
+        **({"missingContext": str(data["missingContext"])} if data.get("missingContext") else {}),
+    }
+
+
+def _build_rag_ingestion_chunks(payload: Dict[str, Any]) -> List[Dict[str, Any]]:
+    content = _read_rag_ingestion_content(payload)
+    source_type = _read_rag_ingestion_source_type(payload.get("sourceType"))
+    source_id = _read_rag_ingestion_non_empty(payload.get("sourceId"), "sourceId")
+    project_id = _read_rag_ingestion_non_empty(payload.get("projectId"), "projectId")
+    timestamp = _read_rag_ingestion_non_empty(payload.get("timestamp"), "timestamp")
+    metadata = payload.get("metadata") if isinstance(payload.get("metadata"), dict) else {}
+    parts = [part.strip() for part in content.split("\n\n") if part.strip()] or [content]
+    chunks = []
+    for index, part in enumerate(parts):
+        chunks.append({
+            "chunkId": f"{source_type}:{source_id}:{index}",
+            "sourceType": source_type,
+            "sourceId": source_id,
+            "projectId": project_id,
+            "chunkIndex": index,
+            "content": part,
+            "tokenCount": len(part.split()),
+            "metadata": {
+                "ingestedAt": timestamp,
+                "lastAccessedAt": timestamp,
+                "contentHash": _rag_ingestion_hash(part),
+                **metadata,
+            },
+        })
+    return chunks
+
+
+def _fake_rag_ingestion_embedding(chunk: Dict[str, Any]) -> Dict[str, Any]:
+    digest = hashlib.sha256(str(chunk["content"]).encode("utf-8")).digest()
+    vector = [
+        round(int.from_bytes(digest[index : index + 2], "big") / 65535, 4)
+        for index in range(0, 8, 2)
+    ]
+    return {
+        "chunkId": chunk["chunkId"],
+        "provider": RAG_INGESTION_FAKE_EMBEDDING_PROVIDER,
+        "model": RAG_INGESTION_FAKE_EMBEDDING_MODEL,
+        "dimension": 4,
+        "vector": vector,
+    }
+
+
+def _rag_ingestion_hash(value: str) -> str:
+    return f"fake-sha256:{hashlib.sha256(value.encode('utf-8')).hexdigest()}"
+
+
+def _rag_ingestion_collection(project_id: str) -> str:
+    return f"rag_{project_id}"

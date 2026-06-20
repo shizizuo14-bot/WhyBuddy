@@ -1,16 +1,16 @@
 # 后端 NodeJS 到 Python 迁移：RAG ingestion production storage
 
 ## 执行状态
-- 状态：待执行
+- 状态：人工接管完成
 - 目标：把 RAG ingestion（RAG 摄取）从 fake/upsert contract（假写入契约）推进到 production storage（生产存储）最小接线边界。
 - 角色分工：worker 负责 Python storage adapter（存储适配器）和测试；reviewer 确认不连接真实生产库、不提交真实数据。
 
 ### 状态清单
-- [ ] Python 侧有可注入的 ingestion storage adapter。
-- [ ] ingest/chunk/embed/upsert/delete/error 路径能区分 fake、memory、unavailable。
-- [ ] Node proxy test 能确认 failed/unavailable 不伪装成 success。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有真实外部服务或真实知识库副作用。
+- [x] Python 侧有可注入的 ingestion storage adapter。
+- [x] ingest/chunk/embed/upsert/delete/error 路径能区分 fake、memory、unavailable。
+- [x] Node proxy test 能确认 failed/unavailable 不伪装成 success。
+- [x] gate 全绿。
+- [x] Codex review 确认没有真实外部服务或真实知识库副作用。
 
 ## 目标
 
