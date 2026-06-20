@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 contract 和测试；reviewer 确认没有吞掉完整 Blueprint/Autopilot 主流程。
 
 ### 状态清单
-- [ ] Python 侧有 Blueprint main state contract。
-- [ ] Node 侧测试能验证 Python state projection 的兼容形状。
-- [ ] pending/running/done/failed/stale 基本状态形状稳定。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有伪装成完整 Blueprint 主状态机迁移。
+- [x] Python 侧有 Blueprint main state contract。
+- [x] Node 侧测试能验证 Python state projection 的兼容形状。
+- [x] pending/running/done/failed/stale 基本状态形状稳定。
+- [x] gate 全绿。
+- [x] Codex review 确认没有伪装成完整 Blueprint 主状态机迁移。
 
 ## 目标
 
