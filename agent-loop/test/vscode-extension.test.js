@@ -5,6 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
+import vm from 'node:vm';
 
 
 const agentLoopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -503,4 +504,74 @@ test('VSIX contents are self-contained for run summary', async () => {
   assert.match(listing, /extension\/out\/runSummary\.js/);
   assert.match(listing, /extension\/out\/activeLog\.js/);
   assert.match(listing, /extension\/out\/gateSummary\.js/);
+  assert.match(listing, /extension\/media\/dashboard\.js/);
+  assert.match(listing, /extension\/media\/dashboard\.css/);
 });
+
+test('dashboard media renders console overview with stale current run', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderOverview({
+    counts: { total: 3, done: 1, failed: 1, crashed: 0, quarantined: 0, running: 0, pending: 1 },
+    queueRunning: true,
+    current: {
+      taskLabel: 'backend-python-blueprint-brainstorm-contract',
+      phaseLabel: '运行中断',
+      elapsedText: '48 分 12 秒',
+      staleRun: { status: 'CODEX_FIX' },
+    },
+    tasks: [
+      { task: 'agent-loop/tasks/a.md', taskLabel: 'a', badge: 'done', statusLabel: '完成', running: false },
+      { task: 'agent-loop/tasks/b.md', taskLabel: 'b', badge: 'stale', statusLabel: '运行中断', running: false },
+      { task: 'agent-loop/tasks/c.md', taskLabel: 'c', badge: 'pending', statusLabel: null, running: false },
+    ],
+  });
+
+  assert.match(html, /AgentLoop 控制台/);
+  assert.match(html, /运行中断/);
+  assert.match(html, /backend-python-blueprint-brainstorm-contract/);
+  assert.match(html, /queue-table/);
+  assert.match(html, /data-state="stale"/);
+});
+
+test('dashboard media renders detail evidence and log sections', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderDetail({
+    taskLabel: 'backend-python-a2a-invoke-runtime-bridge',
+    runId: '2026-06-21T01-00-00-000Z',
+    status: 'DONE_REVIEWED',
+    phaseLabel: '完成（已 review）',
+    elapsedText: '2 分 03 秒',
+    gateText: '修复 Gate 绿',
+    gateOk: true,
+    agentText: 'Codex',
+    roleText: 'codex 修 + codex 审',
+    runMode: 'codex-fix+codex-review',
+    pipelineSteps: [{ key: 'INIT', label: '初始化' }, { key: 'DONE', label: '完成' }],
+    details: ['worktree: run-a', '已完成迭代 1'],
+    iterations: [{ iteration: 1, gateOk: true, failureCount: 0, diffBytes: 2048, guard: false, attempts: 1 }],
+    reviewRounds: [{ round: 1, verdict: 'pass', decision: 'pass', summary: '边界通过', findings: [] }],
+    agentTail: 'All gates passed',
+    displayGate: { ok: true },
+    landing: { status: 'COMMITTED', committed: true, commit: 'abc1234' },
+    guardPolicy: { protectTests: true, protectTaskDocs: false, protectedGlobs: [] },
+    statePath: 'C:/repo/.agent-loop/latest/state.json',
+  });
+
+  assert.match(html, /run-detail/);
+  assert.match(html, /证据/);
+  assert.match(html, /Review/);
+  assert.match(html, /All gates passed/);
+  assert.match(html, /abc1234/);
+});
+
+async function loadDashboardRenderer() {
+  const source = await fs.readFile(path.join(extensionRoot, 'media', 'dashboard.js'), 'utf8');
+  const sandbox = {
+    window: {},
+    document: { getElementById: () => null },
+    acquireVsCodeApi: () => ({ postMessage: () => {} }),
+  };
+  vm.createContext(sandbox);
+  vm.runInContext(source, sandbox, { filename: 'dashboard.js' });
+  return sandbox.window.AgentLoopDashboardRenderer;
+}
