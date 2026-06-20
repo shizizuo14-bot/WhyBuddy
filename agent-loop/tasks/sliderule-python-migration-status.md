@@ -8,11 +8,11 @@
 
 | 范围 | 当前判断 | 进度条 | 说明 |
 |---|---:|---|---|
-| 整体 NodeJS 后端迁 Python | 约 18-22% | `[██░░░░░░░░]` | 大分母仍是整个 NodeJS backend。SlideRule V5 能力覆盖、LLM infra、RAG/vector/evidence、Blueprint/spec-docs proxy、`mcp.call`/`skill.invoke`/`orchestrate.plan` contract（契约）边界继续推进；但 Blueprint/Autopilot 主状态机、auth/admin/audit/permission、executor/tasks 等大块仍在 Node。 |
-| SlideRule V5 子系统迁移 | 约 88-91% | `[█████████░]` | 对话、审议、结构化报告、delivery chain（交付链）、`outcome.visualize`、`ux.preview`、evidence provenance（证据来源）、runtime config（运行配置）和一批深水区 contract gate（契约门禁）已成片通过；剩余重点是真实 `mcp.call`/`skill.invoke` runtime（运行时）、完整 `orchestrate.plan` 迁移、真实 vector retrieval（向量检索）生产接线和部署观测。 |
+| 整体 NodeJS 后端迁 Python | 约 28-34% | `[███░░░░░░░]` | 大分母仍是整个 NodeJS backend。本轮 24 个 backend-python 切片已 `DONE_REVIEWED`，覆盖 real vector/evidence runtime、`mcp.call`/`skill.invoke` real runtime、`orchestrate.plan` runtime/state projection、Blueprint proxy、auth/admin/audit/permission、executor/session/knowledge-admin 和 LLM 成本/熔断/多模态等边界；但 Blueprint/Autopilot 主状态机、完整 executor/tasks、生产部署观测、真实外部服务接线和大量 Node 路由仍未迁完，不能写成 45%。 |
+| SlideRule V5 子系统迁移 | 约 90-93% | `[█████████░]` | 对话、审议、结构化报告、delivery chain（交付链）、`outcome.visualize`、`ux.preview`、evidence provenance（证据来源）、runtime config（运行配置）和一批深水区 runtime/contract gate（运行时/契约门禁）已成片通过；剩余重点是生产级真实外部依赖、完整 `orchestrate.plan` 主编排迁移、部署观测和长跑稳定性。 |
 | SlideRule V5 Node 到 Python 薄代理链路 | 约 96-98% | `[██████████]` | Python mode、delegation helper、timeout（超时）、health check（健康检查）、contract smoke、delivery/visual/artifact capability 白名单已比较完整；仍需继续守住 live smoke、部署配置和非 capability 编排边界。 |
-| Python V5 可运行基线 | 约 85-89% | `[█████████░]` | Python 服务、核心 smoke、contract expansion、native LLM capability 路径、vector client、evidence provenance、runtime config、real vector retrieval smoke（真实向量检索冒烟测试）和 orchestrate golden smoke（编排黄金样例冒烟测试）已稳定；生产级检索、部署策略和运行观测仍要继续补。 |
-| LLM infra 迁移 | 约 50-58% | `[██████░░░░]` | Python `sliderule_llm` 已支撑 chat、JSON hardening、基础 pool、provider/model fallback、telemetry metadata、vector client、stream contract（流式契约）和 pool resilience（池子韧性）；多模态、真实成本计算、完整并发/熔断/观测等全后端底座仍未完全对齐 Node。 |
+| Python V5 可运行基线 | 约 88-91% | `[█████████░]` | Python 服务、核心 smoke、contract expansion、native LLM capability 路径、vector client、evidence provenance、runtime config、real vector retrieval runtime/production wiring（真实向量检索运行时/生产接线）和 orchestrate runtime/state projection 已稳定；生产部署策略、真实外部依赖和运行观测仍要继续补。 |
+| LLM infra 迁移 | 约 58-65% | `[██████░░░░]` | Python `sliderule_llm` 已支撑 chat、JSON hardening、基础 pool、provider/model fallback、telemetry metadata、vector client、stream contract（流式契约）、pool resilience（池子韧性）、cost runtime accounting（成本运行时记账）、circuit breaker（熔断）和 multimodal contract（多模态契约）；完整并发、真实生产计费、跨后端观测和 Node 全量 env 细节仍未完全对齐。 |
 | 能力覆盖 | 高 | `[████████░░]` | 当前已记录的主要 SlideRule V5 `python-llm` 能力包括对话、审议、report、structure、risk/evidence、delivery chain、`outcome.visualize`、`ux.preview`；未审计边界仍不能自动视为完成。 |
 
 ## 重要口径
@@ -20,6 +20,8 @@
 2026-06-19 的 15 项 migration queue（迁移队列）已经收尾并分片提交，但这批主要是 **Codex 人工接管实现 + gate 验证**，不是 Grok 自动批量干活的证明。
 
 2026-06-20 的 8 项 backend migration push（后端迁移推进队列）也已收尾并分片提交：real vector retrieval smoke（真实向量检索冒烟测试）、evidence Node proxy contract（证据 Node 代理契约）、`orchestrate.plan` contract（编排计划契约）、`orchestrate.plan` golden smoke（黄金样例冒烟测试）、`mcp.call` contract、`skill.invoke` contract、LLM stream contract（流式契约）和 LLM pool resilience（池子韧性）都已经通过对应 gate（门禁）。
+
+2026-06-20 后续“冲 45%”队列实际结果是 **24/25 个任务 `DONE_REVIEWED`**：代码/测试切片已通过对应 gate，最后的 `backend-python-migration-status-refresh-45` 只是进度刷新文档任务，第一次自动回修没有产生有效 diff，因此记录为 `HALT_NO_CHANGES`，由人工按证据收束本段。这个结果说明整体进度已经从 1 开头推进到 2/3 开头，但 **45% 仍是下一阶段目标，不是当前已达成事实**。
 
 这代表：
 
@@ -139,7 +141,7 @@ Phase 0 盘点之后，batch-2、batch-3、15 项 migration queue 和 8 项 back
 - `tws-ai-slide-rule-python/` 当前主要覆盖 SlideRule V5 baseline 和一批 native LLM capability（原生大模型能力），不是整个后端的 Python 替代服务。
 - `intent.clarify`、`gap.ask`、`question.expand`、审议族、`report.write`、`structure.decompose`、`risk.analyze`、`evidence.search`、batch-3 delivery chain（交付链）已是真 LLM 或 Python native JSON LLM。
 - 最近 batch-3、15 项 migration queue 和 8 项 backend migration push 里，多数实现由 Codex 人工接管完成，并且每片跑过对应 gate；这代表迁移切片本身前进，不代表 Grok 自动修复能力或整个后端迁移完成。
-- 8 项 backend migration push 的价值主要是把深水区边界变硬：真实检索 smoke、evidence proxy、`mcp.call`、`skill.invoke`、`orchestrate.plan`、LLM stream、LLM pool resilience 都有了更明确的测试和契约。
+- 8 项 backend migration push 和后续 24 个 `DONE_REVIEWED` 切片的价值主要是把深水区边界变硬：真实检索 production wiring、evidence runtime、`mcp.call`/`skill.invoke` real runtime、`orchestrate.plan` runtime/state projection、Blueprint proxy、auth/admin/audit/permission、executor/session/knowledge-admin、LLM cost/circuit breaker/multimodal 都有了更明确的测试和契约。
 
 Phase 0 盘点任务文档：`agent-loop/tasks/backend-python-phase0-inventory.md`
 
@@ -173,7 +175,7 @@ LLM config parity 任务文档：`agent-loop/tasks/backend-python-llm-config-par
 - `BLUEPRINT_SPEC_DOCS_LLM_POOL_WIRE_API`、更完整 pool metadata、spec-doc markdown 形状校验。
 - 代理环境下的 `NO_PROXY` / `LLM_PROXY_THROUGH` 等 Node 侧运行细节。
 
-所以 LLM infra 单层可以记为 **约 50-58%**；整体后端仍只按 **约 18-22%** 记录。不要因为 SlideRule V5 的 capability 覆盖提升，就把整个 Node backend 的迁移比例一起抬高。
+所以 LLM infra 单层可以记为 **约 58-65%**；整体后端按 **约 28-34%** 记录。不要因为 SlideRule V5 的 capability 覆盖提升，就把整个 Node backend 的迁移比例一起抬高，更不能把“目标 45%”写成已经达成。
 
 `agent-loop` 可以用于 NodeJS 到 Python 迁移，而且方向合适。但它的定位应该是：
 
