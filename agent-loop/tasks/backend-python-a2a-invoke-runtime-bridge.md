@@ -1,16 +1,16 @@
 # 后端 NodeJS 到 Python 迁移：A2A invoke runtime bridge
 
 ## 执行状态
-- 状态：待执行
+- 状态：人工接管完成
 - 目标：把 A2A invoke/list/cancel 从 contract 推进到 Python runtime bridge，不碰复杂 stream 长链路。
 - 角色分工：worker 负责 invoke/list/cancel bridge 和测试；reviewer 确认不启动真实外部 agent。
 
 ### 状态清单
-- [ ] Python runtime bridge 支持 invoke、list agents、cancel。
-- [ ] Node route/client 能映射 Python completed/failed/cancelled。
-- [ ] cancelled/error 不伪装成 completed。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有真实 agent 副作用。
+- [x] Python runtime bridge 支持 invoke、list agents、cancel。
+- [x] Node route/client 能映射 Python completed/failed/cancelled。
+- [x] cancelled/error 不伪装成 completed。
+- [x] gate 全绿。
+- [x] Codex review 确认没有真实 agent 副作用。
 
 ## 目标
 

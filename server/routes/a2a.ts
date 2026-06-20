@@ -139,7 +139,10 @@ router.post("/cancel", async (req, res) => {
     const result = await a2aServer.handleCancel(sessionId, token);
 
     if (result.error) {
-      const statusCode = result.error.code === A2A_ERROR_CODES.AUTH_FAILED ? 401 : 500;
+      const statusCode =
+        result.error.code === A2A_ERROR_CODES.AUTH_FAILED ? 401
+        : result.error.code === A2A_ERROR_CODES.CANCELLED ? 200
+        : 500;
       return res.status(statusCode).json(result);
     }
 

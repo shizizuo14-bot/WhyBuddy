@@ -225,7 +225,10 @@ export class A2AServer {
     return {
       jsonrpc: "2.0",
       id: sessionId,
-      result: { output: "cancelled", artifacts: [], metadata: {} },
+      error: {
+        code: A2A_ERROR_CODES.CANCELLED,
+        message: "A2A session cancelled.",
+      },
     };
   }
 

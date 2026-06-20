@@ -210,7 +210,7 @@
       "gatesKey": "a2aInvokeRuntimeBridgeGates",
       "enabled": true,
       "guardTests": false,
-      "grokMaxTurns": 16,
+      "grokMaxTurns": 40,
       "maxIterations": 3
     },
     {

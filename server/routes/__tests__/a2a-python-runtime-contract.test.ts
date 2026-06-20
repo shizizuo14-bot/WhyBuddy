@@ -269,7 +269,11 @@ describe("A2A Python runtime contract", () => {
         const cancelBody = await cancelResponse.json();
 
         expect(cancelResponse.status).toBe(200);
-        expect(cancelBody.result.output).toBe("cancelled");
+        expect(cancelBody.result).toBeUndefined();
+        expect(cancelBody.error).toEqual({
+          code: A2A_ERROR_CODES.CANCELLED,
+          message: "A2A session cancelled.",
+        });
 
         const agentsResponse = await fetch(`${baseUrl}/api/a2a/agents`);
         const agentsBody = await agentsResponse.json();

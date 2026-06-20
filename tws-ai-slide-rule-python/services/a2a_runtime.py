@@ -401,6 +401,79 @@ def project_a2a_runtime_contract(payload: Dict[str, Any]) -> A2ARuntimeResult:
     )
 
 
+def invoke_a2a_runtime_bridge(
+    *,
+    envelope: Dict[str, Any],
+    output: str = "",
+    framework_type: A2AFrameworkType = "custom",
+    metadata: Optional[Dict[str, Any]] = None,
+    artifacts: Optional[List[Dict[str, Any]]] = None,
+    error: Optional[Dict[str, Any]] = None,
+    started_at: int = 0,
+    completed_at: Optional[int] = None,
+) -> Union[A2ARuntimeInvokeResult, A2ARuntimeFailureResult]:
+    """Project an invoke bridge result without starting a real external agent."""
+
+    payload: Dict[str, Any] = {
+        "operation": "invoke",
+        "envelope": envelope,
+        "frameworkType": framework_type,
+        "startedAt": started_at,
+        "completedAt": completed_at,
+    }
+    if error is not None:
+        payload.update({"status": "failed", "error": error})
+    else:
+        payload.update({
+            "output": output,
+            "metadata": metadata or {},
+            "artifacts": artifacts or [],
+        })
+    result = project_a2a_runtime_contract(payload)
+    if not isinstance(result, (A2ARuntimeInvokeResult, A2ARuntimeFailureResult)):
+        raise ValueError("invoke bridge returned unexpected operation")
+    return result
+
+
+def list_a2a_runtime_agents(
+    agents: List[Dict[str, Any]],
+) -> A2ARuntimeListAgentsResult:
+    """Project exposed agents into the Python runtime bridge contract."""
+
+    result = project_a2a_runtime_contract({
+        "operation": "list_agents",
+        "agents": agents,
+    })
+    if not isinstance(result, A2ARuntimeListAgentsResult):
+        raise ValueError("list agents bridge returned unexpected operation")
+    return result
+
+
+def cancel_a2a_runtime_bridge(
+    *,
+    envelope: Dict[str, Any],
+    session_id: Optional[str] = None,
+    framework_type: A2AFrameworkType = "custom",
+    started_at: int = 0,
+    completed_at: Optional[int] = None,
+) -> A2ARuntimeCancelResult:
+    """Project a cancellation result; cancelled is never reported as completed."""
+
+    payload: Dict[str, Any] = {
+        "operation": "cancel",
+        "envelope": envelope,
+        "frameworkType": framework_type,
+        "startedAt": started_at,
+        "completedAt": completed_at,
+    }
+    if session_id is not None:
+        payload["sessionId"] = session_id
+    result = project_a2a_runtime_contract(payload)
+    if not isinstance(result, A2ARuntimeCancelResult):
+        raise ValueError("cancel bridge returned unexpected operation")
+    return result
+
+
 def _read_operation(value: Any) -> A2ARuntimeOperation:
     if value in {"invoke", "stream_chunk", "cancel", "list_agents"}:
         return value
