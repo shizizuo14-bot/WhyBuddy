@@ -6,11 +6,11 @@
 - 角色分工：worker 负责契约和 fake runtime；reviewer 确认不读写真实用户文件。
 
 ### 状态清单
-- [ ] Python 侧有 file adapter contract。
-- [ ] Node 侧测试覆盖 generated/sliced/translated/read/extracted。
-- [ ] 文件路径安全和 artifact id 字段稳定。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有真实文件副作用。
+- [x] Python 侧有 file adapter contract。
+- [x] Node 侧测试覆盖 generated/sliced/translated/read/extracted。
+- [x] 文件路径安全和 artifact id 字段稳定。
+- [x] gate 全绿。
+- [x] Codex review 确认没有真实文件副作用。
 
 ## 目标
 

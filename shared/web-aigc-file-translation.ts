@@ -145,7 +145,7 @@ export interface FileTranslationNodeExecutionResult {
 }
 
 export function validateWebAigcFileTranslationOutputSegment(value: string): boolean {
-  return /^[A-Za-z0-9._-]+$/.test(value);
+  return /^[A-Za-z0-9._-]+$/.test(value) && !value.includes("..");
 }
 
 export function buildWebAigcFileTranslationOutputDownloadUrl(

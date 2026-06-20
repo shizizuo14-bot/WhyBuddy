@@ -81,7 +81,7 @@ function sanitizeSegment(value: string): string {
 }
 
 export function validateFileGenerationSegment(value: string): boolean {
-  return /^[a-zA-Z0-9._-]+$/.test(value);
+  return /^[a-zA-Z0-9._-]+$/.test(value) && !value.includes("..");
 }
 
 export function resolveFileGenerationOutputAbsolutePath(
@@ -269,10 +269,17 @@ export async function executeFileGenerationNode(
   const format = normalizeFormat(input.format);
   const filename = buildFilename(input, format);
   const content = buildContent(input, format);
+  const outputId = normalizeString(input.outputId);
+  if (outputId && !validateFileGenerationSegment(outputId)) {
+    throw new FileGenerationNodeError(400, "Invalid file generation output path segment.");
+  }
+  if (!validateFileGenerationSegment(filename)) {
+    throw new FileGenerationNodeError(400, "Invalid file generation output path segment.");
+  }
   const writeArtifactFile = deps.writeArtifactFile ?? persistFileGenerationArtifact;
   const readArtifactPreview = deps.readArtifactPreview ?? readFileGenerationPreview;
   const persisted = await writeArtifactFile({
-    outputId: normalizeString(input.outputId),
+    outputId,
     filename,
     content,
   });
