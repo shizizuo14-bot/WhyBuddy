@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 Python runtime boundary、Node Python-mode 测试和错误语义；reviewer 确认 deny/rate-limit/conflict 没有被放宽。
 
 ### 状态清单
-- [ ] Python runtime boundary 覆盖 allow、deny、invalid limit、reset/retry-after 语义。
-- [ ] Node 测试覆盖 Python mode 下 rate-limit decision 映射。
-- [ ] deny、invalid_limit、rate_limit_exceeded 不伪装成 success。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有绕开 permission check engine 或管理面权限。
+- [x] Python runtime boundary 覆盖 allow、deny、invalid limit、reset/retry-after 语义。
+- [x] Node 测试覆盖 Python mode 下 rate-limit decision 映射。
+- [x] deny、invalid_limit、rate_limit_exceeded 不伪装成 success。
+- [x] gate 全绿。
+- [x] Codex review 确认没有绕开 permission check engine 或管理面权限。
 
 ## 目标
 

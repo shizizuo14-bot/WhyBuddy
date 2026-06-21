@@ -55,6 +55,75 @@ export interface PermissionRateLimitDecision {
   reason: PermissionRateLimitDecisionReason;
 }
 
+export function normalizePermissionRateLimitDecision(value: unknown): PermissionRateLimitDecision {
+  if (!isRecord(value)) {
+    return invalidPermissionRateLimitDecision();
+  }
+
+  const reason = asPermissionRateLimitDecisionReason(value.reason);
+  const limit = asFiniteNumber(value.limit, 0);
+  if (reason === "allowed" && value.allowed === true && limit > 0) {
+    return {
+      allowed: true,
+      limit,
+      remaining: asNonNegativeNumber(value.remaining, Math.max(0, limit)),
+      retryAfterMs: 0,
+      resetAtMs: null,
+      reason: "allowed",
+    };
+  }
+
+  if (reason === "rate_limit_exceeded") {
+    return {
+      allowed: false,
+      limit,
+      remaining: 0,
+      retryAfterMs: asNonNegativeNumber(value.retryAfterMs, 0),
+      resetAtMs: asNullableTimestamp(value.resetAtMs),
+      reason: "rate_limit_exceeded",
+    };
+  }
+
+  return {
+    allowed: false,
+    limit,
+    remaining: 0,
+    retryAfterMs: asNonNegativeNumber(value.retryAfterMs, 0),
+    resetAtMs: asNullableTimestamp(value.resetAtMs),
+    reason: "invalid_limit",
+  };
+}
+
+function invalidPermissionRateLimitDecision(): PermissionRateLimitDecision {
+  return {
+    allowed: false,
+    limit: 0,
+    remaining: 0,
+    retryAfterMs: 0,
+    resetAtMs: null,
+    reason: "invalid_limit",
+  };
+}
+
+function asPermissionRateLimitDecisionReason(value: unknown): PermissionRateLimitDecisionReason {
+  return value === "allowed" || value === "rate_limit_exceeded" || value === "invalid_limit"
+    ? value
+    : "invalid_limit";
+}
+
+function asFiniteNumber(value: unknown, fallback: number): number {
+  return typeof value === "number" && Number.isFinite(value) ? value : fallback;
+}
+
+function asNonNegativeNumber(value: unknown, fallback: number): number {
+  const numberValue = asFiniteNumber(value, fallback);
+  return numberValue >= 0 ? numberValue : fallback;
+}
+
+function asNullableTimestamp(value: unknown): number | null {
+  return typeof value === "number" && Number.isFinite(value) && value >= 0 ? value : null;
+}
+
 // ─── 权限定义 ───────────────────────────────────────────────────────────────
 
 export interface Permission {
@@ -284,7 +353,11 @@ export type PermissionManagementBoundaryOperation =
   | "token.issue"
   | "token.verify";
 
-export type PermissionManagementBoundaryDomain = "role" | "policy" | "token" | "unknown";
+export type PermissionManagementBoundaryDomain =
+  | "role"
+  | "policy"
+  | "token"
+  | "unknown";
 export type PermissionManagementBoundarySource = "node" | "python_boundary";
 export type PermissionManagementBoundaryStatus =
   | "supported"
