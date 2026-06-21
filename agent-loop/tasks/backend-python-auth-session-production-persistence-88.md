@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 Python persistence boundary 和 Node Python mode 测试；reviewer 确认不改 schema、不接真实 OAuth/IAM。
 
 ### 状态清单
-- [ ] Python session persistence 覆盖 read/write/delete/refresh/logout 最小语义。
-- [ ] Node auth/session 测试确认 Python mode 下错误不伪装成功。
-- [ ] 不改变数据库 schema 和认证策略。
-- [ ] gate 全绿。
-- [ ] Codex review 确认安全失败语义保留。
+- [x] Python session persistence 覆盖 read/write/delete/refresh/logout 最小语义。
+- [x] Node auth/session 测试确认 Python mode 下错误不伪装成功。
+- [x] 不改变数据库 schema 和认证策略。
+- [x] gate 全绿。
+- [x] Codex review 确认安全失败语义保留。
 
 ## 目标
 

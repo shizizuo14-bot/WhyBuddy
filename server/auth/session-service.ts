@@ -10,6 +10,8 @@ export interface SessionLookupResult {
 }
 
 export type PythonAuthSessionError = "missing" | "expired" | "invalid";
+export type PythonAuthSessionDiagnosticError = "missing_config" | "store_failure";
+export type PythonAuthSessionMutationError = PythonAuthSessionError | PythonAuthSessionDiagnosticError;
 
 export interface PythonAuthSessionValidContract {
   valid: true;
@@ -19,12 +21,20 @@ export interface PythonAuthSessionValidContract {
 
 export interface PythonAuthSessionErrorContract {
   valid: false;
-  error: PythonAuthSessionError;
-  status: 401;
+  error: PythonAuthSessionError | PythonAuthSessionDiagnosticError;
+  status: 401 | 503;
   message: string;
 }
 
 export type PythonAuthSessionContract = PythonAuthSessionValidContract | PythonAuthSessionErrorContract;
+
+export interface PythonAuthSessionMutationContract {
+  success: boolean;
+  error?: PythonAuthSessionMutationError;
+  status?: 200 | 401 | 503;
+  message?: string;
+  sessionId?: string;
+}
 
 export interface SessionRepositories {
   sessions: {
@@ -81,12 +91,53 @@ const pythonAuthSessionMessages: Record<PythonAuthSessionError, string> = {
   invalid: "Invalid session",
 };
 
+const pythonAuthSessionDiagnosticMessages: Record<PythonAuthSessionDiagnosticError, string> = {
+  missing_config: "Auth session persistence is not configured.",
+  store_failure: "Auth session persistence failed.",
+};
+
 function pythonAuthSessionError(error: PythonAuthSessionError): PythonAuthSessionErrorContract {
   return {
     valid: false,
     error,
     status: 401,
     message: pythonAuthSessionMessages[error],
+  };
+}
+
+function pythonAuthSessionDiagnosticError(error: PythonAuthSessionDiagnosticError): PythonAuthSessionErrorContract {
+  return {
+    valid: false,
+    error,
+    status: 503,
+    message: pythonAuthSessionDiagnosticMessages[error],
+  };
+}
+
+function pythonAuthSessionMutationError(
+  error: PythonAuthSessionMutationError,
+): PythonAuthSessionMutationContract {
+  if (error === "missing_config" || error === "store_failure") {
+    return {
+      success: false,
+      error,
+      status: 503,
+      message: pythonAuthSessionDiagnosticMessages[error],
+    };
+  }
+  return {
+    success: false,
+    error,
+    status: 401,
+    message: pythonAuthSessionMessages[error],
+  };
+}
+
+function pythonAuthSessionMutationSuccess(sessionId: string): PythonAuthSessionMutationContract {
+  return {
+    success: true,
+    status: 200,
+    sessionId,
   };
 }
 
@@ -124,6 +175,24 @@ function isCurrentUser(value: unknown): value is CurrentUser {
   );
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function diagnosticErrorFromPayload(payload: Record<string, unknown>): PythonAuthSessionDiagnosticError | null {
+  const error = payload.error;
+  if (!isRecord(error)) {
+    return null;
+  }
+  if (error.code === "auth_session_store_missing_config") {
+    return "missing_config";
+  }
+  if (error.code === "auth_session_store_failure") {
+    return "store_failure";
+  }
+  return null;
+}
+
 export function validatePythonAuthSessionContract(payload: unknown): PythonAuthSessionContract {
   if (!payload) {
     return pythonAuthSessionError("missing");
@@ -137,6 +206,10 @@ export function validatePythonAuthSessionContract(payload: unknown): PythonAuthS
     user?: unknown;
     error?: unknown;
   };
+  const diagnosticError = diagnosticErrorFromPayload(payload as Record<string, unknown>);
+  if (diagnosticError) {
+    return pythonAuthSessionDiagnosticError(diagnosticError);
+  }
   if (candidate.error === "missing" || candidate.error === "expired" || candidate.error === "invalid") {
     return pythonAuthSessionError(candidate.error);
   }
@@ -151,6 +224,31 @@ export function validatePythonAuthSessionContract(payload: unknown): PythonAuthS
     };
   }
   return pythonAuthSessionError("invalid");
+}
+
+export function validatePythonAuthSessionMutationContract(payload: unknown): PythonAuthSessionMutationContract {
+  if (!isRecord(payload)) {
+    return pythonAuthSessionMutationError("invalid");
+  }
+  if (containsSecretKey(payload)) {
+    return pythonAuthSessionMutationError("invalid");
+  }
+
+  const diagnosticError = diagnosticErrorFromPayload(payload);
+  if (diagnosticError) {
+    return pythonAuthSessionMutationError(diagnosticError);
+  }
+
+  const error = payload.error;
+  if (error === "missing" || error === "expired" || error === "invalid") {
+    return pythonAuthSessionMutationError(error);
+  }
+
+  if (payload.ok === true && typeof payload.sessionId === "string" && payload.sessionId) {
+    return pythonAuthSessionMutationSuccess(payload.sessionId);
+  }
+
+  return pythonAuthSessionMutationError("invalid");
 }
 
 export function toPythonAuthSessionContract(
