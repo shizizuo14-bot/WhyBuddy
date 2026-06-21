@@ -92,6 +92,7 @@ export async function buildRunSnapshotFromStatePath(
   const displayGate = resolveDisplayGate(state);
   const landing = await readRunArtifact<LandingStatus>(state, repoRoot, 'landing.json');
   const finalReport = await readRunArtifact<FinalReportJson>(state, repoRoot, 'final-report.json');
+  const events = await readRunEvents(logRoot);
   const detailsWithStale = staleRun
     ? [`运行中断: ${staleRun.status} 超过 ${formatElapsed(staleRun.timeoutMs)} 未更新`, ...details]
     : details;
@@ -118,7 +119,41 @@ export async function buildRunSnapshotFromStatePath(
     landing,
     finalReport,
     guardPolicy: state?.guardPolicy ?? finalReport?.guardPolicy ?? null,
+    events,
   };
+}
+
+export interface RunEvent {
+  ts: string | null;
+  status: string;
+  iteration: number | null;
+}
+
+// Read the append-only phase-transition log the CLI writes (events.jsonl), one
+// JSON line per status change, so the detail view can show a live CI-style stream
+// instead of just the latest snapshot.
+export async function readRunEvents(logRoot: string, options: { limit?: number } = {}): Promise<RunEvent[]> {
+  const limit = options.limit ?? 60;
+  let raw: string;
+  try {
+    raw = await fs.readFile(path.join(logRoot, 'events.jsonl'), 'utf8');
+  } catch {
+    return [];
+  }
+  const events: RunEvent[] = [];
+  for (const line of raw.split(/\r?\n/)) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed && parsed.status) {
+        events.push({ ts: parsed.ts ?? null, status: String(parsed.status), iteration: parsed.iteration ?? null });
+      }
+    } catch {
+      // skip malformed line
+    }
+  }
+  return events.slice(-limit);
 }
 
 async function readRunArtifact<T>(state: LoopState | null, repoRoot: string, fileName: string): Promise<T | null> {

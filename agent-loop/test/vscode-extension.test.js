@@ -602,6 +602,41 @@ test('dashboard media renders diff and failing gate panels', async () => {
   assert.match(html, /AssertionError: boom/);
 });
 
+test('readRunEvents parses the append-only event log and skips junk', async () => {
+  const { readRunEvents } = requireFromExtension('./out/stateReader.js');
+  const dir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-events-'));
+  await fs.writeFile(path.join(dir, 'events.jsonl'), [
+    JSON.stringify({ ts: '2026-06-21T08:00:00.000Z', status: 'INIT', iteration: null }),
+    'not json at all',
+    JSON.stringify({ ts: '2026-06-21T08:00:01.000Z', status: 'GROK_FIX', iteration: 1 }),
+    '',
+  ].join('\n'), 'utf8');
+
+  const events = await readRunEvents(dir);
+  assert.equal(events.length, 2);
+  assert.equal(events[0].status, 'INIT');
+  assert.equal(events[1].status, 'GROK_FIX');
+  assert.equal(events[1].iteration, 1);
+  assert.deepEqual(await readRunEvents(path.join(dir, 'nope')), []);
+});
+
+test('dashboard media renders the run event stream', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderDetail({
+    taskLabel: 't', runId: 'r', status: 'DONE_REVIEWED', pipelineSteps: [],
+    iterations: [], reviewRounds: [],
+    events: [
+      { status: 'INIT', label: '初始化', timeText: '16:49:25', iteration: null },
+      { status: 'GROK_FIX', label: 'Grok 修复中', timeText: '16:49:32', iteration: 1 },
+      { status: 'DONE_REVIEWED', label: '完成（已 review）', timeText: '16:50:08', iteration: null },
+    ],
+  });
+  assert.match(html, /运行事件流/);
+  assert.match(html, /16:49:32/);
+  assert.match(html, /Grok 修复中/);
+  assert.match(html, /ev-dot ok/);
+});
+
 test('dashboard view title command is contributed only once', async () => {
   const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
   const viewTitleMenus = packageJson.contributes.menus['view/title'];

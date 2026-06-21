@@ -53,6 +53,7 @@ async function main() {
   const emitProgress = shouldEmitLoopProgress();
   const progressStartedAt = Date.now();
   let lastReportedStatus = null;
+  let lastEventStatus = null;
 
   const result = await runLoop({
     options: activeOptions,
@@ -73,6 +74,14 @@ async function main() {
         : async () => {},
       onState: async (state) => {
         await writeArtifact('state.json', state, 'json');
+        if (state.status && state.status !== lastEventStatus) {
+          lastEventStatus = state.status;
+          await appendArtifact('events.jsonl', `${JSON.stringify({
+            ts: new Date().toISOString(),
+            status: state.status,
+            iteration: state.currentIteration ?? null,
+          })}\n`);
+        }
         if (emitProgress && state.status !== lastReportedStatus) {
           lastReportedStatus = state.status;
           process.stderr.write(`${formatLoopStateLine(state, progressStartedAt)}\n`);

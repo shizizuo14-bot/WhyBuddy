@@ -38,6 +38,7 @@ exports.readJsonFile = readJsonFile;
 exports.readTextTail = readTextTail;
 exports.buildRunSnapshot = buildRunSnapshot;
 exports.buildRunSnapshotFromStatePath = buildRunSnapshotFromStatePath;
+exports.readRunEvents = readRunEvents;
 exports.listRecentRuns = listRecentRuns;
 exports.findLatestRunForTask = findLatestRunForTask;
 exports.readQueueOutcomes = readQueueOutcomes;
@@ -110,6 +111,7 @@ async function buildRunSnapshotFromStatePath(repoRoot, statePath, options = {}) 
     const displayGate = (0, gateSummary_1.resolveDisplayGate)(state);
     const landing = await readRunArtifact(state, repoRoot, 'landing.json');
     const finalReport = await readRunArtifact(state, repoRoot, 'final-report.json');
+    const events = await readRunEvents(logRoot);
     const detailsWithStale = staleRun
         ? [`运行中断: ${staleRun.status} 超过 ${(0, phaseLabels_1.formatElapsed)(staleRun.timeoutMs)} 未更新`, ...details]
         : details;
@@ -135,7 +137,37 @@ async function buildRunSnapshotFromStatePath(repoRoot, statePath, options = {}) 
         landing,
         finalReport,
         guardPolicy: state?.guardPolicy ?? finalReport?.guardPolicy ?? null,
+        events,
     };
+}
+// Read the append-only phase-transition log the CLI writes (events.jsonl), one
+// JSON line per status change, so the detail view can show a live CI-style stream
+// instead of just the latest snapshot.
+async function readRunEvents(logRoot, options = {}) {
+    const limit = options.limit ?? 60;
+    let raw;
+    try {
+        raw = await fs.readFile(path.join(logRoot, 'events.jsonl'), 'utf8');
+    }
+    catch {
+        return [];
+    }
+    const events = [];
+    for (const line of raw.split(/\r?\n/)) {
+        const trimmed = line.trim();
+        if (!trimmed)
+            continue;
+        try {
+            const parsed = JSON.parse(trimmed);
+            if (parsed && parsed.status) {
+                events.push({ ts: parsed.ts ?? null, status: String(parsed.status), iteration: parsed.iteration ?? null });
+            }
+        }
+        catch {
+            // skip malformed line
+        }
+    }
+    return events.slice(-limit);
 }
 async function readRunArtifact(state, repoRoot, fileName) {
     const runDir = (0, activeLog_1.resolveLogRoot)(state, repoRoot);

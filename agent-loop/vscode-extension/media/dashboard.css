@@ -641,6 +641,25 @@ h2 {
 .json-token.number { color: #e3b173; }
 .json-token.literal { color: #c59bd9; }
 
+.ev-body { padding: 2px 0; }
+.ev-row {
+  display: grid;
+  grid-template-columns: 70px 10px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 13px;
+  border-bottom: 1px solid var(--border-soft);
+}
+.ev-row:last-child { border-bottom: 0; }
+.ev-time { font-family: var(--mono); font-size: 0.74rem; color: var(--muted); }
+.ev-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
+.ev-dot.ok { background: var(--ok); }
+.ev-dot.err { background: var(--err); }
+.ev-dot.run { background: var(--blue); }
+.ev-dot.neutral { background: color-mix(in srgb, var(--muted) 55%, transparent); }
+.ev-label { font-size: 0.85rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ev-meta { font-family: var(--mono); font-size: 0.7rem; color: var(--muted); }
+
 .log.diff { tab-size: 2; }
 .diff-add { color: #9ed18f; }
 .diff-del { color: #e6918a; }

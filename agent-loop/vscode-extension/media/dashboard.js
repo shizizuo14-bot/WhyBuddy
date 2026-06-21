@@ -400,6 +400,30 @@
     </section>`;
   }
 
+  function eventDotClass(status) {
+    if (status.startsWith('DONE_')) return 'ok';
+    if (status.startsWith('HALT_') || status === 'STALE_INTERRUPTED') return 'err';
+    if (status.endsWith('_FIX') || status.endsWith('_REVIEW') || status === 'BUDGET_LOOP_HEAD' || status === 'REVIEW_NEEDS_CHANGES') return 'run';
+    return 'neutral';
+  }
+
+  function renderEventStream(events) {
+    if (!events || !events.length) return '';
+    const rows = events.map((e) => {
+      const meta = [e.status, e.iteration ? `#${e.iteration}` : ''].filter(Boolean).join(' ');
+      return `<div class="ev-row">
+        <span class="ev-time">${esc(e.timeText || '')}</span>
+        <span class="ev-dot ${eventDotClass(e.status || '')}"></span>
+        <span class="ev-label">${esc(e.label || e.status || '')}</span>
+        <span class="ev-meta">${esc(meta)}</span>
+      </div>`;
+    }).join('');
+    return `<section class="panel event-stream">
+      <div class="panel-head"><h2>运行事件流</h2><span class="muted">${events.length}</span></div>
+      <div class="ev-body">${rows}</div>
+    </section>`;
+  }
+
   function renderDetail(payload) {
     const subtitle = `${payload.runId || '等待运行'} / ${payload.runMode || '-'} / ${payload.roleText || ''}`;
     return `<main class="dashboard run-detail">
@@ -409,6 +433,7 @@
       ${renderPipeline(payload.status, payload.pipelineSteps)}
       ${renderHalt(payload)}
       ${renderStatusCards(payload)}
+      ${renderEventStream(payload.events)}
       <section class="detail-main-grid">
         <div class="detail-column detail-side-column">
           ${renderEvidence(payload)}

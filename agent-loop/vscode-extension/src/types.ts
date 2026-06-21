@@ -214,6 +214,7 @@ export interface RunSnapshot {
   landing: LandingStatus | null;
   finalReport: FinalReportJson | null;
   guardPolicy: GuardPolicy | null;
+  events?: Array<{ ts: string | null; status: string; iteration: number | null }>;
 }
 
 export interface RunSummaryItem {

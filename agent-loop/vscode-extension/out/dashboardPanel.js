@@ -165,6 +165,12 @@ class DashboardPanel {
                     findings: Array.isArray(round.findings) ? round.findings : [],
                 })),
                 halt: buildHaltInfo(state),
+                events: (snapshot.events ?? []).map((event) => ({
+                    status: event.status,
+                    label: (0, phaseLabels_1.phaseLabel)(event.status),
+                    timeText: formatClock(event.ts),
+                    iteration: event.iteration,
+                })),
                 landing: snapshot.landing,
                 finalReport: snapshot.finalReport,
                 guardPolicy: snapshot.guardPolicy,
@@ -226,6 +232,15 @@ function buildHaltInfo(state) {
     else if (state?.reviewVerdict)
         reason = `review: ${state.reviewVerdict}`;
     return { status, reason };
+}
+function formatClock(ts) {
+    if (!ts)
+        return '';
+    const date = new Date(ts);
+    if (Number.isNaN(date.getTime()))
+        return '';
+    const pad = (n) => String(n).padStart(2, '0');
+    return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
 }
 function shortTaskLabel(taskPath) {
     return (taskPath.split('/').pop() || taskPath).replace(/\.md$/, '');
