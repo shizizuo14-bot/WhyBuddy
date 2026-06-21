@@ -1,9 +1,27 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import express from "express";
 import { createServer } from "node:http";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
+
+const pythonExe = path.resolve(process.cwd(), "tws-ai-slide-rule-python/.venv/Scripts/python.exe");
+const pythonCwd = path.resolve(process.cwd(), "tws-ai-slide-rule-python");
+
+function runPythonPersistence(script: string, storeFile: string) {
+  const result = spawnSync(pythonExe, ["-c", script], {
+    cwd: pythonCwd,
+    env: {
+      ...process.env,
+      PYTHONPATH: pythonCwd,
+      SLIDERULE_SESSIONS_FILE: storeFile,
+    },
+    encoding: "utf8",
+  });
+  expect(result.status, result.stderr || result.stdout).toBe(0);
+  return JSON.parse(result.stdout.trim());
+}
 
 describe("SlideRule session store HTTP API", () => {
   const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "sliderule-store-"));
@@ -98,6 +116,92 @@ describe("SlideRule session store HTTP API", () => {
     expect(raw.some(([key, value]: [string, { sessionId?: string }]) => key === sid && value.sessionId === sid)).toBe(
       true
     );
+  });
+
+  it("recovers sessions written through Python persistence when SLIDERULE_V5_BACKEND=python", async () => {
+    vi.stubEnv("SLIDERULE_V5_BACKEND", "python");
+    const sid = `vitest-python-runtime-${Date.now()}`;
+
+    const saved = runPythonPersistence(
+      `
+import json
+from models.v5_state import V5SessionState
+from services.persistence import save_session_record
+state = V5SessionState(
+    sessionId="${sid}",
+    goal={"text": "python runtime restore", "status": "needs_refinement"},
+    artifacts=[],
+    staleArtifactIds=[],
+    decisionLedger=[],
+    capabilityRuns=[],
+    conversation=[],
+)
+print(json.dumps(save_session_record(state)))
+`,
+      dataFile
+    );
+    expect(saved).toEqual({ ok: true, sessionId: sid });
+
+    const reload = await fetch(`${base}/sessions/__reload`, { method: "POST" });
+    expect(reload.status).toBe(204);
+
+    const get = await fetch(`${base}/sessions/${sid}`);
+    expect(get.status).toBe(200);
+    const loaded = await get.json();
+    expect(loaded).toMatchObject({
+      sessionId: sid,
+      goal: { text: "python runtime restore", status: "needs_refinement" },
+    });
+
+    const list = await fetch(`${base}/sessions`);
+    expect(list.status).toBe(200);
+    const body = await list.json();
+    expect(body.sessions).toContainEqual(
+      expect.objectContaining({
+        sessionId: sid,
+        goal: "python runtime restore",
+        artifactCount: 0,
+      })
+    );
+  });
+
+  it("preserves Python persistence error mapping instead of treating missing or corrupt as empty success", () => {
+    vi.stubEnv("SLIDERULE_V5_BACKEND", "python");
+    const missingSid = `vitest-python-missing-${Date.now()}`;
+
+    const missing = runPythonPersistence(
+      `
+import json
+from services.persistence import load_session_record
+print(json.dumps(load_session_record("${missingSid}")))
+`,
+      dataFile
+    );
+    expect(missing).toEqual({ ok: false, error: "not_found", sessionId: missingSid });
+
+    fs.writeFileSync(dataFile, "{not-json", "utf8");
+    const corrupt = runPythonPersistence(
+      `
+import json
+from services.persistence import load_session_record, list_session_records
+print(json.dumps({
+    "load": load_session_record("py-corrupt"),
+    "list": list_session_records(),
+}))
+`,
+      dataFile
+    );
+    expect(corrupt.load).toMatchObject({
+      ok: false,
+      error: "store_corrupt",
+      reason: "invalid_json",
+      sessionId: "py-corrupt",
+    });
+    expect(corrupt.list).toMatchObject({
+      ok: false,
+      error: "store_corrupt",
+      reason: "invalid_json",
+    });
   });
 
   it("treats corrupt durable store as empty and keeps missing shape stable", async () => {

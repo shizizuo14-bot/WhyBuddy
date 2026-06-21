@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 Python persistence boundary、Node sessions store 测试或证据收口；reviewer 确认没有扩大到 auth/session 全链路。
 
 ### 状态清单
-- [ ] 判断现有 session persistence 是否已足以按 runtime boundary 计入。
-- [ ] 如果不足，补 Python save/load/list/delete 或等价最小 runtime diff。
-- [ ] Node sessions store 在 Python mode 下覆盖恢复和错误映射。
-- [ ] gate 全绿。
-- [ ] Codex review 确认 missing/corrupt/error 不伪装成空成功。
+- [x] 判断现有 session persistence 是否已足以按 runtime boundary 计入。
+- [x] 如果不足，补 Python save/load/list/delete 或等价最小 runtime diff。
+- [x] Node sessions store 在 Python mode 下覆盖恢复和错误映射。
+- [x] gate 全绿。
+- [x] Codex review 确认 missing/corrupt/error 不伪装成空成功。
 
 ## 目标
 

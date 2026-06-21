@@ -2,6 +2,7 @@ import json
 
 from models.v5_state import V5SessionState
 from services.persistence import (
+    delete_session_record,
     load_all,
     load_session_record,
     list_session_records,
@@ -50,6 +51,15 @@ def test_save_load_and_list_use_node_compatible_store_shape(tmp_path):
             }
         ],
     }
+
+    deleted = delete_session_record("py-contract-001", store_file=store_file)
+    assert deleted == {"ok": True, "sessionId": "py-contract-001"}
+    assert load_session_record("py-contract-001", store_file=store_file) == {
+        "ok": False,
+        "error": "not_found",
+        "sessionId": "py-contract-001",
+    }
+    assert json.loads(store_file.read_text(encoding="utf-8")) == []
 
 
 def test_missing_session_returns_node_compatible_not_found_shape(tmp_path):
