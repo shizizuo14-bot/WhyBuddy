@@ -81,6 +81,21 @@ test('classifyRunMode prefers review halt when fix finished but review failed', 
   );
 });
 
+test('classifyRunMode marks queue apply statuses explicitly', () => {
+  assert.equal(
+    classifyRunMode({ status: 'DONE_REVIEWED_NO_DIFF' }),
+    'reviewed-no-diff',
+  );
+  assert.equal(
+    classifyRunMode({ status: 'APPLY_CONFLICT' }),
+    'apply-conflict',
+  );
+  assert.equal(
+    classifyRunMode({ status: 'HALT_APPLY_FAILED' }),
+    'halt-apply-failed',
+  );
+});
+
 test('classifyRunMode marks timeout and halt states', () => {
   assert.equal(
     classifyRunMode({

@@ -6,12 +6,12 @@
 - 角色分工：worker（执行工人）负责状态分类、测试和最小 UI/summary 文案；reviewer（审查者）确认不降低证据链严格度。
 
 ### 状态清单
-- [ ] `DONE_REVIEWED`（已审查完成）但没有 `diff.N.patch` 时，队列结果显示为 `DONE_REVIEWED_NO_DIFF`（已审查完成但无新增差异），不计为 crashed（崩溃）。
-- [ ] `patch does not apply`（补丁无法应用）和 `already exists in working directory`（工作区已存在）归类为 `APPLY_CONFLICT`（应用冲突），并保留冲突文件/错误文本。
-- [ ] `HALT_APPLY_FAILED`（停止：应用补丁失败）只保留给无法细分的 apply（应用补丁）失败。
-- [ ] `queue-outcomes.json`（队列结果汇总）和 run summary（运行摘要）能携带 `applyStatus`、`applyErrorKind`、`applyErrorFiles`。
-- [ ] gate（门禁测试）全绿。
-- [ ] Codex review（Codex 审查）确认没有把真实失败刷绿。
+- [x] `DONE_REVIEWED`（已审查完成）但没有 `diff.N.patch` 时，队列结果显示为 `DONE_REVIEWED_NO_DIFF`（已审查完成但无新增差异），不计为 crashed（崩溃）。
+- [x] `patch does not apply`（补丁无法应用）和 `already exists in working directory`（工作区已存在）归类为 `APPLY_CONFLICT`（应用冲突），并保留冲突文件/错误文本。
+- [x] `HALT_APPLY_FAILED`（停止：应用补丁失败）只保留给无法细分的 apply（应用补丁）失败。
+- [x] `queue-outcomes.json`（队列结果汇总）和 run summary（运行摘要）能携带 `applyStatus`、`applyErrorKind`、`applyErrorFiles`。
+- [x] gate（门禁测试）全绿。
+- [x] Codex review（Codex 审查）确认没有把真实失败刷绿。
 
 ## 背景
 
@@ -22,6 +22,9 @@
 - `agent-loop/src/runQueue.js`
 - `agent-loop/src/runSummary.js`
 - `agent-loop/src/queueOutcomes.js`
+- `agent-loop/vscode-extension/src/runSummary.ts`
+- `agent-loop/vscode-extension/out/runSummary.js`
+- `agent-loop/vscode-extension/out/runSummary.js.map`
 - `agent-loop/test/loopApply.test.js`
 - `agent-loop/test/run-queue.test.js`
 - `agent-loop/test/runSummary.test.js`

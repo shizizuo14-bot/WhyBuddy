@@ -67,6 +67,9 @@ export function classifyRunMode({
   }
   if (normalizedStatus === 'PAUSED_BEFORE_FIX') return 'paused-before-fix';
   if (normalizedStatus === 'PAUSED_AFTER_ITERATION') return 'paused-after-iteration';
+  if (normalizedStatus === 'DONE_REVIEWED_NO_DIFF') return 'reviewed-no-diff';
+  if (normalizedStatus === 'APPLY_CONFLICT') return 'apply-conflict';
+  if (normalizedStatus === 'HALT_APPLY_FAILED') return 'halt-apply-failed';
   if (normalizedStatus === 'HALT_BUDGET') return 'halt-budget';
   if (normalizedStatus === 'HALT_NO_CHANGES') return 'halt-no-changes';
   if (normalizedStatus === 'HALT_NO_PROGRESS') return 'halt-no-progress';

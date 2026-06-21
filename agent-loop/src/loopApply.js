@@ -1,6 +1,16 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
 
+export class LoopApplyError extends Error {
+  constructor({ kind, message, files = [], cause = null } = {}) {
+    super(message || kind || 'loop apply failed');
+    this.name = 'LoopApplyError';
+    this.kind = kind || 'UNKNOWN_APPLY_ERROR';
+    this.files = Array.isArray(files) ? files : [];
+    if (cause) this.cause = cause;
+  }
+}
+
 export function resolveRunDir({ repoRoot, run = 'latest' }) {
   if (path.isAbsolute(run)) return run;
   if (run === 'latest') return path.join(repoRoot, '.agent-loop', 'latest');
@@ -68,7 +78,12 @@ export async function applyLatestDiffToMain({
     timeoutMs,
   });
   if (check.exitCode !== 0) {
-    throw new Error(`git apply --check failed: ${check.stderr || check.stdout || check.exitCode}`);
+    const output = check.stderr || check.stdout || String(check.exitCode);
+    throw new LoopApplyError({
+      kind: classifyGitApplyErrorKind(output),
+      message: `git apply --check failed: ${output}`,
+      files: extractGitApplyErrorFiles(output),
+    });
   }
 
   const applied = await runner('git', applyArgsToGitArgv(applyArgs), {
@@ -76,7 +91,12 @@ export async function applyLatestDiffToMain({
     timeoutMs,
   });
   if (applied.exitCode !== 0) {
-    throw new Error(`git apply failed: ${applied.stderr || applied.stdout || applied.exitCode}`);
+    const output = applied.stderr || applied.stdout || String(applied.exitCode);
+    throw new LoopApplyError({
+      kind: classifyGitApplyErrorKind(output),
+      message: `git apply failed: ${output}`,
+      files: extractGitApplyErrorFiles(output),
+    });
   }
 
   const landing = await markLandingStatus({
@@ -143,8 +163,49 @@ export async function findLatestDiffPatch(runDir) {
     .filter(Boolean)
     .sort((a, b) => b.iteration - a.iteration);
 
-  if (!patches.length) throw new Error(`no diff.N.patch found in ${runDir}`);
+  if (!patches.length) {
+    throw new LoopApplyError({
+      kind: 'NO_DIFF_PATCH',
+      message: `no diff.N.patch found in ${runDir}`,
+    });
+  }
   return path.join(runDir, patches[0].name);
+}
+
+function classifyGitApplyErrorKind(output) {
+  const text = String(output || '');
+  if (
+    /patch does not apply/i.test(text)
+    || /already exists in working directory/i.test(text)
+    || /patch failed:/i.test(text)
+  ) {
+    return 'PATCH_CONFLICT';
+  }
+  return 'UNKNOWN_APPLY_ERROR';
+}
+
+function extractGitApplyErrorFiles(output) {
+  const files = new Set();
+  const text = String(output || '');
+  for (const line of text.split(/\r?\n/)) {
+    const patchFailed = line.match(/^error:\s+patch failed:\s+(.+?):\d+/i);
+    if (patchFailed) {
+      files.add(patchFailed[1]);
+      continue;
+    }
+
+    const doesNotApply = line.match(/^error:\s+(.+?):\s+patch does not apply/i);
+    if (doesNotApply) {
+      files.add(doesNotApply[1]);
+      continue;
+    }
+
+    const alreadyExists = line.match(/^error:\s+(.+?):\s+already exists in working directory/i);
+    if (alreadyExists) {
+      files.add(alreadyExists[1]);
+    }
+  }
+  return Array.from(files);
 }
 
 function normalizeLandingStatus(landing) {

@@ -1,4 +1,5 @@
 import path from 'node:path';
+import { LoopApplyError } from './loopApply.js';
 import { summarizeRunRecord } from './runSummary.js';
 
 export function defaultPythonExe(repoRoot) {
@@ -232,18 +233,52 @@ export async function applyDoneSummaryToMain({
       landing,
     };
   } catch (error) {
+    const mapped = mapApplyErrorToSummary(error);
     return {
       summary: {
         ...summary,
-        status: 'HALT_APPLY_FAILED',
-        outcome: 'crashed',
+        status: mapped.status,
+        outcome: mapped.outcome,
         appliedToMain: false,
+        applyStatus: mapped.applyStatus,
+        applyErrorKind: mapped.applyErrorKind,
+        applyErrorFiles: mapped.applyErrorFiles,
         applyError: error instanceof Error ? error.message : String(error),
       },
       appliedToMain: false,
       applyError: error,
     };
   }
+}
+
+function mapApplyErrorToSummary(error) {
+  if (error instanceof LoopApplyError && error.kind === 'NO_DIFF_PATCH') {
+    return {
+      status: 'DONE_REVIEWED_NO_DIFF',
+      outcome: 'done',
+      applyStatus: 'DONE_REVIEWED_NO_DIFF',
+      applyErrorKind: error.kind,
+      applyErrorFiles: error.files,
+    };
+  }
+
+  if (error instanceof LoopApplyError && error.kind === 'PATCH_CONFLICT') {
+    return {
+      status: 'APPLY_CONFLICT',
+      outcome: 'failed',
+      applyStatus: 'APPLY_CONFLICT',
+      applyErrorKind: error.kind,
+      applyErrorFiles: error.files,
+    };
+  }
+
+  return {
+    status: 'HALT_APPLY_FAILED',
+    outcome: 'crashed',
+    applyStatus: 'HALT_APPLY_FAILED',
+    applyErrorKind: error instanceof LoopApplyError ? error.kind : 'UNKNOWN_APPLY_ERROR',
+    applyErrorFiles: error instanceof LoopApplyError ? error.files : [],
+  };
 }
 
 /**

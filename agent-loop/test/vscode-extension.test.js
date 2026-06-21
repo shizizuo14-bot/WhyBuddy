@@ -65,6 +65,28 @@ test('extension runSummary matches core runSummary for agent-neutral cases', asy
         reviewAgent: 'grok',
       },
     },
+    {
+      name: 'reviewed no diff apply status',
+      input: {
+        runId: 'run-3',
+        status: 'DONE_REVIEWED_NO_DIFF',
+        task: 'task.md',
+        iterations: [],
+        fixAgent: 'codex',
+        reviewAgent: 'codex',
+      },
+    },
+    {
+      name: 'apply conflict status',
+      input: {
+        runId: 'run-4',
+        status: 'APPLY_CONFLICT',
+        task: 'task.md',
+        iterations: [],
+        fixAgent: 'codex',
+        reviewAgent: 'codex',
+      },
+    },
   ];
 
   for (const { name, input } of cases) {

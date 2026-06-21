@@ -38,6 +38,10 @@ export function updateQueueOutcomeRecord({
   status,
   outcome,
   runId = null,
+  applyStatus = null,
+  applyErrorKind = null,
+  applyErrorFiles = null,
+  applyError = null,
   maxConsecutiveNoChanges = 3,
   autoDisableOnNoChanges = true,
 }) {
@@ -51,6 +55,11 @@ export function updateQueueOutcomeRecord({
     autoDisabled: Boolean(record.autoDisabled),
     autoDisabledAt: record.autoDisabledAt || null,
   };
+
+  if (applyStatus) next.applyStatus = applyStatus;
+  if (applyErrorKind) next.applyErrorKind = applyErrorKind;
+  if (Array.isArray(applyErrorFiles)) next.applyErrorFiles = applyErrorFiles;
+  if (applyError) next.applyError = applyError;
 
   if (status === 'HALT_NO_CHANGES') {
     next.consecutiveNoChanges += 1;
@@ -92,6 +101,10 @@ export async function recordQueueTaskOutcome({
     status: summary.status,
     outcome: summary.outcome,
     runId: summary.runId,
+    applyStatus: summary.applyStatus,
+    applyErrorKind: summary.applyErrorKind,
+    applyErrorFiles: summary.applyErrorFiles,
+    applyError: summary.applyError,
     maxConsecutiveNoChanges,
     autoDisableOnNoChanges,
   });

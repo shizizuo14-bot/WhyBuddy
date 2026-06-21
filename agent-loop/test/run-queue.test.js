@@ -17,6 +17,9 @@ import {
   resolveQueueGate,
 } from '../src/runQueue.js';
 import {
+  LoopApplyError,
+} from '../src/loopApply.js';
+import {
   shouldSkipAutoDisabledTask,
   updateQueueOutcomeRecord,
 } from '../src/queueOutcomes.js';
@@ -398,7 +401,7 @@ test('applyDoneSummaryToMain applies done worktree summaries before cleanup', as
   assert.equal(calls[0].timeoutMs, 1234);
 });
 
-test('applyDoneSummaryToMain converts apply failures into crashed queue outcomes', async () => {
+test('applyDoneSummaryToMain maps missing diff patch to reviewed no-diff outcome', async () => {
   const result = await applyDoneSummaryToMain({
     summary: { id: 'task-a', status: 'DONE_REVIEWED', outcome: 'done' },
     entry: { id: 'task-a', useWorktree: true },
@@ -407,14 +410,66 @@ test('applyDoneSummaryToMain converts apply failures into crashed queue outcomes
     defaults: {},
     runner: async () => ({ exitCode: 0 }),
     applyLatestDiffToMain: async () => {
-      throw new Error('patch does not apply');
+      throw new LoopApplyError({
+        kind: 'NO_DIFF_PATCH',
+        message: 'no diff.N.patch found in run-a',
+      });
+    },
+  });
+
+  assert.equal(result.appliedToMain, false);
+  assert.equal(result.summary.status, 'DONE_REVIEWED_NO_DIFF');
+  assert.equal(result.summary.outcome, 'done');
+  assert.equal(result.summary.applyStatus, 'DONE_REVIEWED_NO_DIFF');
+  assert.equal(result.summary.applyErrorKind, 'NO_DIFF_PATCH');
+  assert.match(result.summary.applyError, /no diff\.N\.patch found/);
+});
+
+test('applyDoneSummaryToMain maps patch conflicts without counting them as crashed', async () => {
+  const result = await applyDoneSummaryToMain({
+    summary: { id: 'task-a', status: 'DONE_REVIEWED', outcome: 'done' },
+    entry: { id: 'task-a', useWorktree: true },
+    state: { runId: 'run-a' },
+    repoRoot: 'C:\\repo',
+    defaults: {},
+    runner: async () => ({ exitCode: 0 }),
+    applyLatestDiffToMain: async () => {
+      throw new LoopApplyError({
+        kind: 'PATCH_CONFLICT',
+        files: ['server/routes/a2a.ts'],
+        message: 'git apply --check failed: patch does not apply',
+      });
+    },
+  });
+
+  assert.equal(result.appliedToMain, false);
+  assert.equal(result.summary.status, 'APPLY_CONFLICT');
+  assert.equal(result.summary.outcome, 'failed');
+  assert.equal(result.summary.applyStatus, 'APPLY_CONFLICT');
+  assert.equal(result.summary.applyErrorKind, 'PATCH_CONFLICT');
+  assert.deepEqual(result.summary.applyErrorFiles, ['server/routes/a2a.ts']);
+  assert.match(result.summary.applyError, /patch does not apply/);
+});
+
+test('applyDoneSummaryToMain keeps unknown apply failures as crashed', async () => {
+  const result = await applyDoneSummaryToMain({
+    summary: { id: 'task-a', status: 'DONE_REVIEWED', outcome: 'done' },
+    entry: { id: 'task-a', useWorktree: true },
+    state: { runId: 'run-a' },
+    repoRoot: 'C:\\repo',
+    defaults: {},
+    runner: async () => ({ exitCode: 0 }),
+    applyLatestDiffToMain: async () => {
+      throw new Error('permission denied while applying patch');
     },
   });
 
   assert.equal(result.appliedToMain, false);
   assert.equal(result.summary.status, 'HALT_APPLY_FAILED');
   assert.equal(result.summary.outcome, 'crashed');
-  assert.match(result.summary.applyError, /patch does not apply/);
+  assert.equal(result.summary.applyStatus, 'HALT_APPLY_FAILED');
+  assert.equal(result.summary.applyErrorKind, 'UNKNOWN_APPLY_ERROR');
+  assert.match(result.summary.applyError, /permission denied/);
 });
 
 test('buildLoopArgsForQueueEntry passes --no-sync-task-status from defaults', () => {
@@ -502,4 +557,25 @@ test('updateQueueOutcomeRecord auto-disables after consecutive HALT_NO_CHANGES',
     maxConsecutiveNoChanges: 3,
   });
   assert.equal(skip.skip, true);
+});
+
+test('updateQueueOutcomeRecord preserves structured apply status details', () => {
+  const record = updateQueueOutcomeRecord({
+    record: {},
+    status: 'APPLY_CONFLICT',
+    outcome: 'failed',
+    runId: 'run-conflict',
+    applyStatus: 'APPLY_CONFLICT',
+    applyErrorKind: 'PATCH_CONFLICT',
+    applyErrorFiles: ['server/routes/a2a.ts'],
+    applyError: 'git apply --check failed: patch does not apply',
+  });
+
+  assert.equal(record.lastStatus, 'APPLY_CONFLICT');
+  assert.equal(record.lastOutcome, 'failed');
+  assert.equal(record.lastRunId, 'run-conflict');
+  assert.equal(record.applyStatus, 'APPLY_CONFLICT');
+  assert.equal(record.applyErrorKind, 'PATCH_CONFLICT');
+  assert.deepEqual(record.applyErrorFiles, ['server/routes/a2a.ts']);
+  assert.match(record.applyError, /patch does not apply/);
 });

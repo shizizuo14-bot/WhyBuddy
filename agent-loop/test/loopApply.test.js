@@ -6,6 +6,8 @@ import assert from 'node:assert/strict';
 import {
   applyLatestDiffToMain,
   buildLoopApplyPlan,
+  findLatestDiffPatch,
+  LoopApplyError,
   markLandingStatus,
   resolveRunDir,
 } from '../src/loopApply.js';
@@ -48,6 +50,23 @@ test('buildLoopApplyPlan defaults to excluding task docs and latest diff patch',
   assert.equal(plan.landing.status, 'MAIN_GATE_GREEN');
   assert.equal(plan.landing.mainGateGreen, true);
   assert.match(plan.checkCommand, /git apply --check/);
+});
+
+test('findLatestDiffPatch classifies missing patches as no diff', async () => {
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-apply-'));
+  const runDir = path.join(repo, '.agent-loop', 'runs', 'run-a');
+  await fs.mkdir(runDir, { recursive: true });
+
+  await assert.rejects(
+    () => findLatestDiffPatch(runDir),
+    (error) => {
+      assert.equal(error instanceof LoopApplyError, true);
+      assert.equal(error.kind, 'NO_DIFF_PATCH');
+      assert.deepEqual(error.files, []);
+      assert.match(error.message, /no diff\.N\.patch found/);
+      return true;
+    },
+  );
 });
 
 test('markLandingStatus records apply, gate, and commit landing steps', async () => {
@@ -143,4 +162,38 @@ test('applyLatestDiffToMain applies latest run diff to main while excluding task
   const landing = JSON.parse(await fs.readFile(path.join(runDir, 'landing.json'), 'utf8'));
   assert.equal(landing.appliedToMain, true);
   assert.match(landing.patchPath, /diff\.1\.patch$/);
+});
+
+test('applyLatestDiffToMain classifies git apply check conflicts with files', async () => {
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-apply-'));
+  const runDir = path.join(repo, '.agent-loop', 'runs', 'run-a');
+  await fs.mkdir(runDir, { recursive: true });
+  await fs.writeFile(path.join(runDir, 'state.json'), JSON.stringify({
+    runId: 'run-a',
+    status: 'DONE_REVIEWED',
+    options: {
+      task: 'agent-loop/tasks/task-a.md',
+      gates: ['npm test'],
+    },
+  }), 'utf8');
+  await fs.writeFile(path.join(runDir, 'diff.1.patch'), 'diff --git a/app.txt b/app.txt\n', 'utf8');
+
+  await assert.rejects(
+    () => applyLatestDiffToMain({
+      repoRoot: repo,
+      run: 'run-a',
+      runner: async () => ({
+        exitCode: 1,
+        stdout: '',
+        stderr: 'error: patch failed: app.txt:1\nerror: app.txt: patch does not apply\n',
+      }),
+    }),
+    (error) => {
+      assert.equal(error instanceof LoopApplyError, true);
+      assert.equal(error.kind, 'PATCH_CONFLICT');
+      assert.deepEqual(error.files, ['app.txt']);
+      assert.match(error.message, /git apply --check failed/);
+      return true;
+    },
+  );
 });
