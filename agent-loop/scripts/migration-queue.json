@@ -377,84 +377,144 @@
       "id": "backend-python-halt-superseded-audit-90",
       "task": "agent-loop/tasks/backend-python-halt-superseded-audit-90.md",
       "gatesKey": "haltSupersededAudit90Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 32,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main by 90-stage rerun"
     },
     {
       "id": "backend-python-node-route-inventory-90",
       "task": "agent-loop/tasks/backend-python-node-route-inventory-90.md",
       "gatesKey": "nodeRouteInventory90Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 32,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main by 90-stage rerun"
     },
     {
       "id": "backend-python-runtime-depth-audit-90",
       "task": "agent-loop/tasks/backend-python-runtime-depth-audit-90.md",
       "gatesKey": "runtimeDepthAudit90Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 32,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main by 90-stage rerun"
     },
     {
       "id": "backend-python-session-persistence-runtime-diff-90",
       "task": "agent-loop/tasks/backend-python-session-persistence-runtime-diff-90.md",
       "gatesKey": "sessionPersistenceRuntimeDiff90Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 32,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main by 90-stage rerun"
     },
     {
       "id": "backend-python-auth-permission-audit-runtime-90",
       "task": "agent-loop/tasks/backend-python-auth-permission-audit-runtime-90.md",
       "gatesKey": "authPermissionAuditRuntime90Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 32,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main by 90-stage rerun"
     },
     {
       "id": "backend-python-a2a-stream-runtime-boundary-90",
       "task": "agent-loop/tasks/backend-python-a2a-stream-runtime-boundary-90.md",
       "gatesKey": "a2aStreamRuntimeBoundary90Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 32,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main by 90-stage rerun"
     },
     {
       "id": "backend-python-production-wiring-smoke-90",
       "task": "agent-loop/tasks/backend-python-production-wiring-smoke-90.md",
       "gatesKey": "productionWiringSmoke90Gates",
+      "enabled": false,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main by 90-stage rerun"
+    },
+    {
+      "id": "backend-python-migration-status-refresh-90",
+      "task": "agent-loop/tasks/backend-python-migration-status-refresh-90.md",
+      "gatesKey": "migrationStatusRefresh90Gates",
+      "enabled": false,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main by 90-stage rerun"
+    },
+    {
+      "id": "backend-python-runtime-evidence-reconcile-88",
+      "task": "agent-loop/tasks/backend-python-runtime-evidence-reconcile-88.md",
+      "gatesKey": "runtimeEvidenceReconcile88Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 16,
+      "maxIterations": 2,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1200000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 2400000
+    },
+    {
+      "id": "backend-python-web-aigc-runtime-evidence-reconcile-88",
+      "task": "agent-loop/tasks/backend-python-web-aigc-runtime-evidence-reconcile-88.md",
+      "gatesKey": "webAigcRuntimeEvidenceReconcile88Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 16,
+      "maxIterations": 2,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1200000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 2400000
+    },
+    {
+      "id": "backend-python-task-lifecycle-runtime-boundary-88",
+      "task": "agent-loop/tasks/backend-python-task-lifecycle-runtime-boundary-88.md",
+      "gatesKey": "taskLifecycleRuntimeBoundary88Gates",
       "enabled": true,
       "guardTests": false,
       "grokMaxTurns": 32,
@@ -465,9 +525,9 @@
       "timeoutMs": 3600000
     },
     {
-      "id": "backend-python-migration-status-refresh-90",
-      "task": "agent-loop/tasks/backend-python-migration-status-refresh-90.md",
-      "gatesKey": "migrationStatusRefresh90Gates",
+      "id": "backend-python-blueprint-state-runtime-bridge-88",
+      "task": "agent-loop/tasks/backend-python-blueprint-state-runtime-bridge-88.md",
+      "gatesKey": "blueprintStateRuntimeBridge88Gates",
       "enabled": true,
       "guardTests": false,
       "grokMaxTurns": 32,
@@ -476,6 +536,76 @@
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
       "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-blueprint-stage-edit-runtime-bridge-88",
+      "task": "agent-loop/tasks/backend-python-blueprint-stage-edit-runtime-bridge-88.md",
+      "gatesKey": "blueprintStageEditRuntimeBridge88Gates",
+      "enabled": false,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "disabledReason": "phase 2 pending first 88 batch review"
+    },
+    {
+      "id": "backend-python-auth-session-production-persistence-88",
+      "task": "agent-loop/tasks/backend-python-auth-session-production-persistence-88.md",
+      "gatesKey": "authSessionProductionPersistence88Gates",
+      "enabled": false,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "disabledReason": "phase 2 pending first 88 batch review"
+    },
+    {
+      "id": "backend-python-audit-production-sink-88",
+      "task": "agent-loop/tasks/backend-python-audit-production-sink-88.md",
+      "gatesKey": "auditProductionSink88Gates",
+      "enabled": false,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "disabledReason": "phase 2 pending first 88 batch review"
+    },
+    {
+      "id": "backend-python-permission-route-management-boundary-88",
+      "task": "agent-loop/tasks/backend-python-permission-route-management-boundary-88.md",
+      "gatesKey": "permissionRouteManagementBoundary88Gates",
+      "enabled": false,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "disabledReason": "phase 2 pending first 88 batch review"
+    },
+    {
+      "id": "backend-python-migration-status-refresh-88",
+      "task": "agent-loop/tasks/backend-python-migration-status-refresh-88.md",
+      "gatesKey": "migrationStatusRefresh88Gates",
+      "enabled": false,
+      "guardTests": false,
+      "grokMaxTurns": 12,
+      "maxIterations": 2,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1200000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 2400000,
+      "disabledReason": "final refresh pending 88 runtime tasks"
     }
   ],
   "nodeRouteInventory50Gates": [
@@ -709,5 +839,50 @@
   ],
   "migrationStatusRefresh90Gates": [
     "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-halt-superseded-audit-90.md docs/backend-python-node-route-inventory-90.md docs/backend-python-runtime-depth-audit-90.md"
+  ],
+  "runtimeEvidenceReconcile88Gates": [
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-runtime-evidence-reconcile-88.md agent-loop/tasks/sliderule-python-migration-status.md agent-loop/tasks/backend-python-auth-permission-audit-runtime-90.md agent-loop/tasks/backend-python-a2a-stream-runtime-boundary-90.md"
+  ],
+  "webAigcRuntimeEvidenceReconcile88Gates": [
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-web-aigc-runtime-evidence-reconcile-88.md docs/backend-python-node-route-inventory-90.md agent-loop/tasks/sliderule-python-migration-status.md"
+  ],
+  "taskLifecycleRuntimeBoundary88Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_task_lifecycle_runtime_boundary.py tests/test_task_executor_runtime_bridge.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/tests/task-lifecycle-python-runtime.test.ts server/tests/executor-client-python-runtime.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/task_lifecycle_runtime.py tws-ai-slide-rule-python/tests/test_task_lifecycle_runtime_boundary.py server/tests/task-lifecycle-python-runtime.test.ts"
+  ],
+  "blueprintStateRuntimeBridge88Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_state_runtime_bridge.py tests/test_blueprint_main_state_contract.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/blueprint.state-python-runtime.test.ts server/routes/__tests__/blueprint.main-state-python-contract.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/blueprint_state_runtime.py tws-ai-slide-rule-python/tests/test_blueprint_state_runtime_bridge.py server/routes/__tests__/blueprint.state-python-runtime.test.ts"
+  ],
+  "blueprintStageEditRuntimeBridge88Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_stage_edit_runtime_bridge.py tests/test_blueprint_stage_edit_proxy_contract.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/blueprint.stage-edit-python-runtime.test.ts server/routes/__tests__/blueprint.stage-edit-python-proxy.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/blueprint_stage_edit.py tws-ai-slide-rule-python/tests/test_blueprint_stage_edit_runtime_bridge.py server/routes/__tests__/blueprint.stage-edit-python-runtime.test.ts"
+  ],
+  "authSessionProductionPersistence88Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_auth_session_production_persistence.py tests/test_auth_session_runtime_boundary.py tests/test_auth_session_contract.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/tests/auth-session-production-persistence.test.ts server/tests/auth-session-runtime-boundary.test.ts server/tests/auth-session-python-contract.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/auth_session_persistence.py tws-ai-slide-rule-python/tests/test_auth_session_production_persistence.py server/tests/auth-session-production-persistence.test.ts"
+  ],
+  "auditProductionSink88Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_audit_production_sink.py tests/test_audit_event_runtime_boundary.py tests/test_audit_event_contract.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/tests/audit-production-sink.test.ts server/tests/audit-event-python-runtime.test.ts server/tests/audit-event-python-contract.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/audit_sink.py tws-ai-slide-rule-python/tests/test_audit_production_sink.py server/tests/audit-production-sink.test.ts shared/audit/contracts.ts"
+  ],
+  "permissionRouteManagementBoundary88Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_permission_route_management_boundary.py tests/test_permission_check_runtime_boundary.py tests/test_permission_check_contract.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/permission/management-python-boundary.test.ts server/permission/check-engine-python-runtime.test.ts server/permission/check-engine-python-contract.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/permission_management.py tws-ai-slide-rule-python/tests/test_permission_route_management_boundary.py server/permission/management-python-boundary.test.ts shared/permission/contracts.ts"
+  ],
+  "migrationStatusRefresh88Gates": [
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-runtime-evidence-reconcile-88.md docs/backend-python-web-aigc-runtime-evidence-reconcile-88.md"
   ]
 }
