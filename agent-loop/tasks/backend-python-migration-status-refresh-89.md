@@ -6,11 +6,11 @@
 - 角色分工：worker 负责读取 queue outcomes、docs、commit、gate 证据并更新状态文档；reviewer 确认百分比没有虚高。
 
 ### 状态清单
-- [ ] 读取 89 阶段 queue outcomes 和 HEAD commit 证据。
-- [ ] 对照 runtime evidence reconcile、permission rate-limit、A2A stream、Blueprint job、Web AIGC long-tail 结果。
-- [ ] 更新 `sliderule-python-migration-status.md` 的分层百分比和下一步建议。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有把 contract/proxy/docs-only/supporting maturity 误写成 production runtime。
+- [x] 读取 89 阶段 queue outcomes 和 HEAD commit 证据。
+- [x] 对照 runtime evidence reconcile、permission rate-limit、A2A stream、Blueprint job、Web AIGC long-tail 结果。
+- [x] 更新 `sliderule-python-migration-status.md` 的分层百分比和下一步建议。
+- [x] gate 全绿。
+- [x] Codex review 确认没有把 contract/proxy/docs-only/supporting maturity 误写成 production runtime。
 
 ## 目标
 

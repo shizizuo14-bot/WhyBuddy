@@ -6,12 +6,12 @@
 - 角色分工：worker 负责 inventory 和分层建议；reviewer 确认没有把 fake runtime 或 Node route shell 误计为生产迁移。
 
 ### 状态清单
-- [ ] 读取 `docs/backend-python-node-route-inventory-90.md` 和当前 server route 文件。
-- [ ] 盘点 web-qa、dynamic-chart、ai-ppt、transaction-flow、location/device/open-* 等长尾路径。
-- [ ] 生成 `docs/backend-python-web-aigc-longtail-inventory-89.md`。
-- [ ] 更新状态文档的下一步建议，不更新总迁移百分比。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有把 inventory 当实现完成。
+- [x] 读取 `docs/backend-python-node-route-inventory-90.md` 和当前 server route 文件。
+- [x] 盘点 web-qa、dynamic-chart、ai-ppt、transaction-flow、location/device/open-* 等长尾路径。
+- [x] 生成 `docs/backend-python-web-aigc-longtail-inventory-89.md`。
+- [x] 更新状态文档的下一步建议，不更新总迁移百分比。
+- [x] gate 全绿。
+- [x] Codex review 确认没有把 inventory 当实现完成。
 
 ## 目标
 

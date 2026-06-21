@@ -18,15 +18,16 @@
 
 ## 90 阶段刷新结论
 
-本次刷新读取了主仓库 `.agent-loop/queue-outcomes.json`（2026-06-22 03:59 左右更新）、90 阶段审计文档、当前 `git log --oneline` 和 HEAD 中可见的代码/测试路径。结论是：**整体 NodeJS 后端迁 Python 不应写成 90%；当前更稳妥的工作数字是约 82%，可描述为 80-84% 区间。**
+本次刷新读取了主仓库 `.agent-loop/queue-outcomes.json`、90 阶段审计文档、89 阶段落地补丁、当前 `git log --oneline` 和 HEAD 中可见的代码/测试路径。结论是：**整体 NodeJS 后端迁 Python 仍不应写成 90%；89 阶段补齐了几个 bounded runtime（有边界运行时）缺口后，当前更稳妥的工作数字是约 84%，仍可描述为 80-85% 区间。**
 
-选择 80-84% 的原因：
+选择 80-85% 的原因：
 
 - 队列总量已经明显推进：当前 87 个 `backend-python-*` 任务中，66 个 `DONE_REVIEWED`、1 个 `DONE_REVIEWED_NO_DIFF`、16 个 `HALT_HUMAN`、3 个 `HALT_NO_CHANGES`、1 个 `HALT_APPLY_FAILED`。
 - 90 阶段证据任务中，HALT audit、route inventory、runtime depth audit、session persistence runtime diff、production wiring smoke 都已经有可审查文档或 commit 证据。
 - `session-persistence-runtime-boundary` 仍在旧队列里显示 `DONE_REVIEWED_NO_DIFF`，但后续 `backend-python-session-persistence-runtime-diff-90` 已落地 `6285a5d0`，可按“已补 runtime evidence（运行时证据）”处理。
 - `backend-python-production-wiring-smoke-90` 已落地 Web AIGC search/file/vision/audio runtime bridge、telemetry production sink 和相关 safe-failure/provenance 测试；这些只可计入 bounded runtime / synthetic production wiring maturity（生产接线成熟度），不代表真实外部 search、OCR、vision、audio、APM 或 billing 服务已经由 Python 生产接管。
 - `docs/backend-python-runtime-depth-audit-90.md` 明确指出 75 候选里的许多 `DONE_REVIEWED` 只是 `contract-only` 或 `proxy-only`，不能直接换算成 runtime completion（运行时完成）。
+- 89 阶段已补 permission rate-limit、A2A stream chunk/session/error、Blueprint selected job lifecycle 的 bounded runtime evidence（有边界运行时证据），但这些仍不等于完整权限生产链路、真实外部 agent stream 或完整 Blueprint job store/event bus 迁移。
 - HEAD 中仍可见大量 `node-only` route shell（路由壳）、Blueprint 状态机/job/event bus、task lifecycle、auth persistence、audit retention/export、Web AIGC 其他 adapters 等未迁完分母。
 - 当前 queue outcomes 中仍保留 16 个 `HALT_HUMAN`。其中一部分已被 HALT audit 判定为 superseded（已覆盖）或 docs-only（仅文档），但旧红灯本身不能直接当完成；必须由后续 landed commit 或审计证据逐项接管。
 
@@ -36,11 +37,11 @@
 
 | 范围 | 当前判断 | 进度条 | 说明 |
 |---|---:|---|---|
-| 整体 NodeJS 后端迁 Python | 约 80-84%，工作数字 82% | `[████████░░]` | 90 阶段把 route inventory（路由盘点）、runtime depth（运行时深度）、session persistence（会话持久化）和 production wiring smoke（生产接线冒烟）补上了一层证据，但 route shell、Blueprint 主流程、task lifecycle、auth/audit 生产持久化和部分 Web AIGC adapter 仍是 Node-owned 或 mixed（混合）。 |
+| 整体 NodeJS 后端迁 Python | 约 80-85%，工作数字 84% | `[████████░░]` | 90 阶段把 route inventory（路由盘点）、runtime depth（运行时深度）、session persistence（会话持久化）和 production wiring smoke（生产接线冒烟）补上了一层证据；89 阶段又补了 permission rate-limit、A2A stream、Blueprint job 的 bounded runtime 证据。但 route shell、完整 Blueprint 主流程、完整 task lifecycle、真实 auth/audit 生产持久化和 Web AIGC 长尾 adapter 仍是 Node-owned、mixed（混合）或 fake/synthetic。 |
 | SlideRule V5 子系统迁移 | 约 94-96% | `[█████████░]` | 对话、审议、结构化报告、delivery chain（交付链）、`outcome.visualize`、`ux.preview`、evidence provenance（证据来源）、runtime config（运行配置）、real vector/RAG、A2A invoke、task executor、knowledge admin 等切片已有成片 gate 证据；剩余主要是完整 `orchestrate.plan` 主编排、真实外部服务长跑、部署观测和生产稳定性。 |
 | SlideRule V5 Node 到 Python 薄代理链路 | 约 97-99% | `[██████████]` | Python mode、delegation helper、timeout（超时）、health check（健康检查）、contract smoke、delivery/visual/artifact capability 白名单和多条 runtime/proxy contract 已比较完整；这只是 SlideRule 薄代理链路，不是整体 NodeJS 后端百分比。 |
 | Python V5 可运行基线 | 约 93-95% | `[█████████░]` | Python 服务、核心 smoke、native LLM capability、vector client、evidence provenance、runtime config、RAG、session persistence、task executor、knowledge admin 和 production wiring smoke 都有测试支撑；真实生产依赖、外部服务凭据、长跑观测仍需继续补。 |
-| 90 阶段 route/runtime 深度 | 约 76-82% | `[████████░░]` | 盘点显示 `/api/sliderule`、RAG/vector、MCP/skill、部分 workflow/NL/A2A、task executor 和 knowledge admin 有 contract/proxy/runtime 证据；但 `/api/blueprint` 大路由、auth persistence、permission route management、audit retention/export、task route lifecycle 和大量 Web AIGC 路径仍是 Node-led。 |
+| 90/89 阶段 route/runtime 深度 | 约 80-84% | `[████████░░]` | 盘点显示 `/api/sliderule`、RAG/vector、MCP/skill、部分 workflow/NL/A2A、task executor、knowledge admin、permission rate-limit、A2A stream、Blueprint selected job 有 contract/proxy/runtime 证据；但 `/api/blueprint` 大路由、auth persistence、audit retention/export、task route lifecycle 和大量 Web AIGC 长尾路径仍是 Node-led。 |
 | production wiring maturity | 约 80-85% | `[████████░░]` | RAG/vector、deployment live smoke、observability rollup、Web AIGC search/file/vision/audio 和 telemetry sink 有 fake/synthetic smoke 或 degraded/safe-failure 证据；不代表真实 Qdrant/embedding/search/OCR/vision/audio/telemetry/APM 外部服务已经生产长跑。 |
 | LLM infra 迁移 | 约 60-68% | `[██████░░░░]` | Python `sliderule_llm` 已支撑 chat、JSON hardening、pool、fallback、telemetry metadata、vector client、stream contract、cost accounting、circuit breaker 和 multimodal contract；完整并发、真实生产计费、跨后端观测和 Node env 细节仍未完全对齐。 |
 
@@ -54,14 +55,15 @@
 | Runtime depth audit 90 | `docs/backend-python-runtime-depth-audit-90.md` 已落地。它把 15 个 75 候选 `DONE_REVIEWED` 切片分为 `runtime-bridge`、`production-wiring`、`contract-only`、`proxy-only`，其中只有 task executor、knowledge admin、deployment live smoke、observability rollup 可按 bounded runtime/prod evidence 计入。 | 这是压低百分比的核心证据：contract/proxy 绿不等于 runtime/prod 完成。 |
 | Session persistence diff 90 | `6285a5d0 test(sliderule): cover python session persistence runtime` 已落地，补了 Python mode session store 相关测试证据。 | 可把旧 `DONE_REVIEWED_NO_DIFF` 悬项收口为 runtime evidence，但仍不代表 auth/session 全链路迁移。 |
 | Production wiring smoke 90 | 当前 `HEAD` 可见 Web AIGC search/file/vision/audio runtime bridge、telemetry production sink、safe failure 和 provenance 相关测试/服务文件；详见 `docs/backend-python-web-aigc-runtime-evidence-reconcile-88.md`。 | 只计入 bounded runtime / synthetic production wiring maturity；不等同真实外部服务已生产接好。 |
-| Auth/permission/audit runtime 90 与 A2A stream 90 | queue outcomes 显示 `DONE_REVIEWED`，任务文档清单已勾选；但当前 HEAD 下部分 gate 中点名的 runtime 测试路径不可见。 | 不能据此把整块 auth/permission/audit 或 A2A stream 写成已生产迁移。需要 reviewer 复核对应 diff 是否真正落地，或后续补齐可见代码证据。 |
+| Runtime evidence reconcile 89 | `docs/backend-python-runtime-evidence-reconcile-89.md` 已落地，按当前 `HEAD` 复核 auth/session、permission、audit、A2A stream、task lifecycle、Blueprint、Web AIGC 与 telemetry。 | 可用于状态口径校正；它本身不新增业务实现，也不把整体迁移上调到 90%。 |
+| Permission rate-limit、A2A stream、Blueprint job runtime 89 | 当前 `HEAD` 已可见 `tws-ai-slide-rule-python/services/permission_rate_limit.py`、`tests/test_permission_rate_limit_runtime_boundary.py`、`server/permission/rate-limiter-python-runtime.test.ts`、`tests/test_a2a_stream_runtime_boundary.py`、`server/routes/__tests__/a2a-python-stream-runtime.test.ts`、`tests/test_blueprint_job_runtime_boundary.py`、`server/routes/__tests__/blueprint.job-runtime-python-boundary.test.ts` 等路径。 | 可按 bounded runtime 计入小切片推进；不能写成完整 permission production、真实外部 A2A stream 或完整 Blueprint job store/event bus 迁移。 |
 | migration status refresh 90 | 之前队列结果是 `HALT_HUMAN`/`failed`，审查指出状态文档仍停在 75 口径。 | 本文件就是本轮回修；它只刷新状态，不计入业务迁移分母。 |
 
 ## 计入与不计入清单
 
 | 类型 | 可以计入整体迁移推进的证据 | 不能按完成计入的证据 |
 |---|---|---|
-| bounded runtime bridge | `task-executor-runtime-bridge`、`knowledge-admin-runtime-bridge`、A2A invoke runtime、Web AIGC search runtime、session persistence runtime diff 等有 commit/测试路径的最小运行时桥。 | 只有 proxy shape（代理形状）或 contract envelope（契约信封）的切片。 |
+| bounded runtime bridge | `task-executor-runtime-bridge`、`knowledge-admin-runtime-bridge`、A2A invoke runtime、A2A stream boundary、permission rate-limit boundary、Blueprint selected job boundary、Web AIGC search runtime、session persistence runtime diff 等有 commit/测试路径的最小运行时桥。 | 只有 proxy shape（代理形状）或 contract envelope（契约信封）的切片。 |
 | production wiring maturity | RAG/vector production boundary、deployment live smoke、observability rollup、production wiring smoke 90 中的 Web AIGC search/file/vision/audio fake-runtime bridge 和 telemetry synthetic sink smoke。 | 真实外部服务、真实密钥、外部 APM、长跑稳定性和生产部署策略未验证时，不能称为完整生产迁移。 |
 | docs/audit support | HALT audit、route inventory、runtime depth audit 可提升口径可信度，帮助识别真缺口。 | docs-only、status refresh、inventory 本身不迁业务 runtime。 |
 | no-diff / HALT | 后续任务补了真实 diff 或明确接受已有证据后，可以按后续任务计入。 | `DONE_REVIEWED_NO_DIFF`、`HALT_NO_CHANGES`、`HALT_APPLY_FAILED`、`HALT_HUMAN` 本身不计入新增完成。 |
@@ -71,10 +73,10 @@
 
 | 缺口 | 为什么仍阻碍 88/90% |
 |---|---|
-| Blueprint 主路由和状态机 | `/api/blueprint` 大路由、job store、event bus、diagnostics、ledger、preview、prompt package、replan/staleness/traceability 等仍是 Node-owned 或 mixed。 |
+| Blueprint 主路由和状态机 | Blueprint state、stage edit、selected job lifecycle 已有 bounded runtime 证据；但 `/api/blueprint` 大路由、durable job store、event bus、diagnostics、ledger、preview、prompt package、replan/staleness/traceability 等仍是 Node-owned 或 mixed。 |
 | Auth/session 生产链路 | 当前可见证据主要覆盖 contract 或 session persistence boundary；用户注册/登录、repository、email code、refresh/logout 和生产持久化仍未整体迁移。 |
-| Permission/audit 生产链路 | permission route management、rate-limit runtime、audit retention/export/anomaly/compliance、permission audit hooks 仍需更清楚的 Python runtime 或 production sink 证据。 |
-| A2A stream 长链路 | invoke/list/cancel 已有运行时桥或 contract 证据，但 stream runtime、外部 agent safe failure 和 session/registry 生产语义仍未完全坐实。 |
+| Permission/audit 生产链路 | permission check、route management、rate-limit boundary、audit event runtime 和 audit sink smoke 已有证据；但 durable counters、policy orchestration、audit retention/export/anomaly/compliance、permission audit hooks 仍需更清楚的 Python runtime 或 production sink 证据。 |
+| A2A stream 长链路 | invoke/list/cancel 和 stream chunk/session/error 已有 bounded runtime 证据；但真实外部 agent safe failure、registry/session 持久化和生产 stream transport 仍未完全坐实。 |
 | Task route lifecycle | executor client runtime bridge 可计入；`/api/tasks`、mission store、project/resource auth 和完整 task lifecycle 仍是 Node-owned。 |
 | Web AIGC 长尾 adapters | search/file/vision/audio 进展明显；web-qa、image/graph search、static webpage、OCR、dynamic chart、AI PPT、transaction-flow 等仍需逐片审计。 |
 | 真实生产外部依赖 | smoke 覆盖 missing config、timeout、degraded 或 safe failure；真实 Qdrant/embedding/search/telemetry/APM 长跑和密钥部署不在本轮完成范围内。 |
@@ -82,15 +84,15 @@
 
 ## 下一步建议
 
-如果下一阶段要把整体进度从 80-84% 推到可坐实的 85%/88%，建议优先做这些小切片：
+如果下一阶段要把整体进度从 80-85% 推到可坐实的 85%/88%，建议优先做这些小切片：
 
 | 顺序 | 建议任务 | 目标 |
 |---|---|---|
-| 1 | 复核 auth/permission/audit runtime 90 与 A2A stream 90 的落地证据 | 让 queue `DONE_REVIEWED`、task checklist、HEAD 中可见代码/测试路径三者一致；缺文件则补真实 diff 或下调计入口径。 |
-| 2 | Blueprint runtime 深水区拆片 | 先迁 selected state/job/stage edit/role runtime 的真实运行时行为，不一次迁完整 Blueprint 大路由。 |
+| 1 | Blueprint runtime 深水区继续拆片 | selected state/job/stage edit 已补 bounded runtime；下一步优先 role runtime、artifact memory、review export 或 job event stream，不一次迁完整 Blueprint 大路由。 |
+| 2 | Auth/audit production persistence 深化 | 在不改 schema 的前提下，补 auth session repository、audit retention/export/sink health 的 Python production wiring 或明确降级语义。 |
 | 3 | Task lifecycle runtime bridge | 在 executor client bridge 之外，补 `/api/tasks`、mission store、event replay、cancel/error 的 Python runtime 或 production boundary。 |
-| 4 | Auth/audit production persistence | 不改 schema 的前提下，补 auth session repository、audit sink/export/retention 的 Python production wiring 或明确降级语义。 |
-| 5 | Web AIGC adapter 长尾盘点与 runtime bridge | 按 route inventory 中的 node-only path 逐片补 contract、proxy、runtime，再进入 production wiring。 |
+| 4 | Web AIGC adapter 长尾 contract/runtime | 按 `docs/backend-python-web-aigc-longtail-inventory-89.md` 里的优先级，从 location/device、dynamic-chart、open-*、Web QA 等逐片补 contract、proxy、runtime。 |
+| 5 | A2A production stream hardening | 在不启动真实外部 agent 的前提下，补可诊断 safe-failure、registry/session 边界和 stream transport 降级语义。 |
 | 6 | 生产外部服务长跑 smoke | 在不提交密钥的前提下，补可配置、可跳过、可诊断的外部依赖 smoke 和 observability evidence。 |
 
 ## 当前迁移原则
@@ -129,6 +131,11 @@
 
 ## Auth/A2A runtime evidence reconcile 88 addendum
 
+> 历史快照说明：本节记录 88 reconcile 当时的 HEAD 口径。89 阶段已经补齐
+> permission rate-limit、A2A stream、Blueprint selected job 的 bounded runtime
+> 证据；当前口径以本文后面的“89 阶段落地补充”和
+> `docs/backend-python-runtime-evidence-reconcile-89.md` 为准。
+
 This addendum corrects the reviewed 90-stage runtime posture against current
 `HEAD`. It is intentionally limited to evidence alignment and does not raise
 the overall backend migration percentage to 90%.
@@ -158,6 +165,10 @@ HEAD evidence details:
 Auth/A2A detailed report: `docs/backend-python-runtime-evidence-reconcile-88.md`.
 
 ## Web AIGC runtime evidence reconcile 88 addendum
+
+> 历史快照说明：本节记录 88 reconcile 当时的 Web AIGC runtime 口径。89 阶段
+> 额外补了 long-tail inventory（长尾盘点），但没有把长尾路由计入 runtime
+> 完成。
 
 This addendum reconciles Web AIGC runtime and telemetry sink evidence against
 current `HEAD`. It is limited to the Web AIGC search/file/vision/audio and
@@ -198,3 +209,38 @@ Counting rule after this reconcile:
   current `HEAD` has concrete runtime-boundary or production paths.
 - The overall backend migration remains in the previously documented 80-84%
   working band, not 90%.
+
+## 89 阶段落地补充
+
+本轮 89 阶段队列在 2026-06-22 07:09（Asia/Shanghai）左右完成，6 个任务全部
+`DONE_REVIEWED`：
+
+- `backend-python-runtime-evidence-reconcile-89`
+- `backend-python-permission-rate-limit-runtime-boundary-89`
+- `backend-python-a2a-stream-runtime-boundary-89`
+- `backend-python-blueprint-job-runtime-boundary-89`
+- `backend-python-web-aigc-longtail-inventory-89`
+- `backend-python-migration-status-refresh-89`
+
+本轮可计入的小切片：
+
+- Permission rate-limit 增加 bounded runtime decision envelope（允许/拒绝/无效 limit/retry-after）。
+- A2A stream 增加 bounded stream chunk、session、failed/cancelled envelope。
+- Blueprint selected job lifecycle 增加 complete/fail/cancel/status 的 bounded runtime boundary。
+- Web AIGC 长尾只完成 inventory（盘点），不计入业务 runtime 完成。
+- Runtime evidence reconcile/status refresh 只修正口径，不计入业务迁移分母。
+
+本轮验证证据：
+
+- Python gate：`30 passed`，覆盖 permission rate-limit、A2A stream、Blueprint job runtime boundary。
+- Node/Vitest gate：`8 passed` test files、`43 passed` tests。
+- TypeScript gate：`pnpm exec tsc --noEmit --pretty false` 退出码 0。
+- Mojibake gate：`No mojibake findings.`
+
+89 阶段后的计数规则：
+
+- 可以把 permission rate-limit、A2A stream、Blueprint selected job lifecycle
+  作为 bounded runtime 小切片计入。
+- 不能把这些小切片写成完整 permission production、真实外部 A2A agent
+  stream、完整 Blueprint job store/event bus 或整体 NodeJS 后端 90%。
+- 整体工作数字从 82% 小幅上调到 84% 更稳妥；继续使用 80-85% 区间描述。

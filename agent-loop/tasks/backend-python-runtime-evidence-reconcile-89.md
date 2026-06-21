@@ -6,12 +6,12 @@
 - 角色分工：worker 负责读取当前 HEAD、queue outcomes、docs 和 gate-named 文件；reviewer 确认没有把 contract/proxy/supporting evidence 误计为 runtime 或 production。
 
 ### 状态清单
-- [ ] 读取当前 `queue-outcomes.json`、最近 commit 和 88/90 阶段任务文件。
-- [ ] 复核 auth/session、permission、audit、A2A stream、task lifecycle、Blueprint、Web AIGC 的 HEAD 可见证据。
-- [ ] 生成 `docs/backend-python-runtime-evidence-reconcile-89.md`。
-- [ ] 更新 `sliderule-python-migration-status.md` 的证据表，但不强行上调百分比。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有把 review 绿灯误写成业务迁移完成。
+- [x] 读取当前 `queue-outcomes.json`、最近 commit 和 88/90 阶段任务文件。
+- [x] 复核 auth/session、permission、audit、A2A stream、task lifecycle、Blueprint、Web AIGC 的 HEAD 可见证据。
+- [x] 生成 `docs/backend-python-runtime-evidence-reconcile-89.md`。
+- [x] 更新 `sliderule-python-migration-status.md` 的证据表，但不强行上调百分比。
+- [x] gate 全绿。
+- [x] Codex review 确认没有把 review 绿灯误写成业务迁移完成。
 
 ## 目标
 
