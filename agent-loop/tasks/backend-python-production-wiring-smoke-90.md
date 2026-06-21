@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 production wiring smoke 和缺口表；reviewer 确认 fallback、provenance、degraded 状态没有被吞掉。
 
 ### 状态清单
-- [ ] real vector retrieval 与 RAG ingestion production storage 有 smoke 证据。
-- [ ] Web AIGC search/file/vision-audio runtime bridge 有 safe failure 和 provenance。
-- [ ] telemetry production sink 与 observability rollup 能保留 degraded/unknown 状态。
-- [ ] deployment live smoke 能覆盖 config missing、timeout、unhealthy。
-- [ ] gate 全绿。
+- [x] real vector retrieval 与 RAG ingestion production storage 有 smoke 证据。
+- [x] Web AIGC search/file/vision-audio runtime bridge 有 safe failure 和 provenance。
+- [x] telemetry production sink 与 observability rollup 能保留 degraded/unknown 状态。
+- [x] deployment live smoke 能覆盖 config missing、timeout、unhealthy。
+- [x] gate 全绿。
 
 ## 目标
 

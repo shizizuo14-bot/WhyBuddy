@@ -640,6 +640,200 @@ export function isPythonObservabilityRollup(
   return true;
 }
 
+// ---------------------------------------------------------------------------
+// Python Contract Slice: Telemetry Production Sink Smoke
+// ---------------------------------------------------------------------------
+
+export const TELEMETRY_PRODUCTION_SINK_PYTHON_CONTRACT_VERSION =
+  "telemetry-production-sink.runtime.v1" as const;
+
+export type TelemetryProductionSinkPythonStatus =
+  | "delivered"
+  | "misconfigured"
+  | "degraded"
+  | "unknown";
+
+export type TelemetryProductionSinkPythonKind =
+  | "otlp"
+  | "datadog"
+  | "prometheus"
+  | "console"
+  | "memory";
+
+export interface TelemetryProductionSinkPythonProvenance {
+  source: "python-telemetry-production-sink";
+  synthetic: true;
+  externalMonitoringRequest: false;
+  externalSink: false;
+}
+
+export interface TelemetryProductionSinkPythonConfig {
+  kind: TelemetryProductionSinkPythonKind;
+  configured: boolean;
+  endpoint?: string | null;
+  externalEmit: false;
+}
+
+export interface TelemetryProductionSinkPythonEvent {
+  eventId: string;
+  type: string;
+  severity: "info" | "warning" | "error";
+  message: string;
+  timestamp: number;
+  [key: string]: unknown;
+}
+
+export interface TelemetryProductionSinkPythonDelivery {
+  attempted: boolean;
+  emitted: false;
+  eventId: string;
+}
+
+export interface TelemetryProductionSinkPythonError {
+  code: string;
+  message: string;
+  retryable: boolean;
+}
+
+export interface TelemetryProductionSinkPythonContractResult {
+  contractVersion: typeof TELEMETRY_PRODUCTION_SINK_PYTHON_CONTRACT_VERSION;
+  runtime: "python-telemetry-production-sink";
+  ok: boolean;
+  status: TelemetryProductionSinkPythonStatus;
+  sink: TelemetryProductionSinkPythonConfig;
+  event: TelemetryProductionSinkPythonEvent;
+  delivery: TelemetryProductionSinkPythonDelivery;
+  provenance: TelemetryProductionSinkPythonProvenance;
+  error?: TelemetryProductionSinkPythonError | null;
+}
+
+const TELEMETRY_PRODUCTION_SINK_PYTHON_STATUSES: readonly TelemetryProductionSinkPythonStatus[] = [
+  "delivered",
+  "misconfigured",
+  "degraded",
+  "unknown",
+];
+
+const TELEMETRY_PRODUCTION_SINK_PYTHON_KINDS: readonly TelemetryProductionSinkPythonKind[] = [
+  "otlp",
+  "datadog",
+  "prometheus",
+  "console",
+  "memory",
+];
+
+export function isTelemetryProductionSinkPythonContractResult(
+  value: unknown,
+): value is TelemetryProductionSinkPythonContractResult {
+  const result = telemetryRouteAsRecord(value);
+  if (!result) return false;
+  if (
+    result.contractVersion !==
+    TELEMETRY_PRODUCTION_SINK_PYTHON_CONTRACT_VERSION
+  ) {
+    return false;
+  }
+  if (result.runtime !== "python-telemetry-production-sink") return false;
+  if (
+    !telemetryRouteOneOf(
+      result.status,
+      TELEMETRY_PRODUCTION_SINK_PYTHON_STATUSES,
+    )
+  ) {
+    return false;
+  }
+  if (!isTelemetryProductionSinkPythonConfig(result.sink)) return false;
+  if (!isTelemetryProductionSinkPythonEvent(result.event)) return false;
+  if (!isTelemetryProductionSinkPythonDelivery(result.delivery)) return false;
+  if (!isTelemetryProductionSinkPythonProvenance(result.provenance)) return false;
+
+  if (result.status === "delivered") {
+    return (
+      result.ok === true &&
+      result.error == null &&
+      result.sink.configured === true &&
+      result.delivery.attempted === true &&
+      result.delivery.emitted === false &&
+      result.sink.externalEmit === false
+    );
+  }
+
+  return (
+    result.ok === false &&
+    isTelemetryProductionSinkPythonError(result.error) &&
+    result.delivery.emitted === false &&
+    result.sink.externalEmit === false
+  );
+}
+
+function isTelemetryProductionSinkPythonProvenance(
+  value: unknown,
+): value is TelemetryProductionSinkPythonProvenance {
+  const provenance = telemetryRouteAsRecord(value);
+  return (
+    provenance !== null &&
+    provenance.source === "python-telemetry-production-sink" &&
+    provenance.synthetic === true &&
+    provenance.externalMonitoringRequest === false &&
+    provenance.externalSink === false
+  );
+}
+
+function isTelemetryProductionSinkPythonConfig(
+  value: unknown,
+): value is TelemetryProductionSinkPythonConfig {
+  const sink = telemetryRouteAsRecord(value);
+  return (
+    sink !== null &&
+    telemetryRouteOneOf(sink.kind, TELEMETRY_PRODUCTION_SINK_PYTHON_KINDS) &&
+    typeof sink.configured === "boolean" &&
+    sink.externalEmit === false &&
+    (sink.endpoint === undefined ||
+      sink.endpoint === null ||
+      telemetryRouteNonEmptyString(sink.endpoint))
+  );
+}
+
+function isTelemetryProductionSinkPythonEvent(
+  value: unknown,
+): value is TelemetryProductionSinkPythonEvent {
+  const event = telemetryRouteAsRecord(value);
+  return (
+    event !== null &&
+    telemetryRouteNonEmptyString(event.eventId) &&
+    telemetryRouteNonEmptyString(event.type) &&
+    (event.severity === "info" ||
+      event.severity === "warning" ||
+      event.severity === "error") &&
+    telemetryRouteNonEmptyString(event.message) &&
+    telemetryRouteNonNegativeNumber(event.timestamp)
+  );
+}
+
+function isTelemetryProductionSinkPythonDelivery(
+  value: unknown,
+): value is TelemetryProductionSinkPythonDelivery {
+  const delivery = telemetryRouteAsRecord(value);
+  return (
+    delivery !== null &&
+    typeof delivery.attempted === "boolean" &&
+    delivery.emitted === false &&
+    telemetryRouteNonEmptyString(delivery.eventId)
+  );
+}
+
+function isTelemetryProductionSinkPythonError(
+  value: unknown,
+): value is TelemetryProductionSinkPythonError {
+  const error = telemetryRouteAsRecord(value);
+  return (
+    error !== null &&
+    telemetryRouteNonEmptyString(error.code) &&
+    telemetryRouteNonEmptyString(error.message) &&
+    typeof error.retryable === "boolean"
+  );
+}
+
 function isPythonObservabilityRollupProvenance(
   value: unknown,
 ): value is PythonObservabilityRollupProvenance {

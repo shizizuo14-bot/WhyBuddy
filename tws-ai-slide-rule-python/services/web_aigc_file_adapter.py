@@ -254,6 +254,27 @@ class FileAdapterMetrics(BaseModel):
     columnCount: Optional[int] = None
 
 
+class FileRuntimeBridgeMetadata(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    backend: Literal["python"] = "python"
+    provider: Literal["fake"] = "fake"
+    source: str
+    externalCalls: Literal[False] = False
+    persisted: Literal[False] = False
+
+    @field_validator("source")
+    @classmethod
+    def _validate_source(cls, value: str) -> str:
+        return _non_empty(value)
+
+
+class FileRuntimeBridgeResponse(BaseModel):
+    model_config = ConfigDict(extra="allow")
+
+    runtime: FileRuntimeBridgeMetadata
+
+
 class FileAdapterBaseResponse(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
@@ -460,6 +481,17 @@ def execute_fake_file_adapter(payload: Dict[str, Any]) -> FileAdapterResponse:
     )
 
 
+def execute_file_runtime_bridge(payload: Dict[str, Any]) -> FileRuntimeBridgeResponse:
+    """Project a Python file runtime bridge response without side effects."""
+
+    response = execute_fake_file_adapter(payload)
+    dumped = response.model_dump(exclude_none=True)
+    dumped["runtime"] = FileRuntimeBridgeMetadata(
+        source=_runtime_source_for_kind(response.kind),
+    ).model_dump()
+    return FileRuntimeBridgeResponse(**dumped)
+
+
 def _read_kind(value: Any) -> FileAdapterKind:
     if value in _KIND_OPERATION:
         return value
@@ -515,6 +547,16 @@ def _read_artifact_id(value: Any, filename: str) -> str:
 
     base = re.sub(r"[^A-Za-z0-9._-]+", "-", filename.rsplit(".", 1)[0]).strip("-")
     return _safe_identifier(f"artifact-{base or 'file'}", "artifactId")
+
+
+def _runtime_source_for_kind(kind: FileAdapterKind) -> str:
+    return {
+        "file_generation": "python-file-generation-runtime",
+        "file_slicing": "python-file-slicing-runtime",
+        "file_translation": "python-file-translation-runtime",
+        "excel_read": "python-excel-read-runtime",
+        "long_text_extraction": "python-long-text-extraction-runtime",
+    }[kind]
 
 
 def _read_rows(value: Any) -> List[List[Any]]:
