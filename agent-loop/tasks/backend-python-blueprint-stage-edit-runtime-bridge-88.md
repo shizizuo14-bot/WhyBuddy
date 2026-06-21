@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 accepted/rejected/conflict/noop runtime 语义和测试；reviewer 确认不迁完整 Blueprint 状态机。
 
 ### 状态清单
-- [ ] Python runtime 覆盖 selected stage edit validate/preview/apply envelope。
-- [ ] Node 测试覆盖 accepted/rejected/conflict/noop/stale 语义。
-- [ ] Node 继续拥有 invalidation 和主状态提交。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有扩大到完整 Blueprint route。
+- [x] Python runtime 覆盖 selected stage edit validate/preview/apply envelope。
+- [x] Node 测试覆盖 accepted/rejected/conflict/noop/stale 语义。
+- [x] Node 继续拥有 invalidation 和主状态提交。
+- [x] gate 全绿。
+- [x] Codex review 确认没有扩大到完整 Blueprint route。
 
 ## 目标
 

@@ -12,6 +12,8 @@ from typing import Any
 
 
 BLUEPRINT_STAGE_EDIT_PROXY_CONTRACT_VERSION = "blueprint.stage-edit.proxy.v1"
+BLUEPRINT_STAGE_EDIT_RUNTIME_CONTRACT_VERSION = "blueprint.stage-edit.runtime.v1"
+APPLY_NODE_OWNER_MESSAGE = "Blueprint stage edits are evaluated by Python but applied by Node."
 
 GRAPH: dict[str, list[str]] = {
     "input": ["clarification"],
@@ -54,6 +56,80 @@ ARTIFACT_STAGE_BY_TYPE = {
 }
 
 TERMINAL_HANDOFF_STATES = {"confirmed", "reset", "failed", "idle"}
+RUNTIME_OPERATIONS = {"validate", "preview", "apply"}
+NODE_CONTROL = {
+    "stateAuthority": "node",
+    "persistenceOwner": "node",
+    "invalidationOwner": "node",
+    "jobStoreOwner": "node",
+}
+
+
+def execute_blueprint_stage_edit_runtime(payload: Any) -> dict[str, Any]:
+    operation = payload.get("operation") if _is_record(payload) else None
+    if operation not in RUNTIME_OPERATIONS:
+        return _runtime_error(
+            "unknown",
+            _runtime_boundary("input"),
+            "invalid_operation",
+            "unsupported_stage_edit_operation",
+            "Blueprint stage edit runtime operation must be validate, preview, or apply.",
+            400,
+        )
+
+    selected_stage = payload.get("selectedStage")
+    if selected_stage != "input":
+        return _runtime_error(
+            operation,
+            _runtime_boundary("input" if not isinstance(selected_stage, str) else selected_stage),
+            "unsupported_stage",
+            "unsupported_selected_stage",
+            "Blueprint stage edit runtime currently supports only the input stage.",
+            400,
+        )
+
+    boundary = _runtime_boundary(selected_stage)
+    if not _has_node_control(payload.get("nodeControl")):
+        return _runtime_error(
+            operation,
+            boundary,
+            "boundary_violation",
+            "node_control_owner_mismatch",
+            "Blueprint stage edit runtime requires Node-owned state and invalidation boundaries.",
+            400,
+        )
+
+    patch = payload.get("patch")
+    validation = validate_intake_patch(patch)
+    if operation == "validate":
+        return _runtime_validate_result(operation, boundary, validation)
+
+    stale_result = _selected_stage_stale_result(payload.get("selectedStageState"), operation, boundary)
+    if stale_result is not None:
+        return stale_result
+
+    decision = preview_intake_patch(
+        {
+            "intake": payload.get("intake"),
+            "patch": patch,
+            "jobs": payload.get("jobs"),
+            "now": payload.get("now"),
+        }
+    )
+    result: dict[str, Any] = {
+        "ok": bool(decision.get("ok")),
+        "operation": operation,
+        "contractVersion": BLUEPRINT_STAGE_EDIT_RUNTIME_CONTRACT_VERSION,
+        "runtime": boundary,
+        "validation": _validation_envelope(validation),
+        "decision": decision,
+        "apply": _apply_envelope(patch if operation == "apply" and validation.get("ok") else None),
+        "statusCode": decision.get("status", 500),
+        "provenance": "python-blueprint-stage-edit-runtime",
+    }
+    if not decision.get("ok"):
+        _attach_decision_error(result, decision)
+    return result
 
 
 def validate_intake_patch(body: Any) -> dict[str, Any]:
@@ -187,8 +263,158 @@ def _base_result() -> dict[str, Any]:
     }
 
 
+def _runtime_boundary(selected_stage: str) -> dict[str, Any]:
+    return {
+        "owner": "python",
+        "mode": "runtime_bridge",
+        "selectedStage": selected_stage,
+        "stateAuthority": "node",
+        "persistenceOwner": "node",
+        "invalidationOwner": "node",
+        "jobStoreOwner": "node",
+        "stateMutation": "none",
+    }
+
+
+def _runtime_validate_result(
+    operation: str,
+    boundary: dict[str, Any],
+    validation: dict[str, Any],
+) -> dict[str, Any]:
+    result: dict[str, Any] = {
+        "ok": bool(validation.get("ok")),
+        "operation": operation,
+        "contractVersion": BLUEPRINT_STAGE_EDIT_RUNTIME_CONTRACT_VERSION,
+        "runtime": boundary,
+        "validation": _validation_envelope(validation),
+        "apply": _apply_envelope(),
+        "provenance": "python-blueprint-stage-edit-runtime",
+    }
+    if not validation.get("ok"):
+        result.update(
+            {
+                "error": validation.get("error", "validation_error"),
+                "reason": "invalid_stage_edit_patch",
+                "message": validation.get("message", "Blueprint stage edit patch is invalid."),
+                "statusCode": 400,
+            }
+        )
+    return result
+
+
+def _validation_envelope(validation: dict[str, Any]) -> dict[str, Any]:
+    if validation.get("ok"):
+        return {
+            "accepted": True,
+            "patch": deepcopy(validation.get("value", {})),
+        }
+    return {
+        "accepted": False,
+        "error": validation.get("error", "validation_error"),
+        "message": validation.get("message", "Blueprint stage edit patch is invalid."),
+    }
+
+
+def _apply_envelope(patch: Any = None) -> dict[str, Any]:
+    envelope: dict[str, Any] = {
+        "accepted": False,
+        "reason": "node_state_owner",
+        "message": APPLY_NODE_OWNER_MESSAGE,
+    }
+    if patch is not None:
+        envelope["requestedPatch"] = deepcopy(patch)
+    return envelope
+
+
+def _runtime_error(
+    operation: str,
+    boundary: dict[str, Any],
+    error: str,
+    reason: str,
+    message: str,
+    status_code: int,
+) -> dict[str, Any]:
+    return {
+        "ok": False,
+        "operation": operation,
+        "contractVersion": BLUEPRINT_STAGE_EDIT_RUNTIME_CONTRACT_VERSION,
+        "runtime": boundary,
+        "error": error,
+        "reason": reason,
+        "message": message,
+        "statusCode": status_code,
+        "apply": _apply_envelope(),
+        "provenance": "python-blueprint-stage-edit-runtime",
+    }
+
+
+def _selected_stage_stale_result(
+    selected_stage_state: Any,
+    operation: str,
+    boundary: dict[str, Any],
+) -> dict[str, Any] | None:
+    if not _is_record(selected_stage_state) or selected_stage_state.get("stale") is not True:
+        return None
+
+    decision = {
+        **_base_result(),
+        "ok": False,
+        "outcome": "stale",
+        "status": 409,
+        "error": "selected_stage_stale",
+        "message": "Selected Blueprint stage is stale and must be refreshed by Node before editing.",
+        "selectedStage": boundary["selectedStage"],
+    }
+    stale_since = selected_stage_state.get("staleSince")
+    if isinstance(stale_since, str) and stale_since:
+        decision["staleSince"] = stale_since
+
+    return {
+        "ok": False,
+        "operation": operation,
+        "contractVersion": BLUEPRINT_STAGE_EDIT_RUNTIME_CONTRACT_VERSION,
+        "runtime": boundary,
+        "decision": decision,
+        "apply": _apply_envelope(),
+        "error": "selected_stage_stale",
+        "reason": "selected_stage_stale",
+        "message": "Selected Blueprint stage is stale and must be refreshed by Node before editing.",
+        "statusCode": 409,
+        "provenance": "python-blueprint-stage-edit-runtime",
+    }
+
+
+def _attach_decision_error(result: dict[str, Any], decision: dict[str, Any]) -> None:
+    outcome = decision.get("outcome")
+    if outcome == "rejected":
+        result["error"] = decision.get("error", "invalid_intake_patch")
+        result["reason"] = "invalid_stage_edit_patch"
+        result["message"] = decision.get("message", "Blueprint stage edit patch is invalid.")
+        return
+    if outcome == "conflict":
+        result["error"] = decision.get("error", "downstream_running")
+        result["reason"] = "stage_edit_conflict"
+        result["message"] = "A downstream Blueprint stage is still running."
+        return
+    if outcome == "stale":
+        result["error"] = "selected_stage_stale"
+        result["reason"] = "selected_stage_stale"
+        result["message"] = "Selected Blueprint stage is stale and must be refreshed by Node before editing."
+        return
+    result["error"] = "stage_edit_runtime_error"
+    result["reason"] = "stage_edit_runtime_error"
+    result["message"] = "Blueprint stage edit runtime returned a non-success decision."
+
+
+def _has_node_control(value: Any) -> bool:
+    if not _is_record(value):
+        return False
+    return all(value.get(key) == expected for key, expected in NODE_CONTROL.items())
+
+
 def _invalid(message: str) -> dict[str, Any]:
     return {"ok": False, "error": "invalid_intake_patch", "message": message}
+
 
 
 def _is_record(value: Any) -> bool:
