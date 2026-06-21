@@ -601,6 +601,85 @@
       "id": "backend-python-migration-status-refresh-88",
       "task": "agent-loop/tasks/backend-python-migration-status-refresh-88.md",
       "gatesKey": "migrationStatusRefresh88Gates",
+      "enabled": false,
+      "guardTests": false,
+      "grokMaxTurns": 12,
+      "maxIterations": 2,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1200000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 2400000,
+      "disabledReason": "completed in main by 88-stage refresh; next queue uses 89-stage tasks"
+    },
+    {
+      "id": "backend-python-runtime-evidence-reconcile-89",
+      "task": "agent-loop/tasks/backend-python-runtime-evidence-reconcile-89.md",
+      "gatesKey": "runtimeEvidenceReconcile89Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 16,
+      "maxIterations": 2,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1200000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 2400000
+    },
+    {
+      "id": "backend-python-permission-rate-limit-runtime-boundary-89",
+      "task": "agent-loop/tasks/backend-python-permission-rate-limit-runtime-boundary-89.md",
+      "gatesKey": "permissionRateLimitRuntimeBoundary89Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-a2a-stream-runtime-boundary-89",
+      "task": "agent-loop/tasks/backend-python-a2a-stream-runtime-boundary-89.md",
+      "gatesKey": "a2aStreamRuntimeBoundary89Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-blueprint-job-runtime-boundary-89",
+      "task": "agent-loop/tasks/backend-python-blueprint-job-runtime-boundary-89.md",
+      "gatesKey": "blueprintJobRuntimeBoundary89Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-web-aigc-longtail-inventory-89",
+      "task": "agent-loop/tasks/backend-python-web-aigc-longtail-inventory-89.md",
+      "gatesKey": "webAigcLongtailInventory89Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 16,
+      "maxIterations": 2,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1200000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 2400000
+    },
+    {
+      "id": "backend-python-migration-status-refresh-89",
+      "task": "agent-loop/tasks/backend-python-migration-status-refresh-89.md",
+      "gatesKey": "migrationStatusRefresh89Gates",
       "enabled": true,
       "guardTests": false,
       "grokMaxTurns": 12,
@@ -887,5 +966,32 @@
   ],
   "migrationStatusRefresh88Gates": [
     "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-runtime-evidence-reconcile-88.md docs/backend-python-web-aigc-runtime-evidence-reconcile-88.md"
+  ],
+  "runtimeEvidenceReconcile89Gates": [
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-runtime-evidence-reconcile-89.md agent-loop/tasks/sliderule-python-migration-status.md agent-loop/tasks/backend-python-auth-permission-audit-runtime-90.md agent-loop/tasks/backend-python-a2a-stream-runtime-boundary-90.md agent-loop/tasks/backend-python-migration-status-refresh-88.md"
+  ],
+  "permissionRateLimitRuntimeBoundary89Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_permission_rate_limit_runtime_boundary.py tests/test_permission_rate_limit_contract.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/permission/rate-limiter-python-runtime.test.ts server/permission/rate-limiter-python-contract.test.ts server/permission/rate-limiter.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/permission_rate_limit.py tws-ai-slide-rule-python/tests/test_permission_rate_limit_runtime_boundary.py server/permission/rate-limiter-python-runtime.ts server/permission/rate-limiter-python-runtime.test.ts shared/permission/contracts.ts"
+  ],
+  "a2aStreamRuntimeBoundary89Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_a2a_stream_runtime_boundary.py tests/test_a2a_runtime_contract.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/a2a-python-stream-runtime.test.ts server/routes/__tests__/a2a-python-runtime-contract.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/a2a_runtime.py tws-ai-slide-rule-python/tests/test_a2a_stream_runtime_boundary.py server/routes/__tests__/a2a-python-stream-runtime.test.ts shared/a2a-protocol.ts"
+  ],
+  "blueprintJobRuntimeBoundary89Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_job_runtime_boundary.py tests/test_blueprint_job_runtime_proxy.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/blueprint.job-runtime-python-boundary.test.ts server/routes/__tests__/blueprint.job-runtime-python-proxy.test.ts server/routes/blueprint/jobs/service.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/blueprint_job_runtime.py tws-ai-slide-rule-python/tests/test_blueprint_job_runtime_boundary.py server/routes/__tests__/blueprint.job-runtime-python-boundary.test.ts shared/blueprint/jobs/types.ts"
+  ],
+  "webAigcLongtailInventory89Gates": [
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-web-aigc-longtail-inventory-89.md docs/backend-python-node-route-inventory-90.md agent-loop/tasks/sliderule-python-migration-status.md"
+  ],
+  "migrationStatusRefresh89Gates": [
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-runtime-evidence-reconcile-89.md docs/backend-python-web-aigc-longtail-inventory-89.md"
   ]
 }
