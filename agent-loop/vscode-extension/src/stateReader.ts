@@ -6,7 +6,7 @@ import { activeAgentLabel, buildPipelineSteps, describeSnapshot, formatElapsed, 
 import { parseRunIdDate, summarizeStateRun } from './runSummary';
 
 export { findNewestFixLog, formatAgentLogTail, resolveActiveLogCandidates, resolveActiveLogPath, resolveLogRoot } from './activeLog';
-import type { FinalReportJson, LandingStatus, LoopState, QueueFile, QueueOverview, QueueOverviewItem, RunSnapshot, RunSummaryItem } from './types';
+import type { FinalReportJson, GateSnapshot, LandingStatus, LoopState, QueueFile, QueueOverview, QueueOverviewItem, RunSnapshot, RunSummaryItem } from './types';
 
 interface QueueOutcomesFile {
   tasks?: Record<string, {
@@ -315,6 +315,62 @@ function classifyOutcomeGroup(outcome: string | null, status: string | null): st
     return 'applied';
   }
   return outcome;
+}
+
+export interface RunEvidence {
+  diffText: string;
+  diffTruncated: boolean;
+  hasDiff: boolean;
+  gateFailure: string;
+  gateFailureTruncated: boolean;
+}
+
+// Pull the change diff and the failing gate output out of the run state so the
+// detail view can show "what changed" and "why it failed" inline. Everything is
+// already in state.json (iterations[].diffText, gateSnapshot.runs[].std*), so no
+// extra file reads are needed; we just clip to display-sized excerpts.
+export function extractRunEvidence(
+  state: LoopState | null,
+  options: { maxDiffChars?: number; maxGateChars?: number } = {},
+): RunEvidence {
+  const maxDiffChars = options.maxDiffChars ?? 8000;
+  const maxGateChars = options.maxGateChars ?? 4000;
+  const iterations = Array.isArray(state?.iterations) ? state!.iterations : [];
+  const lastIteration = iterations.length ? iterations[iterations.length - 1] : null;
+  const rawDiff = (lastIteration && typeof lastIteration.diffText === 'string' && lastIteration.diffText)
+    ? lastIteration.diffText
+    : (state?.baselineDiffText || '');
+  const diff = clipText(rawDiff, maxDiffChars, 'head');
+
+  const gateSnapshot = lastIteration?.gateSnapshot || state?.baselineGateSnapshot || null;
+  const gateFailure = extractGateFailureText(gateSnapshot, maxGateChars);
+
+  return {
+    diffText: diff.text,
+    diffTruncated: diff.truncated,
+    hasDiff: Boolean(String(rawDiff).trim()),
+    gateFailure: gateFailure.text,
+    gateFailureTruncated: gateFailure.truncated,
+  };
+}
+
+function extractGateFailureText(gate: GateSnapshot | null | undefined, maxChars: number): { text: string; truncated: boolean } {
+  const runs = Array.isArray(gate?.runs) ? gate!.runs : [];
+  const parts: string[] = [];
+  for (const run of runs) {
+    const failed = run.exitCode !== 0 || run.timedOut || run.spawnError;
+    if (!failed) continue;
+    const body = stripAnsi(`${run.stdout || ''}\n${run.stderr || ''}`).trim();
+    if (body) parts.push(`$ ${run.label || 'gate'}\n${body}`);
+  }
+  return clipText(parts.join('\n\n'), maxChars, 'tail');
+}
+
+function clipText(text: string, maxChars: number, keep: 'head' | 'tail'): { text: string; truncated: boolean } {
+  const value = String(text || '');
+  if (value.length <= maxChars) return { text: value, truncated: false };
+  const slice = keep === 'tail' ? value.slice(value.length - maxChars) : value.slice(0, maxChars);
+  return { text: slice, truncated: true };
 }
 
 export function snapshotStatusLine(snapshot: RunSnapshot): string {

@@ -370,6 +370,36 @@
     ).join('')}</div>`;
   }
 
+  function highlightDiff(text) {
+    return esc(text).split('\n').map((line) => {
+      if (line.startsWith('+') && !line.startsWith('+++')) return `<span class="diff-add">${line}</span>`;
+      if (line.startsWith('-') && !line.startsWith('---')) return `<span class="diff-del">${line}</span>`;
+      if (line.startsWith('@@')) return `<span class="diff-hunk">${line}</span>`;
+      if (line.startsWith('diff ') || line.startsWith('index ') || line.startsWith('+++') || line.startsWith('---')) {
+        return `<span class="diff-meta">${line}</span>`;
+      }
+      return line;
+    }).join('\n');
+  }
+
+  function renderDiffPanel(payload) {
+    if (!payload.hasDiff) return '';
+    const note = payload.diffTruncated ? '<span class="muted">已截断</span>' : '';
+    return `<section class="panel log-panel">
+      <div class="panel-head"><h2>改动 diff</h2>${note}</div>
+      <pre class="log diff">${highlightDiff(payload.diffText || '')}</pre>
+    </section>`;
+  }
+
+  function renderGatePanel(payload) {
+    if (!payload.gateFailure) return '';
+    const note = payload.gateFailureTruncated ? '<span class="muted">尾部截断</span>' : '';
+    return `<section class="panel log-panel">
+      <div class="panel-head"><h2>失败 Gate 输出</h2>${note}</div>
+      <pre class="log">${esc(payload.gateFailure)}</pre>
+    </section>`;
+  }
+
   function renderDetail(payload) {
     const subtitle = `${payload.runId || '等待运行'} / ${payload.runMode || '-'} / ${payload.roleText || ''}`;
     return `<main class="dashboard run-detail">
@@ -388,6 +418,8 @@
           ${renderReviewRounds(payload.reviewRounds)}
         </div>
       </section>
+      ${renderGatePanel(payload)}
+      ${renderDiffPanel(payload)}
       ${renderAgentLog(payload)}
       ${renderLinks(payload)}
     </main>`;

@@ -43,6 +43,7 @@ exports.findLatestRunForTask = findLatestRunForTask;
 exports.readQueueOutcomes = readQueueOutcomes;
 exports.buildQueueOverview = buildQueueOverview;
 exports.classifyTriageCategory = classifyTriageCategory;
+exports.extractRunEvidence = extractRunEvidence;
 exports.snapshotStatusLine = snapshotStatusLine;
 const fs = __importStar(require("node:fs/promises"));
 const path = __importStar(require("node:path"));
@@ -330,6 +331,49 @@ function classifyOutcomeGroup(outcome, status) {
         return 'applied';
     }
     return outcome;
+}
+// Pull the change diff and the failing gate output out of the run state so the
+// detail view can show "what changed" and "why it failed" inline. Everything is
+// already in state.json (iterations[].diffText, gateSnapshot.runs[].std*), so no
+// extra file reads are needed; we just clip to display-sized excerpts.
+function extractRunEvidence(state, options = {}) {
+    const maxDiffChars = options.maxDiffChars ?? 8000;
+    const maxGateChars = options.maxGateChars ?? 4000;
+    const iterations = Array.isArray(state?.iterations) ? state.iterations : [];
+    const lastIteration = iterations.length ? iterations[iterations.length - 1] : null;
+    const rawDiff = (lastIteration && typeof lastIteration.diffText === 'string' && lastIteration.diffText)
+        ? lastIteration.diffText
+        : (state?.baselineDiffText || '');
+    const diff = clipText(rawDiff, maxDiffChars, 'head');
+    const gateSnapshot = lastIteration?.gateSnapshot || state?.baselineGateSnapshot || null;
+    const gateFailure = extractGateFailureText(gateSnapshot, maxGateChars);
+    return {
+        diffText: diff.text,
+        diffTruncated: diff.truncated,
+        hasDiff: Boolean(String(rawDiff).trim()),
+        gateFailure: gateFailure.text,
+        gateFailureTruncated: gateFailure.truncated,
+    };
+}
+function extractGateFailureText(gate, maxChars) {
+    const runs = Array.isArray(gate?.runs) ? gate.runs : [];
+    const parts = [];
+    for (const run of runs) {
+        const failed = run.exitCode !== 0 || run.timedOut || run.spawnError;
+        if (!failed)
+            continue;
+        const body = stripAnsi(`${run.stdout || ''}\n${run.stderr || ''}`).trim();
+        if (body)
+            parts.push(`$ ${run.label || 'gate'}\n${body}`);
+    }
+    return clipText(parts.join('\n\n'), maxChars, 'tail');
+}
+function clipText(text, maxChars, keep) {
+    const value = String(text || '');
+    if (value.length <= maxChars)
+        return { text: value, truncated: false };
+    const slice = keep === 'tail' ? value.slice(value.length - maxChars) : value.slice(0, maxChars);
+    return { text: slice, truncated: true };
 }
 function snapshotStatusLine(snapshot) {
     const status = snapshot.displayStatus || snapshot.state?.status || 'IDLE';

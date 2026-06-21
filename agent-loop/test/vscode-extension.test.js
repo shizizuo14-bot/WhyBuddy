@@ -555,6 +555,53 @@ test('buildQueueOverview attaches a triage category to each task', async () => {
   assert.equal(overview.tasks[1].category, 'attention');
 });
 
+test('extractRunEvidence pulls the latest diff and failing gate output', () => {
+  const { extractRunEvidence } = requireFromExtension('./out/stateReader.js');
+  const ev = extractRunEvidence({
+    baselineDiffText: 'old baseline diff',
+    iterations: [
+      {
+        iteration: 1,
+        diffText: 'diff --git a/a.js b/a.js\n+added line\n',
+        gateSnapshot: {
+          runs: [{ label: 'npm test', exitCode: 1, stdout: 'Tests: 1 failed', stderr: 'AssertionError: boom' }],
+        },
+      },
+    ],
+  });
+  assert.match(ev.diffText, /\+added line/);
+  assert.equal(ev.hasDiff, true);
+  assert.match(ev.gateFailure, /npm test/);
+  assert.match(ev.gateFailure, /AssertionError: boom/);
+});
+
+test('extractRunEvidence truncates a long diff and reports it', () => {
+  const { extractRunEvidence } = requireFromExtension('./out/stateReader.js');
+  const ev = extractRunEvidence(
+    { iterations: [{ iteration: 1, diffText: 'x'.repeat(20000) }] },
+    { maxDiffChars: 100 },
+  );
+  assert.equal(ev.diffTruncated, true);
+  assert.equal(ev.diffText.length, 100);
+});
+
+test('dashboard media renders diff and failing gate panels', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderDetail({
+    taskLabel: 't', runId: 'r', status: 'HALT_NO_PROGRESS', pipelineSteps: [],
+    hasDiff: true,
+    diffText: 'diff --git a/a.js b/a.js\n@@ -1 +1 @@\n-old\n+new\n',
+    diffTruncated: false,
+    gateFailure: '$ npm test\nAssertionError: boom',
+    gateFailureTruncated: true,
+    iterations: [], reviewRounds: [],
+  });
+  assert.match(html, /改动 diff/);
+  assert.match(html, /diff-add/);
+  assert.match(html, /失败 Gate 输出/);
+  assert.match(html, /AssertionError: boom/);
+});
+
 test('dashboard view title command is contributed only once', async () => {
   const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
   const viewTitleMenus = packageJson.contributes.menus['view/title'];

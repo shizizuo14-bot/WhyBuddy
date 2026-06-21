@@ -17,6 +17,7 @@ export interface LoopState {
     progress?: { effectiveFailureCount?: number };
   };
   baselineGateSnapshot?: GateSnapshot | null;
+  baselineDiffText?: string;
   worktree?: {
     fixCwd?: string;
     targetCwd?: string;
@@ -29,6 +30,7 @@ export interface LoopState {
     gateSnapshot?: GateSnapshot | null;
     gateProgress?: { effectiveFailureCount?: number; innerFailureCount?: number | null };
     diff?: { bytes?: number };
+    diffText?: string;
     diffGuard?: { hasFindings?: boolean; findings?: Array<{ path?: string; reason?: string }> };
     attempts?: Array<{
       attempt?: number;
@@ -135,6 +137,12 @@ export interface GateSummary {
 
 export interface GateSnapshot extends GateSummary {
   runs?: Array<{
+    label?: string;
+    exitCode?: number | null;
+    timedOut?: boolean;
+    spawnError?: string | null;
+    stdout?: string;
+    stderr?: string;
     startedAt?: string;
     endedAt?: string;
   }>;

@@ -37,6 +37,7 @@ exports.DashboardPanel = void 0;
 const path = __importStar(require("node:path"));
 const vscode = __importStar(require("vscode"));
 const phaseLabels_1 = require("./phaseLabels");
+const stateReader_1 = require("./stateReader");
 class DashboardPanel {
     static current;
     view = 'overview';
@@ -127,9 +128,15 @@ class DashboardPanel {
             reviewAgent: snapshot.reviewAgent,
         });
         const runDir = state?.artifacts?.runDir || null;
+        const evidence = (0, stateReader_1.extractRunEvidence)(state);
         this.panel.webview.postMessage({
             type: 'detail',
             payload: {
+                diffText: evidence.diffText,
+                diffTruncated: evidence.diffTruncated,
+                hasDiff: evidence.hasDiff,
+                gateFailure: evidence.gateFailure,
+                gateFailureTruncated: evidence.gateFailureTruncated,
                 taskLabel: snapshot.taskLabel,
                 runId: state?.runId ?? null,
                 status: displayStatus,

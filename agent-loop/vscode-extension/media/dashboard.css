@@ -641,6 +641,12 @@ h2 {
 .json-token.number { color: #e3b173; }
 .json-token.literal { color: #c59bd9; }
 
+.log.diff { tab-size: 2; }
+.diff-add { color: #9ed18f; }
+.diff-del { color: #e6918a; }
+.diff-hunk { color: #8fbce8; }
+.diff-meta { color: #9a978c; }
+
 .links {
   display: flex;
   flex-wrap: wrap;

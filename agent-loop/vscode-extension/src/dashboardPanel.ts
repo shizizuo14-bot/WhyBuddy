@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { activeAgentLabel, formatElapsed, phaseLabel } from './phaseLabels';
+import { extractRunEvidence } from './stateReader';
 import type { QueueOverview, RunSnapshot } from './types';
 
 export type DashboardView = 'overview' | 'detail';
@@ -106,10 +107,16 @@ export class DashboardPanel {
       reviewAgent: snapshot.reviewAgent,
     });
     const runDir = state?.artifacts?.runDir || null;
+    const evidence = extractRunEvidence(state);
 
     this.panel.webview.postMessage({
       type: 'detail',
       payload: {
+        diffText: evidence.diffText,
+        diffTruncated: evidence.diffTruncated,
+        hasDiff: evidence.hasDiff,
+        gateFailure: evidence.gateFailure,
+        gateFailureTruncated: evidence.gateFailureTruncated,
         taskLabel: snapshot.taskLabel,
         runId: state?.runId ?? null,
         status: displayStatus,
