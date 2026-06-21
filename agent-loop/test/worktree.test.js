@@ -63,6 +63,36 @@ test('assertMainWorktreeClean fails when tracked or untracked files are present'
   );
 });
 
+test('assertMainWorktreeClean can ignore local agent-loop runtime directories', async () => {
+  await assert.rejects(
+    () => assertMainWorktreeClean({
+      repoRoot: 'C:\\repo',
+      ignorePaths: ['.agent-loop/', '.worktrees/'],
+      run: async () => ({
+        exitCode: 0,
+        stdout: '?? .agent-loop/\n?? .worktrees/\n M other.txt\n',
+        stderr: '',
+      }),
+    }),
+    (error) => {
+      assert.equal(error.code, 'DIRTY_MAIN_NEEDS_COMMIT');
+      assert.deepEqual(error.files, ['other.txt']);
+      return true;
+    },
+  );
+
+  const clean = await assertMainWorktreeClean({
+    repoRoot: 'C:\\repo',
+    ignorePaths: ['.agent-loop/', '.worktrees/'],
+    run: async () => ({
+      exitCode: 0,
+      stdout: '?? .agent-loop/\n?? .worktrees/\n',
+      stderr: '',
+    }),
+  });
+  assert.equal(clean.clean, true);
+});
+
 test('worktree checkpoints can be created and restored', async () => {
   const calls = [];
   const run = async (command, args, options = {}) => {

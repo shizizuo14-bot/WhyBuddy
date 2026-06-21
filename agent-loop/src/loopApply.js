@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { assertMainWorktreeClean, WorktreeStateError } from './worktree.js';
 
 export class LoopApplyError extends Error {
   constructor({ kind, message, files = [], cause = null } = {}) {
@@ -139,6 +140,7 @@ export async function applyQueueLandingToMain({
     throw new LoopApplyError({ kind: 'ALREADY_APPLIED', message: 'queue landing already applied to main' });
   }
   const patchPath = landing.diffPath || path.join(repoRoot, '.agent-loop', 'queue.diff.patch');
+  await assertCleanMainForLanding({ repoRoot, runner, timeoutMs });
 
   const checkResult = await runner('git', buildGitApplyArgs({ patchPath, excludes: [], check: true }), {
     cwd: repoRoot,
@@ -177,6 +179,27 @@ export async function applyQueueLandingToMain({
   };
   await fs.writeFile(landingPath, `${JSON.stringify(updated, null, 2)}\n`, 'utf8');
   return { checked: true, applied: true, patchPath, landing: updated };
+}
+
+async function assertCleanMainForLanding({ repoRoot, runner, timeoutMs }) {
+  try {
+    await assertMainWorktreeClean({
+      repoRoot,
+      run: runner,
+      timeoutMs,
+      ignorePaths: ['.agent-loop/', '.worktrees/'],
+    });
+  } catch (error) {
+    if (error instanceof WorktreeStateError) {
+      throw new LoopApplyError({
+        kind: error.code,
+        message: error.message,
+        files: error.files,
+        cause: error,
+      });
+    }
+    throw error;
+  }
 }
 
 export async function writeQueueLandingSummary({
@@ -362,11 +385,15 @@ function normalizeLandingStatus(landing) {
 
 async function readJsonIfExists(filePath) {
   try {
-    return JSON.parse(await fs.readFile(filePath, 'utf8'));
+    return JSON.parse(stripJsonBom(await fs.readFile(filePath, 'utf8')));
   } catch (error) {
     if (error.code === 'ENOENT') return null;
     throw error;
   }
+}
+
+function stripJsonBom(text) {
+  return String(text || '').replace(/^\uFEFF/, '');
 }
 
 export function buildGitApplyCommand({ patchPath, excludes = [], check = false }) {

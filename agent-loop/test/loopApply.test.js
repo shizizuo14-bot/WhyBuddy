@@ -15,6 +15,38 @@ import {
 } from '../src/loopApply.js';
 import { runProcess } from '../src/runProcess.js';
 
+async function initGitRepoWithApp() {
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-queue-landing-real-'));
+  await runProcess('git', ['init'], { cwd: repo, timeoutMs: 30000 });
+  await runProcess('git', ['config', 'user.email', 'agent-loop@example.local'], { cwd: repo, timeoutMs: 30000 });
+  await runProcess('git', ['config', 'user.name', 'AgentLoop Test'], { cwd: repo, timeoutMs: 30000 });
+  await fs.writeFile(path.join(repo, 'app.txt'), 'old\n', 'utf8');
+  await fs.writeFile(path.join(repo, 'other.txt'), 'base\n', 'utf8');
+  await runProcess('git', ['add', 'app.txt', 'other.txt'], { cwd: repo, timeoutMs: 30000 });
+  await runProcess('git', ['commit', '-m', 'initial'], { cwd: repo, timeoutMs: 30000 });
+  return repo;
+}
+
+async function writeRealQueueLandingPatch(repo) {
+  await fs.writeFile(path.join(repo, 'app.txt'), 'new\n', 'utf8');
+  const patch = await runProcess('git', ['diff', '--binary'], { cwd: repo, timeoutMs: 30000 });
+  assert.equal(patch.exitCode, 0);
+  await runProcess('git', ['checkout', '--', 'app.txt'], { cwd: repo, timeoutMs: 30000 });
+
+  const dir = path.join(repo, '.agent-loop');
+  await fs.mkdir(dir, { recursive: true });
+  const patchPath = path.join(dir, 'queue.diff.patch');
+  await fs.writeFile(patchPath, patch.stdout, 'utf8');
+  await fs.writeFile(path.join(dir, 'queue-landing.json'), `${JSON.stringify({
+    status: 'PENDING_QUEUE_LANDING',
+    appliedToMain: false,
+    diffPath: patchPath,
+    diffBytes: Buffer.byteLength(patch.stdout, 'utf8'),
+    tasks: [{ id: 'task-a' }],
+  }, null, 2)}\n`, 'utf8');
+  return path.join(dir, 'queue-landing.json');
+}
+
 async function writeQueueLanding(repo, extra = {}) {
   const dir = path.join(repo, '.agent-loop');
   await fs.mkdir(dir, { recursive: true });
@@ -41,8 +73,9 @@ test('applyQueueLandingToMain checks, applies, and flips landing status', async 
 
   const result = await applyQueueLandingToMain({ repoRoot: repo, runner });
   assert.equal(result.applied, true);
-  assert.equal(calls.length, 2);
-  assert.match(calls[0], /apply --check/);
+  assert.equal(calls.length, 3);
+  assert.match(calls[0], /status --porcelain/);
+  assert.match(calls[1], /apply --check/);
   const landing = JSON.parse(await fs.readFile(landingPath, 'utf8'));
   assert.equal(landing.status, 'APPLIED_TO_MAIN');
   assert.equal(landing.appliedToMain, true);
@@ -58,18 +91,22 @@ test('applyQueueLandingToMain --check never applies', async () => {
   };
   const result = await applyQueueLandingToMain({ repoRoot: repo, runner, check: true });
   assert.equal(result.applied, false);
-  assert.equal(calls.length, 1);
-  assert.match(calls[0], /apply --check/);
+  assert.equal(calls.length, 2);
+  assert.match(calls[0], /status --porcelain/);
+  assert.match(calls[1], /apply --check/);
 });
 
 test('applyQueueLandingToMain surfaces a conflict and leaves main untouched', async () => {
   const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-land-'));
   const landingPath = await writeQueueLanding(repo);
-  const runner = async () => ({
-    exitCode: 1,
-    stdout: '',
-    stderr: 'error: patch failed: a:1\nerror: a: patch does not apply',
-  });
+  const runner = async (command, args) => {
+    if (args[0] === 'status') return { exitCode: 0, stdout: '', stderr: '' };
+    return {
+      exitCode: 1,
+      stdout: '',
+      stderr: 'error: patch failed: a:1\nerror: a: patch does not apply',
+    };
+  };
   await assert.rejects(
     () => applyQueueLandingToMain({ repoRoot: repo, runner }),
     (error) => {
@@ -90,6 +127,74 @@ test('applyQueueLandingToMain refuses an already-applied landing', async () => {
     () => applyQueueLandingToMain({ repoRoot: repo, runner: async () => ({ exitCode: 0 }) }),
     /already applied/,
   );
+});
+
+test('applyQueueLandingToMain tolerates a UTF-8 BOM in queue-landing.json', async () => {
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-land-'));
+  const landingPath = await writeQueueLanding(repo);
+  const raw = await fs.readFile(landingPath, 'utf8');
+  await fs.writeFile(landingPath, `\uFEFF${raw}`, 'utf8');
+  const calls = [];
+  const runner = async (command, args) => {
+    calls.push(args.join(' '));
+    return { exitCode: 0, stdout: '', stderr: '' };
+  };
+
+  const result = await applyQueueLandingToMain({ repoRoot: repo, runner, check: true });
+
+  assert.equal(result.checked, true);
+  assert.equal(result.applied, false);
+  assert.match(calls[0], /status --porcelain/);
+  assert.match(calls[1], /apply --check/);
+});
+
+test('applyQueueLandingToMain applies a real queue patch in a clean git repo', async () => {
+  const repo = await initGitRepoWithApp();
+  const landingPath = await writeRealQueueLandingPatch(repo);
+
+  const preview = await applyQueueLandingToMain({ repoRoot: repo, runner: runProcess, check: true });
+  assert.equal(preview.checked, true);
+  assert.equal(preview.applied, false);
+  assert.equal((await fs.readFile(path.join(repo, 'app.txt'), 'utf8')).trim(), 'old');
+
+  const applied = await applyQueueLandingToMain({ repoRoot: repo, runner: runProcess });
+
+  assert.equal(applied.checked, true);
+  assert.equal(applied.applied, true);
+  assert.equal((await fs.readFile(path.join(repo, 'app.txt'), 'utf8')).trim(), 'new');
+  assert.equal((await fs.readFile(path.join(repo, 'other.txt'), 'utf8')).trim(), 'base');
+  const landing = JSON.parse(await fs.readFile(landingPath, 'utf8'));
+  assert.equal(landing.status, 'APPLIED_TO_MAIN');
+  assert.equal(landing.appliedToMain, true);
+});
+
+test('applyQueueLandingToMain refuses dirty main before preview or apply', async () => {
+  const repo = await initGitRepoWithApp();
+  const landingPath = await writeRealQueueLandingPatch(repo);
+  await fs.writeFile(path.join(repo, 'other.txt'), 'dirty user edit\n', 'utf8');
+
+  await assert.rejects(
+    () => applyQueueLandingToMain({ repoRoot: repo, runner: runProcess, check: true }),
+    (error) => {
+      assert.equal(error.kind, 'DIRTY_MAIN_NEEDS_COMMIT');
+      assert.deepEqual(error.files, ['other.txt']);
+      return true;
+    },
+  );
+  await assert.rejects(
+    () => applyQueueLandingToMain({ repoRoot: repo, runner: runProcess }),
+    (error) => {
+      assert.equal(error.kind, 'DIRTY_MAIN_NEEDS_COMMIT');
+      assert.deepEqual(error.files, ['other.txt']);
+      return true;
+    },
+  );
+
+  assert.equal((await fs.readFile(path.join(repo, 'app.txt'), 'utf8')).trim(), 'old');
+  assert.equal((await fs.readFile(path.join(repo, 'other.txt'), 'utf8')).trim(), 'dirty user edit');
+  const landing = JSON.parse(await fs.readFile(landingPath, 'utf8'));
+  assert.equal(landing.status, 'PENDING_QUEUE_LANDING');
+  assert.equal(landing.appliedToMain, false);
 });
 
 test('resolveRunDir supports latest and explicit run ids', async () => {

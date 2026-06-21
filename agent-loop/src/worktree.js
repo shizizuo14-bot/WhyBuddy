@@ -22,12 +22,14 @@ export async function assertMainWorktreeClean({
   repoRoot,
   run = runProcess,
   timeoutMs = 120000,
+  ignorePaths = [],
 }) {
   const result = await run('git', ['status', '--porcelain'], { cwd: repoRoot, timeoutMs });
   if (result.exitCode !== 0 || result.timedOut || result.spawnError) {
     throw new Error(`git status --porcelain failed: ${result.stderr || result.spawnError || result.exitCode}`);
   }
-  const files = parseStatusPorcelainFiles(result.stdout);
+  const files = parseStatusPorcelainFiles(result.stdout)
+    .filter((file) => !isIgnoredStatusPath(file, ignorePaths));
   if (files.length > 0) {
     throw new WorktreeStateError({
       code: 'DIRTY_MAIN_NEEDS_COMMIT',
@@ -36,6 +38,20 @@ export async function assertMainWorktreeClean({
     });
   }
   return { clean: true };
+}
+
+function isIgnoredStatusPath(file, ignorePaths = []) {
+  const normalized = normalizeStatusPath(file);
+  return ignorePaths.some((ignorePath) => {
+    const ignored = normalizeStatusPath(ignorePath);
+    if (!ignored) return false;
+    if (ignored.endsWith('/')) return normalized === ignored.slice(0, -1) || normalized.startsWith(ignored);
+    return normalized === ignored || normalized.startsWith(`${ignored}/`);
+  });
+}
+
+function normalizeStatusPath(file) {
+  return String(file || '').replaceAll('\\', '/');
 }
 
 export async function createWorktreeCheckpoint({
