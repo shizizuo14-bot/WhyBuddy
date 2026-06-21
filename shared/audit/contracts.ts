@@ -467,6 +467,259 @@ export interface AuditQueryProxyFailure {
 
 export type AuditQueryProxyResult = AuditQueryProxySuccess | AuditQueryProxyFailure;
 
+// ---------------------------------------------------------------------------
+// Python Contract Slice: Audit Production Sink
+// ---------------------------------------------------------------------------
+
+export const AUDIT_PRODUCTION_SINK_PYTHON_CONTRACT_VERSION =
+  "audit-production-sink.runtime.v1" as const;
+
+export type AuditProductionSinkPythonStatus =
+  | "written"
+  | "misconfigured"
+  | "failed"
+  | "degraded";
+
+export type AuditProductionSinkPythonKind = "node-audit-store" | "memory";
+
+export interface AuditProductionSinkPythonConfig {
+  kind: AuditProductionSinkPythonKind;
+  configured: boolean;
+  storeId?: string | null;
+  externalEmit: false;
+}
+
+export interface AuditProductionSinkPythonEvent
+  extends Omit<AuditEvent, "eventType"> {
+  eventType: AuditEventType | string;
+  source: "python-audit-production-sink";
+}
+
+export interface AuditProductionSinkPythonWrite {
+  attempted: boolean;
+  stored: boolean;
+  eventId: string;
+}
+
+export interface AuditProductionSinkPythonError {
+  code: string;
+  message: string;
+  retryable: boolean;
+}
+
+export interface AuditProductionSinkPythonProvenance {
+  source: "python-audit-production-sink";
+  synthetic: true;
+  externalAuditPlatform: false;
+  nodeOwnedCapabilities: ["retention", "export", "anomaly", "compliance"];
+}
+
+export interface AuditProductionSinkPythonContractResult {
+  contractVersion: typeof AUDIT_PRODUCTION_SINK_PYTHON_CONTRACT_VERSION;
+  runtime: "python-audit-production-sink";
+  ok: boolean;
+  status: AuditProductionSinkPythonStatus;
+  sink: AuditProductionSinkPythonConfig;
+  event: AuditProductionSinkPythonEvent;
+  write: AuditProductionSinkPythonWrite;
+  provenance: AuditProductionSinkPythonProvenance;
+  degradedCapabilities: {
+    retention: "node-owned";
+    export: "node-owned";
+    anomaly: "node-owned";
+    compliance: "node-owned";
+  };
+  error?: AuditProductionSinkPythonError | null;
+}
+
+const AUDIT_PRODUCTION_SINK_PYTHON_STATUSES: readonly AuditProductionSinkPythonStatus[] = [
+  "written",
+  "misconfigured",
+  "failed",
+  "degraded",
+];
+
+const AUDIT_PRODUCTION_SINK_PYTHON_KINDS: readonly AuditProductionSinkPythonKind[] = [
+  "node-audit-store",
+  "memory",
+];
+
+const AUDIT_PRODUCTION_SINK_NODE_OWNED_CAPABILITIES = [
+  "retention",
+  "export",
+  "anomaly",
+  "compliance",
+] as const;
+
+export function isAuditProductionSinkPythonContractResult(
+  value: unknown,
+): value is AuditProductionSinkPythonContractResult {
+  const result = isPlainRecord(value) ? value : null;
+  if (!result) return false;
+  if (result.contractVersion !== AUDIT_PRODUCTION_SINK_PYTHON_CONTRACT_VERSION) {
+    return false;
+  }
+  if (result.runtime !== "python-audit-production-sink") return false;
+  if (!auditSinkOneOf(result.status, AUDIT_PRODUCTION_SINK_PYTHON_STATUSES)) {
+    return false;
+  }
+  if (!isAuditProductionSinkPythonConfig(result.sink)) return false;
+  if (!isAuditProductionSinkPythonEvent(result.event)) return false;
+  if (!isAuditProductionSinkPythonWrite(result.write, result.event.eventId)) {
+    return false;
+  }
+  if (!isAuditProductionSinkPythonProvenance(result.provenance)) return false;
+  if (!isAuditProductionSinkPythonDegradedCapabilities(result.degradedCapabilities)) {
+    return false;
+  }
+
+  if (result.status === "written") {
+    return (
+      result.ok === true &&
+      result.error == null &&
+      result.sink.configured === true &&
+      result.sink.externalEmit === false &&
+      result.write.attempted === true &&
+      result.write.stored === true
+    );
+  }
+
+  return (
+    result.ok === false &&
+    isAuditProductionSinkPythonError(result.error) &&
+    result.sink.externalEmit === false &&
+    result.write.stored === false &&
+    (result.status !== "misconfigured" || result.write.attempted === false)
+  );
+}
+
+function isAuditProductionSinkPythonConfig(
+  value: unknown,
+): value is AuditProductionSinkPythonConfig {
+  const sink = isPlainRecord(value) ? value : null;
+  return (
+    sink !== null &&
+    auditSinkOneOf(sink.kind, AUDIT_PRODUCTION_SINK_PYTHON_KINDS) &&
+    typeof sink.configured === "boolean" &&
+    sink.externalEmit === false &&
+    (sink.storeId === undefined ||
+      sink.storeId === null ||
+      isNonEmptyString(sink.storeId))
+  );
+}
+
+function isAuditProductionSinkPythonEvent(
+  value: unknown,
+): value is AuditProductionSinkPythonEvent {
+  const event = isPlainRecord(value) ? value : null;
+  if (!event) return false;
+  return (
+    isNonEmptyString(event.eventId) &&
+    isNonNegativeFiniteNumber(event.timestamp) &&
+    event.source === "python-audit-production-sink" &&
+    isNonEmptyString(event.eventType) &&
+    isAuditProductionSinkActor(event.actor) &&
+    isNonEmptyString(event.action) &&
+    isAuditProductionSinkResource(event.resource) &&
+    AUDIT_RESULTS.includes(event.result as AuditResult) &&
+    (event.context === undefined || isAuditProductionSinkContext(event.context)) &&
+    (event.metadata === undefined || isPlainRecord(event.metadata)) &&
+    (event.lineageId === undefined || typeof event.lineageId === "string")
+  );
+}
+
+function isAuditProductionSinkActor(value: unknown): boolean {
+  const actor = isPlainRecord(value) ? value : null;
+  return (
+    actor !== null &&
+    AUDIT_ACTOR_TYPES.includes(actor.type as AuditActorType) &&
+    isNonEmptyString(actor.id) &&
+    (actor.name === undefined || typeof actor.name === "string")
+  );
+}
+
+function isAuditProductionSinkResource(value: unknown): boolean {
+  const resource = isPlainRecord(value) ? value : null;
+  return (
+    resource !== null &&
+    isNonEmptyString(resource.type) &&
+    isNonEmptyString(resource.id) &&
+    (resource.name === undefined || typeof resource.name === "string")
+  );
+}
+
+function isAuditProductionSinkContext(value: unknown): boolean {
+  const context = isPlainRecord(value) ? value : null;
+  return context !== null && Object.values(context).every((item) => typeof item === "string");
+}
+
+function isAuditProductionSinkPythonWrite(
+  value: unknown,
+  eventId: string,
+): value is AuditProductionSinkPythonWrite {
+  const write = isPlainRecord(value) ? value : null;
+  return (
+    write !== null &&
+    typeof write.attempted === "boolean" &&
+    typeof write.stored === "boolean" &&
+    write.eventId === eventId
+  );
+}
+
+function isAuditProductionSinkPythonError(
+  value: unknown,
+): value is AuditProductionSinkPythonError {
+  const error = isPlainRecord(value) ? value : null;
+  return (
+    error !== null &&
+    isNonEmptyString(error.code) &&
+    isNonEmptyString(error.message) &&
+    typeof error.retryable === "boolean"
+  );
+}
+
+function isAuditProductionSinkPythonProvenance(
+  value: unknown,
+): value is AuditProductionSinkPythonProvenance {
+  const provenance = isPlainRecord(value) ? value : null;
+  return (
+    provenance !== null &&
+    provenance.source === "python-audit-production-sink" &&
+    provenance.synthetic === true &&
+    provenance.externalAuditPlatform === false &&
+    Array.isArray(provenance.nodeOwnedCapabilities) &&
+    auditSinkStringArrayEquals(
+      provenance.nodeOwnedCapabilities,
+      AUDIT_PRODUCTION_SINK_NODE_OWNED_CAPABILITIES,
+    )
+  );
+}
+
+function isAuditProductionSinkPythonDegradedCapabilities(value: unknown): boolean {
+  const capabilities = isPlainRecord(value) ? value : null;
+  return (
+    capabilities !== null &&
+    AUDIT_PRODUCTION_SINK_NODE_OWNED_CAPABILITIES.every(
+      (key) => capabilities[key] === "node-owned",
+    ) &&
+    Object.keys(capabilities).length === AUDIT_PRODUCTION_SINK_NODE_OWNED_CAPABILITIES.length
+  );
+}
+
+function auditSinkStringArrayEquals(
+  value: unknown[],
+  expected: readonly string[],
+): boolean {
+  return value.length === expected.length && expected.every((item, index) => value[index] === item);
+}
+
+function auditSinkOneOf<T extends string>(
+  value: unknown,
+  options: readonly T[],
+): value is T {
+  return typeof value === "string" && options.includes(value as T);
+}
+
 // ─── 1.7 RetentionPolicy & 默认保留策略 ────────────────────────────────────
 
 export interface RetentionPolicy {

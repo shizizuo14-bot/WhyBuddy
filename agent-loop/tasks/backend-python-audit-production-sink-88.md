@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 sink boundary 和测试；reviewer 确认不接外部审计平台、不提交密钥。
 
 ### 状态清单
-- [ ] Python audit sink 支持 write/failure/degraded envelope。
-- [ ] Node audit route 或 collector 测试覆盖 Python sink mode。
-- [ ] retention/export/anomaly/compliance 未迁部分保持明确 Node-owned。
-- [ ] gate 全绿。
-- [ ] Codex review 确认 audit failure 没被吞掉。
+- [x] Python audit sink 支持 write/failure/degraded envelope。
+- [x] Node audit route 或 collector 测试覆盖 Python sink mode。
+- [x] retention/export/anomaly/compliance 未迁部分保持明确 Node-owned。
+- [x] gate 全绿。
+- [x] Codex review 确认 audit failure 没被吞掉。
 
 ## 目标
 
