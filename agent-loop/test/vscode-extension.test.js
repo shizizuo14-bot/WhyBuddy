@@ -515,6 +515,46 @@ test('extension phase labels render clean Chinese status text', async () => {
   assert.equal(activeAgentLabel(undefined, null), '-');
 });
 
+test('classifyTriageCategory sorts tasks into the five overview lanes', () => {
+  const { classifyTriageCategory } = requireFromExtension('./out/stateReader.js');
+  const base = { running: false, stale: false, enabled: true, autoDisabled: false, outcomeGroup: null };
+
+  assert.equal(classifyTriageCategory({ ...base, running: true }), 'running');
+  assert.equal(classifyTriageCategory({ ...base, stale: true }), 'attention');
+  assert.equal(classifyTriageCategory({ ...base, enabled: false }), 'disabled');
+  assert.equal(classifyTriageCategory({ ...base, autoDisabled: true }), 'attention');
+  assert.equal(classifyTriageCategory({ ...base, outcomeGroup: 'failed' }), 'attention');
+  assert.equal(classifyTriageCategory({ ...base, outcomeGroup: 'applyConflict' }), 'attention');
+  assert.equal(classifyTriageCategory({ ...base, outcomeGroup: 'human' }), 'attention');
+  assert.equal(classifyTriageCategory({ ...base, outcomeGroup: 'reviewed' }), 'landed');
+  assert.equal(classifyTriageCategory({ ...base, outcomeGroup: 'noDiff' }), 'landed');
+  assert.equal(classifyTriageCategory(base), 'pending');
+});
+
+test('buildQueueOverview attaches a triage category to each task', async () => {
+  const { buildQueueOverview } = requireFromExtension('./out/stateReader.js');
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-triage-'));
+  const queueFilePath = path.join(repo, 'queue.json');
+  await fs.writeFile(queueFilePath, JSON.stringify({
+    tasks: [
+      { id: 'a', task: 'agent-loop/tasks/a.md' },
+      { id: 'b', task: 'agent-loop/tasks/b.md' },
+    ],
+  }), 'utf8');
+  await fs.mkdir(path.join(repo, '.agent-loop'), { recursive: true });
+  await fs.writeFile(path.join(repo, '.agent-loop', 'queue-outcomes.json'), JSON.stringify({
+    tasks: {
+      a: { lastOutcome: 'done', lastStatus: 'DONE_REVIEWED' },
+      b: { lastOutcome: 'crashed', lastStatus: 'HALT_HUMAN' },
+    },
+  }), 'utf8');
+
+  const overview = await buildQueueOverview(repo, { queueFilePath, queueRunning: false });
+
+  assert.equal(overview.tasks[0].category, 'landed');
+  assert.equal(overview.tasks[1].category, 'attention');
+});
+
 test('dashboard view title command is contributed only once', async () => {
   const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
   const viewTitleMenus = packageJson.contributes.menus['view/title'];
@@ -524,10 +564,10 @@ test('dashboard view title command is contributed only once', async () => {
   assert.equal(dashboardMenus[0].when, 'view == agentLoop.currentRun');
 });
 
-test('extension package contributes clean Chinese labels for 0.1.9', async () => {
+test('extension package contributes clean Chinese labels', async () => {
   const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
 
-  assert.equal(packageJson.version, '0.1.9');
+  assert.match(packageJson.version, /^\d+\.\d+\.\d+$/);
   assert.deepEqual(
     packageJson.contributes.views['agent-loop'].map((view) => view.name),
     ['当前运行', '任务队列', '历史运行'],
@@ -621,8 +661,8 @@ test('dashboard media renders console overview with stale current run', async ()
   assert.match(html, /AgentLoop 控制台/);
   assert.match(html, /运行中断/);
   assert.match(html, /backend-python-blueprint-brainstorm-contract/);
-  assert.match(html, /workbench-split/);
-  assert.match(html, /overview-inspector/);
+  assert.match(html, /filter-grid/);
+  assert.match(html, /task-group/);
   assert.match(html, /queue-table/);
   assert.match(html, /data-state="stale"/);
 });

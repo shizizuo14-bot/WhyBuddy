@@ -99,6 +99,7 @@ export interface QueueOverviewItem {
   autoDisabled: boolean;
   running: boolean;
   stale?: boolean;
+  category?: string;
   applyStatus?: string | null;
   applyErrorKind?: string | null;
   applyErrorFiles?: string[];

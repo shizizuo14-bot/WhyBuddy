@@ -16,6 +16,18 @@
     disabled: { icon: 'OFF', label: '已禁用', cls: 'idle' },
   };
 
+  const CATEGORY_META = {
+    attention: { label: '需关注', cls: 'err' },
+    running: { label: '进行中', cls: 'run' },
+    landed: { label: '已落地', cls: 'ok' },
+    pending: { label: '待跑', cls: 'neutral' },
+    disabled: { label: '已禁用', cls: 'idle' },
+  };
+  const CATEGORY_ORDER = ['attention', 'running', 'landed', 'pending', 'disabled'];
+
+  let lastOverviewPayload = null;
+  let activeFilter = 'all';
+
   const HALT_GUIDANCE = {
     HALT_NO_SUCCESS_CRITERIA: '任务缺少非空的成功标准。补齐判定标准后再入队。',
     HALT_BUDGET: '达到最大修复轮次后仍未通过。可以提高 max iterations 重跑，或人工接手。',
@@ -59,15 +71,35 @@
     </div>`;
   }
 
-  function renderQueueStats(counts) {
-    const order = ['applied', 'reviewed', 'noDiff', 'applyConflict', 'human', 'failed', 'crashed', 'stopped', 'running', 'pending'];
-    return `<div class="stat-grid">${order.map((key) => {
-      const meta = metaFor(key);
-      return `<div class="stat ${meta.cls}" data-state="${key}">
-        <span class="stat-value">${countValue(counts, key)}</span>
-        <span class="stat-label">${meta.label}</span>
-      </div>`;
-    }).join('')}</div>`;
+  function groupTasks(tasks) {
+    const groups = { attention: [], running: [], landed: [], pending: [], disabled: [] };
+    for (const task of (tasks || [])) {
+      const cat = groups[task.category] ? task.category : 'pending';
+      groups[cat].push(task);
+    }
+    return groups;
+  }
+
+  function renderTriageFilters(groups) {
+    const total = CATEGORY_ORDER.reduce((sum, cat) => sum + groups[cat].length, 0);
+    const all = `<button class="filter-card all${activeFilter === 'all' ? ' active' : ''}" data-filter="all">
+      <span class="stat-value">${total}</span><span class="stat-label">全部</span>
+    </button>`;
+    const cards = CATEGORY_ORDER.map((cat) => {
+      const meta = CATEGORY_META[cat];
+      return `<button class="filter-card ${meta.cls}${activeFilter === cat ? ' active' : ''}" data-filter="${cat}">
+        <span class="stat-value">${groups[cat].length}</span><span class="stat-label">${meta.label}</span>
+      </button>`;
+    }).join('');
+    return `<div class="filter-grid">${all}${cards}</div>`;
+  }
+
+  function renderAttentionBanner(groups) {
+    const n = groups.attention.length;
+    if (!n || activeFilter === 'attention') return '';
+    return `<button class="attention-banner" data-filter="attention">
+      <b>${n} 个任务需要你关注</b><span>点击只看这些 →</span>
+    </button>`;
   }
 
   function renderCurrentRunBanner(current) {
@@ -101,31 +133,45 @@
     </div>`;
   }
 
-  function renderTaskTable(tasks) {
-    const rows = (tasks || []).map((task) => {
-      const badge = task.stale ? 'stale' : task.badge;
-      const meta = metaFor(badge);
-      const active = task.running ? ' active' : '';
-      const enabled = task.enabled === false ? ' disabled' : '';
-      const status = task.statusLabel || meta.label;
-      const conflictFiles = (task.applyErrorFiles || task.worktreeErrorFiles || []).slice(0, 2).join(', ');
-      const applyError = task.applyError || task.applyErrorKind || '';
-      const extra = [
-        conflictFiles ? `<span class="task-extra">${esc(conflictFiles)}</span>` : '',
-        applyError ? `<span class="task-extra error">${esc(applyError)}</span>` : '',
-      ].join('');
-      return `<button class="queue-row${active}${enabled}" data-act="openTask" data-task="${esc(task.task)}" data-state="${esc(badge || 'pending')}">
-        <span class="status-pill ${meta.cls}">${meta.icon}</span>
-        <span class="task-name">${esc(task.taskLabel || task.task)}</span>
-        <span class="task-status">${esc(status)}${extra}</span>
-      </button>`;
-    }).join('');
+  function renderTaskRow(task) {
+    const badge = task.stale ? 'stale' : task.badge;
+    const meta = metaFor(badge);
+    const active = task.running ? ' active' : '';
+    const disabled = task.enabled === false ? ' disabled' : '';
+    const status = task.statusLabel || meta.label;
+    const conflictFiles = (task.applyErrorFiles || task.worktreeErrorFiles || []).slice(0, 2).join(', ');
+    const applyError = task.applyError || task.applyErrorKind || '';
+    const extra = [
+      conflictFiles ? `<span class="task-extra">${esc(conflictFiles)}</span>` : '',
+      applyError ? `<span class="task-extra error">${esc(applyError)}</span>` : '',
+    ].join('');
+    return `<button class="queue-row${active}${disabled}" data-act="openTask" data-task="${esc(task.task)}" data-state="${esc(badge || 'pending')}">
+      <span class="status-pill ${meta.cls}">${meta.icon}</span>
+      <span class="task-name">${esc(task.taskLabel || task.task)}</span>
+      <span class="task-status">${esc(status)}${extra}</span>
+    </button>`;
+  }
 
-    return `<section class="panel queue-table">
-      <div class="panel-head"><h2>任务队列</h2><span class="muted">${(tasks || []).length} 项</span></div>
-      <div class="queue-head"><span>状态</span><span>任务</span><span>最近结果</span></div>
-      <div class="queue-body">${rows || '<div class="empty">队列为空，请检查 migration-queue.json。</div>'}</div>
+  function renderGroupSection(cat, tasks) {
+    if (!tasks.length) return '';
+    const meta = CATEGORY_META[cat];
+    return `<section class="task-group">
+      <div class="group-head"><span class="group-dot ${meta.cls}"></span><h2>${meta.label}</h2><span class="muted">${tasks.length}</span></div>
+      <div class="group-body">${tasks.map(renderTaskRow).join('')}</div>
     </section>`;
+  }
+
+  function renderTaskList(groups) {
+    if (activeFilter !== 'all') {
+      const tasks = groups[activeFilter] || [];
+      const meta = CATEGORY_META[activeFilter];
+      return `<section class="panel queue-table">
+        <div class="panel-head"><h2>${meta ? meta.label : '任务'}</h2><span class="muted">${tasks.length} 项</span></div>
+        <div class="queue-body">${tasks.map(renderTaskRow).join('') || '<div class="empty">这个分组暂时没有任务。</div>'}</div>
+      </section>`;
+    }
+    const sections = CATEGORY_ORDER.map((cat) => renderGroupSection(cat, groups[cat])).filter(Boolean).join('');
+    return `<section class="panel queue-table">${sections || '<div class="empty">队列为空，请检查 migration-queue.json。</div>'}</section>`;
   }
 
   function renderOverviewInspector(current, tasks) {
@@ -152,15 +198,14 @@
 
   function renderOverview(payload) {
     const counts = payload.counts || { total: 0 };
+    const groups = groupTasks(payload.tasks || []);
     return `<main class="dashboard console-overview">
       ${renderConsoleHeader('AgentLoop 控制台', `${counts.total || 0} 个任务 / queue health`, payload.queueRunning, false)}
-      ${renderQueueStats(counts)}
+      ${renderAttentionBanner(groups)}
+      ${renderTriageFilters(groups)}
       ${renderProgress(counts)}
       ${renderCurrentRunBanner(payload.current)}
-      <section class="workbench-split">
-        ${renderTaskTable(payload.tasks || [])}
-        ${renderOverviewInspector(payload.current, payload.tasks || [])}
-      </section>
+      ${renderTaskList(groups)}
     </main>`;
   }
 
@@ -355,7 +400,25 @@
   const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => {} };
   if (!app) return;
 
+  function setAppHtml(html) {
+    const scroller = document.scrollingElement || document.documentElement;
+    const y = scroller ? scroller.scrollTop : 0;
+    app.innerHTML = html;
+    if (scroller) scroller.scrollTop = y;
+  }
+
+  function rerenderOverview() {
+    if (lastOverviewPayload) setAppHtml(renderOverview(lastOverviewPayload));
+  }
+
   app.addEventListener('click', (event) => {
+    const filterEl = event.target.closest('[data-filter]');
+    if (filterEl) {
+      const next = filterEl.getAttribute('data-filter');
+      activeFilter = (activeFilter === next && next !== 'all') ? 'all' : next;
+      rerenderOverview();
+      return;
+    }
     const target = event.target.closest('[data-act]');
     if (!target) return;
     const act = target.getAttribute('data-act');
@@ -373,9 +436,11 @@
   window.addEventListener('message', (event) => {
     const message = event.data;
     if (message?.type === 'overview') {
-      app.innerHTML = renderOverview(message.payload || {});
+      lastOverviewPayload = message.payload || {};
+      setAppHtml(renderOverview(lastOverviewPayload));
     } else if (message?.type === 'detail') {
-      app.innerHTML = renderDetail(message.payload || {});
+      lastOverviewPayload = null;
+      setAppHtml(renderDetail(message.payload || {}));
     }
   });
 

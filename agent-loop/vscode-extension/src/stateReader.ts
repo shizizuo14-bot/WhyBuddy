@@ -221,11 +221,10 @@ export async function buildQueueOverview(
   const tasks: QueueOverviewItem[] = (queue?.tasks || []).map((task) => {
     const id = task.id || task.task;
     const record = outcomes.tasks?.[id];
-    const running = Boolean(options.queueRunning)
-      && !options.currentRunStale
-      && runningTask !== null
-      && normalizeTaskPath(task.task) === runningTask;
-    return {
+    const sameAsRunning = runningTask !== null && normalizeTaskPath(task.task) === runningTask;
+    const running = Boolean(options.queueRunning) && !options.currentRunStale && sameAsRunning;
+    const stale = Boolean(options.currentRunStale) && sameAsRunning;
+    const item: QueueOverviewItem = {
       id,
       task: task.task,
       enabled: task.enabled !== false,
@@ -240,10 +239,10 @@ export async function buildQueueOverview(
       applyError: record?.applyError ?? null,
       worktreeErrorFiles: Array.isArray(record?.worktreeErrorFiles) ? record.worktreeErrorFiles : [],
       running,
-      stale: Boolean(options.currentRunStale)
-        && runningTask !== null
-        && normalizeTaskPath(task.task) === runningTask,
+      stale,
     };
+    item.category = classifyTriageCategory(item);
+    return item;
   });
 
   const counts = {
@@ -290,6 +289,20 @@ export async function buildQueueOverview(
   }
 
   return { tasks, counts, queueRunning: Boolean(options.queueRunning) };
+}
+
+// Collapse the granular outcome into the five triage lanes the overview groups by:
+// attention (needs a human), running, landed (settled-good), pending, disabled.
+const ATTENTION_GROUPS = new Set(['applyConflict', 'human', 'failed', 'crashed', 'quarantined', 'stopped']);
+const LANDED_GROUPS = new Set(['applied', 'reviewed', 'noDiff']);
+
+export function classifyTriageCategory(item: QueueOverviewItem): string {
+  if (item.running) return 'running';
+  if (item.stale) return 'attention';
+  if (!item.enabled && !item.autoDisabled) return 'disabled';
+  if (item.autoDisabled || ATTENTION_GROUPS.has(item.outcomeGroup ?? '')) return 'attention';
+  if (LANDED_GROUPS.has(item.outcomeGroup ?? '')) return 'landed';
+  return 'pending';
 }
 
 function classifyOutcomeGroup(outcome: string | null, status: string | null): string | null {
