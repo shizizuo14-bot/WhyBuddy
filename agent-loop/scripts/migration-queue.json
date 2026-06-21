@@ -379,8 +379,12 @@
       "gatesKey": "haltSupersededAudit90Gates",
       "enabled": true,
       "guardTests": false,
-      "grokMaxTurns": 8,
-      "maxIterations": 2
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
     },
     {
       "id": "backend-python-node-route-inventory-90",
@@ -388,8 +392,12 @@
       "gatesKey": "nodeRouteInventory90Gates",
       "enabled": true,
       "guardTests": false,
-      "grokMaxTurns": 8,
-      "maxIterations": 2
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
     },
     {
       "id": "backend-python-runtime-depth-audit-90",
@@ -397,8 +405,12 @@
       "gatesKey": "runtimeDepthAudit90Gates",
       "enabled": true,
       "guardTests": false,
-      "grokMaxTurns": 8,
-      "maxIterations": 2
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
     },
     {
       "id": "backend-python-session-persistence-runtime-diff-90",
@@ -406,8 +418,12 @@
       "gatesKey": "sessionPersistenceRuntimeDiff90Gates",
       "enabled": true,
       "guardTests": false,
-      "grokMaxTurns": 16,
-      "maxIterations": 3
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
     },
     {
       "id": "backend-python-auth-permission-audit-runtime-90",
@@ -415,8 +431,12 @@
       "gatesKey": "authPermissionAuditRuntime90Gates",
       "enabled": true,
       "guardTests": false,
-      "grokMaxTurns": 16,
-      "maxIterations": 3
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
     },
     {
       "id": "backend-python-a2a-stream-runtime-boundary-90",
@@ -424,8 +444,12 @@
       "gatesKey": "a2aStreamRuntimeBoundary90Gates",
       "enabled": true,
       "guardTests": false,
-      "grokMaxTurns": 16,
-      "maxIterations": 3
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
     },
     {
       "id": "backend-python-production-wiring-smoke-90",
@@ -433,8 +457,12 @@
       "gatesKey": "productionWiringSmoke90Gates",
       "enabled": true,
       "guardTests": false,
-      "grokMaxTurns": 16,
-      "maxIterations": 3
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
     },
     {
       "id": "backend-python-migration-status-refresh-90",
@@ -442,8 +470,12 @@
       "gatesKey": "migrationStatusRefresh90Gates",
       "enabled": true,
       "guardTests": false,
-      "grokMaxTurns": 8,
-      "maxIterations": 2
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
     }
   ],
   "nodeRouteInventory50Gates": [

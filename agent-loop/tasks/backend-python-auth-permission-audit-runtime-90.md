@@ -6,11 +6,11 @@
 - 角色分工：worker 负责最小 runtime 边界和测试；reviewer 确认不改生产 schema、不放宽权限语义。
 
 ### 状态清单
-- [ ] auth/session runtime boundary 有明确 Python mode 行为。
-- [ ] permission check 和 rate limit runtime boundary 保留 deny/error 语义。
-- [ ] audit event runtime boundary 保留 envelope、actor、action、error 字段。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有把安全失败伪装成成功。
+- [x] auth/session runtime boundary 有明确 Python mode 行为。
+- [x] permission check 和 rate limit runtime boundary 保留 deny/error 语义。
+- [x] audit event runtime boundary 保留 envelope、actor、action、error 字段。
+- [x] gate 全绿。
+- [x] Codex review 确认没有把安全失败伪装成成功。
 
 ## 目标
 

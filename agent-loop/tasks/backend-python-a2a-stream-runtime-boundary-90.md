@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 stream 状态、cancel/error/envelope 语义和测试；reviewer 确认没有真实 agent 副作用。
 
 ### 状态清单
-- [ ] Python A2A runtime 支持最小 stream boundary 或明确 stream fallback。
-- [ ] Node route/client 能区分 streaming、completed、failed、cancelled。
-- [ ] stream error/cancel 不伪装成 completed。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有启动真实 CrewAI、LangGraph、Claude 或外部 agent。
+- [x] Python A2A runtime 支持最小 stream boundary 或明确 stream fallback。
+- [x] Node route/client 能区分 streaming、completed、failed、cancelled。
+- [x] stream error/cancel 不伪装成 completed。
+- [x] gate 全绿。
+- [x] Codex review 确认没有启动真实 CrewAI、LangGraph、Claude 或外部 agent。
 
 ## 目标
 
