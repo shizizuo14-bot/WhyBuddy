@@ -1,7 +1,7 @@
 # AgentLoop: queue worktree mode
 
 ## 执行状态
-- 状态：待执行
+- 状态：已完成
 - 目标：新增 queue-level worktree（队列级隔离工作树）模式，让一次 run-queue（运行队列）使用一个 worktree（隔离工作树）顺序执行多个 task（任务），最后统一 landing（落地）到 main（主仓库）。
 - 角色分工：worker（执行工人）负责 queue worktree（队列工作树）、checkpoint（检查点）和回滚逻辑；reviewer（审查者）确认不会把失败任务的 diff（差异补丁）混入最终落地。
 

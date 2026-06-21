@@ -1,7 +1,7 @@
 # AgentLoop: apply status taxonomy
 
 ## 执行状态
-- 状态：待执行
+- 状态：已完成
 - 目标：把 apply（应用补丁）阶段的错误从泛化 `HALT_APPLY_FAILED`（停止：应用补丁失败）拆成可诊断状态，避免把 no diff（无差异）和 patch conflict（补丁冲突）误报成 crash（崩溃）。
 - 角色分工：worker（执行工人）负责状态分类、测试和最小 UI/summary 文案；reviewer（审查者）确认不降低证据链严格度。
 
