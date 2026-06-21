@@ -105,6 +105,18 @@ export function activate(context: vscode.ExtensionContext): void {
       queueTree.refresh();
       runsTree.refresh();
     }),
+    vscode.commands.registerCommand('agentLoop.runTask', async (arg: { task?: string } | string | undefined) => {
+      const target = typeof arg === 'string' ? arg : arg?.task;
+      if (!target) return;
+      const short = target.split('/').pop()?.replace(/\.md$/, '') || target;
+      const choice = await vscode.window.showWarningMessage(
+        `单跑「${short}」？会启动一次修复/审查运行（创建 worktree、调用 agent，不改动 main）。`,
+        { modal: true },
+        '单跑',
+      );
+      if (choice !== '单跑') return;
+      await runController?.runQueue(['--only', target]);
+    }),
     vscode.commands.registerCommand('agentLoop.reEnableTask', async (arg: { taskId?: string } | string | undefined) => {
       const label = typeof arg === 'string' ? arg : arg?.taskId;
       if (!label) return;

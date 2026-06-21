@@ -669,6 +669,18 @@ test('dashboard overview shows a re-enable action on auto-disabled tasks', async
   assert.match(html, /重开/);
 });
 
+test('dashboard detail shows a single-run action for the task', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderDetail({
+    taskLabel: 't', runId: 'r', status: 'HALT_NO_CHANGES', pipelineSteps: [],
+    iterations: [], reviewRounds: [],
+    taskPath: 'agent-loop/tasks/x.md', statePath: '/tmp/state.json',
+  });
+  assert.match(html, /data-act="runTask"/);
+  assert.match(html, /data-task="agent-loop\/tasks\/x\.md"/);
+  assert.match(html, /单跑此任务/);
+});
+
 test('dashboard view title command is contributed only once', async () => {
   const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
   const viewTitleMenus = packageJson.contributes.menus['view/title'];

@@ -37,13 +37,17 @@ function quoteForPowershell(value) {
 }
 
 export function filterQueueTasks(tasks, { only = null, from = null, limit = null } = {}) {
-  let selected = (tasks || []).filter((entry) => entry.enabled !== false);
+  const all = tasks || [];
 
+  // --only is an explicit single-task run: match against the full queue (including
+  // disabled tasks) so you can re-run one task on demand regardless of enabled state.
   if (only) {
-    const match = selected.find((entry) => (entry.id || entry.task) === only || entry.task === only);
+    const match = all.find((entry) => (entry.id || entry.task) === only || entry.task === only);
     if (!match) throw new Error(`--only target not found: ${only}`);
-    selected = [match];
+    return [match];
   }
+
+  let selected = all.filter((entry) => entry.enabled !== false);
 
   if (from) {
     const index = selected.findIndex((entry) => (entry.id || entry.task) === from || entry.task === from);

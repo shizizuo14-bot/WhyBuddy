@@ -370,10 +370,14 @@
       payload.landingPath ? ['openReport', payload.landingPath, '落地状态'] : null,
       payload.statePath ? ['openState', payload.statePath, 'state.json'] : null,
     ].filter(Boolean);
-    if (!links.length) return '';
-    return `<div class="links">${links.map(([act, file, label]) =>
+    const action = payload.taskPath
+      ? `<button class="btn primary" data-act="runTask" data-task="${esc(payload.taskPath)}" title="只跑这一条任务（不改 main）">单跑此任务</button>`
+      : '';
+    const fileButtons = links.map(([act, file, label]) =>
       `<button class="btn ghost" data-act="${act}" data-path="${esc(file)}">${esc(label)}</button>`,
-    ).join('')}</div>`;
+    ).join('');
+    if (!action && !fileButtons) return '';
+    return `<div class="links">${action}${fileButtons}</div>`;
   }
 
   function highlightDiff(text) {
@@ -489,6 +493,8 @@
       vscode.postMessage({ type: 'openTask', taskPath: target.getAttribute('data-task') });
     } else if (act === 'reEnable') {
       vscode.postMessage({ type: 'reEnable', taskId: target.getAttribute('data-id') });
+    } else if (act === 'runTask') {
+      vscode.postMessage({ type: 'runTask', task: target.getAttribute('data-task') });
     } else if (act === 'openReport') {
       vscode.postMessage({ type: 'openReport', reportPath: target.getAttribute('data-path') });
     } else if (act === 'openState') {

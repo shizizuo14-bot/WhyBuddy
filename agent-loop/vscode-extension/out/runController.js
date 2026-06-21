@@ -54,18 +54,19 @@ class RunController {
     get running() {
         return this.child !== null;
     }
-    async runQueue() {
+    async runQueue(extraArgs = []) {
         if (this.child) {
             vscode.window.showWarningMessage('AgentLoop 任务队列已在运行中。');
             return;
         }
         const agentLoopRoot = (0, paths_1.getAgentLoopRoot)(this.repoRoot);
         const scriptPath = path.join(agentLoopRoot, 'scripts', 'run-queue.mjs');
+        const scriptArgs = [scriptPath, ...extraArgs];
         this.output.show(true);
-        this.output.appendLine(`[${new Date().toLocaleTimeString()}] 启动任务队列: node ${scriptPath}`);
+        this.output.appendLine(`[${new Date().toLocaleTimeString()}] 启动任务队列: node ${scriptArgs.join(' ')}`);
         await setQueueRunning(true);
         this.onStarted();
-        const child = (0, node_child_process_1.spawn)(process.execPath, [scriptPath], {
+        const child = (0, node_child_process_1.spawn)(process.execPath, scriptArgs, {
             cwd: agentLoopRoot,
             env: {
                 ...process.env,

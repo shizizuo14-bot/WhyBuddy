@@ -41,6 +41,11 @@ export class DashboardPanel {
             void vscode.commands.executeCommand('agentLoop.reEnableTask', { taskId: message.taskId });
           }
           return;
+        case 'runTask':
+          if (message.task) {
+            void vscode.commands.executeCommand('agentLoop.runTask', { task: message.task });
+          }
+          return;
         case 'openReport':
           void vscode.commands.executeCommand('agentLoop.openFile', message.reportPath);
           return;
@@ -117,6 +122,7 @@ export class DashboardPanel {
     this.panel.webview.postMessage({
       type: 'detail',
       payload: {
+        taskPath: state?.options?.task ?? null,
         diffText: evidence.diffText,
         diffTruncated: evidence.diffTruncated,
         hasDiff: evidence.hasDiff,

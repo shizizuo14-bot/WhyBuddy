@@ -153,6 +153,15 @@ test('filterQueueTasks can select one task by id', () => {
   assert.deepEqual(tasks.map((task) => task.id), ['task-b']);
 });
 
+test('filterQueueTasks --only can single-run a disabled task', () => {
+  const tasks = filterQueueTasks([
+    { id: 'task-a', enabled: true },
+    { id: 'task-b', enabled: false },
+  ], { only: 'task-b' });
+
+  assert.deepEqual(tasks.map((task) => task.id), ['task-b']);
+});
+
 test('filterQueueTasks supports from and limit after disabled tasks are removed', () => {
   const tasks = filterQueueTasks([
     { id: 'task-a', enabled: true },

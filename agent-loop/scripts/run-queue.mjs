@@ -134,11 +134,15 @@ async function main() {
   for (const [index, entry] of tasks.entries()) {
     if (stopRequested) break;
     const label = entry.id || entry.task;
-    const skipCheck = shouldSkipAutoDisabledTask({
-      entry,
-      outcomes,
-      maxConsecutiveNoChanges,
-    });
+    // An explicit single-task run (--only) forces the task to run even if it was
+    // auto-disabled; otherwise honor the auto-disable skip.
+    const skipCheck = selection.only
+      ? { skip: false }
+      : shouldSkipAutoDisabledTask({
+        entry,
+        outcomes,
+        maxConsecutiveNoChanges,
+      });
     if (skipCheck.skip) {
       skippedCount += 1;
       const skippedSummary = {

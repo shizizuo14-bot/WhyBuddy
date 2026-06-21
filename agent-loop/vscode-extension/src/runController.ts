@@ -18,7 +18,7 @@ export class RunController implements vscode.Disposable {
     return this.child !== null;
   }
 
-  async runQueue(): Promise<void> {
+  async runQueue(extraArgs: string[] = []): Promise<void> {
     if (this.child) {
       vscode.window.showWarningMessage('AgentLoop 任务队列已在运行中。');
       return;
@@ -26,12 +26,13 @@ export class RunController implements vscode.Disposable {
 
     const agentLoopRoot = getAgentLoopRoot(this.repoRoot);
     const scriptPath = path.join(agentLoopRoot, 'scripts', 'run-queue.mjs');
+    const scriptArgs = [scriptPath, ...extraArgs];
     this.output.show(true);
-    this.output.appendLine(`[${new Date().toLocaleTimeString()}] 启动任务队列: node ${scriptPath}`);
+    this.output.appendLine(`[${new Date().toLocaleTimeString()}] 启动任务队列: node ${scriptArgs.join(' ')}`);
     await setQueueRunning(true);
     this.onStarted();
 
-    const child = spawn(process.execPath, [scriptPath], {
+    const child = spawn(process.execPath, scriptArgs, {
       cwd: agentLoopRoot,
       env: {
         ...process.env,
