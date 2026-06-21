@@ -48,7 +48,13 @@ import type {
   BlueprintGenerationStatus,
 } from "../contracts.js";
 
-export type BlueprintJobRuntimeAction = "start" | "status" | "cancel" | "read";
+export type BlueprintJobRuntimeAction =
+  | "start"
+  | "status"
+  | "complete"
+  | "fail"
+  | "cancel"
+  | "read";
 
 export type BlueprintJobRuntimeStatus =
   | BlueprintGenerationStatus

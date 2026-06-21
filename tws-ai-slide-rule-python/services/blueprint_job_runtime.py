@@ -11,9 +11,9 @@ from typing import Any, Literal
 
 CONTRACT_VERSION = "blueprint.job-runtime.proxy.v1"
 TERMINAL_STATUSES = {"completed", "failed", "cancelled"}
-VALID_ACTIONS = {"start", "status", "cancel", "read"}
+VALID_ACTIONS = {"start", "status", "complete", "fail", "cancel", "read"}
 
-Action = Literal["start", "status", "cancel", "read"]
+Action = Literal["start", "status", "complete", "fail", "cancel", "read"]
 
 
 def _is_record(value: Any) -> bool:
@@ -52,6 +52,26 @@ def _runtime_error(action: Action, message: str, job_id: str) -> dict[str, Any]:
         "message": message,
         "jobId": job_id,
         "retryable": True,
+    }
+
+
+def _normalize_error(
+    value: Any,
+    *,
+    code: str,
+    message: str,
+    stage: str,
+) -> dict[str, str]:
+    if _is_record(value):
+        return {
+            "code": _clean_string(value.get("code"), code),
+            "message": _clean_string(value.get("message"), message),
+            "stage": _clean_string(value.get("stage"), stage),
+        }
+    return {
+        "code": code,
+        "message": message,
+        "stage": stage,
     }
 
 
@@ -132,6 +152,24 @@ def run_blueprint_job_runtime_action(
 
     if action == "start":
         return _success(action, _normalize_job(raw_job, status="running", now=now))
+
+    if action == "complete":
+        return _success(action, _normalize_job(raw_job, status="completed", now=now))
+
+    if action == "fail":
+        stage = _clean_string(raw_job.get("stage"), "input")
+        failed_job = _normalize_job(
+            raw_job,
+            status="failed",
+            now=now,
+            error=_normalize_error(
+                payload.get("error"),
+                code="runtime_failed",
+                message=_clean_string(payload.get("message"), "Blueprint job failed."),
+                stage=stage,
+            ),
+        )
+        return _success(action, failed_job)
 
     if action == "cancel":
         status = _clean_string(raw_job.get("status"), "running")

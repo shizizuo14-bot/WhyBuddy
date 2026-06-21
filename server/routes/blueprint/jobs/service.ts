@@ -31,6 +31,21 @@ export interface JobService {
   emitJobEvent(event: BlueprintGenerationEvent): void;
   startJob(input: BlueprintJobRuntimeStartInput): Promise<BlueprintJobRuntimeResult>;
   getJobStatus(jobId: string): Promise<BlueprintJobRuntimeResult>;
+  completeJob(
+    jobId: string,
+    options?: { now?: string },
+  ): Promise<BlueprintJobRuntimeResult>;
+  failJob(
+    jobId: string,
+    options?: {
+      error?: {
+        code: string;
+        message: string;
+        stage: BlueprintGenerationStage;
+      };
+      now?: string;
+    },
+  ): Promise<BlueprintJobRuntimeResult>;
   cancelJob(
     jobId: string,
     options?: { reason?: string; now?: string },
@@ -45,6 +60,8 @@ const PYTHON_PROXY_INTERNAL_KEY = "PYTHON_SLIDE_RULE_INTERNAL_KEY";
 const VALID_RUNTIME_ACTIONS = new Set<BlueprintJobRuntimeAction>([
   "start",
   "status",
+  "complete",
+  "fail",
   "cancel",
   "read",
 ]);
@@ -387,6 +404,55 @@ export function createJobService(ctx: BlueprintServiceContext): JobService {
         jobId,
         job,
         () => (job ? localRuntimeSuccess("status", job) : notFoundResult("status", jobId)),
+      );
+    },
+    async completeJob(jobId, options = {}) {
+      const job = ctx.jobStore.get(jobId);
+      return withPythonJobRuntimeProxy(
+        ctx,
+        "complete",
+        jobId,
+        job,
+        () => {
+          if (!job) return notFoundResult("complete", jobId);
+          const now = options.now ?? ctx.now().toISOString();
+          const completed: BlueprintGenerationJob = {
+            ...job,
+            status: "completed",
+            updatedAt: now,
+            completedAt: job.completedAt ?? now,
+          };
+          ctx.jobStore.save(completed);
+          return localRuntimeSuccess("complete", completed);
+        },
+        { now: options.now },
+      );
+    },
+    async failJob(jobId, options = {}) {
+      const job = ctx.jobStore.get(jobId);
+      return withPythonJobRuntimeProxy(
+        ctx,
+        "fail",
+        jobId,
+        job,
+        () => {
+          if (!job) return notFoundResult("fail", jobId);
+          const now = options.now ?? ctx.now().toISOString();
+          const failed: BlueprintGenerationJob = {
+            ...job,
+            status: "failed",
+            updatedAt: now,
+            completedAt: job.completedAt ?? now,
+            error: options.error ?? {
+              code: "runtime_failed",
+              message: "Blueprint job failed.",
+              stage: job.stage,
+            },
+          };
+          ctx.jobStore.save(failed);
+          return localRuntimeSuccess("fail", failed);
+        },
+        { error: options.error, now: options.now },
       );
     },
     async cancelJob(jobId, options = {}) {

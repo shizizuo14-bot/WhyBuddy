@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 job lifecycle envelope 和测试；reviewer 确认 Node 仍拥有 job store、event stream、diagnostics。
 
 ### 状态清单
-- [ ] Python runtime boundary 覆盖 selected job start/status/complete/fail/cancel envelope。
-- [ ] Node 测试覆盖 Python mode 下 job runtime boundary。
-- [ ] failed/cancelled 不伪装成 completed。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有迁完整 `/api/blueprint` job store。
+- [x] Python runtime boundary 覆盖 selected job start/status/complete/fail/cancel envelope。
+- [x] Node 测试覆盖 Python mode 下 job runtime boundary。
+- [x] failed/cancelled 不伪装成 completed。
+- [x] gate 全绿。
+- [x] Codex review 确认没有迁完整 `/api/blueprint` job store。
 
 ## 目标
 
