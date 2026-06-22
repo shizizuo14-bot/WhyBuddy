@@ -615,79 +615,137 @@
       "id": "backend-python-runtime-evidence-reconcile-89",
       "task": "agent-loop/tasks/backend-python-runtime-evidence-reconcile-89.md",
       "gatesKey": "runtimeEvidenceReconcile89Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 16,
       "maxIterations": 2,
       "reviewMaxTurns": 8,
       "agentTimeoutMs": 1200000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 2400000
+      "timeoutMs": 2400000,
+      "disabledReason": "superseded by 95-stage closure audit queue"
     },
     {
       "id": "backend-python-permission-rate-limit-runtime-boundary-89",
       "task": "agent-loop/tasks/backend-python-permission-rate-limit-runtime-boundary-89.md",
       "gatesKey": "permissionRateLimitRuntimeBoundary89Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 32,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed by 89-stage queue; superseded by 95-stage closure audit"
     },
     {
       "id": "backend-python-a2a-stream-runtime-boundary-89",
       "task": "agent-loop/tasks/backend-python-a2a-stream-runtime-boundary-89.md",
       "gatesKey": "a2aStreamRuntimeBoundary89Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 32,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed by 89-stage queue; superseded by 95-stage closure audit"
     },
     {
       "id": "backend-python-blueprint-job-runtime-boundary-89",
       "task": "agent-loop/tasks/backend-python-blueprint-job-runtime-boundary-89.md",
       "gatesKey": "blueprintJobRuntimeBoundary89Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 32,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed by 89-stage queue; superseded by 95-stage closure audit"
     },
     {
       "id": "backend-python-web-aigc-longtail-inventory-89",
       "task": "agent-loop/tasks/backend-python-web-aigc-longtail-inventory-89.md",
       "gatesKey": "webAigcLongtailInventory89Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 16,
       "maxIterations": 2,
       "reviewMaxTurns": 8,
       "agentTimeoutMs": 1200000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 2400000
+      "timeoutMs": 2400000,
+      "disabledReason": "completed by 89-stage queue; superseded by 95-stage production reality check"
     },
     {
       "id": "backend-python-migration-status-refresh-89",
       "task": "agent-loop/tasks/backend-python-migration-status-refresh-89.md",
       "gatesKey": "migrationStatusRefresh89Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 12,
       "maxIterations": 2,
       "reviewMaxTurns": 8,
       "agentTimeoutMs": 1200000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 2400000
+      "timeoutMs": 2400000,
+      "disabledReason": "completed by 89-stage queue; next queue uses 95-stage closure tasks"
+    },
+    {
+      "id": "backend-python-sliderule-v5-runtime-closure-audit-95",
+      "task": "agent-loop/tasks/backend-python-sliderule-v5-runtime-closure-audit-95.md",
+      "gatesKey": "slideruleV5RuntimeClosureAudit95Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 2,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-blueprint-v5-adjacent-runtime-closure-95",
+      "task": "agent-loop/tasks/backend-python-blueprint-v5-adjacent-runtime-closure-95.md",
+      "gatesKey": "blueprintV5AdjacentRuntimeClosure95Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 2,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-production-wiring-reality-check-95",
+      "task": "agent-loop/tasks/backend-python-production-wiring-reality-check-95.md",
+      "gatesKey": "productionWiringRealityCheck95Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 2,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-migration-status-refresh-95",
+      "task": "agent-loop/tasks/backend-python-migration-status-refresh-95.md",
+      "gatesKey": "migrationStatusRefresh95Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 2,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
     }
   ],
   "nodeRouteInventory50Gates": [
@@ -993,5 +1051,30 @@
   ],
   "migrationStatusRefresh89Gates": [
     "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-runtime-evidence-reconcile-89.md docs/backend-python-web-aigc-longtail-inventory-89.md"
+  ],
+  "slideruleV5RuntimeClosureAudit95Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_mcp_call_real_runtime.py tests/test_skill_invoke_real_runtime.py tests/test_orchestrate_plan_runtime_route.py tests/test_orchestrate_plan_state_projection.py tests/test_real_vector_retrieval_production_wiring.py tests/test_rag_ingestion_production_storage.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.orchestrate-plan-python-runtime.test.ts server/routes/__tests__/sliderule.orchestrate-plan-state-projection.test.ts server/routes/__tests__/rag-ingestion-python-production-storage.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node -e \"const fs=require('fs'); const p='docs/backend-python-sliderule-v5-runtime-closure-95.md'; const s=fs.readFileSync(p,'utf8'); if(!s.includes('SlideRule V5') || !s.includes('95')) throw new Error('missing SlideRule V5 runtime closure 95 report content');\"",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-sliderule-v5-runtime-closure-95.md agent-loop/tasks/sliderule-python-migration-status.md docs/backend-python-runtime-evidence-reconcile-89.md docs/backend-python-runtime-depth-audit-90.md docs/backend-python-node-route-inventory-90.md"
+  ],
+  "blueprintV5AdjacentRuntimeClosure95Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_orchestrate_plan_state_projection.py tests/test_blueprint_spec_docs_batch_proxy.py tests/test_blueprint_artifact_memory_proxy.py tests/test_blueprint_review_export_proxy.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.orchestrate-plan-state-projection.test.ts server/routes/__tests__/blueprint.spec-docs-batch-python-proxy.test.ts server/routes/__tests__/blueprint.artifact-memory-python-proxy.test.ts server/routes/__tests__/blueprint.review-export-python-proxy.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node -e \"const fs=require('fs'); const p='docs/backend-python-blueprint-v5-adjacent-runtime-95.md'; const s=fs.readFileSync(p,'utf8'); if(!s.includes('Blueprint') || !s.includes('95')) throw new Error('missing Blueprint V5 adjacent runtime 95 report content');\"",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-blueprint-v5-adjacent-runtime-95.md agent-loop/tasks/sliderule-python-migration-status.md docs/backend-python-node-route-inventory-90.md docs/backend-python-runtime-depth-audit-90.md"
+  ],
+  "productionWiringRealityCheck95Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_real_vector_retrieval_production_wiring.py tests/test_rag_ingestion_production_storage.py tests/test_web_aigc_search_runtime_bridge.py tests/test_web_aigc_file_runtime_bridge.py tests/test_web_aigc_vision_audio_runtime_bridge.py tests/test_telemetry_production_sink.py tests/test_production_observability_rollup.py tests/test_deployment_live_smoke_boundary.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/rag-ingestion-python-production-storage.test.ts server/routes/__tests__/web-aigc.search-python-runtime.test.ts server/routes/__tests__/web-aigc.file-python-runtime.test.ts server/routes/__tests__/web-aigc.vision-audio-python-runtime.test.ts server/routes/__tests__/telemetry-python-production-sink.test.ts server/routes/__tests__/python-observability-rollup.test.ts server/routes/__tests__/python-deployment-live-smoke.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node -e \"const fs=require('fs'); const p='docs/backend-python-production-wiring-reality-95.md'; const s=fs.readFileSync(p,'utf8'); if(!s.includes('production wiring') || !s.includes('95')) throw new Error('missing production wiring reality 95 report content');\"",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-production-wiring-reality-95.md agent-loop/tasks/sliderule-python-migration-status.md docs/backend-python-web-aigc-runtime-evidence-reconcile-88.md docs/backend-python-web-aigc-longtail-inventory-89.md docs/backend-python-runtime-evidence-reconcile-89.md"
+  ],
+  "migrationStatusRefresh95Gates": [
+    "node -e \"const fs=require('fs'); const files=['docs/backend-python-sliderule-v5-runtime-closure-95.md','docs/backend-python-blueprint-v5-adjacent-runtime-95.md','docs/backend-python-production-wiring-reality-95.md']; for (const p of files) { const s=fs.readFileSync(p,'utf8'); if(!s.includes('95')) throw new Error('missing 95 report content: '+p); } const status=fs.readFileSync('agent-loop/tasks/sliderule-python-migration-status.md','utf8'); if(!status.includes('95')) throw new Error('migration status was not refreshed for 95 stage');\"",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-sliderule-v5-runtime-closure-95.md docs/backend-python-blueprint-v5-adjacent-runtime-95.md docs/backend-python-production-wiring-reality-95.md docs/backend-python-runtime-evidence-reconcile-89.md docs/backend-python-runtime-depth-audit-90.md docs/backend-python-node-route-inventory-90.md"
   ]
 }
