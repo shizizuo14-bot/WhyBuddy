@@ -699,45 +699,153 @@
       "id": "backend-python-sliderule-v5-runtime-closure-audit-95",
       "task": "agent-loop/tasks/backend-python-sliderule-v5-runtime-closure-audit-95.md",
       "gatesKey": "slideruleV5RuntimeClosureAudit95Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 32,
       "maxIterations": 2,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed by 95 audit queue; superseded by overall-95 real-code queue"
     },
     {
       "id": "backend-python-blueprint-v5-adjacent-runtime-closure-95",
       "task": "agent-loop/tasks/backend-python-blueprint-v5-adjacent-runtime-closure-95.md",
       "gatesKey": "blueprintV5AdjacentRuntimeClosure95Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 32,
       "maxIterations": 2,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed by 95 audit queue; superseded by overall-95 real-code queue"
     },
     {
       "id": "backend-python-production-wiring-reality-check-95",
       "task": "agent-loop/tasks/backend-python-production-wiring-reality-check-95.md",
       "gatesKey": "productionWiringRealityCheck95Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "grokMaxTurns": 32,
       "maxIterations": 2,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed by 95 audit queue; superseded by overall-95 real-code queue"
     },
     {
       "id": "backend-python-migration-status-refresh-95",
       "task": "agent-loop/tasks/backend-python-migration-status-refresh-95.md",
       "gatesKey": "migrationStatusRefresh95Gates",
+      "enabled": false,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 2,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "disabledReason": "completed by 95 audit queue; superseded by overall-95 real-code queue"
+    },
+    {
+      "id": "backend-python-blueprint-artifact-memory-runtime-store-96",
+      "task": "agent-loop/tasks/backend-python-blueprint-artifact-memory-runtime-store-96.md",
+      "gatesKey": "blueprintArtifactMemoryRuntimeStore96Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-blueprint-review-export-runtime-boundary-96",
+      "task": "agent-loop/tasks/backend-python-blueprint-review-export-runtime-boundary-96.md",
+      "gatesKey": "blueprintReviewExportRuntimeBoundary96Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-task-route-lifecycle-runtime-96",
+      "task": "agent-loop/tasks/backend-python-task-route-lifecycle-runtime-96.md",
+      "gatesKey": "taskRouteLifecycleRuntime96Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-auth-session-refresh-logout-runtime-96",
+      "task": "agent-loop/tasks/backend-python-auth-session-refresh-logout-runtime-96.md",
+      "gatesKey": "authSessionRefreshLogoutRuntime96Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-audit-retention-export-runtime-96",
+      "task": "agent-loop/tasks/backend-python-audit-retention-export-runtime-96.md",
+      "gatesKey": "auditRetentionExportRuntime96Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-web-aigc-dynamic-chart-runtime-96",
+      "task": "agent-loop/tasks/backend-python-web-aigc-dynamic-chart-runtime-96.md",
+      "gatesKey": "webAigcDynamicChartRuntime96Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-web-aigc-transaction-flow-runtime-96",
+      "task": "agent-loop/tasks/backend-python-web-aigc-transaction-flow-runtime-96.md",
+      "gatesKey": "webAigcTransactionFlowRuntime96Gates",
+      "enabled": true,
+      "guardTests": false,
+      "grokMaxTurns": 32,
+      "maxIterations": 3,
+      "reviewMaxTurns": 10,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000
+    },
+    {
+      "id": "backend-python-migration-status-refresh-overall-95",
+      "task": "agent-loop/tasks/backend-python-migration-status-refresh-overall-95.md",
+      "gatesKey": "migrationStatusRefreshOverall95Gates",
       "enabled": true,
       "guardTests": false,
       "grokMaxTurns": 32,
@@ -1076,5 +1184,51 @@
   "migrationStatusRefresh95Gates": [
     "node -e \"const fs=require('fs'); const files=['docs/backend-python-sliderule-v5-runtime-closure-95.md','docs/backend-python-blueprint-v5-adjacent-runtime-95.md','docs/backend-python-production-wiring-reality-95.md']; for (const p of files) { const s=fs.readFileSync(p,'utf8'); if(!s.includes('95')) throw new Error('missing 95 report content: '+p); } const status=fs.readFileSync('agent-loop/tasks/sliderule-python-migration-status.md','utf8'); if(!status.includes('95')) throw new Error('migration status was not refreshed for 95 stage');\"",
     "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-sliderule-v5-runtime-closure-95.md docs/backend-python-blueprint-v5-adjacent-runtime-95.md docs/backend-python-production-wiring-reality-95.md docs/backend-python-runtime-evidence-reconcile-89.md docs/backend-python-runtime-depth-audit-90.md docs/backend-python-node-route-inventory-90.md"
+  ],
+  "blueprintArtifactMemoryRuntimeStore96Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_artifact_memory_runtime_store.py tests/test_blueprint_artifact_memory_proxy.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/blueprint/artifact-memory/service.test.ts server/routes/__tests__/blueprint.artifact-memory-python-runtime.test.ts server/routes/__tests__/blueprint.artifact-memory-python-proxy.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/blueprint_artifact_memory.py tws-ai-slide-rule-python/tests/test_blueprint_artifact_memory_runtime_store.py server/routes/__tests__/blueprint.artifact-memory-python-runtime.test.ts server/routes/blueprint/artifact-memory/service.ts shared/blueprint/artifact-memory/types.ts"
+  ],
+  "blueprintReviewExportRuntimeBoundary96Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_review_export_runtime_boundary.py tests/test_blueprint_review_export_proxy.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/blueprint.review-export-python-runtime.test.ts server/routes/__tests__/blueprint.review-export-python-proxy.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/blueprint_review_export.py tws-ai-slide-rule-python/tests/test_blueprint_review_export_runtime_boundary.py server/routes/__tests__/blueprint.review-export-python-runtime.test.ts server/routes/blueprint/review-export-python-runtime.ts"
+  ],
+  "taskRouteLifecycleRuntime96Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_task_lifecycle_runtime_boundary.py tests/test_task_executor_runtime_bridge.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/tests/task-lifecycle-python-runtime.test.ts server/tests/mission-routes.test.ts server/tests/mission-cancel.test.ts server/tests/executor-client-python-runtime.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/task_lifecycle_runtime.py tws-ai-slide-rule-python/tests/test_task_lifecycle_runtime_boundary.py server/tests/task-lifecycle-python-runtime.test.ts server/routes/tasks.ts server/tasks/mission-runtime.ts shared/mission/contracts.ts"
+  ],
+  "authSessionRefreshLogoutRuntime96Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_auth_session_refresh_logout_runtime.py tests/test_auth_session_runtime_boundary.py tests/test_auth_session_production_persistence.py tests/test_auth_session_contract.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/tests/auth-session-refresh-logout-python-runtime.test.ts server/tests/auth-session-runtime-boundary.test.ts server/tests/auth-session-production-persistence.test.ts server/tests/auth-session-python-contract.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/auth_session_persistence.py tws-ai-slide-rule-python/tests/test_auth_session_refresh_logout_runtime.py server/tests/auth-session-refresh-logout-python-runtime.test.ts server/routes/auth.ts server/auth/session-service.ts"
+  ],
+  "auditRetentionExportRuntime96Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_audit_retention_export_runtime.py tests/test_audit_production_sink.py tests/test_audit_event_runtime_boundary.py tests/test_audit_event_contract.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/tests/audit-retention-export-python-runtime.test.ts server/tests/audit-production-sink.test.ts server/tests/audit-event-python-runtime.test.ts server/tests/audit-event-python-contract.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/audit_retention_export.py tws-ai-slide-rule-python/services/audit_sink.py tws-ai-slide-rule-python/tests/test_audit_retention_export_runtime.py server/tests/audit-retention-export-python-runtime.test.ts server/routes/audit.ts shared/audit/contracts.ts"
+  ],
+  "webAigcDynamicChartRuntime96Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_web_aigc_dynamic_chart_runtime.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/tests/dynamic-chart-python-runtime.test.ts server/tests/dynamic-chart-routes.test.ts server/tests/dynamic-chart-node-adapter.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/web_aigc_dynamic_chart_adapter.py tws-ai-slide-rule-python/tests/test_web_aigc_dynamic_chart_runtime.py server/tests/dynamic-chart-python-runtime.test.ts server/routes/dynamic-chart.ts server/routes/node-adapters/dynamic-chart-node-adapter.ts shared/web-aigc-dynamic-chart.ts"
+  ],
+  "webAigcTransactionFlowRuntime96Gates": [
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_web_aigc_transaction_flow_runtime.py -q --tb=short",
+    "pnpm exec vitest run --config vitest.config.server.ts server/tests/transaction-flow-python-runtime.test.ts server/tests/transaction-flow-routes.test.ts server/tests/transaction-flow-node-adapter.test.ts --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/services/web_aigc_transaction_flow_adapter.py tws-ai-slide-rule-python/tests/test_web_aigc_transaction_flow_runtime.py server/tests/transaction-flow-python-runtime.test.ts server/routes/transaction-flow.ts server/routes/node-adapters/transaction-flow-node-adapter.ts shared/web-aigc-transaction-flow.ts"
+  ],
+  "migrationStatusRefreshOverall95Gates": [
+    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/sliderule-python-migration-status.md','utf8'); for (const needle of ['整体 NodeJS 后端','95','Blueprint','Auth','Audit','Task lifecycle','Web AIGC']) { if(!status.includes(needle)) throw new Error('migration status missing overall-95 evidence wording: '+needle); }\"",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-node-route-inventory-90.md docs/backend-python-runtime-depth-audit-90.md docs/backend-python-production-wiring-reality-95.md"
   ]
 }
