@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 Python session runtime、Node auth 映射和测试；reviewer 确认没有绕过现有 auth middleware 和 repository 约束。
 
 ### 状态清单
-- [ ] Python runtime 支持 refresh/logout/session invalidation envelope。
-- [ ] Node auth route/session service 能映射 Python refreshed/logged_out/expired/invalid/error。
-- [ ] expired/invalid/error 不伪装成 authenticated。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有迁完整用户系统、邮件码或数据库 schema。
+- [x] Python runtime 支持 refresh/logout/session invalidation envelope。
+- [x] Node auth route/session service 能映射 Python refreshed/logged_out/expired/invalid/error。
+- [x] expired/invalid/error 不伪装成 authenticated。
+- [x] gate 全绿。
+- [x] Codex review 确认没有迁完整用户系统、邮件码或数据库 schema。
 
 ## 目标
 

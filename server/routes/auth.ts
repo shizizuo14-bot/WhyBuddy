@@ -1,4 +1,4 @@
-import express, { type Request } from "express";
+import express, { type Request, type Response } from "express";
 
 import {
   normalizeAuthEmail,
@@ -14,7 +14,7 @@ import { createAuthMiddleware } from "../auth/middleware.js";
 import type { AuthenticatedRequest } from "../auth/types.js";
 import type { EmailCodeService } from "../auth/email-code-service.js";
 import { hashPassword, verifyPassword } from "../auth/password.js";
-import type { SessionService } from "../auth/session-service.js";
+import type { PythonAuthSessionMutationContract, SessionService } from "../auth/session-service.js";
 import { toCurrentUser } from "../auth/session-service.js";
 import type {
   EmailLoginTokenPurpose,
@@ -81,6 +81,34 @@ export interface AuthRouterDeps {
 
 function jsonError(error: string): AuthErrorResponse {
   return { success: false, error };
+}
+
+function authMutationStatus(status: PythonAuthSessionMutationContract["status"]): 401 | 503 {
+  return status === 503 ? 503 : 401;
+}
+
+function authMutationMessage(result: PythonAuthSessionMutationContract): string {
+  if (result.message) return result.message;
+  if (result.error === "expired") return "Session expired";
+  if (result.error === "invalid") return "Invalid session";
+  if (result.error === "store_failure") return "Auth session persistence failed.";
+  if (result.error === "missing_config") return "Auth session persistence is not configured.";
+  return "Authentication required";
+}
+
+function maybeRejectAuthMutation(
+  result: PythonAuthSessionMutationContract,
+  response: Response,
+  clearCookie: () => void,
+): boolean {
+  if (result.success) {
+    return false;
+  }
+  if (result.status === 401) {
+    clearCookie();
+  }
+  response.status(authMutationStatus(result.status)).json(jsonError(authMutationMessage(result)));
+  return true;
 }
 
 function isDuplicateEmailError(error: unknown): boolean {
@@ -314,13 +342,19 @@ export function createAuthRouter(deps: AuthRouterDeps) {
 
   router.post("/refresh", auth.requireAuth, async (request, response) => {
     const authRequest = request as AuthenticatedRequest;
-    await deps.sessionService.refreshSession(authRequest.sessionId);
+    const result = await deps.sessionService.refreshSession(authRequest.sessionId);
+    if (maybeRejectAuthMutation(result, response, () => deps.sessionService.clearCookie(response))) {
+      return;
+    }
     response.json({ success: true, user: authRequest.user } satisfies AuthJson);
   });
 
   router.post("/logout", auth.requireAuth, async (request, response) => {
     const authRequest = request as AuthenticatedRequest;
-    await deps.sessionService.revokeSession(authRequest.sessionId);
+    const result = await deps.sessionService.revokeSession(authRequest.sessionId);
+    if (maybeRejectAuthMutation(result, response, () => deps.sessionService.clearCookie(response))) {
+      return;
+    }
     deps.sessionService.clearCookie(response);
     response.json({ success: true });
   });

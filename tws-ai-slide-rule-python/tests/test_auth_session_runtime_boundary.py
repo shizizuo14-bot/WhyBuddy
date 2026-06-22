@@ -79,6 +79,7 @@ def test_refresh_extends_active_session_and_preserves_missing_failure_semantics(
     assert refreshed == {
         "ok": True,
         "operation": "refresh",
+        "state": "refreshed",
         "sessionId": "session-runtime-1",
     }
     assert read["valid"] is True
@@ -108,6 +109,7 @@ def test_logout_revokes_session_and_does_not_map_later_reads_to_authenticated(tm
     assert logged_out == {
         "ok": True,
         "operation": "logout",
+        "state": "logged_out",
         "sessionId": "session-runtime-1",
     }
     assert read_after_logout == {

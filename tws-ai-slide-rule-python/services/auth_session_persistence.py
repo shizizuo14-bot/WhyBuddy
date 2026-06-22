@@ -34,6 +34,15 @@ def _mutation_auth_error(error: str) -> AuthSessionResult:
     return result
 
 
+def _mutation_store_error(operation: str, error: AuthSessionResult) -> AuthSessionResult:
+    result = dict(error)
+    result["ok"] = False
+    result["operation"] = operation
+    result["state"] = "error"
+    result.pop("valid", None)
+    return result
+
+
 def _configured_store_missing() -> AuthSessionResult:
     return {
         "ok": False,
@@ -201,7 +210,7 @@ def refresh_auth_session_record(
 ) -> AuthSessionResult:
     sessions, error = _read_store(store_file)
     if error:
-        return error
+        return _mutation_store_error("refresh", error)
     record = sessions.get(session_id)
     if record is None:
         return {"ok": False, "operation": "refresh", **_mutation_auth_error("missing")}
@@ -209,7 +218,8 @@ def refresh_auth_session_record(
     if not current.get("valid"):
         mutation_error = dict(current)
         mutation_error.pop("valid", None)
-        return {"ok": False, "operation": "refresh", **mutation_error}
+        state = mutation_error.get("error") if mutation_error.get("error") in {"expired", "invalid"} else "invalid"
+        return {"ok": False, "operation": "refresh", "state": state, **mutation_error}
 
     record["lastSeenAt"] = now or datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
     if expires_at is not None:
@@ -218,8 +228,8 @@ def refresh_auth_session_record(
 
     result = _write_store(sessions, store_file)
     if not result.get("ok"):
-        return result
-    return {"ok": True, "operation": "refresh", "sessionId": session_id}
+        return _mutation_store_error("refresh", result)
+    return {"ok": True, "operation": "refresh", "state": "refreshed", "sessionId": session_id}
 
 
 def logout_auth_session_record(
@@ -229,7 +239,7 @@ def logout_auth_session_record(
 ) -> AuthSessionResult:
     sessions, error = _read_store(store_file)
     if error:
-        return error
+        return _mutation_store_error("logout", error)
     record = sessions.get(session_id)
     if record is None:
         return {"ok": False, "operation": "logout", **_mutation_auth_error("missing")}
@@ -239,8 +249,8 @@ def logout_auth_session_record(
 
     result = _write_store(sessions, store_file)
     if not result.get("ok"):
-        return result
-    return {"ok": True, "operation": "logout", "sessionId": session_id}
+        return _mutation_store_error("logout", result)
+    return {"ok": True, "operation": "logout", "state": "logged_out", "sessionId": session_id}
 
 
 def delete_auth_session_record(session_id: str, store_file: Optional[StorePath] = None) -> AuthSessionResult:

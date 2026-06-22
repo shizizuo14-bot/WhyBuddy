@@ -12,6 +12,7 @@ export interface SessionLookupResult {
 export type PythonAuthSessionError = "missing" | "expired" | "invalid";
 export type PythonAuthSessionDiagnosticError = "missing_config" | "store_failure";
 export type PythonAuthSessionMutationError = PythonAuthSessionError | PythonAuthSessionDiagnosticError;
+export type PythonAuthSessionMutationState = "refreshed" | "logged_out" | "expired" | "invalid" | "error";
 
 export interface PythonAuthSessionValidContract {
   valid: true;
@@ -34,6 +35,7 @@ export interface PythonAuthSessionMutationContract {
   status?: 200 | 401 | 503;
   message?: string;
   sessionId?: string;
+  state?: PythonAuthSessionMutationState;
 }
 
 export interface SessionRepositories {
@@ -61,8 +63,8 @@ export interface SessionService {
     userAgent?: string | null;
   }): Promise<{ token: string; session: SessionRecord }>;
   resolveCurrentUser(token: string | null | undefined): Promise<SessionLookupResult | null>;
-  revokeSession(sessionId: string): Promise<void>;
-  refreshSession(sessionId: string): Promise<void>;
+  revokeSession(sessionId: string): Promise<PythonAuthSessionMutationContract>;
+  refreshSession(sessionId: string): Promise<PythonAuthSessionMutationContract>;
   readSessionToken(request: Request): string | null;
   writeSessionCookie(response: Response, token: string): void;
   clearCookie(response: Response): void;
@@ -116,6 +118,7 @@ function pythonAuthSessionDiagnosticError(error: PythonAuthSessionDiagnosticErro
 
 function pythonAuthSessionMutationError(
   error: PythonAuthSessionMutationError,
+  state?: PythonAuthSessionMutationState,
 ): PythonAuthSessionMutationContract {
   if (error === "missing_config" || error === "store_failure") {
     return {
@@ -123,6 +126,7 @@ function pythonAuthSessionMutationError(
       error,
       status: 503,
       message: pythonAuthSessionDiagnosticMessages[error],
+      ...(state ? { state } : {}),
     };
   }
   return {
@@ -130,13 +134,18 @@ function pythonAuthSessionMutationError(
     error,
     status: 401,
     message: pythonAuthSessionMessages[error],
+    ...(state ? { state } : {}),
   };
 }
 
-function pythonAuthSessionMutationSuccess(sessionId: string): PythonAuthSessionMutationContract {
+function pythonAuthSessionMutationSuccess(
+  sessionId: string,
+  state?: PythonAuthSessionMutationState,
+): PythonAuthSessionMutationContract {
   return {
     success: true,
     status: 200,
+    ...(state ? { state } : {}),
     sessionId,
   };
 }
@@ -193,6 +202,20 @@ function diagnosticErrorFromPayload(payload: Record<string, unknown>): PythonAut
   return null;
 }
 
+function mutationStateFromPayload(payload: Record<string, unknown>): PythonAuthSessionMutationState | undefined {
+  const state = payload.state;
+  if (
+    state === "refreshed" ||
+    state === "logged_out" ||
+    state === "expired" ||
+    state === "invalid" ||
+    state === "error"
+  ) {
+    return state;
+  }
+  return undefined;
+}
+
 export function validatePythonAuthSessionContract(payload: unknown): PythonAuthSessionContract {
   if (!payload) {
     return pythonAuthSessionError("missing");
@@ -233,19 +256,20 @@ export function validatePythonAuthSessionMutationContract(payload: unknown): Pyt
   if (containsSecretKey(payload)) {
     return pythonAuthSessionMutationError("invalid");
   }
+  const state = mutationStateFromPayload(payload);
 
   const diagnosticError = diagnosticErrorFromPayload(payload);
   if (diagnosticError) {
-    return pythonAuthSessionMutationError(diagnosticError);
+    return pythonAuthSessionMutationError(diagnosticError, state);
   }
 
   const error = payload.error;
   if (error === "missing" || error === "expired" || error === "invalid") {
-    return pythonAuthSessionMutationError(error);
+    return pythonAuthSessionMutationError(error, state);
   }
 
   if (payload.ok === true && typeof payload.sessionId === "string" && payload.sessionId) {
-    return pythonAuthSessionMutationSuccess(payload.sessionId);
+    return pythonAuthSessionMutationSuccess(payload.sessionId, state);
   }
 
   return pythonAuthSessionMutationError("invalid");
@@ -307,10 +331,12 @@ export function createSessionService(options: {
 
     async revokeSession(sessionId) {
       await options.repositories.sessions.revoke(sessionId);
+      return pythonAuthSessionMutationSuccess(sessionId, "logged_out");
     },
 
     async refreshSession(sessionId) {
       await options.repositories.sessions.refreshLastSeen(sessionId, expiresAt());
+      return pythonAuthSessionMutationSuccess(sessionId, "refreshed");
     },
 
     readSessionToken(request) {

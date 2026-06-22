@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 Python store/service、Node bridge 映射和测试；reviewer 确认没有迁移完整 `/api/blueprint`、没有引入真实外部存储副作用。
 
 ### 状态清单
-- [ ] Python runtime store 支持 write/read/list/delete 或等价最小闭环。
-- [ ] Node artifact-memory service 能委托 Python runtime，并保留现有错误/envelope 字段。
-- [ ] stale/missing/not-found/error 不伪装成 success。
-- [ ] gate 全绿。
-- [ ] Codex review 确认这是 runtime store 小切片，不是完整 Blueprint 迁移。
+- [x] Python runtime store 支持 write/read/list/delete 或等价最小闭环。
+- [x] Node artifact-memory service 能委托 Python runtime，并保留现有错误/envelope 字段。
+- [x] stale/missing/not-found/error 不伪装成 success。
+- [x] gate 全绿。
+- [x] Codex review 确认这是 runtime store 小切片，不是完整 Blueprint 迁移。
 
 ## 目标
 
