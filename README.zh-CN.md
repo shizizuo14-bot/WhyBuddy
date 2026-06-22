@@ -94,16 +94,21 @@
 
 ### 怎么用
 
-仓库内已经提供可直接导入的技能包: [`skills/sliderule.zip`](./skills/sliderule.zip)。
+仓库内已经提供可直接导入的技能包: [`skills/sliderule.zip`](./skills/sliderule.zip)。解压后,把生成的 `sliderule/` 文件夹放进你的 Agent 宿主 skills 目录(Trae: Skills · Claude: skill)。目录结构见 [`skills/README.md`](./skills/README.md)。
 
 ```bash
-# 1. 把技能包放进你 Agent 宿主的 skills 目录(Trae:技能 · Claude:skill)
-# 2. 给它一句话想法 —— 它会产出下方整套规格包
-# 3. 出图需要生图端点的 key:
+# 1. 在仓库根目录解压权威技能包
+unzip skills/sliderule.zip
+
+# 2. 把生成的 sliderule/ 文件夹放进你 Agent 宿主的 skills 目录(Trae: Skills · Claude: skill)
+# 3. 给它一句话想法 - 它会产出下方整套规格包
+# 4. 出图需要生图端点的 key:
 export IMAGE_API_KEY=sk-...           # 或填进 image_config.json 的 api_key
 # 默认:gpt-image-2 · 2K · 16:9 · 600 秒超时(均可配)
 
-# 随时自己出图 / 重出(按模块,每个需求一张):
+# 随时自己出图 / 重出(按模块,每个需求一张)。
+# 以下命令请在解压出的 skill 文件夹内执行:
+cd sliderule
 python scripts/finalize_previews.py           # 从 spec_tree 按模块出图
 python scripts/batch_images.py prompts.txt    # 批量,直连你的端点
 

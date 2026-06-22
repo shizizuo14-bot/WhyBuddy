@@ -92,17 +92,22 @@ Besides the full app, SlideRule also ships a **self-contained Skill package** th
 
 ### How to Use
 
-The ready-to-import Skill archive is included at [`skills/sliderule.zip`](./skills/sliderule.zip).
+The ready-to-import Skill archive is included at [`skills/sliderule.zip`](./skills/sliderule.zip). Unzip it, then drop the resulting `sliderule/` folder into your agent host's skills directory (Trae: Skills · Claude: skill). See [`skills/README.md`](./skills/README.md) for the exact directory layout.
 
 ```bash
-# 1. Drop the skill package into your agent host's skills directory
+# 1. From the repo root, unzip the canonical Skill package.
+unzip skills/sliderule.zip
+
+# 2. Drop the resulting sliderule/ folder into your agent host's skills directory
 #    (Trae: Skills · Claude: skill)
-# 2. Give it a one-sentence idea — it produces the full spec package below
-# 3. For image previews, provide an image endpoint key:
+# 3. Give it a one-sentence idea - it produces the full spec package below
+# 4. For image previews, provide an image endpoint key:
 export IMAGE_API_KEY=sk-...           # or fill image_config.json -> api_key
 # default: gpt-image-2 · 2K · 16:9 · 600s timeout (all configurable)
 
-# Generate or regenerate images yourself at any time, one per module:
+# Generate or regenerate images yourself at any time, one per module.
+# Run these from inside the extracted skill folder:
+cd sliderule
 python scripts/finalize_previews.py           # module images from spec_tree
 python scripts/batch_images.py prompts.txt    # batch generation against your endpoint
 
