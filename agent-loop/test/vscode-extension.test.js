@@ -712,6 +712,17 @@ test('dashboard overview shows an applied landing without apply action', async (
   assert.doesNotMatch(html, /data-act="applyLanding"/);
 });
 
+test('extension package opens the queue view first in the AgentLoop container', async () => {
+  const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
+  const views = packageJson.contributes.views['agent-loop'];
+
+  assert.equal(views[0].id, 'agentLoop.queue');
+  assert.deepEqual(
+    views.map((view) => view.id),
+    ['agentLoop.queue', 'agentLoop.currentRun', 'agentLoop.runs'],
+  );
+});
+
 test('dashboard view title command is contributed only once', async () => {
   const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
   const viewTitleMenus = packageJson.contributes.menus['view/title'];
@@ -727,7 +738,7 @@ test('extension package contributes clean Chinese labels', async () => {
   assert.match(packageJson.version, /^\d+\.\d+\.\d+$/);
   assert.deepEqual(
     packageJson.contributes.views['agent-loop'].map((view) => view.name),
-    ['当前运行', '任务队列', '历史运行'],
+    ['任务队列', '当前运行', '历史运行'],
   );
 
   const titles = Object.fromEntries(
@@ -957,7 +968,58 @@ test('dashboard media renders syntax highlighted json agent output', async () =>
   assert.doesNotMatch(html, /\{&quot;verdict&quot;:/);
 });
 
+test('dashboard preserves internal diff and agent log scroll positions across refreshes', async () => {
+  const win = await loadDashboardWindow();
+  const { captureScrollPositions, restoreScrollPositions } = win.AgentLoopDashboardInternals;
+  const pageScroller = { scrollTop: 41 };
+  const doc = { scrollingElement: pageScroller, documentElement: { scrollTop: 0 } };
+  const before = [
+    fakeScrollable('diff', 320),
+    fakeScrollable('agent-log', 880),
+    fakeScrollable('gate-output', 120),
+  ];
+  const after = [
+    fakeScrollable('diff', 0),
+    fakeScrollable('agent-log', 0),
+    fakeScrollable('gate-output', 0),
+  ];
+
+  const captured = captureScrollPositions(fakeRoot(before), doc);
+  pageScroller.scrollTop = 0;
+  restoreScrollPositions(fakeRoot(after), captured, doc);
+
+  assert.equal(pageScroller.scrollTop, 41);
+  assert.equal(after[0].scrollTop, 320);
+  assert.equal(after[1].scrollTop, 880);
+  assert.equal(after[2].scrollTop, 120);
+});
+
+test('dashboard marks diff and agent log panels with stable scroll keys', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderDetail({
+    taskLabel: 'scroll task',
+    runId: 'scroll-run',
+    status: 'CODEX_FIX',
+    pipelineSteps: [],
+    hasDiff: true,
+    diffText: 'diff --git a/a.js b/a.js\n+new\n',
+    gateFailure: '$ npm test\nfailed',
+    agentTail: 'long agent output',
+    iterations: [],
+    reviewRounds: [],
+  });
+
+  assert.match(html, /data-scroll-key="diff"/);
+  assert.match(html, /data-scroll-key="agent-log"/);
+  assert.match(html, /data-scroll-key="gate-output"/);
+});
+
 async function loadDashboardRenderer() {
+  const win = await loadDashboardWindow();
+  return win.AgentLoopDashboardRenderer;
+}
+
+async function loadDashboardWindow() {
   const source = await fs.readFile(path.join(extensionRoot, 'media', 'dashboard.js'), 'utf8');
   const sandbox = {
     window: {},
@@ -966,5 +1028,23 @@ async function loadDashboardRenderer() {
   };
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox, { filename: 'dashboard.js' });
-  return sandbox.window.AgentLoopDashboardRenderer;
+  return sandbox.window;
+}
+
+function fakeScrollable(key, scrollTop) {
+  return {
+    scrollTop,
+    getAttribute(name) {
+      return name === 'data-scroll-key' ? key : null;
+    },
+  };
+}
+
+function fakeRoot(elements) {
+  return {
+    querySelectorAll(selector) {
+      assert.equal(selector, '[data-scroll-key]');
+      return elements;
+    },
+  };
 }

@@ -376,7 +376,7 @@
     const codeClass = log.language === 'json' ? ' log-json wrap' : '';
     return `<section class="panel log-panel">
       <div class="panel-head"><h2>Agent 最新输出</h2><span class="muted">${payload.agentLogKb ? `${payload.agentLogKb}KB` : ''}</span></div>
-      <pre class="log${codeClass}">${log.html}</pre>
+      <pre class="log${codeClass}" data-scroll-key="agent-log">${log.html}</pre>
     </section>`;
   }
 
@@ -440,7 +440,7 @@
     const note = payload.diffTruncated ? '<span class="muted">已截断</span>' : '';
     return `<section class="panel log-panel">
       <div class="panel-head"><h2>改动 diff</h2>${note}</div>
-      <pre class="log diff">${highlightDiff(payload.diffText || '')}</pre>
+      <pre class="log diff" data-scroll-key="diff">${highlightDiff(payload.diffText || '')}</pre>
     </section>`;
   }
 
@@ -449,7 +449,7 @@
     const note = payload.gateFailureTruncated ? '<span class="muted">尾部截断</span>' : '';
     return `<section class="panel log-panel">
       <div class="panel-head"><h2>失败 Gate 输出</h2>${note}</div>
-      <pre class="log">${esc(payload.gateFailure)}</pre>
+      <pre class="log" data-scroll-key="gate-output">${esc(payload.gateFailure)}</pre>
     </section>`;
   }
 
@@ -503,18 +503,43 @@
     </main>`;
   }
 
+  function captureScrollPositions(root, doc) {
+    const scrollRoot = doc || document;
+    const scroller = scrollRoot.scrollingElement || scrollRoot.documentElement;
+    const positions = { page: scroller ? scroller.scrollTop : 0, panels: {} };
+    if (!root || typeof root.querySelectorAll !== 'function') return positions;
+    for (const element of root.querySelectorAll('[data-scroll-key]')) {
+      const key = element.getAttribute('data-scroll-key');
+      if (key) positions.panels[key] = element.scrollTop || 0;
+    }
+    return positions;
+  }
+
+  function restoreScrollPositions(root, positions, doc) {
+    const scrollRoot = doc || document;
+    const scroller = scrollRoot.scrollingElement || scrollRoot.documentElement;
+    if (scroller && positions) scroller.scrollTop = positions.page || 0;
+    if (!root || !positions || typeof root.querySelectorAll !== 'function') return;
+    for (const element of root.querySelectorAll('[data-scroll-key]')) {
+      const key = element.getAttribute('data-scroll-key');
+      if (key && Object.prototype.hasOwnProperty.call(positions.panels || {}, key)) {
+        element.scrollTop = positions.panels[key] || 0;
+      }
+    }
+  }
+
   const renderer = { renderOverview, renderDetail };
   window.AgentLoopDashboardRenderer = renderer;
+  window.AgentLoopDashboardInternals = { captureScrollPositions, restoreScrollPositions };
 
   const app = typeof document !== 'undefined' ? document.getElementById('app') : null;
   const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => {} };
   if (!app) return;
 
   function setAppHtml(html) {
-    const scroller = document.scrollingElement || document.documentElement;
-    const y = scroller ? scroller.scrollTop : 0;
+    const scrollPositions = captureScrollPositions(app, document);
     app.innerHTML = html;
-    if (scroller) scroller.scrollTop = y;
+    restoreScrollPositions(app, scrollPositions, document);
   }
 
   function rerenderOverview() {
