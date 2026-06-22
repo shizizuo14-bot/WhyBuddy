@@ -2,7 +2,7 @@
 
 This slice is intentionally smaller than the task route. Node owns mission
 storage, project/resource auth, route-level validation, executor callbacks, and
-event replay. Python only projects lifecycle envelopes for Node to map.
+event storage. Python only projects lifecycle envelopes for Node to map.
 """
 
 import os
@@ -28,6 +28,8 @@ def _mission(status: str = "queued") -> dict:
         "updatedAt": 1_782_000_000_000,
         "projection": {
             "projectId": "project-node-owned",
+            "workflowId": "workflow-node-owned",
+            "replayId": "replay-node-owned",
         },
         "executor": {
             "name": "lobster",
@@ -38,17 +40,33 @@ def _mission(status: str = "queued") -> dict:
     }
 
 
-def test_start_projects_started_envelope_without_claiming_node_owned_state():
+def test_create_projects_started_envelope_with_node_owned_metadata():
     result = project_task_lifecycle_runtime(
         {
-            "action": "start",
+            "action": "create",
             "task": _mission("queued"),
             "now": "2026-06-22T00:00:00.000Z",
+            "metadata": {
+                "project": {
+                    "projectId": "project-node-owned",
+                    "validatedBy": "node",
+                },
+                "resource": {
+                    "resourceType": "mission",
+                    "resourceId": "mission-python-lifecycle",
+                    "owner": "node",
+                },
+                "auth": {
+                    "owner": "node",
+                    "required": True,
+                    "checked": True,
+                },
+            },
         }
     )
 
     assert result["ok"] is True
-    assert result["action"] == "start"
+    assert result["action"] == "create"
     assert result["contractVersion"] == TASK_LIFECYCLE_RUNTIME_CONTRACT_VERSION
     assert result["runtime"] == {
         "owner": "python",
@@ -57,7 +75,23 @@ def test_start_projects_started_envelope_without_claiming_node_owned_state():
         "missionStoreOwner": "node",
         "routeOwner": "node",
         "authOwner": "node",
-        "eventReplayOwner": "node",
+        "eventStoreOwner": "node",
+    }
+    assert result["metadata"] == {
+        "project": {
+            "projectId": "project-node-owned",
+            "validatedBy": "node",
+        },
+        "resource": {
+            "resourceType": "mission",
+            "resourceId": "mission-python-lifecycle",
+            "owner": "node",
+        },
+        "auth": {
+            "owner": "node",
+            "required": True,
+            "checked": True,
+        },
     }
     assert result["task"] == {
         "id": "mission-python-lifecycle",
@@ -172,6 +206,95 @@ def test_error_envelope_is_not_a_successful_task():
             "missionStoreOwner": "node",
             "routeOwner": "node",
             "authOwner": "node",
-            "eventReplayOwner": "node",
+            "eventStoreOwner": "node",
         },
     }
+
+
+def test_event_replay_projects_replay_envelope_without_owning_event_storage():
+    result = project_task_lifecycle_runtime(
+        {
+            "action": "replay",
+            "task": {
+                **_mission("running"),
+                "progress": 57,
+                "currentStageKey": "execute",
+            },
+            "events": [
+                {
+                    "type": "created",
+                    "message": "Mission created",
+                    "time": 1_782_000_000_000,
+                    "source": "mission-core",
+                },
+                {
+                    "type": "progress",
+                    "message": "Executor running",
+                    "progress": 57,
+                    "stageKey": "execute",
+                    "time": 1_782_000_010_000,
+                    "source": "executor",
+                },
+            ],
+            "limit": 10,
+            "metadata": {
+                "project": {
+                    "projectId": "project-node-owned",
+                    "validatedBy": "node",
+                },
+                "resource": {
+                    "resourceType": "mission",
+                    "resourceId": "mission-python-lifecycle",
+                    "owner": "node",
+                },
+            },
+        }
+    )
+
+    assert result["ok"] is True
+    assert result["action"] == "replay"
+    assert result["task"]["status"] == "running"
+    assert result["replay"] == {
+        "missionId": "mission-python-lifecycle",
+        "eventCount": 2,
+        "limit": 10,
+        "owner": "node",
+        "events": [
+            {
+                "type": "created",
+                "message": "Mission created",
+                "time": 1_782_000_000_000,
+                "source": "mission-core",
+            },
+            {
+                "type": "progress",
+                "message": "Executor running",
+                "progress": 57,
+                "stageKey": "execute",
+                "time": 1_782_000_010_000,
+                "source": "executor",
+            },
+        ],
+    }
+    assert result["metadata"]["project"]["projectId"] == "project-node-owned"
+
+
+def test_invalid_transition_is_rejected_without_completed_coercion():
+    result = project_task_lifecycle_runtime(
+        {
+            "action": "cancel",
+            "task": {
+                **_mission("done"),
+                "progress": 100,
+                "summary": "Already completed.",
+            },
+            "reason": "cancel after completion",
+        }
+    )
+
+    assert result["ok"] is False
+    assert result["action"] == "cancel"
+    assert result["error"] == "invalid_transition"
+    assert result["code"] == "TASK_LIFECYCLE_INVALID_TRANSITION"
+    assert result["retryable"] is False
+    assert "task" not in result

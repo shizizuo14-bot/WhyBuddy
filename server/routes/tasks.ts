@@ -62,6 +62,7 @@ const FINAL_MISSION_STATUSES = new Set(['done', 'failed', 'cancelled']);
 export interface TaskRouterOptions {
   fetchImpl?: typeof fetch;
   executorBaseUrl?: string;
+  taskLifecycleRuntimeBaseUrl?: string;
   workflowRetry?: WorkflowRetryDependencies;
   requireAuth?: RequestHandler;
   projects?: {
@@ -211,10 +212,167 @@ function buildExecutorUrl(baseUrl: string, path: string): string {
   return new URL(path, baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`).toString();
 }
 
+function resolveTaskLifecycleRuntimeBaseUrl(
+  options: TaskRouterOptions,
+): string | undefined {
+  const configured =
+    options.taskLifecycleRuntimeBaseUrl?.trim() ||
+    process.env.TASK_LIFECYCLE_RUNTIME_BASE_URL?.trim();
+  return configured ? configured.replace(/\/+$/, '') : undefined;
+}
+
+function buildTaskLifecycleRuntimeUrl(baseUrl: string, action: string): string {
+  return new URL(
+    `/api/tasks/runtime/${action}`,
+    baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`,
+  ).toString();
+}
+
+function buildTaskLifecycleMetadata(
+  task: MissionRecord,
+  input: {
+    projectId?: string;
+    authChecked?: boolean;
+  } = {},
+): Record<string, unknown> {
+  const projectId = input.projectId ?? task.projection?.projectId;
+  return {
+    ...(projectId
+      ? {
+          project: {
+            projectId,
+            validatedBy: 'node',
+          },
+        }
+      : {}),
+    resource: {
+      resourceType: 'mission',
+      resourceId: task.id,
+      owner: 'node',
+    },
+    auth: {
+      owner: 'node',
+      required: Boolean(projectId),
+      checked: Boolean(input.authChecked || !projectId),
+    },
+  };
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value);
+}
+
+function isTaskLifecycleRuntimeEnvelope(
+  value: unknown,
+): value is TaskLifecycleRuntimeEnvelope {
+  if (!isRecord(value) || typeof value.action !== 'string') {
+    return false;
+  }
+  if (value.ok === false) {
+    return (
+      typeof value.error === 'string' &&
+      typeof value.code === 'string' &&
+      typeof value.message === 'string'
+    );
+  }
+  return value.ok === true && isRecord(value.task);
+}
+
+function formatTaskLifecycleError(
+  envelope: TaskLifecycleRuntimeFailure,
+): string {
+  return `${envelope.code}: ${envelope.message}`;
+}
+
+function mapLifecycleRuntimeStatusToMissionStatus(
+  status: TaskLifecycleRuntimeTask['status'],
+  fallback?: MissionRecord['status'],
+): MissionRecord['status'] {
+  switch (status) {
+    case 'started':
+      return fallback === 'queued' ? 'queued' : 'running';
+    case 'running':
+      return 'running';
+    case 'completed':
+      return 'done';
+    case 'failed':
+      return 'failed';
+    case 'cancelled':
+      return 'cancelled';
+    default:
+      return fallback ?? 'running';
+  }
+}
+
 interface MissionDispatchResult {
   task: MissionRecord | undefined;
   dispatchAccepted: boolean;
   dispatchError?: string;
+}
+
+type TaskLifecycleRuntimeAction =
+  | 'create'
+  | 'status'
+  | 'cancel'
+  | 'error'
+  | 'replay';
+
+interface TaskLifecycleRuntimeTask {
+  id: string;
+  status: 'started' | 'running' | 'completed' | 'failed' | 'cancelled';
+  nodeStatus?: MissionRecord['status'];
+  progress?: number;
+  stageKey?: string;
+  message?: string;
+  updatedAt?: string;
+  summary?: string;
+  error?: {
+    code?: string;
+    message?: string;
+  };
+  cancelRequested?: boolean;
+}
+
+interface TaskLifecycleRuntimeReplay {
+  missionId: string;
+  eventCount: number;
+  limit: number;
+  owner: 'node';
+  events: MissionEvent[];
+}
+
+interface TaskLifecycleRuntimeSuccess {
+  ok: true;
+  action: TaskLifecycleRuntimeAction;
+  contractVersion: string;
+  runtime?: Record<string, unknown>;
+  metadata?: Record<string, unknown>;
+  task: TaskLifecycleRuntimeTask;
+  replay?: TaskLifecycleRuntimeReplay;
+}
+
+interface TaskLifecycleRuntimeFailure {
+  ok: false;
+  action: TaskLifecycleRuntimeAction;
+  contractVersion?: string;
+  error: string;
+  code: string;
+  message: string;
+  retryable?: boolean;
+  runtime?: Record<string, unknown>;
+}
+
+type TaskLifecycleRuntimeEnvelope =
+  | TaskLifecycleRuntimeSuccess
+  | TaskLifecycleRuntimeFailure;
+
+interface TaskLifecycleRuntimeCallInput {
+  action: TaskLifecycleRuntimeAction;
+  task: MissionRecord;
+  metadata: Record<string, unknown>;
+  events?: MissionEvent[];
+  limit?: number;
+  reason?: string;
 }
 
 function buildServerBaseUrl(request: Request): string {
@@ -388,6 +546,168 @@ async function restartMissionWorkflow(
       previousWorkflowId,
     };
   }
+}
+
+async function callTaskLifecycleRuntime(
+  input: TaskLifecycleRuntimeCallInput,
+  options: {
+    baseUrl?: string;
+    fetchImpl: typeof fetch;
+  },
+): Promise<TaskLifecycleRuntimeEnvelope | undefined> {
+  if (!options.baseUrl) {
+    return undefined;
+  }
+
+  const response = await options.fetchImpl(
+    buildTaskLifecycleRuntimeUrl(options.baseUrl, input.action),
+    {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        action: input.action,
+        task: input.task,
+        metadata: input.metadata,
+        ...(input.events ? { events: input.events } : {}),
+        ...(input.limit !== undefined ? { limit: input.limit } : {}),
+        ...(input.reason ? { reason: input.reason } : {}),
+        now: new Date().toISOString(),
+      }),
+    },
+  );
+  const rawBody = await response.text();
+  let parsed: unknown;
+  try {
+    parsed = rawBody ? JSON.parse(rawBody) : {};
+  } catch {
+    return {
+      ok: false,
+      action: input.action,
+      error: 'runtime_error',
+      code: 'TASK_LIFECYCLE_RUNTIME_PROTOCOL_ERROR',
+      message: 'Task lifecycle runtime returned a non-JSON response.',
+      retryable: false,
+    };
+  }
+
+  if (isTaskLifecycleRuntimeEnvelope(parsed)) {
+    return parsed;
+  }
+
+  return {
+    ok: false,
+    action: input.action,
+    error: 'runtime_error',
+    code: 'TASK_LIFECYCLE_RUNTIME_PROTOCOL_ERROR',
+    message: response.ok
+      ? 'Task lifecycle runtime response is missing required fields.'
+      : `Task lifecycle runtime request failed with HTTP ${response.status}.`,
+    retryable: response.ok ? false : true,
+  };
+}
+
+async function callTaskLifecycleRuntimeSafely(
+  input: TaskLifecycleRuntimeCallInput,
+  options: {
+    baseUrl?: string;
+    fetchImpl: typeof fetch;
+  },
+): Promise<TaskLifecycleRuntimeEnvelope | undefined> {
+  try {
+    return await callTaskLifecycleRuntime(input, options);
+  } catch (error) {
+    return {
+      ok: false,
+      action: input.action,
+      error: 'runtime_error',
+      code: 'TASK_LIFECYCLE_RUNTIME_UNAVAILABLE',
+      message:
+        error instanceof Error
+          ? error.message
+          : 'Task lifecycle runtime is unavailable.',
+      retryable: true,
+    };
+  }
+}
+
+function applyLifecycleRuntimeTaskEnvelope(
+  runtime: MissionRuntime,
+  current: MissionRecord,
+  envelope: TaskLifecycleRuntimeSuccess,
+  source: MissionEvent['source'] = 'mission-core',
+): MissionRecord {
+  const lifecycleTask = envelope.task;
+  const targetStatus = mapLifecycleRuntimeStatusToMissionStatus(
+    lifecycleTask.status,
+    current.status,
+  );
+  const stageKey = lifecycleTask.stageKey || current.currentStageKey;
+  const message = lifecycleTask.message;
+  const progress =
+    typeof lifecycleTask.progress === 'number'
+      ? lifecycleTask.progress
+      : undefined;
+
+  if (
+    (current.status === 'done' && targetStatus === 'done') ||
+    (current.status === 'failed' && targetStatus === 'failed') ||
+    (current.status === 'cancelled' && targetStatus === 'cancelled')
+  ) {
+    return runtime.updateMission(current.id, task => {
+      if (progress !== undefined) {
+        task.progress = progress;
+      }
+      if (lifecycleTask.summary) {
+        task.summary = lifecycleTask.summary;
+      }
+    }) ?? current;
+  }
+
+  if (targetStatus === 'done') {
+    return runtime.finishMission(current.id, lifecycleTask.summary || message, source) ?? current;
+  }
+
+  if (targetStatus === 'failed') {
+    return runtime.failMission(
+      current.id,
+      lifecycleTask.error?.message || message || 'Task lifecycle failed.',
+      source,
+    ) ?? current;
+  }
+
+  if (targetStatus === 'cancelled') {
+    return runtime.cancelMission(current.id, {
+      reason: message,
+      source,
+    }) ?? current;
+  }
+
+  if (targetStatus === 'running') {
+    return runtime.markMissionRunning(
+      current.id,
+      stageKey,
+      message || 'Task lifecycle runtime reports the task is running.',
+      progress,
+      source,
+    ) ?? current;
+  }
+
+  return current;
+}
+
+function failMissionFromLifecycleRuntime(
+  runtime: MissionRuntime,
+  task: MissionRecord,
+  envelope: TaskLifecycleRuntimeFailure,
+  source: MissionEvent['source'] = 'mission-core',
+): MissionRecord {
+  return runtime.failMission(
+    task.id,
+    formatTaskLifecycleError(envelope),
+    source,
+  ) ?? task;
 }
 
 function applyMissionDispatchPayload(
@@ -645,6 +965,7 @@ export function createTaskRouter(
     options.executorBaseUrl?.trim() ||
     process.env.LOBSTER_EXECUTOR_BASE_URL?.trim() ||
     DEFAULT_EXECUTOR_BASE_URL;
+  const taskLifecycleRuntimeBaseUrl = resolveTaskLifecycleRuntimeBaseUrl(options);
   const operatorService = createMissionOperatorService(runtime, {
     fetchImpl,
     executorBaseUrl: defaultExecutorBaseUrl,
@@ -796,10 +1117,34 @@ export function createTaskRouter(
       },
       stageLabels: [...MISSION_CORE_STAGE_BLUEPRINT],
     });
+    const lifecycleMetadata = buildTaskLifecycleMetadata(task, {
+      projectId: ownedProjectId,
+      authChecked: Boolean(ownedProjectId),
+    });
+    let lifecycle: TaskLifecycleRuntimeEnvelope | undefined;
+    let lifecycleError: string | undefined;
+
+    lifecycle = await callTaskLifecycleRuntimeSafely(
+      {
+        action: 'create',
+        task,
+        metadata: lifecycleMetadata,
+      },
+      {
+        baseUrl: taskLifecycleRuntimeBaseUrl,
+        fetchImpl,
+      },
+    );
+    if (lifecycle?.ok === true) {
+      task = applyLifecycleRuntimeTaskEnvelope(runtime, task, lifecycle, 'mission-core');
+    } else if (lifecycle?.ok === false) {
+      lifecycleError = formatTaskLifecycleError(lifecycle);
+      task = failMissionFromLifecycleRuntime(runtime, task, lifecycle, 'mission-core');
+    }
 
     let dispatchAccepted: boolean | undefined;
     let dispatchError: string | undefined;
-    if (shouldAutoDispatchMission(task, body.autoDispatch)) {
+    if (!lifecycleError && shouldAutoDispatchMission(task, body.autoDispatch)) {
       const dispatched = await dispatchMissionToExecutor(runtime, task.id, {
         fetchImpl,
         executorBaseUrl: defaultExecutorBaseUrl,
@@ -824,6 +1169,12 @@ export function createTaskRouter(
     return res.status(201).json({
       ok: true,
       task,
+      ...(lifecycle
+        ? {
+            ...(lifecycle.ok ? { lifecycle } : {}),
+            ...(lifecycleError ? { lifecycleError } : {}),
+          }
+        : {}),
       ...(dispatchAccepted === undefined
         ? {}
         : {
@@ -841,15 +1192,33 @@ export function createTaskRouter(
     });
   });
 
-  router.get('/:id', (req, res) => {
-    const task = runtime.getTask(req.params.id);
+  router.get('/:id', async (req, res) => {
+    let task = runtime.getTask(req.params.id);
     if (!task) {
       return res.status(404).json({ error: 'Task not found' });
+    }
+    const lifecycle = await callTaskLifecycleRuntimeSafely(
+      {
+        action: 'status',
+        task,
+        metadata: buildTaskLifecycleMetadata(task),
+      },
+      {
+        baseUrl: taskLifecycleRuntimeBaseUrl,
+        fetchImpl,
+      },
+    );
+    if (lifecycle?.ok === true) {
+      task = applyLifecycleRuntimeTaskEnvelope(runtime, task, lifecycle, 'mission-core');
     }
 
     res.json({
       ok: true,
       task,
+      ...(lifecycle?.ok === true ? { lifecycle } : {}),
+      ...(lifecycle?.ok === false
+        ? { lifecycleError: formatTaskLifecycleError(lifecycle) }
+        : {}),
     });
   });
 
@@ -875,17 +1244,35 @@ export function createTaskRouter(
     res.json(result);
   });
 
-  router.get('/:id/events', (req, res) => {
+  router.get('/:id/events', async (req, res) => {
     const task = runtime.getTask(req.params.id);
     if (!task) {
       return res.status(404).json({ error: 'Task not found' });
     }
 
     const limit = parseLimit(req.query.limit);
+    const events = runtime.listTaskEvents(task.id, limit);
+    const lifecycle = await callTaskLifecycleRuntimeSafely(
+      {
+        action: 'replay',
+        task,
+        metadata: buildTaskLifecycleMetadata(task),
+        events,
+        limit,
+      },
+      {
+        baseUrl: taskLifecycleRuntimeBaseUrl,
+        fetchImpl,
+      },
+    );
     res.json({
       ok: true,
       missionId: task.id,
-      events: runtime.listTaskEvents(task.id, limit),
+      events,
+      ...(lifecycle?.ok === true ? { lifecycle } : {}),
+      ...(lifecycle?.ok === false
+        ? { lifecycleError: formatTaskLifecycleError(lifecycle) }
+        : {}),
     });
   });
 
@@ -929,6 +1316,23 @@ export function createTaskRouter(
         ? req.body.requestedBy.trim()
         : undefined;
     const source = normalizeCancelSource(req.body?.source);
+    const lifecycle = await callTaskLifecycleRuntimeSafely(
+      {
+        action: 'cancel',
+        task,
+        metadata: buildTaskLifecycleMetadata(task),
+        reason,
+      },
+      {
+        baseUrl: taskLifecycleRuntimeBaseUrl,
+        fetchImpl,
+      },
+    );
+    if (lifecycle?.ok === false) {
+      return res.status(502).json({
+        error: formatTaskLifecycleError(lifecycle),
+      });
+    }
 
     const executorJobId = task.executor?.jobId?.trim();
     let executorForwarded = false;
@@ -1011,6 +1415,7 @@ export function createTaskRouter(
       alreadyFinal: false,
       executorForwarded,
       task: cancelled,
+      ...(lifecycle?.ok === true ? { lifecycle } : {}),
     });
   });
 

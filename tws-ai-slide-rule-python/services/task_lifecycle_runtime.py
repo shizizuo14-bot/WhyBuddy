@@ -1,7 +1,7 @@
 """Minimal task lifecycle runtime boundary projection.
 
 This module does not implement the `/api/tasks` route, mission store,
-project/resource authorization, executor callback ingress, or event replay.
+project/resource authorization, executor callback ingress, or event storage.
 Node passes a task snapshot across the boundary and Python returns a normalized
 runtime envelope that Node can map without treating failures as success.
 """
@@ -13,9 +13,9 @@ from typing import Any, Literal
 
 TASK_LIFECYCLE_RUNTIME_CONTRACT_VERSION = "task-lifecycle.runtime-boundary.v1"
 
-TaskLifecycleAction = Literal["start", "status", "cancel", "error"]
+TaskLifecycleAction = Literal["create", "start", "status", "cancel", "error", "replay"]
 
-VALID_ACTIONS = {"start", "status", "cancel", "error"}
+VALID_ACTIONS = {"create", "start", "status", "cancel", "error", "replay"}
 TERMINAL_NODE_STATUSES = {"done", "failed", "cancelled"}
 
 
@@ -63,13 +63,28 @@ def project_task_lifecycle_runtime(payload: dict[str, Any]) -> dict[str, Any]:
             error="validation_error",
         )
 
-    return {
+    if action == "cancel" and _node_status(task) in {"done", "failed"}:
+        return _error_response(
+            action,
+            "TASK_LIFECYCLE_INVALID_TRANSITION",
+            "Cannot cancel a completed or failed task lifecycle.",
+            retryable=False,
+            error="invalid_transition",
+        )
+
+    response = {
         "ok": True,
         "action": action,
         "contractVersion": TASK_LIFECYCLE_RUNTIME_CONTRACT_VERSION,
         "runtime": _runtime_meta(),
         "task": _project_task(task, action=action, payload=payload),
     }
+    metadata = _metadata(payload)
+    if metadata:
+        response["metadata"] = metadata
+    if action == "replay":
+        response["replay"] = _replay(task, payload)
+    return response
 
 
 def _project_task(
@@ -111,7 +126,7 @@ def _project_task(
 
 
 def _runtime_status(node_status: str, action: str) -> str:
-    if action == "start":
+    if action in {"create", "start"}:
         return "started"
     if action == "cancel":
         if node_status in {"done", "failed"}:
@@ -140,7 +155,7 @@ def _node_status_for_runtime(runtime_status: str, original_node_status: str) -> 
 
 
 def _progress(task: dict[str, Any], status: str, action: str) -> int | float:
-    if action == "start":
+    if action in {"create", "start"}:
         return 4
     value = task.get("progress")
     if isinstance(value, (int, float)):
@@ -168,6 +183,65 @@ def _message(
         "failed": "Task failed.",
         "cancelled": "Task cancelled.",
     }.get(status, "Task is running.")
+
+
+def _metadata(payload: dict[str, Any]) -> dict[str, Any]:
+    metadata = payload.get("metadata")
+    if not _is_record(metadata):
+        return {}
+
+    projected: dict[str, Any] = {}
+    for key in ("project", "resource", "auth"):
+        value = metadata.get(key)
+        if _is_record(value):
+            projected[key] = _copy_json_record(value)
+    return projected
+
+
+def _copy_json_record(value: dict[str, Any]) -> dict[str, Any]:
+    copied: dict[str, Any] = {}
+    for key, item in value.items():
+        if not isinstance(key, str):
+            continue
+        if isinstance(item, (str, int, float, bool)) or item is None:
+            copied[key] = item
+        elif _is_record(item):
+            copied[key] = _copy_json_record(item)
+        elif isinstance(item, list):
+            copied[key] = [
+                _copy_json_record(entry)
+                if _is_record(entry)
+                else entry
+                for entry in item
+                if isinstance(entry, (str, int, float, bool)) or entry is None or _is_record(entry)
+            ]
+    return copied
+
+
+def _replay(task: dict[str, Any], payload: dict[str, Any]) -> dict[str, Any]:
+    events = _project_events(payload.get("events"))
+    limit = _limit(payload.get("limit"), len(events))
+    return {
+        "missionId": _clean_string(task.get("id"), "task-python-lifecycle"),
+        "eventCount": len(events),
+        "limit": limit,
+        "owner": "node",
+        "events": events[:limit],
+    }
+
+
+def _project_events(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [_copy_json_record(event) for event in value if _is_record(event)]
+
+
+def _limit(value: Any, fallback: int) -> int:
+    if isinstance(value, bool):
+        return fallback
+    if isinstance(value, (int, float)):
+        return max(0, int(value))
+    return fallback
 
 
 def _task_error(task: dict[str, Any]) -> dict[str, str]:
@@ -244,7 +318,7 @@ def _runtime_meta() -> dict[str, str]:
         "missionStoreOwner": "node",
         "routeOwner": "node",
         "authOwner": "node",
-        "eventReplayOwner": "node",
+        "eventStoreOwner": "node",
     }
 
 
