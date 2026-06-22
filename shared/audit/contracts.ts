@@ -722,6 +722,292 @@ function auditSinkOneOf<T extends string>(
 
 // ─── 1.7 RetentionPolicy & 默认保留策略 ────────────────────────────────────
 
+// ---------------------------------------------------------------------------
+// Python Contract Slice: Audit Retention / Export Runtime
+// ---------------------------------------------------------------------------
+
+export const AUDIT_RETENTION_EXPORT_PYTHON_CONTRACT_VERSION =
+  "audit-retention-export.runtime.v1" as const;
+
+export type AuditRetentionExportPythonOperation = "retention" | "export";
+
+export type AuditRetentionExportPythonStatus =
+  | "retained"
+  | "exported"
+  | "denied"
+  | "degraded"
+  | "error";
+
+export type AuditRetentionExportPythonDecision = "keep" | "drop";
+export type AuditRetentionExportPythonFormat = "json" | "csv";
+
+export interface AuditRetentionExportPythonQueryEnvelope {
+  filters: Record<string, unknown>;
+  page: PageOptions;
+  total: number;
+}
+
+export interface AuditRetentionExportPythonEvent
+  extends Omit<AuditEvent, "eventType"> {
+  eventType: AuditEventType | string;
+  source: "python-audit-retention-export";
+}
+
+export interface AuditRetentionPythonDecisionEnvelope {
+  decision: AuditRetentionExportPythonDecision;
+  reason: "within_retention" | "retention_expired";
+  eventId: string;
+  externalDelete: false;
+}
+
+export interface AuditExportPythonManifest {
+  manifestId: string;
+  format: AuditRetentionExportPythonFormat;
+  entryCount: number;
+  eventIds: string[];
+  externalEmit: false;
+  hash: string;
+}
+
+export interface AuditRetentionExportPythonError {
+  code: string;
+  message: string;
+  retryable: boolean;
+}
+
+export interface AuditRetentionExportPythonProvenance {
+  source: "python-audit-retention-export";
+  synthetic: true;
+  externalAuditPlatform: false;
+  boundary: "runtime";
+  nodeOwnedCapabilities: ["anomaly", "compliance"];
+}
+
+export interface AuditRetentionExportPythonContractResult {
+  contractVersion: typeof AUDIT_RETENTION_EXPORT_PYTHON_CONTRACT_VERSION;
+  runtime: "python-audit-retention-export";
+  ok: boolean;
+  operation: AuditRetentionExportPythonOperation;
+  status: AuditRetentionExportPythonStatus;
+  query: AuditRetentionExportPythonQueryEnvelope;
+  event: AuditRetentionExportPythonEvent;
+  retention?: AuditRetentionPythonDecisionEnvelope | null;
+  export?: AuditExportPythonManifest | null;
+  provenance: AuditRetentionExportPythonProvenance;
+  error?: AuditRetentionExportPythonError | null;
+}
+
+const AUDIT_RETENTION_EXPORT_PYTHON_OPERATIONS: readonly AuditRetentionExportPythonOperation[] = [
+  "retention",
+  "export",
+];
+
+const AUDIT_RETENTION_EXPORT_PYTHON_STATUSES: readonly AuditRetentionExportPythonStatus[] = [
+  "retained",
+  "exported",
+  "denied",
+  "degraded",
+  "error",
+];
+
+const AUDIT_RETENTION_EXPORT_PYTHON_DECISIONS: readonly AuditRetentionExportPythonDecision[] = [
+  "keep",
+  "drop",
+];
+
+const AUDIT_RETENTION_EXPORT_PYTHON_FORMATS: readonly AuditRetentionExportPythonFormat[] = [
+  "json",
+  "csv",
+];
+
+const AUDIT_RETENTION_EXPORT_NODE_OWNED_CAPABILITIES = [
+  "anomaly",
+  "compliance",
+] as const;
+
+export function isAuditRetentionExportPythonContractResult(
+  value: unknown,
+): value is AuditRetentionExportPythonContractResult {
+  const result = isPlainRecord(value) ? value : null;
+  if (!result) return false;
+  if (result.contractVersion !== AUDIT_RETENTION_EXPORT_PYTHON_CONTRACT_VERSION) {
+    return false;
+  }
+  if (result.runtime !== "python-audit-retention-export") return false;
+  if (
+    !auditRetentionExportOneOf(
+      result.operation,
+      AUDIT_RETENTION_EXPORT_PYTHON_OPERATIONS,
+    )
+  ) {
+    return false;
+  }
+  if (
+    !auditRetentionExportOneOf(result.status, AUDIT_RETENTION_EXPORT_PYTHON_STATUSES)
+  ) {
+    return false;
+  }
+  if (!isAuditRetentionExportPythonQuery(result.query)) return false;
+  if (!isAuditRetentionExportPythonEvent(result.event)) return false;
+  if (!isAuditRetentionExportPythonProvenance(result.provenance)) return false;
+
+  if (result.status === "retained") {
+    return (
+      result.ok === true &&
+      result.operation === "retention" &&
+      isAuditRetentionPythonDecision(result.retention, result.event.eventId) &&
+      result.export == null &&
+      result.error == null
+    );
+  }
+
+  if (result.status === "exported") {
+    return (
+      result.ok === true &&
+      result.operation === "export" &&
+      result.retention == null &&
+      isAuditExportPythonManifest(result.export, result.event.eventId) &&
+      result.error == null
+    );
+  }
+
+  return (
+    result.ok === false &&
+    isAuditRetentionExportPythonError(result.error) &&
+    result.export == null &&
+    (result.retention === undefined ||
+      result.retention === null ||
+      isAuditRetentionPythonDecision(result.retention, result.event.eventId))
+  );
+}
+
+function isAuditRetentionExportPythonQuery(
+  value: unknown,
+): value is AuditRetentionExportPythonQueryEnvelope {
+  const query = isPlainRecord(value) ? value : null;
+  return (
+    query !== null &&
+    isPlainRecord(query.filters) &&
+    isAuditRetentionExportPage(query.page) &&
+    isNonNegativeFiniteNumber(query.total)
+  );
+}
+
+function isAuditRetentionExportPage(value: unknown): value is PageOptions {
+  const page = isPlainRecord(value) ? value : null;
+  const pageSize = page?.pageSize;
+  const pageNum = page?.pageNum;
+  return (
+    page !== null &&
+    typeof pageSize === "number" &&
+    typeof pageNum === "number" &&
+    Number.isInteger(pageSize) &&
+    Number.isInteger(pageNum) &&
+    pageSize > 0 &&
+    pageNum > 0
+  );
+}
+
+function isAuditRetentionExportPythonEvent(
+  value: unknown,
+): value is AuditRetentionExportPythonEvent {
+  const event = isPlainRecord(value) ? value : null;
+  if (!event) return false;
+  return (
+    isNonEmptyString(event.eventId) &&
+    isNonNegativeFiniteNumber(event.timestamp) &&
+    event.source === "python-audit-retention-export" &&
+    isNonEmptyString(event.eventType) &&
+    isAuditProductionSinkActor(event.actor) &&
+    isNonEmptyString(event.action) &&
+    isAuditProductionSinkResource(event.resource) &&
+    AUDIT_RESULTS.includes(event.result as AuditResult) &&
+    (event.context === undefined || isAuditProductionSinkContext(event.context)) &&
+    (event.metadata === undefined || isPlainRecord(event.metadata)) &&
+    (event.lineageId === undefined || typeof event.lineageId === "string")
+  );
+}
+
+function isAuditRetentionPythonDecision(
+  value: unknown,
+  eventId: string,
+): value is AuditRetentionPythonDecisionEnvelope {
+  const retention = isPlainRecord(value) ? value : null;
+  return (
+    retention !== null &&
+    auditRetentionExportOneOf(
+      retention.decision,
+      AUDIT_RETENTION_EXPORT_PYTHON_DECISIONS,
+    ) &&
+    (retention.reason === "within_retention" ||
+      retention.reason === "retention_expired") &&
+    retention.eventId === eventId &&
+    retention.externalDelete === false
+  );
+}
+
+function isAuditExportPythonManifest(
+  value: unknown,
+  eventId: string,
+): value is AuditExportPythonManifest {
+  const manifest = isPlainRecord(value) ? value : null;
+  const entryCount = manifest?.entryCount;
+  return (
+    manifest !== null &&
+    isNonEmptyString(manifest.manifestId) &&
+    auditRetentionExportOneOf(
+      manifest.format,
+      AUDIT_RETENTION_EXPORT_PYTHON_FORMATS,
+    ) &&
+    typeof entryCount === "number" &&
+    Number.isInteger(entryCount) &&
+    entryCount >= 0 &&
+    Array.isArray(manifest.eventIds) &&
+    manifest.eventIds.length === entryCount &&
+    manifest.eventIds.every((item) => isNonEmptyString(item)) &&
+    manifest.eventIds.includes(eventId) &&
+    manifest.externalEmit === false &&
+    isNonEmptyString(manifest.hash)
+  );
+}
+
+function isAuditRetentionExportPythonError(
+  value: unknown,
+): value is AuditRetentionExportPythonError {
+  const error = isPlainRecord(value) ? value : null;
+  return (
+    error !== null &&
+    isNonEmptyString(error.code) &&
+    isNonEmptyString(error.message) &&
+    typeof error.retryable === "boolean"
+  );
+}
+
+function isAuditRetentionExportPythonProvenance(
+  value: unknown,
+): value is AuditRetentionExportPythonProvenance {
+  const provenance = isPlainRecord(value) ? value : null;
+  return (
+    provenance !== null &&
+    provenance.source === "python-audit-retention-export" &&
+    provenance.synthetic === true &&
+    provenance.externalAuditPlatform === false &&
+    provenance.boundary === "runtime" &&
+    Array.isArray(provenance.nodeOwnedCapabilities) &&
+    auditSinkStringArrayEquals(
+      provenance.nodeOwnedCapabilities,
+      AUDIT_RETENTION_EXPORT_NODE_OWNED_CAPABILITIES,
+    )
+  );
+}
+
+function auditRetentionExportOneOf<T extends string>(
+  value: unknown,
+  options: readonly T[],
+): value is T {
+  return typeof value === "string" && options.includes(value as T);
+}
+
 export interface RetentionPolicy {
   severity: AuditSeverity;
   retentionDays: number;

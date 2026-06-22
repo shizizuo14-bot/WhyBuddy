@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 Python audit retention/export service、Node audit 映射和测试；reviewer 确认没有宣称完整外部审计平台接管。
 
 ### 状态清单
-- [ ] Python runtime 支持 retention decision/export manifest/minimal query envelope。
-- [ ] Node audit route 或 audit service 能映射 Python retained/exported/denied/degraded/error。
-- [ ] denied/degraded/error 不伪装成 exported。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有调用真实外部审计平台或改 compliance 结论。
+- [x] Python runtime 支持 retention decision/export manifest/minimal query envelope。
+- [x] Node audit route 或 audit service 能映射 Python retained/exported/denied/degraded/error。
+- [x] denied/degraded/error 不伪装成 exported。
+- [x] gate 全绿。
+- [x] Codex review 确认没有调用真实外部审计平台或改 compliance 结论。
 
 ## 目标
 
