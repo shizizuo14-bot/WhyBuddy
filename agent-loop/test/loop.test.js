@@ -48,6 +48,8 @@ test('parseLoopArgs requires cwd, task, and at least one gate', () => {
       agentIdleTimeoutMs: null,
       agentTimeoutMs: null,
       maxIterations: 3,
+      workerMaxTurns: null,
+      workerMaxRetries: null,
       grokMaxTurns: 4,
       grokMaxRetries: 1,
       retryBackoffMs: 1000,
@@ -142,6 +144,26 @@ test('parseLoopArgs treats review-agent none as skip-review', () => {
 
   assert.equal(parsed.skipReview, true);
   assert.equal(parsed.reviewAgent, null);
+});
+
+test('parseLoopArgs supports worker-max-turns and worker-max-retries for grok/codex worker parity', () => {
+  const parsed = parseLoopArgs([
+    '--cwd',
+    'C:\\repo',
+    '--task',
+    'task.md',
+    '--gate',
+    'npm test',
+    '--fix-agent',
+    'grok',
+    '--worker-max-turns',
+    '6',
+    '--worker-max-retries',
+    '2',
+  ]);
+  assert.equal(parsed.workerMaxTurns, 6);
+  assert.equal(parsed.workerMaxRetries, 2);
+  assert.equal(parsed.grokMaxTurns, 4); // grok default remains, worker overrides usage
 });
 
 test('parseLoopArgs supports skip-review for gate-only runs', () => {

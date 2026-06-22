@@ -178,7 +178,7 @@ function timestamp() {
 
 function buildTurnBudget(options) {
   return {
-    workerMaxTurns: options.grokMaxTurns ?? null,
+    workerMaxTurns: options.workerMaxTurns ?? options.grokMaxTurns ?? null,
     reviewMaxTurns: options.reviewMaxTurns ?? null,
     agentTimeoutMs: options.agentTimeoutMs ?? null,
     agentIdleTimeoutMs: options.agentIdleTimeoutMs ?? null,

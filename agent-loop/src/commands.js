@@ -11,7 +11,7 @@ export function buildCodexReviewArgs({ uncommitted = true, prompt, readPromptFro
   return args;
 }
 
-export function buildCodexExecArgs({ cwd, readPromptFromStdin = true, model = null } = {}) {
+export function buildCodexExecArgs({ cwd, readPromptFromStdin = true, model = null, maxTurns: _maxTurns = null } = {}) {
   const args = ['exec'];
   if (model) args.push('-m', model);
   args.push('--cd', cwd, '--dangerously-bypass-approvals-and-sandbox');

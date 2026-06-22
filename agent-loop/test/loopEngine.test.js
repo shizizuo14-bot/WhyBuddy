@@ -303,6 +303,47 @@ test('runLoop halts for human when a noisy fix agent exceeds its wall-clock budg
   assert.equal(result.iterations[0].attempts[0].failure.kind, 'agent_timeout');
 });
 
+test('runLoop does not pass worker max turns to Codex fix because current CLI rejects it', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-test-'));
+  const taskPath = path.join(cwd, 'task.md');
+  await fs.writeFile(taskPath, 'fix gate to green\n\n## 成功标准\n\n- gate 全绿\n', 'utf8');
+
+  let codexArgs = null;
+  const result = await runLoop({
+    options: {
+      cwd,
+      fixCwd: cwd,
+      createWorktree: null,
+      task: taskPath,
+      gates: ['npm test'],
+      autoFix: true,
+      skipReview: true,
+      fixAgent: 'codex',
+      timeoutMs: 1000,
+      workerMaxTurns: 8,
+      grokMaxTurns: 8,
+      maxIterations: 1,
+    },
+    runDir: cwd,
+    latestDir: cwd,
+    deps: {
+      resolveAgents: async () => ({ codex: 'codex.exe', grok: 'grok.exe' }),
+      evaluateGate: async () => gate(false, 1, '1 failed'),
+      captureDiff: async () => ({ text: '' }),
+      runProcess: async (command, args, options) => {
+        if (command === 'codex.exe') codexArgs = args;
+        return runOk(command, args, options.cwd, '{}');
+      },
+      writeArtifact: artifactWriter(cwd),
+      onState: async () => {},
+    },
+  });
+
+  assert.equal(result.status, 'HALT_NO_CHANGES');
+  assert.ok(codexArgs);
+  assert.equal(codexArgs.includes('--max-turns'), false);
+});
+
 test('runLoop continues when a single red gate reports fewer inner test failures', async () => {
   const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-test-'));
   const taskPath = path.join(cwd, 'task.md');

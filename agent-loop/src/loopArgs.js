@@ -19,6 +19,8 @@ export function parseLoopArgs(argv) {
     agentIdleTimeoutMs: null,
     agentTimeoutMs: null,
     maxIterations: 3,
+    workerMaxTurns: null,
+    workerMaxRetries: null,
     grokMaxTurns: 4,
     grokMaxRetries: 1,
     retryBackoffMs: 1000,
@@ -108,16 +110,30 @@ export function parseLoopArgs(argv) {
       if (!Number.isFinite(parsed.maxIterations) || parsed.maxIterations <= 0) {
         throw new Error('--max-iterations must be a positive integer');
       }
+    } else if (arg === '--worker-max-turns') {
+      parsed.workerMaxTurns = Number.parseInt(readValue(argv, ++i, '--worker-max-turns'), 10);
+      if (!Number.isFinite(parsed.workerMaxTurns) || parsed.workerMaxTurns <= 0) {
+        throw new Error('--worker-max-turns must be a positive integer');
+      }
+    } else if (arg === '--worker-max-retries') {
+      parsed.workerMaxRetries = Number.parseInt(readValue(argv, ++i, '--worker-max-retries'), 10);
+      if (!Number.isFinite(parsed.workerMaxRetries) || parsed.workerMaxRetries < 0) {
+        throw new Error('--worker-max-retries must be a non-negative integer');
+      }
     } else if (arg === '--grok-max-turns') {
-      parsed.grokMaxTurns = Number.parseInt(readValue(argv, ++i, '--grok-max-turns'), 10);
-      if (!Number.isFinite(parsed.grokMaxTurns) || parsed.grokMaxTurns <= 0) {
+      const v = Number.parseInt(readValue(argv, ++i, '--grok-max-turns'), 10);
+      if (!Number.isFinite(v) || v <= 0) {
         throw new Error('--grok-max-turns must be a positive integer');
       }
+      parsed.grokMaxTurns = v;
+      if (parsed.workerMaxTurns == null) parsed.workerMaxTurns = v;
     } else if (arg === '--grok-max-retries') {
-      parsed.grokMaxRetries = Number.parseInt(readValue(argv, ++i, '--grok-max-retries'), 10);
-      if (!Number.isFinite(parsed.grokMaxRetries) || parsed.grokMaxRetries < 0) {
+      const v = Number.parseInt(readValue(argv, ++i, '--grok-max-retries'), 10);
+      if (!Number.isFinite(v) || v < 0) {
         throw new Error('--grok-max-retries must be a non-negative integer');
       }
+      parsed.grokMaxRetries = v;
+      if (parsed.workerMaxRetries == null) parsed.workerMaxRetries = v;
     } else if (arg === '--retry-backoff-ms') {
       parsed.retryBackoffMs = Number.parseInt(readValue(argv, ++i, '--retry-backoff-ms'), 10);
       if (!Number.isFinite(parsed.retryBackoffMs) || parsed.retryBackoffMs < 0) {

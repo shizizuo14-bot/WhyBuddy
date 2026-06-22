@@ -39,6 +39,18 @@ test('codex exec args allow model override', () => {
   ]);
 });
 
+test('codex exec args ignore max-turns because current Codex CLI does not support it', () => {
+  assert.deepEqual(buildCodexExecArgs({ cwd: 'C:\\repo', model: 'gpt-5.5', maxTurns: 8 }), [
+    'exec',
+    '-m',
+    'gpt-5.5',
+    '--cd',
+    'C:\\repo',
+    '--dangerously-bypass-approvals-and-sandbox',
+    '-',
+  ]);
+});
+
 test('grok json args request approved non-planning turns in the target cwd', () => {
   assert.deepEqual(buildGrokJsonArgs({ promptFile: 'prompt.md', cwd: 'repo' }), [
     '--prompt-file',

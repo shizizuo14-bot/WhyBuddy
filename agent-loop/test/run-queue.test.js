@@ -263,6 +263,8 @@ test('buildLoopArgsForQueueEntry uses worktree and omits fix-cwd', () => {
       reviewModel: 'gpt-5.5',
       guardTests: true,
       maxIterations: 3,
+      workerMaxTurns: 8,
+      workerMaxRetries: 2,
       timeoutMs: 600000,
       agentIdleTimeoutMs: 120000,
       agentTimeoutMs: 240000,
@@ -289,6 +291,8 @@ test('buildLoopArgsForQueueEntry uses worktree and omits fix-cwd', () => {
   assert.ok(args.includes('--review-agent'));
   assert.deepEqual(args.slice(args.indexOf('--fix-model'), args.indexOf('--fix-model') + 2), ['--fix-model', 'gpt-5.5']);
   assert.deepEqual(args.slice(args.indexOf('--review-model'), args.indexOf('--review-model') + 2), ['--review-model', 'gpt-5.5']);
+  assert.deepEqual(args.slice(args.indexOf('--worker-max-turns'), args.indexOf('--worker-max-turns') + 2), ['--worker-max-turns', '8']);
+  assert.deepEqual(args.slice(args.indexOf('--worker-max-retries'), args.indexOf('--worker-max-retries') + 2), ['--worker-max-retries', '2']);
   assert.deepEqual(args.slice(args.indexOf('--agent-idle-timeout-ms'), args.indexOf('--agent-idle-timeout-ms') + 2), ['--agent-idle-timeout-ms', '120000']);
   assert.deepEqual(args.slice(args.indexOf('--agent-timeout-ms'), args.indexOf('--agent-timeout-ms') + 2), ['--agent-timeout-ms', '240000']);
   assert.match(gateArg, /test_client_parity\.py/);

@@ -260,7 +260,7 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
     let agentFix = null;
     let postFixDiff = null;
     let diffChanged = false;
-    const maxRetries = options.grokMaxRetries ?? 1;
+    const maxRetries = options.workerMaxRetries ?? options.grokMaxRetries ?? 1;
 
     for (let attempt = 1; attempt <= maxRetries + 1; attempt++) {
       agentFix = await runFixAttempt({
@@ -457,7 +457,7 @@ async function runFixAttempt({
     agentFix = await runAgentProcess(runProcess, agents.grok, buildGrokJsonArgs({
       promptFile: promptPath,
       cwd: fixCwd,
-      maxTurns: options.grokMaxTurns ?? 4,
+      maxTurns: options.workerMaxTurns ?? options.grokMaxTurns ?? 4,
       model: options.fixModel,
     }), {
       cwd: fixCwd,

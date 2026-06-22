@@ -172,8 +172,11 @@ export function buildLoopArgsForQueueEntry({
   const scopedReview = entry.scopedReview ?? defaults.scopedReview;
   if (scopedReview != null) args.push('--scoped-review', String(scopedReview));
 
-  const grokMaxTurns = entry.grokMaxTurns ?? defaults.grokMaxTurns;
-  if (grokMaxTurns != null) args.push('--grok-max-turns', String(grokMaxTurns));
+  const workerMaxTurns = entry.workerMaxTurns ?? entry.grokMaxTurns ?? defaults.workerMaxTurns ?? defaults.grokMaxTurns;
+  if (workerMaxTurns != null) args.push('--worker-max-turns', String(workerMaxTurns));
+
+  const workerMaxRetries = entry.workerMaxRetries ?? entry.grokMaxRetries ?? defaults.workerMaxRetries ?? defaults.grokMaxRetries;
+  if (workerMaxRetries != null) args.push('--worker-max-retries', String(workerMaxRetries));
 
   const reviewMaxTurns = entry.reviewMaxTurns ?? defaults.reviewMaxTurns;
   if (reviewMaxTurns != null) args.push('--review-max-turns', String(reviewMaxTurns));
