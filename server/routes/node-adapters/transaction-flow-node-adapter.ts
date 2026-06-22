@@ -11,6 +11,8 @@ import type {
   TransactionFlowNodeExecutionRequest,
   TransactionFlowNodeExecutionResult,
   TransactionFlowNodeType,
+  TransactionFlowPythonRuntimeResponse,
+  TransactionFlowRuntimeAnalysis,
   TransactionFlowStatus,
 } from "../../../shared/web-aigc-transaction-flow.js";
 
@@ -43,6 +45,9 @@ export interface TransactionFlowNodeAdapterDeps {
   auditLogger?: TransactionFlowAuditLogger;
   now?: () => string;
   createId?: () => string;
+  executePythonRuntime?: (
+    input: TransactionFlowExecutionInput,
+  ) => Promise<TransactionFlowPythonRuntimeResponse>;
 }
 
 function normalizeString(value: unknown): string | undefined {
@@ -108,10 +113,10 @@ function buildDefaultCompensationPlan(
       : "manual_compensation";
   const summary =
     normalizeString(compensation?.summary) ||
-    `若 ${transaction.service}.${transaction.action} 执行后出现异常，需要人工核对并执行补偿。`;
+    `If ${transaction.service}.${transaction.action} changes state unexpectedly, operators must review audit evidence and apply manual compensation.`;
   const rollbackHint =
     normalizeString(compensation?.rollbackHint) ||
-    `人工检查 ${transaction.resource} 的最新状态，并依据审计记录回退 ${transaction.transactionId}。`;
+    `Manually inspect the latest ${transaction.resource} state and reconcile ${transaction.transactionId} from the audit trail.`;
   const steps = normalizeStringArray(compensation?.steps);
 
   return {
@@ -121,9 +126,9 @@ function buildDefaultCompensationPlan(
       steps.length > 0
         ? steps
         : [
-            "核对事务执行后的目标资源状态与业务流水。",
-            "通知人工值守根据审计记录执行补偿或回退。",
-            "补充处理结果并关闭审批单据。",
+            "Compare the target resource state with the expected business ledger.",
+            "Ask the human operator to compensate or roll back from audit evidence.",
+            "Record the handling result and close the approval ticket.",
           ],
     rollbackHint,
   };
@@ -137,7 +142,7 @@ function buildPrompt(transaction: TransactionFlowAction): string {
   const summary =
     normalizeString(transaction.summary) ||
     `${transaction.action} -> ${transaction.resource}`;
-  return `请确认是否执行高风险事务：${summary}`;
+  return `Confirm whether to approve this high-risk transaction: ${summary}`;
 }
 
 function buildExecutionSummary(
@@ -156,7 +161,7 @@ function buildExecutionSummary(
     ...(transaction.targetId ? { targetId: transaction.targetId } : {}),
     summary:
       normalizeString(transaction.summary) ||
-      `已执行 ${transaction.service}.${transaction.action} 对 ${transaction.resource} 的事务动作`,
+      `Executed ${transaction.service}.${transaction.action} for ${transaction.resource}.`,
     metadata,
   };
 }
@@ -170,6 +175,197 @@ function buildPermissionSummary(
     resource,
     reason: permission?.reason,
     suggestion: permission?.suggestion,
+  };
+}
+
+function buildFallbackTransaction(
+  response: TransactionFlowPythonRuntimeResponse,
+  input: TransactionFlowExecutionInput,
+): TransactionFlowAction & { transactionId: string; service: string } {
+  const source: Partial<TransactionFlowAction> = input.transaction ?? {};
+  const analysis = response.analysis;
+  return {
+    ...source,
+    transactionId:
+      normalizeString(source.transactionId) ||
+      normalizeString(analysis?.transactionId) ||
+      "txn_python_runtime",
+    service:
+      normalizeString(source.service) ||
+      normalizeString(analysis?.service) ||
+      "python_runtime",
+    action:
+      normalizeString(source.action) ||
+      normalizeString(analysis?.action) ||
+      "decision_boundary",
+    resource:
+      normalizeString(source.resource) ||
+      normalizeString(analysis?.resource) ||
+      "transaction_flow",
+    ...(normalizeString(source.targetId) || normalizeString(analysis?.targetId)
+      ? { targetId: normalizeString(source.targetId) || normalizeString(analysis?.targetId) }
+      : {}),
+    ...(normalizeString(source.summary) || normalizeString(analysis?.summary)
+      ? { summary: normalizeString(source.summary) || normalizeString(analysis?.summary) }
+      : {}),
+    ...(typeof source.amount === "number" ? { amount: source.amount } : {}),
+    ...(normalizeString(source.currency)
+      ? { currency: normalizeString(source.currency) }
+      : {}),
+    parameters: normalizeObject(source.parameters),
+    sideEffects: normalizeStringArray(source.sideEffects),
+  };
+}
+
+function buildPythonGovernanceSnapshot(response: TransactionFlowPythonRuntimeResponse) {
+  const riskEntry = getWebAigcNodeRiskEntry("transaction_flow");
+  if (!riskEntry) {
+    throw new Error("Transaction flow governance metadata is missing.");
+  }
+
+  const permission = response.permission;
+  return {
+    nodeType: "transaction_flow" as const,
+    riskLevel: response.analysis?.riskLevel ?? riskEntry.riskLevel,
+    requiresAudit: riskEntry.requiresAudit,
+    approvalMode: riskEntry.approvalMode,
+    permissionBinding: riskEntry.permission,
+    permission: {
+      allowed: permission?.allowed ?? false,
+      resource: permission?.resource ?? riskEntry.permission?.resource ?? "transaction_flow",
+      reason: permission?.reason,
+      suggestion: permission?.suggestion,
+    },
+    specRefs: permission?.governance?.specRefs ?? riskEntry.specRefs,
+  };
+}
+
+function buildPythonApprovalSnapshot(
+  response: TransactionFlowPythonRuntimeResponse,
+  status: TransactionFlowStatus,
+  prompt: string,
+) {
+  const decision = response.decision;
+  return {
+    required: true,
+    status:
+      status === "completed"
+        ? "approved" as const
+        : status === "approval_required"
+          ? "pending" as const
+          : "rejected" as const,
+    source: "manual_gate" as const,
+    prompt,
+    decisionId: decision?.decisionId ?? response.audit?.decisionId ?? "decision_python_runtime",
+    ...(decision?.actorId ? { actorId: decision.actorId } : {}),
+    ...(decision?.reason ? { comment: decision.reason } : {}),
+    ...(decision?.ticketId ? { ticketId: decision.ticketId } : {}),
+  };
+}
+
+function buildPythonAuditSnapshot(
+  response: TransactionFlowPythonRuntimeResponse,
+  status: TransactionFlowStatus,
+  decisionId: string,
+) {
+  if (response.audit) {
+    return response.audit;
+  }
+
+  return {
+    logged: false,
+    auditEntryId: "audit_python_runtime",
+    operation: "transaction_flow" as const,
+    eventKey:
+      status === "completed"
+        ? "human.approved" as const
+        : status === "failed"
+          ? "node.failed" as const
+          : "human.rejected" as const,
+    summary: "Python transaction-flow runtime returned a decision envelope.",
+    timestamp: new Date(0).toISOString(),
+    decisionId,
+  };
+}
+
+function pythonStatusToNodeStatus(
+  response: TransactionFlowPythonRuntimeResponse,
+): TransactionFlowStatus {
+  if (response.ok === true && response.status === "approved") {
+    return "completed";
+  }
+  if (response.status === "rejected") {
+    return "denied";
+  }
+  if (response.status === "degraded") {
+    return "degraded";
+  }
+  return "failed";
+}
+
+function buildPythonErrorMessage(
+  response: TransactionFlowPythonRuntimeResponse,
+): string | undefined {
+  if (response.status === "approved" && response.ok === true) {
+    return undefined;
+  }
+  return (
+    response.error?.message ||
+    response.decision?.reason ||
+    "Python transaction-flow runtime did not approve the decision envelope."
+  );
+}
+
+function normalizeRuntimeAnalysis(
+  response: TransactionFlowPythonRuntimeResponse,
+  transaction: TransactionFlowAction & { transactionId: string; service: string },
+): TransactionFlowRuntimeAnalysis {
+  return response.analysis ?? {
+    transactionId: transaction.transactionId,
+    service: transaction.service,
+    action: transaction.action,
+    resource: transaction.resource,
+    ...(transaction.targetId ? { targetId: transaction.targetId } : {}),
+    riskLevel: "critical",
+    sideEffectCount: transaction.sideEffects?.length ?? 0,
+    summary:
+      normalizeString(transaction.summary) ||
+      `${transaction.service}.${transaction.action} on ${transaction.resource}`,
+  };
+}
+
+export function mapPythonTransactionFlowRuntimeResponse(
+  response: TransactionFlowPythonRuntimeResponse,
+  input: TransactionFlowExecutionInput = {},
+): TransactionFlowNodeExecutionResult {
+  const transaction = buildFallbackTransaction(response, input);
+  const status = pythonStatusToNodeStatus(response);
+  const governance = buildPythonGovernanceSnapshot(response);
+  const prompt = buildPrompt(transaction);
+  const approval = buildPythonApprovalSnapshot(response, status, prompt);
+  const audit = buildPythonAuditSnapshot(response, status, approval.decisionId);
+  const compensation = buildDefaultCompensationPlan(transaction, input);
+  const warnings = Array.isArray(response.warnings) ? response.warnings : [];
+  const metadata = normalizeObject(response.metadata);
+  const error = buildPythonErrorMessage(response);
+
+  return {
+    ok: status === "completed",
+    nodeType: "transaction_flow",
+    output: {
+      status,
+      pythonStatus: response.status,
+      transaction,
+      governance,
+      approval,
+      audit,
+      compensation,
+      analysis: normalizeRuntimeAnalysis(response, transaction),
+      ...(response.runtime ? { runtime: response.runtime } : {}),
+      ...(warnings.length > 0 ? { warnings } : {}),
+      ...(Object.keys(metadata).length > 0 ? { metadata } : {}),
+      ...(error ? { error } : {}),
+    },
   };
 }
 
@@ -187,6 +383,12 @@ export async function executeTransactionFlowNode(
     throw new Error("Unsupported transaction_flow node type.");
   }
 
+  const input = request.input ?? {};
+  if (deps.executePythonRuntime) {
+    const response = await deps.executePythonRuntime(input);
+    return mapPythonTransactionFlowRuntimeResponse(response, input);
+  }
+
   const now = deps.now ?? (() => new Date().toISOString());
   const createId = deps.createId ?? (() => randomUUID());
   const riskEntry = getWebAigcNodeRiskEntry("transaction_flow");
@@ -194,7 +396,6 @@ export async function executeTransactionFlowNode(
     throw new Error("Transaction flow governance metadata is missing.");
   }
 
-  const input = request.input ?? {};
   const baseTransaction: Partial<TransactionFlowAction> = input.transaction ?? {};
   const transaction = {
     ...baseTransaction,
@@ -263,9 +464,9 @@ export async function executeTransactionFlowNode(
         status:
           status === "approval_required"
             ? "pending"
-            : status === "denied"
-              ? "rejected"
-              : "approved",
+            : status === "completed"
+              ? "approved"
+              : "rejected",
         source: riskEntry.approvalMode,
         prompt,
         decisionId,
@@ -288,12 +489,12 @@ export async function executeTransactionFlowNode(
                 : "human.approved",
         summary:
           status === "approval_required"
-            ? `事务 ${transaction.transactionId} 进入人工审批闸门`
+            ? `Transaction ${transaction.transactionId} is waiting for manual approval.`
             : status === "denied"
-              ? `事务 ${transaction.transactionId} 已被人工拒绝`
+              ? `Transaction ${transaction.transactionId} was rejected.`
               : status === "failed"
-                ? `事务 ${transaction.transactionId} 执行失败`
-                : `事务 ${transaction.transactionId} 已通过审批并执行`,
+                ? `Transaction ${transaction.transactionId} failed.`
+                : `Transaction ${transaction.transactionId} was approved and executed.`,
         timestamp,
         decisionId,
       },

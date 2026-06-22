@@ -3,7 +3,10 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { describe, expect, it, vi } from "vitest";
 
-import { createTransactionFlowRouter } from "../routes/transaction-flow.js";
+import {
+  createTransactionFlowRouter,
+  type TransactionFlowRouterDeps,
+} from "../routes/transaction-flow.js";
 
 async function withServer(
   handler: (
@@ -11,6 +14,7 @@ async function withServer(
     permissionCheck: ReturnType<typeof vi.fn>,
     auditLog: ReturnType<typeof vi.fn>,
   ) => Promise<void>,
+  deps: TransactionFlowRouterDeps = {},
 ): Promise<void> {
   const permissionCheck = vi.fn(() => ({
     allowed: true,
@@ -29,6 +33,7 @@ async function withServer(
       },
       now: () => "2026-04-23T08:00:00.000Z",
       createId: () => "route-fixed-id",
+      ...deps,
     }),
   );
 
@@ -149,7 +154,7 @@ describe("POST /api/transaction-flow/nodes/execute", () => {
             approval: {
               decision: "rejected",
               actorId: "approver-1",
-              comment: "审批驳回",
+              comment: "Rejected by approver",
             },
           },
         }),
@@ -159,5 +164,80 @@ describe("POST /api/transaction-flow/nodes/execute", () => {
       const body = await response.json();
       expect(body.output.status).toBe("denied");
     });
+  });
+
+  it("maps Python degraded response to 503 without approving the flow", async () => {
+    await withServer(
+      async (baseUrl) => {
+        const response = await fetch(`${baseUrl}/api/transaction-flow/nodes/execute`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            nodeType: "transaction_flow",
+            input: {
+              transaction: {
+                service: "billing",
+                action: "refund_order",
+                resource: "orders",
+              },
+            },
+          }),
+        });
+
+        expect(response.status).toBe(503);
+        const body = await response.json();
+        expect(body.ok).toBe(false);
+        expect(body.output.status).toBe("degraded");
+        expect(body.output.pythonStatus).toBe("degraded");
+        expect(body.output.approval.status).not.toBe("approved");
+        expect(body.output.runtime.executedTransaction).toBe(false);
+      },
+      {
+        executePythonRuntime: async () => ({
+          ok: false,
+          status: "degraded",
+          analysis: {
+            transactionId: "txn-python-degraded",
+            service: "billing",
+            action: "refund_order",
+            resource: "orders",
+            riskLevel: "critical",
+            sideEffectCount: 0,
+            summary: "Runtime degraded before transaction execution.",
+          },
+          decision: {
+            approved: false,
+            reason: "Transaction flow runtime is degraded.",
+            decisionId: "decision-python-degraded",
+          },
+          permission: {
+            allowed: true,
+            resource: "transaction_flow:billing:refund_order:orders",
+          },
+          audit: {
+            logged: false,
+            auditEntryId: "audit-python-degraded",
+            operation: "transaction_flow",
+            eventKey: "node.failed",
+            summary: "Python runtime degraded.",
+            timestamp: "2026-06-22T08:00:00.000Z",
+            decisionId: "decision-python-degraded",
+          },
+          warnings: ["Transaction flow runtime is degraded."],
+          error: {
+            code: "runtime_degraded",
+            message: "Transaction flow runtime is degraded.",
+          },
+          runtime: {
+            backend: "python",
+            provider: "fake",
+            source: "python-transaction-flow-runtime",
+            externalCalls: false,
+            executedTransaction: false,
+            persisted: false,
+          },
+        }),
+      },
+    );
   });
 });

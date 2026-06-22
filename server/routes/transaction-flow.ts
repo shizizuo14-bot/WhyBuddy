@@ -16,6 +16,9 @@ function mapStatusToHttpStatus(status: string | undefined): number {
   if (status === "denied") {
     return 403;
   }
+  if (status === "degraded") {
+    return 503;
+  }
   if (status === "failed") {
     return 500;
   }

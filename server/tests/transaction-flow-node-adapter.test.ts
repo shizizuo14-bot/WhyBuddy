@@ -53,7 +53,7 @@ describe("executeTransactionFlowNode", () => {
             action: "refund_order",
             resource: "orders",
             targetId: "order-1",
-            summary: "退款订单 order-1",
+            summary: "Refund order order-1",
           },
         },
       },
@@ -69,7 +69,7 @@ describe("executeTransactionFlowNode", () => {
     });
     expect(result.output.audit).toMatchObject({
       eventKey: "node.waiting_input",
-      summary: expect.stringContaining("进入人工审批闸门"),
+      summary: expect.stringContaining("waiting for manual approval"),
     });
     expect(result.output.compensation.steps).toHaveLength(3);
   });
@@ -92,7 +92,7 @@ describe("executeTransactionFlowNode", () => {
           approval: {
             decision: "rejected",
             actorId: "approver-1",
-            comment: "缺少复核单据",
+            comment: "Missing review evidence",
             ticketId: "ticket-1",
           },
         },
@@ -103,7 +103,7 @@ describe("executeTransactionFlowNode", () => {
     expect(result.ok).toBe(false);
     expect(result.output.status).toBe("denied");
     expect(result.output.audit.eventKey).toBe("human.rejected");
-    expect(result.output.error).toBe("缺少复核单据");
+    expect(result.output.error).toBe("Missing review evidence");
   });
 
   it("returns completed result after approval", async () => {
@@ -120,7 +120,7 @@ describe("executeTransactionFlowNode", () => {
             action: "refund_order",
             resource: "orders",
             targetId: "order-1",
-            summary: "退款订单 order-1",
+            summary: "Refund order order-1",
             parameters: {
               operator: "ops",
             },
@@ -128,7 +128,7 @@ describe("executeTransactionFlowNode", () => {
           approval: {
             decision: "approved",
             actorId: "approver-1",
-            comment: "同意执行",
+            comment: "Approved to proceed",
             ticketId: "ticket-1",
           },
           metadata: {

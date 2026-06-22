@@ -6,11 +6,11 @@
 - 角色分工：worker 负责 Python transaction-flow adapter、Node adapter/route 映射和测试；reviewer 确认没有迁真实交易执行器。
 
 ### 状态清单
-- [ ] Python runtime 支持 flow analysis、decision envelope、permission/audit metadata。
-- [ ] Node transaction-flow adapter/route 能映射 Python approved/rejected/degraded/error。
-- [ ] rejected/degraded/error 不伪装成 approved。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有执行真实交易、支付、外部 workflow 或数据库写入。
+- [x] Python runtime 支持 flow analysis、decision envelope、permission/audit metadata。
+- [x] Node transaction-flow adapter/route 能映射 Python approved/rejected/degraded/error。
+- [x] rejected/degraded/error 不伪装成 approved。
+- [x] gate 全绿。
+- [x] Codex review 确认没有执行真实交易、支付、外部 workflow 或数据库写入。
 
 ## 目标
 
