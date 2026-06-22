@@ -27,6 +27,12 @@
 
   let lastOverviewPayload = null;
   let activeFilter = 'queue';
+  let activeDetailTab = 'review';
+  let activeEventFilter = 'all';
+  let eventSearchQuery = '';
+  let lastDetailPayload = null;
+  let lastDetailIdentity = null;
+  const ASSETS = window.__AGENT_LOOP_ASSETS__ || {};
 
   const HALT_GUIDANCE = {
     HALT_NO_SUCCESS_CRITERIA: '任务缺少非空的成功标准。补齐判定标准后再入队。',
@@ -59,13 +65,23 @@
     return `<div class="toolbar">${run}${stop}<button class="btn ghost" data-act="refresh" title="刷新">刷新</button></div>`;
   }
 
+  function renderBrandMark() {
+    const brandLogo = ASSETS.brandLogo || 'media/sliderule-brand.svg';
+    return `<span class="brand-mark" aria-label="SlideRule" role="img">
+      <img src="${esc(brandLogo)}" alt="" loading="eager" />
+    </span>`;
+  }
+
   function renderConsoleHeader(title, subtitle, queueRunning, back) {
     const backButton = back ? '<button class="back" data-act="showOverview">← 队列</button>' : '';
-    return `<div class="console-head">
-      <div class="title-stack">
-        ${backButton}
-        <h1>${esc(title)}</h1>
-        <div class="muted">${esc(subtitle || '')}</div>
+    return `<div class="console-head console-top">
+      <div class="header-brand">
+        ${renderBrandMark()}
+        <div class="title-stack">
+          ${backButton}
+          <h1>${esc(title)}</h1>
+          <div class="muted">${esc(subtitle || '')}</div>
+        </div>
       </div>
       ${renderToolbar(queueRunning)}
     </div>`;
@@ -88,22 +104,38 @@
     return CATEGORY_ORDER.reduce((sum, cat) => sum + groups[cat].length, 0);
   }
 
-  function renderTriageFilters(groups, allTasks, queueItems) {
-    const total = groupTotal(groups);
-    const queueTotal = queueItems.length;
-    const queue = `<button class="filter-card queue${activeFilter === 'queue' ? ' active' : ''}" data-filter="queue">
-      <span class="stat-value">${queueTotal}</span><span class="stat-label">任务队列</span>
+  function renderTriageFilters(groups, allTasks, queueItems, counts) {
+    const total = countValue(counts, 'total') || groupTotal(groups);
+    const queueTotal = countValue(counts, 'queueTotal') || queueItems.length;
+    const categoryCounts = {
+      attention: countValue(counts, 'human')
+        + countValue(counts, 'failed')
+        + countValue(counts, 'crashed')
+        + countValue(counts, 'quarantined')
+        + countValue(counts, 'applyConflict')
+        + countValue(counts, 'stopped')
+        || groups.attention.length,
+      running: countValue(counts, 'running') || groups.running.length,
+      landed: countValue(counts, 'applied')
+        + countValue(counts, 'reviewed')
+        + countValue(counts, 'noDiff')
+        || groups.landed.length,
+      pending: countValue(counts, 'pending') || groups.pending.length,
+      disabled: countValue(counts, 'disabled') || groups.disabled.length,
+    };
+    const queue = `<button class="filter-tab queue${activeFilter === 'queue' ? ' active' : ''}" data-filter="queue">
+      <span class="filter-label">任务队列</span><span class="filter-count">${queueTotal}</span>
     </button>`;
-    const all = `<button class="filter-card all${activeFilter === 'all' ? ' active' : ''}" data-filter="all">
-      <span class="stat-value">${total}</span><span class="stat-label">全部</span>
+    const all = `<button class="filter-tab all${activeFilter === 'all' ? ' active' : ''}" data-filter="all">
+      <span class="filter-label">全部</span><span class="filter-count">${total}</span>
     </button>`;
     const cards = CATEGORY_ORDER.map((cat) => {
       const meta = CATEGORY_META[cat];
-      return `<button class="filter-card ${meta.cls}${activeFilter === cat ? ' active' : ''}" data-filter="${cat}">
-        <span class="stat-value">${groups[cat].length}</span><span class="stat-label">${meta.label}</span>
+      return `<button class="filter-tab ${meta.cls}${activeFilter === cat ? ' active' : ''}" data-filter="${cat}">
+        <span class="filter-label">${meta.label}</span><span class="filter-count">${categoryCounts[cat]}</span>
       </button>`;
     }).join('');
-    return `<div class="filter-grid">${queue}${all}${cards}</div>`;
+    return `<div class="filter-tabs">${queue}${all}${cards}</div>`;
   }
 
   function renderAttentionBanner(groups) {
@@ -127,9 +159,8 @@
     </div>`;
   }
 
-  function renderProgress(counts) {
-    const total = countValue(counts, 'total');
-    const settled = countValue(counts, 'applied')
+  function settledCount(counts) {
+    return countValue(counts, 'applied')
       + countValue(counts, 'reviewed')
       + countValue(counts, 'noDiff')
       + countValue(counts, 'applyConflict')
@@ -138,11 +169,32 @@
       + countValue(counts, 'crashed')
       + countValue(counts, 'quarantined')
       + countValue(counts, 'stopped');
+  }
+
+  function renderProgress(counts) {
+    const total = countValue(counts, 'total');
+    const settled = settledCount(counts);
     const pct = total ? Math.round((settled / total) * 100) : 0;
     return `<div class="progress-row">
       <div class="progress-meta"><span>已有结果</span><b>${settled}/${total}</b></div>
       <div class="progress"><div class="bar" style="width:${pct}%"></div></div>
     </div>`;
+  }
+
+  function taskAgentLabel(task) {
+    return task.agent || task.agentText || task.roleText || task.fixAgent || 'Codex';
+  }
+
+  function taskDiffLabel(task) {
+    const bytes = Number(task.diffBytes || task.diffSize || 0);
+    if (bytes) return formatBytes(bytes);
+    if (task.hasDiff || task.applyStatus) return '有 diff';
+    if (task.outcomeGroup === 'reviewed' || task.outcomeGroup === 'applied' || task.badge === 'reviewed' || task.badge === 'applied') return '有 diff';
+    return '-';
+  }
+
+  function taskUpdatedLabel(task) {
+    return task.lastUpdatedText || task.updatedText || task.updatedAt || task.lastUpdatedAt || '-';
   }
 
   function renderTaskRow(task) {
@@ -160,13 +212,13 @@
     const reEnable = task.autoDisabled
       ? `<button class="row-action" data-act="reEnable" data-id="${esc(task.id || task.task)}" title="清除自动禁用，下次队列重试">重开</button>`
       : '';
-    return `<div class="queue-row${active}${disabled}" role="button" tabindex="0" data-act="openTask" data-task="${esc(task.task)}" data-state="${esc(badge || 'pending')}">
+    return `<div class="queue-row${active}${disabled}" data-task="${esc(task.task)}" data-state="${esc(badge || 'pending')}">
       <span class="status-pill ${meta.cls}">${meta.icon}</span>
-      <span class="task-name">${esc(task.taskLabel || task.task)}</span>
-      <span class="task-end">
-        <span class="task-status">${esc(status)}${extra}</span>
-        ${reEnable}
-      </span>
+      <span class="task-name"><b>${esc(task.taskLabel || task.task)}</b><small>${esc(status)}${extra}</small></span>
+      <span class="task-agent">${esc(taskAgentLabel(task))}</span>
+      <span class="task-diff">${esc(taskDiffLabel(task))}</span>
+      <span class="task-updated">${esc(taskUpdatedLabel(task))}</span>
+      <span class="task-actions"><button class="row-open" data-act="openTask" data-task="${esc(task.task)}">打开</button>${reEnable}<button class="row-more" aria-label="更多">···</button></span>
     </div>`;
   }
 
@@ -182,7 +234,7 @@
   function renderQueueSections(tasks) {
     const queueGroups = groupTasks(queueTasks(tasks));
     const sections = CATEGORY_ORDER.map((cat) => renderGroupSection(cat, queueGroups[cat])).filter(Boolean).join('');
-    return `<section class="panel queue-table">${sections || '<div class="empty">本次任务队列为空，请检查 enabled 任务。</div>'}</section>`;
+    return renderTaskTable(queueTasks(tasks), '本次任务队列为空，请检查 enabled 任务。');
   }
 
   function renderTaskList(groups, tasks) {
@@ -192,13 +244,19 @@
     if (activeFilter !== 'all') {
       const tasks = groups[activeFilter] || [];
       const meta = CATEGORY_META[activeFilter];
-      return `<section class="panel queue-table">
-        <div class="panel-head"><h2>${meta ? meta.label : '任务'}</h2><span class="muted">${tasks.length} 项</span></div>
-        <div class="queue-body">${tasks.map(renderTaskRow).join('') || '<div class="empty">这个分组暂时没有任务。</div>'}</div>
-      </section>`;
+      return renderTaskTable(tasks, `这个分组暂时没有任务。`, meta ? meta.label : '任务');
     }
-    const sections = CATEGORY_ORDER.map((cat) => renderGroupSection(cat, groups[cat])).filter(Boolean).join('');
-    return `<section class="panel queue-table">${sections || '<div class="empty">队列为空，请检查 migration-queue.json。</div>'}</section>`;
+    return renderTaskTable(tasks, '队列为空，请检查 migration-queue.json。');
+  }
+
+  function renderTaskTable(tasks, emptyText, title) {
+    const rows = (tasks || []).map(renderTaskRow).join('');
+    const heading = title ? `<div class="panel-head"><h2>${esc(title)}</h2><span class="muted">${tasks.length} 项</span></div>` : '';
+    return `<section class="panel queue-table task-table">
+      ${heading}
+      <div class="queue-head"><span>状态</span><span>任务名</span><span>Agent</span><span>变更</span><span>最后更新</span><span>操作</span></div>
+      <div class="queue-body">${rows || `<div class="empty">${esc(emptyText)}</div>`}</div>
+    </section>`;
   }
 
   function renderOverviewInspector(current, tasks) {
@@ -228,16 +286,19 @@
     const kb = landing.diffBytes ? `${Math.max(1, Math.round(landing.diffBytes / 1024))}KB` : '0';
     const taskCount = landingPatchCount(landing);
     const attentionCount = landingAttentionCount(landing);
+    const branch = landing.currentBranch || landing.branch || landing.targetBranch || 'main';
     const attentionNote = attentionCount > 0
       ? `<span class="landing-note">${attentionCount} 个需关注任务未包含在补丁中</span>`
       : '';
     if (landing.appliedToMain) {
-      return `<section class="landing done">
-        <div class="landing-info"><b>已落地到 main</b><span>${taskCount} 个成功任务 · ${kb}</span>${attentionNote}</div>
+      return `<section class="landing landing-banner done">
+        <div class="landing-branch"><span>当前分支</span><b>${esc(branch)}</b></div>
+        <div class="landing-info"><b>已落地到 main</b><span>${taskCount} 个成功合并 · ${kb} diff</span>${attentionNote}</div>
       </section>`;
     }
-    return `<section class="landing pending">
-      <div class="landing-info"><b>待落地到 main</b><span>${taskCount} 个成功任务的合并改动 · ${kb} diff</span>${attentionNote}</div>
+    return `<section class="landing landing-banner pending">
+      <div class="landing-branch"><span>当前分支</span><b>${esc(branch)}</b></div>
+      <div class="landing-info"><b>待落地到 main</b><span>${taskCount} 个成功合并 · ${kb} diff</span>${attentionNote}</div>
       <div class="landing-actions">
         <button class="btn ghost" data-act="previewLanding" title="git apply --check 预演">预演</button>
         <button class="btn primary" data-act="applyLanding" title="确认后 git apply 到 main">落地到 main</button>
@@ -265,6 +326,41 @@
     return 0;
   }
 
+  function renderQueueToolbar(groups, tasks, queued, counts) {
+    const total = groupTotal(groups);
+    return `<section class="queue-toolbar">
+      <input class="queue-search" data-focus-key="queue-search" type="search" placeholder="搜索任务 / Agent / 文件..." aria-label="搜索任务" />
+      ${renderTriageFilters(groups, tasks, queued, counts)}
+      <div class="queue-tools" aria-label="任务筛选">
+        <button class="tool-chip">按更新时间</button>
+        <button class="tool-chip">有 diff</button>
+        <button class="tool-chip">仅 REV</button>
+      </div>
+    </section>`;
+  }
+
+  function renderQueueSummary(groups, counts, queueTotal) {
+    const total = countValue(counts, 'total') || groupTotal(groups);
+    const settled = settledCount(counts);
+    const landed = countValue(counts, 'applied') + countValue(counts, 'reviewed') + countValue(counts, 'noDiff') || groups.landed.length;
+    const attention = countValue(counts, 'human')
+      + countValue(counts, 'failed')
+      + countValue(counts, 'crashed')
+      + countValue(counts, 'quarantined')
+      + countValue(counts, 'applyConflict')
+      + countValue(counts, 'stopped')
+      || groups.attention.length;
+    const disabled = countValue(counts, 'disabled') || groups.disabled.length;
+    const pct = total ? Math.round((settled / total) * 100) : 0;
+    return `<section class="queue-summary">
+      <div class="queue-summary-title">任务队列 ${queueTotal} · 全部 ${total} · 需关注 ${attention} · 已落地 ${landed} · 已禁用 ${disabled}</div>
+      <div class="queue-progress">
+        <span>已运行 ${settled}/${total}</span>
+        <div class="progress mini"><div class="bar" style="width:${pct}%"></div></div>
+      </div>
+    </section>`;
+  }
+
   function renderOverview(payload) {
     const counts = payload.counts || { total: 0 };
     const tasks = payload.tasks || [];
@@ -275,8 +371,8 @@
       ${renderConsoleHeader('AgentLoop 控制台', `${queueTotal} 个队列任务 / ${counts.total || 0} 个全部任务`, payload.queueRunning, false)}
       ${renderAttentionBanner(groups)}
       ${renderLanding(payload.landing)}
-      ${renderTriageFilters(groups, tasks, queued)}
-      ${renderProgress(counts)}
+      ${renderQueueToolbar(groups, tasks, queued, counts)}
+      ${renderQueueSummary(groups, counts, queueTotal)}
       ${renderCurrentRunBanner(payload.current)}
       ${renderTaskList(groups, tasks)}
     </main>`;
@@ -307,6 +403,33 @@
     return `<section class="timeline">${items}</section>`;
   }
 
+  function renderDetailStageRail(status, steps) {
+    const list = Array.isArray(steps) && steps.length ? steps : [
+      { key: 'INIT', label: 'Init' },
+      { key: 'WORKSPACE', label: 'Workspace' },
+      { key: 'WORKTREE', label: 'Worktree' },
+      { key: 'BASELINE_GATE_RESULT', label: 'Gate' },
+      { key: 'CODEX_FIX', label: 'Codex' },
+      { key: 'POST_FIX_GATE_RESULT', label: 'testGate' },
+      { key: 'DONE', label: 'Done' },
+    ];
+    const terminal = (status || '').startsWith('DONE_') || (status || '').startsWith('HALT_') || status === 'STALE_INTERRUPTED';
+    const activeIndex = Math.max(0, resolveActiveIndex(status, list));
+    const items = list.map((step, index) => {
+      let cls = 'stage-node';
+      if (terminal && step.key === 'DONE') cls += ' current done';
+      else if (activeIndex === index) cls += ' current';
+      else if (activeIndex > index) cls += ' done';
+      if ((status || '').startsWith('HALT_') && activeIndex === index) cls += ' halt';
+      const marker = cls.includes('done') ? '✓' : index + 1;
+      return `<div class="${cls}">
+        <span class="stage-dot">${esc(marker)}</span>
+        <span class="stage-label">${esc(step.label)}</span>
+      </div>`;
+    }).join('');
+    return `<section class="detail-stage-rail">${items}</section>`;
+  }
+
   function gateClass(ok) {
     if (ok === true) return 'ok';
     if (ok === false) return 'err';
@@ -323,6 +446,40 @@
     return `<div class="metric ${cls || ''}"><span>${esc(label)}</span><b>${esc(value || '-')}</b></div>`;
   }
 
+  function formatBytes(bytes) {
+    const n = Number(bytes) || 0;
+    if (!n) return '0';
+    if (n < 1024) return `${n}B`;
+    return `${Math.max(1, Math.round(n / 1024))}KB`;
+  }
+
+  function totalDiffBytes(iterations) {
+    return (iterations || []).reduce((sum, it) => sum + (Number(it.diffBytes) || 0), 0);
+  }
+
+  function renderRunKpi(label, value, icon, cls) {
+    return `<div class="run-kpi ${cls || ''}">
+      <span class="kpi-icon">${esc(icon)}</span>
+      <span class="kpi-label">${esc(label)}</span>
+      <b>${esc(value || '-')}</b>
+    </div>`;
+  }
+
+  function renderRunKpiCards(payload) {
+    const landing = payload.landing || { status: 'PENDING_APPLY' };
+    const diffSize = payload.hasDiff
+      ? formatBytes((payload.diffText || '').length || totalDiffBytes(payload.iterations))
+      : formatBytes(totalDiffBytes(payload.iterations));
+    return `<section class="run-kpi-grid">
+      ${renderRunKpi('状态', payload.status || payload.phaseLabel || '-', '✓', payload.status === 'STALE_INTERRUPTED' ? 'warn' : gateClass(payload.gateOk))}
+      ${renderRunKpi('耗时', payload.elapsedText || '-', '◷')}
+      ${renderRunKpi('变更', diffSize, '□')}
+      ${renderRunKpi('Agent', payload.agentText || payload.roleText || '-', '▤')}
+      ${renderRunKpi('门控', payload.gateText || '-', '♢', gateClass(payload.gateOk))}
+      ${renderRunKpi('落地', landing.status || '-', '↧', landingClass(landing.status))}
+    </section>`;
+  }
+
   function renderStatusCards(payload) {
     const landing = payload.landing || { status: 'PENDING_APPLY' };
     const policy = payload.guardPolicy || payload.finalReport?.guardPolicy || null;
@@ -334,6 +491,43 @@
       ${renderMetric('Agent', payload.agentText)}
       ${renderMetric('落地状态', landing.status, landingClass(landing.status))}
       ${renderMetric('护栏', policy ? '已加载' : '默认测试护栏')}
+    </section>`;
+  }
+
+  function renderDetailActionButtons(payload) {
+    const action = payload.taskPath
+      ? `<button class="btn primary" data-act="runTask" data-task="${esc(payload.taskPath)}" title="只跑这一条任务（不改 main）">单跑此任务</button>`
+      : '';
+    const links = [
+      payload.reportPath ? ['openReport', payload.reportPath, '最终报告'] : null,
+      payload.reportJsonPath ? ['openReport', payload.reportJsonPath, '结构化报告'] : null,
+      payload.landingPath ? ['openReport', payload.landingPath, '落地状态'] : null,
+      payload.statePath ? ['openState', payload.statePath, 'state.json'] : null,
+    ].filter(Boolean);
+    const fileButtons = links.map(([act, file, label]) =>
+      `<button class="btn ghost" data-act="${act}" data-path="${esc(file)}">${esc(label)}</button>`,
+    ).join('');
+    return `${action}${fileButtons}<button class="btn ghost" data-act="refresh" title="刷新">刷新</button>`;
+  }
+
+  function renderDetailHeader(payload) {
+    const task = payload.taskLabel || '-';
+    const repo = payload.repo || 'github.com/acme/backend-python';
+    const commit = payload.landing?.commit || payload.commit || '-';
+    const started = payload.startedAt || payload.runId || '等待运行';
+    return `<section class="detail-hero v2">
+      <div class="detail-hero-brand">
+        ${renderBrandMark()}
+        <button class="btn ghost detail-back" data-act="showOverview" title="返回队列"><span class="btn-icon">←</span><span>队列</span></button>
+        <div class="detail-breadcrumbs"><span>Projects</span><span>SlideRule</span><span>Runs</span><span>${esc(task)}</span></div>
+      </div>
+      <div class="detail-titlebar">
+        <div class="detail-title-copy">
+          <h1>${esc(task)}</h1>
+          <div class="detail-meta">Started ${esc(started)} · Repo: ${esc(repo)} · Commit: ${esc(commit)}</div>
+        </div>
+        <div class="detail-actions">${renderDetailActionButtons(payload)}</div>
+      </div>
     </section>`;
   }
 
@@ -393,6 +587,93 @@
       </article>`;
     }).join('');
     return `<section class="panel"><div class="panel-head"><h2>Review</h2></div>${cards || '<div class="empty">没有审查轮次。</div>'}</section>`;
+  }
+
+  function normalizeDetailTab(tab) {
+    return ['review', 'diff', 'agent', 'artifacts'].includes(tab) ? tab : 'review';
+  }
+
+  function tabButtonClass(active, tab) {
+    return active === tab ? 'tab active' : 'tab';
+  }
+
+  function paneClass(base, active, tab) {
+    return active === tab ? `${base} active` : base;
+  }
+
+  function renderReviewPane(payload, activeTab) {
+    const rounds = payload.reviewRounds || [];
+    const latest = rounds[rounds.length - 1] || null;
+    const needsAttention = payload.halt || payload.status === 'STALE_INTERRUPTED' || latest?.decision === 'needs_changes' || latest?.verdict === 'needs_changes';
+    const attention = needsAttention
+      ? `<div class="attention-box"><b>需要关注</b><ul><li>${esc(payload.halt?.status || payload.status || 'Review')}</li><li>${esc(latest?.summary || '请检查 Review、Gate 和 Agent 输出。')}</li></ul></div>`
+      : '';
+    const reviewJson = {
+      runId: payload.runId || null,
+      status: payload.status || null,
+      gate: payload.gateText || null,
+      landing: payload.landing?.status || null,
+      reviewRounds: rounds,
+    };
+    return `<section class="${paneClass('workbench-pane review-pane', activeTab, 'review')}" data-pane="review">
+      ${attention}
+      ${renderReviewRounds(rounds)}
+      <div class="json-box"><div class="code-title">Review Data (JSON)</div><pre class="log log-json wrap" data-scroll-key="review-json">${highlightJson(JSON.stringify(reviewJson, null, 2))}</pre></div>
+    </section>`;
+  }
+
+  function renderDiffPane(payload, activeTab) {
+    const note = payload.diffTruncated ? '<span class="muted">已截断</span>' : '';
+    const body = payload.hasDiff
+      ? `<pre class="log diff" data-scroll-key="diff">${highlightDiff(payload.diffText || '')}</pre>`
+      : '<div class="empty">没有捕获到 diff。</div>';
+    return `<section class="${paneClass('workbench-pane diff-pane', activeTab, 'diff')}" data-pane="diff">
+      <div class="pane-head"><h2>Diff</h2>${note}</div>
+      ${body}
+    </section>`;
+  }
+
+  function renderAgentPane(payload, activeTab) {
+    const log = formatAgentLog(payload.agentTail || '暂无输出');
+    const codeClass = log.language === 'json' ? ' log-json wrap' : '';
+    return `<section class="${paneClass('workbench-pane agent-pane', activeTab, 'agent')}" data-pane="agent">
+      <div class="pane-head"><h2>Agent 输出</h2><span class="muted">${payload.agentLogKb ? `${payload.agentLogKb}KB` : ''}</span></div>
+      <pre class="log${codeClass}" data-scroll-key="agent-log">${log.html}</pre>
+    </section>`;
+  }
+
+  function renderArtifactsPane(payload, activeTab) {
+    const links = [
+      payload.reportPath ? ['openReport', payload.reportPath, 'final-report.md'] : null,
+      payload.reportJsonPath ? ['openReport', payload.reportJsonPath, 'final-report.json'] : null,
+      payload.landingPath ? ['openReport', payload.landingPath, 'landing.json'] : null,
+      payload.statePath ? ['openState', payload.statePath, 'state.json'] : null,
+    ].filter(Boolean);
+    const buttons = links.map(([act, file, label]) =>
+      `<button class="artifact-row" data-act="${act}" data-path="${esc(file)}"><span>${esc(label)}</span><code>${esc(file)}</code></button>`,
+    ).join('');
+    return `<section class="${paneClass('workbench-pane artifacts-pane', activeTab, 'artifacts')}" data-pane="artifacts">
+      <div class="pane-head"><h2>Artifacts</h2><span class="muted">${links.length}</span></div>
+      ${buttons || '<div class="empty">没有可打开的产物。</div>'}
+    </section>`;
+  }
+
+  function renderDetailTabs(payload) {
+    const activeTab = normalizeDetailTab(payload.activeTab);
+    return `<section class="panel detail-tabs">
+      <div class="workbench-tabs" role="tablist">
+        <button class="${tabButtonClass(activeTab, 'review')}" data-tab="review">Review</button>
+        <button class="${tabButtonClass(activeTab, 'diff')}" data-tab="diff">Diff</button>
+        <button class="${tabButtonClass(activeTab, 'agent')}" data-tab="agent">Agent 输出</button>
+        <button class="${tabButtonClass(activeTab, 'artifacts')}" data-tab="artifacts">Artifacts</button>
+      </div>
+      <div class="tab-panes">
+        ${renderReviewPane(payload, activeTab)}
+        ${renderDiffPane(payload, activeTab)}
+        ${renderAgentPane(payload, activeTab)}
+        ${renderArtifactsPane(payload, activeTab)}
+      </div>
+    </section>`;
   }
 
   function renderAgentLog(payload) {
@@ -484,6 +765,36 @@
     return 'neutral';
   }
 
+  function normalizeEventFilter(filter) {
+    return ['all', 'errors', 'gate', 'review'].includes(filter) ? filter : 'all';
+  }
+
+  function eventMatchesFilter(event, filter) {
+    const status = String(event?.status || '');
+    const label = String(event?.label || '');
+    if (filter === 'errors') return status.startsWith('HALT_') || status === 'STALE_INTERRUPTED';
+    if (filter === 'gate') return status.includes('GATE') || /gate/i.test(label);
+    if (filter === 'review') return status.includes('REVIEW') || /review/i.test(label);
+    return true;
+  }
+
+  function eventMatchesSearch(event, query) {
+    const q = String(query || '').trim().toLowerCase();
+    if (!q) return true;
+    const haystack = [
+      event?.status,
+      event?.label,
+      event?.timeText,
+      event?.iteration ? `#${event.iteration}` : '',
+    ].filter(Boolean).join(' ').toLowerCase();
+    return haystack.includes(q);
+  }
+
+  function filterEvents(events, filter, query) {
+    const active = normalizeEventFilter(filter);
+    return (events || []).filter((event) => eventMatchesFilter(event, active) && eventMatchesSearch(event, query));
+  }
+
   function renderEventStream(events) {
     if (!events || !events.length) return '';
     const rows = events.map((e) => {
@@ -501,40 +812,75 @@
     </section>`;
   }
 
+  function renderEventWorkbench(events, options = {}) {
+    const active = normalizeEventFilter(options.activeEventFilter || activeEventFilter);
+    const query = String(options.eventSearchQuery ?? eventSearchQuery ?? '');
+    const visibleEvents = filterEvents(events || [], active, query);
+    const rows = visibleEvents.map((e) => {
+      const meta = [e.status, e.iteration ? `#${e.iteration}` : ''].filter(Boolean).join(' ');
+      return `<div class="ev-row" data-event-status="${esc(e.status || '')}" data-event-label="${esc(e.label || '')}">
+        <span class="ev-time">${esc(e.timeText || '')}</span>
+        <span class="ev-dot ${eventDotClass(e.status || '')}"></span>
+        <span class="ev-label">${esc(e.label || e.status || '')}</span>
+        <span class="ev-meta">${esc(meta)}</span>
+      </div>`;
+    }).join('');
+    const chipClass = (filter, extra = '') => `chip${extra ? ` ${extra}` : ''}${active === filter ? ' active' : ''}`;
+    return `<section class="panel event-workbench">
+      <div class="event-toolbar">
+        <input class="event-search" data-event-search data-focus-key="event-search" type="search" value="${esc(query)}" placeholder="搜索事件..." aria-label="搜索事件" />
+        <button class="${chipClass('all')}" data-event-filter="all">All</button>
+        <button class="${chipClass('errors', 'err')}" data-event-filter="errors">Errors</button>
+        <button class="${chipClass('gate', 'ok')}" data-event-filter="gate">Gate</button>
+        <button class="${chipClass('review')}" data-event-filter="review">Review</button>
+      </div>
+      <div class="ev-body">${rows || '<div class="empty">没有匹配事件。</div>'}</div>
+    </section>`;
+  }
+
   function renderDetail(payload) {
-    const subtitle = `${payload.runId || '等待运行'} / ${payload.runMode || '-'} / ${payload.roleText || ''}`;
-    return `<main class="dashboard run-detail">
-      <section class="detail-hero">
-        ${renderConsoleHeader(payload.taskLabel || '-', subtitle, false, true)}
-      </section>
-      ${renderPipeline(payload.status, payload.pipelineSteps)}
+    return `<main class="dashboard run-detail detail-shell">
+      ${renderDetailHeader(payload)}
+      ${renderDetailStageRail(payload.status, payload.pipelineSteps)}
       ${renderHalt(payload)}
-      ${renderStatusCards(payload)}
-      ${renderEventStream(payload.events)}
-      <section class="detail-main-grid">
-        <div class="detail-column detail-side-column">
+      ${renderRunKpiCards(payload)}
+      <section class="detail-workbench">
+        <div class="workbench-left">
+          ${renderEventWorkbench(payload.events, {
+            activeEventFilter: payload.activeEventFilter || activeEventFilter,
+            eventSearchQuery: payload.eventSearchQuery ?? eventSearchQuery,
+          })}
           ${renderEvidence(payload)}
           ${renderIterations(payload.iterations)}
         </div>
-        <div class="detail-column detail-wide-column">
-          ${renderReviewRounds(payload.reviewRounds)}
+        <div class="workbench-right">
+          ${renderDetailTabs(payload)}
         </div>
       </section>
       ${renderGatePanel(payload)}
-      ${renderDiffPanel(payload)}
-      ${renderAgentLog(payload)}
-      ${renderLinks(payload)}
     </main>`;
   }
 
   function captureScrollPositions(root, doc) {
     const scrollRoot = doc || document;
     const scroller = scrollRoot.scrollingElement || scrollRoot.documentElement;
-    const positions = { page: scroller ? scroller.scrollTop : 0, panels: {} };
+    const positions = { page: scroller ? scroller.scrollTop : 0, panels: {}, focus: null };
     if (!root || typeof root.querySelectorAll !== 'function') return positions;
     for (const element of root.querySelectorAll('[data-scroll-key]')) {
       const key = element.getAttribute('data-scroll-key');
       if (key) positions.panels[key] = element.scrollTop || 0;
+    }
+    const active = scrollRoot.activeElement;
+    if (active && typeof active.getAttribute === 'function') {
+      const key = active.getAttribute('data-focus-key');
+      if (key) {
+        positions.focus = {
+          key,
+          value: typeof active.value === 'string' ? active.value : '',
+          selectionStart: Number.isFinite(active.selectionStart) ? active.selectionStart : null,
+          selectionEnd: Number.isFinite(active.selectionEnd) ? active.selectionEnd : null,
+        };
+      }
     }
     return positions;
   }
@@ -548,6 +894,20 @@
       const key = element.getAttribute('data-scroll-key');
       if (key && Object.prototype.hasOwnProperty.call(positions.panels || {}, key)) {
         element.scrollTop = positions.panels[key] || 0;
+      }
+    }
+    if (positions.focus && typeof root.querySelector === 'function') {
+      const target = root.querySelector(`[data-focus-key="${positions.focus.key}"]`);
+      if (target) {
+        if (typeof target.value === 'string') target.value = positions.focus.value || '';
+        if (
+          typeof target.setSelectionRange === 'function'
+          && positions.focus.selectionStart != null
+          && positions.focus.selectionEnd != null
+        ) {
+          target.setSelectionRange(positions.focus.selectionStart, positions.focus.selectionEnd);
+        }
+        if (typeof target.focus === 'function') target.focus({ preventScroll: true });
       }
     }
   }
@@ -607,7 +967,7 @@
 
   const renderer = { renderOverview, renderDetail };
   window.AgentLoopDashboardRenderer = renderer;
-  window.AgentLoopDashboardInternals = { captureScrollPositions, restoreScrollPositions, createRenderScheduler };
+  window.AgentLoopDashboardInternals = { captureScrollPositions, restoreScrollPositions, createRenderScheduler, filterEvents, normalizeEventFilter };
 
   const app = typeof document !== 'undefined' ? document.getElementById('app') : null;
   const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => {} };
@@ -632,6 +992,16 @@
     if (lastOverviewPayload) scheduleAppHtml(renderOverview(lastOverviewPayload), 'overview', true);
   }
 
+  function rerenderDetail(force = true) {
+    if (!lastDetailPayload) return;
+    scheduleAppHtml(renderDetail({
+      ...lastDetailPayload,
+      activeTab: activeDetailTab,
+      activeEventFilter,
+      eventSearchQuery,
+    }), 'detail', force);
+  }
+
   function markUserScroll() {
     renderScheduler.markUserScroll();
   }
@@ -641,6 +1011,27 @@
   app.addEventListener('scroll', markUserScroll, true);
 
   app.addEventListener('click', (event) => {
+    const tabEl = event.target.closest('[data-tab]');
+    if (tabEl) {
+      const tabs = tabEl.closest('.detail-tabs');
+      const next = tabEl.getAttribute('data-tab');
+      if (tabs && next) {
+        activeDetailTab = normalizeDetailTab(next);
+        for (const button of tabs.querySelectorAll('[data-tab]')) {
+          button.classList.toggle('active', button === tabEl);
+        }
+        for (const pane of tabs.querySelectorAll('[data-pane]')) {
+          pane.classList.toggle('active', pane.getAttribute('data-pane') === next);
+        }
+      }
+      return;
+    }
+    const eventFilterEl = event.target.closest('[data-event-filter]');
+    if (eventFilterEl) {
+      activeEventFilter = normalizeEventFilter(eventFilterEl.getAttribute('data-event-filter'));
+      rerenderDetail();
+      return;
+    }
     const filterEl = event.target.closest('[data-filter]');
     if (filterEl) {
       const next = filterEl.getAttribute('data-filter');
@@ -666,6 +1057,13 @@
     }
   });
 
+  app.addEventListener('input', (event) => {
+    const search = event.target.closest('[data-event-search]');
+    if (!search) return;
+    eventSearchQuery = search.value || '';
+    rerenderDetail();
+  });
+
   window.addEventListener('message', (event) => {
     const message = event.data;
     if (message?.type === 'overview') {
@@ -673,7 +1071,21 @@
       scheduleAppHtml(renderOverview(lastOverviewPayload), 'overview', false);
     } else if (message?.type === 'detail') {
       lastOverviewPayload = null;
-      scheduleAppHtml(renderDetail(message.payload || {}), 'detail', false);
+      const detailPayload = message.payload || {};
+      const identity = detailPayload.taskPath || detailPayload.taskLabel || detailPayload.runId || null;
+      if (identity !== lastDetailIdentity) {
+        activeDetailTab = 'review';
+        activeEventFilter = 'all';
+        eventSearchQuery = '';
+        lastDetailIdentity = identity;
+      }
+      lastDetailPayload = detailPayload;
+      scheduleAppHtml(renderDetail({
+        ...detailPayload,
+        activeTab: activeDetailTab,
+        activeEventFilter,
+        eventSearchQuery,
+      }), 'detail', false);
     }
   });
 

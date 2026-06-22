@@ -2,9 +2,10 @@
   "name": "agent-loop-dashboard",
   "displayName": "AgentLoop Dashboard",
   "description": "Visual progress for AgentLoop task queue, gates, and Codex/Grok review runs.",
-  "version": "0.1.21",
+  "version": "0.1.31",
   "publisher": "cube-pets-office",
   "license": "MIT",
+  "icon": "media/sliderule-icon.png",
   "engines": {
     "vscode": "^1.85.0"
   },
@@ -123,7 +124,7 @@
     "compile": "tsc -p .",
     "watch": "tsc -watch -p .",
     "test": "node --test ../test/vscode-extension.test.js",
-    "package": "npm run compile && npx @vscode/vsce package --no-dependencies"
+    "package": "npm run compile && npx @vscode/vsce package --no-dependencies --no-rewrite-relative-links"
   },
   "devDependencies": {
     "@types/node": "^20.11.0",

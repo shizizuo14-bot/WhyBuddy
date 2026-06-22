@@ -11,6 +11,12 @@ export class DashboardPanel {
   public view: DashboardView = 'overview';
   private readonly panel: vscode.WebviewPanel;
   private disposables: vscode.Disposable[] = [];
+  private lastMessage: unknown = null;
+
+  private post(message: unknown): void {
+    this.lastMessage = message;
+    void this.panel.webview.postMessage(message);
+  }
 
   private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
     this.panel = panel;
@@ -183,19 +189,21 @@ export class DashboardPanel {
   private getHtml(extensionUri: vscode.Uri): string {
     const styleUri = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'dashboard.css'));
     const scriptUri = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'dashboard.js'));
+    const brandUri = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'sliderule-brand.svg'));
     const nonce = String(Date.now());
 
     return `<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src ${this.panel.webview.cspSource}; script-src 'nonce-${nonce}';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${this.panel.webview.cspSource} data:; style-src ${this.panel.webview.cspSource}; script-src 'nonce-${nonce}';" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="${styleUri}">
   <title>AgentLoop</title>
 </head>
 <body>
   <div id="app"></div>
+  <script nonce="${nonce}">window.__AGENT_LOOP_ASSETS__ = { brandLogo: ${JSON.stringify(String(brandUri))} };</script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
 </body>
 </html>`;

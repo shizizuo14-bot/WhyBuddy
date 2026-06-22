@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { createRequire } from 'node:module';
 import vm from 'node:vm';
@@ -596,7 +597,9 @@ test('dashboard media renders diff and failing gate panels', async () => {
     gateFailureTruncated: true,
     iterations: [], reviewRounds: [],
   });
-  assert.match(html, /改动 diff/);
+  assert.match(html, /class="workbench-pane diff-pane"/);
+  assert.match(html, /<h2>Diff<\/h2>/);
+  assert.match(html, /data-scroll-key="diff"/);
   assert.match(html, /diff-add/);
   assert.match(html, /失败 Gate 输出/);
   assert.match(html, /AssertionError: boom/);
@@ -631,10 +634,231 @@ test('dashboard media renders the run event stream', async () => {
       { status: 'DONE_REVIEWED', label: '完成（已 review）', timeText: '16:50:08', iteration: null },
     ],
   });
-  assert.match(html, /运行事件流/);
+  assert.match(html, /event-workbench/);
+  assert.match(html, /event-search/);
+  assert.match(html, /data-event-filter="errors"/);
   assert.match(html, /16:49:32/);
   assert.match(html, /Grok 修复中/);
   assert.match(html, /ev-dot ok/);
+});
+
+test('dashboard detail promotes queue back and file actions into the header', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderDetail({
+    taskLabel: 'header-actions-task',
+    taskPath: 'agent-loop/tasks/header-actions-task.md',
+    runId: 'header-actions-run',
+    status: 'DONE_REVIEWED',
+    pipelineSteps: [],
+    iterations: [],
+    reviewRounds: [],
+    reportPath: 'C:/repo/.agent-loop/latest/final-report.md',
+    reportJsonPath: 'C:/repo/.agent-loop/latest/final-report.json',
+    landingPath: 'C:/repo/.agent-loop/latest/landing.json',
+    statePath: 'C:/repo/.agent-loop/latest/state.json',
+  });
+  const brandIndex = html.indexOf('class="brand-mark"');
+  const backIndex = html.indexOf('class="btn ghost detail-back"');
+  const breadcrumbIndex = html.indexOf('class="detail-breadcrumbs"');
+  const actionIndex = html.indexOf('class="detail-actions"');
+
+  assert.ok(brandIndex >= 0, 'detail header keeps the logo');
+  assert.ok(backIndex > brandIndex, 'queue back button sits to the right of the logo');
+  assert.ok(breadcrumbIndex > backIndex, 'breadcrumbs sit after the queue back button');
+  assert.ok(actionIndex > 0, 'detail actions exist in the header');
+  assert.match(html, /class="btn ghost detail-back"[^>]*data-act="showOverview"[\s\S]*<span class="btn-icon">/);
+  assert.match(html, /class="detail-actions"[\s\S]*data-act="runTask"/);
+  assert.match(html, /class="detail-actions"[\s\S]*data-act="openReport"[\s\S]*final-report\.md/);
+  assert.match(html, /class="detail-actions"[\s\S]*data-act="openReport"[\s\S]*final-report\.json/);
+  assert.match(html, /class="detail-actions"[\s\S]*data-act="openReport"[\s\S]*landing\.json/);
+  assert.match(html, /class="detail-actions"[\s\S]*data-act="openState"[\s\S]*state\.json/);
+  assert.doesNotMatch(html, /<div class="links">/);
+});
+
+test('dashboard detail event filters and search reduce visible event rows', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderDetail({
+    taskLabel: 'event-filter-task',
+    runId: 'event-filter-run',
+    status: 'HALT_HUMAN',
+    pipelineSteps: [],
+    iterations: [],
+    reviewRounds: [],
+    activeEventFilter: 'errors',
+    eventSearchQuery: 'manual',
+    events: [
+      { status: 'INIT', label: 'Started', timeText: '10:00:00', iteration: null },
+      { status: 'POST_FIX_GATE_RESULT', label: 'Gate failed', timeText: '10:01:00', iteration: 1 },
+      { status: 'CODEX_REVIEW', label: 'Review started', timeText: '10:02:00', iteration: 1 },
+      { status: 'HALT_HUMAN', label: 'Manual handoff required', timeText: '10:03:00', iteration: 1 },
+    ],
+  });
+
+  assert.match(html, /data-event-search/);
+  assert.match(html, /value="manual"/);
+  assert.match(html, /class="chip err active" data-event-filter="errors"/);
+  assert.match(html, /data-event-status="HALT_HUMAN"/);
+  assert.match(html, /Manual handoff required/);
+  assert.doesNotMatch(html, /data-event-status="INIT"/);
+  assert.doesNotMatch(html, /data-event-status="POST_FIX_GATE_RESULT"/);
+  assert.doesNotMatch(html, /data-event-status="CODEX_REVIEW"/);
+});
+
+test('dashboard event filtering logic groups errors, gate, review, and search matches', async () => {
+  const win = await loadDashboardWindow();
+  const { filterEvents } = win.AgentLoopDashboardInternals;
+  const events = [
+    { status: 'INIT', label: 'Started', timeText: '10:00:00', iteration: null },
+    { status: 'POST_FIX_GATE_RESULT', label: 'Gate failed badly', timeText: '10:01:00', iteration: 1 },
+    { status: 'CODEX_REVIEW', label: 'Review started', timeText: '10:02:00', iteration: 1 },
+    { status: 'DONE_REVIEWED', label: 'Review passed', timeText: '10:03:00', iteration: null },
+    { status: 'HALT_HUMAN', label: 'Manual handoff required', timeText: '10:04:00', iteration: 2 },
+    { status: 'STALE_INTERRUPTED', label: 'Run stopped updating', timeText: '10:05:00', iteration: null },
+  ];
+
+  assert.deepEqual(filterEvents(events, 'errors', '').map((event) => event.status), ['HALT_HUMAN', 'STALE_INTERRUPTED']);
+  assert.deepEqual(filterEvents(events, 'gate', '').map((event) => event.status), ['POST_FIX_GATE_RESULT']);
+  assert.deepEqual(filterEvents(events, 'review', '').map((event) => event.status), ['CODEX_REVIEW', 'DONE_REVIEWED']);
+  assert.deepEqual(filterEvents(events, 'all', 'manual').map((event) => event.status), ['HALT_HUMAN']);
+  assert.deepEqual(filterEvents(events, 'errors', '#2').map((event) => event.status), ['HALT_HUMAN']);
+});
+
+test('dashboard detail renders the v2 operations workbench layout', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderDetail({
+    taskLabel: 'backend-python-runtime-evidence-reconcile-89',
+    taskPath: 'agent-loop/tasks/backend-python-runtime-evidence-reconcile-89.md',
+    runId: '2026-06-22T14-30-15-000Z',
+    status: 'DONE_REVIEWED',
+    phaseLabel: '完成（已 review）',
+    elapsedText: '8s',
+    gateText: 'PASS',
+    gateOk: true,
+    agentText: 'codex + codex',
+    roleText: 'codex + codex',
+    runMode: 'codex-fix+codex-review',
+    pipelineSteps: [
+      { key: 'INIT', label: 'Init' },
+      { key: 'WORKSPACE', label: 'Workspace' },
+      { key: 'WORKTREE', label: 'Worktree' },
+      { key: 'BASELINE_GATE_RESULT', label: 'Gate' },
+      { key: 'CODEX_FIX', label: 'Codex' },
+      { key: 'POST_FIX_GATE_RESULT', label: 'testGate' },
+      { key: 'DONE', label: 'Done' },
+    ],
+    events: [
+      { status: 'INIT', label: 'Initialized environment.', timeText: '14:30:15', iteration: null },
+      { status: 'WORKSPACE', label: 'Workspace prepared successfully.', timeText: '14:30:17', iteration: null },
+      { status: 'CODEX_FIX', label: 'Codex analysis completed.', timeText: '14:30:28', iteration: 1 },
+      { status: 'DONE_REVIEWED', label: 'Execution finished.', timeText: '14:30:33', iteration: null },
+    ],
+    hasDiff: true,
+    diffText: 'diff --git a/src/utils.py b/src/utils.py\n+new\n',
+    diffTruncated: false,
+    gateFailure: '',
+    iterations: [{ iteration: 1, gateOk: true, failureCount: 0, diffBytes: 37 * 1024, guard: false, attempts: 1 }],
+    reviewRounds: [{
+      round: 1,
+      verdict: 'pass',
+      decision: 'pass',
+      summary: 'Review passed with minor warnings.',
+      findings: [{ severity: 'minor', path: 'src/utils.py', message: 'Line too long' }],
+    }],
+    agentTail: JSON.stringify({ review_id: 'rev-9a8b7c6d5e4f', status: 'pending_approval' }),
+    landing: { status: 'MAIN_GATE_GREEN', commit: '8f7g6h5' },
+    statePath: 'C:/repo/.agent-loop/latest/state.json',
+    reportPath: 'C:/repo/.agent-loop/latest/final-report.md',
+    reportJsonPath: 'C:/repo/.agent-loop/latest/final-report.json',
+    landingPath: 'C:/repo/.agent-loop/latest/landing.json',
+  });
+
+  assert.match(html, /class="[^"]*\bdetail-shell\b[^"]*"/);
+  assert.match(html, /class="detail-breadcrumbs"/);
+  assert.match(html, /Projects/);
+  assert.match(html, /SlideRule/);
+  assert.match(html, /Runs/);
+  assert.match(html, /backend-python-runtime-evidence-reconcile-89/);
+  assert.match(html, /class="detail-meta"/);
+  assert.match(html, /Repo:/);
+  assert.match(html, /Commit:/);
+  assert.match(html, /class="detail-stage-rail"/);
+  assert.match(html, /Init/);
+  assert.match(html, /Workspace/);
+  assert.match(html, /testGate/);
+  assert.match(html, /class="run-kpi-grid"/);
+  assert.match(html, /状态/);
+  assert.match(html, /DONE_REVIEWED/);
+  assert.match(html, /37KB/);
+  assert.match(html, /codex \+ codex/);
+  assert.match(html, /class="detail-workbench"/);
+  assert.match(html, /class="event-search"/);
+  assert.match(html, /搜索事件/);
+  assert.match(html, /data-event-filter="errors"/);
+  assert.match(html, /class="workbench-tabs"/);
+  assert.match(html, /class="tab active" data-tab="review"/);
+  assert.match(html, /Review/);
+  assert.match(html, /Diff/);
+  assert.match(html, /Agent 输出/);
+  assert.match(html, /Artifacts/);
+  assert.match(html, /class="workbench-pane review-pane active"/);
+  assert.match(html, /class="workbench-pane diff-pane"/);
+  assert.match(html, /data-scroll-key="diff"/);
+  assert.match(html, /class="workbench-pane agent-pane"/);
+  assert.match(html, /data-scroll-key="agent-log"/);
+  assert.match(html, /class="workbench-pane artifacts-pane"/);
+  assert.match(html, /state\.json/);
+});
+
+test('dashboard detail v2 uses fluid width and compact spacing', async () => {
+  const css = await fs.readFile(path.join(extensionRoot, 'media', 'dashboard.css'), 'utf8');
+  const detailRule = css.match(/\.run-detail\.detail-shell\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const shellRule = css.match(/\.detail-shell\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const dashboardRule = css.match(/\.dashboard\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const workbenchRule = css.match(/\.detail-workbench\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const kpiRule = css.match(/\.run-kpi-grid\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const detailBrandRule = css.match(/\.detail-hero-brand\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const detailBrandMarkRule = css.match(/\.detail-hero-brand \.brand-mark\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+
+  assert.doesNotMatch(shellRule, /max-width:\s*1320px/);
+  assert.match(detailRule, /max-width:\s*none/);
+  assert.match(detailRule, /width:\s*100%/);
+  assert.match(detailRule, /padding:\s*12px 14px/);
+  assert.match(dashboardRule, /padding:\s*14px 16px/);
+  assert.match(workbenchRule, /gap:\s*10px/);
+  assert.match(kpiRule, /gap:\s*8px/);
+  assert.match(kpiRule, /margin:\s*0 0 10px/);
+  assert.match(detailBrandRule, /gap:\s*6px/);
+  assert.match(detailBrandMarkRule, /width:\s*clamp\(112px,\s*11vw,\s*150px\)/);
+});
+
+test('dashboard detail workbench uses one-third left and two-thirds right columns', async () => {
+  const css = await fs.readFile(path.join(extensionRoot, 'media', 'dashboard.css'), 'utf8');
+  const workbenchRule = css.match(/\.detail-workbench\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+
+  assert.match(workbenchRule, /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+minmax\(0,\s*2fr\)/);
+});
+
+test('dashboard detail preserves the active workbench tab across refresh renders', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderDetail({
+    taskLabel: 'active tab task',
+    runId: 'active-tab-run',
+    status: 'CODEX_FIX',
+    pipelineSteps: [],
+    activeTab: 'agent',
+    hasDiff: true,
+    diffText: 'diff --git a/a.js b/a.js\n+new\n',
+    agentTail: 'latest output',
+    iterations: [],
+    reviewRounds: [],
+  });
+
+  assert.match(html, /class="tab" data-tab="review"/);
+  assert.match(html, /class="tab active" data-tab="agent"/);
+  assert.match(html, /class="workbench-pane review-pane"/);
+  assert.match(html, /class="workbench-pane agent-pane active"/);
+  assert.match(html, /data-scroll-key="agent-log"/);
+  assert.match(html, /latest output/);
 });
 
 test('clearAutoDisable resets an auto-disabled task and is idempotent', async () => {
@@ -695,7 +919,7 @@ test('dashboard overview shows a pending landing workbench with actions', async 
     },
   });
   assert.match(html, /待落地到 main/);
-  assert.match(html, /2 个成功任务的合并改动/);
+  assert.match(html, /2 个成功合并/);
   assert.match(html, /6 个需关注任务未包含在补丁中/);
   assert.doesNotMatch(html, /8 个任务的合并改动/);
   assert.match(html, /data-act="previewLanding"/);
@@ -730,6 +954,35 @@ test('dashboard view title command is contributed only once', async () => {
 
   assert.equal(dashboardMenus.length, 1);
   assert.equal(dashboardMenus[0].when, 'view == agentLoop.currentRun');
+});
+
+test('extension package declares SlideRule brand assets for VS Code details', async () => {
+  const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
+  const readme = await fs.readFile(path.join(extensionRoot, 'README.md'), 'utf8');
+  const activityIcon = await fs.readFile(path.join(extensionRoot, 'media', 'icon.svg'), 'utf8');
+  const sourceActivityIcon = await fs.readFile(path.join(agentLoopRoot, '..', 'docs', 'assets', 'slidrule_logo_transparent.svg'), 'utf8');
+  const webviewBrand = await fs.readFile(path.join(extensionRoot, 'media', 'sliderule-brand.svg'), 'utf8');
+  const sourceWebviewBrand = await fs.readFile(path.join(agentLoopRoot, '..', 'docs', 'assets', 'SlideRule_banner_no_border_transparent.svg'), 'utf8');
+
+  assert.equal(packageJson.icon, 'media/sliderule-icon.png');
+  assert.equal(packageJson.contributes.viewsContainers.activitybar[0].icon, 'media/icon.svg');
+  assert.match(packageJson.scripts.package, /--no-rewrite-relative-links/);
+  assert.equal(sha256(activityIcon), sha256(sourceActivityIcon));
+  assert.equal(sha256(webviewBrand), sha256(sourceWebviewBrand));
+  assert.doesNotMatch(activityIcon, /<circle cx="12" cy="12" r="9"/);
+  assert.match(readme, /media\/sliderule-brand\.png/);
+  assert.match(readme, /SlideRule\.ai/);
+  await fs.access(path.join(extensionRoot, 'media', 'sliderule-icon.png'));
+  await fs.access(path.join(extensionRoot, 'media', 'sliderule-brand.png'));
+  await fs.access(path.join(extensionRoot, 'media', 'sliderule-brand.svg'));
+});
+
+test('dashboard panel exposes a Webview-safe SlideRule brand logo URI', async () => {
+  const source = await fs.readFile(path.join(extensionRoot, 'src', 'dashboardPanel.ts'), 'utf8');
+
+  assert.match(source, /sliderule-brand\.svg/);
+  assert.match(source, /brandLogo/);
+  assert.match(source, /img-src \$\{this\.panel\.webview\.cspSource\} data:/);
 });
 
 test('extension package contributes clean Chinese labels', async () => {
@@ -806,6 +1059,11 @@ test('VSIX contents are self-contained for run summary', async () => {
   assert.match(listing, /extension\/out\/gateSummary\.js/);
   assert.match(listing, /extension\/media\/dashboard\.js/);
   assert.match(listing, /extension\/media\/dashboard\.css/);
+  assert.match(listing, /extension\/media\/icon\.svg/);
+  assert.match(listing, /extension\/media\/sliderule-icon\.png/);
+  assert.match(listing, /extension\/media\/sliderule-brand\.png/);
+  assert.match(listing, /extension\/media\/sliderule-brand\.svg/);
+  assert.match(listing, /extension\/readme\.md/i);
 });
 
 test('dashboard media renders console overview with stale current run', async () => {
@@ -829,10 +1087,93 @@ test('dashboard media renders console overview with stale current run', async ()
   assert.match(html, /AgentLoop 控制台/);
   assert.match(html, /运行中断/);
   assert.match(html, /backend-python-blueprint-brainstorm-contract/);
-  assert.match(html, /filter-grid/);
-  assert.match(html, /task-group/);
+  assert.match(html, /console-top/);
+  assert.match(html, /queue-toolbar/);
+  assert.match(html, /task-table/);
   assert.match(html, /queue-table/);
   assert.match(html, /data-state="stale"/);
+});
+
+test('dashboard overview renders the console v2 queue workbench layout', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderOverview({
+    counts: {
+      total: 44,
+      queueTotal: 6,
+      applied: 6,
+      reviewed: 0,
+      noDiff: 0,
+      applyConflict: 0,
+      human: 0,
+      failed: 0,
+      crashed: 0,
+      stopped: 0,
+      running: 0,
+      pending: 0,
+    },
+    queueRunning: false,
+    current: null,
+    landing: {
+      status: 'PENDING_QUEUE_LANDING',
+      diffBytes: 10240,
+      taskCounts: { patch: 6, failed: 0 },
+      currentBranch: 'main',
+    },
+    tasks: [
+      {
+        task: 'agent-loop/tasks/a.md',
+        taskLabel: 'backend-python-auth-permission-audit-runtime-90',
+        badge: 'reviewed',
+        statusLabel: '完成（已 review）',
+        enabled: true,
+        running: false,
+        category: 'landed',
+      },
+      {
+        task: 'agent-loop/tasks/b.md',
+        taskLabel: 'backend-python-a2a-stream-runtime-boundary-90',
+        badge: 'applied',
+        statusLabel: '完成（已落地）',
+        enabled: true,
+        running: false,
+        category: 'landed',
+      },
+      {
+        task: 'agent-loop/tasks/old.md',
+        taskLabel: 'backend-python-old-disabled',
+        badge: 'disabled',
+        statusLabel: '已禁用',
+        enabled: false,
+        running: false,
+        category: 'disabled',
+      },
+    ],
+  });
+
+  assert.match(html, /class="[^"]*\bconsole-top\b[^"]*"/);
+  assert.match(html, /class="brand-mark"/);
+  assert.match(html, /6 个队列任务 \/ 44 个全部任务/);
+  assert.match(html, /class="[^"]*\blanding-banner\b[^"]*"/);
+  assert.match(html, /当前分支/);
+  assert.match(html, /main/);
+  assert.match(html, /6 个成功合并 · 10KB diff/);
+  assert.match(html, /data-act="previewLanding"[\s\S]*预演/);
+  assert.match(html, /data-act="applyLanding"[\s\S]*落地到 main/);
+  assert.match(html, /placeholder="搜索任务 \/ Agent \/ 文件\.\.\."/);
+  assert.match(html, /data-filter="queue"[\s\S]*任务队列[\s\S]*6/);
+  assert.match(html, /data-filter="all"[\s\S]*全部[\s\S]*44/);
+  assert.match(html, /任务队列 6 · 全部 44 · 需关注 0 · 已落地 6 · 已禁用/);
+  assert.match(html, /已运行 6\/44/);
+  assert.match(html, /class="[^"]*\btask-table\b[^"]*"/);
+  assert.match(html, /状态/);
+  assert.match(html, /任务名/);
+  assert.match(html, /Agent/);
+  assert.match(html, /变更/);
+  assert.match(html, /最后更新/);
+  assert.match(html, /操作/);
+  assert.match(html, /backend-python-auth-permission-audit-runtime-90/);
+  assert.match(html, /完成（已 review）/);
+  assert.match(html, /打开/);
 });
 
 test('buildQueueOverview separates enabled queue size from all task size', async () => {
@@ -868,12 +1209,66 @@ test('dashboard overview defaults to current task queue while keeping all tasks 
     ],
   });
 
-  assert.match(html, /filter-card queue active[\s\S]*<span class="stat-value">2<\/span><span class="stat-label">任务队列<\/span>/);
-  assert.match(html, /filter-card all[\s\S]*<span class="stat-value">4<\/span><span class="stat-label">全部<\/span>/);
+  assert.match(html, /filter-tab queue active[\s\S]*任务队列[\s\S]*2/);
+  assert.match(html, /filter-tab[\s\S]*全部[\s\S]*4/);
   assert.match(html, /queue-a/);
   assert.match(html, /queue-b/);
   assert.doesNotMatch(html, /old-c/);
   assert.doesNotMatch(html, /old-d/);
+});
+
+test('dashboard overview renders SlideRule logo in the console header', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderOverview({
+    counts: { total: 6, queueTotal: 2 },
+    queueRunning: false,
+    current: null,
+    tasks: [],
+  });
+
+  assert.match(html, /class="brand-mark"/);
+  assert.match(html, /aria-label="SlideRule"/);
+  assert.match(html, /<img[^>]+src="media\/sliderule-brand\.svg"/);
+  assert.doesNotMatch(html, /<svg viewBox="0 0 32 32"/);
+  assert.match(html, /AgentLoop 控制台/);
+});
+
+test('dashboard detail keeps the SlideRule logo in the detail header', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderDetail({
+    taskLabel: 'backend-python-a2a-invoke-runtime-bridge',
+    runId: '2026-06-21T01-00-00-000Z',
+    status: 'DONE_REVIEWED',
+    phaseLabel: '完成（已 review）',
+    elapsedText: '2 分 03 秒',
+    gateText: '修复 Gate 绿',
+    gateOk: true,
+    agentText: 'Codex',
+    pipelineSteps: [{ key: 'INIT', label: '初始化' }, { key: 'DONE', label: '完成' }],
+    details: [],
+    iterations: [],
+    reviewRounds: [],
+    agentTail: '',
+    landing: { status: 'PENDING_APPLY' },
+  });
+
+  assert.match(html, /detail-hero/);
+  assert.match(html, /class="brand-mark"/);
+  assert.match(html, /aria-label="SlideRule"/);
+  assert.match(html, /<img[^>]+src="media\/sliderule-brand\.svg"/);
+});
+
+test('dashboard console header keeps the SlideRule logo transparent and line-height sized', async () => {
+  const css = await fs.readFile(path.join(extensionRoot, 'media', 'dashboard.css'), 'utf8');
+  const brandRule = css.match(/\.brand-mark\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const imgRule = css.match(/\.brand-mark img\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+
+  assert.doesNotMatch(brandRule, /background\s*:/);
+  assert.doesNotMatch(brandRule, /border\s*:/);
+  assert.doesNotMatch(brandRule, /box-shadow\s*:/);
+  assert.match(brandRule, /height:\s*clamp\(42px,\s*5vw,\s*54px\)/);
+  assert.match(imgRule, /height:\s*100%/);
+  assert.doesNotMatch(imgRule, /height:\s*28px/);
 });
 
 test('dashboard media renders outcome groups and conflict files', async () => {
@@ -964,12 +1359,12 @@ test('dashboard media renders detail evidence and log sections', async () => {
 
   assert.match(html, /run-detail/);
   assert.match(html, /detail-hero/);
-  assert.match(html, /timeline/);
-  assert.match(html, /detail-main-grid/);
-  assert.match(html, /detail-side-column/);
-  assert.match(html, /detail-wide-column/);
-  assert.match(html, /detail-side-column[\s\S]*panel iterations/);
-  assert.match(html, /detail-wide-column[\s\S]*Review/);
+  assert.match(html, /detail-stage-rail/);
+  assert.match(html, /detail-workbench/);
+  assert.match(html, /workbench-left/);
+  assert.match(html, /workbench-right/);
+  assert.match(html, /workbench-left[\s\S]*panel iterations/);
+  assert.match(html, /workbench-right[\s\S]*Review/);
   assert.match(html, /证据/);
   assert.match(html, /Review/);
   assert.match(html, /All gates passed/);
@@ -1035,6 +1430,48 @@ test('dashboard preserves internal diff and agent log scroll positions across re
   assert.equal(after[2].scrollTop, 120);
 });
 
+test('dashboard preserves focused queue search input across refreshes', async () => {
+  const win = await loadDashboardWindow();
+  const { captureScrollPositions, restoreScrollPositions } = win.AgentLoopDashboardInternals;
+  const beforeInput = fakeFocusable('queue-search', 'a2a stream', 3, 7);
+  const afterInput = fakeFocusable('queue-search', '', 0, 0);
+  const pageScroller = { scrollTop: 0 };
+  const doc = {
+    activeElement: beforeInput,
+    scrollingElement: pageScroller,
+    documentElement: { scrollTop: 0 },
+  };
+
+  const captured = captureScrollPositions(fakeRoot([], { 'queue-search': beforeInput }), doc);
+  restoreScrollPositions(fakeRoot([], { 'queue-search': afterInput }), captured, doc);
+
+  assert.equal(afterInput.value, 'a2a stream');
+  assert.equal(afterInput.selectionStart, 3);
+  assert.equal(afterInput.selectionEnd, 7);
+  assert.equal(afterInput.focused, true);
+});
+
+test('dashboard preserves focused event search input across refreshes', async () => {
+  const win = await loadDashboardWindow();
+  const { captureScrollPositions, restoreScrollPositions } = win.AgentLoopDashboardInternals;
+  const beforeInput = fakeFocusable('event-search', 'manual halt', 0, 6);
+  const afterInput = fakeFocusable('event-search', '', 0, 0);
+  const pageScroller = { scrollTop: 0 };
+  const doc = {
+    activeElement: beforeInput,
+    scrollingElement: pageScroller,
+    documentElement: { scrollTop: 0 },
+  };
+
+  const captured = captureScrollPositions(fakeRoot([], { 'event-search': beforeInput }), doc);
+  restoreScrollPositions(fakeRoot([], { 'event-search': afterInput }), captured, doc);
+
+  assert.equal(afterInput.value, 'manual halt');
+  assert.equal(afterInput.selectionStart, 0);
+  assert.equal(afterInput.selectionEnd, 6);
+  assert.equal(afterInput.focused, true);
+});
+
 test('dashboard defers html refresh while the user is actively scrolling', async () => {
   const win = await loadDashboardWindow();
   const { createRenderScheduler } = win.AgentLoopDashboardInternals;
@@ -1087,6 +1524,7 @@ test('dashboard marks diff and agent log panels with stable scroll keys', async 
   assert.match(html, /data-scroll-key="diff"/);
   assert.match(html, /data-scroll-key="agent-log"/);
   assert.match(html, /data-scroll-key="gate-output"/);
+  assert.match(html, /Review Data \(JSON\)[\s\S]*data-scroll-key="review-json"/);
 });
 
 async function loadDashboardRenderer() {
@@ -1115,11 +1553,39 @@ function fakeScrollable(key, scrollTop) {
   };
 }
 
-function fakeRoot(elements) {
+function fakeFocusable(key, value, selectionStart, selectionEnd) {
+  return {
+    value,
+    selectionStart,
+    selectionEnd,
+    focused: false,
+    getAttribute(name) {
+      return name === 'data-focus-key' ? key : null;
+    },
+    focus(options) {
+      this.focused = true;
+      this.focusOptions = options;
+    },
+    setSelectionRange(start, end) {
+      this.selectionStart = start;
+      this.selectionEnd = end;
+    },
+  };
+}
+
+function fakeRoot(elements, focusables = {}) {
   return {
     querySelectorAll(selector) {
       assert.equal(selector, '[data-scroll-key]');
       return elements;
     },
+    querySelector(selector) {
+      const match = selector.match(/^\[data-focus-key="([^"]+)"\]$/);
+      return match ? focusables[match[1]] || null : null;
+    },
   };
+}
+
+function sha256(value) {
+  return crypto.createHash('sha256').update(value).digest('hex');
 }
