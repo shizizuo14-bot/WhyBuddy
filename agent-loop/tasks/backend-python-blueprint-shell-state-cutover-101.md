@@ -6,11 +6,11 @@
 - 角色分工：worker 负责补 Python runtime、Node bridge 和测试；reviewer 必须确认没有把局部 shell/state 任务夸大成完整 Blueprint 全系统迁移。
 
 ### 状态清单
-- [ ] Python 能输出 shell/state cutover decision，并保留 projectId、jobId、stageId、actor、causation、diagnostics。
-- [ ] Node bridge 能消费 Python decision，同时保留 Node 仍负责的 durable store、HTTP transport、权限中间件边界。
-- [ ] route shell、state projection、job/event handoff 至少覆盖 success、partial、blocked、diagnostic-only 四类结果。
-- [ ] gate 全绿。
-- [ ] review 确认这是业务代码闭环，不是文档或空壳。
+- [x] Python 能输出 shell/state cutover decision，并保留 projectId、jobId、stageId、actor、causation、diagnostics。
+- [x] Node bridge 能消费 Python decision，同时保留 Node 仍负责的 durable store、HTTP transport、权限中间件边界。
+- [x] route shell、state projection、job/event handoff 至少覆盖 success、partial、blocked、diagnostic-only 四类结果。
+- [x] gate 全绿。
+- [x] review 确认这是业务代码闭环，不是文档或空壳。
 
 ## 背景
 
