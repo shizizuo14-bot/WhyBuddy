@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] Python runtime 支持 prompt package normalize/render/validation envelope。
-- [ ] Python runtime 支持 preview request 的 safe plan/result/degraded/error envelope。
-- [ ] Node prompt-package/effect-preview service 能映射 Python result，并保留 provenance、policy、cost metadata。
-- [ ] degraded/error 不伪装成 preview succeeded。
-- [ ] gate 全绿。
-- [ ] Codex review 确认这只是 prompt/preview 小切片。
+- [x] Python runtime 支持 prompt package normalize/render/validation envelope。
+- [x] Python runtime 支持 preview request 的 safe plan/result/degraded/error envelope。
+- [x] Node prompt-package/effect-preview service 能映射 Python result，并保留 provenance、policy、cost metadata。
+- [x] degraded/error 不伪装成 preview succeeded。
+- [x] gate 全绿。
+- [x] Codex review 确认这只是 prompt/preview 小切片。
 
 ## 目标
 

@@ -96,23 +96,24 @@ export interface WebAigcOcrRecognitionMediaSummary {
 }
 
 export interface OcrRecognitionNodeExecutionResult {
-  ok: true;
+  ok: boolean;
   nodeType: OcrRecognitionNodeType;
   output: {
-    status: "completed";
-    text: string;
-    confidence: number | null;
-    media: WebAigcOcrRecognitionMediaSummary[];
-    results: WebAigcOcrRecognitionItem[];
-    pages: WebAigcOcrPageResult[];
-    fragments: WebAigcOcrTextFragment[];
+    status: "completed" | "degraded" | "error";
+    pythonStatus?: "success" | "degraded" | "provider_missing" | "error";
+    text?: string;
+    confidence?: number | null;
+    media?: WebAigcOcrRecognitionMediaSummary[];
+    results?: WebAigcOcrRecognitionItem[];
+    pages?: WebAigcOcrPageResult[];
+    fragments?: WebAigcOcrTextFragment[];
     artifact?: {
       outputId: string;
       artifacts: WebAigcVisionOutputArtifact[];
       requestedFormats: WebAigcOcrOutputFormat[];
     };
     context: Record<string, unknown>;
-    observability: {
+    observability?: {
       eventKey: "multimodal.ocr_recognition";
       nodeType: OcrRecognitionNodeType;
       imageCount: number;
@@ -122,5 +123,37 @@ export interface OcrRecognitionNodeExecutionResult {
       latencyMs: number;
     };
     warnings: string[];
+    error?: { code: string; message: string };
+    runtime?: {
+      backend: "python";
+      provider: "fake";
+      source: string;
+      externalCalls: false;
+    };
+    provenance?: Record<string, unknown>;
+    permission?: Record<string, unknown>;
+    audit?: Record<string, unknown>;
   };
+}
+
+export interface WebAigcOcrPythonRuntimeResponse {
+  ok: boolean;
+  status: "success" | "degraded" | "provider_missing" | "error";
+  text?: string;
+  confidence?: number | null;
+  fragments?: WebAigcOcrTextFragment[];
+  pages?: WebAigcOcrPageResult[];
+  rawResponse?: string;
+  warnings?: string[];
+  error?: { code: string; message: string };
+  runtime?: {
+    backend: "python";
+    provider: "fake";
+    source: string;
+    externalCalls: false;
+  };
+  metadata?: Record<string, unknown>;
+  provenance?: Record<string, unknown>;
+  permission?: Record<string, unknown>;
+  audit?: Record<string, unknown>;
 }

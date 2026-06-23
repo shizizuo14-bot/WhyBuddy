@@ -4,14 +4,19 @@ import type {
   StaticWebpageReadNodeExecutionResult,
   StaticWebpageReadNodeInput,
   StaticWebpageReadNodeType,
+  StaticWebpageReadPagePayload,
+  WebAigcStaticWebpagePythonRuntimeResponse,
 } from "../../../shared/static-webpage-read.js";
 import { parseHtml } from "./html-parser.js";
 
 export interface StaticWebpageReadNodeAdapterDeps {
   fetchHtml?: (url: string) => Promise<string>;
+  executePythonRuntime?: (
+    input: StaticWebpageReadNodeInput,
+  ) => Promise<WebAigcStaticWebpagePythonRuntimeResponse>;
 }
 
-interface SearchAdapterProvenance {
+interface SearchAdapterProvenance extends Record<string, unknown> {
   provider: string;
   source: string;
   query: string;
@@ -303,6 +308,123 @@ function buildFallbackResult(input: {
   };
 }
 
+function normalizeObject(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return {};
+  }
+
+  return { ...(value as Record<string, unknown>) };
+}
+
+export function mapPythonStaticWebpageRuntimeResponse(
+  response: WebAigcStaticWebpagePythonRuntimeResponse,
+  input: StaticWebpageReadNodeInput = {},
+): StaticWebpageReadNodeExecutionResult {
+  const warnings = Array.isArray(response.warnings) ? [...response.warnings] : [];
+  const runtime = response.runtime;
+  const meta = normalizeObject(response.metadata);
+  const provenance = normalizeObject(response.provenance);
+  const permission = normalizeObject(response.permission);
+  const audit = normalizeObject(response.audit);
+  const baseContext = normalizeContext(input.context);
+
+  if (response.ok && response.status === "success") {
+    const pageData = response.page ?? {
+      title: DEFAULT_TITLE,
+      content: DEFAULT_FALLBACK_CONTENT,
+      snippet: "",
+    };
+    const content = pageData.content || DEFAULT_FALLBACK_CONTENT;
+    const snippet = normalizeString(pageData.snippet) ?? buildSnippet(content);
+    const page = {
+      title: normalizeString(pageData.title) || DEFAULT_TITLE,
+      ...(pageData.url ? { url: pageData.url } : {}),
+      content,
+      snippet,
+      links: Array.isArray(pageData.links) ? pageData.links : [],
+      contentSource: (pageData.contentSource === "fake_static_page" ? "inline_html" : pageData.contentSource) || "inline_html",
+      fetched: pageData.fetched === true,
+    } as StaticWebpageReadPagePayload & { fetched: boolean };
+
+    const handoff = {
+      webQaPage: {
+        ...(page.url ? { href: page.url } : {}),
+        title: page.title,
+        content: page.content,
+        summary: snippet,
+        snippet,
+      },
+      webSearchResult: {
+        title: page.title,
+        url: page.url ?? "about:static-webpage-read",
+        snippet,
+        source: "static_webpage_read",
+      },
+    };
+
+    const out: any = {
+      status: "completed",
+      pythonStatus: "success" as const,
+      page,
+      handoff,
+      context: {
+        ...baseContext,
+        ...(Object.keys(meta).length ? { metadata: meta } : {}),
+        ...(Object.keys(provenance).length ? { provenance } : {}),
+        ...(Object.keys(permission).length ? { permission } : {}),
+        ...(Object.keys(audit).length ? { audit } : {}),
+      },
+      warnings,
+      ...(runtime ? { runtime } : {}),
+      ...(Object.keys(provenance).length ? { provenance } : {}),
+      ...(Object.keys(permission).length ? { permission } : {}),
+      ...(Object.keys(audit).length ? { audit } : {}),
+      observability: {
+        eventKey: "external.static_webpage_read" as const,
+        nodeType: "static_webpage_read" as const,
+        contentSource: page.contentSource,
+        fetched: page.fetched,
+        linkCount: page.links.length,
+        contentLength: page.content.length,
+        fallbackUsed: false,
+      },
+    };
+    return {
+      ok: true,
+      nodeType: "static_webpage_read",
+      output: out,
+    };
+  }
+
+  // non-success: do not masquerade
+  const err = response.error ?? {
+    code: response.status === "provider_missing" ? "provider_missing" : response.status === "degraded" ? "provider_degraded" : "runtime_error",
+    message: "Python static webpage runtime did not return success.",
+  };
+  const status = response.status === "degraded" ? "degraded" : "error";
+  return {
+    ok: false,
+    nodeType: "static_webpage_read",
+    output: {
+      status,
+      pythonStatus: response.status,
+      context: {
+        ...baseContext,
+        ...(Object.keys(meta).length ? { metadata: meta } : {}),
+        ...(Object.keys(provenance).length ? { provenance } : {}),
+        ...(Object.keys(permission).length ? { permission } : {}),
+        ...(Object.keys(audit).length ? { audit } : {}),
+      },
+      warnings: [...warnings, `python static status=${response.status}`],
+      error: err,
+      ...(runtime ? { runtime } : {}),
+      ...(Object.keys(provenance).length ? { provenance } : {}),
+      ...(Object.keys(permission).length ? { permission } : {}),
+      ...(Object.keys(audit).length ? { audit } : {}),
+    },
+  };
+}
+
 export function isStaticWebpageReadNodeType(
   value: unknown,
 ): value is StaticWebpageReadNodeType {
@@ -315,6 +437,11 @@ export async function executeStaticWebpageReadNode(
 ): Promise<StaticWebpageReadContractResult> {
   if (!isStaticWebpageReadNodeType(request.nodeType)) {
     throw new Error("Unsupported static_webpage_read node type.");
+  }
+
+  if (deps.executePythonRuntime) {
+    const pyResponse = await deps.executePythonRuntime(request.input ?? {});
+    return mapPythonStaticWebpageRuntimeResponse(pyResponse, request.input ?? {}) as StaticWebpageReadContractResult;
   }
 
   const normalized = ensureInput(request.input);

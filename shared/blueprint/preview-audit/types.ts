@@ -74,6 +74,9 @@ export interface PreviewAuditResult {
   failCount: number;
   findings: PreviewAuditFinding[];
   overallStatus: BlueprintCheckStatus;
+  /** Retained from Python runtime envelope for audit provenance. */
+  provenance?: string;
+  policy?: Record<string, unknown>;
 }
 
 /**

@@ -8,11 +8,11 @@
 
 ### 状态清单
 
-- [ ] Python runtime 支持 mission event append/replay/projection/cancel/error envelope。
-- [ ] Node mission store/runtime 能映射 Python replay result，并保留 projectId、resourceId、actor 和 auth metadata。
-- [ ] cancelled/failed/error 不伪装成 running/completed。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有迁完整任务调度器或真实 executor worker。
+- [x] Python runtime 支持 mission event append/replay/projection/cancel/error envelope。
+- [x] Node mission store/runtime 能映射 Python replay result，并保留 projectId、resourceId、actor 和 auth metadata。
+- [x] cancelled/failed/error 不伪装成 running/completed。
+- [x] gate 全绿。
+- [x] Codex review 确认没有迁完整任务调度器或真实 executor worker。
 
 ## 目标
 

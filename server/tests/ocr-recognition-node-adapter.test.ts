@@ -65,6 +65,9 @@ describe("executeOcrRecognitionNode", () => {
         {
           name: "invoice.png",
           base64DataUrl: "data:image/png;base64,abc123",
+          mimeType: "image/png",
+          durationMs: null,
+          metadata: {},
         },
       ],
       undefined,

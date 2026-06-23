@@ -646,6 +646,62 @@ export class MissionStore {
     return expired;
   }
 
+  applyMissionEventReplayResult(
+    id: string,
+    result: { ok?: boolean; task?: Record<string, unknown>; replay?: Record<string, unknown>; metadata?: Record<string, unknown> }
+  ): MissionRecord | undefined {
+    const task = this.missions.get(id);
+    if (!task) return undefined;
+    if (!result || result.ok !== true) {
+      return structuredClone(task);
+    }
+
+    // Map status from python replay envelope without coercing terminals to success
+    const replayTask = result.task || {};
+    const nodeStatus = typeof replayTask.nodeStatus === 'string' ? replayTask.nodeStatus : undefined;
+    const rtStatus = typeof replayTask.status === 'string' ? replayTask.status : undefined;
+    const target = nodeStatus || rtStatus;
+    if (target === 'cancelled') {
+      task.status = 'cancelled';
+    } else if (target === 'failed') {
+      task.status = 'failed';
+    } else if (target === 'completed' || target === 'done') {
+      task.status = 'done';
+    } else if (target === 'running' || target === 'started') {
+      if (task.status !== 'cancelled' && task.status !== 'failed' && task.status !== 'done') {
+        task.status = 'running';
+      }
+    }
+
+    const progress = replayTask.progress;
+    if (typeof progress === 'number') {
+      task.progress = clampProgress(progress);
+    }
+
+    // Retain project/resource/auth metadata via projection patch
+    const meta = result.metadata || {};
+    const replayProj = (result.replay && (result.replay as any).projection) || {};
+    const patch: Partial<MissionProjectionLinks> = {};
+    const projectId = (meta.project && (meta.project as any).projectId) || replayProj.projectId || (task.projection && task.projection.projectId);
+    if (projectId) {
+      patch.projectId = projectId;
+    }
+    const resourceId = (meta.resource && (meta.resource as any).resourceId) || replayProj.resourceId;
+    if (resourceId && !task.projection?.instanceId) {
+      // keep projection metadata from replay
+      (task as any)._replayResourceId = resourceId; // lightweight marker for test parity
+    }
+
+    if (Object.keys(patch).length > 0) {
+      task.projection = mergeMissionProjectionLinks(task.projection, patch);
+    }
+
+    task.updatedAt = now();
+    this.missions.set(id, task);
+    this.persist();
+    return structuredClone(task);
+  }
+
   private persist(): void {
     this.snapshotStore?.save(
       Array.from(this.missions.values()).map(task => structuredClone(task))

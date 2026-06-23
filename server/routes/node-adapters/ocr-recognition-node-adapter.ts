@@ -15,6 +15,7 @@ import type {
   OcrRecognitionNodeExecutionResult,
   OcrRecognitionNodeInput,
   OcrRecognitionNodeType,
+  WebAigcOcrPythonRuntimeResponse,
   WebAigcOcrRecognitionImageInput,
   WebAigcOcrRecognitionMediaSummary,
 } from "../../../shared/web-aigc-ocr-recognition.js";
@@ -61,6 +62,9 @@ export interface OcrRecognitionNodeAdapterDeps {
     },
   ) => Promise<PersistedVisionOutput>;
   now?: () => number;
+  executePythonRuntime?: (
+    input: OcrRecognitionNodeInput,
+  ) => Promise<WebAigcOcrPythonRuntimeResponse>;
 }
 
 function normalizeString(value: unknown): string | undefined {
@@ -294,6 +298,118 @@ function buildContext(
   };
 }
 
+export function mapPythonOcrRecognitionRuntimeResponse(
+  response: WebAigcOcrPythonRuntimeResponse,
+  input: OcrRecognitionNodeInput = {},
+): OcrRecognitionNodeExecutionResult {
+  const warnings = Array.isArray(response.warnings) ? [...response.warnings] : [];
+  const runtime = response.runtime;
+  const meta = normalizeObject(response.metadata);
+  const provenance = normalizeObject(response.provenance);
+  const permission = normalizeObject(response.permission);
+  const audit = normalizeObject(response.audit);
+  const baseContext = normalizeObject(input.context);
+
+  if (response.ok && response.status === "success") {
+    const text = response.text ?? "";
+    const pages = response.pages ?? (text ? [{ page: 1, text }] : []);
+    const fragments = response.fragments ?? (text ? [{ text, page: 1 }] : []);
+    const confidence = response.confidence ?? null;
+    const media: WebAigcOcrRecognitionMediaSummary[] = (input.images ?? []).map(img => ({
+      name: img.name,
+      mimeType: normalizeString(img.mimeType) ?? "image/png",
+      durationMs: normalizeDurationMs(img.durationMs),
+      metadata: normalizeObject(img.metadata),
+    }));
+    return {
+      ok: true,
+      nodeType: "ocr_recognition",
+      output: {
+        status: "completed",
+        pythonStatus: "success",
+        text,
+        confidence,
+        media,
+        results: (input.images ?? []).map(img => ({
+          name: img.name,
+          recognition: {
+            text,
+            fragments: fragments as any,
+            pages: pages as any,
+            rawResponse: response.rawResponse ?? `python:${img.name}`,
+            confidence,
+          },
+          pageCount: pages.length,
+          fragmentCount: fragments.length,
+        })),
+        pages: pages as any,
+        fragments: fragments as any,
+        context: {
+          ...baseContext,
+          ocrRecognition: { text, results: [] },
+          ...(Object.keys(meta).length ? { metadata: meta } : {}),
+          ...(Object.keys(provenance).length ? { provenance } : {}),
+          ...(Object.keys(permission).length ? { permission } : {}),
+          ...(Object.keys(audit).length ? { audit } : {}),
+        },
+        warnings,
+        ...(runtime ? { runtime } : {}),
+        ...(Object.keys(provenance).length ? { provenance } : {}),
+        ...(Object.keys(permission).length ? { permission } : {}),
+        ...(Object.keys(audit).length ? { audit } : {}),
+        observability: {
+          eventKey: "multimodal.ocr_recognition",
+          nodeType: "ocr_recognition",
+          imageCount: (input.images ?? []).length,
+          totalPageCount: pages.length,
+          totalFragmentCount: fragments.length,
+          artifactPersisted: false,
+          latencyMs: 0,
+        },
+      },
+    };
+  }
+
+  // non-success: do not masquerade as success
+  const err = response.error ?? {
+    code: response.status === "provider_missing" ? "provider_missing" : response.status === "degraded" ? "provider_degraded" : "runtime_error",
+    message: "Python ocr runtime did not return success.",
+  };
+  const status = response.status === "degraded" ? "degraded" : "error";
+  return {
+    ok: false,
+    nodeType: "ocr_recognition",
+    output: {
+      status,
+      pythonStatus: response.status,
+      text: "",
+      confidence: null,
+      media: (input.images ?? []).map(img => ({
+        name: img.name,
+        mimeType: normalizeString(img.mimeType) ?? "image/png",
+        durationMs: normalizeDurationMs(img.durationMs),
+        metadata: normalizeObject(img.metadata),
+      })),
+      results: [],
+      pages: [],
+      fragments: [],
+      context: {
+        ...baseContext,
+        ...(Object.keys(meta).length ? { metadata: meta } : {}),
+        ...(Object.keys(provenance).length ? { provenance } : {}),
+        ...(Object.keys(permission).length ? { permission } : {}),
+        ...(Object.keys(audit).length ? { audit } : {}),
+      },
+      warnings: [...warnings, `python ocr status=${response.status}`],
+      error: err,
+      ...(runtime ? { runtime } : {}),
+      ...(Object.keys(provenance).length ? { provenance } : {}),
+      ...(Object.keys(permission).length ? { permission } : {}),
+      ...(Object.keys(audit).length ? { audit } : {}),
+    },
+  };
+}
+
 export function isOcrRecognitionNodeType(
   value: unknown,
 ): value is OcrRecognitionNodeType {
@@ -313,6 +429,12 @@ export async function executeOcrRecognitionNode(
   }
 
   const input = request.input ?? {};
+
+  if (deps.executePythonRuntime) {
+    const pyResponse = await deps.executePythonRuntime(input);
+    return mapPythonOcrRecognitionRuntimeResponse(pyResponse, input);
+  }
+
   const images = normalizeImages(input.images);
   const prompt = normalizeString(input.prompt);
   const artifactInput = normalizeObject(input.artifact);
@@ -324,6 +446,7 @@ export async function executeOcrRecognitionNode(
   const outputFormats = normalizeOutputFormats(artifactInput.outputFormats);
   const now = deps.now ?? Date.now;
   const startedAt = now();
+
   const recognizeImages = deps.recognizeImages ?? recognizeImagesText;
 
   let resultMap: Map<string, ContractOCRRecognitionResult>;

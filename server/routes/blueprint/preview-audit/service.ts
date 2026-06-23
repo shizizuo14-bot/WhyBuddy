@@ -246,3 +246,37 @@ export function createPreviewAuditService(
     },
   };
 }
+
+// ---------------------------------------------------------------------------
+// Python runtime support (Blueprint prompt/preview runtime 97)
+// Mapper retains provenance/policy/audit metadata; never rewrites degraded as pass.
+// ---------------------------------------------------------------------------
+
+export interface PythonPreviewAuditEnvelope {
+  jobId: string;
+  auditedAt: string;
+  totalImages: number;
+  passCount: number;
+  failCount: number;
+  findings: PreviewAuditFinding[];
+  overallStatus: BlueprintCheckStatus;
+  provenance?: string;
+  policy?: Record<string, unknown>;
+}
+
+export function mapPreviewAuditPythonResult(
+  env: PythonPreviewAuditEnvelope,
+): PreviewAuditResult {
+  // direct passthrough preserving all metadata; status decides pass/fail
+  return {
+    jobId: env.jobId,
+    auditedAt: env.auditedAt,
+    totalImages: env.totalImages,
+    passCount: env.passCount,
+    failCount: env.failCount,
+    findings: env.findings,
+    overallStatus: env.overallStatus,
+    provenance: env.provenance,
+    policy: env.policy,
+  };
+}

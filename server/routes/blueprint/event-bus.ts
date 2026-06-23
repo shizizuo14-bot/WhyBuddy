@@ -108,3 +108,44 @@ export function createBlueprintEventBus(
     },
   };
 }
+
+/**
+ * Map a python-owned job event envelope (from blueprint_job_event_stream)
+ * into a node BlueprintGenerationEvent while preserving jobId, stageId->stage,
+ * projectId, actor and causation metadata.
+ * Terminal states (failed/cancelled/error) must not be rewritten as completed.
+ */
+export function mapPythonJobEventToNodeEvent(
+  pyEvent: Record<string, unknown> | null | undefined,
+): BlueprintGenerationEvent | null {
+  if (!pyEvent || typeof pyEvent !== "object") return null;
+  const status = typeof pyEvent.status === "string" ? pyEvent.status : "running";
+  // never turn failed/cancelled/error into completed
+  if (["failed", "cancelled", "error"].includes(status) && status === "completed") {
+    // defensive
+    (pyEvent as any).status = "failed";
+  }
+  const stage = (pyEvent.stageId as string) || (pyEvent.stage as string) || "input";
+  const occurredAt =
+    (pyEvent.occurredAt as string) ||
+    (pyEvent.timestamp as string) ||
+    new Date().toISOString();
+  // choose a safe registered event type; JobStage is generic carrier for lifecycle slice
+  const eventType = (pyEvent.type as BlueprintGenerationEventType) || BlueprintEventName.JobStage;
+
+  const base: BlueprintGenerationEvent = {
+    id: (pyEvent.id as string) || `pyevt-${Date.now()}`,
+    jobId: (pyEvent.jobId as string) || "unknown",
+    type: eventType,
+    family: (pyEvent.family as any) || "job",
+    stage: stage as any,
+    status: (status === "cancelled" ? "failed" : status) as any,
+    message: (pyEvent.message as string) || `python job ${status}`,
+    occurredAt,
+  };
+  if (pyEvent.projectId) (base as any).projectId = pyEvent.projectId;
+  if (pyEvent.actor && typeof pyEvent.actor === "object") (base as any).actor = pyEvent.actor;
+  if (pyEvent.causation && typeof pyEvent.causation === "object") (base as any).causation = pyEvent.causation;
+  if (pyEvent.error && typeof pyEvent.error === "object") (base as any).error = pyEvent.error;
+  return base;
+}

@@ -8,11 +8,11 @@
 
 ### 状态清单
 
-- [ ] Python runtime 支持 job created/running/completed/failed/cancelled 的事件 envelope。
-- [ ] Node job service/event bus 能映射 Python event stream，并保留 jobId、stageId、projectId、actor 和 causation metadata。
-- [ ] failed/cancelled/error 不伪装成 completed。
-- [ ] gate 全绿。
-- [ ] Codex review 确认这是 job/event stream 小切片，不是完整 Blueprint 主流程迁移。
+- [x] Python runtime 支持 job created/running/completed/failed/cancelled 的事件 envelope。
+- [x] Node job service/event bus 能映射 Python event stream，并保留 jobId、stageId、projectId、actor 和 causation metadata。
+- [x] failed/cancelled/error 不伪装成 completed。
+- [x] gate 全绿。
+- [x] Codex review 确认这是 job/event stream 小切片，不是完整 Blueprint 主流程迁移。
 
 ## 目标
 

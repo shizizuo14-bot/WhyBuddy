@@ -16,6 +16,64 @@
 | `runtime bridge` | 运行时桥 | Node 能把一个有边界的运行时操作委托给 Python，并且错误/超时/取消语义有测试覆盖。 |
 | `production wiring` | 生产接线 | 接入存储、真实服务边界、观测、fallback（回退）或部署健康检查；smoke（冒烟）通过仍不等于真实外部服务长跑可用。 |
 
+## 97 阶段 runtime 代码落地刷新
+
+本轮 97 code queue 在 96 阶段真实 runtime 补丁后，继续对 Blueprint 深水区、Task lifecycle 和 Web AIGC 长尾补了 5 个 bounded runtime 切片。状态刷新只按当前 HEAD 的 commit、代码、测试证据调整口径；不把规划但未落地的任务、不把 status refresh 本身、不把 docs-only 计入业务迁移。
+
+当前用于本节判断的 `HEAD` 是：
+
+- `8f62c197 agent-loop queue checkpoint: backend-python-web-aigc-ai-ppt-runtime-97`
+
+本轮可计入的真实代码提交（仅 runtime-bridge / bounded runtime）：
+
+| commit | 切片 | 计入口径 |
+|---|---|---|
+| `cc137a93` | Blueprint job/event stream runtime | Python 产生 job created/running/completed/failed/cancelled/error envelope；Node 保留 durable store/event bus transport。计入 Blueprint-adjacent runtime support 的小切片，不等于完整 Blueprint 主路由、状态机、job store 或 diagnostics。 |
+| `d3d77aca` | Blueprint prompt/preview runtime | Python prompt package normalize/render + preview safe/degraded/error envelope；Node 保留 LLM/image 实际调用和路由。计入 Blueprint-adjacent，不等于完整 prompt package 或 preview 生产链路。 |
+| `56f0df9d` | Task mission event replay runtime | Python mission append/replay/project/cancel/error 投影；Node 保留 mission store、project/resource auth。计入 Task lifecycle bounded runtime，不等于完整 `/api/tasks`、调度器或 executor worker。 |
+| `e9240b96` | Web AIGC OCR/static runtime bridge | Python OCR + static webpage 成功/降级/缺失/错误 envelope（fake provider）；Node adapter 映射。计入 Web AIGC long-tail runtime，不等于真实 OCR、browser、网页抓取或外部 provider 接管。 |
+| `8f62c197` | Web AIGC AI PPT runtime bridge | Python AI PPT outline/slide-plan/export-intent 成功/降级/错误 envelope（fake）；Node 保留生成 provider 调用。计入 Web AIGC long-tail，不等于真实 PPT 生成或外部服务。 |
+
+本轮未产生代码变更（不能计入）的 97 任务：
+
+- `backend-python-auth-login-register-runtime-97`、`backend-python-permission-audit-hooks-runtime-97`、`backend-python-production-external-live-smoke-97`：仅 task 文件在规划提交创建，无 Python/Node runtime diff 或测试新增；状态仍为待执行。
+
+本轮代码落地后的整体口径：**整体 NodeJS 后端迁 Python 从 96 阶段的约 88-90% / 工作数字 89% 保守上调到约 89-91% / 工作数字 90%。仍不建议写成整体 95% 或接近 95%，因为 auth login/register、permission audit hooks、生产外部依赖、Blueprint 主系统大分母、完整 task lifecycle、Web AIGC 其他长尾和真实生产 wiring 仍然大量是 Node-owned 或未证明。** 状态刷新本身不计入分子。
+
+## 97 阶段计入与不计入清单
+
+| 类型 | 本轮 97 成功计入 | 本轮不能计入 |
+|---|---|---|
+| runtime / runtime bridge | 5 个：blueprint-job-event-stream、blueprint-prompt-preview、task-mission-event-replay、web-aigc-ocr-static、web-aigc-ai-ppt（均有 Python runtime + Node bridge/test + commit 证据） | auth-login-register、permission-audit-hooks、production-external-live-smoke（无代码 diff） |
+| status / docs / inventory | — | backend-python-migration-status-refresh-97 本身；任何 inventory/audit/status 文档 |
+| proxy / contract-only | — | 97 队列中未出现；历史保留不计 |
+| no-diff / HALT / skipped | — | 未落地的 3 个 97 任务；fake/synthetic smoke 不升级为真实 production |
+| SlideRule V5 | — | 本轮未涉及；不能外推到整体 backend 百分比 |
+
+## 97 阶段当前缺口
+
+| 缺口 | 为什么仍阻碍整体 95% |
+|---|---|
+| Blueprint 主系统 | job/event stream 和 prompt/preview 已补 bounded runtime，但 `/api/blueprint` 大路由、状态机、完整 job store/event bus、diagnostics、ledger、preview 全链路、prompt package 真实执行仍 Node-owned。 |
+| Auth 登录注册生产链路 | 96 已有 refresh/logout；97 login/register 未落地。用户注册/登录、email code、密码、真实 session repo、生产邮件服务仍全部 Node。 |
+| Permission / Audit hooks | permission rate-limit/check/audit event 已部分；97 permission audit hooks 未落地。policy decision provenance、denial logging、完整 audit hooks 链路仍阻塞。 |
+| Task lifecycle 全链路 | mission replay 补上；但 mission store 持久化、完整 event replay、cancel/error 处理、project/resource auth、调度器仍 Node 为主。 |
+| Web AIGC 长尾剩余 | ocr/static/ai-ppt/dynamic/transaction 已 bounded；web-qa、image/graph search、真实 provider、AI PPT 生成等仍需更多。 |
+| 真实生产外部依赖 | production external live smoke 97 未落地；所有 Qdrant/embedding/search/OCR/vision/audio/APM/billing/audit platform 仍是 smoke 或 missing config；safe-failure 不能计为接管。 |
+| 队列未覆盖项 | 旧 HALT_* 仍需后续逐项 commit 证据清算；不能仅靠状态刷新消除。 |
+
+## 97 阶段分层进度口径
+
+| 范围 | 97 阶段判断 | 进度条 | 计入口径 |
+|---|---:|---|---|
+| 整体 NodeJS 后端迁 Python | 约 89-91%，工作数字 90% | `[█████████░]` | 本轮新增 5 个 bounded runtime 证据（job event stream、prompt/preview、mission replay、ocr/static、ai-ppt）；但 auth/register/login、permission hooks、外部 live smoke 未落地；Blueprint 主流程、task 完整链路、多数 Web AIGC 仍 Node-owned 或 proxy/contract；真实外部依赖无接管证明。 |
+| SlideRule V5 子系统迁移 | 可审计 95%，写作 94-96% 区间 | `[█████████░]` | 95 阶段审计结论继续成立；97 队列未针对 SlideRule V5 主链路新增；不把本轮 backend 周边计入 SlideRule 子系统百分比。 |
+| Blueprint-adjacent runtime support | 约 80-86% | `[████████░░]` | 97 补了 job/event stream 和 prompt/preview runtime boundary；但 Blueprint 主路由、状态机、完整 job store、event bus 所有权、diagnostics、ledger、replan 等仍为 Node 或未覆盖。 |
+| Auth/Audit runtime support | 约 78-84% | `[████████░░]` | 96 已补 refresh/logout + audit retention/export；97 的 login/register 和 permission audit hooks 未落地代码。注册/登录、邮件码、完整 session repo、audit hooks/policy provenance 生产链路仍是主要阻塞。 |
+| Task lifecycle support | 约 84-90% | `[█████████░]` | 96 task route + 97 mission event replay runtime 已落地；mission store、event append 持久化、project/resource auth、完整 cancel/error/replay 调度仍 Node-owned 或混合。 |
+| Web AIGC long-tail runtime | 约 80-87% | `[████████░░]` | 96 dynamic chart + transaction + 97 ocr/static + ai-ppt 已补 fake runtime bridge；Web QA、image/graph search、static 其他、真实 provider、AI PPT 真生成仍未接管。 |
+| production wiring maturity | 约 80-86%，真实外部接管未证明 | `[████████░░]` | 97 production external live smoke 任务未落地；95/96 的 vector/RAG/deployment/Web fake smoke 继续作为 bounded/synthetic；缺少真实 Qdrant/embedding/OCR/vision/audio/APM/billing/audit platform 的 config+live 证明。 |
+
 ## 96 阶段 runtime 代码落地刷新
 
 本轮 96 code queue 不再只是审计或勾 checklist，而是已经有一组真实 runtime 代码切片落到 `main`。当前用于本节判断的 `HEAD` 是：

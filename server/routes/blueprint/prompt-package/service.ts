@@ -144,6 +144,10 @@ export interface PromptPackageLlmServiceOutput {
   structuredPayloadDigest?: string;
   /** Populated on llm_fallback path (already redacted + truncated). */
   error?: string;
+  /** Python runtime provenance/policy/cost retained on mapped envelopes (task 97). */
+  provenance?: string;
+  policy?: Record<string, unknown>;
+  cost?: Record<string, unknown>;
 }
 
 export type PromptPackageLlmService = (
@@ -432,5 +436,64 @@ export function createPromptPackageLlmService(
       responseDigest,
       structuredPayloadDigest,
     };
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Python runtime mapping (Blueprint prompt/preview runtime 97)
+// Thin mapping of python envelope results. Preserves provenance, policy, cost.
+// degraded / error / invalid NEVER become generationSource "llm".
+// ---------------------------------------------------------------------------
+
+export interface PythonPromptPackageEnvelope {
+  status: "success" | "invalid" | "degraded" | "error";
+  generationSource?: "llm" | "llm_fallback";
+  renderedTitle?: string;
+  renderedSummary?: string;
+  renderedContent?: string;
+  renderedSections?: Array<{ heading: string; body: string }>;
+  renderedPrompts?: RenderedPromptAsset[];
+  promptId?: string;
+  model?: string;
+  promptFingerprint?: string;
+  responseDigest?: string;
+  structuredPayloadDigest?: string;
+  error?: string;
+  provenance?: string;
+  policy?: Record<string, unknown>;
+  cost?: Record<string, unknown>;
+}
+
+export function mapPromptPackagePythonResult(
+  env: PythonPromptPackageEnvelope,
+): PromptPackageLlmServiceOutput {
+  if (env.status === "success" && env.generationSource === "llm") {
+    return {
+      generationSource: "llm",
+      renderedTitle: env.renderedTitle,
+      renderedSummary: env.renderedSummary,
+      renderedContent: env.renderedContent,
+      renderedSections: env.renderedSections,
+      renderedPrompts: env.renderedPrompts,
+      promptId: env.promptId ?? PROMPT_PACKAGE_PROMPT_ID,
+      model: env.model,
+      promptFingerprint: env.promptFingerprint,
+      responseDigest: env.responseDigest,
+      structuredPayloadDigest: env.structuredPayloadDigest,
+      provenance: env.provenance,
+      policy: env.policy,
+      cost: env.cost,
+    };
+  }
+  // safe fallback for degraded/invalid/error
+  return {
+    generationSource: "llm_fallback",
+    error: env.error ?? "python runtime non-success",
+    promptId: env.promptId ?? PROMPT_PACKAGE_PROMPT_ID,
+    model: env.model,
+    promptFingerprint: env.promptFingerprint,
+    provenance: env.provenance,
+    policy: env.policy,
+    cost: env.cost,
   };
 }

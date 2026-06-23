@@ -47,7 +47,7 @@ export interface StaticWebpageReadPagePayload {
   content: string;
   snippet: string;
   links: StaticWebpageReadLink[];
-  contentSource: "inline_html" | "fetched_html" | "fallback";
+  contentSource: "inline_html" | "fetched_html" | "fallback" | "fake_static_page";
   fetched: boolean;
 }
 
@@ -57,15 +57,16 @@ export interface StaticWebpageReadHandoffPayload {
 }
 
 export interface StaticWebpageReadNodeExecutionResult {
-  ok: true;
+  ok: boolean;
   nodeType: StaticWebpageReadNodeType;
   output: {
-    status: StaticWebpageReadStatus;
-    page: StaticWebpageReadPagePayload;
-    handoff: StaticWebpageReadHandoffPayload;
+    status: StaticWebpageReadStatus | "degraded" | "error";
+    pythonStatus?: "success" | "degraded" | "provider_missing" | "error";
+    page?: StaticWebpageReadPagePayload;
+    handoff?: StaticWebpageReadHandoffPayload;
     context: Record<string, unknown>;
     warnings: string[];
-    observability: {
+    observability?: {
       eventKey: "external.static_webpage_read";
       nodeType: StaticWebpageReadNodeType;
       contentSource: StaticWebpageReadPagePayload["contentSource"];
@@ -74,5 +75,41 @@ export interface StaticWebpageReadNodeExecutionResult {
       contentLength: number;
       fallbackUsed: boolean;
     };
+    error?: { code: string; message: string };
+    runtime?: {
+      backend: "python";
+      provider: "fake";
+      source: string;
+      externalCalls: false;
+    };
+    provenance?: Record<string, unknown>;
+    permission?: Record<string, unknown>;
+    audit?: Record<string, unknown>;
   };
+}
+
+export interface WebAigcStaticWebpagePythonRuntimeResponse {
+  ok: boolean;
+  status: "success" | "degraded" | "provider_missing" | "error";
+  page?: {
+    title: string;
+    url?: string;
+    content: string;
+    snippet: string;
+    links?: StaticWebpageReadLink[];
+    contentSource?: "fake_static_page" | "inline_html" | "fetched_html" | "fallback";
+    fetched?: boolean;
+  };
+  warnings?: string[];
+  error?: { code: string; message: string };
+  runtime?: {
+    backend: "python";
+    provider: "fake";
+    source: string;
+    externalCalls: false;
+  };
+  metadata?: Record<string, unknown>;
+  provenance?: Record<string, unknown>;
+  permission?: Record<string, unknown>;
+  audit?: Record<string, unknown>;
 }

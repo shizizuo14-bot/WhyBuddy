@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] 读取本轮 97 code queue 每个任务的结果、diff、gate、commit 证据。
-- [ ] 区分 runtime/proxy/contract/docs-only/no-diff/apply-failed/skipped。
-- [ ] 更新 `sliderule-python-migration-status.md` 的整体进度、分层口径和 remaining gaps。
-- [ ] 如果证据不足以到 95%，必须保持保守百分比并解释缺口。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有虚高整体 NodeJS 后端迁移进度。
+- [x] 读取本轮 97 code queue 每个任务的结果、diff、gate、commit 证据。
+- [x] 区分 runtime/proxy/contract/docs-only/no-diff/apply-failed/skipped。
+- [x] 更新 `sliderule-python-migration-status.md` 的整体进度、分层口径和 remaining gaps。
+- [x] 如果证据不足以到 95%，必须保持保守百分比并解释缺口。
+- [x] gate 全绿。
+- [x] Codex review 确认没有虚高整体 NodeJS 后端迁移进度。
 
 ## 目标
 

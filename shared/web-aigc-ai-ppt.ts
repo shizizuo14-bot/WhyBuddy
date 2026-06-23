@@ -72,7 +72,7 @@ export interface AiPptNodeExecutionResult {
   ok: true;
   nodeType: AiPptNodeType;
   output: {
-    status: "completed" | "degraded";
+    status: "completed" | "degraded" | "error";
     degraded: boolean;
     deck: WebAigcAiPptDeck;
     artifact?: PersistedWebAigcAiPptOutput;
@@ -87,6 +87,12 @@ export interface AiPptNodeExecutionResult {
       latencyMs: number;
     };
     warnings: string[];
+    pythonStatus?: WebAigcAiPptPythonStatus;
+    runtime?: WebAigcAiPptPythonRuntimeMetadata;
+    provenance?: Record<string, unknown>;
+    permission?: Record<string, unknown>;
+    audit?: Record<string, unknown>;
+    error?: { code: string; message: string };
   };
 }
 
@@ -108,4 +114,34 @@ export function buildWebAigcAiPptOutputRelativePath(
   filename: string,
 ): string {
   return `${WEB_AIGC_AI_PPT_OUTPUT_BASE_PATH}/${outputId}/${filename}`;
+}
+
+export interface WebAigcAiPptPythonRuntimeMetadata {
+  backend: "python";
+  provider: "fake";
+  source: string;
+  externalCalls: false;
+}
+
+export type WebAigcAiPptPythonStatus =
+  | "success"
+  | "degraded"
+  | "provider_missing"
+  | "error";
+
+export interface WebAigcAiPptPythonRuntimeResponse {
+  ok: boolean;
+  status: WebAigcAiPptPythonStatus;
+  plan?: {
+    title: string;
+    summary: string;
+    slides: WebAigcAiPptSlide[];
+  };
+  warnings?: string[];
+  error?: { code: string; message: string };
+  runtime?: WebAigcAiPptPythonRuntimeMetadata;
+  metadata?: Record<string, unknown>;
+  provenance?: Record<string, unknown>;
+  permission?: Record<string, unknown>;
+  audit?: Record<string, unknown>;
 }

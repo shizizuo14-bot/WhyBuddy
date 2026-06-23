@@ -145,6 +145,10 @@ export interface EffectPreviewLlmServiceOutput {
   responseDigest?: string;
   structuredPayloadDigest?: string;
   error?: string;
+  /** Python runtime provenance/policy/cost retained on mapped envelopes (task 97). */
+  provenance?: string;
+  policy?: Record<string, unknown>;
+  cost?: Record<string, unknown>;
 }
 
 /**
@@ -441,5 +445,72 @@ export function createEffectPreviewLlmService(
       output.promptId = EFFECT_PREVIEW_PROMPT_ID;
     }
     return output;
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Python runtime mapping (Blueprint prompt/preview runtime 97)
+// Maps preview safe envelopes from python. Ensures degraded/error stay non-success.
+// ---------------------------------------------------------------------------
+
+export interface PythonPreviewEnvelope {
+  status: "plan" | "result" | "degraded" | "error";
+  ok?: boolean;
+  degraded?: boolean;
+  summary?: string;
+  architectureNotes?: string[];
+  prototypeNotes?: string[];
+  progressPlan?: any[];
+  renderedHudState?: any;
+  renderedConsoleLines?: string[];
+  renderedLogTimeline?: any[];
+  renderedBrowserPreview?: any;
+  error?: string;
+  degradedReason?: string;
+  promptFingerprint?: string;
+  responseDigest?: string;
+  structuredPayloadDigest?: string;
+  provenance?: string;
+  policy?: Record<string, unknown>;
+  cost?: Record<string, unknown>;
+}
+
+export function mapEffectPreviewPythonResult(
+  env: PythonPreviewEnvelope,
+): EffectPreviewLlmServiceOutput {
+  if ((env.status === "plan" || env.status === "result") && env.ok !== false && env.degraded !== true) {
+    const out: EffectPreviewLlmServiceOutput = {
+      generationSource: "llm",
+      summary: env.summary,
+      architectureNotes: env.architectureNotes,
+      prototypeNotes: env.prototypeNotes,
+      progressPlan: env.progressPlan as any,
+      renderedHudState: env.renderedHudState,
+      renderedConsoleLines: env.renderedConsoleLines,
+      renderedLogTimeline: env.renderedLogTimeline as any,
+      promptId: EFFECT_PREVIEW_PROMPT_ID,
+      model: "python-runtime",
+      promptFingerprint: env.promptFingerprint ?? "py-preview",
+      responseDigest: env.responseDigest ?? "sha256:mock",
+      structuredPayloadDigest: env.structuredPayloadDigest ?? "sha256:mock",
+      provenance: env.provenance,
+      policy: env.policy,
+      cost: env.cost,
+    };
+    if (env.renderedBrowserPreview) {
+      out.renderedBrowserPreview = env.renderedBrowserPreview;
+    }
+    return out;
+  }
+  // safe: degraded or error mapped to fallback, never success
+  return {
+    generationSource: "llm_fallback",
+    error: env.error ?? env.degradedReason ?? "python preview non-success",
+    promptId: EFFECT_PREVIEW_PROMPT_ID,
+    model: "python-runtime",
+    promptFingerprint: env.promptFingerprint ?? "py-preview",
+    provenance: env.provenance,
+    policy: env.policy,
+    cost: env.cost,
   };
 }

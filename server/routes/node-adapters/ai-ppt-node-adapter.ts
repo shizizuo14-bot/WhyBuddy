@@ -9,6 +9,7 @@ import type {
   PersistedWebAigcAiPptOutput,
   WebAigcAiPptDeck,
   WebAigcAiPptGenerationInput,
+  WebAigcAiPptPythonRuntimeResponse,
   WebAigcAiPptSlide,
 } from "../../../shared/web-aigc-ai-ppt.js";
 import {
@@ -40,6 +41,9 @@ export interface AiPptNodeAdapterDeps {
   ) => Promise<PersistedWebAigcAiPptOutput>;
   now?: () => number;
   createOutputId?: () => string;
+  executePythonRuntime?: (
+    input: AiPptNodeInput,
+  ) => Promise<WebAigcAiPptPythonRuntimeResponse>;
 }
 
 function normalizeString(value: unknown): string | undefined {
@@ -238,6 +242,121 @@ function buildContext(
   };
 }
 
+function buildDeckFromPythonPlan(
+  plan: { title: string; summary: string; slides: WebAigcAiPptSlide[] } | undefined,
+  fallback: WebAigcAiPptDeck,
+): WebAigcAiPptDeck {
+  if (!plan || !plan.title || !Array.isArray(plan.slides) || plan.slides.length === 0) {
+    return { ...fallback, generationMode: "fallback" };
+  }
+  const slides: WebAigcAiPptSlide[] = plan.slides
+    .filter((s): s is WebAigcAiPptSlide => !!s && typeof s.title === "string")
+    .map((s, idx) => ({
+      slideNumber: typeof s.slideNumber === "number" ? s.slideNumber : idx + 1,
+      title: s.title,
+      bullets: Array.isArray(s.bullets)
+        ? s.bullets.filter((b): b is string => typeof b === "string").map((b) => b.trim()).filter(Boolean)
+        : [],
+      ...(s.speakerNotes ? { speakerNotes: s.speakerNotes } : {}),
+    }));
+  return {
+    title: plan.title || fallback.title,
+    summary: plan.summary || fallback.summary,
+    slides: slides.length > 0 ? slides : fallback.slides,
+    generationMode: "generated",
+  };
+}
+
+export function mapPythonAiPptRuntimeResponse(
+  response: WebAigcAiPptPythonRuntimeResponse,
+  input: AiPptNodeInput = {},
+): AiPptNodeExecutionResult {
+  const warnings = Array.isArray(response.warnings) ? [...response.warnings] : [];
+  const runtime = response.runtime;
+  const meta = normalizeObject(response.metadata);
+  const prov = response.provenance;
+  const perm = response.permission;
+  const aud = response.audit;
+
+  let normalizedInput: WebAigcAiPptGenerationInput;
+  try {
+    normalizedInput = normalizeGenerationInput(input);
+  } catch {
+    normalizedInput = { slideCount: 5 };
+  }
+  const fallbackDeck = buildFallbackDeck(normalizedInput);
+
+  let deck = fallbackDeck;
+  let status: "completed" | "degraded" | "error" = "completed";
+  let degraded = false;
+  let pyStatus = response.status;
+  let errorInfo = response.error;
+
+  if (response.ok === true && response.status === "success" && response.plan) {
+    deck = buildDeckFromPythonPlan(response.plan, fallbackDeck);
+    status = "completed";
+    degraded = false;
+  } else {
+    degraded = true;
+    status = response.status === "degraded" || response.status === "provider_missing" ? "degraded" : "error";
+    // keep fallback deck, do not claim generated
+    deck = { ...fallbackDeck, generationMode: "fallback" };
+    if (!warnings.length && errorInfo) {
+      warnings.push(errorInfo.message || "AI PPT python runtime did not succeed.");
+    }
+  }
+
+  const baseOutput: any = {
+    status,
+    degraded,
+    deck,
+    context: {
+      ...normalizeObject(input?.context),
+      aiPpt: {
+        title: deck.title,
+        summary: deck.summary,
+        slideCount: deck.slides.length,
+        generationMode: deck.generationMode,
+      },
+      ...(Object.keys(meta).length ? { metadata: meta } : {}),
+    },
+    observability: {
+      eventKey: "content.ai_ppt",
+      nodeType: "ai_ppt" as const,
+      slideCount: deck.slides.length,
+      artifactPersisted: false,
+      degraded,
+      latencyMs: 0,
+    },
+    warnings,
+  };
+
+  if (pyStatus) {
+    baseOutput.pythonStatus = pyStatus;
+  }
+  if (runtime) {
+    baseOutput.runtime = runtime;
+  }
+  if (prov) {
+    baseOutput.provenance = prov;
+  }
+  if (perm) {
+    baseOutput.permission = perm;
+  }
+  if (aud) {
+    baseOutput.audit = aud;
+  }
+  if (errorInfo) {
+    baseOutput.error = errorInfo;
+  }
+
+  return {
+    ok: true,
+    nodeType: "ai_ppt",
+    output: baseOutput,
+  };
+}
+
 function defaultOutputId(): string {
   return `ai-ppt-${Date.now()}`;
 }
@@ -317,6 +436,13 @@ export async function executeAiPptNode(
   const input = request.input ?? {};
   const normalizedInput = normalizeGenerationInput(input);
   const artifactOptions = normalizeArtifactOptions(input);
+
+  if (deps.executePythonRuntime) {
+    const pyResponse = await deps.executePythonRuntime(input);
+    // map does not do persist here; artifact handled by caller if needed for this slice
+    return mapPythonAiPptRuntimeResponse(pyResponse, input);
+  }
+
   const fallbackDeck = buildFallbackDeck(normalizedInput);
   const warnings: string[] = [];
 

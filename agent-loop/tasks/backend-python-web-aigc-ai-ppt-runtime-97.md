@@ -8,11 +8,11 @@
 
 ### 状态清单
 
-- [ ] Python runtime 支持 outline/slide-plan/export-intent success/degraded/error envelope。
-- [ ] Node AI PPT route/adapter 能映射 Python result，并保留 provenance、permission、audit metadata。
-- [ ] degraded/error 不伪装成 generated。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有真实生成 PPT 文件或调用外部 provider。
+- [x] Python runtime 支持 outline/slide-plan/export-intent success/degraded/error envelope。
+- [x] Node AI PPT route/adapter 能映射 Python result，并保留 provenance、permission、audit metadata。
+- [x] degraded/error 不伪装成 generated。
+- [x] gate 全绿。
+- [x] Codex review 确认没有真实生成 PPT 文件或调用外部 provider。
 
 ## 目标
 

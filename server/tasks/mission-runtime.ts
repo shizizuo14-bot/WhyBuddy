@@ -302,6 +302,15 @@ export class MissionRuntime {
     return expired;
   }
 
+  applyEventReplayResult(
+    id: string,
+    result: { ok?: boolean; task?: Record<string, unknown>; replay?: Record<string, unknown>; metadata?: Record<string, unknown> }
+  ): MissionRecord | undefined {
+    const updated = this.store.applyMissionEventReplayResult(id, result);
+    this.emitMissionUpdate(updated);
+    return updated;
+  }
+
   emitDecisionSubmitted(
     task: MissionRecord,
     historyEntry: DecisionHistoryEntry,

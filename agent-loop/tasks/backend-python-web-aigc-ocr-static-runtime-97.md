@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] Python runtime 支持 OCR text extraction success/degraded/error envelope。
-- [ ] Python runtime 支持 static webpage read success/degraded/error envelope。
-- [ ] Node route/adapter 能映射 Python result，并保留 permission/audit/provenance metadata。
-- [ ] degraded/error 不伪装成 success。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有接真实外部 provider。
+- [x] Python runtime 支持 OCR text extraction success/degraded/error envelope。
+- [x] Python runtime 支持 static webpage read success/degraded/error envelope。
+- [x] Node route/adapter 能映射 Python result，并保留 permission/audit/provenance metadata。
+- [x] degraded/error 不伪装成 success。
+- [x] gate 全绿。
+- [x] Codex review 确认没有接真实外部 provider。
 
 ## 目标
 
