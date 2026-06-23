@@ -259,7 +259,7 @@ test('buildLoopArgsForQueueEntry uses worktree and omits fix-cwd', () => {
       skipReview: false,
       fixAgent: 'grok',
       reviewAgent: 'codex',
-      fixModel: 'gpt-5.5',
+      fixModel: 'grok-build',
       reviewModel: 'gpt-5.5',
       guardTests: true,
       maxIterations: 3,
@@ -289,7 +289,7 @@ test('buildLoopArgsForQueueEntry uses worktree and omits fix-cwd', () => {
   assert.equal(args.includes('--skip-review'), false);
   assert.ok(args.includes('--fix-agent'));
   assert.ok(args.includes('--review-agent'));
-  assert.deepEqual(args.slice(args.indexOf('--fix-model'), args.indexOf('--fix-model') + 2), ['--fix-model', 'gpt-5.5']);
+  assert.deepEqual(args.slice(args.indexOf('--fix-model'), args.indexOf('--fix-model') + 2), ['--fix-model', 'grok-build']);
   assert.deepEqual(args.slice(args.indexOf('--review-model'), args.indexOf('--review-model') + 2), ['--review-model', 'gpt-5.5']);
   assert.deepEqual(args.slice(args.indexOf('--worker-max-turns'), args.indexOf('--worker-max-turns') + 2), ['--worker-max-turns', '8']);
   assert.deepEqual(args.slice(args.indexOf('--worker-max-retries'), args.indexOf('--worker-max-retries') + 2), ['--worker-max-retries', '2']);
@@ -298,6 +298,48 @@ test('buildLoopArgsForQueueEntry uses worktree and omits fix-cwd', () => {
   assert.match(gateArg, /test_client_parity\.py/);
   assert.match(gateArg, /& "/);
   assert.match(gateArg, /tws-ai-slide-rule-python[\\/]\.venv[\\/]Scripts[\\/]python\.exe/);
+});
+
+test('migration queue task entries use worker max-turn fields instead of grok legacy names', async () => {
+  const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
+  const queue = JSON.parse(await fs.readFile(queuePath, 'utf8'));
+
+  const legacyTasks = (queue.tasks || []).filter((task) => (
+    Object.prototype.hasOwnProperty.call(task, 'grokMaxTurns')
+    || Object.prototype.hasOwnProperty.call(task, 'grokMaxRetries')
+  ));
+
+  assert.deepEqual(
+    legacyTasks.map((task) => task.id || task.task),
+    [],
+    'task entries should use workerMaxTurns/workerMaxRetries; keep grokMax* only as defaults compatibility',
+  );
+});
+
+test('migration queue worker max turns defaults and task overrides are 64', async () => {
+  const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
+  const queue = JSON.parse(await fs.readFile(queuePath, 'utf8'));
+
+  assert.equal(queue.defaults?.workerMaxTurns, 64);
+  assert.equal(queue.defaults?.grokMaxTurns, 64);
+
+  const non64Tasks = (queue.tasks || []).filter((task) => task.workerMaxTurns !== 64);
+
+  assert.deepEqual(
+    non64Tasks.map((task) => task.id || task.task),
+    [],
+    'all queue task entries should run with workerMaxTurns: 64',
+  );
+});
+
+test('migration queue defaults use grok as the fix worker', async () => {
+  const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
+  const queue = JSON.parse(await fs.readFile(queuePath, 'utf8'));
+
+  assert.equal(queue.defaults?.fixAgent, 'grok');
+  assert.equal(queue.defaults?.fixModel, 'grok-build');
+  assert.equal(queue.defaults?.reviewAgent, 'codex');
+  assert.equal(queue.defaults?.reviewModel, 'gpt-5.5');
 });
 
 test('buildLoopArgsForQueueEntry uses queue worktree fix cwd in queue scope', () => {
