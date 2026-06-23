@@ -898,27 +898,29 @@
       "id": "backend-python-auth-login-register-runtime-97",
       "task": "agent-loop/tasks/backend-python-auth-login-register-runtime-97.md",
       "gatesKey": "authLoginRegisterRuntime97Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 64,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main: da081590"
     },
     {
       "id": "backend-python-permission-audit-hooks-runtime-97",
       "task": "agent-loop/tasks/backend-python-permission-audit-hooks-runtime-97.md",
       "gatesKey": "permissionAuditHooksRuntime97Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 64,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main: 57709651"
     },
     {
       "id": "backend-python-task-mission-event-replay-runtime-97",
@@ -966,14 +968,15 @@
       "id": "backend-python-production-external-live-smoke-97",
       "task": "agent-loop/tasks/backend-python-production-external-live-smoke-97.md",
       "gatesKey": "productionExternalLiveSmoke97Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 64,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main: dd488b7a"
     },
     {
       "id": "backend-python-migration-status-refresh-97",
