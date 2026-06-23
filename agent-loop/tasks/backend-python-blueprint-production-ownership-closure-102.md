@@ -8,11 +8,11 @@
 
 ### 状态清单
 
-- [ ] Python 能输出 Blueprint production ownership closure decision。
-- [ ] Node bridge 能消费 state/job/event bus/ledger/replan/prompt/preview 的 ownership decision。
-- [ ] 测试能区分 `python-owned`、`node-retained`、`blocked`、`unsupported`。
-- [ ] gate 全绿。
-- [ ] review 确认没有虚写整体 Blueprint 100%。
+- [x] Python 能输出 Blueprint production ownership closure decision。
+- [x] Node bridge 能消费 state/job/event bus/ledger/replan/prompt/preview 的 ownership decision。
+- [x] 测试能区分 `python-owned`、`node-retained`、`blocked`、`unsupported`。
+- [x] gate 全绿。
+- [x] review 确认没有虚写整体 Blueprint 100%。
 
 ## 背景
 

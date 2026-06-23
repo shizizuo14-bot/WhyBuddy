@@ -8,11 +8,11 @@
 
 ### 状态清单
 
-- [ ] Python 能输出 task lifecycle durable ownership decision。
-- [ ] Node bridge 能消费 mission store、project/resource auth、scheduler、event replay、cancel/error 的 ownership decision。
-- [ ] 测试覆盖 `python-owned`、`node-retained`、`blocked`、`degraded`。
-- [ ] gate 全绿。
-- [ ] review 确认没有绕过项目/资源权限或任务状态语义。
+- [x] Python 能输出 task lifecycle durable ownership decision。
+- [x] Node bridge 能消费 mission store、project/resource auth、scheduler、event replay、cancel/error 的 ownership decision。
+- [x] 测试覆盖 `python-owned`、`node-retained`、`blocked`、`degraded`。
+- [x] gate 全绿。
+- [x] review 确认没有绕过项目/资源权限或任务状态语义。
 
 ## 背景
 

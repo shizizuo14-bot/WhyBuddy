@@ -8,11 +8,11 @@
 
 ### 状态清单
 
-- [ ] Python 能输出 auth production ownership decision。
-- [ ] Node bridge 能消费 user repo、mailer、password policy、session repo、token issuance 的 decision。
-- [ ] 测试覆盖真实接管、Node 保留、配置缺失、blocked。
-- [ ] gate 全绿。
-- [ ] review 确认没有提交密钥、绕过安全策略或虚写 100%。
+- [x] Python 能输出 auth production ownership decision。
+- [x] Node bridge 能消费 user repo、mailer、password policy、session repo、token issuance 的 decision。
+- [x] 测试覆盖真实接管、Node 保留、配置缺失、blocked。
+- [x] gate 全绿。
+- [x] review 确认没有提交密钥、绕过安全策略或虚写 100%。
 
 ## 背景
 

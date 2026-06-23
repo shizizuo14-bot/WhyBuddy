@@ -8,11 +8,11 @@
 
 ### 状态清单
 
-- [ ] Python 能输出 permission/audit production ownership decision。
-- [ ] Node bridge 能消费 policy/enforcement/counters/audit-store/anomaly/compliance/external-platform decision。
-- [ ] 测试覆盖 `python-owned`、`node-retained`、`blocked`、`external-required`。
-- [ ] gate 全绿。
-- [ ] review 确认没有绕过权限或把内存审计写成生产审计。
+- [x] Python 能输出 permission/audit production ownership decision。
+- [x] Node bridge 能消费 policy/enforcement/counters/audit-store/anomaly/compliance/external-platform decision。
+- [x] 测试覆盖 `python-owned`、`node-retained`、`blocked`、`external-required`。
+- [x] gate 全绿。
+- [x] review 确认没有绕过权限或把内存审计写成生产审计。
 
 ## 背景
 

@@ -8,11 +8,11 @@
 
 ### 状态清单
 
-- [ ] Python 能输出 A2A production transport ownership decision。
-- [ ] Node bridge 能消费 registry/session/stream/cancel/chat/report/analytics decision。
-- [ ] 测试覆盖 `python-owned`、`node-retained`、`blocked`、`external-agent-required`。
-- [ ] gate 全绿。
-- [ ] review 确认未破坏 A2A 协议兼容和 stream safe failure。
+- [x] Python 能输出 A2A production transport ownership decision。
+- [x] Node bridge 能消费 registry/session/stream/cancel/chat/report/analytics decision。
+- [x] 测试覆盖 `python-owned`、`node-retained`、`blocked`、`external-agent-required`。
+- [x] gate 全绿。
+- [x] review 确认未破坏 A2A 协议兼容和 stream safe failure。
 
 ## 背景
 

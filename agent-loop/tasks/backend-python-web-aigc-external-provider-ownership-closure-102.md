@@ -8,11 +8,11 @@
 
 ### 状态清单
 
-- [ ] Python 能输出 Web AIGC external provider ownership matrix。
-- [ ] Node bridge/observability 能消费 matrix，并区分 `python-owned`、`node-retained`、`skipped-live`、`blocked`、`degraded`。
-- [ ] 测试覆盖 mock/synthetic 不计入 production takeover。
-- [ ] gate 全绿。
-- [ ] review 确认进度文案不虚高。
+- [x] Python 能输出 Web AIGC external provider ownership matrix。
+- [x] Node bridge/observability 能消费 matrix，并区分 `python-owned`、`node-retained`、`skipped-live`、`blocked`、`degraded`。
+- [x] 测试覆盖 mock/synthetic 不计入 production takeover。
+- [x] gate 全绿。
+- [x] review 确认进度文案不虚高。
 
 ## 背景
 
