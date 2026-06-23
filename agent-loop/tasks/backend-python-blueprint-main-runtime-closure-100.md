@@ -8,11 +8,11 @@
 
 ### 状态清单
 
-- [ ] Python runtime 覆盖 Blueprint main state、job lifecycle、event stream、prompt preview、review/export、artifact memory 的闭环组合语义。
-- [ ] Node bridge 可以消费 Python closure summary，并保留 jobId、projectId、stageId、actor、causation、diagnostic metadata。
-- [ ] diagnostics（诊断）、ledger（账本）、event bus（事件总线）边界必须明确：Python 只接管本任务声明的 runtime decision，不假装接管所有持久化。
-- [ ] gate 全绿。
-- [ ] Codex review 确认这是 100% 候选闭环的一片真实 runtime 代码，不是 status/doc-only。
+- [x] Python runtime 覆盖 Blueprint main state、job lifecycle、event stream、prompt preview、review/export、artifact memory 的闭环组合语义。
+- [x] Node bridge 可以消费 Python closure summary，并保留 jobId、projectId、stageId、actor、causation、diagnostic metadata。
+- [x] diagnostics（诊断）、ledger（账本）、event bus（事件总线）边界必须明确：Python 只接管本任务声明的 runtime decision，不假装接管所有持久化。
+- [x] gate 全绿。
+- [x] Codex review 确认这是 100% 候选闭环的一片真实 runtime 代码，不是 status/doc-only。
 
 ## 目标
 

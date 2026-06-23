@@ -8,11 +8,11 @@
 
 ### 状态清单
 
-- [ ] 盘点 `server/routes`、`server/core`、`server/auth`、`server/tasks`、`server/permission`、`server/audit`、`server/routes/node-adapters`。
-- [ ] 每个剩余 Node-owned 点必须标成 thin-proxy、compat-shell、production-owned、node-owned-gap 或 intentionally-retained。
-- [ ] 输出 `docs/backend-python-node-route-cutover-audit-100.md`。
-- [ ] gate 全绿。
-- [ ] Codex review 确认审计报告没有虚高整体 100%。
+- [x] 盘点 `server/routes`、`server/core`、`server/auth`、`server/tasks`、`server/permission`、`server/audit`、`server/routes/node-adapters`。
+- [x] 每个剩余 Node-owned 点必须标成 thin-proxy、compat-shell、production-owned、node-owned-gap 或 intentionally-retained。
+- [x] 输出 `docs/backend-python-node-route-cutover-audit-100.md`。
+- [x] gate 全绿。
+- [x] Codex review 确认审计报告没有虚高整体 100%。
 
 ## 目标
 

@@ -144,7 +144,7 @@ export function createEmbeddingProviderFromConfig(): EmbeddingProvider {
 
 export interface EmbeddingLiveSmokeDiagnostic {
   provider: "embedding";
-  status: "ready" | "skipped" | "config_missing" | "failed" | "timeout";
+  status: "ready" | "skipped" | "config_missing" | "failed" | "timeout" | "degraded";
   reason?: string;
   durationMs: number;
   metadata?: Record<string, unknown>;

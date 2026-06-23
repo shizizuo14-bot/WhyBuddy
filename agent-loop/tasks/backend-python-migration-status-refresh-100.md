@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] 读取 100% 候选队列每个任务的结果、diff、gate、commit 证据。
-- [ ] 区分 runtime、production cutover、thin proxy、compat shell、docs-only、no-diff、failed、rescue patch。
-- [ ] 更新 `sliderule-python-migration-status.md` 的整体进度、分层口径和 final blockers。
-- [ ] 若证据不足以 100%，必须保守写 97-99% 并列出阻塞项。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有虚高整体 NodeJS 后端迁移进度。
+- [x] 读取 100% 候选队列每个任务的结果、diff、gate、commit 证据。
+- [x] 区分 runtime、production cutover、thin proxy、compat shell、docs-only、no-diff、failed、rescue patch。
+- [x] 更新 `sliderule-python-migration-status.md` 的整体进度、分层口径和 final blockers。
+- [x] 若证据不足以 100%，必须保守写 97-99% 并列出阻塞项。
+- [x] gate 全绿。
+- [x] Codex review 确认没有虚高整体 NodeJS 后端迁移进度。
 
 ## 目标
 

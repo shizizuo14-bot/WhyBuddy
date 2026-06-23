@@ -16,6 +16,76 @@
 | `runtime bridge` | 运行时桥 | Node 能把一个有边界的运行时操作委托给 Python，并且错误/超时/取消语义有测试覆盖。 |
 | `production wiring` | 生产接线 | 接入存储、真实服务边界、观测、fallback（回退）或部署健康检查；smoke（冒烟）通过仍不等于真实外部服务长跑可用。 |
 
+## 100 阶段候选队列状态刷新
+
+本轮是 100% 候选队列的最终状态刷新任务（backend-python-migration-status-refresh-100）。只刷新状态，不新增业务迁移分子。基于 `.agent-loop/queue-outcomes.json`、100 候选任务结果/diff/gate/commit、 `docs/backend-python-node-route-cutover-audit-100.md` 结论更新口径。只有当 route cutover audit 支持且所有关键路线均为 thin proxy / compat shell / production-owned、无 node-owned-gap、100% 候选全部 DONE_REVIEWED 落地时，才允许写整体 100%。
+
+### 100% 候选队列证据
+
+100% 候选队列（来自 `agent-loop/scripts/migration-queue.json`）共 6 个前置 + 本刷新任务：
+
+- `backend-python-blueprint-main-runtime-closure-100`：`DONE_REVIEWED` / `done`（diff ~32k bytes）。Python 产出 Blueprint main closure summary（state/job/event/prompt/review/artifact）；Node 保留 job store / event bus / ledger / diagnostics 所有权。计入 Blueprint-adjacent bounded runtime，不等于完整 `/api/blueprint` 迁移。
+- `backend-python-external-provider-cutover-100`：`DONE_REVIEWED` / `done`（diff ~19k）。Python/Node cutover readiness 覆盖 Qdrant/embedding/search/OCR/vision/audio/APM/billing/audit platform/deployed Python service 的 ready/config_missing/skipped/failed/timeout/degraded 分类。计入 production wiring diagnostics/cutover readiness，不等于真实外部服务生产接管。
+- `backend-python-node-route-cutover-audit-100`：`DONE_REVIEWED` / `done`（diff ~14k）。纯审计报告，**不计入业务迁移分子**。
+- `backend-python-auth-audit-production-closure-100`：`HALT_NO_PROGRESS` / `failed`（rescue patch available）。未落地完成，不计入。
+- `backend-python-task-lifecycle-production-closure-100`：`HALT_BUDGET` / `failed`（rescue patch）。未落地完成，不计入。
+- `backend-python-web-aigc-provider-closure-100`：`HALT_NO_PROGRESS` / `failed`（rescue patch）。未落地完成，不计入。
+
+当前刷新基于 queue outcomes（2026-06-23 更新）和 audit 报告。**本 status refresh 本身不计入任何迁移分子**。
+
+### route cutover audit 100 结论映射
+
+`docs/backend-python-node-route-cutover-audit-100.md` 明确结论（post 100-candidate）：
+
+- Node 路由/core/auth/task/permission/audit/web-adapters 分类：
+  - thin-proxy 示例：`/api/sliderule` + python delegation。
+  - compat-shell 示例：`/api/rag`、部分 `/api/mcp/skills`、`/api/workflows`、auth login/register 部分、telemetry、部分 Web AIGC delegated。
+  - production-owned / intentionally-retained：`server/index.ts` 顶层 mounts、health、多数 core routes。
+  - node-owned-gap（阻塞 100%）：`/api/a2a` 大部分、auth 持久化+mailer、permission 全管理、audit 全持久化/anomaly、task 全 lifecycle（store/project auth）、Blueprint 整个主 shell/state/job-store/event-bus/diagnostics/ledger/replan/prompt-package/preview、`node-adapters` 大部分 long-tail、真实外部 provider。
+- Python 仅拥有 V5 baseline + 少量 bounded runtime slices + 诊断；未拥有主 Express surface、完整 Blueprint、完整 task/auth/perm/audit、多数 Web AIGC、外部生产 provider。
+- **"Explicit conclusion: ... Substantial node-owned-gap surfaces persist that block overall 100% declaration." "blockers remain; do not announce overall 100%."**
+
+因此，本轮**不能写整体 100%**。100 候选队列仅补两个 bounded 切片，未消除主要分母缺口。
+
+### 100 阶段刷新结论
+
+**整体 NodeJS 后端迁 Python 约 96-98%，工作数字 97%。** 97 阶段 92-94% 基础上，100 队列成功落地 2 个有界 runtime/cutover 证据（blueprint closure、external readiness），但 3 个 HALT + route cutover 审计 blocker 确认仍不能达 100%。分层口径见下；不能把 SlideRule V5 子系统审计姿态外推为整体 backend 100%。
+
+### 100 阶段计入与不计入清单
+
+| 类型 | 本轮 100 成功计入 | 本轮不能计入 |
+|---|---|---|
+| runtime / production cutover (bounded) | 2 个：blueprint-main-runtime-closure-100（Python closure summary + Node thin bridge）、external-provider-cutover-100（cutover readiness diagnostics 分层） | 3 个 HALT 任务（auth-audit、task-lifecycle、web-aigc-provider）及其 rescue patch |
+| audit / route cutover | — | node-route-cutover-audit-100（仅文档审计，不计入分子） |
+| status / docs / inventory | — | backend-python-migration-status-refresh-100 本身；任何 inventory/audit 文档 |
+| proxy / compat-shell / thin-proxy | 历史保留；部分 100 证据强化了 bounded 描述 | 不能把 compat shell 写成完整生产迁移或 100% takeover |
+| failed / no-diff / HALT / skipped | — | HALT_NO_PROGRESS / HALT_BUDGET / rescue / fake/synthetic smoke / config_missing 诊断均不计完成 |
+| SlideRule V5 | — | 100 队列未针对主链路新增；不外推 |
+
+### 100 阶段 final blockers（剩余缺口）
+
+| 缺口 | 为什么仍阻碍整体 100%（引自 route cutover audit） |
+|---|---|
+| Blueprint 主系统 | `/api/blueprint` route shell + state machine + job store + event bus + diagnostics + ledger + replan + prompt package + preview 全链路仍为 production-owned / node-owned-gap。仅 100 closure summary bounded。 |
+| Task lifecycle | `/api/tasks` + mission store + project/resource auth + 完整 cancel/error/scheduler 仍 node-owned-gap。仅 bounded replay/executor client。 |
+| Auth 生产链路 | 真实 user 库、email-mailer、password policy、session repository、token issuance 仍 node-owned-gap。仅 identity runtime bridge + compat shell。 |
+| Permission / Audit | 完整 policy 管理、enforcement、durable store、anomaly/compliance、retention 仍 node-owned-gap。仅 hooks / rate limit 部分 bounded。 |
+| Web AIGC 长尾 + 真实 provider | 大部分 node-adapters、web-qa、image/graph search + real Qdrant/search/OCR/vision/audio/APM/billing 仍 node-owned-gap。仅 delegated 薄代理 + fake/synthetic。 |
+| A2A / 核心其他 | registry/sessions/stream/cancel + chat/reports/analytics 等大多 node-owned-gap 或 production-owned。 |
+| 队列残留 | 三个 100 候选 HALT 未转为完成证据；旧 HALT 仍需逐项 commit 清理。 |
+
+### 100 阶段分层进度口径
+
+| 范围 | 100 阶段判断 | 进度条 | 计入口径 |
+|---|---:|---|---|
+| 整体 NodeJS 后端迁 Python | 约 96-98%，工作数字 97% | `[█████████░]` | 100 队列新增 2 个 bounded runtime/cutover（blueprint main closure、external provider readiness）；97 阶段已补多个 slices。但 Blueprint/Task/Auth/Perm/Audit/Web 大分母仍是 node-owned-gap（audit 确认）。不能写 100%。 |
+| SlideRule V5 子系统迁移 | 仍 95-97% 审计区间 | `[█████████░]` | 100 阶段未新增 V5 主链路；保持 95 阶段有边界审计姿态；delegation 仍高成熟但不外推整体百分比。 |
+| Blueprint-adjacent runtime support | 约 85-92% | `[█████████░]` | 100 补 main runtime closure；主 state/job/event bus/ledger/prompt package 仍 Node-owned。 |
+| Auth/Audit runtime support | 约 88-93% | `[█████████░]` | 97 login/register + hooks + 100 尝试 closure；生产 persistence/email/policy/external audit 仍是 node-owned-gap。 |
+| Task lifecycle support | 约 88-93% | `[█████████░]` | 97 mission replay + 100 尝试；mission store / project auth / full scheduler 仍是 node-owned-gap。 |
+| Web AIGC long-tail runtime | 约 85-90% | `[████████░░]` | 97 多个 + 100 provider closure 尝试；长尾大部分 + real external providers 仍是 node-owned-gap。 |
+| production wiring maturity / cutover readiness | 约 88-93% | `[█████████░]` | 97 live smoke + 100 readiness diagnostics（可分类 ready/skipped/failed）；真实外部服务长跑接管仍未证明。 |
+
 ## 97 阶段 runtime 代码落地刷新
 
 本轮 97 code queue 在 96 阶段真实 runtime 补丁后，先落地 5 个 bounded runtime 切片，随后把 retry 队列里的 auth login/register、permission audit hooks 和 production external live smoke 也补到 `main`。状态刷新只按当前业务代码 commit、测试证据和 final verify queue（最终复核队列）调整口径；不把 status refresh 本身、不把 docs-only、不把 fake/synthetic smoke 夸大成真实生产接管。

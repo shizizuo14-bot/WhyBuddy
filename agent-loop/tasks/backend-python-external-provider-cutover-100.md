@@ -8,11 +8,11 @@
 
 ### 状态清单
 
-- [ ] Python cutover readiness 能输出 ready、config_missing、skipped、failed、timeout、degraded。
-- [ ] Node live smoke/cutover route 能消费 Python readiness，并按 provider 分类输出。
-- [ ] 缺少配置时必须 safe skip（安全跳过），不能红炸，也不能假绿。
-- [ ] gate 全绿。
-- [ ] Codex review 确认没有真实外部副作用和密钥泄漏。
+- [x] Python cutover readiness 能输出 ready、config_missing、skipped、failed、timeout、degraded。
+- [x] Node live smoke/cutover route 能消费 Python readiness，并按 provider 分类输出。
+- [x] 缺少配置时必须 safe skip（安全跳过），不能红炸，也不能假绿。
+- [x] gate 全绿。
+- [x] Codex review 确认没有真实外部副作用和密钥泄漏。
 
 ## 目标
 

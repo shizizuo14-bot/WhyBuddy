@@ -965,7 +965,7 @@ function isPythonObservabilityRollupError(
 // Used by python-external-dependency-live-smoke and status/dashboard layers.
 // ---------------------------------------------------------------------------
 
-export type LiveSmokeStatus = "ready" | "skipped" | "config_missing" | "failed" | "timeout";
+export type LiveSmokeStatus = "ready" | "skipped" | "config_missing" | "failed" | "timeout" | "degraded";
 
 export interface LiveSmokeDiagnostic {
   provider: string;

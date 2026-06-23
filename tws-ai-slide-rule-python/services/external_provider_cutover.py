@@ -1,0 +1,109 @@
+"""External provider cutover readiness (100).
+
+Builds on live smoke diagnostics to provide explicit cutover decision contract.
+Outputs per-provider status including degraded.
+Never treats config_missing/skipped as ready.
+Only performs read-only checks when explicit config present.
+Includes "deployed_python_service" to indicate the python backend itself for cutover classification.
+"""
+import os
+import time
+from typing import Any, Dict, List, Optional
+
+try:
+    from .external_dependency_live_smoke import (
+        run_external_dependency_live_smoke,
+        _should_skip,
+        _get_env,
+        _check_qdrant,
+        _check_embedding,
+        _check_generic,
+    )
+except Exception:
+    # fallback for direct test import path
+    from services.external_dependency_live_smoke import (  # type: ignore
+        run_external_dependency_live_smoke,
+        _should_skip,
+        _get_env,
+        _check_qdrant,
+        _check_embedding,
+        _check_generic,
+    )
+
+
+def _check_deployed_python_service(start: float) -> Dict[str, Any]:
+    dur = int((time.time() - start) * 1000)
+    # Python service is "deployed" if we can import core modules without fatal error
+    # This is internal readiness, no external net.
+    try:
+        # light probe without side effects
+        import app  # type: ignore  # noqa: F401
+        return {
+            "provider": "deployed_python_service",
+            "status": "ready",
+            "reason": "python app module loadable",
+            "duration_ms": dur,
+            "metadata": {"probe": "import"},
+        }
+    except Exception as exc:
+        return {
+            "provider": "deployed_python_service",
+            "status": "degraded",
+            "reason": f"python service probe degraded: {str(exc)[:100]}",
+            "duration_ms": dur,
+            "metadata": {},
+        }
+
+
+def run_external_provider_cutover_readiness() -> Dict[str, Any]:
+    """Return cutover readiness with support for degraded status.
+    Status values supported: ready, config_missing, skipped, failed, timeout, degraded
+    """
+    base = run_external_dependency_live_smoke()
+    checks: List[Dict[str, Any]] = list(base.get("checks", []))
+
+    # augment with deployed_python_service provider
+    start = time.time()
+    py_check = _check_deployed_python_service(start)
+    checks.append(py_check)
+
+    # allow forcing degraded for test coverage via env (non-prod)
+    if os.getenv("FORCE_CUTOVER_DEGRADED", "").lower() in ("1", "true"):
+        for c in checks:
+            if c["provider"] in ("qdrant", "apm"):
+                c["status"] = "degraded"
+                c["reason"] = "forced degraded for cutover test"
+
+    # recompute counts and overall with degraded awareness
+    ready_count = sum(1 for c in checks if c["status"] == "ready")
+    missing_count = sum(1 for c in checks if c["status"] == "config_missing")
+    skipped_count = sum(1 for c in checks if c["status"] == "skipped")
+    problem_count = sum(1 for c in checks if c["status"] in ("failed", "timeout"))
+    degraded_count = sum(1 for c in checks if c["status"] == "degraded")
+
+    if degraded_count > 0 or problem_count > 0:
+        overall = "degraded"
+    elif ready_count > 0 and missing_count == 0 and skipped_count == 0 and problem_count == 0 and degraded_count == 0:
+        overall = "ready"
+    elif missing_count > 0 and ready_count == 0:
+        overall = "config_missing"
+    else:
+        overall = "partial"
+
+    return {
+        "overall": overall,
+        "checks": checks,
+        "duration_ms": base.get("duration_ms", 0),
+        "counts": {
+            "ready": ready_count,
+            "skipped": skipped_count,
+            "config_missing": missing_count,
+            "failed_or_timeout": problem_count,
+            "degraded": degraded_count,
+        },
+        "note": "degraded or config_missing or skipped means NOT ready for cutover. Providers with explicit ready can be considered for cutover only if no blockers.",
+    }
+
+
+# expose the statuses for tests/docs
+CUTOVER_ALLOWED_STATUSES = ("ready", "config_missing", "skipped", "failed", "timeout", "degraded")
