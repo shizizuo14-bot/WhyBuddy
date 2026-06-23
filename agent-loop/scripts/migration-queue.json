@@ -870,27 +870,29 @@
       "id": "backend-python-blueprint-job-event-stream-runtime-97",
       "task": "agent-loop/tasks/backend-python-blueprint-job-event-stream-runtime-97.md",
       "gatesKey": "blueprintJobEventStreamRuntime97Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 64,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main: fa39c995"
     },
     {
       "id": "backend-python-blueprint-prompt-preview-runtime-97",
       "task": "agent-loop/tasks/backend-python-blueprint-prompt-preview-runtime-97.md",
       "gatesKey": "blueprintPromptPreviewRuntime97Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 64,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main: fa39c995"
     },
     {
       "id": "backend-python-auth-login-register-runtime-97",
@@ -922,40 +924,43 @@
       "id": "backend-python-task-mission-event-replay-runtime-97",
       "task": "agent-loop/tasks/backend-python-task-mission-event-replay-runtime-97.md",
       "gatesKey": "taskMissionEventReplayRuntime97Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 64,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main: fa39c995"
     },
     {
       "id": "backend-python-web-aigc-ocr-static-runtime-97",
       "task": "agent-loop/tasks/backend-python-web-aigc-ocr-static-runtime-97.md",
       "gatesKey": "webAigcOcrStaticRuntime97Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 64,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main: fa39c995"
     },
     {
       "id": "backend-python-web-aigc-ai-ppt-runtime-97",
       "task": "agent-loop/tasks/backend-python-web-aigc-ai-ppt-runtime-97.md",
       "gatesKey": "webAigcAiPptRuntime97Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 64,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main: fa39c995"
     },
     {
       "id": "backend-python-production-external-live-smoke-97",
@@ -974,14 +979,15 @@
       "id": "backend-python-migration-status-refresh-97",
       "task": "agent-loop/tasks/backend-python-migration-status-refresh-97.md",
       "gatesKey": "migrationStatusRefresh97Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 64,
       "maxIterations": 2,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "completed in main: fa39c995"
     }
   ],
   "nodeRouteInventory50Gates": [
