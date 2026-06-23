@@ -637,3 +637,126 @@ export function validateAuthTokenMailerSessionCutover(payload: unknown): AuthTok
     ...(p.error ? { error: p.error as { code: string; message: string } } : {}),
   };
 }
+
+// Auth session token boundary 103 + ownership closure 102
+export type AuthSessionTokenBoundaryStatus = "ready" | "node-retained" | "python-owned" | "out-of-scope" | "skipped-live" | "blocked";
+
+export interface AuthSessionTokenBoundaryResult {
+  status: AuthSessionTokenBoundaryStatus;
+  contractVersion: string;
+  provenance: string;
+  ok: boolean;
+  runtime: { owner: "python" | "node"; mode: string };
+  ownership?: Record<string, string>;
+  metadata?: Record<string, unknown>;
+  error?: { code: string; message: string };
+}
+
+export interface AuthProductionOwnershipClosureResult {
+  status: string;
+  contractVersion: string;
+  provenance: string;
+  ok: boolean;
+  productionTakeover: boolean;
+  ownership?: Record<string, string>;
+  nodeBoundaries?: Record<string, string>;
+  runtime?: { owner: "python" | "node"; mode: string };
+  error?: { code: string; message: string };
+}
+
+function containsSecretForBoundary(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.some((item) => containsSecretForBoundary(item));
+  }
+  if (!value || typeof value !== "object") {
+    return false;
+  }
+  return Object.entries(value as Record<string, unknown>).some(([key, child]) => {
+    const n = key.toLowerCase();
+    if (n === "token" || n === "cookie" || n === "password" || n === "secret" || n === "hash" || n === "bearer") {
+      return true;
+    }
+    if ((n.includes("token") || n.includes("cookie") || n.includes("password") || n.includes("secret") || n.includes("hash")) && typeof child === "string" && child.length > 20) {
+      return true;
+    }
+    return containsSecretForBoundary(child);
+  });
+}
+
+export function validateAuthSessionTokenBoundary(payload: unknown): AuthSessionTokenBoundaryResult {
+  if (!payload || typeof payload !== "object") {
+    return {
+      status: "node-retained",
+      contractVersion: "auth-session-token-boundary.v1",
+      provenance: "node-fallback",
+      ok: false,
+      runtime: { owner: "node", mode: "local_fallback" },
+      error: { code: "invalid", message: "Invalid boundary payload" },
+    };
+  }
+  if (containsSecretForBoundary(payload)) {
+    return {
+      status: "node-retained",
+      contractVersion: "auth-session-token-boundary.v1",
+      provenance: "node-fallback",
+      ok: false,
+      runtime: { owner: "node", mode: "local_fallback" },
+      error: { code: "invalid", message: "Invalid boundary payload" },
+    };
+  }
+  const p = payload as Record<string, unknown>;
+  const rawStatus = (p.status as string) || "node-retained";
+  const normalizedStatus: AuthSessionTokenBoundaryStatus =
+    ["ready", "node-retained", "python-owned", "out-of-scope", "skipped-live", "blocked"].includes(rawStatus)
+      ? (rawStatus as AuthSessionTokenBoundaryStatus)
+      : "node-retained";
+  const own = (p.ownership as Record<string, string>) || {};
+  return {
+    status: normalizedStatus,
+    contractVersion: typeof p.contractVersion === "string" ? p.contractVersion : "auth-session-token-boundary.v1",
+    provenance: typeof p.provenance === "string" ? p.provenance : "python-auth-session-token-boundary-103",
+    ok: normalizedStatus === "python-owned" || normalizedStatus === "ready",
+    runtime: (p.runtime as any) || { owner: "node", mode: "local_fallback" },
+    ownership: own,
+    metadata: (p.metadata as Record<string, unknown>) || {},
+    ...(p.error ? { error: p.error as { code: string; message: string } } : {}),
+  };
+}
+
+export function validateAuthProductionOwnershipClosure(payload: unknown): AuthProductionOwnershipClosureResult {
+  if (!payload || typeof payload !== "object") {
+    return {
+      status: "node-fallback",
+      contractVersion: "auth.production-ownership-closure.v1",
+      provenance: "node-fallback",
+      ok: false,
+      productionTakeover: false,
+      runtime: { owner: "node", mode: "local_fallback" },
+      error: { code: "invalid", message: "Invalid ownership payload" },
+    };
+  }
+  if (containsSecretForBoundary(payload)) {
+    return {
+      status: "node-fallback",
+      contractVersion: "auth.production-ownership-closure.v1",
+      provenance: "node-fallback",
+      ok: false,
+      productionTakeover: false,
+      runtime: { owner: "node", mode: "local_fallback" },
+      error: { code: "invalid", message: "Invalid ownership payload" },
+    };
+  }
+  const p = payload as Record<string, unknown>;
+  const status = (p.status as string) || "node-fallback";
+  return {
+    status,
+    contractVersion: typeof p.contractVersion === "string" ? p.contractVersion : "auth.production-ownership-closure.v1",
+    provenance: typeof p.provenance === "string" ? p.provenance : "python-auth-production-ownership-closure-102",
+    ok: p.ok === true,
+    productionTakeover: p.productionTakeover === true ? true : false,
+    ownership: (p.ownership as Record<string, string>) || {},
+    nodeBoundaries: (p.nodeBoundaries as Record<string, string>) || {},
+    runtime: (p.runtime as any) || { owner: "node", mode: "local_fallback" },
+    ...(p.error ? { error: p.error as { code: string; message: string } } : {}),
+  };
+}

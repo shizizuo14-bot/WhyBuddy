@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] 读取 88/89/96/97/100/101/102 Permission/Audit 证据。
-- [ ] 明确 policy store、enforcement、audit durable store、retention、anomaly、external audit platform 归属。
-- [ ] 补最小 Python-owned durable decision/runtime slice，或明确 retained/external/out-of-scope。
-- [ ] Node 测试覆盖 permission check 和 audit durable boundary。
-- [ ] gate 全绿。
-- [ ] review 确认没有虚写 Permission/Audit 100%。
+- [x] 读取 88/89/96/97/100/101/102 Permission/Audit 证据。
+- [x] 明确 policy store、enforcement、audit durable store、retention、anomaly、external audit platform 归属。
+- [x] 补最小 Python-owned durable decision/runtime slice，或明确 retained/external/out-of-scope。
+- [x] Node 测试覆盖 permission check 和 audit durable boundary。
+- [x] gate 全绿。
+- [x] review 确认没有虚写 Permission/Audit 100%。
 
 ## 背景
 

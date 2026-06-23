@@ -24,6 +24,8 @@ import {
   validatePythonAuthIdentityResult,
   validateAuthAuditProductionClosure,
   validateAuthTokenMailerSessionCutover,
+  validateAuthSessionTokenBoundary,
+  validateAuthProductionOwnershipClosure,
 } from "../auth/session-service.js";
 import type {
   EmailLoginTokenPurpose,
@@ -96,6 +98,14 @@ export interface AuthRouterDeps {
   };
   // thin python token/mailer/session cutover readiness (101 advisory; node keeps real issuance/mailer/store/policy)
   pythonTokenMailerSessionCutover?: {
+    execute(payload: Record<string, unknown>): any | Promise<any>;
+  };
+  // python session token boundary decision (103); node-retained for real repo/issuance; python provides decision envelope
+  pythonAuthSessionTokenBoundary?: {
+    execute(payload: Record<string, unknown>): any | Promise<any>;
+  };
+  // python auth production ownership closure (102); explicit retained decisions
+  pythonAuthProductionOwnershipClosure?: {
     execute(payload: Record<string, unknown>): any | Promise<any>;
   };
 }
@@ -184,6 +194,43 @@ async function runPythonTokenMailerSessionCutover(deps: AuthRouterDeps, payload:
       runtime: { owner: "node", mode: "local_fallback" },
       cutoverSummary: { status: "skipped-live", components: {}, metadata: {} },
       error: { code: "bridge_error", message: "Auth token/mailer/session cutover fetch failed" },
+    };
+  }
+}
+
+async function runPythonAuthSessionTokenBoundary(deps: AuthRouterDeps, payload: Record<string, unknown>): Promise<any | null> {
+  if (!deps.pythonAuthSessionTokenBoundary) return null;
+  try {
+    const raw = await Promise.resolve(deps.pythonAuthSessionTokenBoundary.execute(payload));
+    return validateAuthSessionTokenBoundary(raw);
+  } catch {
+    return {
+      status: "node-retained",
+      contractVersion: "auth-session-token-boundary.v1",
+      provenance: "node-fallback",
+      ok: false,
+      runtime: { owner: "node", mode: "local_fallback" },
+      ownership: { sessionRepository: "node-retained", tokenIssuance: "node-retained", sessionTokenDecision: "node-retained" },
+      error: { code: "bridge_error", message: "Auth session token boundary fetch failed" },
+    };
+  }
+}
+
+async function runPythonAuthProductionOwnershipClosure(deps: AuthRouterDeps, payload: Record<string, unknown>): Promise<any | null> {
+  if (!deps.pythonAuthProductionOwnershipClosure) return null;
+  try {
+    const raw = await Promise.resolve(deps.pythonAuthProductionOwnershipClosure.execute(payload));
+    return validateAuthProductionOwnershipClosure(raw);
+  } catch {
+    return {
+      status: "node-fallback",
+      contractVersion: "auth.production-ownership-closure.v1",
+      provenance: "node-fallback",
+      ok: false,
+      productionTakeover: false,
+      runtime: { owner: "node", mode: "local_fallback" },
+      ownership: { sessionRepository: "node-retained" },
+      error: { code: "bridge_error", message: "Auth production ownership fetch failed" },
     };
   }
 }
@@ -534,6 +581,58 @@ export function createAuthRouter(deps: AuthRouterDeps) {
         ok: false,
         runtime: { owner: "node", mode: "local_fallback" },
         cutoverSummary: { status: "skipped-live", components: { tokenIssuance: "node", emailCodeMailer: "node", sessionRepository: "node" }, metadata: { note: "python not wired" } },
+      }),
+    });
+  });
+
+  // thin consumption of python auth session token boundary 103
+  // Node retains production session/token; python decision boundary only
+  router.get("/__internal/auth-session-token-boundary", async (request, response) => {
+    const boundary = await runPythonAuthSessionTokenBoundary(deps, { metadata: { source: "node-consume" } });
+    if (boundary) {
+      response.json({ success: true, boundary });
+      return;
+    }
+    // fallback explicit retained
+    response.json({
+      success: true,
+      boundary: validateAuthSessionTokenBoundary({
+        status: "node-retained",
+        contractVersion: "auth-session-token-boundary.v1",
+        provenance: "node-fallback",
+        ok: false,
+        runtime: { owner: "node", mode: "local_fallback" },
+        ownership: {
+          sessionRepository: "node-retained",
+          tokenIssuance: "node-retained",
+          passwordPolicy: "node-retained",
+          emailCodeMailer: "node-retained",
+          userRepository: "node-retained",
+          sessionTokenDecision: "node-retained",
+        },
+        metadata: { note: "python not wired" },
+      }),
+    });
+  });
+
+  // thin consumption of python auth production ownership closure 102
+  router.get("/__internal/auth-production-ownership-closure", async (request, response) => {
+    const closure = await runPythonAuthProductionOwnershipClosure(deps, { metadata: { source: "node-consume" } });
+    if (closure) {
+      response.json({ success: true, closure });
+      return;
+    }
+    response.json({
+      success: true,
+      closure: validateAuthProductionOwnershipClosure({
+        status: "node-fallback",
+        contractVersion: "auth.production-ownership-closure.v1",
+        provenance: "node-fallback",
+        ok: false,
+        productionTakeover: false,
+        runtime: { owner: "node", mode: "local_fallback" },
+        ownership: { sessionRepository: "node-retained", tokenIssuance: "node-retained" },
+        metadata: { note: "python not wired" },
       }),
     });
   });

@@ -522,3 +522,136 @@ export function validatePermissionAuditPolicyStoreCutover(
     ...(p.error ? { error: p.error as { code: string; message: string } } : {}),
   };
 }
+
+// ─── Permission/Audit Durable Store Boundary 103 (thin Node bridge, advisory only) ─────────────────
+// Python supplies boundary decision classifying python-owned (decision slice only),
+// node-retained (durable stores/retention), external-owned (audit platform).
+// Node retains all durable audit/policy stores. Do not treat hooks/sink/export as durable ownership.
+
+export type PermissionAuditDurableBoundaryStatus =
+  | "ready"
+  | "python-owned"
+  | "node-retained"
+  | "external-owned"
+  | "out-of-scope"
+  | "blocked"
+  | "skipped-live";
+
+export interface PermissionAuditDurableStoreBoundaryResult {
+  status: PermissionAuditDurableBoundaryStatus;
+  contractVersion?: string;
+  provenance?: string;
+  ok?: boolean;
+  productionTakeover?: boolean;
+  ownership?: Record<string, string>;
+  boundaries?: Record<string, string>;
+  runtime?: { owner: string; mode: string; [k: string]: unknown };
+  error?: { code: string; message: string };
+  metadata?: Record<string, unknown>;
+}
+
+export function validatePermissionAuditDurableStoreBoundary(
+  payload: unknown,
+): PermissionAuditDurableStoreBoundaryResult {
+  if (!payload || typeof payload !== "object") {
+    return {
+      status: "blocked",
+      contractVersion: "permission-audit-durable-store-boundary.v1",
+      provenance: "node-fallback",
+      ok: false,
+      productionTakeover: false,
+      ownership: {
+        policyStore: "node-retained",
+        auditDurableStore: "node-retained",
+        externalAuditPlatform: "external-owned",
+        durableDecision: "blocked",
+      },
+      error: { code: "invalid", message: "Invalid durable boundary payload" },
+    };
+  }
+  const p = payload as Record<string, unknown>;
+  const rawStatus = (p.status as string) || "unsupported";
+  const status = (
+    ["ready", "python-owned", "node-retained", "external-owned", "out-of-scope", "blocked", "skipped-live"].includes(rawStatus)
+      ? rawStatus
+      : "blocked"
+  ) as PermissionAuditDurableBoundaryStatus;
+
+  const ownership = (p.ownership as Record<string, string>) || {
+    policyStore: "node-retained",
+    auditDurableStore: "node-retained",
+    externalAuditPlatform: "external-owned",
+    retention: "node-retained",
+    durableDecision: status === "python-owned" ? "python-owned" : "node-retained",
+  };
+
+  return {
+    status,
+    contractVersion: typeof p.contractVersion === "string" ? p.contractVersion : "permission-audit-durable-store-boundary.v1",
+    provenance: typeof p.provenance === "string" ? p.provenance : "python-permission-audit-durable-store-boundary-103",
+    ok: p.ok === true || status === "python-owned" || status === "ready",
+    productionTakeover: p.productionTakeover === true ? true : false,
+    ownership,
+    boundaries: (p.boundaries as Record<string, string>) || undefined,
+    runtime: (p.runtime as any) || { owner: "node", mode: "local_fallback" },
+    ...(p.error ? { error: p.error as { code: string; message: string } } : {}),
+    ...(p.metadata ? { metadata: p.metadata as Record<string, unknown> } : {}),
+  };
+}
+
+// ─── Permission/Audit Production Ownership Closure 102 ─────────────────────────────────────────────
+// Consumes python ownership classification for durable boundary context. Node/external retain stores.
+
+export type PermissionAuditOwnershipStatus = "success" | "failed" | "degraded" | "node-fallback";
+
+export interface PermissionAuditProductionOwnershipClosureResult {
+  status: PermissionAuditOwnershipStatus;
+  contractVersion?: string;
+  provenance?: string;
+  ok?: boolean;
+  productionTakeover?: boolean;
+  ownership?: Record<string, string>;
+  nodeBoundaries?: Record<string, string>;
+  area?: string;
+  simulate?: Record<string, unknown>;
+  error?: { code: string; message: string };
+}
+
+export function validatePermissionAuditProductionOwnershipClosure(
+  payload: unknown,
+): PermissionAuditProductionOwnershipClosureResult {
+  if (!payload || typeof payload !== "object") {
+    return {
+      status: "node-fallback",
+      contractVersion: "permission-audit.production-ownership-closure.v1",
+      provenance: "node-fallback",
+      ok: true,
+      productionTakeover: false,
+      ownership: {
+        policyStore: "node-retained",
+        auditDurableStore: "node-retained",
+        externalAuditPlatform: "external-owned",
+        durableDecision: "python-owned",
+      },
+    };
+  }
+  const p = payload as Record<string, unknown>;
+  const rawStatus = (p.status as string) || "success";
+  const status: PermissionAuditOwnershipStatus =
+    rawStatus === "success" || rawStatus === "failed" || rawStatus === "degraded"
+      ? (rawStatus as PermissionAuditOwnershipStatus)
+      : "node-fallback";
+
+  return {
+    status,
+    contractVersion: typeof p.contractVersion === "string" ? p.contractVersion : "permission-audit.production-ownership-closure.v1",
+    provenance: typeof p.provenance === "string" ? p.provenance : "python-permission-audit-production-ownership-closure-102",
+    ok: p.ok === true || status === "success" || status === "node-fallback",
+    productionTakeover: !!p.productionTakeover,
+    ownership: (p.ownership as Record<string, string>) || undefined,
+    nodeBoundaries: (p.nodeBoundaries as Record<string, string>) || undefined,
+    area: typeof p.area === "string" ? p.area : undefined,
+    ...(p.simulate ? { simulate: p.simulate as Record<string, unknown> } : {}),
+    ...(p.error ? { error: p.error as { code: string; message: string } } : {}),
+  };
+}

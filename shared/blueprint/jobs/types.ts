@@ -109,3 +109,42 @@ export type BlueprintJobRuntimeResult =
       jobId?: string;
       retryable?: boolean;
     };
+
+/**
+ * 103: Job store scope decision types (consumed by python bridge + migration accounting).
+ * These classify areas for denominator; do not imply migration of real stores.
+ */
+export type BlueprintJobStoreScopeArea =
+  | "jobStore"
+  | "eventBus"
+  | "ledger"
+  | "replan"
+  | "promptPackage"
+  | "previewState"
+  | "jobStateSlice"
+  | "all";
+
+export type BlueprintJobStoreScopeOwnership =
+  | "python-owned"
+  | "node-retained"
+  | "external-owned"
+  | "out-of-scope";
+
+export interface BlueprintJobStoreScopeDecision {
+  area: BlueprintJobStoreScopeArea | string;
+  ownership: BlueprintJobStoreScopeOwnership | Record<string, BlueprintJobStoreScopeOwnership>;
+  productionTakeover: boolean;
+  migrationDenominator: {
+    total: number;
+    pythonOwned: number;
+    nodeRetained: number;
+    externalOwned?: number;
+    outOfScope?: number;
+  };
+  reason: string;
+  evidence: Record<string, unknown>;
+  contractVersion: "blueprint.job-store-scope-decision.v1";
+  provenance: string;
+  ok: boolean;
+  areas?: Record<string, BlueprintJobStoreScopeOwnership>;
+}

@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] 读取 89/101/102 A2A 证据。
-- [ ] 明确 registry、session、stream、cancel、chat、report、analytics 的 ownership。
-- [ ] 补最小 Python-owned session-stream runtime slice，或明确 retained/external/out-of-scope。
-- [ ] Node 测试覆盖 stream/cancel/session 边界。
-- [ ] gate 全绿。
-- [ ] review 确认没有虚写 A2A production transport 100%。
+- [x] 读取 89/101/102 A2A 证据。
+- [x] 明确 registry、session、stream、cancel、chat、report、analytics 的 ownership。
+- [x] 补最小 Python-owned session-stream runtime slice，或明确 retained/external/out-of-scope。
+- [x] Node 测试覆盖 stream/cancel/session 边界。
+- [x] gate 全绿。
+- [x] review 确认没有虚写 A2A production transport 100%。
 
 ## 背景
 

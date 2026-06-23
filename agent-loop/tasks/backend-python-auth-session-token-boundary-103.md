@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] 读取 88/96/97/100/101/102 Auth 证据。
-- [ ] 明确 session repository、token issuance、email mailer、password policy、user repository 的归属。
-- [ ] 补最小 Python-owned session/token boundary，或产出 retained/out-of-scope decision。
-- [ ] Node auth 测试覆盖 session/token 路径。
-- [ ] gate 全绿。
-- [ ] review 确认没有虚写 Auth 生产链路 100%。
+- [x] 读取 88/96/97/100/101/102 Auth 证据。
+- [x] 明确 session repository、token issuance、email mailer、password policy、user repository 的归属。
+- [x] 补最小 Python-owned session/token boundary，或产出 retained/out-of-scope decision。
+- [x] Node auth 测试覆盖 session/token 路径。
+- [x] gate 全绿。
+- [x] review 确认没有虚写 Auth 生产链路 100%。
 
 ## 背景
 

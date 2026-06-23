@@ -1083,3 +1083,67 @@ export function summarizeWebAigcProviderReadiness(
     ready > 0 && skippedLive === 0 && blocked === 0 && degraded === 0 && unsupported === 0 && hasRealExternalSignal;
   return { ready, skippedLive, blocked, degraded, unsupported, canClaimRealExternal };
 }
+
+// ---------------------------------------------------------------------------
+// Web AIGC real provider live contract 103
+// ---------------------------------------------------------------------------
+
+export type WebAigcRealProviderLiveStatus =
+  | "live-ready"
+  | "skipped-live"
+  | "synthetic"
+  | "external-owned";
+
+export interface WebAigcRealProviderLiveContractEntry {
+  kind: string;
+  status: WebAigcRealProviderLiveStatus;
+  ownership: "python" | "external" | "node";
+  requiredEnv: string[];
+  skipReason: string | null;
+  productionTakeover: boolean;
+  liveCapable: boolean;
+  backend: "python";
+  externalCalls: false;
+}
+
+export interface WebAigcRealProviderLiveContract {
+  contractVersion: string;
+  provenance: string;
+  ok: boolean;
+  total: number;
+  counts: {
+    liveReady: number;
+    skippedLive: number;
+    synthetic: number;
+    externalOwned: number;
+  };
+  providers: Record<string, WebAigcRealProviderLiveContractEntry>;
+  realPythonTakeover: number;
+  runtime: { owner: "python"; mode: string; externalCalls: false };
+  note: string;
+}
+
+export function summarizeWebAigcRealProviderLiveContract(
+  providers: Record<string, { status: WebAigcRealProviderLiveStatus; ownership?: string; productionTakeover?: boolean }>,
+): {
+  liveReady: number;
+  skippedLive: number;
+  synthetic: number;
+  externalOwned: number;
+  realPythonTakeover: number;
+  canClaimRealProviderMigration: boolean;
+} {
+  const entries = Object.values(providers || {});
+  const liveReady = entries.filter((e) => e.status === "live-ready").length;
+  const skippedLive = entries.filter((e) => e.status === "skipped-live").length;
+  const synthetic = entries.filter((e) => e.status === "synthetic").length;
+  const externalOwned = entries.filter((e) => e.status === "external-owned").length;
+  const realPythonTakeover = entries.filter(
+    (e: any) => e.status === "live-ready" && e.ownership === "python" && e.productionTakeover === true,
+  ).length;
+  // critical: skipped-live, synthetic, external-owned must never allow claiming real provider migration complete for this slice
+  // only real python-owned live internal would, but per contract external live-ready do not count as python takeover
+  const canClaimRealProviderMigration =
+    liveReady > 0 && skippedLive === 0 && externalOwned === 0 && synthetic === 0 && realPythonTakeover > 0;
+  return { liveReady, skippedLive, synthetic, externalOwned, realPythonTakeover, canClaimRealProviderMigration };
+}

@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] 读取 100/101/102 的 Blueprint runtime / cutover / ownership 证据。
-- [ ] 明确 job store、event bus、ledger、replan、prompt package、preview state 的归属。
-- [ ] 若存在可迁移小闭环，补 Python-owned runtime slice 和 Node thin bridge。
-- [ ] 若仍应由 Node 保留，产出可测试的 retained / out-of-scope decision。
-- [ ] gate 全绿。
-- [ ] review 确认没有虚写 Blueprint 主系统 100%。
+- [x] 读取 100/101/102 的 Blueprint runtime / cutover / ownership 证据。
+- [x] 明确 job store、event bus、ledger、replan、prompt package、preview state 的归属。
+- [x] 若存在可迁移小闭环，补 Python-owned runtime slice 和 Node thin bridge。
+- [x] 若仍应由 Node 保留，产出可测试的 retained / out-of-scope decision。
+- [x] gate 全绿。
+- [x] review 确认没有虚写 Blueprint 主系统 100%。
 
 ## 背景
 

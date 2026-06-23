@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] 读取 97/100/101/102 的 Task lifecycle 证据。
-- [ ] 明确 mission store、project auth、scheduler、cancel、error state 的 ownership。
-- [ ] 补一个可测试的 Python-owned mission runtime slice，或明确 retained/out-of-scope。
-- [ ] Node 测试覆盖 store/read/replay/cancel 边界。
-- [ ] gate 全绿。
-- [ ] review 确认没有虚写 Task lifecycle 100%。
+- [x] 读取 97/100/101/102 的 Task lifecycle 证据。
+- [x] 明确 mission store、project auth、scheduler、cancel、error state 的 ownership。
+- [x] 补一个可测试的 Python-owned mission runtime slice，或明确 retained/out-of-scope。
+- [x] Node 测试覆盖 store/read/replay/cancel 边界。
+- [x] gate 全绿。
+- [x] review 确认没有虚写 Task lifecycle 100%。
 
 ## 背景
 

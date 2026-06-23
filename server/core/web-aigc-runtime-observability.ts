@@ -4,8 +4,13 @@ import type { ExecutionEvent, ReplayEventType } from "../../shared/replay/contra
 import type {
   WebAigcRealProviderReadinessMatrix,
   WebAigcRealProviderReadinessStatus,
+  WebAigcRealProviderLiveContract,
+  WebAigcRealProviderLiveStatus,
 } from "../../shared/telemetry/contracts.js";
-import { summarizeWebAigcProviderReadiness } from "../../shared/telemetry/contracts.js";
+import {
+  summarizeWebAigcProviderReadiness,
+  summarizeWebAigcRealProviderLiveContract,
+} from "../../shared/telemetry/contracts.js";
 
 export interface WebAigcRuntimeReplayCollectorLike {
   emit(event: Omit<ExecutionEvent, "eventId" | "timestamp">): void;
@@ -488,4 +493,24 @@ export function recordWebAigcProviderReadiness(
   }
   const providers = matrix.providers as Record<string, { status: WebAigcRealProviderReadinessStatus }>;
   return summarizeWebAigcProviderReadiness(providers);
+}
+
+// Web AIGC real provider live contract 103
+// Records live contract; distinguishes live-ready/skipped/synthetic/external-owned.
+// skipped-live / synthetic / external-owned MUST NOT count as real provider migration takeover.
+export function recordWebAigcRealProviderLiveContract(
+  contract: Partial<WebAigcRealProviderLiveContract> | undefined,
+): {
+  liveReady: number;
+  skippedLive: number;
+  synthetic: number;
+  externalOwned: number;
+  realPythonTakeover: number;
+  canClaimRealProviderMigration: boolean;
+} {
+  if (!contract || !contract.providers) {
+    return { liveReady: 0, skippedLive: 0, synthetic: 0, externalOwned: 0, realPythonTakeover: 0, canClaimRealProviderMigration: false };
+  }
+  const providers = contract.providers as Record<string, { status: WebAigcRealProviderLiveStatus; ownership?: string; productionTakeover?: boolean }>;
+  return summarizeWebAigcRealProviderLiveContract(providers);
 }

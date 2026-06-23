@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] 读取 96/97/100/101/102 Web AIGC 证据。
-- [ ] 明确 web_search、vision、audio、ocr、web-qa、page_fetch、ai-ppt、chart、transaction 的归属。
-- [ ] 补可配置 live provider contract，或明确 external-owned/out-of-scope。
-- [ ] Node 测试覆盖 live/skipped/synthetic 的区分。
-- [ ] gate 全绿。
-- [ ] review 确认没有虚写 Web AIGC provider 100%。
+- [x] 读取 96/97/100/101/102 Web AIGC 证据。
+- [x] 明确 web_search、vision、audio、ocr、web-qa、page_fetch、ai-ppt、chart、transaction 的归属。
+- [x] 补可配置 live provider contract，或明确 external-owned/out-of-scope。
+- [x] Node 测试覆盖 live/skipped/synthetic 的区分。
+- [x] gate 全绿。
+- [x] review 确认没有虚写 Web AIGC provider 100%。
 
 ## 背景
 

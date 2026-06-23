@@ -135,6 +135,66 @@
 
 （102-stage gate wording: NodeJS Python 102 ?????? ??????? Blueprint Auth Audit Task lifecycle Web AIGC A2A）
 
+## 103 阶段 migration scope reconciliation 队列状态刷新
+
+本轮是 103 migration scope reconciliation 队列的状态刷新任务（backend-python-migration-scope-reconciliation-103）。只刷新状态，不新增业务迁移分子。基于 103 队列 6 个 scope decision / thin slice 任务的 outcome、gate、review、Python/Node 代码证据（job store scope、task mission slice、auth session token、perm audit durable、web aigc live contract、a2a session stream）更新口径。103 逐项对仍卡 100% 的面做了 `python-owned` / `node-retained` / `external-owned` / `out-of-scope` / `skipped-live` / `blocked` 的显式分类，并产出 migrationDenominator 证据。**本 status refresh 本身不计入任何迁移分子**。
+
+### 103 队列任务证据
+
+103 scope reconciliation 队列（来自 `agent-loop/scripts/migration-queue.json`）共 6 个任务 + 本刷新：
+
+- `backend-python-blueprint-job-store-scope-decision-103`：代码落地。jobStore/eventBus/ledger/replan/promptPackage/previewState 显式 `node-retained`，`productionTakeover=false`；仅 `jobStateSlice` `python-owned`（thin decision slice）。`migrationDenominator`: total=7, pythonOwned=1, nodeRetained=6 。从分母明确排除主 durable surfaces 作为未完成迁移项。
+- `backend-python-task-mission-store-runtime-slice-103`：`durableStore` / `scheduler` / `projectResourceAuth` / `eventAppendPersistence` / `errorPath` / `route` 显式 `node-retained`；`runtimeState` / `cancelState` / `replayProjection` 部分 `python-owned`（bounded slice / advisory）。`productionTakeover=false`。明确 durable 不计入迁移完成。
+- `backend-python-auth-session-token-boundary-103`：`sessionRepository`/`tokenIssuance`/`passwordPolicy`/`emailCodeMailer`/`userRepository` 全部 `node-retained`；仅 `sessionTokenDecision` 薄 `python-owned` decision。无生产 session/token 接管。
+- `backend-python-permission-audit-durable-store-boundary-103`：`policyStore`/`auditDurableStore`/`retention` `node-retained`；`externalAuditPlatform` `external-owned`；`durableDecision` `python-owned`（thin）。明确 external-owned 从 Python 迁移范围分离。
+- `backend-python-web-aigc-real-provider-live-contract-103`：real external (web_search/vision/audio/ocr 等) `external-owned` / `skipped-live`；synthetic (file/ai-ppt/chart/transaction) `python-owned` 但 `productionTakeover=false` 且不计真实接管；`web_qa` `external-owned`。skipped/synthetic 不得计真实迁移。
+- `backend-python-a2a-session-stream-runtime-slice-103`：session/stream/cancel 薄 `python-owned` slice；real transport/registry 仍 `node-retained` / `external-agent-required`。`productionTakeover=false`。
+- `backend-python-migration-scope-reconciliation-103`：本刷新任务，**不计入业务迁移分子**。
+
+所有 103 任务明确产出 retained/external/skipped/out-of-scope 分类，禁止把它们计入完成。
+
+### 103 阶段计入与不计入清单
+
+| 类型 | 本轮 103 成功计入 | 本轮不能计入 |
+|---|---|---|
+| scope decision / denominator classification / migrationDenominator | 6 个任务的 explicit ownership + migrationDenominator 证据 + Node/Python 测试 | 仅 classification，不等于 runtime 完成或 production takeover |
+| thin runtime slice (bounded, no takeover) | jobStateSlice、mission runtime/cancel/replay advisory、sessionTokenDecision、durableDecision、synthetic facade、a2a session slice（有代码+test 证据） | 不升级为生产接管或大分母迁移；不得把 synthetic/skipped 算 real external |
+| node-retained / external-owned / skipped-live / out-of-scope / blocked | 从分母口径记录：Blueprint 6/7 node-retained；Auth 5 core node；Perm externalOwned + node；Web real external；A2A transport | 按 103 代码 note、测试断言和 guard 规则明确不计入业务完成 |
+| status / docs / inventory / refresh | — | backend-python-migration-scope-reconciliation-103 本身 |
+| runtime / production cutover (full takeover) | — | 所有 103 任务 `productionTakeover` 保持 false；无主 surface 迁移证据 |
+| docs-only / readiness / no-diff | — | 103 无此类；所有有真实 diff + gate |
+
+### 103 阶段 整体工程进度
+
+**整体 NodeJS 后端迁 Python 约 98-99%，工作数字 98%。** 102 后仍是 98%，103 提供了 6 个 scope decision / thin boundary 证据，逐项把 “卡点” 明确为 `node-retained` / `external-owned` / `out-of-scope` 或 bounded python slice（不改变大分母）。`docs/backend-python-node-route-cutover-audit-100.md` 结论仍成立：Blueprint 主流程、完整 auth/audit/task/Web AIGC 和真实外部 provider 等大分母 node-owned-gap 仍存在（或现明确 external/retained）。**未满足整体 100% 条件，不能写整体 100%**。使用保守口径。103 证据支持从迁移分母口径解释部分 retained surfaces，而不是当成业务迁移完成。
+
+| 范围 | 103 阶段判断 | 进度条 | 计入口径 |
+|---|---:|---|---|
+| 整体 NodeJS 后端迁 Python | 约 98-99%，工作数字 98% | `[█████████░]` | 103 6 个 scope decision 强化了 `python-owned` vs `node-retained`/`external-owned` 分类和 migrationDenominator；仍有多处 `node-retained` 和 `external-owned` surfaces 阻塞。不能写 100%。 |
+| SlideRule V5 子系统迁移 | 仍 95-97% 审计区间 | `[█████████░]` | 103 未针对主链路新增；保持审计姿态。 |
+| Blueprint-adjacent runtime support | 约 88-93% | `[█████████░]` | 103 明确 jobStore 等 6 项 `node-retained`，仅 1 thin slice `python-owned`；主 durable 仍 Node 保留。 |
+| Auth/Audit runtime support | 约 89-93% | `[█████████░]` | 核心 session/token/policy/audit durable `node-retained` 或 `external-owned`；仅 thin decision `python`。 |
+| Task lifecycle support | 约 88-92% | `[█████████░]` | durableStore 等 `node-retained`；仅 bounded runtime slice `python`。 |
+| Web AIGC long-tail runtime | 约 85-91% | `[████████░░]` | real providers `external-owned`/`skipped-live`；synthetic `python-owned` 不计真实接管。 |
+| production wiring maturity / cutover readiness | 约 90-94% | `[█████████░]` | 103 产出分类决策；真实外部服务长跑接管仍未证明。 |
+
+### 103 阶段 剩余短板成熟度
+
+103 后剩余短板仍聚焦最后 `node-retained` / `external-owned` / `blocked` surface。局部 85-92% 正常，因为 103 只是 scope 分类而非移除大分母缺口。
+
+| 短板 | 成熟度 | 为什么局部仍 85-93%（103 后） | 103 后归类证据 |
+|---|---|---|---|
+| Blueprint 主系统 | 85-90% | 103 decision：6/7 areas `node-retained`（jobStore/eventBus/ledger/replan/promptPackage/previewState），仅 jobStateSlice 薄 `python-owned`，`productionTakeover=false`。主生产持久化/事件总线/ledger/replan 全链路 Node 保留。 | `blueprint_job_store_scope_decision.py` + node bridge test + migrationDenominator |
+| Task lifecycle | 86-91% | 103：durableStore/scheduler/projectResourceAuth/eventAppend 等 `node-retained`；runtime/cancel/replay 仅 bounded/advisory `python` slice。 | `task_mission_store_runtime_slice.py` + tests |
+| Auth 生产链路 | 88-93% | 103：sessionRepository/tokenIssuance/passwordPolicy/mailer/userRepository 全部 `node-retained`；仅 sessionTokenDecision 薄 `python`。 | `auth_session_token_boundary.py` + tests |
+| Permission / Audit | 85-91% | 103：policyStore/auditDurableStore/retention `node-retained`，`externalAuditPlatform` `external-owned`；仅 durableDecision thin `python`。 | `permission_audit_durable_store_boundary.py` + tests |
+| Web AIGC 长尾 + 真实 provider | 84-89% | 103 live contract 矩阵：real search/vision/audio/ocr/web-qa 等 `external-owned` 或 `skipped-live`；synthetic facade `python-owned` 但不计真实 provider。 | `web_aigc_real_provider_live_contract.py` + tests |
+| A2A / 核心 transport | 87-92% | 103：session/stream slice `python-owned`；real transport/registry `node-retained` 或 `external-agent-required`。 | `a2a_session_stream_runtime_slice.py` + node tests |
+
+**关键**：103 是 scope reconciliation 算账轮。证据显示主要生产面仍 `node-retained` 或 `external-owned`，未消除 100% blockers。整体仍保持 98%，**不能写 100%**。从分母口径解释 retained/out-of-scope 面，而非计为迁移完成。若要上调，必须有真实 Python-owned runtime takeover 证据或正式的 scope exclusion 改变整体分母计算依据。review 确认没有把 docs-only、retained、skipped-live、external-owned、out-of-scope 虚算成 Python 迁移完成。
+
+（103-stage gate wording: NodeJS Python 103 scope reconciliation python-owned node-retained external-owned out-of-scope Blueprint Auth Audit Task lifecycle Web AIGC A2A）
+
 ## 100 阶段候选队列状态刷新
 
 本轮是 100% 候选队列的最终状态刷新任务（backend-python-migration-status-refresh-100）。只刷新状态，不新增业务迁移分子。基于 `.agent-loop/queue-outcomes.json`、100 候选任务结果/diff/gate/commit、 `docs/backend-python-node-route-cutover-audit-100.md` 结论更新口径。只有当 route cutover audit 支持且所有关键路线均为 thin proxy / compat shell / production-owned、无 node-owned-gap、100% 候选全部 DONE_REVIEWED 落地时，才允许写整体 100%。

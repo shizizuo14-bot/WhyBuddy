@@ -76,3 +76,85 @@ export function isA2ACoreRouteCutoverReady(result: unknown): boolean {
   const v = validateA2ACoreRouteCutover(result);
   return v.ok && v.status === "ready" && !!v.cutoverSummary;
 }
+
+// ---------------------------------------------------------------------------
+// A2A session stream runtime slice (103) and production transport ownership (102)
+// Advisory slice only. Production transport NOT taken over.
+// ---------------------------------------------------------------------------
+
+export interface A2ASessionStreamSliceResult {
+  ok: boolean;
+  status: string;
+  session?: any;
+  streamChunk?: any;
+  error?: any;
+  response?: any;
+  contractVersion: string;
+  provenance: string;
+  runtime: { owner: "python" | "node"; mode: string };
+}
+
+export const A2A_SESSION_STREAM_SLICE_CONTRACT_VERSION = "a2a.session-stream-runtime-slice.v1" as const;
+
+export function validateA2ASessionStreamSliceResult(payload: unknown): A2ASessionStreamSliceResult {
+  if (!payload || typeof payload !== "object") {
+    return {
+      ok: false,
+      status: "failed",
+      contractVersion: A2A_SESSION_STREAM_SLICE_CONTRACT_VERSION,
+      provenance: "node-fallback",
+      runtime: { owner: "node", mode: "local_fallback" },
+    };
+  }
+  const p = payload as any;
+  return {
+    ok: !!p.ok,
+    status: p.status || "failed",
+    session: p.session,
+    streamChunk: p.streamChunk,
+    error: p.error,
+    response: p.response,
+    contractVersion: typeof p.contractVersion === "string" ? p.contractVersion : A2A_SESSION_STREAM_SLICE_CONTRACT_VERSION,
+    provenance: typeof p.provenance === "string" ? p.provenance : "node-fallback",
+    runtime: p.runtime || { owner: "node", mode: "local_fallback" },
+  };
+}
+
+export interface A2AProductionTransportOwnershipResult {
+  status: string;
+  contractVersion: string;
+  provenance: string;
+  productionTakeover: boolean;
+  ownership: Record<string, string>;
+  nodeBoundaries?: Record<string, string>;
+  ok: boolean;
+  note?: string;
+  area?: string;
+}
+
+export const A2A_PRODUCTION_TRANSPORT_OWNERSHIP_CONTRACT_VERSION = "a2a.production-transport-ownership-closure.v1" as const;
+
+export function validateA2AProductionTransportOwnership(payload: unknown): A2AProductionTransportOwnershipResult {
+  if (!payload || typeof payload !== "object") {
+    return {
+      status: "success",
+      contractVersion: A2A_PRODUCTION_TRANSPORT_OWNERSHIP_CONTRACT_VERSION,
+      provenance: "node-fallback",
+      productionTakeover: false,
+      ownership: { realStreamTransport: "node-retained" },
+      ok: true,
+    };
+  }
+  const p = payload as any;
+  return {
+    status: p.status || "success",
+    contractVersion: typeof p.contractVersion === "string" ? p.contractVersion : A2A_PRODUCTION_TRANSPORT_OWNERSHIP_CONTRACT_VERSION,
+    provenance: typeof p.provenance === "string" ? p.provenance : "node-fallback",
+    productionTakeover: p.productionTakeover === true ? true : false,
+    ownership: p.ownership || {},
+    nodeBoundaries: p.nodeBoundaries,
+    ok: p.ok !== false,
+    note: p.note,
+    area: p.area,
+  };
+}

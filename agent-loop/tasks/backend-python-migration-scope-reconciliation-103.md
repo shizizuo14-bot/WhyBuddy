@@ -8,12 +8,12 @@
 
 ### 状态清单
 
-- [ ] 读取 103 队列每个任务的 outcome、diff、gate、review 证据。
-- [ ] 区分 `python-owned`、`node-retained`、`external-owned`、`out-of-scope`、`blocked`、`docs-only`。
-- [ ] 更新整体工程进度和剩余短板成熟度。
-- [ ] 明确是否可以调整整体 98% 工作数字；证据不足时保持保守数字。
-- [ ] gate 全绿。
-- [ ] review 确认没有虚高整体 NodeJS 后端迁移进度。
+- [x] 读取 103 队列每个任务的 outcome、diff、gate、review 证据。
+- [x] 区分 `python-owned`、`node-retained`、`external-owned`、`out-of-scope`、`blocked`、`docs-only`。
+- [x] 更新整体工程进度和剩余短板成熟度。
+- [x] 明确是否可以调整整体 98% 工作数字；证据不足时保持保守数字。
+- [x] gate 全绿。
+- [x] review 确认没有虚高整体 NodeJS 后端迁移进度。
 
 ## 背景
 

@@ -98,8 +98,8 @@ import type {
   WebAigcDocumentSearchResponse,
   WebAigcSearchRequest,
 } from "../../shared/rag/web-aigc-search.js";
-import type { WebAigcRealProviderReadinessMatrix } from "../../shared/telemetry/contracts.js";
-import { recordWebAigcProviderReadiness } from "./web-aigc-runtime-observability.js";
+import type { WebAigcRealProviderReadinessMatrix, WebAigcRealProviderLiveContract } from "../../shared/telemetry/contracts.js";
+import { recordWebAigcProviderReadiness, recordWebAigcRealProviderLiveContract } from "./web-aigc-runtime-observability.js";
 import type { TransactionFlowAction } from "../../shared/web-aigc-transaction-flow.js";
 import type {
   WebAigcOrchestrationRecognitionJumpCandidate,
@@ -1655,6 +1655,15 @@ export function consumeWebAigcRealProviderReadinessMatrix(
 ) {
   // delegates to observability record (which uses summarize for full classification)
   return recordWebAigcProviderReadiness(matrix);
+}
+
+// Web AIGC real provider live contract 103 consumption.
+// Node consumes python live contract to distinguish live-ready vs skipped-live/synthetic/external-owned.
+// synthetic/skipped/external-owned never count as real python provider takeover.
+export function consumeWebAigcRealProviderLiveContract(
+  contract: Partial<WebAigcRealProviderLiveContract> | undefined,
+) {
+  return recordWebAigcRealProviderLiveContract(contract);
 }
 
 export function installWebAigcRuntimeExtraAdapters(

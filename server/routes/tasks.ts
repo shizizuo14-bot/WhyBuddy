@@ -65,6 +65,7 @@ export interface TaskRouterOptions {
   taskLifecycleRuntimeBaseUrl?: string;
   taskLifecycleProductionClosureBaseUrl?: string;
   taskStoreAuthSchedulerCutoverBaseUrl?: string;
+  taskMissionStoreRuntimeSliceBaseUrl?: string;
   workflowRetry?: WorkflowRetryDependencies;
   requireAuth?: RequestHandler;
   projects?: {
@@ -238,6 +239,15 @@ function resolveTaskStoreAuthSchedulerCutoverBaseUrl(
   const configured =
     options.taskStoreAuthSchedulerCutoverBaseUrl?.trim() ||
     process.env.TASK_STORE_AUTH_SCHEDULER_CUTOVER_BASE_URL?.trim();
+  return configured ? configured.replace(/\/+$/, '') : undefined;
+}
+
+function resolveTaskMissionStoreRuntimeSliceBaseUrl(
+  options: TaskRouterOptions,
+): string | undefined {
+  const configured =
+    options.taskMissionStoreRuntimeSliceBaseUrl?.trim() ||
+    process.env.TASK_MISSION_STORE_RUNTIME_SLICE_BASE_URL?.trim();
   return configured ? configured.replace(/\/+$/, '') : undefined;
 }
 
@@ -792,6 +802,65 @@ async function callTaskStoreAuthSchedulerCutoverSafely(
 ): Promise<TaskStoreAuthSchedulerCutoverDecision | undefined> {
   try {
     return await callTaskStoreAuthSchedulerCutover(payload, options);
+  } catch {
+    return undefined;
+  }
+}
+
+interface TaskMissionStoreRuntimeSliceDecision {
+  ok?: boolean;
+  decision?: string;
+  contractVersion?: string;
+  provenance?: string;
+  missionId?: string;
+  ownership?: Record<string, string>;
+  nodeRetained?: Record<string, string>;
+  runtime?: { owner: string; mode: string; durableStoreOwner?: string; missionStoreOwner?: string };
+  blocked?: boolean;
+  action?: string;
+  cancel?: { missionId: string; cancelRequested: boolean; stateOwner?: string };
+  replay?: { missionId: string; projectionOwner?: string };
+}
+
+async function callTaskMissionStoreRuntimeSlice(
+  payload: Record<string, unknown>,
+  options: {
+    baseUrl?: string;
+    fetchImpl: typeof fetch;
+  },
+): Promise<TaskMissionStoreRuntimeSliceDecision | undefined> {
+  if (!options.baseUrl) {
+    return undefined;
+  }
+  const url = `${options.baseUrl}/api/tasks/mission-store/runtime-slice`;
+  try {
+    const res = await options.fetchImpl(url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (!res.ok) {
+      return { decision: 'unsupported', ok: false, ownership: { durableStore: 'node-retained' } };
+    }
+    const parsed = await res.json().catch(() => ({}));
+    if (parsed && typeof parsed === 'object' && ('decision' in parsed || 'ownership' in parsed)) {
+      return parsed as TaskMissionStoreRuntimeSliceDecision;
+    }
+    return { decision: 'ready', ok: true, ownership: { durableStore: 'node-retained', runtimeState: 'python-owned' } };
+  } catch {
+    return undefined;
+  }
+}
+
+async function callTaskMissionStoreRuntimeSliceSafely(
+  payload: Record<string, unknown>,
+  options: {
+    baseUrl?: string;
+    fetchImpl: typeof fetch;
+  },
+): Promise<TaskMissionStoreRuntimeSliceDecision | undefined> {
+  try {
+    return await callTaskMissionStoreRuntimeSlice(payload, options);
   } catch {
     return undefined;
   }
@@ -1385,6 +1454,23 @@ export function createTaskRouter(
       );
     }
 
+    // Call Python mission store runtime slice 103 (thin decision; Node owns durable store)
+    const taskMissionStoreRuntimeSliceBaseUrl = resolveTaskMissionStoreRuntimeSliceBaseUrl(options);
+    let missionStoreRuntimeSlice: TaskMissionStoreRuntimeSliceDecision | undefined;
+    if (taskMissionStoreRuntimeSliceBaseUrl) {
+      missionStoreRuntimeSlice = await callTaskMissionStoreRuntimeSliceSafely(
+        {
+          missionId: task.id,
+          projectId: ownedProjectId,
+          resourceId: task.id,
+          action: 'create',
+          area: 'storeClassification',
+          metadata: lifecycleMetadata,
+        },
+        { baseUrl: taskMissionStoreRuntimeSliceBaseUrl, fetchImpl },
+      );
+    }
+
     let dispatchAccepted: boolean | undefined;
     let dispatchError: string | undefined;
     if (!lifecycleError && shouldAutoDispatchMission(task, body.autoDispatch)) {
@@ -1420,6 +1506,7 @@ export function createTaskRouter(
         : {}),
       ...(closureSummary ? { closure: closureSummary } : {}),
       ...(cutoverDecision ? { cutoverDecision } : {}),
+      ...(missionStoreRuntimeSlice ? { missionStoreRuntimeSlice } : {}),
       ...(dispatchAccepted === undefined
         ? {}
         : {
@@ -1620,6 +1707,22 @@ export function createTaskRouter(
       });
     }
 
+    // 103 slice: mission store runtime slice for cancel state (advisory; durable node retained)
+    const sliceBaseForCancel = resolveTaskMissionStoreRuntimeSliceBaseUrl(options);
+    const cancelSlice = sliceBaseForCancel
+      ? await callTaskMissionStoreRuntimeSliceSafely(
+          {
+            missionId: task.id,
+            projectId: cancelProjectId,
+            resourceId: task.id,
+            action: 'cancel',
+            area: 'cancelState',
+            reason,
+          },
+          { baseUrl: sliceBaseForCancel, fetchImpl },
+        )
+      : undefined;
+
     const executorJobId = task.executor?.jobId?.trim();
     let executorForwarded = false;
 
@@ -1722,6 +1825,7 @@ export function createTaskRouter(
       task: cancelled,
       ...(lifecycle?.ok === true ? { lifecycle } : {}),
       ...(cancelClosureSummary ? { closure: cancelClosureSummary } : {}),
+      ...(cancelSlice ? { missionStoreRuntimeSlice: cancelSlice } : {}),
     });
   });
 
