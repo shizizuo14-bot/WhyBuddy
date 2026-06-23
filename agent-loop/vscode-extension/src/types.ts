@@ -51,11 +51,21 @@ export interface LoopState {
   grokReview?: AgentRunSummary | null;
   codexReview?: AgentRunSummary | null;
   reviewVerdict?: string | null;
+  activeAgentLog?: ActiveAgentLog | null;
   artifacts?: {
     runDir?: string;
     latestDir?: string;
   };
   worktreeError?: string | null;
+}
+
+export interface ActiveAgentLog {
+  phase?: 'fix' | 'review' | string;
+  agent?: 'grok' | 'codex' | string;
+  iteration?: number | null;
+  attempt?: number | null;
+  stdout?: string | null;
+  stderr?: string | null;
 }
 
 export interface ReviewRound {

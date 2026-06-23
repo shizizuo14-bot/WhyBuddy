@@ -31,6 +31,7 @@ export async function resolveActiveLogCandidates(latestRoot: string, state: Loop
   const status = state?.status;
   const { fixAgent, reviewAgent } = resolveAgentRoles(state);
   const candidates: string[] = [];
+  pushExplicitActiveLog(candidates, latestRoot, state);
 
   if (status === 'GROK_REVIEW' || status === 'CODEX_REVIEW') {
     pushReviewLogs(candidates, latestRoot, reviewAgent);
@@ -58,6 +59,23 @@ export async function resolveActiveLogCandidates(latestRoot: string, state: Loop
   pushReviewLogs(candidates, latestRoot, reviewAgent);
   await pushFixLogs(candidates, latestRoot, fixAgent, state);
   return candidates;
+}
+
+function pushExplicitActiveLog(candidates: string[], latestRoot: string, state: LoopState | null): void {
+  const active = state?.activeAgentLog;
+  if (!active) return;
+  const stderr = resolveRelativeLogPath(latestRoot, active.stderr);
+  const stdout = resolveRelativeLogPath(latestRoot, active.stdout);
+  if (stderr) candidates.push(stderr);
+  if (stdout) candidates.push(stdout);
+}
+
+function resolveRelativeLogPath(latestRoot: string, fileName: unknown): string | null {
+  if (typeof fileName !== 'string' || !fileName.trim()) return null;
+  if (path.isAbsolute(fileName)) return null;
+  const normalized = fileName.replace(/\\/g, '/');
+  if (normalized.split('/').includes('..')) return null;
+  return path.join(latestRoot, normalized);
 }
 
 export async function findNewestFixLog(latestRoot: string, prefix: string, iteration: number): Promise<string | null> {

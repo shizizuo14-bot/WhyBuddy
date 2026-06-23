@@ -1850,6 +1850,61 @@ test('runLoop halts when scoped review output is unparseable even with exit code
   assert.equal(result.iterations.length, 0);
 });
 
+test('runLoop publishes the active fix log pointer before the worker runs', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-test-'));
+  const taskPath = path.join(cwd, 'task.md');
+  await fs.writeFile(taskPath, 'fix unstable agent log\n\n## 成功标准\n\n- gate 全绿\n', 'utf8');
+
+  const states = [];
+  const gateResults = [
+    gate(false, 1, 'baseline red'),
+    gate(true, 0, ''),
+  ];
+  const diffs = [
+    '',
+    'diff --git a/src/a.py b/src/a.py\n+fixed\n',
+  ];
+
+  const result = await runLoop({
+    options: {
+      cwd,
+      fixCwd: cwd,
+      createWorktree: null,
+      task: taskPath,
+      gates: ['npm test'],
+      autoFix: true,
+      skipReview: true,
+      fixAgent: 'grok',
+      timeoutMs: 1000,
+      maxIterations: 1,
+    },
+    runDir: cwd,
+    latestDir: cwd,
+    deps: {
+      resolveAgents: async () => ({ codex: null, grok: 'grok.exe' }),
+      evaluateGate: async () => gateResults.shift(),
+      captureDiff: async () => ({ text: diffs.shift() ?? diffs.at(-1) }),
+      runProcess: async (command, args, options) => {
+        const latestState = states.at(-1);
+        assert.equal(latestState.status, 'GROK_FIX');
+        assert.deepEqual(latestState.activeAgentLog, {
+          phase: 'fix',
+          agent: 'grok',
+          iteration: 1,
+          attempt: 1,
+          stdout: 'grok-output.1.1.stdout.log',
+          stderr: 'grok-output.1.1.stderr.log',
+        });
+        return runOk(command, args, options.cwd, '{"verdict":"changed"}');
+      },
+      writeArtifact: artifactWriter(cwd),
+      onState: async (state) => states.push(state),
+    },
+  });
+
+  assert.equal(result.status, 'DONE_FIXED');
+});
+
 function artifactWriter(cwd) {
   return async (fileName, content, kind) => {
     await fs.writeFile(

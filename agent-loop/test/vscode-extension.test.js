@@ -195,6 +195,29 @@ test('resolveActiveLogPath shows fix stderr after HALT_NO_CHANGES', async () => 
   assert.equal(path.basename(resolved), 'grok-output.1.1.stderr.log');
 });
 
+test('resolveActiveLogPath prefers explicit active agent log pointer during fix', async () => {
+  const { resolveActiveLogPath } = requireFromExtension('./out/activeLog.js');
+  const latest = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-active-pointer-'));
+  await fs.writeFile(path.join(latest, 'grok-output.1.2.stderr.log'), 'newer but not active\n', 'utf8');
+  await fs.writeFile(path.join(latest, 'grok-output.1.1.stderr.log'), 'current active log\n', 'utf8');
+
+  const resolved = await resolveActiveLogPath(latest, {
+    status: 'GROK_FIX',
+    options: { fixAgent: 'grok' },
+    currentIteration: 1,
+    activeAgentLog: {
+      phase: 'fix',
+      agent: 'grok',
+      iteration: 1,
+      attempt: 1,
+      stderr: 'grok-output.1.1.stderr.log',
+      stdout: 'grok-output.1.1.stdout.log',
+    },
+  });
+
+  assert.equal(path.basename(resolved), 'grok-output.1.1.stderr.log');
+});
+
 test('resolveLogRoot prefers run artifacts directory over latest', async () => {
   const { resolveLogRoot } = requireFromExtension('./out/activeLog.js');
   const repoRoot = 'C:\\repo';
@@ -1387,17 +1410,32 @@ test('dashboard detail keeps the SlideRule logo in the detail header', async () 
   assert.match(html, /<img[^>]+src="media\/sliderule-brand\.svg"/);
 });
 
-test('dashboard console header keeps the SlideRule logo transparent and line-height sized', async () => {
+test('dashboard console header uses an enlarged logo without leaving a wide title gap', async () => {
   const css = await fs.readFile(path.join(extensionRoot, 'media', 'dashboard.css'), 'utf8');
+  const headerBrandRule = css.match(/\.header-brand\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const titleStackRule = css.match(/\.title-stack\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
   const brandRule = css.match(/\.brand-mark\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
   const imgRule = css.match(/\.brand-mark img\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
 
+  assert.match(headerBrandRule, /grid-template-columns:\s*max-content\s+minmax\(0,\s*1fr\)/);
+  assert.match(headerBrandRule, /column-gap:\s*12px/);
+  assert.match(titleStackRule, /padding-left:\s*0/);
   assert.doesNotMatch(brandRule, /background\s*:/);
   assert.doesNotMatch(brandRule, /border\s*:/);
   assert.doesNotMatch(brandRule, /box-shadow\s*:/);
-  assert.match(brandRule, /height:\s*clamp\(42px,\s*5vw,\s*54px\)/);
+  assert.match(brandRule, /width:\s*clamp\(220px,\s*15vw,\s*280px\)/);
+  assert.match(brandRule, /height:\s*clamp\(82px,\s*6\.5vw,\s*110px\)/);
   assert.match(imgRule, /height:\s*100%/);
   assert.doesNotMatch(imgRule, /height:\s*28px/);
+});
+
+test('dashboard detail keeps a compact logo independent from the console header logo', async () => {
+  const css = await fs.readFile(path.join(extensionRoot, 'media', 'dashboard.css'), 'utf8');
+  const detailBrandMarkRule = css.match(/\.detail-hero-brand \.brand-mark\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+
+  assert.match(detailBrandMarkRule, /width:\s*clamp\(112px,\s*11vw,\s*150px\)/);
+  assert.match(detailBrandMarkRule, /height:\s*clamp\(36px,\s*4vw,\s*46px\)/);
+  assert.doesNotMatch(detailBrandMarkRule, /height:\s*clamp\(82px,\s*6\.5vw,\s*110px\)/);
 });
 
 test('dashboard media renders outcome groups and conflict files', async () => {
@@ -1656,21 +1694,94 @@ test('dashboard marks diff and agent log panels with stable scroll keys', async 
   assert.match(html, /Review Data \(JSON\)[\s\S]*data-scroll-key="review-json"/);
 });
 
+test('dashboard keeps last non-empty agent output when a live refresh has an empty tail', async () => {
+  const messages = [];
+  const app = fakeAppRoot();
+  const win = await loadDashboardWindow({
+    document: { getElementById: () => app },
+    acquireVsCodeApi: () => ({ postMessage: (message) => messages.push(message) }),
+  });
+  const detail = {
+    taskLabel: 'log-stability-task',
+    taskPath: 'agent-loop/tasks/log-stability-task.md',
+    runId: 'stable-run',
+    status: 'GROK_FIX',
+    pipelineSteps: [],
+    iterations: [],
+    reviewRounds: [],
+    activeTab: 'agent',
+    agentTail: 'first non-empty grok output',
+  };
+
+  win.__dispatchMessage({ type: 'detail', payload: detail });
+  assert.match(app.innerHTML, /first non-empty grok output/);
+
+  win.__dispatchMessage({ type: 'detail', payload: { ...detail, agentTail: '', agentLogKb: 0 } });
+
+  assert.match(app.innerHTML, /first non-empty grok output/);
+});
+
+test('dashboard clears cached agent output when the run id changes for the same task', async () => {
+  const app = fakeAppRoot();
+  const win = await loadDashboardWindow({
+    document: { getElementById: () => app },
+    acquireVsCodeApi: () => ({ postMessage: () => {} }),
+  });
+  const detail = {
+    taskLabel: 'log-stability-task',
+    taskPath: 'agent-loop/tasks/log-stability-task.md',
+    runId: 'first-run',
+    status: 'GROK_FIX',
+    pipelineSteps: [],
+    iterations: [],
+    reviewRounds: [],
+    agentTail: 'old run output',
+  };
+
+  win.__dispatchMessage({ type: 'detail', payload: detail });
+  assert.match(app.innerHTML, /old run output/);
+
+  win.__dispatchMessage({
+    type: 'detail',
+    payload: { ...detail, runId: 'second-run', agentTail: '' },
+  });
+
+  assert.doesNotMatch(app.innerHTML, /old run output/);
+  assert.match(app.innerHTML, /暂无输出/);
+});
+
 async function loadDashboardRenderer() {
   const win = await loadDashboardWindow();
   return win.AgentLoopDashboardRenderer;
 }
 
-async function loadDashboardWindow() {
+async function loadDashboardWindow(overrides = {}) {
   const source = await fs.readFile(path.join(extensionRoot, 'media', 'dashboard.js'), 'utf8');
+  const listeners = new Map();
   const sandbox = {
     window: {},
     document: { getElementById: () => null },
     acquireVsCodeApi: () => ({ postMessage: () => {} }),
+    ...overrides,
+  };
+  sandbox.window.addEventListener = (type, handler) => {
+    listeners.set(type, handler);
+  };
+  sandbox.window.__dispatchMessage = (data) => {
+    listeners.get('message')?.({ data });
   };
   vm.createContext(sandbox);
   vm.runInContext(source, sandbox, { filename: 'dashboard.js' });
   return sandbox.window;
+}
+
+function fakeAppRoot() {
+  return {
+    innerHTML: '',
+    addEventListener: () => {},
+    querySelectorAll: () => [],
+    querySelector: () => null,
+  };
 }
 
 function fakeScrollable(key, scrollTop) {

@@ -255,9 +255,6 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
     if (fixAgent === 'grok') {
       await writeArtifact(`grok-request.${iteration}.md`, prompt, 'text');
     }
-    // Keep pendingReview in state until this iteration is recorded so pause/resume
-    // mid-fix still has the review findings that shaped the request above.
-    await transition(fixStatusForAgent(fixAgent), { pendingReview });
 
     const attempts = [];
     let agentFix = null;
@@ -279,6 +276,8 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
         iteration,
         attempt,
         requestFile,
+        transition,
+        pendingReview,
       });
 
       postFixDiff = await captureDiff({ cwd: fixCwd, timeoutMs: options.timeoutMs });
@@ -442,8 +441,25 @@ async function runFixAttempt({
   iteration,
   attempt,
   requestFile,
+  transition,
+  pendingReview,
 }) {
   const outputStem = fixOutputStem(agent, iteration, attempt);
+  if (transition) {
+    // Keep pendingReview in state until this iteration is recorded so pause/resume
+    // mid-fix still has the review findings that shaped the request above. Also
+    // publish the exact live log files so the dashboard does not need to guess.
+    await transition(fixStatusForAgent(agent), {
+      pendingReview,
+      activeAgentLog: buildActiveAgentLogPointer({
+        phase: 'fix',
+        agent,
+        iteration,
+        attempt,
+        outputStem,
+      }),
+    });
+  }
   const reporter = createAgentStderrReporter({
     agent,
     phase: `fix ${iteration}.${attempt}`,
@@ -575,7 +591,14 @@ async function runReview({
   const { fixAgent, reviewAgent } = resolveAgentRoles(options);
   const scoped = useScopedReview(options);
   const reviewStem = reviewArtifactStem(reviewAgent);
-  await transition(reviewStatusForAgent(reviewAgent), { iterations });
+  await transition(reviewStatusForAgent(reviewAgent), {
+    iterations,
+    activeAgentLog: buildActiveAgentLogPointer({
+      phase: 'review',
+      agent: reviewAgent,
+      outputStem: reviewStem,
+    }),
+  });
 
   const reporter = createAgentStderrReporter({
     agent: reviewAgent,
@@ -704,6 +727,23 @@ function fixOutputStem(agent, iteration, attempt) {
 function reviewArtifactStem(agent) {
   if (agent === 'codex') return 'codex-review';
   return `review-output.${agent}`;
+}
+
+function buildActiveAgentLogPointer({
+  phase,
+  agent,
+  iteration = null,
+  attempt = null,
+  outputStem,
+}) {
+  return {
+    phase,
+    agent,
+    iteration,
+    attempt,
+    stdout: `${outputStem}.stdout.log`,
+    stderr: `${outputStem}.stderr.log`,
+  };
 }
 
 async function collectReviewFileSnapshots({ fixCwd, taskText }) {

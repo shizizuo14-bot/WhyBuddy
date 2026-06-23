@@ -66,6 +66,7 @@ async function resolveActiveLogCandidates(latestRoot, state) {
     const status = state?.status;
     const { fixAgent, reviewAgent } = (0, phaseLabels_1.resolveAgentRoles)(state);
     const candidates = [];
+    pushExplicitActiveLog(candidates, latestRoot, state);
     if (status === 'GROK_REVIEW' || status === 'CODEX_REVIEW') {
         pushReviewLogs(candidates, latestRoot, reviewAgent);
         return candidates;
@@ -90,6 +91,27 @@ async function resolveActiveLogCandidates(latestRoot, state) {
     pushReviewLogs(candidates, latestRoot, reviewAgent);
     await pushFixLogs(candidates, latestRoot, fixAgent, state);
     return candidates;
+}
+function pushExplicitActiveLog(candidates, latestRoot, state) {
+    const active = state?.activeAgentLog;
+    if (!active)
+        return;
+    const stderr = resolveRelativeLogPath(latestRoot, active.stderr);
+    const stdout = resolveRelativeLogPath(latestRoot, active.stdout);
+    if (stderr)
+        candidates.push(stderr);
+    if (stdout)
+        candidates.push(stdout);
+}
+function resolveRelativeLogPath(latestRoot, fileName) {
+    if (typeof fileName !== 'string' || !fileName.trim())
+        return null;
+    if (path.isAbsolute(fileName))
+        return null;
+    const normalized = fileName.replace(/\\/g, '/');
+    if (normalized.split('/').includes('..'))
+        return null;
+    return path.join(latestRoot, normalized);
 }
 async function findNewestFixLog(latestRoot, prefix, iteration) {
     let entries = [];

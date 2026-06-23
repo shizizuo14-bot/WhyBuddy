@@ -34,6 +34,8 @@
   let eventSearchQuery = '';
   let lastDetailPayload = null;
   let lastDetailIdentity = null;
+  let lastNonEmptyAgentTail = '';
+  let lastNonEmptyAgentLogKb = 0;
   const ASSETS = window.__AGENT_LOOP_ASSETS__ || {};
 
   const HALT_GUIDANCE = {
@@ -1010,6 +1012,21 @@
     }), 'detail', force);
   }
 
+  function rememberStableAgentTail(payload) {
+    const next = { ...(payload || {}) };
+    const tail = String(next.agentTail || '').trim();
+    if (tail) {
+      lastNonEmptyAgentTail = next.agentTail;
+      lastNonEmptyAgentLogKb = next.agentLogKb || 0;
+      return next;
+    }
+    if (lastNonEmptyAgentTail) {
+      next.agentTail = lastNonEmptyAgentTail;
+      if (!next.agentLogKb && lastNonEmptyAgentLogKb) next.agentLogKb = lastNonEmptyAgentLogKb;
+    }
+    return next;
+  }
+
   function markUserScroll() {
     renderScheduler.markUserScroll();
   }
@@ -1080,16 +1097,18 @@
     } else if (message?.type === 'detail') {
       lastOverviewPayload = null;
       const detailPayload = message.payload || {};
-      const identity = detailPayload.taskPath || detailPayload.taskLabel || detailPayload.runId || null;
+      const identity = detailPayload.runId || detailPayload.taskPath || detailPayload.taskLabel || null;
       if (identity !== lastDetailIdentity) {
         activeDetailTab = 'review';
         activeEventFilter = 'all';
         eventSearchQuery = '';
+        lastNonEmptyAgentTail = '';
+        lastNonEmptyAgentLogKb = 0;
         lastDetailIdentity = identity;
       }
-      lastDetailPayload = detailPayload;
+      lastDetailPayload = rememberStableAgentTail(detailPayload);
       scheduleAppHtml(renderDetail({
-        ...detailPayload,
+        ...lastDetailPayload,
         activeTab: activeDetailTab,
         activeEventFilter,
         eventSearchQuery,
