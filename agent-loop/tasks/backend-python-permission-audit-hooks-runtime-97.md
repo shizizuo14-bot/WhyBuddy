@@ -8,11 +8,11 @@
 
 ### 状态清单
 
-- [ ] Python runtime 支持 allowed/denied/approval_required/error 的 audit hook envelope。
-- [ ] Node permission/audit hook 能映射 Python result，并保留 actor、resource、action、policy、risk metadata。
-- [ ] denied/error 不伪装成 allowed。
-- [ ] gate 全绿。
-- [ ] Codex review 确认 permission policy 和 audit chain 没有被弱化。
+- [x] Python runtime 支持 allowed/denied/approval_required/error 的 audit hook envelope。
+- [x] Node permission/audit hook 能映射 Python result，并保留 actor、resource、action、policy、risk metadata。
+- [x] denied/error 不伪装成 allowed。
+- [x] gate 全绿。
+- [x] Codex review 确认 permission policy 和 audit chain 没有被弱化。
 
 ## 目标
 

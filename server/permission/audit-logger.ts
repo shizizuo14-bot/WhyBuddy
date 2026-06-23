@@ -96,7 +96,7 @@ export class AuditLogger implements IAuditLogger {
         if (resourceBreakdown[entry.resourceType]) {
           resourceBreakdown[entry.resourceType].allowed++;
         }
-      } else if (entry.result === "denied") {
+      } else if (entry.result === "denied" || entry.result === "approval_required") {
         deniedCount++;
         if (resourceBreakdown[entry.resourceType]) {
           resourceBreakdown[entry.resourceType].denied++;
@@ -197,6 +197,7 @@ function mapAuditResult(
     case "allowed":
       return "success";
     case "denied":
+    case "approval_required":
       return "denied";
     case "error":
       return "error";

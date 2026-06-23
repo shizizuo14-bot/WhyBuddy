@@ -38,7 +38,7 @@ export interface AuditLogger {
     resourceType: ResourceType;
     action: Action;
     resource: string;
-    result: "allowed" | "denied" | "error";
+    result: "allowed" | "denied" | "approval_required" | "error";
     reason?: string;
     governance?: GovernanceDecision;
     metadata?: Record<string, unknown>;
@@ -408,4 +408,39 @@ export function toPermissionCheckResultFromContractResponse(
   }
 
   return result;
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return typeof v === "object" && v !== null;
+}
+
+export function toPermissionAuditFromPythonHook(
+  value: unknown,
+): {
+  agentId: string;
+  operation: string;
+  resourceType: ResourceType;
+  action: Action;
+  resource: string;
+  result: "allowed" | "denied" | "approval_required" | "error";
+  reason?: string;
+  governance?: GovernanceDecision;
+  metadata?: Record<string, unknown>;
+} | null {
+  if (!isRecord(value)) return null;
+  const res = value.result;
+  if (res !== "allowed" && res !== "denied" && res !== "approval_required" && res !== "error") {
+    return null;
+  }
+  return {
+    agentId: typeof value.actor === "string" ? value.actor : typeof value.agentId === "string" ? value.agentId : "unknown",
+    operation: "check",
+    resourceType: (value.resourceType as ResourceType) || ("filesystem" as ResourceType),
+    action: (value.action as Action) || ("read" as Action),
+    resource: typeof value.resource === "string" ? value.resource : "",
+    result: res as any,
+    reason: typeof value.reason === "string" ? value.reason : undefined,
+    governance: isRecord(value.governance) ? (value.governance as unknown as GovernanceDecision) : undefined,
+    metadata: { pythonSource: value.source, policy: value.policy, risk: value.risk },
+  };
 }

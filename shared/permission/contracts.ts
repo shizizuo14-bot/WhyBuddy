@@ -517,7 +517,7 @@ export interface PermissionAuditEntry {
   resourceType: ResourceType;
   action: Action;
   resource: string;
-  result: "allowed" | "denied" | "error";
+  result: "allowed" | "denied" | "approval_required" | "error";
   reason?: string;
   operator?: string;
   metadata?: Record<string, unknown>;
