@@ -394,29 +394,31 @@ test('migration queue defaults configure local proxy env for worker agents', asy
   });
 });
 
-test('migration queue enables 101 final-gap wave and disables superseded 100 wave', async () => {
+test('migration queue enables 102 ownership-closure wave and disables superseded 100/101 waves', async () => {
   const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
   const queue = JSON.parse(await fs.readFile(queuePath, 'utf8'));
   const tasks = queue.tasks || [];
 
   const enabledIds = tasks.filter((task) => task.enabled).map((task) => task.id).sort();
-  const expected101Ids = [
-    'backend-python-a2a-core-route-cutover-101',
-    'backend-python-auth-token-mailer-session-cutover-101',
-    'backend-python-blueprint-shell-state-cutover-101',
-    'backend-python-migration-status-refresh-101',
-    'backend-python-permission-audit-policy-store-cutover-101',
-    'backend-python-task-store-auth-scheduler-cutover-101',
-    'backend-python-web-aigc-real-provider-readiness-101',
+  const expected102Ids = [
+    'backend-python-a2a-production-transport-ownership-closure-102',
+    'backend-python-auth-production-ownership-closure-102',
+    'backend-python-blueprint-production-ownership-closure-102',
+    'backend-python-migration-status-refresh-102',
+    'backend-python-permission-audit-production-ownership-closure-102',
+    'backend-python-task-lifecycle-durable-ownership-closure-102',
+    'backend-python-web-aigc-external-provider-ownership-closure-102',
   ].sort();
 
-  assert.deepEqual(enabledIds, expected101Ids);
+  assert.deepEqual(enabledIds, expected102Ids);
 
-  const stillEnabled100 = tasks.filter((task) => task.id?.endsWith('-100') && task.enabled);
+  const stillEnabledSuperseded = tasks.filter(
+    (task) => (task.id?.endsWith('-100') || task.id?.endsWith('-101')) && task.enabled,
+  );
   assert.deepEqual(
-    stillEnabled100.map((task) => task.id),
+    stillEnabledSuperseded.map((task) => task.id),
     [],
-    '100-stage tasks should stay disabled once the 101 final-gap wave is active',
+    '100/101-stage tasks should stay disabled once the 102 ownership-closure wave is active',
   );
 });
 
