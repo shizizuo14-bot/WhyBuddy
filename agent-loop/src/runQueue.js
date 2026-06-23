@@ -219,11 +219,17 @@ export function buildQueueSummaryFromState({ entry, state, exitCode = 0 }) {
     applyErrorKind: null,
     ...runRecord,
   };
+  summary.diffBytes = summarizeQueueDiffBytes(state?.iterations || []);
   if (summary.status === 'DONE_REVIEWED_NO_DIFF') {
     summary.applyStatus = 'DONE_REVIEWED_NO_DIFF';
     summary.applyErrorKind = 'NO_DIFF_BASELINE_GREEN';
   }
   summary.outcome = classifyQueueOutcome({ summary, exitCode });
+  if (hasRescuePatchAvailable(summary)) {
+    summary.applyStatus = 'RESCUE_PATCH_AVAILABLE';
+    summary.applyErrorKind = 'PARTIAL_DIFF_GATE_RED';
+    summary.rescuePatchAvailable = true;
+  }
   return summary;
 }
 
@@ -374,4 +380,23 @@ export function classifyQueueOutcome({ summary, exitCode = 0 }) {
   }
 
   return 'failed';
+}
+
+function summarizeQueueDiffBytes(iterations = []) {
+  let maxBytes = 0;
+  for (const iteration of iterations || []) {
+    maxBytes = Math.max(maxBytes, Number(iteration?.diff?.bytes || 0));
+    for (const attempt of iteration?.attempts || []) {
+      maxBytes = Math.max(maxBytes, Number(attempt?.diff?.bytes || 0));
+    }
+  }
+  return maxBytes;
+}
+
+function hasRescuePatchAvailable(summary = {}) {
+  if (summary.outcome !== 'failed') return false;
+  if (summary.applyStatus) return false;
+  if (Number(summary.diffBytes || 0) <= 0) return false;
+  const status = String(summary.status || '');
+  return status === 'HALT_NO_PROGRESS' || status === 'HALT_HUMAN' || status === 'HALT_BUDGET';
 }

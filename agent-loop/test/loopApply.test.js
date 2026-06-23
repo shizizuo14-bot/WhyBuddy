@@ -426,6 +426,38 @@ test('writeQueueLandingSummary records queue patch from base ref without applyin
   assert.deepEqual(saved.patchTasks.map((task) => task.id), ['task-a']);
 });
 
+test('writeQueueLandingSummary marks zero-byte queue diffs as no landing needed', async () => {
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-queue-landing-empty-'));
+  const queue = path.join(repo, '.worktrees', 'migration-queue');
+
+  const summary = await writeQueueLandingSummary({
+    repoRoot: repo,
+    queueWorktreePath: queue,
+    baseRef: 'main-head',
+    tasks: [
+      { id: 'task-a', status: 'DONE_REVIEWED', outcome: 'done' },
+      { id: 'task-b', status: 'DONE_REVIEWED', outcome: 'done' },
+    ],
+    run: async (command, args, options = {}) => {
+      assert.equal(command, 'git');
+      assert.equal(options.cwd, queue);
+      if (args[0] === 'ls-files') return { exitCode: 0, stdout: '', stderr: '' };
+      assert.deepEqual(args, ['diff', '--binary', 'main-head']);
+      return { exitCode: 0, stdout: '', stderr: '' };
+    },
+  });
+
+  assert.equal(summary.status, 'QUEUE_VERIFIED_NO_DIFF');
+  assert.equal(summary.appliedToMain, false);
+  assert.equal(summary.diffBytes, 0);
+  assert.deepEqual(summary.patchTasks, []);
+  assert.equal(summary.taskCounts.patch, 0);
+
+  const saved = JSON.parse(await fs.readFile(path.join(repo, '.agent-loop', 'queue-landing.json'), 'utf8'));
+  assert.equal(saved.status, 'QUEUE_VERIFIED_NO_DIFF');
+  assert.deepEqual(saved.patchTasks, []);
+});
+
 test('writeQueueLandingSummary can include untracked queue worktree files', async () => {
   const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-queue-landing-'));
   const queue = path.join(repo, '.worktrees', 'migration-queue');

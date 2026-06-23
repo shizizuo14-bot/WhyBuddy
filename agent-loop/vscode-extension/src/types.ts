@@ -106,6 +106,8 @@ export interface QueueOverviewItem {
   applyErrorKind?: string | null;
   applyErrorFiles?: string[];
   applyError?: string | null;
+  rescuePatchAvailable?: boolean;
+  diffBytes?: number;
   worktreeErrorFiles?: string[];
 }
 
@@ -116,6 +118,8 @@ export interface QueueLanding {
   diffBytes?: number;
   queueWorktreePath?: string;
   appliedAt?: string;
+  taskCounts?: { total?: number; patch?: number; failed?: number };
+  patchTasks?: Array<{ id?: string; task?: string | null; outcome?: string | null }>;
   tasks?: Array<{ id?: string; task?: string | null; outcome?: string | null }>;
 }
 
@@ -130,6 +134,7 @@ export interface QueueOverview {
     reviewed?: number;
     noDiff?: number;
     applyConflict?: number;
+    rescuePatch?: number;
     human?: number;
     failed: number;
     crashed: number;

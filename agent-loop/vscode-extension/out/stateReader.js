@@ -283,7 +283,7 @@ async function buildQueueOverview(repoRoot, options = {}) {
             task: task.task,
             enabled: task.enabled !== false,
             outcome: record?.lastOutcome ?? null,
-            outcomeGroup: classifyOutcomeGroup(record?.lastOutcome ?? null, record?.lastStatus ?? null),
+            outcomeGroup: classifyOutcomeGroup(record?.lastOutcome ?? null, record?.lastStatus ?? null, record),
             status: record?.lastStatus ?? null,
             lastRunId: record?.lastRunId ?? null,
             autoDisabled: Boolean(record?.autoDisabled),
@@ -291,6 +291,8 @@ async function buildQueueOverview(repoRoot, options = {}) {
             applyErrorKind: record?.applyErrorKind ?? null,
             applyErrorFiles: Array.isArray(record?.applyErrorFiles) ? record.applyErrorFiles : [],
             applyError: record?.applyError ?? null,
+            rescuePatchAvailable: Boolean(record?.rescuePatchAvailable),
+            diffBytes: Number(record?.diffBytes || 0),
             worktreeErrorFiles: Array.isArray(record?.worktreeErrorFiles) ? record.worktreeErrorFiles : [],
             running,
             stale,
@@ -306,6 +308,7 @@ async function buildQueueOverview(repoRoot, options = {}) {
         reviewed: 0,
         noDiff: 0,
         applyConflict: 0,
+        rescuePatch: 0,
         human: 0,
         failed: 0,
         crashed: 0,
@@ -332,6 +335,10 @@ async function buildQueueOverview(repoRoot, options = {}) {
         else if (item.outcomeGroup === 'applyConflict') {
             counts.applyConflict += 1;
         }
+        else if (item.outcomeGroup === 'rescuePatch') {
+            counts.rescuePatch += 1;
+            counts.failed += 1;
+        }
         else if (item.outcomeGroup === 'human') {
             counts.human += 1;
         }
@@ -355,7 +362,7 @@ async function buildQueueOverview(repoRoot, options = {}) {
 }
 // Collapse the granular outcome into the five triage lanes the overview groups by:
 // attention (needs a human), running, landed (settled-good), pending, disabled.
-const ATTENTION_GROUPS = new Set(['applyConflict', 'human', 'failed', 'crashed', 'quarantined', 'stopped']);
+const ATTENTION_GROUPS = new Set(['applyConflict', 'rescuePatch', 'human', 'failed', 'crashed', 'quarantined', 'stopped']);
 const LANDED_GROUPS = new Set(['applied', 'reviewed', 'noDiff']);
 function classifyTriageCategory(item) {
     if (item.running)
@@ -370,11 +377,13 @@ function classifyTriageCategory(item) {
         return 'landed';
     return 'pending';
 }
-function classifyOutcomeGroup(outcome, status) {
+function classifyOutcomeGroup(outcome, status, record = undefined) {
     if (status === 'DONE_REVIEWED_NO_DIFF')
         return 'noDiff';
     if (status === 'APPLY_CONFLICT')
         return 'applyConflict';
+    if (record?.applyStatus === 'RESCUE_PATCH_AVAILABLE' || record?.rescuePatchAvailable)
+        return 'rescuePatch';
     if (status === 'DIRTY_MAIN_NEEDS_COMMIT' || status === 'HALT_STOPPED')
         return 'stopped';
     if (status === 'HALT_HUMAN')

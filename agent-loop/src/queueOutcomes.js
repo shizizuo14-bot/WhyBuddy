@@ -42,6 +42,8 @@ export function updateQueueOutcomeRecord({
   applyErrorKind = null,
   applyErrorFiles = null,
   applyError = null,
+  rescuePatchAvailable = null,
+  diffBytes = null,
   maxConsecutiveNoChanges = 3,
   autoDisableOnNoChanges = true,
 }) {
@@ -60,6 +62,8 @@ export function updateQueueOutcomeRecord({
   if (applyErrorKind) next.applyErrorKind = applyErrorKind;
   if (Array.isArray(applyErrorFiles)) next.applyErrorFiles = applyErrorFiles;
   if (applyError) next.applyError = applyError;
+  if (rescuePatchAvailable != null) next.rescuePatchAvailable = Boolean(rescuePatchAvailable);
+  if (diffBytes != null) next.diffBytes = Number(diffBytes) || 0;
 
   if (status === 'HALT_NO_CHANGES') {
     next.consecutiveNoChanges += 1;
@@ -105,6 +109,8 @@ export async function recordQueueTaskOutcome({
     applyErrorKind: summary.applyErrorKind,
     applyErrorFiles: summary.applyErrorFiles,
     applyError: summary.applyError,
+    rescuePatchAvailable: summary.rescuePatchAvailable,
+    diffBytes: summary.diffBytes,
     maxConsecutiveNoChanges,
     autoDisableOnNoChanges,
   });

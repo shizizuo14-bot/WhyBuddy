@@ -471,6 +471,41 @@ test('buildQueueSummaryFromState sets outcome from classifyQueueOutcome', () => 
   assert.equal(summary.grokRan, true);
 });
 
+test('buildQueueSummaryFromState marks failed runs with diff as rescue patch available', () => {
+  const summary = buildQueueSummaryFromState({
+    entry: { id: 'task-rescue', task: 'agent-loop/tasks/task-rescue.md' },
+    state: {
+      runId: '2026-06-23T04-02-28-134Z',
+      status: 'HALT_NO_PROGRESS',
+      options: { fixAgent: 'grok', skipReview: true },
+      iterations: [
+        {
+          iteration: 1,
+          grokFix: { exitCode: 1 },
+          diff: { bytes: 16691 },
+          attempts: [
+            {
+              attempt: 1,
+              grokFix: { exitCode: 1 },
+              failure: { kind: 'max_turns', retryable: false, agentUnstable: false },
+              diff: { bytes: 16691 },
+              diffChanged: true,
+            },
+          ],
+        },
+      ],
+      grokFix: { exitCode: 1 },
+    },
+    exitCode: 1,
+  });
+
+  assert.equal(summary.outcome, 'failed');
+  assert.equal(summary.applyStatus, 'RESCUE_PATCH_AVAILABLE');
+  assert.equal(summary.applyErrorKind, 'PARTIAL_DIFF_GATE_RED');
+  assert.equal(summary.rescuePatchAvailable, true);
+  assert.equal(summary.diffBytes, 16691);
+});
+
 test('buildQueueSummaryFromState maps baseline-green no-diff tasks to reviewed no-diff', () => {
   const summary = buildQueueSummaryFromState({
     entry: { id: 'task-a', task: 'agent-loop/tasks/task-a.md' },

@@ -8,21 +8,25 @@ import { parseRunIdDate, summarizeStateRun } from './runSummary';
 export { findNewestFixLog, formatAgentLogTail, resolveActiveLogCandidates, resolveActiveLogPath, resolveLogRoot } from './activeLog';
 import type { FinalReportJson, GateSnapshot, LandingStatus, LoopState, QueueFile, QueueLanding, QueueOverview, QueueOverviewItem, RunSnapshot, RunSummaryItem } from './types';
 
+interface QueueOutcomeRecord {
+  lastStatus?: string;
+  lastOutcome?: string;
+  lastRunId?: string;
+  autoDisabled?: boolean;
+  autoDisabledAt?: string | null;
+  consecutiveNoChanges?: number;
+  lastUpdatedAt?: string;
+  applyStatus?: string;
+  applyErrorKind?: string;
+  applyErrorFiles?: string[];
+  applyError?: string;
+  rescuePatchAvailable?: boolean;
+  diffBytes?: number;
+  worktreeErrorFiles?: string[];
+}
+
 interface QueueOutcomesFile {
-  tasks?: Record<string, {
-    lastStatus?: string;
-    lastOutcome?: string;
-    lastRunId?: string;
-    autoDisabled?: boolean;
-    autoDisabledAt?: string | null;
-    consecutiveNoChanges?: number;
-    lastUpdatedAt?: string;
-    applyStatus?: string;
-    applyErrorKind?: string;
-    applyErrorFiles?: string[];
-    applyError?: string;
-    worktreeErrorFiles?: string[];
-  }>;
+  tasks?: Record<string, QueueOutcomeRecord>;
 }
 
 const ANSI_ESCAPE_RE = /\u001B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])/g;
@@ -291,7 +295,7 @@ export async function buildQueueOverview(
       task: task.task,
       enabled: task.enabled !== false,
       outcome: record?.lastOutcome ?? null,
-      outcomeGroup: classifyOutcomeGroup(record?.lastOutcome ?? null, record?.lastStatus ?? null),
+      outcomeGroup: classifyOutcomeGroup(record?.lastOutcome ?? null, record?.lastStatus ?? null, record),
       status: record?.lastStatus ?? null,
       lastRunId: record?.lastRunId ?? null,
       autoDisabled: Boolean(record?.autoDisabled),
@@ -299,6 +303,8 @@ export async function buildQueueOverview(
       applyErrorKind: record?.applyErrorKind ?? null,
       applyErrorFiles: Array.isArray(record?.applyErrorFiles) ? record.applyErrorFiles : [],
       applyError: record?.applyError ?? null,
+      rescuePatchAvailable: Boolean(record?.rescuePatchAvailable),
+      diffBytes: Number(record?.diffBytes || 0),
       worktreeErrorFiles: Array.isArray(record?.worktreeErrorFiles) ? record.worktreeErrorFiles : [],
       running,
       stale,
@@ -315,6 +321,7 @@ export async function buildQueueOverview(
     reviewed: 0,
     noDiff: 0,
     applyConflict: 0,
+    rescuePatch: 0,
     human: 0,
     failed: 0,
     crashed: 0,
@@ -336,6 +343,9 @@ export async function buildQueueOverview(
       counts.noDiff += 1;
     } else if (item.outcomeGroup === 'applyConflict') {
       counts.applyConflict += 1;
+    } else if (item.outcomeGroup === 'rescuePatch') {
+      counts.rescuePatch += 1;
+      counts.failed += 1;
     } else if (item.outcomeGroup === 'human') {
       counts.human += 1;
     } else if (item.outcomeGroup === 'failed') {
@@ -356,7 +366,7 @@ export async function buildQueueOverview(
 
 // Collapse the granular outcome into the five triage lanes the overview groups by:
 // attention (needs a human), running, landed (settled-good), pending, disabled.
-const ATTENTION_GROUPS = new Set(['applyConflict', 'human', 'failed', 'crashed', 'quarantined', 'stopped']);
+const ATTENTION_GROUPS = new Set(['applyConflict', 'rescuePatch', 'human', 'failed', 'crashed', 'quarantined', 'stopped']);
 const LANDED_GROUPS = new Set(['applied', 'reviewed', 'noDiff']);
 
 export function classifyTriageCategory(item: QueueOverviewItem): string {
@@ -368,9 +378,10 @@ export function classifyTriageCategory(item: QueueOverviewItem): string {
   return 'pending';
 }
 
-function classifyOutcomeGroup(outcome: string | null, status: string | null): string | null {
+function classifyOutcomeGroup(outcome: string | null, status: string | null, record: QueueOutcomeRecord | undefined = undefined): string | null {
   if (status === 'DONE_REVIEWED_NO_DIFF') return 'noDiff';
   if (status === 'APPLY_CONFLICT') return 'applyConflict';
+  if (record?.applyStatus === 'RESCUE_PATCH_AVAILABLE' || record?.rescuePatchAvailable) return 'rescuePatch';
   if (status === 'DIRTY_MAIN_NEEDS_COMMIT' || status === 'HALT_STOPPED') return 'stopped';
   if (status === 'HALT_HUMAN') return 'human';
   if (outcome === 'done') {

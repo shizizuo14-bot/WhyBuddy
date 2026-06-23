@@ -421,6 +421,7 @@ test('buildQueueOverview groups no-diff reviewed and apply conflicts separately'
     tasks: [
       { id: 'no-diff', task: 'agent-loop/tasks/no-diff.md' },
       { id: 'conflict', task: 'agent-loop/tasks/conflict.md' },
+      { id: 'rescue', task: 'agent-loop/tasks/rescue.md' },
       { id: 'human', task: 'agent-loop/tasks/human.md' },
       { id: 'dirty', task: 'agent-loop/tasks/dirty.md' },
     ],
@@ -443,6 +444,15 @@ test('buildQueueOverview groups no-diff reviewed and apply conflicts separately'
         applyErrorKind: 'PATCH_CONFLICT',
         applyErrorFiles: ['server/routes/a2a.ts'],
       },
+      rescue: {
+        lastOutcome: 'failed',
+        lastStatus: 'HALT_NO_PROGRESS',
+        lastRunId: 'run-rescue',
+        applyStatus: 'RESCUE_PATCH_AVAILABLE',
+        applyErrorKind: 'PARTIAL_DIFF_GATE_RED',
+        rescuePatchAvailable: true,
+        diffBytes: 16691,
+      },
       human: { lastOutcome: 'failed', lastStatus: 'HALT_HUMAN', lastRunId: 'run-human' },
       dirty: {
         lastOutcome: 'crashed',
@@ -458,13 +468,19 @@ test('buildQueueOverview groups no-diff reviewed and apply conflicts separately'
   assert.equal(overview.counts.done, 0);
   assert.equal(overview.counts.noDiff, 1);
   assert.equal(overview.counts.applyConflict, 1);
+  assert.equal(overview.counts.rescuePatch, 1);
+  assert.equal(overview.counts.failed, 1);
   assert.equal(overview.counts.human, 1);
   assert.equal(overview.counts.crashed, 0);
   assert.equal(overview.counts.stopped, 1);
   assert.equal(overview.tasks[0].outcomeGroup, 'noDiff');
   assert.equal(overview.tasks[1].outcomeGroup, 'applyConflict');
   assert.deepEqual(overview.tasks[1].applyErrorFiles, ['server/routes/a2a.ts']);
-  assert.equal(overview.tasks[3].outcomeGroup, 'stopped');
+  assert.equal(overview.tasks[2].outcomeGroup, 'rescuePatch');
+  assert.equal(overview.tasks[2].category, 'attention');
+  assert.equal(overview.tasks[2].rescuePatchAvailable, true);
+  assert.equal(overview.tasks[2].diffBytes, 16691);
+  assert.equal(overview.tasks[4].outcomeGroup, 'stopped');
 });
 
 test('buildQueueOverview flags the running task from the live run', async () => {
@@ -526,6 +542,7 @@ test('classifyTriageCategory sorts tasks into the five overview lanes', () => {
   assert.equal(classifyTriageCategory({ ...base, autoDisabled: true }), 'attention');
   assert.equal(classifyTriageCategory({ ...base, outcomeGroup: 'failed' }), 'attention');
   assert.equal(classifyTriageCategory({ ...base, outcomeGroup: 'applyConflict' }), 'attention');
+  assert.equal(classifyTriageCategory({ ...base, outcomeGroup: 'rescuePatch' }), 'attention');
   assert.equal(classifyTriageCategory({ ...base, outcomeGroup: 'human' }), 'attention');
   assert.equal(classifyTriageCategory({ ...base, outcomeGroup: 'reviewed' }), 'landed');
   assert.equal(classifyTriageCategory({ ...base, outcomeGroup: 'noDiff' }), 'landed');
@@ -924,6 +941,51 @@ test('dashboard overview shows a pending landing workbench with actions', async 
   assert.doesNotMatch(html, /8 个任务的合并改动/);
   assert.match(html, /data-act="previewLanding"/);
   assert.match(html, /data-act="applyLanding"/);
+});
+
+test('dashboard overview hides a zero-byte pending landing workbench', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderOverview({
+    counts: { total: 2 }, queueRunning: false, current: null, tasks: [],
+    landing: {
+      status: 'PENDING_QUEUE_LANDING',
+      appliedToMain: false,
+      diffBytes: 0,
+      patchTasks: [],
+      taskCounts: { total: 2, patch: 0, failed: 0 },
+    },
+  });
+  assert.doesNotMatch(html, /class="[^"]*\blanding-banner\b[^"]*"/);
+  assert.doesNotMatch(html, /data-act="previewLanding"/);
+  assert.doesNotMatch(html, /data-act="applyLanding"/);
+});
+
+test('dashboard overview renders rescue patch rows as attention items', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderOverview({
+    counts: { total: 1, queueTotal: 1, rescuePatch: 1, failed: 1 },
+    queueRunning: false,
+    current: null,
+    tasks: [
+      {
+        task: 'agent-loop/tasks/rescue.md',
+        taskLabel: 'rescue',
+        badge: 'rescuePatch',
+        outcomeGroup: 'rescuePatch',
+        category: 'attention',
+        statusLabel: 'RESCUE_PATCH_AVAILABLE',
+        applyErrorKind: 'PARTIAL_DIFF_GATE_RED',
+        rescuePatchAvailable: true,
+        diffBytes: 16691,
+        running: false,
+      },
+    ],
+  });
+  assert.match(html, /data-state="rescuePatch"/);
+  assert.match(html, /PATCH/);
+  assert.match(html, /RESCUE_PATCH_AVAILABLE/);
+  assert.match(html, /PARTIAL_DIFF_GATE_RED/);
+  assert.match(html, /16KB/);
 });
 
 test('dashboard overview shows an applied landing without apply action', async () => {

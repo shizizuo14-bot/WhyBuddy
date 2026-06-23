@@ -1,5 +1,6 @@
 (function () {
   const OUTCOME_META = {
+    rescuePatch: { icon: 'PATCH', label: '可救补丁', cls: 'warn' },
     done: { icon: 'OK', label: '完成', cls: 'ok' },
     applied: { icon: 'OK', label: '已落地', cls: 'ok' },
     reviewed: { icon: 'REV', label: '已审查', cls: 'ok' },
@@ -35,6 +36,8 @@
   const ASSETS = window.__AGENT_LOOP_ASSETS__ || {};
 
   const HALT_GUIDANCE = {
+    RESCUE_PATCH_AVAILABLE: '已有可救补丁：worker 产出了 diff，但 gate/review 未完成，需要人工接手修补。',
+    QUEUE_VERIFIED_NO_DIFF: '队列已复核，没有新的 diff 需要落地。',
     HALT_NO_SUCCESS_CRITERIA: '任务缺少非空的成功标准。补齐判定标准后再入队。',
     HALT_BUDGET: '达到最大修复轮次后仍未通过。可以提高 max iterations 重跑，或人工接手。',
     HALT_NO_PROGRESS: '修复后 gate 仍红，并且有效失败数没有下降。请打开 gate 日志人工核对。',
@@ -282,7 +285,9 @@
   }
 
   function renderLanding(landing) {
-    if (!landing || (landing.status !== 'PENDING_QUEUE_LANDING' && !landing.appliedToMain)) return '';
+    if (!landing || landing.status === 'QUEUE_VERIFIED_NO_DIFF') return '';
+    if (Number(landing.diffBytes || 0) <= 0 && landing.status === 'PENDING_QUEUE_LANDING') return '';
+    if (landing.status !== 'PENDING_QUEUE_LANDING' && !landing.appliedToMain) return '';
     const kb = landing.diffBytes ? `${Math.max(1, Math.round(landing.diffBytes / 1024))}KB` : '0';
     const taskCount = landingPatchCount(landing);
     const attentionCount = landingAttentionCount(landing);

@@ -230,6 +230,7 @@ export async function writeQueueLandingSummary({
   const diffPath = path.join(agentLoopDir, 'queue.diff.patch');
   const landingPath = path.join(agentLoopDir, 'queue-landing.json');
   const diffText = result.stdout || '';
+  const diffBytes = Buffer.byteLength(diffText, 'utf8');
   await fs.writeFile(diffPath, diffText, 'utf8');
 
   const normalizedTasks = tasks.map((task) => ({
@@ -239,15 +240,19 @@ export async function writeQueueLandingSummary({
     outcome: task.outcome ?? null,
     runId: task.runId ?? null,
   }));
-  const patchTasks = normalizedTasks.filter((task) => task.outcome === 'done');
+  const hasQueuePatch = diffBytes > 0 || untrackedFiles.length > 0;
+  const patchTasks = hasQueuePatch
+    ? normalizedTasks.filter((task) => task.outcome === 'done')
+    : [];
   const taskCounts = countQueueLandingTasks(normalizedTasks);
+  if (!hasQueuePatch) taskCounts.patch = 0;
   const summary = {
-    status: 'PENDING_QUEUE_LANDING',
+    status: hasQueuePatch ? 'PENDING_QUEUE_LANDING' : 'QUEUE_VERIFIED_NO_DIFF',
     appliedToMain: false,
     diffPath,
     queueWorktreePath,
     baseRef,
-    diffBytes: Buffer.byteLength(diffText, 'utf8'),
+    diffBytes,
     untrackedFiles,
     tasks: normalizedTasks,
     patchTasks,

@@ -352,3 +352,39 @@ test('buildLoopReport localizes gate-not-run and unknown counts when lang is zh-
   assert.match(report, /内部失败数: `未知`/);
   assert.match(report, /缺少本次运行真正需要的 agent/);
 });
+
+test('buildLoopReport labels max-turn attempts that produced usable diff', () => {
+  const report = buildLoopReport({
+    runId: '2026-06-23T03-56-33-983Z',
+    cwd: 'C:\\repo',
+    fixCwd: 'C:\\repo',
+    task: 'tasks/a.md',
+    gates: ['npm test'],
+    baselineGate: { ok: false, failureCount: 1 },
+    finalState: 'DONE_REVIEWED',
+    iterations: [
+      {
+        iteration: 1,
+        grokFix: { exitCode: 1, timedOut: false },
+        attempts: [
+          {
+            attempt: 1,
+            grokFix: { exitCode: 1 },
+            failure: { kind: 'max_turns', retryable: false, agentUnstable: false },
+            diff: { bytes: 31674 },
+            diffChanged: true,
+          },
+        ],
+        gate: { ok: true, failureCount: 0 },
+        diff: { bytes: 31674 },
+      },
+    ],
+    maxIterations: 3,
+    lang: 'zh-CN',
+    runMode: 'grok-fix+codex-review',
+    grokRan: true,
+    codexRan: true,
+  });
+
+  assert.match(report, /达到最大轮次但已产生可用 diff/);
+});

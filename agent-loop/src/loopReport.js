@@ -82,7 +82,9 @@ export function buildLoopReport({
         lines.push(`- ${labels.fixAttempts}: \`${iteration.attempts.length}\``);
         for (const attempt of iteration.attempts) {
           const attemptFix = summarizeAttemptFix(attempt);
-          lines.push(`  - ${labels.attempt} ${attempt.attempt}: ${labels.exitCode}=\`${attemptFix?.exitCode ?? labels.unknown}\`, ${labels.failure}=\`${attempt.failure.kind}\`, ${labels.retryable}=\`${attempt.failure.retryable}\`, ${labels.diffChanged}=\`${attempt.diffChanged}\``);
+          const attemptNote = classifyAttemptNote(attempt, labels);
+          const noteSuffix = attemptNote ? `, ${labels.attemptNote}=\`${attemptNote}\`` : '';
+          lines.push(`  - ${labels.attempt} ${attempt.attempt}: ${labels.exitCode}=\`${attemptFix?.exitCode ?? labels.unknown}\`, ${labels.failure}=\`${attempt.failure.kind}\`, ${labels.retryable}=\`${attempt.failure.retryable}\`, ${labels.diffChanged}=\`${attempt.diffChanged}\`${noteSuffix}`);
         }
       }
       if (iteration.gate) {
@@ -221,6 +223,16 @@ function summarizeAttemptFix(attempt) {
   return attempt?.agentFix ?? attempt?.grokFix ?? null;
 }
 
+function classifyAttemptNote(attempt, labels) {
+  if (attempt?.failure?.kind === 'max_turns' && attempt?.diffChanged) {
+    return labels.maxTurnsWithDiff;
+  }
+  if (attempt?.failure?.kind === 'max_turns') {
+    return labels.maxTurnsNoDiff;
+  }
+  return null;
+}
+
 function summarizeIterationFix(iteration) {
   return iteration?.agentFix ?? iteration?.grokFix ?? null;
 }
@@ -301,6 +313,9 @@ function getLabels(lang, { fixAgent = 'grok', reviewAgent = 'grok' } = {}) {
     failure: 'failure',
     retryable: 'retryable',
     diffChanged: 'diffChanged',
+    attemptNote: 'note',
+    maxTurnsWithDiff: 'max turns reached but usable diff was produced',
+    maxTurnsNoDiff: 'max turns reached without usable diff',
     gateResult: 'Gate result',
     gateResultGreen: 'green',
     gateResultRed: 'red',
@@ -381,6 +396,9 @@ function getChineseLabels({ fixAgentLabel, reviewAgentLabel }) {
     failure: '失败',
     retryable: '可重试',
     diffChanged: 'diff 已变化',
+    attemptNote: '说明',
+    maxTurnsWithDiff: '达到最大轮次但已产生可用 diff',
+    maxTurnsNoDiff: '达到最大轮次且没有可用 diff',
     gateResult: 'Gate 结果',
     gateResultGreen: '通过',
     gateResultRed: '失败',
