@@ -108,7 +108,7 @@ test('runLoop audit-only succeeds without agents when review is skipped and auto
   assert.equal(result.codexReview, null);
 });
 
-test('runLoop passes an absolute Grok prompt file when fix cwd differs from run dir', async () => {
+test('runLoop passes a worktree-local Grok prompt file when fix cwd differs from run dir', async () => {
   const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-test-'));
   const fixCwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-worktree-'));
   const runDir = path.join(repo, '.agent-loop', 'runs', 'run-1');
@@ -140,9 +140,18 @@ test('runLoop passes an absolute Grok prompt file when fix cwd differs from run 
         assert.equal(command, 'grok.exe');
         capturedPromptFile = args[args.indexOf('--prompt-file') + 1];
         assert.equal(path.isAbsolute(capturedPromptFile), true);
-        assert.equal(capturedPromptFile.startsWith(runDir), true);
+        assert.equal(capturedPromptFile.startsWith(fixCwd), true);
+        assert.match(path.relative(fixCwd, capturedPromptFile).replaceAll('\\', '/'), /^\.agent-loop-context\/current-run\/fix-request\.grok\.1\.md$/);
         assert.equal(options.cwd, fixCwd);
         await fs.access(capturedPromptFile);
+        const prompt = await fs.readFile(capturedPromptFile, 'utf8');
+        assert.match(prompt, /\.agent-loop-context\/current-run\/run-summary\.json/);
+        assert.match(prompt, /\.agent-loop-context\/current-run\/task\.md/);
+        assert.match(prompt, /\.agent-loop-context\/current-run\/gate-current\.json/);
+        assert.match(prompt, /Use only current-worktree relative paths/);
+        await fs.access(path.join(fixCwd, '.agent-loop-context', 'current-run', 'run-summary.json'));
+        await fs.access(path.join(fixCwd, '.agent-loop-context', 'current-run', 'gate-current.json'));
+        await fs.access(path.join(fixCwd, '.agent-loop-context', 'current-run', 'task.md'));
         return runOk(command, args, options.cwd, '{"verdict":"blocked"}');
       },
       writeArtifact: artifactWriter(runDir),

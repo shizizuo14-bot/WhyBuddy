@@ -45,6 +45,35 @@ function buildPreEditDiagnosisBlock({ failureKind = 'unknown', extraRules = [] }
   ].join('\n');
 }
 
+function buildWorkerContextBlock(contextBundle = null) {
+  if (!contextBundle) return '';
+
+  const lines = [
+    '## Worker context bundle',
+    '',
+    'Use only current-worktree relative paths when reading context or source files.',
+    'AgentLoop mirrored useful run context into this worktree; do not read main-repo `.agent-loop/runs/...` absolute paths directly.',
+    '',
+    `- Run summary: \`${contextBundle.runSummary}\``,
+    `- Task context: \`${contextBundle.task}\``,
+    `- Current gate summary: \`${contextBundle.currentGate}\``,
+    `- Gate failure details: \`${contextBundle.gateFailures}\``,
+  ];
+
+  if (contextBundle.pendingReview) {
+    lines.push(`- Pending review findings: \`${contextBundle.pendingReview}\``);
+  }
+  if (contextBundle.previousDiff) {
+    lines.push(`- Previous diff context: \`${contextBundle.previousDiff}\``);
+  }
+
+  lines.push(
+    '',
+    'Read these files first when you need run context, then inspect task-scoped repository files by relative path.'
+  );
+  return lines.join('\n');
+}
+
 function inferFailureKind(gate) {
   const runs = gate?.runs || [];
   if (runs.some((run) => run.timedOut)) return 'timeout';
@@ -53,7 +82,7 @@ function inferFailureKind(gate) {
   return 'unknown';
 }
 
-export function buildAgentFixPrompt({ taskText, gate, workerAgent = 'grok' }) {
+export function buildAgentFixPrompt({ taskText, gate, workerAgent = 'grok', contextBundle = null }) {
   const failureBlocks = gate.runs
     .filter((run) => run.exitCode !== 0 || run.timedOut || run.spawnError)
     .map((run, index) => {
@@ -79,6 +108,8 @@ export function buildAgentFixPrompt({ taskText, gate, workerAgent = 'grok' }) {
   const missingGateFileBlock = buildMissingGateFileBlock({ taskText, gate });
 
   return [
+    buildWorkerContextBlock(contextBundle),
+    '',
     `# AgentLoop ${workerAgent} 修复请求`,
     '',
     '你是修复执行者。请根据任务目标和失败 gate 修改当前仓库文件。',
@@ -159,12 +190,14 @@ function normalizePromptPath(value) {
     .replace(/\\/g, '/');
 }
 
-export function buildAgentChecklistFixPrompt({ taskText, pendingItems = [], workerAgent = 'grok' }) {
+export function buildAgentChecklistFixPrompt({ taskText, pendingItems = [], workerAgent = 'grok', contextBundle = null }) {
   const pendingBlock = pendingItems.length
     ? pendingItems.map((item) => `- [ ] ${item}`).join('\n')
     : '- 没有解析到未完成项。';
 
   return [
+    buildWorkerContextBlock(contextBundle),
+    '',
     `# AgentLoop ${workerAgent} 开发请求`,
     '',
     '你是开发执行者。基线 gate 已通过，但任务「状态清单」仍有未完成项，请继续实现。',
@@ -208,7 +241,7 @@ export function buildAgentChecklistFixPrompt({ taskText, pendingItems = [], work
   ].join('\n');
 }
 
-export function buildAgentReviewFixPrompt({ taskText, review = {}, gate = null, diffText = '', workerAgent = 'grok' }) {
+export function buildAgentReviewFixPrompt({ taskText, review = {}, gate = null, diffText = '', workerAgent = 'grok', contextBundle = null }) {
   const findings = Array.isArray(review?.findings) ? review.findings : [];
   const findingsBlock = findings.length
     ? findings.map((finding, index) => [
@@ -223,6 +256,8 @@ export function buildAgentReviewFixPrompt({ taskText, review = {}, gate = null, 
     : '（当前没有未提交 diff。）';
 
   return [
+    buildWorkerContextBlock(contextBundle),
+    '',
     `# AgentLoop ${workerAgent} 审查回修请求`,
     '',
     '你是修复执行者。gate 已通过，但代码审查认为当前改动还不能合并，请根据审查意见继续修改。',

@@ -402,7 +402,14 @@ test('writeQueueLandingSummary records queue patch from base ref without applyin
         assert.deepEqual(args, ['ls-files', '--others', '--exclude-standard']);
         return { exitCode: 0, stdout: '', stderr: '' };
       }
-      assert.deepEqual(args, ['diff', '--binary', 'main-head']);
+      assert.deepEqual(args, [
+        'diff',
+        '--binary',
+        'main-head',
+        '--',
+        ':(exclude).agent-loop-context',
+        ':(exclude).agent-loop-context/**',
+      ]);
       return { exitCode: 0, stdout: patchText, stderr: '' };
     },
   });
@@ -442,7 +449,14 @@ test('writeQueueLandingSummary marks zero-byte queue diffs as no landing needed'
       assert.equal(command, 'git');
       assert.equal(options.cwd, queue);
       if (args[0] === 'ls-files') return { exitCode: 0, stdout: '', stderr: '' };
-      assert.deepEqual(args, ['diff', '--binary', 'main-head']);
+      assert.deepEqual(args, [
+        'diff',
+        '--binary',
+        'main-head',
+        '--',
+        ':(exclude).agent-loop-context',
+        ':(exclude).agent-loop-context/**',
+      ]);
       return { exitCode: 0, stdout: '', stderr: '' };
     },
   });
@@ -472,7 +486,14 @@ test('writeQueueLandingSummary can include untracked queue worktree files', asyn
     run: async (command, args) => {
       assert.equal(command, 'git');
       if (args[0] === 'diff') {
-        assert.deepEqual(args, ['diff', '--binary', 'main-head']);
+        assert.deepEqual(args, [
+          'diff',
+          '--binary',
+          'main-head',
+          '--',
+          ':(exclude).agent-loop-context',
+          ':(exclude).agent-loop-context/**',
+        ]);
         return { exitCode: 0, stdout: patchText, stderr: '' };
       }
       if (args[0] === 'ls-files') {
@@ -488,4 +509,57 @@ test('writeQueueLandingSummary can include untracked queue worktree files', asyn
   });
 
   assert.deepEqual(summary.untrackedFiles, ['created.txt']);
+});
+
+test('writeQueueLandingSummary excludes worker context bundles from queue patch', async () => {
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-queue-landing-context-'));
+  const queue = path.join(repo, '.worktrees', 'migration-queue');
+  const patchText = [
+    'diff --git a/.agent-loop-context/current-run/task.md b/.agent-loop-context/current-run/task.md',
+    'new file mode 100644',
+    '--- /dev/null',
+    '+++ b/.agent-loop-context/current-run/task.md',
+    '@@ -0,0 +1 @@',
+    '+temporary worker context',
+    'diff --git a/app.txt b/app.txt',
+    '--- a/app.txt',
+    '+++ b/app.txt',
+    '@@ -1 +1 @@',
+    '-old',
+    '+new',
+    '',
+  ].join('\n');
+
+  const summary = await writeQueueLandingSummary({
+    repoRoot: repo,
+    queueWorktreePath: queue,
+    baseRef: 'main-head',
+    includeUntracked: true,
+    tasks: [{ id: 'task-a', status: 'DONE_REVIEWED', outcome: 'done' }],
+    run: async (command, args) => {
+      assert.equal(command, 'git');
+      if (args[0] === 'ls-files') {
+        return { exitCode: 0, stdout: '.agent-loop-context/current-run/task.md\ncreated.txt\n', stderr: '' };
+      }
+      if (args[0] === 'add') {
+        assert.deepEqual(args, ['add', '--intent-to-add', '--', 'created.txt']);
+        return { exitCode: 0, stdout: '', stderr: '' };
+      }
+      assert.deepEqual(args, [
+        'diff',
+        '--binary',
+        'main-head',
+        '--',
+        ':(exclude).agent-loop-context',
+        ':(exclude).agent-loop-context/**',
+      ]);
+      return { exitCode: 0, stdout: patchText, stderr: '' };
+    },
+  });
+
+  const savedPatch = await fs.readFile(path.join(repo, '.agent-loop', 'queue.diff.patch'), 'utf8');
+
+  assert.deepEqual(summary.untrackedFiles, ['created.txt']);
+  assert.doesNotMatch(savedPatch, /\.agent-loop-context/);
+  assert.match(savedPatch, /app\.txt/);
 });

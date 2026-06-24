@@ -218,8 +218,7 @@ export async function writeQueueLandingSummary({
   const untrackedFiles = includeUntracked
     ? await stageIntentToAddUntrackedFiles({ queueWorktreePath, run, timeoutMs })
     : [];
-  const diffArgs = ['diff', '--binary'];
-  if (baseRef) diffArgs.push(baseRef);
+  const diffArgs = buildQueueDiffArgs({ baseRef });
   const result = await run('git', diffArgs, { cwd: queueWorktreePath, timeoutMs });
   if (result.exitCode !== 0 || result.timedOut || result.spawnError) {
     throw new Error(`queue worktree diff failed: ${result.stderr || result.spawnError || result.exitCode}`);
@@ -229,7 +228,7 @@ export async function writeQueueLandingSummary({
   await fs.mkdir(agentLoopDir, { recursive: true });
   const diffPath = path.join(agentLoopDir, 'queue.diff.patch');
   const landingPath = path.join(agentLoopDir, 'queue-landing.json');
-  const diffText = result.stdout || '';
+  const diffText = filterQueueLandingDiff(result.stdout || '');
   const diffBytes = Buffer.byteLength(diffText, 'utf8');
   await fs.writeFile(diffPath, diffText, 'utf8');
 
@@ -297,7 +296,11 @@ async function stageIntentToAddUntrackedFiles({
   if (listed.exitCode !== 0 || listed.timedOut || listed.spawnError) {
     throw new Error(`queue worktree untracked file listing failed: ${listed.stderr || listed.spawnError || listed.exitCode}`);
   }
-  const files = String(listed.stdout || '').split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const files = String(listed.stdout || '')
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .filter((file) => !isQueueLandingIgnoredPath(file));
   if (!files.length) return [];
 
   const add = await run('git', ['add', '--intent-to-add', '--', ...files], {
@@ -308,6 +311,42 @@ async function stageIntentToAddUntrackedFiles({
     throw new Error(`queue worktree untracked intent-to-add failed: ${add.stderr || add.spawnError || add.exitCode}`);
   }
   return files;
+}
+
+function buildQueueDiffArgs({ baseRef = null } = {}) {
+  const args = ['diff', '--binary'];
+  if (baseRef) args.push(baseRef);
+  args.push('--', ':(exclude).agent-loop-context', ':(exclude).agent-loop-context/**');
+  return args;
+}
+
+function filterQueueLandingDiff(diffText) {
+  const blocks = [];
+  let current = [];
+  const flush = () => {
+    if (!current.length) return;
+    const header = current[0] || '';
+    if (!isQueueLandingIgnoredDiffHeader(header)) blocks.push(current.join('\n'));
+    current = [];
+  };
+
+  for (const line of String(diffText || '').split(/\n/)) {
+    if (line.startsWith('diff --git ')) flush();
+    current.push(line);
+  }
+  flush();
+  return blocks.filter(Boolean).join('\n');
+}
+
+function isQueueLandingIgnoredDiffHeader(header) {
+  const match = String(header || '').match(/^diff --git a\/(.+?) b\/(.+)$/);
+  if (!match) return false;
+  return isQueueLandingIgnoredPath(match[1]) || isQueueLandingIgnoredPath(match[2]);
+}
+
+function isQueueLandingIgnoredPath(file) {
+  const normalized = String(file || '').replaceAll('\\', '/');
+  return normalized === '.agent-loop-context' || normalized.startsWith('.agent-loop-context/');
 }
 
 function defaultLandingStatus() {

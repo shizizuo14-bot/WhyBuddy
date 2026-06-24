@@ -30,6 +30,7 @@ import { createAgentStderrReporter } from './loopProgress.js';
 
 const MAX_REVIEW_FILE_SNAPSHOT_BYTES = 24000;
 const MAX_REVIEW_FILE_SNAPSHOTS = 12;
+const WORKER_CONTEXT_DIR = '.agent-loop-context/current-run';
 
 export async function runLoop({ options, runId = timestamp(), runDir, latestDir, resumeState = null, deps = {} }) {
   const {
@@ -228,6 +229,12 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
     const checklist = parseTaskChecklist(taskText);
     const reviewDrivenFix = Boolean(pendingReview);
     const useChecklistPrompt = !reviewDrivenFix && checklist.hasPending && currentGate.ok;
+    const contextBundle = fixAgent === 'grok'
+      ? buildWorkerContextBundlePaths({
+        includePendingReview: reviewDrivenFix,
+        includePreviousDiff: reviewDrivenFix,
+      })
+      : null;
     let prompt;
     if (reviewDrivenFix) {
       prompt = buildAgentReviewFixPrompt({
@@ -236,18 +243,21 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
         gate: currentGate,
         diffText: previousDiff,
         workerAgent: fixAgent,
+        contextBundle,
       });
     } else if (useChecklistPrompt) {
       prompt = buildAgentChecklistFixPrompt({
         taskText,
         pendingItems: checklist.pending,
         workerAgent: fixAgent,
+        contextBundle,
       });
     } else {
       prompt = buildAgentFixPrompt({
         taskText,
         gate: currentGate,
         workerAgent: fixAgent,
+        contextBundle,
       });
     }
     const requestFile = fixRequestArtifact(fixAgent, iteration);
@@ -276,6 +286,10 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
         iteration,
         attempt,
         requestFile,
+        prompt,
+        taskText,
+        currentGate,
+        previousDiff,
         transition,
         pendingReview,
       });
@@ -441,6 +455,10 @@ async function runFixAttempt({
   iteration,
   attempt,
   requestFile,
+  prompt,
+  taskText,
+  currentGate,
+  previousDiff,
   transition,
   pendingReview,
 }) {
@@ -473,8 +491,17 @@ async function runFixAttempt({
   const promptPath = artifactPath(runDir, requestFile);
   let agentFix;
   if (agent === 'grok') {
+    const contextBundle = await writeWorkerContextBundle({
+      fixCwd,
+      requestFile,
+      prompt,
+      taskText,
+      gate: currentGate,
+      previousDiff,
+      pendingReview,
+    });
     agentFix = await runAgentProcess(runProcess, agents.grok, buildGrokJsonArgs({
-      promptFile: promptPath,
+      promptFile: contextBundle.promptPath,
       cwd: fixCwd,
       maxTurns: options.workerMaxTurns ?? options.grokMaxTurns ?? 4,
       model: options.fixModel,
@@ -727,6 +754,118 @@ function fixOutputStem(agent, iteration, attempt) {
 function reviewArtifactStem(agent) {
   if (agent === 'codex') return 'codex-review';
   return `review-output.${agent}`;
+}
+
+function buildWorkerContextBundlePaths({
+  includePendingReview = false,
+  includePreviousDiff = false,
+} = {}) {
+  const base = WORKER_CONTEXT_DIR;
+  return {
+    task: `${base}/task.md`,
+    runSummary: `${base}/run-summary.json`,
+    currentGate: `${base}/gate-current.json`,
+    gateFailures: `${base}/gate-failures.md`,
+    pendingReview: includePendingReview ? `${base}/pending-review.json` : null,
+    previousDiff: includePreviousDiff ? `${base}/previous-diff.patch` : null,
+  };
+}
+
+async function writeWorkerContextBundle({
+  fixCwd,
+  requestFile,
+  prompt,
+  taskText,
+  gate,
+  previousDiff,
+  pendingReview,
+}) {
+  const contextDir = path.resolve(fixCwd, WORKER_CONTEXT_DIR);
+  if (!isInsideDirectory(fixCwd, contextDir)) {
+    throw new Error(`worker context directory escapes fix cwd: ${contextDir}`);
+  }
+  await fs.rm(contextDir, { recursive: true, force: true });
+  await fs.mkdir(contextDir, { recursive: true });
+
+  const promptPath = path.join(contextDir, requestFile);
+  await fs.writeFile(promptPath, prompt || '', 'utf8');
+  await fs.writeFile(path.join(contextDir, 'task.md'), taskText || '', 'utf8');
+  await fs.writeFile(path.join(contextDir, 'run-summary.json'), `${JSON.stringify({
+    requestFile,
+    agent: 'grok',
+    cwd: '.',
+    contextDir: WORKER_CONTEXT_DIR,
+    hasPendingReview: Boolean(pendingReview),
+    hasPreviousDiff: Boolean(String(previousDiff || '').trim()),
+  }, null, 2)}\n`, 'utf8');
+  await fs.writeFile(path.join(contextDir, 'gate-current.json'), `${JSON.stringify(sanitizeGateForWorkerContext(gate), null, 2)}\n`, 'utf8');
+  await fs.writeFile(path.join(contextDir, 'gate-failures.md'), formatGateFailuresForWorkerContext(gate), 'utf8');
+
+  if (pendingReview) {
+    await fs.writeFile(path.join(contextDir, 'pending-review.json'), `${JSON.stringify(pendingReview.parsed || pendingReview, null, 2)}\n`, 'utf8');
+  }
+  if (String(previousDiff || '').trim()) {
+    await fs.writeFile(path.join(contextDir, 'previous-diff.patch'), String(previousDiff), 'utf8');
+  }
+
+  return { promptPath };
+}
+
+function sanitizeGateForWorkerContext(gate) {
+  return {
+    ok: gate?.ok ?? null,
+    failureCount: gate?.failureCount ?? null,
+    progress: gate ? summarizeGateProgress(gate) : null,
+    runs: (gate?.runs || []).map((run) => ({
+      label: run.label,
+      command: run.command,
+      args: run.args,
+      cwd: run.cwd,
+      exitCode: run.exitCode,
+      timedOut: run.timedOut ?? false,
+      idleTimedOut: run.idleTimedOut ?? false,
+      agentTimedOut: run.agentTimedOut ?? false,
+      spawnError: run.spawnError ?? null,
+      stdoutBytes: Buffer.byteLength(run.stdout || '', 'utf8'),
+      stderrBytes: Buffer.byteLength(run.stderr || '', 'utf8'),
+    })),
+  };
+}
+
+function formatGateFailuresForWorkerContext(gate) {
+  const failedRuns = (gate?.runs || [])
+    .map((run, index) => ({ run, index }))
+    .filter(({ run }) => run.exitCode !== 0 || run.timedOut || run.spawnError);
+
+  if (!failedRuns.length) return 'No failing gate runs captured.\n';
+
+  return `${failedRuns.map(({ run, index }) => [
+    `## Gate ${index + 1}: ${run.label || '(unlabeled)'}`,
+    '',
+    `- exitCode: ${run.exitCode}`,
+    `- timedOut: ${run.timedOut ?? false}`,
+    run.spawnError ? `- spawnError: ${run.spawnError}` : '',
+    '',
+    '### stdout',
+    '```text',
+    truncateText(stripAnsiSafe(run.stdout || ''), 6000),
+    '```',
+    '',
+    '### stderr',
+    '```text',
+    truncateText(stripAnsiSafe(run.stderr || ''), 6000),
+    '```',
+  ].filter(Boolean).join('\n')).join('\n\n')}\n`;
+}
+
+function stripAnsiSafe(value) {
+  return String(value).replace(/\u001B\[[0-?]*[ -/]*[@-~]/g, '');
+}
+
+function truncateText(value, maxLength) {
+  const text = String(value);
+  if (text.length <= maxLength) return text;
+  return `${text.slice(0, maxLength)}\n...<truncated>`;
 }
 
 function buildActiveAgentLogPointer({

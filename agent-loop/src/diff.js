@@ -23,7 +23,10 @@ async function captureUntrackedDiff({ cwd, timeoutMs, run }) {
   const result = await run('git', ['ls-files', '--others', '--exclude-standard', '-z'], { cwd, timeoutMs });
   if (result.exitCode !== 0 || !result.stdout) return '';
 
-  const files = result.stdout.split('\0').filter(Boolean);
+  const files = result.stdout
+    .split('\0')
+    .filter(Boolean)
+    .filter((file) => !isAgentLoopContextFile(file));
   const diffs = [];
   for (const file of files) {
     const absolutePath = path.resolve(cwd, file);
@@ -31,6 +34,11 @@ async function captureUntrackedDiff({ cwd, timeoutMs, run }) {
     diffs.push(renderNewFileDiff(file, buffer));
   }
   return diffs.join('\n');
+}
+
+function isAgentLoopContextFile(file) {
+  const normalized = String(file || '').replaceAll('\\', '/');
+  return normalized === '.agent-loop-context' || normalized.startsWith('.agent-loop-context/');
 }
 
 function renderNewFileDiff(file, buffer) {

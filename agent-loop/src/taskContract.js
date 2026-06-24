@@ -3,11 +3,17 @@
 // the loop — the engine HALTs immediately and kicks it back to be specified,
 // rather than guessing completion with a runtime special-case.
 
-const SUCCESS_CRITERIA_HEADING = '## 成功标准';
+const SUCCESS_CRITERIA_HEADINGS = new Set([
+  '## 成功标准',
+  '## Acceptance criteria',
+  '## Acceptance Criteria',
+  '## Success criteria',
+  '## Success Criteria',
+]);
 
 export function parseSuccessCriteria(taskText) {
   const lines = String(taskText ?? '').split('\n');
-  const start = lines.findIndex((line) => line.trim() === SUCCESS_CRITERIA_HEADING);
+  const start = lines.findIndex((line) => SUCCESS_CRITERIA_HEADINGS.has(line.trim()));
   if (start < 0) return { hasCriteria: false, items: [] };
 
   const items = [];

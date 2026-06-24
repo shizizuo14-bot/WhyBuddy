@@ -31,6 +31,31 @@ test('captureDiff includes untracked text files as new-file patches', async () =
   assert.equal(hasDiffChanged('', diff.text), true);
 });
 
+test('captureDiff ignores AgentLoop worker context bundles', async () => {
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-diff-'));
+  await runGit(repo, ['init']);
+  await runGit(repo, ['config', 'user.email', 'agent-loop@example.test']);
+  await runGit(repo, ['config', 'user.name', 'Agent Loop']);
+
+  await fs.writeFile(path.join(repo, 'README.md'), 'baseline\n', 'utf8');
+  await runGit(repo, ['add', 'README.md']);
+  await runGit(repo, ['commit', '-m', 'baseline']);
+
+  await fs.mkdir(path.join(repo, '.agent-loop-context', 'current-run'), { recursive: true });
+  await fs.writeFile(
+    path.join(repo, '.agent-loop-context', 'current-run', 'gate-current.json'),
+    '{"ok":false}\n',
+    'utf8'
+  );
+  await fs.mkdir(path.join(repo, 'docs'), { recursive: true });
+  await fs.writeFile(path.join(repo, 'docs', 'new-audit.md'), '# New Audit\n', 'utf8');
+
+  const diff = await captureDiff({ cwd: repo });
+
+  assert.match(diff.text, /diff --git a\/docs\/new-audit\.md b\/docs\/new-audit\.md/);
+  assert.doesNotMatch(diff.text, /\.agent-loop-context/);
+});
+
 async function runGit(cwd, args) {
   const result = await runProcess('git', args, { cwd, timeoutMs: 60000 });
   assert.equal(result.exitCode, 0, result.stderr || result.stdout);
