@@ -1,6 +1,7 @@
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
+import { getEffectiveConfig, type AgentLoopConfig } from './settingsConfig';
 
 export function getRepoRoot(): string | null {
   const folders = vscode.workspace.workspaceFolders;
@@ -34,36 +35,30 @@ export function runsDir(repoRoot: string): string {
   return path.join(repoRoot, '.agent-loop', 'runs');
 }
 
+export function isPathWithinWorkspace(workspaceRoot: string, targetPath: string): boolean {
+  if (!workspaceRoot || typeof workspaceRoot !== 'string' || !targetPath || typeof targetPath !== 'string') {
+    return false;
+  }
+  const root = path.resolve(workspaceRoot);
+  const candidate = path.isAbsolute(targetPath) ? path.resolve(targetPath) : path.resolve(root, targetPath);
+  const rel = path.relative(root, candidate);
+  return !rel.startsWith('..') && !path.isAbsolute(rel);
+}
+
 export function queuePath(repoRoot: string): string {
-  const configured = vscode.workspace.getConfiguration('agentLoop').get<string>('queuePath')
-    || 'agent-loop/scripts/migration-queue.json';
-  return path.isAbsolute(configured) ? configured : path.join(repoRoot, configured);
+  const configured = getEffectiveConfig().queuePath;
+  if (isPathWithinWorkspace(repoRoot, configured || '')) {
+    const root = path.resolve(repoRoot || process.cwd());
+    const candidate = path.isAbsolute(configured) ? path.resolve(configured) : path.resolve(root, configured);
+    return candidate;
+  }
+  // reject unsafe (absolute outside, .. traversals, wrong drive); fall back to default relative resolved from workspace root
+  const root = path.resolve(repoRoot || process.cwd());
+  return path.resolve(root, 'agent-loop/scripts/migration-queue.json');
 }
 
-export interface AgentLoopConfig {
-  fixAgent: string;
-  reviewAgent: string;
-  workerMaxTurns: number;
-  workerMaxRetries: number;
-  queuePath: string;
-  worktreeScope: string;
-  baseUrl: string;
-  injectKeysToWorker: boolean;
-}
-
-export function getAgentLoopConfig(): AgentLoopConfig {
-  const cfg = vscode.workspace.getConfiguration('agentLoop');
-  return {
-    fixAgent: cfg.get<string>('fixAgent', 'grok'),
-    reviewAgent: cfg.get<string>('reviewAgent', 'codex'),
-    workerMaxTurns: cfg.get<number>('workerMaxTurns', 128),
-    workerMaxRetries: cfg.get<number>('workerMaxRetries', 2),
-    queuePath: cfg.get<string>('queuePath', 'agent-loop/scripts/migration-queue.json'),
-    worktreeScope: cfg.get<string>('worktreeScope', 'queue'),
-    baseUrl: cfg.get<string>('baseUrl', ''),
-    injectKeysToWorker: cfg.get<boolean>('injectKeysToWorker', true),
-  };
-}
+export type { AgentLoopConfig };
+export { getEffectiveConfig as getAgentLoopConfig };
 
 function existsSync(filePath: string): boolean {
   try {

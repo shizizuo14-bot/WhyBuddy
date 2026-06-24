@@ -44,9 +44,9 @@ export function resolveAgentRoles(
   queueDefaults: QueueDefaults | null = null,
 ): { fixAgent: string; reviewAgent: string | null } {
   const vs = getAgentLoopConfig();
-  const fixAgent = state?.options?.fixAgent || queueDefaults?.fixAgent || vs.fixAgent || 'grok';
+  const fixAgent = state?.options?.fixAgent || queueDefaults?.fixAgent || vs.fixAgent;
   const skipReview = state?.options?.skipReview ?? queueDefaults?.skipReview ?? false;
-  let reviewAgent: string | null = skipReview ? null : (state?.options?.reviewAgent || queueDefaults?.reviewAgent || vs.reviewAgent || 'grok');
+  let reviewAgent: string | null = skipReview ? null : (state?.options?.reviewAgent || queueDefaults?.reviewAgent || vs.reviewAgent);
   if (reviewAgent === 'none') reviewAgent = null;
   return { fixAgent, reviewAgent };
 }

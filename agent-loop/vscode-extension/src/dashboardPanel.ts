@@ -4,9 +4,9 @@ import * as vscode from 'vscode';
 import { activeAgentLabel, formatElapsed, phaseLabel } from './phaseLabels';
 import { normalizeSaveSettingsPayload, redactSettingsMessageForLog } from './settingsMessages';
 import { extractRunEvidence, readJsonFile } from './stateReader';
-import { testProviderHealth, readQueueDefaults, previewQueueDefaults, applyQueueDefaults, SUPPORTED_QUEUE_DEFAULT_KEYS, createSettingsExport, validateAndPrepareSettingsImport } from './settingsConfig';
+import { testProviderHealth, testWorkerCliHealth, readQueueDefaults, previewQueueDefaults, applyQueueDefaults, SUPPORTED_QUEUE_DEFAULT_KEYS, createSettingsExport, validateAndPrepareSettingsImport, sanitizeSettingsForSave, getEffectiveConfig, loadProfileStorage, PROFILE_PRESETS, isValidProfileName, sanitizeProfileName, applyProfileCreate, applyProfileRename, applyProfileDuplicate, applyProfileDelete, checkProfileRunGuard, SettingsRunGuardResult } from './settingsConfig';
 import type { ProviderId } from './settingsConfig';
-import { getRepoRoot, queuePath } from './paths';
+import { getRepoRoot, queuePath, isPathWithinWorkspace } from './paths';
 import type { QueueOverview, RunSnapshot } from './types';
 
 export function computeActiveProfileName(snapshot: { fixAgent?: string | null; reviewAgent?: string | null } | null | undefined): string | null {
@@ -16,9 +16,11 @@ export function computeActiveProfileName(snapshot: { fixAgent?: string | null; r
 }
 
 export function shouldRejectProfileChangeWhileRunning(queueRunning: boolean, payload: Record<string, any>): boolean {
-  if (!queueRunning) return false;
-  const profileKeys = ['fixAgent', 'reviewAgent', 'queuePath', 'worktreeScope', 'baseUrl'] as const;
-  return profileKeys.some((k) => payload[k] !== undefined);
+  return !checkProfileRunGuard(queueRunning, payload).allowed;
+}
+
+export function getProfileRunGuardResult(queueRunning: boolean, payload: Record<string, any>): SettingsRunGuardResult {
+  return checkProfileRunGuard(queueRunning, payload);
 }
 
 export type DashboardView = 'overview' | 'detail';
@@ -32,6 +34,7 @@ export class DashboardPanel {
   private lastMessage: unknown = null;
   private lastQueueRunning = false;
   private lastActiveProfile: string | null = null;
+  private providerHealthCache: Partial<Record<ProviderId, any>> = {};
 
   private post(message: unknown): void {
     this.lastMessage = message;
@@ -43,7 +46,7 @@ export class DashboardPanel {
     this.secrets = secrets;
     this.panel.webview.html = this.getHtml(extensionUri);
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
-    this.panel.webview.onDidReceiveMessage((message) => {
+    this.panel.webview.onDidReceiveMessage((message: any) => {
       switch (message?.type) {
         case 'runQueue':
           void vscode.commands.executeCommand('agentLoop.runQueue');
@@ -94,6 +97,9 @@ export class DashboardPanel {
         case 'testProvider':
           void this.handleTestProvider(message);
           return;
+        case 'testWorkerCli':
+          void this.handleTestWorkerCli(message);
+          return;
         case 'getQueueDefaults':
           void this.sendQueueDefaults();
           return;
@@ -111,6 +117,24 @@ export class DashboardPanel {
           return;
         case 'getDiagnostics':
           void this.sendDiagnostics();
+          return;
+        case 'listProfiles':
+          void this.sendProfiles();
+          return;
+        case 'createProfile':
+          void this.handleCreateProfile(message);
+          return;
+        case 'renameProfile':
+          void this.handleRenameProfile(message);
+          return;
+        case 'duplicateProfile':
+          void this.handleDuplicateProfile(message);
+          return;
+        case 'deleteProfile':
+          void this.handleDeleteProfile(message);
+          return;
+        case 'selectProfile':
+          void this.handleSelectProfile(message);
           return;
         default:
       }
@@ -173,15 +197,15 @@ export class DashboardPanel {
   }
 
   private async sendSettings() {
-    const config = vscode.workspace.getConfiguration('agentLoop');
+    const eff = getEffectiveConfig();
 
     const nonSensitive = {
-      fixAgent: config.get<string>('fixAgent', 'grok'),
-      reviewAgent: config.get<string>('reviewAgent', 'codex'),
-      workerMaxTurns: config.get<number>('workerMaxTurns', 128),
-      workerMaxRetries: config.get<number>('workerMaxRetries', 2),
-      queuePath: config.get<string>('queuePath', 'agent-loop/scripts/migration-queue.json'),
-      worktreeScope: config.get<string>('worktreeScope', 'queue'),
+      fixAgent: eff.fixAgent,
+      reviewAgent: eff.reviewAgent,
+      workerMaxTurns: eff.workerMaxTurns,
+      workerMaxRetries: eff.workerMaxRetries,
+      queuePath: eff.queuePath,
+      worktreeScope: eff.worktreeScope,
     };
 
     const keysStatus: Record<string, string> = {
@@ -201,37 +225,53 @@ export class DashboardPanel {
       payload: {
         nonSensitive,
         keys: keysStatus,
-        baseUrl: config.get<string>('baseUrl', ''),
-        injectToWorker: config.get<boolean>('injectKeysToWorker', true),
+        baseUrl: eff.baseUrl,
+        injectToWorker: eff.injectKeysToWorker,
         queueRunning: this.lastQueueRunning,
         activeProfile: this.lastActiveProfile,
       },
     });
+    // re-emit last cached provider health (session memory) so getSettings/refresh does not drop latest status (Settings 107)
+    for (const h of Object.values(this.providerHealthCache)) {
+      if (h) this.post({ type: 'providerHealth', payload: h });
+    }
   }
 
   private async handleSaveSettings(payload: Record<string, any>) {
-    if (shouldRejectProfileChangeWhileRunning(this.lastQueueRunning, payload)) {
+    const guard = getProfileRunGuardResult(this.lastQueueRunning, payload);
+    if (!guard.allowed) {
       this.post({
         type: 'saveBlocked',
-        payload: { reason: 'queueRunning', message: '队列运行中，禁止切换或编辑 profile（fixAgent/reviewAgent/queuePath 等）。' },
+        payload: { reason: guard.reason || 'queueRunning', blockedFields: guard.blockedFields, message: guard.message || '队列运行中，禁止修改运行时字段。' },
       });
-      await this.sendSettings();
+      // do not sendSettings() here to avoid overwriting client form edits (per 107 do-not-discard)
       return;
     }
 
     const config = vscode.workspace.getConfiguration('agentLoop');
     const promises: Thenable<unknown>[] = [];
 
+    // Sanitize: reject unsupported enum values and ensure raw keys never enter workspace config (Settings 107)
+    const sanitized = sanitizeSettingsForSave(payload);
+
     // Non-sensitive settings -> workspace configuration
-    const nonSecretKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl'] as const;
+    const nonSecretKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl', 'activeProfile'] as const;
     for (const key of nonSecretKeys) {
-      if (payload[key] !== undefined) {
+      if (sanitized[key] !== undefined) {
+        if (key === 'queuePath') {
+          const r = getRepoRoot() || process.cwd();
+          if (!isPathWithinWorkspace(r, String(sanitized[key]))) {
+            // do not allow absolute outside or traversal writes from dashboard save
+            continue;
+          }
+        }
         const target = key === 'queuePath' || key === 'baseUrl' ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Workspace;
-        promises.push(config.update(key as string, payload[key], target));
+        promises.push(config.update(key as string, sanitized[key], target));
       }
     }
-    if (payload.injectToWorker !== undefined) {
-      promises.push(config.update('injectKeysToWorker', payload.injectToWorker, vscode.ConfigurationTarget.Workspace));
+    if (sanitized.injectToWorker !== undefined || sanitized.injectKeysToWorker !== undefined) {
+      const inj = sanitized.injectToWorker !== undefined ? sanitized.injectToWorker : sanitized.injectKeysToWorker;
+      promises.push(config.update('injectKeysToWorker', inj, vscode.ConfigurationTarget.Workspace));
     }
 
     // Sensitive keys -> SecretStorage (never log plaintext)
@@ -259,6 +299,10 @@ export class DashboardPanel {
 
     await Promise.all(promises);
 
+    if (shouldClearProviderHealthOnSettingsChange(payload)) {
+      this.providerHealthCache = {};
+    }
+
     // Refresh UI with latest
     await this.sendSettings();
   }
@@ -275,19 +319,41 @@ export class DashboardPanel {
       if (this.secrets) {
         key = (await this.secrets.get(`agentLoop.${provider}ApiKey`)) || undefined;
       }
-      const config = vscode.workspace.getConfiguration('agentLoop');
-      const baseUrl = config.get<string>('baseUrl', '');
+      const eff = getEffectiveConfig();
+      const baseUrl = eff.baseUrl;
       const res = await testProviderHealth(provider, key, { baseUrl: baseUrl || undefined });
+      payload = enrichProviderHealthResult(res);
+    } catch (e: any) {
+      payload = enrichProviderHealthResult({
+        provider,
+        status: 'failed',
+        durationMs: Date.now() - start,
+        reason: 'error',
+      });
+    }
+    this.providerHealthCache[provider] = payload;
+    this.post({ type: 'providerHealth', payload });
+  }
+
+  private async handleTestWorkerCli(message: any) {
+    const worker = (message?.worker ?? message?.payload?.worker) as 'grok' | 'codex' | undefined;
+    if (!worker || !['grok', 'codex'].includes(worker)) {
+      return;
+    }
+    const start = Date.now();
+    let payload: any;
+    try {
+      const res = await testWorkerCliHealth(worker);
       payload = res;
     } catch (e: any) {
       payload = {
-        provider,
+        worker,
         status: 'failed',
         durationMs: Date.now() - start,
         reason: 'error',
       };
     }
-    this.post({ type: 'providerHealth', payload });
+    this.post({ type: 'workerCliHealth', payload });
   }
 
   private async sendQueueDefaults() {
@@ -340,17 +406,18 @@ export class DashboardPanel {
   }
 
   private async sendSettingsExport() {
-    const config = vscode.workspace.getConfiguration('agentLoop');
+    const eff = getEffectiveConfig();
 
     const nonSensitive = {
-      fixAgent: config.get<string>('fixAgent', 'grok'),
-      reviewAgent: config.get<string>('reviewAgent', 'codex'),
-      workerMaxTurns: config.get<number>('workerMaxTurns', 128),
-      workerMaxRetries: config.get<number>('workerMaxRetries', 2),
-      queuePath: config.get<string>('queuePath', 'agent-loop/scripts/migration-queue.json'),
-      worktreeScope: config.get<string>('worktreeScope', 'queue'),
-      baseUrl: config.get<string>('baseUrl', ''),
-      injectToWorker: config.get<boolean>('injectKeysToWorker', true),
+      fixAgent: eff.fixAgent,
+      reviewAgent: eff.reviewAgent,
+      workerMaxTurns: eff.workerMaxTurns,
+      workerMaxRetries: eff.workerMaxRetries,
+      queuePath: eff.queuePath,
+      worktreeScope: eff.worktreeScope,
+      baseUrl: eff.baseUrl,
+      injectToWorker: eff.injectKeysToWorker,
+      activeProfile: eff.activeProfile,
     };
 
     const keysStatus: Record<string, string> = {
@@ -365,7 +432,7 @@ export class DashboardPanel {
       keysStatus.anthropicApiKey = (await this.secrets.get('agentLoop.anthropicApiKey')) ? 'configured' : '';
     }
 
-    const exportPayload = createSettingsExport(nonSensitive, keysStatus);
+    const exportPayload = createSettingsExport(nonSensitive, keysStatus, eff.activeProfile);
     this.post({
       type: 'settingsExported',
       payload: exportPayload,
@@ -375,19 +442,23 @@ export class DashboardPanel {
   private async sendDiagnostics() {
     const repo = getRepoRoot() || process.cwd();
     const qpath = queuePath(repo);
-    const config = vscode.workspace.getConfiguration('agentLoop');
+    const eff = getEffectiveConfig();
+
+    const configuredQ = eff.queuePath || '';
+    const pathRejected = !isPathWithinWorkspace(repo, configuredQ);
 
     const effectiveConfig = {
-      fixAgent: config.get<string>('fixAgent', 'grok'),
-      reviewAgent: config.get<string>('reviewAgent', 'codex'),
-      workerMaxTurns: config.get<number>('workerMaxTurns', 128),
-      workerMaxRetries: config.get<number>('workerMaxRetries', 2),
-      queuePath: config.get<string>('queuePath', 'agent-loop/scripts/migration-queue.json'),
-      worktreeScope: config.get<string>('worktreeScope', 'queue'),
-      baseUrl: config.get<string>('baseUrl', ''),
-      injectToWorker: config.get<boolean>('injectKeysToWorker', true),
+      fixAgent: eff.fixAgent,
+      reviewAgent: eff.reviewAgent,
+      workerMaxTurns: eff.workerMaxTurns,
+      workerMaxRetries: eff.workerMaxRetries,
+      queuePath: eff.queuePath,
+      worktreeScope: eff.worktreeScope,
+      baseUrl: eff.baseUrl,
+      injectToWorker: eff.injectKeysToWorker,
     };
 
+    const config = vscode.workspace.getConfiguration('agentLoop');
     const configSources: Record<string, string> = {};
     const sourceKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl', 'injectKeysToWorker'] as const;
     for (const k of sourceKeys) {
@@ -444,6 +515,13 @@ export class DashboardPanel {
       category: queueFileExists ? 'ready' : 'failed',
       message: queueFileExists ? 'queue file present at resolved path' : 'queue file missing',
     });
+    if (pathRejected) {
+      // Diagnostics reports rejected paths with redacted errors
+      warnings.push({
+        category: 'failed',
+        message: 'redacted error',
+      });
+    }
     const ls = (lastStateSummary && lastStateSummary.status) || 'unknown';
     let lastCat: 'ready' | 'skipped' | 'failed' | 'unknown' = 'unknown';
     if (/DONE|applied|reviewed/i.test(ls)) lastCat = 'ready';
@@ -452,12 +530,15 @@ export class DashboardPanel {
     warnings.push({ category: lastCat, message: `last run state: ${ls}` });
 
     const payload = {
+      generatedAt: new Date().toISOString(),
       effectiveConfig,
       configSources,
       keys: keysStatus,
       queuePath: qpath,
       repoRoot: repo,
       lastRunState: lastStateSummary,
+      lastRunStatus: lastStateSummary,
+      providerHealth: { ...this.providerHealthCache },
       warnings,
     };
 
@@ -482,17 +563,186 @@ export class DashboardPanel {
     delete (payload as any).openaiApiKey;
     delete (payload as any).anthropicApiKey;
 
+    // Sanitize for enum constraints and secret exclusion before save (Settings 107)
+    const sanitized = sanitizeSettingsForSave(payload);
+
     const config = vscode.workspace.getConfiguration('agentLoop');
     const promises: Thenable<unknown>[] = [];
-    const nonSecretKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl', 'injectToWorker'] as const;
+    const nonSecretKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl', 'activeProfile'] as const;
     for (const key of nonSecretKeys) {
-      if ((payload as any)[key] !== undefined) {
+      if (sanitized[key] !== undefined) {
+        if (key === 'queuePath') {
+          const r = getRepoRoot() || process.cwd();
+          if (!isPathWithinWorkspace(r, String(sanitized[key]))) {
+            // do not allow absolute outside or traversal writes from dashboard import
+            continue;
+          }
+        }
         const target = (key === 'queuePath' || key === 'baseUrl') ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Workspace;
-        promises.push(config.update(key as string, (payload as any)[key], target));
+        promises.push(config.update(key as string, sanitized[key], target));
       }
+    }
+    if (sanitized.injectKeysToWorker !== undefined) {
+      promises.push(config.update('injectKeysToWorker', sanitized.injectKeysToWorker, vscode.ConfigurationTarget.Workspace));
+    } else if (sanitized.injectToWorker !== undefined) {
+      promises.push(config.update('injectKeysToWorker', sanitized.injectToWorker, vscode.ConfigurationTarget.Workspace));
     }
     await Promise.all(promises);
     this.post({ type: 'importSettingsResult', payload: { ok: true } });
+    await this.sendSettings();
+  }
+
+  private async sendProfiles() {
+    const config = vscode.workspace.getConfiguration('agentLoop');
+    const activeRaw = config.get<string>('activeProfile') || 'local';
+    let stored: Record<string, unknown> = {};
+    try {
+      const p = config.get<any>('profiles');
+      if (p && typeof p === 'object' && !Array.isArray(p)) stored = p;
+    } catch {}
+    // seed presets if no stored profiles
+    const base = Object.keys(stored).length > 0 ? stored : { ...PROFILE_PRESETS };
+    const loaded = loadProfileStorage({ ...base, activeProfile: activeRaw });
+    this.post({
+      type: 'profiles',
+      payload: {
+        profiles: loaded.profiles,
+        activeProfile: loaded.activeProfile || 'local',
+      },
+    });
+  }
+
+  private async handleCreateProfile(message: any) {
+    const name = (message && (message.name || (message.payload && message.payload.name))) || '';
+    const values = (message && (message.values || (message.payload && message.payload.values))) || {};
+    const config = vscode.workspace.getConfiguration('agentLoop');
+    let current: Record<string, any> = {};
+    try {
+      const p = config.get<any>('profiles');
+      if (p && typeof p === 'object' && !Array.isArray(p)) current = p;
+    } catch {}
+    if (Object.keys(current).length === 0) current = { ...PROFILE_PRESETS };
+    const res = applyProfileCreate(current, name, values);
+    if (!res.ok) {
+      this.post({ type: 'profileError', payload: { error: res.error || 'invalid' } });
+      await this.sendProfiles();
+      return;
+    }
+    await config.update('profiles', res.profiles, vscode.ConfigurationTarget.Workspace);
+    await this.sendProfiles();
+  }
+
+  private async handleRenameProfile(message: any) {
+    const oldName = (message && (message.oldName || (message.payload && message.payload.oldName))) || '';
+    const newName = (message && (message.newName || (message.payload && message.payload.newName))) || '';
+    const config = vscode.workspace.getConfiguration('agentLoop');
+    let current: Record<string, any> = {};
+    try {
+      const p = config.get<any>('profiles');
+      if (p && typeof p === 'object' && !Array.isArray(p)) current = p;
+    } catch {}
+    if (Object.keys(current).length === 0) current = { ...PROFILE_PRESETS };
+    const res = applyProfileRename(current, oldName, newName);
+    if (!res.ok) {
+      this.post({ type: 'profileError', payload: { error: res.error || 'invalid' } });
+      await this.sendProfiles();
+      return;
+    }
+    const next = res.profiles || current;
+    // if active was old, update active too
+    const active = config.get<string>('activeProfile') || '';
+    if (sanitizeProfileName(active) === sanitizeProfileName(oldName)) {
+      await config.update('activeProfile', sanitizeProfileName(newName), vscode.ConfigurationTarget.Workspace);
+    }
+    await config.update('profiles', next, vscode.ConfigurationTarget.Workspace);
+    await this.sendProfiles();
+    await this.sendSettings();
+  }
+
+  private async handleDuplicateProfile(message: any) {
+    const name = (message && (message.name || (message.payload && message.payload.name))) || '';
+    const newName = (message && (message.newName || (message.payload && message.payload.newName))) || '';
+    const config = vscode.workspace.getConfiguration('agentLoop');
+    let current: Record<string, any> = {};
+    try {
+      const p = config.get<any>('profiles');
+      if (p && typeof p === 'object' && !Array.isArray(p)) current = p;
+    } catch {}
+    if (Object.keys(current).length === 0) current = { ...PROFILE_PRESETS };
+    const res = applyProfileDuplicate(current, name, newName);
+    if (!res.ok) {
+      this.post({ type: 'profileError', payload: { error: res.error || 'invalid' } });
+      await this.sendProfiles();
+      return;
+    }
+    await config.update('profiles', res.profiles, vscode.ConfigurationTarget.Workspace);
+    await this.sendProfiles();
+  }
+
+  private async handleDeleteProfile(message: any) {
+    const name = (message && (message.name || (message.payload && message.payload.name))) || '';
+    const config = vscode.workspace.getConfiguration('agentLoop');
+    let current: Record<string, any> = {};
+    try {
+      const p = config.get<any>('profiles');
+      if (p && typeof p === 'object' && !Array.isArray(p)) current = p;
+    } catch {}
+    if (Object.keys(current).length === 0) current = { ...PROFILE_PRESETS };
+    const res = applyProfileDelete(current, name);
+    if (!res.ok) {
+      this.post({ type: 'profileError', payload: { error: res.error || 'invalid' } });
+      await this.sendProfiles();
+      return;
+    }
+    const next = res.profiles || {};
+    const active = config.get<string>('activeProfile') || 'local';
+    if (sanitizeProfileName(active) === sanitizeProfileName(name)) {
+      const remaining = Object.keys(next)[0] || 'local';
+      await config.update('activeProfile', remaining, vscode.ConfigurationTarget.Workspace);
+    }
+    await config.update('profiles', next, vscode.ConfigurationTarget.Workspace);
+    await this.sendProfiles();
+    await this.sendSettings();
+  }
+
+  private async handleSelectProfile(message: any) {
+    const name = (message && (message.name || (message.payload && message.payload.name))) || '';
+    const n = sanitizeProfileName(name);
+    if (!n || !isValidProfileName(n)) {
+      this.post({ type: 'profileError', payload: { error: 'invalid profile name' } });
+      return;
+    }
+    if (this.lastQueueRunning) {
+      this.post({
+        type: 'saveBlocked',
+        payload: { reason: 'queueRunning', blockedFields: ['activeProfile'], message: '队列运行中，禁止切换 profile。' },
+      });
+      await this.sendProfiles();
+      return;
+    }
+    const config = vscode.workspace.getConfiguration('agentLoop');
+    await config.update('activeProfile', n, vscode.ConfigurationTarget.Workspace);
+    // also apply the profile values to flat non-secret to make select effective
+    let current: Record<string, any> = {};
+    try {
+      const p = config.get<any>('profiles');
+      if (p && typeof p === 'object' && !Array.isArray(p)) current = p;
+    } catch {}
+    if (Object.keys(current).length === 0) current = { ...PROFILE_PRESETS };
+    const loaded = loadProfileStorage({ ...current, activeProfile: n });
+    const prof: any = loaded.profiles[n] || {};
+    const flatKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl'];
+    const promises: Thenable<unknown>[] = [];
+    for (const k of flatKeys) {
+      if (prof[k] !== undefined) {
+        promises.push(config.update(k, prof[k], vscode.ConfigurationTarget.Workspace));
+      }
+    }
+    if (prof.injectKeysToWorker !== undefined) {
+      promises.push(config.update('injectKeysToWorker', prof.injectKeysToWorker, vscode.ConfigurationTarget.Workspace));
+    }
+    await Promise.all(promises);
+    await this.sendProfiles();
     await this.sendSettings();
   }
 
@@ -658,4 +908,25 @@ function badgeFor(task: {
   if (task.outcomeGroup) return task.outcomeGroup;
   if (task.outcome) return task.outcome;
   return 'pending';
+}
+
+// Settings 107: exported for test surface + used internally for enriching cached health entries
+export function enrichProviderHealthResult(res: any): any {
+  if (!res || typeof res !== 'object') return res;
+  const checkedAt = new Date().toISOString();
+  const durationMs = (res.durationMs ?? res.duration ?? 0) as number;
+  return {
+    ...res,
+    durationMs,
+    duration: durationMs,
+    checkedAt,
+  };
+}
+
+export function shouldClearProviderHealthOnSettingsChange(payload: any): boolean {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
+  const keys = Object.keys(payload);
+  if (keys.some((k) => ['grokApiKey', 'openaiApiKey', 'anthropicApiKey'].includes(k))) return true;
+  if ('baseUrl' in payload) return true;
+  return false;
 }

@@ -154,6 +154,11 @@
           "type": "boolean",
           "default": true,
           "description": "是否将 LLM Keys 注入 Worker 环境"
+        },
+        "agentLoop.activeProfile": {
+          "type": "string",
+          "default": "local",
+          "description": "激活的非 secret profile key (local/proxy/ci/production 等)"
         }
       }
     }

@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { getAgentLoopConfig, getAgentLoopRoot, latestStatePath } from './paths';
+import { getAgentLoopConfig, getAgentLoopRoot, latestStatePath, queuePath } from './paths';
 
 export class RunController implements vscode.Disposable {
   private child: ChildProcess | null = null;
@@ -27,18 +27,42 @@ export class RunController implements vscode.Disposable {
 
     const agentLoopRoot = getAgentLoopRoot(this.repoRoot);
     const scriptPath = path.join(agentLoopRoot, 'scripts', 'run-queue.mjs');
-    const scriptArgs = [scriptPath, ...extraArgs];
+    const qpath = queuePath(this.repoRoot);
+    const cfg = getAgentLoopConfig();
+    const routingArgs = [];
+    if (cfg.fixAgent) {
+      routingArgs.push('--fix-agent', cfg.fixAgent);
+    }
+    if (cfg.reviewAgent === 'none') {
+      routingArgs.push('--skip-review');
+    } else if (cfg.reviewAgent) {
+      routingArgs.push('--review-agent', cfg.reviewAgent);
+    }
+    if (cfg.fixModel) {
+      routingArgs.push('--fix-model', cfg.fixModel);
+    }
+    if (cfg.reviewAgent && cfg.reviewAgent !== 'none' && cfg.reviewModel) {
+      routingArgs.push('--review-model', cfg.reviewModel);
+    }
+    if (typeof cfg.workerMaxTurns === 'number' && cfg.workerMaxTurns > 0) {
+      routingArgs.push('--worker-max-turns', String(cfg.workerMaxTurns));
+    }
+    if (typeof cfg.workerMaxRetries === 'number' && cfg.workerMaxRetries >= 0) {
+      routingArgs.push('--worker-max-retries', String(cfg.workerMaxRetries));
+    }
+    // routing from global settings first; extraArgs (e.g. --only) appended so selection wins, queue entry overrides inside queue win over these
+    const scriptArgs = [scriptPath, '--queue', qpath, ...routingArgs, ...extraArgs];
     this.output.show(true);
     this.output.appendLine(`[${new Date().toLocaleTimeString()}] 启动任务队列: node ${scriptArgs.join(' ')}`);
     await setQueueRunning(true);
     this.onStarted();
-    const llmEnv = await this.getLlmEnv();
+    const runEnv = await this.getRunEnv();
 
     const child = spawn(process.execPath, scriptArgs, {
       cwd: agentLoopRoot,
       env: {
         ...process.env,
-        ...llmEnv,
+        ...runEnv,
         // In the VS Code extension host, process.execPath is the Electron (Code.exe) binary,
         // NOT node. Without this flag spawning it would launch VS Code instead of running the
         // queue script. ELECTRON_RUN_AS_NODE makes the same binary behave as node, and it
@@ -77,13 +101,13 @@ export class RunController implements vscode.Disposable {
     const scriptPath = path.join(agentLoopRoot, 'scripts', scriptFileName);
     this.output.show(true);
     this.output.appendLine(`[${new Date().toLocaleTimeString()}] 运行: node ${[scriptPath, ...args].join(' ')}`);
-    const llmEnv = await this.getLlmEnv();
+    const runEnv = await this.getRunEnv();
     return await new Promise<number>((resolve) => {
       const child = spawn(process.execPath, [scriptPath, ...args], {
         cwd: agentLoopRoot,
         env: {
           ...process.env,
-          ...llmEnv,
+          ...runEnv,
           ELECTRON_RUN_AS_NODE: '1',
         },
         stdio: ['ignore', 'pipe', 'pipe'],
@@ -108,35 +132,47 @@ export class RunController implements vscode.Disposable {
     void markLatestStopped(this.repoRoot);
   }
 
-  private async getLlmEnv(): Promise<Record<string, string>> {
+  private async getRunEnv(): Promise<Record<string, string>> {
     const cfg = getAgentLoopConfig();
-    if (!cfg.injectKeysToWorker || !this.secrets) {
-      return {};
-    }
-
     const env: Record<string, string> = {};
 
-    try {
-      const grokKey = await this.secrets.get('agentLoop.grokApiKey');
-      if (grokKey) {
-        env.GROK_API_KEY = grokKey;
-        env.XAI_API_KEY = grokKey; // common alias
+    // LLM secrets / base only when injection enabled (never expose raw values)
+    if (cfg.injectKeysToWorker && this.secrets) {
+      try {
+        const grokKey = await this.secrets.get('agentLoop.grokApiKey');
+        if (grokKey) {
+          env.GROK_API_KEY = grokKey;
+          env.XAI_API_KEY = grokKey; // common alias
+        }
+
+        const openaiKey = await this.secrets.get('agentLoop.openaiApiKey');
+        if (openaiKey) env.OPENAI_API_KEY = openaiKey;
+
+        const anthropicKey = await this.secrets.get('agentLoop.anthropicApiKey');
+        if (anthropicKey) env.ANTHROPIC_API_KEY = anthropicKey;
+
+        if (cfg.baseUrl) {
+          env.OPENAI_BASE_URL = cfg.baseUrl;
+          // some CLIs use this
+          env.LLM_BASE_URL = cfg.baseUrl;
+        }
+      } catch (e) {
+        this.output.appendLine(`读取 LLM Keys 时出错: redacted error`);
       }
-
-      const openaiKey = await this.secrets.get('agentLoop.openaiApiKey');
-      if (openaiKey) env.OPENAI_API_KEY = openaiKey;
-
-      const anthropicKey = await this.secrets.get('agentLoop.anthropicApiKey');
-      if (anthropicKey) env.ANTHROPIC_API_KEY = anthropicKey;
-
-      if (cfg.baseUrl) {
-        env.OPENAI_BASE_URL = cfg.baseUrl;
-        // some CLIs use this
-        env.LLM_BASE_URL = cfg.baseUrl;
-      }
-    } catch (e) {
-      this.output.appendLine(`读取 LLM Keys 时出错: ${e}`);
     }
+
+    // Apply effective config runtime defaults into the run env/execution
+    // (queuePath is also applied via --queue; this ensures diagnostics effectiveConfig
+    // drives run execution, and reviewAgent:none etc are fed to actual queue run)
+    env.AGENT_LOOP_FIX_AGENT = cfg.fixAgent;
+    env.AGENT_LOOP_REVIEW_AGENT = cfg.reviewAgent;
+    env.AGENT_LOOP_WORKER_MAX_TURNS = String(cfg.workerMaxTurns);
+    env.AGENT_LOOP_WORKER_MAX_RETRIES = String(cfg.workerMaxRetries);
+    env.AGENT_LOOP_WORKTREE_SCOPE = cfg.worktreeScope;
+    if (cfg.queuePath) {
+      env.AGENT_LOOP_QUEUE_PATH = cfg.queuePath;
+    }
+    env.AGENT_LOOP_INJECT_KEYS = cfg.injectKeysToWorker ? '1' : '0';
 
     return env;
   }
