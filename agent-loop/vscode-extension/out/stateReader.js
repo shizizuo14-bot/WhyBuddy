@@ -290,12 +290,12 @@ async function buildQueueOverview(repoRoot, options = {}) {
         const taskText = await readOptionalTextFile(path.join(repoRoot, task.task));
         const manualRescueLanded = detectManualRescueLanded(taskText, record);
         const vsConfig = (0, paths_1.getAgentLoopConfig)();
-        const fixAgent = record?.fixAgent || task.fixAgent || queue?.defaults?.fixAgent || vsConfig.fixAgent || 'grok';
+        const fixAgent = record?.fixAgent || task.fixAgent || queue?.defaults?.fixAgent || vsConfig.fixAgent;
         const skipReview = task.skipReview ?? queue?.defaults?.skipReview ?? true;
         const configuredReviewAgent = vsConfig.reviewAgent === 'none' ? null : vsConfig.reviewAgent;
         const reviewAgent = skipReview
             ? null
-            : (record?.reviewAgent ?? task.reviewAgent ?? queue?.defaults?.reviewAgent ?? configuredReviewAgent ?? 'grok');
+            : (record?.reviewAgent ?? task.reviewAgent ?? queue?.defaults?.reviewAgent ?? configuredReviewAgent);
         const outcomeGroup = manualRescueLanded
             ? 'manualRescueLanded'
             : classifyOutcomeGroup(record?.lastOutcome ?? null, record?.lastStatus ?? null, record);
@@ -432,7 +432,7 @@ function resolveQueueTaskBranch(task, defaults, record, index) {
     if (!useWorktree)
         return null;
     const vsConfig = (0, paths_1.getAgentLoopConfig)();
-    const scope = task.worktreeScope ?? defaults?.worktreeScope ?? vsConfig.worktreeScope ?? 'task';
+    const scope = task.worktreeScope ?? defaults?.worktreeScope ?? vsConfig.worktreeScope;
     const rawName = scope === 'queue'
         ? defaults?.queueWorktreeName
         : (task.worktreeName || task.id || `task-${index + 1}`);

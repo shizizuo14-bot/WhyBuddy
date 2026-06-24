@@ -36,6 +36,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DashboardPanel = void 0;
 exports.computeActiveProfileName = computeActiveProfileName;
 exports.shouldRejectProfileChangeWhileRunning = shouldRejectProfileChangeWhileRunning;
+exports.getProfileRunGuardResult = getProfileRunGuardResult;
+exports.enrichProviderHealthResult = enrichProviderHealthResult;
+exports.shouldClearProviderHealthOnSettingsChange = shouldClearProviderHealthOnSettingsChange;
 const fs = __importStar(require("node:fs/promises"));
 const path = __importStar(require("node:path"));
 const vscode = __importStar(require("vscode"));
@@ -51,10 +54,10 @@ function computeActiveProfileName(snapshot) {
     return parts.length ? parts.join(' / ') : null;
 }
 function shouldRejectProfileChangeWhileRunning(queueRunning, payload) {
-    if (!queueRunning)
-        return false;
-    const profileKeys = ['fixAgent', 'reviewAgent', 'queuePath', 'worktreeScope', 'baseUrl'];
-    return profileKeys.some((k) => payload[k] !== undefined);
+    return !(0, settingsConfig_1.checkProfileRunGuard)(queueRunning, payload).allowed;
+}
+function getProfileRunGuardResult(queueRunning, payload) {
+    return (0, settingsConfig_1.checkProfileRunGuard)(queueRunning, payload);
 }
 class DashboardPanel {
     static current;
@@ -65,6 +68,7 @@ class DashboardPanel {
     lastMessage = null;
     lastQueueRunning = false;
     lastActiveProfile = null;
+    providerHealthCache = {};
     post(message) {
         this.lastMessage = message;
         void this.panel.webview.postMessage(message);
@@ -125,6 +129,9 @@ class DashboardPanel {
                 case 'testProvider':
                     void this.handleTestProvider(message);
                     return;
+                case 'testWorkerCli':
+                    void this.handleTestWorkerCli(message);
+                    return;
                 case 'getQueueDefaults':
                     void this.sendQueueDefaults();
                     return;
@@ -142,6 +149,24 @@ class DashboardPanel {
                     return;
                 case 'getDiagnostics':
                     void this.sendDiagnostics();
+                    return;
+                case 'listProfiles':
+                    void this.sendProfiles();
+                    return;
+                case 'createProfile':
+                    void this.handleCreateProfile(message);
+                    return;
+                case 'renameProfile':
+                    void this.handleRenameProfile(message);
+                    return;
+                case 'duplicateProfile':
+                    void this.handleDuplicateProfile(message);
+                    return;
+                case 'deleteProfile':
+                    void this.handleDeleteProfile(message);
+                    return;
+                case 'selectProfile':
+                    void this.handleSelectProfile(message);
                     return;
                 default:
             }
@@ -194,14 +219,14 @@ class DashboardPanel {
         });
     }
     async sendSettings() {
-        const config = vscode.workspace.getConfiguration('agentLoop');
+        const eff = (0, settingsConfig_1.getEffectiveConfig)();
         const nonSensitive = {
-            fixAgent: config.get('fixAgent', 'grok'),
-            reviewAgent: config.get('reviewAgent', 'codex'),
-            workerMaxTurns: config.get('workerMaxTurns', 128),
-            workerMaxRetries: config.get('workerMaxRetries', 2),
-            queuePath: config.get('queuePath', 'agent-loop/scripts/migration-queue.json'),
-            worktreeScope: config.get('worktreeScope', 'queue'),
+            fixAgent: eff.fixAgent,
+            reviewAgent: eff.reviewAgent,
+            workerMaxTurns: eff.workerMaxTurns,
+            workerMaxRetries: eff.workerMaxRetries,
+            queuePath: eff.queuePath,
+            worktreeScope: eff.worktreeScope,
         };
         const keysStatus = {
             grokApiKey: '',
@@ -218,34 +243,50 @@ class DashboardPanel {
             payload: {
                 nonSensitive,
                 keys: keysStatus,
-                baseUrl: config.get('baseUrl', ''),
-                injectToWorker: config.get('injectKeysToWorker', true),
+                baseUrl: eff.baseUrl,
+                injectToWorker: eff.injectKeysToWorker,
                 queueRunning: this.lastQueueRunning,
                 activeProfile: this.lastActiveProfile,
             },
         });
+        // re-emit last cached provider health (session memory) so getSettings/refresh does not drop latest status (Settings 107)
+        for (const h of Object.values(this.providerHealthCache)) {
+            if (h)
+                this.post({ type: 'providerHealth', payload: h });
+        }
     }
     async handleSaveSettings(payload) {
-        if (shouldRejectProfileChangeWhileRunning(this.lastQueueRunning, payload)) {
+        const guard = getProfileRunGuardResult(this.lastQueueRunning, payload);
+        if (!guard.allowed) {
             this.post({
                 type: 'saveBlocked',
-                payload: { reason: 'queueRunning', message: '队列运行中，禁止切换或编辑 profile（fixAgent/reviewAgent/queuePath 等）。' },
+                payload: { reason: guard.reason || 'queueRunning', blockedFields: guard.blockedFields, message: guard.message || '队列运行中，禁止修改运行时字段。' },
             });
-            await this.sendSettings();
+            // do not sendSettings() here to avoid overwriting client form edits (per 107 do-not-discard)
             return;
         }
         const config = vscode.workspace.getConfiguration('agentLoop');
         const promises = [];
+        // Sanitize: reject unsupported enum values and ensure raw keys never enter workspace config (Settings 107)
+        const sanitized = (0, settingsConfig_1.sanitizeSettingsForSave)(payload);
         // Non-sensitive settings -> workspace configuration
-        const nonSecretKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl'];
+        const nonSecretKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl', 'activeProfile'];
         for (const key of nonSecretKeys) {
-            if (payload[key] !== undefined) {
+            if (sanitized[key] !== undefined) {
+                if (key === 'queuePath') {
+                    const r = (0, paths_1.getRepoRoot)() || process.cwd();
+                    if (!(0, paths_1.isPathWithinWorkspace)(r, String(sanitized[key]))) {
+                        // do not allow absolute outside or traversal writes from dashboard save
+                        continue;
+                    }
+                }
                 const target = key === 'queuePath' || key === 'baseUrl' ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Workspace;
-                promises.push(config.update(key, payload[key], target));
+                promises.push(config.update(key, sanitized[key], target));
             }
         }
-        if (payload.injectToWorker !== undefined) {
-            promises.push(config.update('injectKeysToWorker', payload.injectToWorker, vscode.ConfigurationTarget.Workspace));
+        if (sanitized.injectToWorker !== undefined || sanitized.injectKeysToWorker !== undefined) {
+            const inj = sanitized.injectToWorker !== undefined ? sanitized.injectToWorker : sanitized.injectKeysToWorker;
+            promises.push(config.update('injectKeysToWorker', inj, vscode.ConfigurationTarget.Workspace));
         }
         // Sensitive keys -> SecretStorage (never log plaintext)
         if (this.secrets) {
@@ -270,6 +311,9 @@ class DashboardPanel {
             }
         }
         await Promise.all(promises);
+        if (shouldClearProviderHealthOnSettingsChange(payload)) {
+            this.providerHealthCache = {};
+        }
         // Refresh UI with latest
         await this.sendSettings();
     }
@@ -285,20 +329,42 @@ class DashboardPanel {
             if (this.secrets) {
                 key = (await this.secrets.get(`agentLoop.${provider}ApiKey`)) || undefined;
             }
-            const config = vscode.workspace.getConfiguration('agentLoop');
-            const baseUrl = config.get('baseUrl', '');
+            const eff = (0, settingsConfig_1.getEffectiveConfig)();
+            const baseUrl = eff.baseUrl;
             const res = await (0, settingsConfig_1.testProviderHealth)(provider, key, { baseUrl: baseUrl || undefined });
+            payload = enrichProviderHealthResult(res);
+        }
+        catch (e) {
+            payload = enrichProviderHealthResult({
+                provider,
+                status: 'failed',
+                durationMs: Date.now() - start,
+                reason: 'error',
+            });
+        }
+        this.providerHealthCache[provider] = payload;
+        this.post({ type: 'providerHealth', payload });
+    }
+    async handleTestWorkerCli(message) {
+        const worker = (message?.worker ?? message?.payload?.worker);
+        if (!worker || !['grok', 'codex'].includes(worker)) {
+            return;
+        }
+        const start = Date.now();
+        let payload;
+        try {
+            const res = await (0, settingsConfig_1.testWorkerCliHealth)(worker);
             payload = res;
         }
         catch (e) {
             payload = {
-                provider,
+                worker,
                 status: 'failed',
                 durationMs: Date.now() - start,
                 reason: 'error',
             };
         }
-        this.post({ type: 'providerHealth', payload });
+        this.post({ type: 'workerCliHealth', payload });
     }
     async sendQueueDefaults() {
         const repo = (0, paths_1.getRepoRoot)() || process.cwd();
@@ -350,16 +416,17 @@ class DashboardPanel {
         }
     }
     async sendSettingsExport() {
-        const config = vscode.workspace.getConfiguration('agentLoop');
+        const eff = (0, settingsConfig_1.getEffectiveConfig)();
         const nonSensitive = {
-            fixAgent: config.get('fixAgent', 'grok'),
-            reviewAgent: config.get('reviewAgent', 'codex'),
-            workerMaxTurns: config.get('workerMaxTurns', 128),
-            workerMaxRetries: config.get('workerMaxRetries', 2),
-            queuePath: config.get('queuePath', 'agent-loop/scripts/migration-queue.json'),
-            worktreeScope: config.get('worktreeScope', 'queue'),
-            baseUrl: config.get('baseUrl', ''),
-            injectToWorker: config.get('injectKeysToWorker', true),
+            fixAgent: eff.fixAgent,
+            reviewAgent: eff.reviewAgent,
+            workerMaxTurns: eff.workerMaxTurns,
+            workerMaxRetries: eff.workerMaxRetries,
+            queuePath: eff.queuePath,
+            worktreeScope: eff.worktreeScope,
+            baseUrl: eff.baseUrl,
+            injectToWorker: eff.injectKeysToWorker,
+            activeProfile: eff.activeProfile,
         };
         const keysStatus = {
             grokApiKey: '',
@@ -371,7 +438,7 @@ class DashboardPanel {
             keysStatus.openaiApiKey = (await this.secrets.get('agentLoop.openaiApiKey')) ? 'configured' : '';
             keysStatus.anthropicApiKey = (await this.secrets.get('agentLoop.anthropicApiKey')) ? 'configured' : '';
         }
-        const exportPayload = (0, settingsConfig_1.createSettingsExport)(nonSensitive, keysStatus);
+        const exportPayload = (0, settingsConfig_1.createSettingsExport)(nonSensitive, keysStatus, eff.activeProfile);
         this.post({
             type: 'settingsExported',
             payload: exportPayload,
@@ -380,17 +447,20 @@ class DashboardPanel {
     async sendDiagnostics() {
         const repo = (0, paths_1.getRepoRoot)() || process.cwd();
         const qpath = (0, paths_1.queuePath)(repo);
-        const config = vscode.workspace.getConfiguration('agentLoop');
+        const eff = (0, settingsConfig_1.getEffectiveConfig)();
+        const configuredQ = eff.queuePath || '';
+        const pathRejected = !(0, paths_1.isPathWithinWorkspace)(repo, configuredQ);
         const effectiveConfig = {
-            fixAgent: config.get('fixAgent', 'grok'),
-            reviewAgent: config.get('reviewAgent', 'codex'),
-            workerMaxTurns: config.get('workerMaxTurns', 128),
-            workerMaxRetries: config.get('workerMaxRetries', 2),
-            queuePath: config.get('queuePath', 'agent-loop/scripts/migration-queue.json'),
-            worktreeScope: config.get('worktreeScope', 'queue'),
-            baseUrl: config.get('baseUrl', ''),
-            injectToWorker: config.get('injectKeysToWorker', true),
+            fixAgent: eff.fixAgent,
+            reviewAgent: eff.reviewAgent,
+            workerMaxTurns: eff.workerMaxTurns,
+            workerMaxRetries: eff.workerMaxRetries,
+            queuePath: eff.queuePath,
+            worktreeScope: eff.worktreeScope,
+            baseUrl: eff.baseUrl,
+            injectToWorker: eff.injectKeysToWorker,
         };
+        const config = vscode.workspace.getConfiguration('agentLoop');
         const configSources = {};
         const sourceKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl', 'injectKeysToWorker'];
         for (const k of sourceKeys) {
@@ -447,6 +517,13 @@ class DashboardPanel {
             category: queueFileExists ? 'ready' : 'failed',
             message: queueFileExists ? 'queue file present at resolved path' : 'queue file missing',
         });
+        if (pathRejected) {
+            // Diagnostics reports rejected paths with redacted errors
+            warnings.push({
+                category: 'failed',
+                message: 'redacted error',
+            });
+        }
         const ls = (lastStateSummary && lastStateSummary.status) || 'unknown';
         let lastCat = 'unknown';
         if (/DONE|applied|reviewed/i.test(ls))
@@ -457,12 +534,15 @@ class DashboardPanel {
             lastCat = 'skipped';
         warnings.push({ category: lastCat, message: `last run state: ${ls}` });
         const payload = {
+            generatedAt: new Date().toISOString(),
             effectiveConfig,
             configSources,
             keys: keysStatus,
             queuePath: qpath,
             repoRoot: repo,
             lastRunState: lastStateSummary,
+            lastRunStatus: lastStateSummary,
+            providerHealth: { ...this.providerHealthCache },
             warnings,
         };
         this.post({ type: 'diagnostics', payload: (0, settingsMessages_1.redactSettingsMessageForLog)(payload) });
@@ -485,17 +565,197 @@ class DashboardPanel {
         delete payload.grokApiKey;
         delete payload.openaiApiKey;
         delete payload.anthropicApiKey;
+        // Sanitize for enum constraints and secret exclusion before save (Settings 107)
+        const sanitized = (0, settingsConfig_1.sanitizeSettingsForSave)(payload);
         const config = vscode.workspace.getConfiguration('agentLoop');
         const promises = [];
-        const nonSecretKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl', 'injectToWorker'];
+        const nonSecretKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl', 'activeProfile'];
         for (const key of nonSecretKeys) {
-            if (payload[key] !== undefined) {
+            if (sanitized[key] !== undefined) {
+                if (key === 'queuePath') {
+                    const r = (0, paths_1.getRepoRoot)() || process.cwd();
+                    if (!(0, paths_1.isPathWithinWorkspace)(r, String(sanitized[key]))) {
+                        // do not allow absolute outside or traversal writes from dashboard import
+                        continue;
+                    }
+                }
                 const target = (key === 'queuePath' || key === 'baseUrl') ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Workspace;
-                promises.push(config.update(key, payload[key], target));
+                promises.push(config.update(key, sanitized[key], target));
             }
+        }
+        if (sanitized.injectKeysToWorker !== undefined) {
+            promises.push(config.update('injectKeysToWorker', sanitized.injectKeysToWorker, vscode.ConfigurationTarget.Workspace));
+        }
+        else if (sanitized.injectToWorker !== undefined) {
+            promises.push(config.update('injectKeysToWorker', sanitized.injectToWorker, vscode.ConfigurationTarget.Workspace));
         }
         await Promise.all(promises);
         this.post({ type: 'importSettingsResult', payload: { ok: true } });
+        await this.sendSettings();
+    }
+    async sendProfiles() {
+        const config = vscode.workspace.getConfiguration('agentLoop');
+        const activeRaw = config.get('activeProfile') || 'local';
+        let stored = {};
+        try {
+            const p = config.get('profiles');
+            if (p && typeof p === 'object' && !Array.isArray(p))
+                stored = p;
+        }
+        catch { }
+        // seed presets if no stored profiles
+        const base = Object.keys(stored).length > 0 ? stored : { ...settingsConfig_1.PROFILE_PRESETS };
+        const loaded = (0, settingsConfig_1.loadProfileStorage)({ ...base, activeProfile: activeRaw });
+        this.post({
+            type: 'profiles',
+            payload: {
+                profiles: loaded.profiles,
+                activeProfile: loaded.activeProfile || 'local',
+            },
+        });
+    }
+    async handleCreateProfile(message) {
+        const name = (message && (message.name || (message.payload && message.payload.name))) || '';
+        const values = (message && (message.values || (message.payload && message.payload.values))) || {};
+        const config = vscode.workspace.getConfiguration('agentLoop');
+        let current = {};
+        try {
+            const p = config.get('profiles');
+            if (p && typeof p === 'object' && !Array.isArray(p))
+                current = p;
+        }
+        catch { }
+        if (Object.keys(current).length === 0)
+            current = { ...settingsConfig_1.PROFILE_PRESETS };
+        const res = (0, settingsConfig_1.applyProfileCreate)(current, name, values);
+        if (!res.ok) {
+            this.post({ type: 'profileError', payload: { error: res.error || 'invalid' } });
+            await this.sendProfiles();
+            return;
+        }
+        await config.update('profiles', res.profiles, vscode.ConfigurationTarget.Workspace);
+        await this.sendProfiles();
+    }
+    async handleRenameProfile(message) {
+        const oldName = (message && (message.oldName || (message.payload && message.payload.oldName))) || '';
+        const newName = (message && (message.newName || (message.payload && message.payload.newName))) || '';
+        const config = vscode.workspace.getConfiguration('agentLoop');
+        let current = {};
+        try {
+            const p = config.get('profiles');
+            if (p && typeof p === 'object' && !Array.isArray(p))
+                current = p;
+        }
+        catch { }
+        if (Object.keys(current).length === 0)
+            current = { ...settingsConfig_1.PROFILE_PRESETS };
+        const res = (0, settingsConfig_1.applyProfileRename)(current, oldName, newName);
+        if (!res.ok) {
+            this.post({ type: 'profileError', payload: { error: res.error || 'invalid' } });
+            await this.sendProfiles();
+            return;
+        }
+        const next = res.profiles || current;
+        // if active was old, update active too
+        const active = config.get('activeProfile') || '';
+        if ((0, settingsConfig_1.sanitizeProfileName)(active) === (0, settingsConfig_1.sanitizeProfileName)(oldName)) {
+            await config.update('activeProfile', (0, settingsConfig_1.sanitizeProfileName)(newName), vscode.ConfigurationTarget.Workspace);
+        }
+        await config.update('profiles', next, vscode.ConfigurationTarget.Workspace);
+        await this.sendProfiles();
+        await this.sendSettings();
+    }
+    async handleDuplicateProfile(message) {
+        const name = (message && (message.name || (message.payload && message.payload.name))) || '';
+        const newName = (message && (message.newName || (message.payload && message.payload.newName))) || '';
+        const config = vscode.workspace.getConfiguration('agentLoop');
+        let current = {};
+        try {
+            const p = config.get('profiles');
+            if (p && typeof p === 'object' && !Array.isArray(p))
+                current = p;
+        }
+        catch { }
+        if (Object.keys(current).length === 0)
+            current = { ...settingsConfig_1.PROFILE_PRESETS };
+        const res = (0, settingsConfig_1.applyProfileDuplicate)(current, name, newName);
+        if (!res.ok) {
+            this.post({ type: 'profileError', payload: { error: res.error || 'invalid' } });
+            await this.sendProfiles();
+            return;
+        }
+        await config.update('profiles', res.profiles, vscode.ConfigurationTarget.Workspace);
+        await this.sendProfiles();
+    }
+    async handleDeleteProfile(message) {
+        const name = (message && (message.name || (message.payload && message.payload.name))) || '';
+        const config = vscode.workspace.getConfiguration('agentLoop');
+        let current = {};
+        try {
+            const p = config.get('profiles');
+            if (p && typeof p === 'object' && !Array.isArray(p))
+                current = p;
+        }
+        catch { }
+        if (Object.keys(current).length === 0)
+            current = { ...settingsConfig_1.PROFILE_PRESETS };
+        const res = (0, settingsConfig_1.applyProfileDelete)(current, name);
+        if (!res.ok) {
+            this.post({ type: 'profileError', payload: { error: res.error || 'invalid' } });
+            await this.sendProfiles();
+            return;
+        }
+        const next = res.profiles || {};
+        const active = config.get('activeProfile') || 'local';
+        if ((0, settingsConfig_1.sanitizeProfileName)(active) === (0, settingsConfig_1.sanitizeProfileName)(name)) {
+            const remaining = Object.keys(next)[0] || 'local';
+            await config.update('activeProfile', remaining, vscode.ConfigurationTarget.Workspace);
+        }
+        await config.update('profiles', next, vscode.ConfigurationTarget.Workspace);
+        await this.sendProfiles();
+        await this.sendSettings();
+    }
+    async handleSelectProfile(message) {
+        const name = (message && (message.name || (message.payload && message.payload.name))) || '';
+        const n = (0, settingsConfig_1.sanitizeProfileName)(name);
+        if (!n || !(0, settingsConfig_1.isValidProfileName)(n)) {
+            this.post({ type: 'profileError', payload: { error: 'invalid profile name' } });
+            return;
+        }
+        if (this.lastQueueRunning) {
+            this.post({
+                type: 'saveBlocked',
+                payload: { reason: 'queueRunning', blockedFields: ['activeProfile'], message: '队列运行中，禁止切换 profile。' },
+            });
+            await this.sendProfiles();
+            return;
+        }
+        const config = vscode.workspace.getConfiguration('agentLoop');
+        await config.update('activeProfile', n, vscode.ConfigurationTarget.Workspace);
+        // also apply the profile values to flat non-secret to make select effective
+        let current = {};
+        try {
+            const p = config.get('profiles');
+            if (p && typeof p === 'object' && !Array.isArray(p))
+                current = p;
+        }
+        catch { }
+        if (Object.keys(current).length === 0)
+            current = { ...settingsConfig_1.PROFILE_PRESETS };
+        const loaded = (0, settingsConfig_1.loadProfileStorage)({ ...current, activeProfile: n });
+        const prof = loaded.profiles[n] || {};
+        const flatKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl'];
+        const promises = [];
+        for (const k of flatKeys) {
+            if (prof[k] !== undefined) {
+                promises.push(config.update(k, prof[k], vscode.ConfigurationTarget.Workspace));
+            }
+        }
+        if (prof.injectKeysToWorker !== undefined) {
+            promises.push(config.update('injectKeysToWorker', prof.injectKeysToWorker, vscode.ConfigurationTarget.Workspace));
+        }
+        await Promise.all(promises);
+        await this.sendProfiles();
         await this.sendSettings();
     }
     update(snapshot) {
@@ -650,5 +910,28 @@ function badgeFor(task) {
     if (task.outcome)
         return task.outcome;
     return 'pending';
+}
+// Settings 107: exported for test surface + used internally for enriching cached health entries
+function enrichProviderHealthResult(res) {
+    if (!res || typeof res !== 'object')
+        return res;
+    const checkedAt = new Date().toISOString();
+    const durationMs = (res.durationMs ?? res.duration ?? 0);
+    return {
+        ...res,
+        durationMs,
+        duration: durationMs,
+        checkedAt,
+    };
+}
+function shouldClearProviderHealthOnSettingsChange(payload) {
+    if (!payload || typeof payload !== 'object' || Array.isArray(payload))
+        return false;
+    const keys = Object.keys(payload);
+    if (keys.some((k) => ['grokApiKey', 'openaiApiKey', 'anthropicApiKey'].includes(k)))
+        return true;
+    if ('baseUrl' in payload)
+        return true;
+    return false;
 }
 //# sourceMappingURL=dashboardPanel.js.map

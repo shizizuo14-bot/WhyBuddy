@@ -33,17 +33,20 @@ var __importStar = (this && this.__importStar) || (function () {
     };
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.getAgentLoopConfig = void 0;
 exports.getRepoRoot = getRepoRoot;
 exports.getAgentLoopRoot = getAgentLoopRoot;
 exports.latestDir = latestDir;
 exports.latestStatePath = latestStatePath;
 exports.latestReportPath = latestReportPath;
 exports.runsDir = runsDir;
+exports.isPathWithinWorkspace = isPathWithinWorkspace;
 exports.queuePath = queuePath;
-exports.getAgentLoopConfig = getAgentLoopConfig;
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const vscode = __importStar(require("vscode"));
+const settingsConfig_1 = require("./settingsConfig");
+Object.defineProperty(exports, "getAgentLoopConfig", { enumerable: true, get: function () { return settingsConfig_1.getEffectiveConfig; } });
 function getRepoRoot() {
     const folders = vscode.workspace.workspaceFolders;
     if (!folders?.length)
@@ -70,23 +73,25 @@ function latestReportPath(repoRoot) {
 function runsDir(repoRoot) {
     return path.join(repoRoot, '.agent-loop', 'runs');
 }
-function queuePath(repoRoot) {
-    const configured = vscode.workspace.getConfiguration('agentLoop').get('queuePath')
-        || 'agent-loop/scripts/migration-queue.json';
-    return path.isAbsolute(configured) ? configured : path.join(repoRoot, configured);
+function isPathWithinWorkspace(workspaceRoot, targetPath) {
+    if (!workspaceRoot || typeof workspaceRoot !== 'string' || !targetPath || typeof targetPath !== 'string') {
+        return false;
+    }
+    const root = path.resolve(workspaceRoot);
+    const candidate = path.isAbsolute(targetPath) ? path.resolve(targetPath) : path.resolve(root, targetPath);
+    const rel = path.relative(root, candidate);
+    return !rel.startsWith('..') && !path.isAbsolute(rel);
 }
-function getAgentLoopConfig() {
-    const cfg = vscode.workspace.getConfiguration('agentLoop');
-    return {
-        fixAgent: cfg.get('fixAgent', 'grok'),
-        reviewAgent: cfg.get('reviewAgent', 'codex'),
-        workerMaxTurns: cfg.get('workerMaxTurns', 128),
-        workerMaxRetries: cfg.get('workerMaxRetries', 2),
-        queuePath: cfg.get('queuePath', 'agent-loop/scripts/migration-queue.json'),
-        worktreeScope: cfg.get('worktreeScope', 'queue'),
-        baseUrl: cfg.get('baseUrl', ''),
-        injectKeysToWorker: cfg.get('injectKeysToWorker', true),
-    };
+function queuePath(repoRoot) {
+    const configured = (0, settingsConfig_1.getEffectiveConfig)().queuePath;
+    if (isPathWithinWorkspace(repoRoot, configured || '')) {
+        const root = path.resolve(repoRoot || process.cwd());
+        const candidate = path.isAbsolute(configured) ? path.resolve(configured) : path.resolve(root, configured);
+        return candidate;
+    }
+    // reject unsafe (absolute outside, .. traversals, wrong drive); fall back to default relative resolved from workspace root
+    const root = path.resolve(repoRoot || process.cwd());
+    return path.resolve(root, 'agent-loop/scripts/migration-queue.json');
 }
 function existsSync(filePath) {
     try {
