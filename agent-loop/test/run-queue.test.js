@@ -460,6 +460,38 @@ test('migration queue enables 107 settings full wave and disables superseded 100
   assert.deepEqual(guardEnabled, []);
 });
 
+test('migration queue 107 settings wave has task specific red gates', async () => {
+  const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
+  const queue = JSON.parse(await fs.readFile(queuePath, 'utf8'));
+  const tasks = queue.tasks || [];
+
+  const enabled107 = tasks.filter((t) => t.enabled && t.id && t.id.endsWith('-107'));
+  assert.ok(enabled107.length > 0, '107 wave must have enabled tasks');
+
+  for (const entry of enabled107) {
+    const gates = queue[entry.gatesKey] || [];
+    assert.ok(Array.isArray(gates) && gates.length > 0, `missing gates array for ${entry.gatesKey}`);
+    assert.match(gates[0] || '', /node -e .*Buffer\.from.*missing Settings 107 marker/, `${entry.gatesKey} must start with task-specific marker check (red gate)`);
+    const hasMojibake = gates.some((g) => typeof g === 'string' && g.includes('check-mojibake.js'));
+    assert.ok(hasMojibake, `${entry.gatesKey} must contain mojibake check`);
+  }
+
+  // ensure 100-106 remain disabled
+  const enabledOld = tasks.filter((t) => t.enabled && /^agent-loop-settings-.*-(100|101|102|103|104|105|106)$/.test(t.id || ''));
+  assert.deepEqual(enabledOld, [], '100-106 settings must be disabled while 107 active');
+});
+
+test('migration queue release readiness 107 runs full extension tests', async () => {
+  const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
+  const queue = JSON.parse(await fs.readFile(queuePath, 'utf8'));
+  const gates = queue.agentLoopSettingsReleaseReadinessVsix107Gates || [];
+
+  assert.ok(
+    gates.some((gate) => gate === 'cd agent-loop/vscode-extension; npm test'),
+    'release readiness must prove the full extension test suite, not only the filtered release readiness tests',
+  );
+});
+
 test('buildLoopArgsForQueueEntry uses queue worktree fix cwd in queue scope', () => {
   const queueWorktreePath = 'C:\\repo\\.worktrees\\queue-migration';
   const args = buildLoopArgsForQueueEntry({

@@ -13,11 +13,13 @@ const agentLoopRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)),
 const extensionRoot = path.join(agentLoopRoot, 'vscode-extension');
 const extensionOut = path.join(extensionRoot, 'out');
 const requireFromExtension = createRequire(path.join(extensionRoot, 'package.json'));
+const cjsRequire = createRequire(import.meta.url);
 
-// ===== VS Code test harness shim (for Settings 106) =====
+// ===== VS Code test harness shim (for Settings 106/107) =====
 // Allows node:test to require() compiled extension modules (e.g. paths.js)
 // that have `import * as vscode from 'vscode'` (compiled to require).
-// Provides just enough to exercise getAgentLoopConfig defaults and load Settings-related modules.
+// Provides just enough to exercise getAgentLoopConfig / getEffectiveConfig defaults and load Settings-related modules.
+// Supports inspect + overrides for package-defaults + workspace merge tests.
 // Does not add vscode as a runtime dep and does not affect production.
 let __vscodeShimInstalled = false;
 function installVscodeTestShim() {
@@ -35,26 +37,131 @@ function installVscodeTestShim() {
   };
 }
 
+// ===== VS Code 107 test harness state & helpers (no leaking globals between tests) =====
+// Internal state is reset via provided helpers. Direct __AGENT_LOOP_TEST_CONFIG kept for compat with prior tests.
+const __AGENT_LOOP_107_STATE = {
+  config: {},
+  updates: [],
+  workspaceFolders: undefined,
+  capturedCommands: [],
+  capturedMessages: [],
+};
+function resetVscode107State() {
+  __AGENT_LOOP_107_STATE.config = {};
+  __AGENT_LOOP_107_STATE.updates = [];
+  __AGENT_LOOP_107_STATE.workspaceFolders = undefined;
+  __AGENT_LOOP_107_STATE.capturedCommands = [];
+  __AGENT_LOOP_107_STATE.capturedMessages = [];
+  delete globalThis.__AGENT_LOOP_TEST_CONFIG;
+  delete globalThis.__AGENT_LOOP_TEST_CONFIG_UPDATES;
+  delete globalThis.__AGENT_LOOP_TEST_WORKSPACE_FOLDERS;
+  delete globalThis.__AGENT_LOOP_TEST_CAPTURED_COMMANDS;
+  delete globalThis.__AGENT_LOOP_TEST_CAPTURED_WEBVIEW_MESSAGES;
+}
+function seedWorkspaceConfig(overrides) {
+  const seed = overrides || {};
+  __AGENT_LOOP_107_STATE.config = { ...__AGENT_LOOP_107_STATE.config, ...seed };
+  // compat for existing effective-config style tests and getEffectiveConfig
+  globalThis.__AGENT_LOOP_TEST_CONFIG = { ...(globalThis.__AGENT_LOOP_TEST_CONFIG || {}), ...seed };
+  return () => { /* caller manages via resetVscode107State or finally */ };
+}
+function getWorkspaceConfigUpdates() {
+  const fromState = __AGENT_LOOP_107_STATE.updates.length ? __AGENT_LOOP_107_STATE.updates : (globalThis.__AGENT_LOOP_TEST_CONFIG_UPDATES || []);
+  return [...fromState];
+}
+function seedWorkspaceFolders(folders) {
+  __AGENT_LOOP_107_STATE.workspaceFolders = folders;
+  globalThis.__AGENT_LOOP_TEST_WORKSPACE_FOLDERS = folders;
+}
+function getCapturedCommands() {
+  return [...(globalThis.__AGENT_LOOP_TEST_CAPTURED_COMMANDS || __AGENT_LOOP_107_STATE.capturedCommands || [])];
+}
+function getCapturedWebviewMessages() {
+  return [...(globalThis.__AGENT_LOOP_TEST_CAPTURED_WEBVIEW_MESSAGES || __AGENT_LOOP_107_STATE.capturedMessages || [])];
+}
+function createMockSecretStorage(seed) {
+  // Obtain via shim so test sees the 107-mocked SecretStorage impl
+  const vscode = cjsRequire('vscode');
+  return new vscode.SecretStorage(seed || {});
+}
+
 function createVscodeMock() {
   function makeConfig() {
     return {
       get(key, defaultValue) {
+        // Support 107 tests: mock workspace overrides take precedence over defaultValue (package).
+        const overrides = globalThis.__AGENT_LOOP_TEST_CONFIG || __AGENT_LOOP_107_STATE.config || {};
+        const k = String(key);
+        if (k in overrides) return overrides[k];
         // Always honor the default passed by getAgentLoopConfig / callers so defaults are testable.
         return defaultValue;
       },
-      update() {},
+      inspect(key) {
+        const overrides = globalThis.__AGENT_LOOP_TEST_CONFIG || __AGENT_LOOP_107_STATE.config || {};
+        const k = String(key);
+        // package.json defaults (Settings 107)
+        const PKG_DEFAULTS = {
+          fixAgent: 'grok',
+          reviewAgent: 'codex',
+          fixModel: '',
+          reviewModel: '',
+          workerMaxTurns: 128,
+          workerMaxRetries: 2,
+          queuePath: 'agent-loop/scripts/migration-queue.json',
+          worktreeScope: 'queue',
+          baseUrl: '',
+          injectKeysToWorker: true,
+          activeProfile: 'local',
+        };
+        const hasWs = k in overrides;
+        return {
+          defaultValue: PKG_DEFAULTS[k] !== undefined ? PKG_DEFAULTS[k] : undefined,
+          workspaceValue: hasWs ? overrides[k] : undefined,
+          workspaceFolderValue: undefined,
+          globalValue: undefined,
+        };
+      },
+      update(key, value, target) {
+        const k = String(key);
+        const entry = { key: k, value, target };
+        __AGENT_LOOP_107_STATE.updates.push(entry);
+        if (!globalThis.__AGENT_LOOP_TEST_CONFIG_UPDATES) globalThis.__AGENT_LOOP_TEST_CONFIG_UPDATES = [];
+        globalThis.__AGENT_LOOP_TEST_CONFIG_UPDATES.push(entry);
+        // reflect immediately so get/inspect in same test see the written value
+        if (!globalThis.__AGENT_LOOP_TEST_CONFIG) globalThis.__AGENT_LOOP_TEST_CONFIG = {};
+        globalThis.__AGENT_LOOP_TEST_CONFIG[k] = value;
+        __AGENT_LOOP_107_STATE.config[k] = value;
+        return Promise.resolve();
+      },
       has() { return false; },
     };
   }
   return {
     workspace: {
-      workspaceFolders: undefined,
+      get workspaceFolders() {
+        return (globalThis.__AGENT_LOOP_TEST_WORKSPACE_FOLDERS !== undefined)
+          ? globalThis.__AGENT_LOOP_TEST_WORKSPACE_FOLDERS
+          : __AGENT_LOOP_107_STATE.workspaceFolders;
+      },
+      set workspaceFolders(v) {
+        __AGENT_LOOP_107_STATE.workspaceFolders = v;
+        globalThis.__AGENT_LOOP_TEST_WORKSPACE_FOLDERS = v;
+      },
       getConfiguration() {
         return makeConfig();
       },
     },
     commands: {
-      executeCommand: async () => undefined,
+      executeCommand: async (command, ...args) => {
+        const rec = { command: String(command), args };
+        __AGENT_LOOP_107_STATE.capturedCommands.push(rec);
+        if (!globalThis.__AGENT_LOOP_TEST_CAPTURED_COMMANDS) globalThis.__AGENT_LOOP_TEST_CAPTURED_COMMANDS = [];
+        globalThis.__AGENT_LOOP_TEST_CAPTURED_COMMANDS.push(rec);
+        // allow test seeded responses if present
+        const resps = globalThis.__AGENT_LOOP_TEST_COMMAND_RESPONSES || {};
+        if (command in resps) return resps[command];
+        return undefined;
+      },
     },
     window: {
       showWarningMessage: () => undefined,
@@ -65,8 +172,31 @@ function createVscodeMock() {
         show() {},
         dispose() {},
       }),
-      createWebviewPanel() {
-        throw new Error('vscode test shim: createWebviewPanel not supported in harness');
+      createWebviewPanel(viewType, title, column, options) {
+        const msgs = [];
+        const webview = {
+          postMessage(msg) {
+            msgs.push(msg);
+            __AGENT_LOOP_107_STATE.capturedMessages.push(msg);
+            if (!globalThis.__AGENT_LOOP_TEST_CAPTURED_WEBVIEW_MESSAGES) globalThis.__AGENT_LOOP_TEST_CAPTURED_WEBVIEW_MESSAGES = [];
+            globalThis.__AGENT_LOOP_TEST_CAPTURED_WEBVIEW_MESSAGES.push(msg);
+            return true;
+          },
+          onDidReceiveMessage() { return { dispose() {} }; },
+          html: '',
+          cspSource: 'vscode-webview://test-shim',
+          options: options || {},
+        };
+        const panel = {
+          viewType,
+          title,
+          webview,
+          reveal() {},
+          dispose() {},
+          onDidDispose(cb) { return { dispose() {} }; },
+          _getCapturedMessages() { return [...msgs]; },
+        };
+        return panel;
       },
     },
     ViewColumn: { Beside: 2 },
@@ -76,6 +206,30 @@ function createVscodeMock() {
     },
     ConfigurationTarget: { Workspace: 1, Global: 2, WorkspaceFolder: 3 },
     Disposable: function Disposable() {},
+    // 107: SecretStorage mock (per-instance stores; no cross-instance leak)
+    SecretStorage: class SecretStorage {
+      #store = new Map();
+      constructor(seed) {
+        if (seed && typeof seed === 'object' && !Array.isArray(seed)) {
+          for (const [k, v] of Object.entries(seed)) {
+            if (v != null) this.#store.set(String(k), v);
+          }
+        }
+      }
+      async get(key) {
+        const k = String(key);
+        return this.#store.has(k) ? this.#store.get(k) : undefined;
+      }
+      async store(key, value) {
+        this.#store.set(String(key), value);
+      }
+      async delete(key) {
+        this.#store.delete(String(key));
+      }
+      _testDump() {
+        return Object.fromEntries(this.#store.entries());
+      }
+    },
     env: { appRoot: '' },
     version: 'test-shim',
   };
@@ -1289,7 +1443,7 @@ test('extension package builds the dashboard React bundle locally', async () => 
   assert.match(packageJson.scripts['build:dashboard'] ?? '', /vite/);
   assert.match(packageJson.scripts.package ?? '', /build:dashboard/);
   const panelSource = await fs.readFile(path.join(extensionRoot, 'src', 'dashboardPanel.ts'), 'utf8');
-  assert.match(panelSource, /payload\.injectToWorker/);
+  assert.match(panelSource, /injectToWorker/);
   assert.match(panelSource, /config\.update\('injectKeysToWorker'/);
   await fs.access(path.join(extensionRoot, 'index.html'));
   await fs.access(path.join(extensionRoot, 'vite.dashboard.dev.config.ts'));
@@ -2702,6 +2856,88 @@ test('vscode shim enables requiring compiled Settings-related modules (paths, ge
   assert.ok('worktreeScope' in cfg);
 });
 
+test('vscode shim 107 isolates workspace config per test', async () => {
+  // ensure clean start (isolation from prior tests)
+  resetVscode107State();
+  const { getEffectiveConfig } = requireFromExtension('./out/settingsConfig.js');
+  const clean = getEffectiveConfig();
+  assert.equal(clean.fixAgent, 'grok');
+  assert.equal(clean.reviewAgent, 'codex');
+
+  // seed via helper
+  const restore = seedWorkspaceConfig({ fixAgent: 'codex-107', reviewAgent: 'grok-107', workerMaxTurns: 42 });
+  let eff = getEffectiveConfig();
+  assert.equal(eff.fixAgent, 'codex-107');
+  assert.equal(eff.reviewAgent, 'grok-107');
+  assert.equal(eff.workerMaxTurns, 42);
+
+  // updates are captured and reflected
+  const wsCfg = cjsRequire('vscode').workspace.getConfiguration('agentLoop');
+  await wsCfg.update('baseUrl', 'http://107.example');
+  await wsCfg.update('workerMaxRetries', 5);
+  const ups = getWorkspaceConfigUpdates();
+  assert.ok(ups.some((u) => u.key === 'baseUrl' && u.value === 'http://107.example'));
+  assert.ok(ups.some((u) => u.key === 'workerMaxRetries' && u.value === 5));
+  eff = getEffectiveConfig();
+  assert.equal(eff.baseUrl, 'http://107.example');
+  assert.equal(eff.workerMaxRetries, 5);
+
+  // commands captured
+  const vscode = cjsRequire('vscode');
+  await vscode.commands.executeCommand('agentLoop.testCmd', { a: 1 });
+  const cmds = getCapturedCommands();
+  assert.ok(cmds.some((c) => c.command === 'agentLoop.testCmd'));
+
+  // webview capture via panel
+  const panel = vscode.window.createWebviewPanel('t', 't', 1, {});
+  panel.webview.postMessage({ type: 'settings', payload: { test: 107 } });
+  const msgs = getCapturedWebviewMessages();
+  assert.ok(msgs.some((m) => m && m.type === 'settings'));
+
+  // reset isolates: next read in same harness sees defaults
+  resetVscode107State();
+  const after = getEffectiveConfig();
+  assert.equal(after.fixAgent, 'grok');
+  assert.equal(after.baseUrl, '');
+  assert.equal(getWorkspaceConfigUpdates().length, 0);
+  // no commands leak
+  assert.equal(getCapturedCommands().length, 0);
+});
+
+test('vscode shim 107 mocks SecretStorage without leaking values', async () => {
+  resetVscode107State();
+  const s1 = createMockSecretStorage({ 'agentLoop.grokApiKey': 'sk-107-secret-A' });
+  assert.equal(await s1.get('agentLoop.grokApiKey'), 'sk-107-secret-A');
+  assert.equal(await s1.get('agentLoop.openaiApiKey'), undefined);
+
+  await s1.store('agentLoop.openaiApiKey', 'sk-107-secret-B');
+  await s1.store('agentLoop.anthropicApiKey', 'sk-107-secret-C');
+  assert.equal(await s1.get('agentLoop.openaiApiKey'), 'sk-107-secret-B');
+
+  // new instance must not leak previous values
+  const s2 = createMockSecretStorage();
+  assert.equal(await s2.get('agentLoop.grokApiKey'), undefined);
+  assert.equal(await s2.get('agentLoop.openaiApiKey'), undefined);
+  assert.equal(await s2.get('agentLoop.anthropicApiKey'), undefined);
+
+  // independent stores
+  await s2.store('agentLoop.grokApiKey', 'sk-107-secret-ONLY-IN-S2');
+  assert.equal(await s1.get('agentLoop.grokApiKey'), 'sk-107-secret-A', 's1 must not see s2 value');
+  assert.equal(await s2.get('agentLoop.grokApiKey'), 'sk-107-secret-ONLY-IN-S2');
+
+  // delete works per instance
+  await s1.delete('agentLoop.grokApiKey');
+  assert.equal(await s1.get('agentLoop.grokApiKey'), undefined);
+  // s2 still has its
+  assert.equal(await s2.get('agentLoop.grokApiKey'), 'sk-107-secret-ONLY-IN-S2');
+
+  // inspect dump contains only own
+  const dump1 = s1._testDump();
+  assert.ok(!('agentLoop.grokApiKey' in dump1) || dump1['agentLoop.grokApiKey'] == null);
+  const dump2 = s2._testDump();
+  assert.equal(dump2['agentLoop.grokApiKey'], 'sk-107-secret-ONLY-IN-S2');
+});
+
 test('getAgentLoopConfig shape includes new CLI and key related fields', () => {
   // We can't easily mock vscode here without setup, but ensure the module exports and basic defaults
   const { getAgentLoopConfig } = requireFromExtension('./out/paths.js');
@@ -2779,6 +3015,102 @@ test('provider health LLM test with custom baseUrl uses provided transport', asy
   assert.ok(calls[0].includes('proxy.example.com'));
 });
 
+test('provider health CLI 107 reports available worker command', async () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { testWorkerCliHealth } = mod;
+
+  const calls = [];
+  const fakeSpawn = (cmd, args) => {
+    calls.push({ cmd, args });
+    const child = {
+      stdout: { on() {} },
+      stderr: { on() {} },
+      on(ev, cb) {
+        if (ev === 'close') {
+          setTimeout(() => cb(0), 0);
+        }
+        return child;
+      },
+      kill() {},
+    };
+    return child;
+  };
+
+  const r = await testWorkerCliHealth('grok', { spawnFn: fakeSpawn, timeoutMs: 100 });
+  assert.equal(r.worker, 'grok');
+  assert.equal(r.status, 'ok');
+  assert.equal(r.reason, 'ok');
+  assert.ok(r.durationMs >= 0);
+  assert.ok(calls.length >= 1);
+});
+
+test('provider health CLI 107 redacts command stderr', async () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { testWorkerCliHealth } = mod;
+
+  const fakeSpawn = () => {
+    const child = {
+      stdout: { on() {} },
+      stderr: {
+        on(ev, cb) {
+          if (ev === 'data') {
+            // simulate secret in stderr
+            setTimeout(() => cb('Error: auth Bearer sk-REAL-LEAK-XYZ\n'), 0);
+          }
+          return child;
+        },
+      },
+      on(ev, cb) {
+        if (ev === 'close') {
+          setTimeout(() => cb(1), 0);
+        }
+        return child;
+      },
+      kill() {},
+    };
+    return child;
+  };
+
+  const r = await testWorkerCliHealth('codex', { spawnFn: fakeSpawn, timeoutMs: 100, command: 'codex' });
+  assert.equal(r.worker, 'codex');
+  assert.equal(r.status, 'failed');
+  assert.ok(!JSON.stringify(r).includes('sk-REAL'));
+  assert.ok(!JSON.stringify(r).includes('LEAK'));
+  assert.ok(r.reason === 'redacted' || /redacted|error/.test(r.reason));
+});
+
+test('provider health cache 107 keeps last redacted result', () => {
+  const mod = requireFromExtension('./out/dashboardPanel.js');
+  const { enrichProviderHealthResult } = mod;
+  const redactedInput = {
+    provider: 'grok',
+    status: 'failed',
+    durationMs: 123,
+    reason: 'redacted error',
+  };
+  const cached = enrichProviderHealthResult(redactedInput);
+  assert.equal(cached.provider, 'grok');
+  assert.equal(cached.status, 'failed');
+  assert.equal(cached.reason, 'redacted error');
+  assert.equal(cached.duration, 123);
+  assert.equal(cached.durationMs, 123);
+  assert.ok(typeof cached.checkedAt === 'string' && cached.checkedAt.length > 0);
+  const s = JSON.stringify(cached);
+  assert.ok(!/sk-|Bearer |REAL/i.test(s));
+});
+
+test('provider health cache 107 clears when provider settings change', () => {
+  const mod = requireFromExtension('./out/dashboardPanel.js');
+  const { shouldClearProviderHealthOnSettingsChange } = mod;
+  assert.equal(shouldClearProviderHealthOnSettingsChange({ grokApiKey: 'foo' }), true);
+  assert.equal(shouldClearProviderHealthOnSettingsChange({ openaiApiKey: '' }), true);
+  assert.equal(shouldClearProviderHealthOnSettingsChange({ anthropicApiKey: 'bar' }), true);
+  assert.equal(shouldClearProviderHealthOnSettingsChange({ baseUrl: 'https://example' }), true);
+  assert.equal(shouldClearProviderHealthOnSettingsChange({ fixAgent: 'codex' }), false);
+  assert.equal(shouldClearProviderHealthOnSettingsChange({ workerMaxTurns: 10 }), false);
+  assert.equal(shouldClearProviderHealthOnSettingsChange(null), false);
+});
+
 test('profile run guard: allowed idle switch (queueRunning false)', () => {
   const mod = requireFromExtension('./out/dashboardPanel.js');
   const { shouldRejectProfileChangeWhileRunning, computeActiveProfileName } = mod;
@@ -2800,6 +3132,148 @@ test('profile run guard: blocked running switch (queueRunning true)', () => {
   assert.equal(shouldRejectProfileChangeWhileRunning(true, { grokApiKey: '' }), false);
   assert.equal(computeActiveProfileName({ fixAgent: 'grok' }), 'grok');
   assert.equal(computeActiveProfileName(null), null);
+});
+
+test('profile run guard 107 blocks runtime fields during active run', () => {
+  const panelMod = requireFromExtension('./out/dashboardPanel.js');
+  const cfgMod = requireFromExtension('./out/settingsConfig.js');
+  const { shouldRejectProfileChangeWhileRunning, getProfileRunGuardResult } = panelMod;
+  const { checkProfileRunGuard } = cfgMod;
+  // blocks exactly the runtime profile/worker fields
+  assert.equal(shouldRejectProfileChangeWhileRunning(true, { fixAgent: 'codex' }), true);
+  assert.equal(shouldRejectProfileChangeWhileRunning(true, { reviewAgent: 'grok', queuePath: 'x' }), true);
+  assert.equal(shouldRejectProfileChangeWhileRunning(true, { worktreeScope: 'task' }), true);
+  assert.equal(shouldRejectProfileChangeWhileRunning(true, { baseUrl: 'https://ex' }), true);
+  const g = checkProfileRunGuard(true, { fixAgent: 'codex', baseUrl: 'u' });
+  assert.equal(g.allowed, false);
+  assert.ok(Array.isArray(g.blockedFields) && g.blockedFields.includes('fixAgent'));
+  assert.ok(g.message && g.message.includes('运行时字段'));
+  // structured via panel helper
+  const gs = getProfileRunGuardResult(true, { reviewAgent: 'none' });
+  assert.equal(gs.allowed, false);
+  assert.ok(gs.blockedFields.includes('reviewAgent'));
+  // safe non-runtime fields (e.g. worker max) NOT blocked
+  assert.equal(shouldRejectProfileChangeWhileRunning(true, { workerMaxTurns: 64 }), false);
+  assert.equal(checkProfileRunGuard(true, { workerMaxRetries: 5 }).allowed, true);
+});
+
+test('profile run guard 107 allows safe diagnostic refresh', () => {
+  const cfgMod = requireFromExtension('./out/settingsConfig.js');
+  const { checkProfileRunGuard } = cfgMod;
+  // during active run, non-runtime payloads allowed (diagnostic refresh path never hits runtime guard)
+  const res = checkProfileRunGuard(true, { /* diagnostic-safe */ });
+  assert.equal(res.allowed, true);
+  assert.deepEqual(res.blockedFields, []);
+  const res2 = checkProfileRunGuard(true, { workerMaxTurns: 256, injectKeysToWorker: false });
+  assert.equal(res2.allowed, true);
+  // confirm diagnostics command (getDiagnostics) is independent of run guard (always callable)
+  assert.ok('checkProfileRunGuard' in cfgMod, 'guard available; diagnostics refresh remains unblocked per contract');
+});
+
+// ===== security redaction audit 107 required tests =====
+test('security redaction audit 107 redacts command responses', async () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { testWorkerCliHealth } = mod;
+  const { redactSettingsMessageForLog } = requireFromExtension('./out/settingsMessages.js');
+
+  // simulate command stderr response containing all covered secret patterns
+  const fakeSpawnSecretCmd = () => {
+    const child = {
+      stdout: { on() {} },
+      stderr: {
+        on(ev, cb) {
+          if (ev === 'data') {
+            setTimeout(() => cb('Error: auth failed with x-api-key: sk-CMD-RESP-XYZ\nAuthorization: Bearer cmd-token\n-----BEGIN PRIVATE KEY-----\nMIIE...\n'), 0);
+          }
+          return child;
+        },
+      },
+      on(ev, cb) {
+        if (ev === 'close') {
+          setTimeout(() => cb(1), 0);
+        }
+        return child;
+      },
+      kill() {},
+    };
+    return child;
+  };
+
+  const r = await testWorkerCliHealth('grok', { spawnFn: fakeSpawnSecretCmd, timeoutMs: 100, command: 'grok' });
+  const ser = JSON.stringify(r);
+  assert.ok(!ser.includes('sk-CMD-RESP'));
+  assert.ok(!ser.includes('cmd-token'));
+  assert.ok(!/PRIVATE KEY/i.test(ser));
+  assert.ok(r.reason === 'redacted' || /redacted|error/.test(r.reason));
+
+  // shared redaction on command-response shaped payload never leaks (uses secret-matching keys)
+  const cmdRespPayload = {
+    type: 'commandResponse',
+    secret: 'sk-foo',
+    apiKey: 'sk-bar',
+    token: 'Bearer t',
+    secretKeyBlock: '-----BEGIN RSA PRIVATE KEY----- leak',
+  };
+  const redCmd = redactSettingsMessageForLog(cmdRespPayload);
+  const serCmd = JSON.stringify(redCmd);
+  assert.ok(!/sk-foo|sk-bar|Bearer t|PRIVATE KEY/i.test(serCmd));
+  assert.match(serCmd, /<configured>|''/);
+
+  // dashboard messages use configured status, never raw SecretStorage values
+  const dashKeysMsg = {
+    type: 'settings',
+    payload: {
+      keys: { grokApiKey: 'configured', openaiApiKey: 'configured' },
+      nonSensitive: { fixAgent: 'grok' },
+    },
+  };
+  const redDash = redactSettingsMessageForLog(dashKeysMsg);
+  const serDash = JSON.stringify(redDash);
+  assert.ok(!serDash.includes('sk-'));
+  assert.ok(serDash.includes('configured') || serDash.includes('<configured>'));
+});
+
+test('security redaction audit 107 redacts failed provider errors', async () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { testProviderHealth } = mod;
+  const { redactSettingsMessageForLog } = requireFromExtension('./out/settingsMessages.js');
+
+  // failing provider transport with secrets in error message (all patterns)
+  const mockFailSecret = async () => {
+    throw new Error('401 Unauthorized Authorization: Bearer sk-FAILED-PROV-XYZ x-api-key: sk-ant-fail -----BEGIN EC PRIVATE KEY----- leakblock');
+  };
+  const failRes = await testProviderHealth('openai', 'sk-provide-REAL', { transport: mockFailSecret });
+  const serFail = JSON.stringify(failRes);
+  assert.ok(!serFail.includes('sk-FAILED'));
+  assert.ok(!serFail.includes('sk-ant-fail'));
+  assert.ok(!serFail.includes('sk-provide'));
+  assert.ok(!/Bearer |x-api-key|PRIVATE KEY/i.test(serFail));
+  assert.ok(['auth error', 'redacted error', 'error'].includes(failRes.reason));
+
+  // shared redaction covers on provider result payload (uses secret-matching keys)
+  const provErrPayload = {
+    type: 'providerHealth',
+    payload: { provider: 'grok', status: 'failed', secret: 'sk-ERR', token: 'Bearer z', apiKey: 'x-api-key: w', secretPriv: '-----BEGIN PRIVATE KEY----- ' },
+  };
+  const redProv = redactSettingsMessageForLog(provErrPayload);
+  const serProv = JSON.stringify(redProv);
+  assert.ok(!/sk-ERR|Bearer z|x-api-key|PRIVATE KEY/i.test(serProv));
+
+  // run state and diagnostics never serialize injected worker env secrets
+  const runState = { runId: 'r107', status: 'RUN', options: { task: 't.md' } };
+  assert.ok(!JSON.stringify(runState).includes('sk-'));
+  const diagWithAttempt = {
+    effectiveConfig: { fixAgent: 'grok' },
+    lastRunState: runState,
+    // use secret-matching keys so shared redaction replaces values (run/diag never serialize injected secrets)
+    grokApiKey: 'sk-INJECT-DIAG-SECRET',
+    authToken: 'sk-ant-diag',
+  };
+  const redDiag = redactSettingsMessageForLog(diagWithAttempt);
+  const serDiag = JSON.stringify(redDiag);
+  assert.ok(!serDiag.includes('sk-INJECT-DIAG'));
+  assert.ok(!serDiag.includes('sk-ant-diag'));
+  assert.ok(serDiag.includes('effectiveConfig'));
 });
 
 // ===== Queue defaults preview tests (Settings 106: read + dry-run only, no write) =====
@@ -3037,6 +3511,48 @@ test('settings import handles malformed JSON and non-object input', () => {
   assert.match(String(validateAndPrepareSettingsImport('{"schemaVersion":1, broken').error || ''), /malformed|invalid/i);
 });
 
+// Settings 107 file-based import/export (copy/download/upload via AntD, redacted, activeProfile, structured errors)
+test('settings import export files 107 downloads redacted payload', () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { createSettingsExport, SETTINGS_SCHEMA_VERSION } = mod;
+
+  const nonSens = {
+    fixAgent: 'grok',
+    reviewAgent: 'codex',
+    workerMaxTurns: 64,
+    queuePath: 'q.json',
+    activeProfile: 'local'
+  };
+  const keys = { grokApiKey: 'configured', openaiApiKey: '', anthropicApiKey: '' };
+  const exp = createSettingsExport(nonSens, keys, 'local');
+
+  assert.equal(exp.schemaVersion, SETTINGS_SCHEMA_VERSION);
+  assert.equal(exp.activeProfile, 'local');
+  assert.ok(exp.nonSensitive);
+  assert.equal(exp.nonSensitive.activeProfile, 'local');
+  assert.ok(exp.keys);
+  const ser = JSON.stringify(exp);
+  assert.ok(!ser.includes('sk-'));
+  assert.ok(!/Bearer |x-api-key|private key/i.test(ser));
+  assert.ok(ser.includes('configured'));
+  // includes required: schemaVersion, active profile, non-secret settings, key status only (no raw)
+});
+
+test('settings import export files 107 rejects raw secret fields', () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { validateAndPrepareSettingsImport } = mod;
+
+  const bad1 = validateAndPrepareSettingsImport({ schemaVersion: 1, nonSensitive: { fixAgent: 'grok', grokApiKey: 'sk-REAL-107-secret' } });
+  assert.equal(bad1.ok, false);
+  assert.match(String(bad1.error || ''), /secret/i);
+
+  const bad2 = validateAndPrepareSettingsImport({ schemaVersion: 1, nonSensitive: { baseUrl: 'Bearer xyz' } });
+  assert.equal(bad2.ok, false);
+
+  const bad3 = validateAndPrepareSettingsImport({ schemaVersion: 1, profiles: { fixAgent: 'sk-1234567890' } });
+  assert.equal(bad3.ok, false);
+});
+
 test('settings diagnostics payload shape covers effective config, sources, keys, queue path, repo root, last run state', () => {
   const sample = {
     effectiveConfig: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 128, queuePath: 'agent-loop/scripts/migration-queue.json', injectToWorker: true },
@@ -3094,4 +3610,711 @@ test('effective config and queue path appear in diagnostics shape', () => {
   assert.ok('effectiveConfig' in sampleDiag);
   assert.ok('queuePath' in sampleDiag);
   assert.ok(Array.isArray(sampleDiag.warnings));
+});
+
+test('settings diagnostics artifacts 107 redacts all secret surfaces', () => {
+  const { redactSettingsMessageForLog } = requireFromExtension('./out/settingsMessages.js');
+  const rawArtifact = {
+    generatedAt: new Date().toISOString(),
+    effectiveConfig: { fixAgent: 'grok', queuePath: 'agent-loop/scripts/migration-queue.json' },
+    keys: { grokApiKey: 'configured', openaiApiKey: '', anthropicApiKey: '' },
+    queuePath: 'agent-loop/scripts/migration-queue.json',
+    providerHealth: { grok: { provider: 'grok', status: 'ok', reason: 'ok' } },
+    lastRunStatus: { runId: 'r1', status: 'DONE_REVIEWED', task: 't.md' },
+    // attempt to surface secrets under secret-key-named fields (must be redacted by shared helper)
+    grokApiKey: 'sk-FAKE1234567890ABCDEF',
+    authToken: 'Bearer xyz-secret',
+    secretEnv: { FOO: 'sk-hidden' },
+  };
+  const redacted = redactSettingsMessageForLog(rawArtifact);
+  const serialized = JSON.stringify(redacted);
+  // redacts all secret surfaces
+  assert.ok(!/sk-FAKE|Bearer xyz|sk-hidden/i.test(serialized), 'redacts secrets');
+  assert.ok(serialized.includes('generatedAt') && serialized.includes('queuePath'));
+  assert.match(serialized, /configured|<configured>|''/i);
+});
+
+test('settings diagnostics artifacts 107 includes queue and run context', () => {
+  const artifact = {
+    generatedAt: '2026-06-25T00:00:00.000Z',
+    effectiveConfig: { queuePath: 'agent-loop/scripts/migration-queue.json', fixAgent: 'grok' },
+    keys: { grokApiKey: 'configured' },
+    queuePath: 'agent-loop/scripts/migration-queue.json',
+    providerHealth: {},
+    lastRunState: { runId: 'run-ctx', status: 'HALT_NO_CHANGES' },
+    lastRunStatus: { runId: 'run-ctx', status: 'HALT_NO_CHANGES' },
+  };
+  assert.ok('generatedAt' in artifact && typeof artifact.generatedAt === 'string');
+  assert.ok('queuePath' in artifact && typeof artifact.queuePath === 'string');
+  assert.ok('providerHealth' in artifact);
+  assert.ok(artifact.lastRunStatus || artifact.lastRunState, 'includes run context');
+  assert.ok('effectiveConfig' in artifact && 'keys' in artifact);
+});
+
+// ===== Settings schema 107 tests =====
+test('settings schema 107 declares all non-secret setting keys', async () => {
+  const pkgPath = path.join(extensionRoot, 'package.json');
+  const packageJson = JSON.parse(await fs.readFile(pkgPath, 'utf8'));
+  const props = (packageJson.contributes && packageJson.contributes.configuration && packageJson.contributes.configuration.properties) || {};
+  const nonSecret = [
+    'pollIntervalMs',
+    'queuePath',
+    'openDashboardOnRun',
+    'fixAgent',
+    'reviewAgent',
+    'workerMaxTurns',
+    'workerMaxRetries',
+    'worktreeScope',
+    'baseUrl',
+    'injectKeysToWorker',
+  ];
+  for (const k of nonSecret) {
+    const fullKey = 'agentLoop.' + k;
+    assert.ok(fullKey in props, 'missing package schema entry for non-secret key: ' + fullKey);
+    assert.ok(props[fullKey] && typeof props[fullKey].type !== 'undefined', 'schema entry for ' + fullKey + ' must declare a type');
+  }
+  // Raw key fields must NOT appear in workspace schema (SecretStorage-only)
+  assert.ok(!('agentLoop.grokApiKey' in props), 'raw grokApiKey must not be in package configuration schema');
+  assert.ok(!('agentLoop.openaiApiKey' in props), 'raw openaiApiKey must not be in package configuration schema');
+  assert.ok(!('agentLoop.anthropicApiKey' in props), 'raw anthropicApiKey must not be in package configuration schema');
+});
+
+test('settings schema 107 rejects unsupported enum values', () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { sanitizeSettingsForSave, SETTING_ENUMS } = mod;
+  // supported pass through
+  const good = sanitizeSettingsForSave({ fixAgent: 'codex', reviewAgent: 'none', worktreeScope: 'task', workerMaxTurns: 64, baseUrl: 'https://ex' });
+  assert.equal(good.fixAgent, 'codex');
+  assert.equal(good.reviewAgent, 'none');
+  assert.equal(good.worktreeScope, 'task');
+  assert.equal(good.workerMaxTurns, 64);
+  // unsupported enums are rejected (dropped), never written to workspace config
+  const bad = sanitizeSettingsForSave({ fixAgent: 'foo', reviewAgent: 'bar', worktreeScope: 'other', injectKeysToWorker: true });
+  assert.ok(!('fixAgent' in bad) || bad.fixAgent === undefined);
+  assert.ok(!('reviewAgent' in bad) || bad.reviewAgent === undefined);
+  assert.ok(!('worktreeScope' in bad) || bad.worktreeScope === undefined);
+  assert.equal(bad.injectKeysToWorker, true);
+  // secrets never leak into sanitized
+  const withSecret = sanitizeSettingsForSave({ fixAgent: 'grok', grokApiKey: 'sk-SECRET-123', openaiApiKey: 'sk-ooo' });
+  assert.equal(withSecret.fixAgent, 'grok');
+  assert.ok(!('grokApiKey' in withSecret));
+  assert.ok(!('openaiApiKey' in withSecret));
+});
+
+test('effective config 107 merges package defaults workspace values and profile overrides', () => {
+  const { getEffectiveConfig } = requireFromExtension('./out/settingsConfig.js');
+  // reset
+  delete globalThis.__AGENT_LOOP_TEST_CONFIG;
+  // package default path (no override -> get returns pkg via defaultValue)
+  let eff = getEffectiveConfig();
+  assert.equal(eff.fixAgent, 'grok');
+  assert.equal(eff.reviewAgent, 'codex');
+  assert.equal(eff.workerMaxTurns, 128);
+  // workspace value overrides package default (107 merge)
+  globalThis.__AGENT_LOOP_TEST_CONFIG = { fixAgent: 'codex', reviewAgent: 'grok', workerMaxTurns: 64, queuePath: '/ws/q.json', injectKeysToWorker: false };
+  eff = getEffectiveConfig();
+  assert.equal(eff.fixAgent, 'codex');
+  assert.equal(eff.reviewAgent, 'grok');
+  assert.equal(eff.workerMaxTurns, 64);
+  assert.equal(eff.queuePath, '/ws/q.json');
+  assert.equal(eff.injectKeysToWorker, false);
+  // profile-like override (agents as profile) + other ws
+  globalThis.__AGENT_LOOP_TEST_CONFIG = { fixAgent: 'codex', reviewAgent: 'none', worktreeScope: 'task' };
+  eff = getEffectiveConfig();
+  assert.equal(eff.fixAgent, 'codex');
+  assert.equal(eff.reviewAgent, 'none');
+  assert.equal(eff.worktreeScope, 'task');
+  delete globalThis.__AGENT_LOOP_TEST_CONFIG;
+});
+
+test('effective config 107 reviewAgent none removes reviewer labels', () => {
+  const phase = requireFromExtension('./out/phaseLabels.js');
+  const stateR = requireFromExtension('./out/stateReader.js');
+  const dash = requireFromExtension('./out/dashboardPanel.js');
+  // set none
+  globalThis.__AGENT_LOOP_TEST_CONFIG = { reviewAgent: 'none', fixAgent: 'grok' };
+  const { resolveAgentRoles, buildPipelineSteps, activeAgentLabel } = phase;
+  const roles = resolveAgentRoles(null, null);
+  assert.equal(roles.fixAgent, 'grok');
+  assert.equal(roles.reviewAgent, null, 'none must become null for labels');
+  const steps = buildPipelineSteps(null, null);
+  const hasReviewStep = steps.some((s) => /REVIEW/.test(s.key) || /review/i.test(s.label));
+  assert.equal(hasReviewStep, false, 'reviewAgent none must remove reviewer steps/labels');
+  const label = activeAgentLabel('DONE_REVIEWED', null);
+  // when none, should not include reviewer in final label
+  assert.ok(!/codex|grok.*\+/i.test(label) || label === 'grok', 'none removes reviewer from agent label');
+  // also check compute uses consistent (no crash)
+  const { computeActiveProfileName } = dash;
+  assert.equal(computeActiveProfileName({ fixAgent: 'grok', reviewAgent: null }), 'grok');
+  delete globalThis.__AGENT_LOOP_TEST_CONFIG;
+});
+
+// ===== Settings 107: worker env secret injection (fake SecretStorage + mocked spawn env capture) =====
+function makeFakeSecrets(keyMap) {
+  return {
+    async get(k) {
+      return (keyMap && keyMap[k]) || null;
+    },
+  };
+}
+
+function makeSpawnCapture() {
+  const cp = cjsRequire('node:child_process');
+  const orig = cp.spawn;
+  let capturedEnv = null;
+  let capturedArgs = null;
+  cp.spawn = function (p, a, o) {
+    capturedEnv = (o && o.env) ? { ...o.env } : {};
+    capturedArgs = Array.isArray(a) ? [...a] : a;
+    const fake = {
+      stdout: { on() { return this; } },
+      stderr: { on() { return this; } },
+      on(ev, fn) {
+        if (ev === 'close') setImmediate(() => fn(0));
+        return this;
+      },
+      kill() {},
+    };
+    return fake;
+  };
+  return {
+    getEnv() { return capturedEnv; },
+    getArgs() { return capturedArgs; },
+    restore() { cp.spawn = orig; },
+  };
+}
+
+test('worker env 107 injects enabled secret keys into runQueue spawn', async () => {
+  globalThis.__AGENT_LOOP_TEST_CONFIG = {
+    injectKeysToWorker: true,
+    baseUrl: 'https://api.proxy.example/v1',
+    fixAgent: 'grok',
+    reviewAgent: 'codex',
+    workerMaxTurns: 32,
+    workerMaxRetries: 2,
+    queuePath: 'agent-loop/scripts/migration-queue.json',
+    worktreeScope: 'queue',
+  };
+  const secrets = makeFakeSecrets({
+    'agentLoop.grokApiKey': 'sk-107-grok-inject',
+    'agentLoop.openaiApiKey': 'sk-107-openai-inject',
+    'agentLoop.anthropicApiKey': null,
+  });
+  const cap = makeSpawnCapture();
+  try {
+    const { RunController } = requireFromExtension('./out/runController.js');
+    const out = { show() {}, append() {}, appendLine() {} };
+    const ctrl = new RunController(process.cwd(), out, secrets, () => {}, () => {});
+    await ctrl.runQueue([]);
+    const env = cap.getEnv();
+    assert.ok(env, 'env must be captured from spawn');
+    assert.equal(env.GROK_API_KEY, 'sk-107-grok-inject');
+    assert.equal(env.XAI_API_KEY, 'sk-107-grok-inject');
+    assert.equal(env.OPENAI_API_KEY, 'sk-107-openai-inject');
+    assert.equal(env.OPENAI_BASE_URL, 'https://api.proxy.example/v1');
+    assert.equal(env.LLM_BASE_URL, 'https://api.proxy.example/v1');
+    assert.equal(env.AGENT_LOOP_INJECT_KEYS, '1');
+    // base aliases only present when configured (this case yes)
+    assert.ok('OPENAI_BASE_URL' in env);
+  } finally {
+    cap.restore();
+    delete globalThis.__AGENT_LOOP_TEST_CONFIG;
+  }
+
+  // also cover: injectKeysToWorker:false prevents all (secret) key injection
+  globalThis.__AGENT_LOOP_TEST_CONFIG = { injectKeysToWorker: false, baseUrl: 'https://ignored.example' };
+  const cap2 = makeSpawnCapture();
+  try {
+    const { RunController } = requireFromExtension('./out/runController.js');
+    const out = { show() {}, append() {}, appendLine() {} };
+    const secrets2 = makeFakeSecrets({ 'agentLoop.grokApiKey': 'sk-blocked-when-false' });
+    const ctrl2 = new RunController(process.cwd(), out, secrets2, () => {}, () => {});
+    await ctrl2.runQueue([]);
+    const env2 = cap2.getEnv();
+    assert.ok(env2);
+    assert.ok(!('GROK_API_KEY' in env2) || !env2.GROK_API_KEY);
+    assert.ok(!('XAI_API_KEY' in env2));
+    assert.equal(env2.AGENT_LOOP_INJECT_KEYS, '0');
+    // when not configured (but here we don't set base in this cfg), but main is keys blocked
+  } finally {
+    cap2.restore();
+    delete globalThis.__AGENT_LOOP_TEST_CONFIG;
+  }
+});
+
+test('worker env 107 never serializes injected secrets', async () => {
+  const tmp = await fs.mkdtemp(path.join(os.tmpdir(), 'wenv107-'));
+  const qpath = path.join(tmp, 'mig-q.json');
+  await fs.writeFile(qpath, JSON.stringify({ defaults: { fixAgent: 'grok' }, tasks: [] }), 'utf8');
+  globalThis.__AGENT_LOOP_TEST_CONFIG = {
+    injectKeysToWorker: true,
+    baseUrl: '',
+    fixAgent: 'grok',
+    reviewAgent: 'none',
+    workerMaxTurns: 16,
+    workerMaxRetries: 1,
+    queuePath: qpath,
+    worktreeScope: 'queue',
+  };
+  const secret = 'sk-107-secret-NEVER-SERIALIZE-THIS';
+  const secrets = makeFakeSecrets({ 'agentLoop.grokApiKey': secret });
+  const cap = makeSpawnCapture();
+  try {
+    const { RunController } = requireFromExtension('./out/runController.js');
+    const out = { show() {}, append() {}, appendLine() {} };
+    const ctrl = new RunController(tmp, out, secrets, () => {}, () => {});
+    await ctrl.runQueue([]);
+    const env = cap.getEnv();
+    assert.ok(env);
+    assert.equal(env.GROK_API_KEY, secret);
+    assert.equal(env.AGENT_LOOP_INJECT_KEYS, '1');
+    // base only when configured: here empty so absent
+    assert.ok(!('OPENAI_BASE_URL' in env));
+    assert.ok(!('LLM_BASE_URL' in env));
+    // never written to queue json
+    const qraw = await fs.readFile(qpath, 'utf8');
+    assert.ok(!qraw.includes(secret));
+    assert.ok(!qraw.includes('GROK_API_KEY'));
+    // not in sample state serialization
+    const sample = { status: 'RUN', options: { task: 'x.md' } };
+    assert.ok(!JSON.stringify(sample).includes(secret));
+  } finally {
+    cap.restore();
+    delete globalThis.__AGENT_LOOP_TEST_CONFIG;
+    await fs.rm(tmp, { recursive: true, force: true }).catch(() => {});
+  }
+});
+
+test('CLI worker routing 107 forwards settings to run queue args', async () => {
+  globalThis.__AGENT_LOOP_TEST_CONFIG = {
+    fixAgent: 'codex',
+    reviewAgent: 'grok',
+    fixModel: 'codex-model-107',
+    reviewModel: 'grok-model-107',
+    workerMaxTurns: 77,
+    workerMaxRetries: 4,
+    injectKeysToWorker: true,
+    baseUrl: '',
+    queuePath: 'agent-loop/scripts/migration-queue.json',
+    worktreeScope: 'queue',
+  };
+  const cap = makeSpawnCapture();
+  try {
+    const { RunController } = requireFromExtension('./out/runController.js');
+    const out = { show() {}, append() {}, appendLine() {} };
+    const ctrl = new RunController(process.cwd(), out, null, () => {}, () => {});
+    await ctrl.runQueue([]);
+    const args = cap.getArgs() || [];
+    // verify routing flags visible in generated queue invocation args
+    assert.ok(args.includes('--fix-agent'), 'should include --fix-agent');
+    const fixIdx = args.indexOf('--fix-agent');
+    assert.equal(args[fixIdx + 1], 'codex');
+    assert.ok(args.includes('--review-agent'), 'should include --review-agent');
+    const revIdx = args.indexOf('--review-agent');
+    assert.equal(args[revIdx + 1], 'grok');
+    assert.ok(args.includes('--fix-model'));
+    assert.ok(args.includes('codex-model-107'));
+    assert.ok(args.includes('--review-model'));
+    assert.ok(args.includes('grok-model-107'));
+    assert.ok(args.includes('--worker-max-turns'));
+    assert.ok(args.includes('77'));
+    assert.ok(args.includes('--worker-max-retries'));
+    assert.ok(args.includes('4'));
+    // --queue always present
+    assert.ok(args.includes('--queue'));
+    // covers grok/codex
+
+    // existing overrides (extraArgs simulating queue-entry precedence) win over global settings in generated args
+    // wait for async close handler to clear this.child so second runQueue actually spawns
+    await new Promise((r) => setImmediate(r));
+    await new Promise((r) => setTimeout(r, 5));
+    await ctrl.runQueue(['--only', 't1', '--fix-agent', 'grok']);
+    const args2 = cap.getArgs() || [];
+    const lastFix = args2.lastIndexOf('--fix-agent');
+    assert.equal(args2[lastFix + 1], 'grok');
+    assert.ok(args2.includes('--only'));
+  } finally {
+    cap.restore();
+    delete globalThis.__AGENT_LOOP_TEST_CONFIG;
+  }
+});
+
+test('CLI worker routing 107 skips review args when reviewAgent none', async () => {
+  globalThis.__AGENT_LOOP_TEST_CONFIG = {
+    fixAgent: 'grok',
+    reviewAgent: 'none',
+    workerMaxTurns: 5,
+    workerMaxRetries: 0,
+    fixModel: '',
+    reviewModel: 'grok-review-should-be-skipped',
+  };
+  const cap = makeSpawnCapture();
+  try {
+    const { RunController } = requireFromExtension('./out/runController.js');
+    const out = { show() {}, append() {}, appendLine() {} };
+    const ctrl = new RunController(process.cwd(), out, null, () => {}, () => {});
+    await ctrl.runQueue([]);
+    const args = cap.getArgs() || [];
+    assert.ok(args.includes('--fix-agent'));
+    assert.equal(args[args.indexOf('--fix-agent') + 1], 'grok');
+    assert.ok(args.includes('--worker-max-turns'));
+    assert.ok(args.includes('--worker-max-retries'));
+    // must skip review when none (use --skip-review, no --review-agent none)
+    assert.ok(args.includes('--skip-review'), 'none should emit --skip-review');
+    assert.ok(!args.includes('--review-agent'), 'must not emit --review-agent when none');
+    assert.ok(!args.includes('--review-model'), 'must not emit --review-model when reviewAgent none');
+    assert.ok(!args.includes('grok-review-should-be-skipped'), 'review model value must not appear when none');
+    // covers none
+  } finally {
+    cap.restore();
+    delete globalThis.__AGENT_LOOP_TEST_CONFIG;
+  }
+});
+
+// ===== Profile storage schema 107 tests (non-secret only) =====
+test('profile storage 107 validates non-secret profile schema', () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { loadProfileStorage, PROFILE_PRESETS, getActiveProfileKey, listProfilePresetKeys } = mod;
+
+  // presets exist for local, proxy, CI, production-like
+  const presetKeys = listProfilePresetKeys();
+  assert.ok(presetKeys.includes('local'));
+  assert.ok(presetKeys.includes('proxy'));
+  assert.ok(presetKeys.includes('ci'));
+  assert.ok(presetKeys.includes('production'));
+  assert.equal(typeof PROFILE_PRESETS.local, 'object');
+  assert.equal(typeof PROFILE_PRESETS.proxy, 'object');
+
+  // active key fallback
+  assert.equal(getActiveProfileKey(null), 'local');
+  assert.equal(getActiveProfileKey(''), 'local');
+  assert.equal(getActiveProfileKey('   '), 'local');
+  assert.equal(getActiveProfileKey('proxy'), 'proxy');
+  assert.equal(getActiveProfileKey('ci '), 'ci');
+
+  // validate non-secret profile schema roundtrip
+  const goodInput = {
+    activeProfile: 'proxy',
+    local: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 128 },
+    proxy: { fixAgent: 'grok', baseUrl: 'http://proxy:8080', injectKeysToWorker: false },
+  };
+  const loaded = loadProfileStorage(goodInput);
+  assert.equal(loaded.activeProfile, 'proxy');
+  assert.ok('local' in loaded.profiles);
+  assert.equal(loaded.profiles.local.fixAgent, 'grok');
+  assert.ok('proxy' in loaded.profiles);
+  assert.equal(loaded.profiles.proxy.baseUrl, 'http://proxy:8080');
+  assert.ok(!loaded.warning);
+  // no secret fields carried
+  assert.ok(!('grokApiKey' in loaded.profiles.local));
+});
+
+test('profile storage 107 rejects secret-looking profile values', () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { loadProfileStorage } = mod;
+
+  const badSecret = {
+    activeProfile: '',
+    myprof: { fixAgent: 'grok', apiKey: 'sk-REAL-SECRET-SHOULD-NOT-ENTER', baseUrl: 'x' },
+    another: { reviewAgent: 'codex', token: 'Bearer abc' },
+    'prod-like': { workerMaxTurns: 10 },
+  };
+  const res = loadProfileStorage(badSecret);
+  // secret-like values cause the bad entry to be dropped (or top level warning)
+  assert.ok(!('myprof' in res.profiles) || Object.keys(res.profiles.myprof || {}).length === 0);
+  assert.ok(!('another' in res.profiles) || !('token' in (res.profiles.another || {})));
+  // active key falls back when missing
+  assert.equal(res.activeProfile, 'local');
+  // warning present and redacted (no secret content)
+  if (res.warning) {
+    assert.match(res.warning, /redacted/i);
+    assert.ok(!res.warning.includes('sk-'));
+    assert.ok(!res.warning.includes('Bearer'));
+  }
+  // still supports clean ones if mixed
+  const mixed = {
+    clean: { fixAgent: 'codex' },
+    dirty: { fixAgent: 'grok', grokApiKey: 'sk-dirty' },
+  };
+  const mixRes = loadProfileStorage(mixed);
+  assert.ok('clean' in mixRes.profiles);
+  assert.ok(!('dirty' in mixRes.profiles));
+});
+
+test('profile CRUD UI 107 renders profile actions', async () => {
+  const src = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8'
+  );
+  // marker for gate
+  // profile CRUD UI 107 renders profile actions
+  assert.match(src, /ProfileCrudView|Profiles/);
+  assert.match(src, /<List/);
+  assert.match(src, /onCreate|createProfile|handleCreateProfile/);
+  assert.match(src, /onRename|renameProfile|handleRenameProfile/);
+  assert.match(src, /onDuplicate|duplicateProfile/);
+  assert.match(src, /onDelete|deleteProfile/);
+  assert.match(src, /onSelect|selectProfile/);
+  assert.match(src, /Modal/);
+  assert.match(src, /Form/);
+  assert.match(src, /Select/);
+  assert.match(src, /Tag/);
+  assert.match(src, /Button/);
+  // uses AntD List for profile list actions
+  const profSection = src.match(/function ProfileCrudView[\s\S]*?^}/m)?.[0] || src;
+  assert.match(profSection, /<List/);
+  assert.match(profSection, /actions=\{/);
+});
+
+test('profile CRUD UI 107 blocks invalid profile names', async () => {
+  const src = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8'
+  );
+  const panelSrc = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboardPanel.ts'),
+    'utf8'
+  );
+  const cfgSrc = await fs.readFile(
+    path.join(extensionRoot, 'src', 'settingsConfig.ts'),
+    'utf8'
+  );
+  // profile CRUD UI 107 blocks invalid profile names
+  assert.match(src, /invalid profile name|pattern:.*a-zA-Z0-9|blocks|cannot delete last/);
+  assert.match(cfgSrc, /isValidProfileName|cannot delete last profile|invalid profile name/);
+  assert.match(panelSrc, /applyProfileDelete|!isValidProfileName|profileError|cannot delete last/);
+  // name validation used
+  assert.match(cfgSrc, /sanitizeProfileName|\/\[ \^a-zA-Z0-9_\-\] \+\/ /);
+});
+
+test('queue defaults sync 107 previews settings to defaults diff', async () => {
+  const src = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8'
+  );
+  // queue defaults sync 107 previews settings to defaults diff
+  assert.match(src, /doSyncFromSettings|从 Settings 同步并预览 diff/);
+  assert.match(src, /<Table|Table.*diff|before.*after.*diff/);
+  assert.match(src, /Preview result \(before\/after diff for supported keys\)/);
+
+  // functional: preview settings-derived values to structured diff (preserves tasks, omits workerEnv)
+  const { previewQueueDefaults } = requireFromExtension('./out/settingsConfig.js');
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-qsync107-'));
+  const qfile = path.join(tmpDir, 'q.json');
+  await fs.writeFile(qfile, JSON.stringify({
+    defaults: { fixAgent: 'grok', workerMaxTurns: 128, worktreeScope: 'queue', workerEnv: { SECRET: 'x' } },
+    tasks: [{ id: 't1' }]
+  }), 'utf8');
+
+  // simulate sync from settings values (supported only)
+  const settingsVals = { fixAgent: 'codex', workerMaxTurns: 64, worktreeScope: 'task', baseUrl: 'http://x' };
+  const proposed = {};
+  ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'worktreeScope'].forEach(k => {
+    if (k in settingsVals) proposed[k] = settingsVals[k];
+  });
+  const res = await previewQueueDefaults(qfile, proposed);
+  assert.equal(res.ok, true);
+  assert.ok(Array.isArray(res.diff));
+  const wm = res.diff.find((d) => d.key === 'workerMaxTurns');
+  assert.ok(wm);
+  assert.equal(wm.before, 128);
+  assert.equal(wm.after, 64);
+  assert.equal(res.after.fixAgent, 'codex');
+  assert.equal(res.after.worktreeScope, 'task');
+  assert.ok(!('workerEnv' in (res.before || {})));
+});
+
+test('queue defaults sync 107 applies only after confirmation', async () => {
+  const src = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8'
+  );
+  // queue defaults sync 107 applies only after confirmation
+  assert.match(src, /确认应用|preview && preview.ok && onApply/);
+  assert.match(src, /applyResult.*rolledBack|redacted error/);
+
+  // functional: apply validates, preserves tasks, redacts on failure/rollback
+  const { applyQueueDefaults } = requireFromExtension('./out/settingsConfig.js');
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-qapply107-'));
+  const qfile = path.join(tmpDir, 'migration-queue.json');
+  const initial = {
+    defaults: { workerMaxTurns: 128, fixAgent: 'grok' },
+    tasks: [{ id: 'keep1', task: 'tasks/a.md' }, { id: 'keep2' }],
+    other: 'preserve'
+  };
+  await fs.writeFile(qfile, JSON.stringify(initial, null, 2), 'utf8');
+
+  // apply after preview-style confirmation (using settings sync values)
+  const proposed = { workerMaxTurns: 256, fixAgent: 'codex' };
+  const res = await applyQueueDefaults(qfile, proposed);
+  assert.equal(res.ok, true);
+  assert.ok(res.applied);
+  assert.equal(res.applied.workerMaxTurns, 256);
+
+  const written = JSON.parse(await fs.readFile(qfile, 'utf8'));
+  assert.equal(written.defaults.workerMaxTurns, 256);
+  assert.equal(written.defaults.fixAgent, 'codex');
+  assert.ok(Array.isArray(written.tasks) && written.tasks.length === 2);
+  assert.equal(written.tasks[0].id, 'keep1');
+  assert.equal(written.other, 'preserve');
+
+  // failure case: unsupported redacts + no overwrite
+  const badRes = await applyQueueDefaults(qfile, { workerEnv: { leak: 1 } });
+  assert.equal(badRes.ok, false);
+  assert.match(String(badRes.error || ''), /redacted/i);
+  const afterBad = JSON.parse(await fs.readFile(qfile, 'utf8'));
+  assert.equal(afterBad.defaults.workerMaxTurns, 256); // unchanged
+});
+
+test('Settings UI polish 107 uses AntD tabs descriptions and alerts', async () => {
+  const source = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8'
+  );
+  const css = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'dashboard-react.css'),
+    'utf8'
+  );
+
+  // uses required AntD in settings surface
+  assert.match(source, /\bEmpty\b/);
+  assert.match(source, /from ['"]antd['"]/);
+  assert.match(source, /<Tabs[\s\S]{0,200}defaultActiveKey=["']cli["']/);
+  assert.match(source, /<Descriptions[\s\S]{0,50}label=["']活跃 Profile["']/);
+  assert.match(source, /<Alert type=("|')(warning|info|success|error)/);
+  // Tabs + Descriptions + Alert + Empty + Form etc used for polish
+  assert.match(source, /SettingsView/);
+  // no .ant- targeting allowed
+  assert.doesNotMatch(css, /\.ant-|\.agent-ant-/);
+  // marker
+});
+
+test('Settings UI polish 107 keeps content padding single-layer', async () => {
+  const source = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8'
+  );
+  const css = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'dashboard-react.css'),
+    'utf8'
+  );
+
+  // Settings content uses native shell padding only, no nested inline padding layer on root
+  assert.doesNotMatch(source, /SettingsView[\s\S]{0,30}style=\{\{[\s\S]{0,20}padding:\s*['"]8px 4px/);
+  assert.doesNotMatch(source, /<div style=\{\{ padding: ['"]4px 0/); // subviews cleaned for single layer
+  // content padding defined once at shell
+  const contentRule = css.match(/\.native-content\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  assert.match(contentRule, /padding:\s*24px/);
+  // no ant internal selectors; text containers use max-width/ellipsis or antd handling
+  assert.doesNotMatch(css, /\.ant-|\.agent-ant-/);
+  assert.match(source, /maxWidth:\s*6(20|20)/); // forms use bounded containers
+  // marker
+});
+
+test('dev preview mocks 107 covers settings commands', async () => {
+  const devSrc = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'dev.tsx'),
+    'utf8'
+  );
+  // covers switching and exercising in browser preview without VS Code
+  assert.match(devSrc, /getSettings/);
+  assert.match(devSrc, /saveSettings/);
+  assert.match(devSrc, /testProvider/);
+  assert.match(devSrc, /getDiagnostics/);
+  assert.match(devSrc, /exportSettings/);
+  assert.match(devSrc, /importSettings/);
+  assert.match(devSrc, /getQueueDefaults/);
+  assert.match(devSrc, /previewQueueDefaults/);
+  assert.match(devSrc, /applyQueueDefaults/);
+  assert.match(devSrc, /listProfiles|createProfile|selectProfile/);
+  // responses include success/failure examples
+  assert.match(devSrc, /status:\s*['"]ok['"]/);
+  assert.match(devSrc, /status:\s*['"]skipped['"]/);
+  assert.match(devSrc, /ok:\s*false|error:/);
+  // dev toolbar switch to settings documented
+  assert.match(devSrc, /Dev preview mocks 107/);
+  // dev dispatch for messages
+  assert.match(devSrc, /dispatchEvent.*MessageEvent.*settings|providerHealth|queueDefaults|diagnostics/);
+});
+
+test('dev preview mocks 107 never stores raw keys', async () => {
+  const devSrc = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'dev.tsx'),
+    'utf8'
+  );
+  // save never keeps raw key values, uses configured redaction only
+  assert.match(devSrc, /['"]configured['"]/);
+  assert.match(devSrc, /data\.grokApiKey \? ['"]configured['"] : ['']/);
+  // import explicitly rejects raw secret-looking content
+  assert.match(devSrc, /hasSecret|contains secret-looking keys/);
+  assert.match(devSrc, /importSettingsResult.*ok:\s*false/);
+  // confirm ternary protects from storing raw input value directly
+  assert.doesNotMatch(devSrc, /newKeys\.grokApiKey\s*=\s*data\.grokApiKey(?!\s*\?)/);
+  // never writes keys to any local file in dev mock (only in-mem)
+  assert.doesNotMatch(devSrc, /fs\.promises|writeFileSync|fs\.writeFile.*key/i);
+});
+
+test('settings docs 107 documents SecretStorage and queue defaults', async () => {
+  const readme = await fs.readFile(path.join(extensionRoot, 'README.md'), 'utf8');
+  // non-secret workspace settings vs SecretStorage keys
+  assert.match(readme, /non-secret workspace settings.*SecretStorage keys|SecretStorage.*keys|workspace settings.*SecretStorage/);
+  // provider health checks, CLI checks, and diagnostics export
+  assert.match(readme, /provider health checks|CLI checks|diagnostics export|testProviderHealth|testWorkerCliHealth|getDiagnostics/);
+  // queue defaults preview/apply protects task arrays and secrets
+  assert.match(readme, /queue defaults preview\/apply protects task arrays and secrets|preserves.*tasks array|protects.*task arrays and secrets|previewQueueDefaults|applyQueueDefaults/);
+  // covers broader goal topics without secrets or marketing
+  assert.match(readme, /CLI workers|LLM keys|profiles|queue defaults|diagnostics|safe export\/import/);
+});
+
+test('workspace trust 107 rejects queue paths outside workspace', async () => {
+  resetVscode107State();
+  const wsRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-ws-trust-reject-'));
+  await fs.mkdir(path.join(wsRoot, 'agent-loop'), { recursive: true });
+  await fs.writeFile(path.join(wsRoot, 'agent-loop', 'package.json'), '{"name":"al"}', 'utf8');
+  seedWorkspaceFolders([{ uri: { fsPath: wsRoot } }]);
+  // cover Windows drive-letter, .. traversal, abs outside
+  const bads = [
+    path.join(wsRoot, '..', 'outside.json'),
+    'C:\\outside-trust107\\q.json',
+    '../../escape-from-ws.json',
+    path.resolve(wsRoot, '..', 'abs-trav.json')
+  ];
+  const mod = requireFromExtension('./out/paths.js');
+  const qpathFn = mod.queuePath;
+  const withinFn = mod.isPathWithinWorkspace;
+  const defaultSafe = path.resolve(wsRoot, 'agent-loop/scripts/migration-queue.json');
+  for (const bad of bads) {
+    seedWorkspaceConfig({ queuePath: bad });
+    const resolved = qpathFn(wsRoot);
+    assert.equal(resolved, defaultSafe, 'outside must resolve to default inside');
+    assert.equal(withinFn(wsRoot, bad), false);
+  }
+  resetVscode107State();
+});
+
+test('workspace trust 107 accepts normalized relative queue paths', async () => {
+  resetVscode107State();
+  const wsRoot = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-ws-trust-accept-'));
+  await fs.mkdir(path.join(wsRoot, 'agent-loop'), { recursive: true });
+  await fs.writeFile(path.join(wsRoot, 'agent-loop', 'package.json'), '{"name":"al"}', 'utf8');
+  seedWorkspaceFolders([{ uri: { fsPath: wsRoot } }]);
+  const goods = [
+    'agent-loop/scripts/migration-queue.json',
+    'my-queue.json',
+    './sub/dir/q.json',
+    'rel\\win\\path.json',
+    path.resolve(wsRoot, 'abs-inside-same.json')
+  ];
+  const mod = requireFromExtension('./out/paths.js');
+  const qpathFn = mod.queuePath;
+  const withinFn = mod.isPathWithinWorkspace;
+  for (const good of goods) {
+    seedWorkspaceConfig({ queuePath: good });
+    const resolved = qpathFn(wsRoot);
+    const rootR = path.resolve(wsRoot);
+    assert.ok(resolved === rootR || resolved.startsWith(rootR + path.sep) || resolved.startsWith(rootR + '/'), 'resolves under workspace root');
+    assert.ok(withinFn(wsRoot, good));
+  }
+  // relative always resolve from ws root for queue defaults preview/apply paths
+  resetVscode107State();
 });

@@ -3077,6 +3077,7 @@
     "cd agent-loop/vscode-extension; npm run build:dashboard",
     "cd agent-loop/vscode-extension; npm run package",
     "node --test --test-name-pattern \"release readiness 107\" agent-loop/test/vscode-extension.test.js",
+    "cd agent-loop/vscode-extension; npm test",
     "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/dashboard-react/DashboardApp.tsx agent-loop/vscode-extension/src/dashboard-react/dashboard-react.css agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/src/settingsConfig.ts agent-loop/test/vscode-extension.test.js"
   ],
   "agentLoopSettingsSecurityRedactionAudit107Gates": [
