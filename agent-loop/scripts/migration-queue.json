@@ -1394,248 +1394,375 @@
       "id": "backend-python-blueprint-job-store-runtime-takeover-104",
       "task": "agent-loop/tasks/backend-python-blueprint-job-store-runtime-takeover-104.md",
       "gatesKey": "blueprintJobStoreRuntimeTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-blueprint-event-bus-runtime-takeover-104",
       "task": "agent-loop/tasks/backend-python-blueprint-event-bus-runtime-takeover-104.md",
       "gatesKey": "blueprintEventBusRuntimeTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-blueprint-ledger-runtime-takeover-104",
       "task": "agent-loop/tasks/backend-python-blueprint-ledger-runtime-takeover-104.md",
       "gatesKey": "blueprintLedgerRuntimeTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-blueprint-replan-runtime-takeover-104",
       "task": "agent-loop/tasks/backend-python-blueprint-replan-runtime-takeover-104.md",
       "gatesKey": "blueprintReplanRuntimeTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-blueprint-prompt-package-runtime-takeover-104",
       "task": "agent-loop/tasks/backend-python-blueprint-prompt-package-runtime-takeover-104.md",
       "gatesKey": "blueprintPromptPackageRuntimeTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-blueprint-preview-state-runtime-takeover-104",
       "task": "agent-loop/tasks/backend-python-blueprint-preview-state-runtime-takeover-104.md",
       "gatesKey": "blueprintPreviewStateRuntimeTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-blueprint-production-denominator-reconciliation-104",
       "task": "agent-loop/tasks/backend-python-blueprint-production-denominator-reconciliation-104.md",
       "gatesKey": "blueprintProductionDenominatorReconciliation104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-task-durable-mission-store-takeover-104",
       "task": "agent-loop/tasks/backend-python-task-durable-mission-store-takeover-104.md",
       "gatesKey": "taskDurableMissionStoreTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-task-project-auth-runtime-takeover-104",
       "task": "agent-loop/tasks/backend-python-task-project-auth-runtime-takeover-104.md",
       "gatesKey": "taskProjectAuthRuntimeTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-task-scheduler-runtime-takeover-104",
       "task": "agent-loop/tasks/backend-python-task-scheduler-runtime-takeover-104.md",
       "gatesKey": "taskSchedulerRuntimeTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-task-event-persistence-takeover-104",
       "task": "agent-loop/tasks/backend-python-task-event-persistence-takeover-104.md",
       "gatesKey": "taskEventPersistenceTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-task-production-denominator-reconciliation-104",
       "task": "agent-loop/tasks/backend-python-task-production-denominator-reconciliation-104.md",
       "gatesKey": "taskProductionDenominatorReconciliation104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-auth-session-repository-takeover-104",
       "task": "agent-loop/tasks/backend-python-auth-session-repository-takeover-104.md",
       "gatesKey": "authSessionRepositoryTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-auth-token-issuance-takeover-104",
       "task": "agent-loop/tasks/backend-python-auth-token-issuance-takeover-104.md",
       "gatesKey": "authTokenIssuanceTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-auth-mailer-user-store-scope-104",
       "task": "agent-loop/tasks/backend-python-auth-mailer-user-store-scope-104.md",
       "gatesKey": "authMailerUserStoreScope104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-permission-policy-store-takeover-104",
       "task": "agent-loop/tasks/backend-python-permission-policy-store-takeover-104.md",
       "gatesKey": "permissionPolicyStoreTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-audit-durable-store-retention-takeover-104",
       "task": "agent-loop/tasks/backend-python-audit-durable-store-retention-takeover-104.md",
       "gatesKey": "auditDurableStoreRetentionTakeover104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-final-provider-a2a-scope-reconciliation-104",
       "task": "agent-loop/tasks/backend-python-final-provider-a2a-scope-reconciliation-104.md",
       "gatesKey": "finalProviderA2aScopeReconciliation104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
     },
     {
       "id": "backend-python-migration-status-refresh-104",
       "task": "agent-loop/tasks/backend-python-migration-status-refresh-104.md",
       "gatesKey": "migrationStatusRefresh104Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 2,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
-      "timeoutMs": 3600000
+      "timeoutMs": 3600000,
+      "disabledReason": "paused for AgentLoop Settings Center 105 queue"
+    },
+    {
+      "id": "agent-loop-settings-schema-runtime-105",
+      "task": "agent-loop/tasks/agent-loop-settings-schema-runtime-105.md",
+      "gatesKey": "agentLoopSettingsSchemaRuntime105Gates",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "agent-loop-settings-secret-storage-105",
+      "task": "agent-loop/tasks/agent-loop-settings-secret-storage-105.md",
+      "gatesKey": "agentLoopSettingsSecretStorage105Gates",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "agent-loop-settings-worker-env-injection-105",
+      "task": "agent-loop/tasks/agent-loop-settings-worker-env-injection-105.md",
+      "gatesKey": "agentLoopSettingsWorkerEnvInjection105Gates",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "agent-loop-settings-provider-health-check-105",
+      "task": "agent-loop/tasks/agent-loop-settings-provider-health-check-105.md",
+      "gatesKey": "agentLoopSettingsProviderHealthCheck105Gates",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "agent-loop-settings-cli-worker-routing-105",
+      "task": "agent-loop/tasks/agent-loop-settings-cli-worker-routing-105.md",
+      "gatesKey": "agentLoopSettingsCliWorkerRouting105Gates",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "agent-loop-settings-profile-management-105",
+      "task": "agent-loop/tasks/agent-loop-settings-profile-management-105.md",
+      "gatesKey": "agentLoopSettingsProfileManagement105Gates",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "agent-loop-settings-queue-defaults-editor-105",
+      "task": "agent-loop/tasks/agent-loop-settings-queue-defaults-editor-105.md",
+      "gatesKey": "agentLoopSettingsQueueDefaultsEditor105Gates",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "agent-loop-settings-import-export-redaction-105",
+      "task": "agent-loop/tasks/agent-loop-settings-import-export-redaction-105.md",
+      "gatesKey": "agentLoopSettingsImportExportRedaction105Gates",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "agent-loop-settings-diagnostics-view-105",
+      "task": "agent-loop/tasks/agent-loop-settings-diagnostics-view-105.md",
+      "gatesKey": "agentLoopSettingsDiagnosticsView105Gates",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "agent-loop-settings-test-harness-105",
+      "task": "agent-loop/tasks/agent-loop-settings-test-harness-105.md",
+      "gatesKey": "agentLoopSettingsTestHarness105Gates",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "agent-loop-settings-ui-polish-105",
+      "task": "agent-loop/tasks/agent-loop-settings-ui-polish-105.md",
+      "gatesKey": "agentLoopSettingsUiPolish105Gates",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "agent-loop-settings-release-readiness-105",
+      "task": "agent-loop/tasks/agent-loop-settings-release-readiness-105.md",
+      "gatesKey": "agentLoopSettingsReleaseReadiness105Gates",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
     }
   ],
   "nodeRouteInventory50Gates": [
@@ -2334,5 +2461,73 @@
   "migrationStatusRefresh104Gates": [
     "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/sliderule-python-migration-status.md','utf8'); for (const needle of ['NodeJS','Python','104','Blueprint','Auth','Audit','Task lifecycle','Web AIGC','A2A']) { if(!status.includes(needle)) throw new Error('migration status missing 104 wording: '+needle); } if(!/(104|103|102|101|100|99|98)/.test(status)) throw new Error('migration status missing refreshed 104 percentage context');\"",
     "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} agent-loop/tasks/backend-python-blueprint-production-denominator-reconciliation-104.md agent-loop/tasks/backend-python-task-production-denominator-reconciliation-104.md agent-loop/tasks/backend-python-final-provider-a2a-scope-reconciliation-104.md"
+  ],
+  "agentLoopSettingsSchemaRuntime105Gates": [
+    "cd agent-loop/vscode-extension; npm run compile",
+    "node --test --test-name-pattern \"settings|AgentLoopConfig|paths|phase|stateReader\" agent-loop/test/vscode-extension.test.js",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/dashboard-react/DashboardApp.tsx agent-loop/vscode-extension/src/dashboard-react/dashboard-react.css agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/src/runController.ts agent-loop/vscode-extension/src/settingsConfig.ts agent-loop/test/vscode-extension.test.js"
+  ],
+  "agentLoopSettingsSecretStorage105Gates": [
+    "cd agent-loop/vscode-extension; npm run compile",
+    "node --test --test-name-pattern \"SecretStorage|raw keys|settings\" agent-loop/test/vscode-extension.test.js",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/dashboard-react/DashboardApp.tsx agent-loop/vscode-extension/src/dashboard-react/dashboard-react.css agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/src/runController.ts agent-loop/vscode-extension/src/settingsConfig.ts agent-loop/test/vscode-extension.test.js"
+  ],
+  "agentLoopSettingsWorkerEnvInjection105Gates": [
+    "cd agent-loop/vscode-extension; npm run compile",
+    "node --test --test-name-pattern \"worker env|inject|runController|settings\" agent-loop/test/vscode-extension.test.js",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/dashboard-react/DashboardApp.tsx agent-loop/vscode-extension/src/dashboard-react/dashboard-react.css agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/src/runController.ts agent-loop/vscode-extension/src/settingsConfig.ts agent-loop/test/vscode-extension.test.js"
+  ],
+  "agentLoopSettingsProviderHealthCheck105Gates": [
+    "cd agent-loop/vscode-extension; npm run compile",
+    "cd agent-loop/vscode-extension; npm run build:dashboard",
+    "node --test --test-name-pattern \"provider health|testProvider|testCli|redact\" agent-loop/test/vscode-extension.test.js",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/dashboard-react/DashboardApp.tsx agent-loop/vscode-extension/src/dashboard-react/dashboard-react.css agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/src/runController.ts agent-loop/vscode-extension/src/settingsConfig.ts agent-loop/test/vscode-extension.test.js"
+  ],
+  "agentLoopSettingsCliWorkerRouting105Gates": [
+    "cd agent-loop/vscode-extension; npm run compile",
+    "node --test --test-name-pattern \"CLI|worker routing|reviewAgent|workerMaxTurns|workerMaxRetries\" agent-loop/test/vscode-extension.test.js",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/dashboard-react/DashboardApp.tsx agent-loop/vscode-extension/src/dashboard-react/dashboard-react.css agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/src/runController.ts agent-loop/vscode-extension/src/settingsConfig.ts agent-loop/test/vscode-extension.test.js"
+  ],
+  "agentLoopSettingsProfileManagement105Gates": [
+    "cd agent-loop/vscode-extension; npm run compile",
+    "cd agent-loop/vscode-extension; npm run build:dashboard",
+    "node --test --test-name-pattern \"profile|active profile|settings\" agent-loop/test/vscode-extension.test.js",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/dashboard-react/DashboardApp.tsx agent-loop/vscode-extension/src/dashboard-react/dashboard-react.css agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/src/runController.ts agent-loop/vscode-extension/src/settingsConfig.ts agent-loop/test/vscode-extension.test.js"
+  ],
+  "agentLoopSettingsQueueDefaultsEditor105Gates": [
+    "cd agent-loop/vscode-extension; npm run compile",
+    "node --test --test-name-pattern \"queue defaults|migration-queue|settings\" agent-loop/test/vscode-extension.test.js agent-loop/test/run-queue.test.js",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/dashboard-react/DashboardApp.tsx agent-loop/vscode-extension/src/dashboard-react/dashboard-react.css agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/src/runController.ts agent-loop/vscode-extension/src/settingsConfig.ts agent-loop/test/vscode-extension.test.js"
+  ],
+  "agentLoopSettingsImportExportRedaction105Gates": [
+    "cd agent-loop/vscode-extension; npm run compile",
+    "cd agent-loop/vscode-extension; npm run build:dashboard",
+    "node --test --test-name-pattern \"import|export|redact|settings\" agent-loop/test/vscode-extension.test.js",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/dashboard-react/DashboardApp.tsx agent-loop/vscode-extension/src/dashboard-react/dashboard-react.css agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/src/runController.ts agent-loop/vscode-extension/src/settingsConfig.ts agent-loop/test/vscode-extension.test.js"
+  ],
+  "agentLoopSettingsDiagnosticsView105Gates": [
+    "cd agent-loop/vscode-extension; npm run compile",
+    "cd agent-loop/vscode-extension; npm run build:dashboard",
+    "node --test --test-name-pattern \"diagnostics|effective config|redact|settings\" agent-loop/test/vscode-extension.test.js",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/dashboard-react/DashboardApp.tsx agent-loop/vscode-extension/src/dashboard-react/dashboard-react.css agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/src/runController.ts agent-loop/vscode-extension/src/settingsConfig.ts agent-loop/test/vscode-extension.test.js"
+  ],
+  "agentLoopSettingsTestHarness105Gates": [
+    "cd agent-loop/vscode-extension; npm run compile",
+    "node --test agent-loop/test/vscode-extension.test.js",
+    "node --test agent-loop/test/run-queue.test.js",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/dashboard-react/DashboardApp.tsx agent-loop/vscode-extension/src/dashboard-react/dashboard-react.css agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/src/runController.ts agent-loop/vscode-extension/src/settingsConfig.ts agent-loop/test/vscode-extension.test.js"
+  ],
+  "agentLoopSettingsUiPolish105Gates": [
+    "cd agent-loop/vscode-extension; npm run compile",
+    "cd agent-loop/vscode-extension; npm run build:dashboard",
+    "node --test --test-name-pattern \"Settings|Ant Design|padding|scroll|dashboard\" agent-loop/test/vscode-extension.test.js",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/dashboard-react/DashboardApp.tsx agent-loop/vscode-extension/src/dashboard-react/dashboard-react.css agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/src/runController.ts agent-loop/vscode-extension/src/settingsConfig.ts agent-loop/test/vscode-extension.test.js"
+  ],
+  "agentLoopSettingsReleaseReadiness105Gates": [
+    "cd agent-loop/vscode-extension; npm run compile",
+    "cd agent-loop/vscode-extension; npm run build:dashboard",
+    "cd agent-loop/vscode-extension; npm run package",
+    "node -e \"const fs=require('fs'); const p='agent-loop/vscode-extension/tsc-errors.txt'; if(fs.existsSync(p)) throw new Error('temporary tsc-errors.txt must not exist before release');\"",
+    "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/dashboard-react/DashboardApp.tsx agent-loop/vscode-extension/src/dashboard-react/dashboard-react.css agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/src/runController.ts agent-loop/vscode-extension/src/settingsConfig.ts agent-loop/test/vscode-extension.test.js"
   ]
 }
