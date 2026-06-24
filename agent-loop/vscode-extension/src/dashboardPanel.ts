@@ -10,6 +10,7 @@ export class DashboardPanel {
   public static current: DashboardPanel | undefined;
   public view: DashboardView = 'overview';
   private readonly panel: vscode.WebviewPanel;
+  private secrets?: vscode.SecretStorage;
   private disposables: vscode.Disposable[] = [];
   private lastMessage: unknown = null;
 
@@ -18,8 +19,9 @@ export class DashboardPanel {
     void this.panel.webview.postMessage(message);
   }
 
-  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri) {
+  private constructor(panel: vscode.WebviewPanel, extensionUri: vscode.Uri, secrets?: vscode.SecretStorage) {
     this.panel = panel;
+    this.secrets = secrets;
     this.panel.webview.html = this.getHtml(extensionUri);
     this.panel.onDidDispose(() => this.dispose(), null, this.disposables);
     this.panel.webview.onDidReceiveMessage((message) => {
@@ -64,12 +66,18 @@ export class DashboardPanel {
         case 'openState':
           void vscode.commands.executeCommand('agentLoop.openFile', message.statePath);
           return;
+        case 'getSettings':
+          void this.sendSettings();
+          return;
+        case 'saveSettings':
+          void this.handleSaveSettings(message.payload || {});
+          return;
         default:
       }
     }, null, this.disposables);
   }
 
-  public static show(extensionUri: vscode.Uri): DashboardPanel {
+  public static show(extensionUri: vscode.Uri, secrets?: vscode.SecretStorage): DashboardPanel {
     if (DashboardPanel.current) {
       DashboardPanel.current.panel.reveal(vscode.ViewColumn.Beside);
       return DashboardPanel.current;
@@ -86,7 +94,7 @@ export class DashboardPanel {
       },
     );
 
-    DashboardPanel.current = new DashboardPanel(panel, extensionUri);
+    DashboardPanel.current = new DashboardPanel(panel, extensionUri, secrets);
     return DashboardPanel.current;
   }
 
@@ -119,6 +127,86 @@ export class DashboardPanel {
           : null,
       },
     });
+  }
+
+  private async sendSettings() {
+    const config = vscode.workspace.getConfiguration('agentLoop');
+
+    const nonSensitive = {
+      fixAgent: config.get<string>('fixAgent', 'grok'),
+      reviewAgent: config.get<string>('reviewAgent', 'codex'),
+      workerMaxTurns: config.get<number>('workerMaxTurns', 128),
+      workerMaxRetries: config.get<number>('workerMaxRetries', 2),
+      queuePath: config.get<string>('queuePath', 'agent-loop/scripts/migration-queue.json'),
+      worktreeScope: config.get<string>('worktreeScope', 'queue'),
+    };
+
+    const keysStatus: Record<string, string> = {
+      grokApiKey: '',
+      openaiApiKey: '',
+      anthropicApiKey: '',
+    };
+
+    if (this.secrets) {
+      keysStatus.grokApiKey = (await this.secrets.get('agentLoop.grokApiKey')) ? 'configured' : '';
+      keysStatus.openaiApiKey = (await this.secrets.get('agentLoop.openaiApiKey')) ? 'configured' : '';
+      keysStatus.anthropicApiKey = (await this.secrets.get('agentLoop.anthropicApiKey')) ? 'configured' : '';
+    }
+
+    this.post({
+      type: 'settings',
+      payload: {
+        nonSensitive,
+        keys: keysStatus,
+        baseUrl: config.get<string>('baseUrl', ''),
+        injectToWorker: config.get<boolean>('injectKeysToWorker', true),
+      },
+    });
+  }
+
+  private async handleSaveSettings(payload: Record<string, any>) {
+    const config = vscode.workspace.getConfiguration('agentLoop');
+    const promises: Thenable<unknown>[] = [];
+
+    // Non-sensitive settings -> workspace configuration
+    const nonSecretKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl'] as const;
+    for (const key of nonSecretKeys) {
+      if (payload[key] !== undefined) {
+        const target = key === 'queuePath' || key === 'baseUrl' ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Workspace;
+        promises.push(config.update(key as string, payload[key], target));
+      }
+    }
+    if (payload.injectToWorker !== undefined) {
+      promises.push(config.update('injectKeysToWorker', payload.injectToWorker, vscode.ConfigurationTarget.Workspace));
+    }
+
+    // Sensitive keys -> SecretStorage (never log plaintext)
+    if (this.secrets) {
+      if (typeof payload.grokApiKey === 'string' && payload.grokApiKey) {
+        promises.push(this.secrets.store('agentLoop.grokApiKey', payload.grokApiKey));
+      }
+      if (typeof payload.openaiApiKey === 'string' && payload.openaiApiKey) {
+        promises.push(this.secrets.store('agentLoop.openaiApiKey', payload.openaiApiKey));
+      }
+      if (typeof payload.anthropicApiKey === 'string' && payload.anthropicApiKey) {
+        promises.push(this.secrets.store('agentLoop.anthropicApiKey', payload.anthropicApiKey));
+      }
+      // Support explicit clear with empty string
+      if (payload.grokApiKey === '') {
+        promises.push(this.secrets.delete('agentLoop.grokApiKey'));
+      }
+      if (payload.openaiApiKey === '') {
+        promises.push(this.secrets.delete('agentLoop.openaiApiKey'));
+      }
+      if (payload.anthropicApiKey === '') {
+        promises.push(this.secrets.delete('agentLoop.anthropicApiKey'));
+      }
+    }
+
+    await Promise.all(promises);
+
+    // Refresh UI with latest
+    await this.sendSettings();
   }
 
   public update(snapshot: RunSnapshot): void {

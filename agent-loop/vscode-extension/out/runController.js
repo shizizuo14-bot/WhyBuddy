@@ -42,12 +42,14 @@ const paths_1 = require("./paths");
 class RunController {
     repoRoot;
     output;
+    secrets;
     onStarted;
     onFinished;
     child = null;
-    constructor(repoRoot, output, onStarted, onFinished) {
+    constructor(repoRoot, output, secrets, onStarted, onFinished) {
         this.repoRoot = repoRoot;
         this.output = output;
+        this.secrets = secrets;
         this.onStarted = onStarted;
         this.onFinished = onFinished;
     }
@@ -66,10 +68,12 @@ class RunController {
         this.output.appendLine(`[${new Date().toLocaleTimeString()}] 启动任务队列: node ${scriptArgs.join(' ')}`);
         await setQueueRunning(true);
         this.onStarted();
+        const llmEnv = await this.getLlmEnv();
         const child = (0, node_child_process_1.spawn)(process.execPath, scriptArgs, {
             cwd: agentLoopRoot,
             env: {
                 ...process.env,
+                ...llmEnv,
                 // In the VS Code extension host, process.execPath is the Electron (Code.exe) binary,
                 // NOT node. Without this flag spawning it would launch VS Code instead of running the
                 // queue script. ELECTRON_RUN_AS_NODE makes the same binary behave as node, and it
@@ -106,10 +110,15 @@ class RunController {
         const scriptPath = path.join(agentLoopRoot, 'scripts', scriptFileName);
         this.output.show(true);
         this.output.appendLine(`[${new Date().toLocaleTimeString()}] 运行: node ${[scriptPath, ...args].join(' ')}`);
+        const llmEnv = await this.getLlmEnv();
         return await new Promise((resolve) => {
             const child = (0, node_child_process_1.spawn)(process.execPath, [scriptPath, ...args], {
                 cwd: agentLoopRoot,
-                env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+                env: {
+                    ...process.env,
+                    ...llmEnv,
+                    ELECTRON_RUN_AS_NODE: '1',
+                },
                 stdio: ['ignore', 'pipe', 'pipe'],
                 windowsHide: true,
             });
@@ -129,7 +138,35 @@ class RunController {
         }
         this.output.appendLine(`[${new Date().toLocaleTimeString()}] 请求停止任务队列`);
         void markLatestStopped(this.repoRoot);
-        terminateProcessTree(this.child);
+    }
+    async getLlmEnv() {
+        const cfg = (0, paths_1.getAgentLoopConfig)();
+        if (!cfg.injectKeysToWorker || !this.secrets) {
+            return {};
+        }
+        const env = {};
+        try {
+            const grokKey = await this.secrets.get('agentLoop.grokApiKey');
+            if (grokKey) {
+                env.GROK_API_KEY = grokKey;
+                env.XAI_API_KEY = grokKey; // common alias
+            }
+            const openaiKey = await this.secrets.get('agentLoop.openaiApiKey');
+            if (openaiKey)
+                env.OPENAI_API_KEY = openaiKey;
+            const anthropicKey = await this.secrets.get('agentLoop.anthropicApiKey');
+            if (anthropicKey)
+                env.ANTHROPIC_API_KEY = anthropicKey;
+            if (cfg.baseUrl) {
+                env.OPENAI_BASE_URL = cfg.baseUrl;
+                // some CLIs use this
+                env.LLM_BASE_URL = cfg.baseUrl;
+            }
+        }
+        catch (e) {
+            this.output.appendLine(`读取 LLM Keys 时出错: ${e}`);
+        }
+        return env;
     }
     async finishRun(exitCode) {
         this.output.appendLine(`[${new Date().toLocaleTimeString()}] 任务队列结束，exit=${exitCode ?? 'null'}`);

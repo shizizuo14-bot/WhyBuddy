@@ -40,6 +40,7 @@ exports.latestStatePath = latestStatePath;
 exports.latestReportPath = latestReportPath;
 exports.runsDir = runsDir;
 exports.queuePath = queuePath;
+exports.getAgentLoopConfig = getAgentLoopConfig;
 const fs = __importStar(require("node:fs"));
 const path = __importStar(require("node:path"));
 const vscode = __importStar(require("vscode"));
@@ -73,6 +74,19 @@ function queuePath(repoRoot) {
     const configured = vscode.workspace.getConfiguration('agentLoop').get('queuePath')
         || 'agent-loop/scripts/migration-queue.json';
     return path.isAbsolute(configured) ? configured : path.join(repoRoot, configured);
+}
+function getAgentLoopConfig() {
+    const cfg = vscode.workspace.getConfiguration('agentLoop');
+    return {
+        fixAgent: cfg.get('fixAgent', 'grok'),
+        reviewAgent: cfg.get('reviewAgent', 'codex'),
+        workerMaxTurns: cfg.get('workerMaxTurns', 128),
+        workerMaxRetries: cfg.get('workerMaxRetries', 2),
+        queuePath: cfg.get('queuePath', 'agent-loop/scripts/migration-queue.json'),
+        worktreeScope: cfg.get('worktreeScope', 'queue'),
+        baseUrl: cfg.get('baseUrl', ''),
+        injectKeysToWorker: cfg.get('injectKeysToWorker', true),
+    };
 }
 function existsSync(filePath) {
     try {

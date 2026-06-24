@@ -1,4 +1,5 @@
 import type { LoopState, PipelineStep, QueueDefaults } from './types';
+import { getAgentLoopConfig } from './paths';
 
 export const PHASE_LABELS_ZH: Record<string, string> = {
   INIT: '初始化',
@@ -42,9 +43,11 @@ export function resolveAgentRoles(
   state: LoopState | null,
   queueDefaults: QueueDefaults | null = null,
 ): { fixAgent: string; reviewAgent: string | null } {
-  const fixAgent = state?.options?.fixAgent || queueDefaults?.fixAgent || 'grok';
+  const vs = getAgentLoopConfig();
+  const fixAgent = state?.options?.fixAgent || queueDefaults?.fixAgent || vs.fixAgent || 'grok';
   const skipReview = state?.options?.skipReview ?? queueDefaults?.skipReview ?? false;
-  const reviewAgent = skipReview ? null : (state?.options?.reviewAgent || queueDefaults?.reviewAgent || 'grok');
+  let reviewAgent: string | null = skipReview ? null : (state?.options?.reviewAgent || queueDefaults?.reviewAgent || vs.reviewAgent || 'grok');
+  if (reviewAgent === 'none') reviewAgent = null;
   return { fixAgent, reviewAgent };
 }
 

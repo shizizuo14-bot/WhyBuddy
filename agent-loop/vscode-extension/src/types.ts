@@ -104,6 +104,12 @@ export interface QueueOverviewItem {
   id: string;
   task: string;
   enabled: boolean;
+  agent?: string | null;
+  fixAgent?: string | null;
+  reviewAgent?: string | null;
+  branch?: string | null;
+  lastUpdatedAt?: string | null;
+  lastUpdatedText?: string | null;
   outcome: string | null;
   outcomeGroup?: string | null;
   status: string | null;
@@ -191,6 +197,9 @@ export interface QueueDefaults {
   timeoutMs?: number;
   skipReview?: boolean;
   autoFix?: boolean;
+  useWorktree?: boolean;
+  worktreeScope?: 'task' | 'queue' | string;
+  queueWorktreeName?: string;
   fixAgent?: 'grok' | 'codex';
   reviewAgent?: 'grok' | 'codex';
 }
@@ -206,6 +215,13 @@ export interface QueueTask {
   task: string;
   gatesKey?: string;
   enabled?: boolean;
+  useWorktree?: boolean;
+  worktreeScope?: 'task' | 'queue' | string;
+  worktreeName?: string;
+  branch?: string;
+  fixAgent?: 'grok' | 'codex' | string;
+  reviewAgent?: 'grok' | 'codex' | string;
+  skipReview?: boolean;
 }
 
 export interface PipelineStep {

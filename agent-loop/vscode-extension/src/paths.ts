@@ -40,6 +40,31 @@ export function queuePath(repoRoot: string): string {
   return path.isAbsolute(configured) ? configured : path.join(repoRoot, configured);
 }
 
+export interface AgentLoopConfig {
+  fixAgent: string;
+  reviewAgent: string;
+  workerMaxTurns: number;
+  workerMaxRetries: number;
+  queuePath: string;
+  worktreeScope: string;
+  baseUrl: string;
+  injectKeysToWorker: boolean;
+}
+
+export function getAgentLoopConfig(): AgentLoopConfig {
+  const cfg = vscode.workspace.getConfiguration('agentLoop');
+  return {
+    fixAgent: cfg.get<string>('fixAgent', 'grok'),
+    reviewAgent: cfg.get<string>('reviewAgent', 'codex'),
+    workerMaxTurns: cfg.get<number>('workerMaxTurns', 128),
+    workerMaxRetries: cfg.get<number>('workerMaxRetries', 2),
+    queuePath: cfg.get<string>('queuePath', 'agent-loop/scripts/migration-queue.json'),
+    worktreeScope: cfg.get<string>('worktreeScope', 'queue'),
+    baseUrl: cfg.get<string>('baseUrl', ''),
+    injectKeysToWorker: cfg.get<boolean>('injectKeysToWorker', true),
+  };
+}
+
 function existsSync(filePath: string): boolean {
   try {
     fs.accessSync(filePath);

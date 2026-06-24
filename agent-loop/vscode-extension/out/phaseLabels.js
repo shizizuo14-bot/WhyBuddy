@@ -8,6 +8,7 @@ exports.phaseLabel = phaseLabel;
 exports.formatElapsed = formatElapsed;
 exports.statusIcon = statusIcon;
 exports.describeSnapshot = describeSnapshot;
+const paths_1 = require("./paths");
 exports.PHASE_LABELS_ZH = {
     INIT: '初始化',
     RESUMED: '恢复运行',
@@ -45,9 +46,12 @@ exports.PHASE_FLOW = [
     'DONE',
 ];
 function resolveAgentRoles(state, queueDefaults = null) {
-    const fixAgent = state?.options?.fixAgent || queueDefaults?.fixAgent || 'grok';
+    const vs = (0, paths_1.getAgentLoopConfig)();
+    const fixAgent = state?.options?.fixAgent || queueDefaults?.fixAgent || vs.fixAgent || 'grok';
     const skipReview = state?.options?.skipReview ?? queueDefaults?.skipReview ?? false;
-    const reviewAgent = skipReview ? null : (state?.options?.reviewAgent || queueDefaults?.reviewAgent || 'grok');
+    let reviewAgent = skipReview ? null : (state?.options?.reviewAgent || queueDefaults?.reviewAgent || vs.reviewAgent || 'grok');
+    if (reviewAgent === 'none')
+        reviewAgent = null;
     return { fixAgent, reviewAgent };
 }
 function buildPipelineSteps(state, queueDefaults = null) {

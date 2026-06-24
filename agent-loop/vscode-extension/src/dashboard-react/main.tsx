@@ -1,6 +1,6 @@
 import { createRoot, type Root } from 'react-dom/client';
-import { DashboardApp } from './DashboardApp';
-import type { OverviewPayload } from './types';
+import { DashboardApp, DashboardDetailApp } from './DashboardApp';
+import type { DetailPayload, OverviewPayload } from './types';
 
 let root: Root | null = null;
 
@@ -17,4 +17,10 @@ function renderOverview(payload: OverviewPayload): void {
   target.render(<DashboardApp payload={payload} />);
 }
 
-window.AgentLoopReactDashboard = { renderOverview };
+function renderDetail(payload: DetailPayload): void {
+  const target = ensureRoot();
+  if (!target) return;
+  target.render(<DashboardDetailApp payload={payload} />);
+}
+
+window.AgentLoopReactDashboard = { renderOverview, renderDetail };

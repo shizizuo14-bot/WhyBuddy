@@ -2,7 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
-import { getAgentLoopRoot, latestStatePath } from './paths';
+import { getAgentLoopConfig, getAgentLoopRoot, latestStatePath } from './paths';
 
 export class RunController implements vscode.Disposable {
   private child: ChildProcess | null = null;
@@ -10,6 +10,7 @@ export class RunController implements vscode.Disposable {
   constructor(
     private readonly repoRoot: string,
     private readonly output: vscode.OutputChannel,
+    private readonly secrets: vscode.SecretStorage | undefined,
     private readonly onStarted: () => void,
     private readonly onFinished: (exitCode: number | null) => void,
   ) {}
@@ -31,11 +32,13 @@ export class RunController implements vscode.Disposable {
     this.output.appendLine(`[${new Date().toLocaleTimeString()}] 启动任务队列: node ${scriptArgs.join(' ')}`);
     await setQueueRunning(true);
     this.onStarted();
+    const llmEnv = await this.getLlmEnv();
 
     const child = spawn(process.execPath, scriptArgs, {
       cwd: agentLoopRoot,
       env: {
         ...process.env,
+        ...llmEnv,
         // In the VS Code extension host, process.execPath is the Electron (Code.exe) binary,
         // NOT node. Without this flag spawning it would launch VS Code instead of running the
         // queue script. ELECTRON_RUN_AS_NODE makes the same binary behave as node, and it
@@ -74,10 +77,15 @@ export class RunController implements vscode.Disposable {
     const scriptPath = path.join(agentLoopRoot, 'scripts', scriptFileName);
     this.output.show(true);
     this.output.appendLine(`[${new Date().toLocaleTimeString()}] 运行: node ${[scriptPath, ...args].join(' ')}`);
+    const llmEnv = await this.getLlmEnv();
     return await new Promise<number>((resolve) => {
       const child = spawn(process.execPath, [scriptPath, ...args], {
         cwd: agentLoopRoot,
-        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+        env: {
+          ...process.env,
+          ...llmEnv,
+          ELECTRON_RUN_AS_NODE: '1',
+        },
         stdio: ['ignore', 'pipe', 'pipe'],
         windowsHide: true,
       });
@@ -98,7 +106,39 @@ export class RunController implements vscode.Disposable {
     }
     this.output.appendLine(`[${new Date().toLocaleTimeString()}] 请求停止任务队列`);
     void markLatestStopped(this.repoRoot);
-    terminateProcessTree(this.child);
+  }
+
+  private async getLlmEnv(): Promise<Record<string, string>> {
+    const cfg = getAgentLoopConfig();
+    if (!cfg.injectKeysToWorker || !this.secrets) {
+      return {};
+    }
+
+    const env: Record<string, string> = {};
+
+    try {
+      const grokKey = await this.secrets.get('agentLoop.grokApiKey');
+      if (grokKey) {
+        env.GROK_API_KEY = grokKey;
+        env.XAI_API_KEY = grokKey; // common alias
+      }
+
+      const openaiKey = await this.secrets.get('agentLoop.openaiApiKey');
+      if (openaiKey) env.OPENAI_API_KEY = openaiKey;
+
+      const anthropicKey = await this.secrets.get('agentLoop.anthropicApiKey');
+      if (anthropicKey) env.ANTHROPIC_API_KEY = anthropicKey;
+
+      if (cfg.baseUrl) {
+        env.OPENAI_BASE_URL = cfg.baseUrl;
+        // some CLIs use this
+        env.LLM_BASE_URL = cfg.baseUrl;
+      }
+    } catch (e) {
+      this.output.appendLine(`读取 LLM Keys 时出错: ${e}`);
+    }
+
+    return env;
   }
 
   private async finishRun(exitCode: number | null): Promise<void> {

@@ -53,6 +53,7 @@ const path = __importStar(require("node:path"));
 const activeLog_1 = require("./activeLog");
 const gateSummary_1 = require("./gateSummary");
 const phaseLabels_1 = require("./phaseLabels");
+const paths_1 = require("./paths");
 const runSummary_1 = require("./runSummary");
 var activeLog_2 = require("./activeLog");
 Object.defineProperty(exports, "findNewestFixLog", { enumerable: true, get: function () { return activeLog_2.findNewestFixLog; } });
@@ -280,7 +281,7 @@ async function buildQueueOverview(repoRoot, options = {}) {
     const outcomes = await readQueueOutcomes(repoRoot);
     const landing = await readQueueLanding(repoRoot);
     const runningTask = options.runningTaskPath ? normalizeTaskPath(options.runningTaskPath) : null;
-    const tasks = await Promise.all((queue?.tasks || []).map(async (task) => {
+    const tasks = await Promise.all((queue?.tasks || []).map(async (task, index) => {
         const id = task.id || task.task;
         const record = outcomes.tasks?.[id];
         const sameAsRunning = runningTask !== null && normalizeTaskPath(task.task) === runningTask;
@@ -288,6 +289,13 @@ async function buildQueueOverview(repoRoot, options = {}) {
         const stale = Boolean(options.currentRunStale) && sameAsRunning;
         const taskText = await readOptionalTextFile(path.join(repoRoot, task.task));
         const manualRescueLanded = detectManualRescueLanded(taskText, record);
+        const vsConfig = (0, paths_1.getAgentLoopConfig)();
+        const fixAgent = record?.fixAgent || task.fixAgent || queue?.defaults?.fixAgent || vsConfig.fixAgent || 'grok';
+        const skipReview = task.skipReview ?? queue?.defaults?.skipReview ?? true;
+        const configuredReviewAgent = vsConfig.reviewAgent === 'none' ? null : vsConfig.reviewAgent;
+        const reviewAgent = skipReview
+            ? null
+            : (record?.reviewAgent ?? task.reviewAgent ?? queue?.defaults?.reviewAgent ?? configuredReviewAgent ?? 'grok');
         const outcomeGroup = manualRescueLanded
             ? 'manualRescueLanded'
             : classifyOutcomeGroup(record?.lastOutcome ?? null, record?.lastStatus ?? null, record);
@@ -295,6 +303,12 @@ async function buildQueueOverview(repoRoot, options = {}) {
             id,
             task: task.task,
             enabled: task.enabled !== false,
+            agent: record?.agent || formatQueueAgentPair(fixAgent, reviewAgent),
+            fixAgent,
+            reviewAgent,
+            branch: resolveQueueTaskBranch(task, queue?.defaults, record, index),
+            lastUpdatedAt: record?.lastUpdatedAt ?? null,
+            lastUpdatedText: formatQueueUpdatedAt(record?.lastUpdatedAt),
             outcome: record?.lastOutcome ?? null,
             outcomeGroup,
             status: manualRescueLanded ? 'MANUAL_RESCUE_LANDED' : (record?.lastStatus ?? null),
@@ -380,6 +394,62 @@ async function buildQueueOverview(repoRoot, options = {}) {
         }
     }
     return { tasks, landing, counts, queueRunning: Boolean(options.queueRunning) };
+}
+function formatQueueAgentPair(fixAgent, reviewAgent) {
+    const parts = [fixAgent, reviewAgent].filter(Boolean).map((agent) => titleCase(String(agent)));
+    return parts.length > 0 ? parts.join(' / ') : null;
+}
+function titleCase(value) {
+    const trimmed = value.trim();
+    if (!trimmed)
+        return '';
+    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+function formatQueueUpdatedAt(value) {
+    if (!value)
+        return null;
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime()))
+        return value;
+    const parts = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'Asia/Shanghai',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        hour12: false,
+    }).formatToParts(date);
+    const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+    return `${byType.year}-${byType.month}-${byType.day} ${byType.hour}:${byType.minute}:${byType.second}`;
+}
+function resolveQueueTaskBranch(task, defaults, record, index) {
+    const explicit = normalizeBranchName(record?.branch || task.branch);
+    if (explicit)
+        return explicit;
+    const useWorktree = task.useWorktree ?? defaults?.useWorktree ?? false;
+    if (!useWorktree)
+        return null;
+    const vsConfig = (0, paths_1.getAgentLoopConfig)();
+    const scope = task.worktreeScope ?? defaults?.worktreeScope ?? vsConfig.worktreeScope ?? 'task';
+    const rawName = scope === 'queue'
+        ? defaults?.queueWorktreeName
+        : (task.worktreeName || task.id || `task-${index + 1}`);
+    const worktreeName = sanitizeOverviewWorktreeName(rawName);
+    return worktreeName ? `agent-loop/${worktreeName}` : null;
+}
+function normalizeBranchName(value) {
+    const trimmed = String(value || '').trim();
+    if (!trimmed)
+        return null;
+    return trimmed.replace(/^refs\/heads\//, '');
+}
+function sanitizeOverviewWorktreeName(value) {
+    return String(value || '')
+        .replace(/[^A-Za-z0-9._-]+/g, '-')
+        .replace(/^-+|-+$/g, '')
+        .slice(0, 80);
 }
 // Collapse the granular outcome into the five triage lanes the overview groups by:
 // attention (needs a human), running, landed (settled-good), pending, disabled.

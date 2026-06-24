@@ -25,10 +25,11 @@ export function activate(context: vscode.ExtensionContext): void {
   runController = new RunController(
     repoRoot,
     output,
+    context.secrets,
     () => {
       monitor?.markRunStarted();
       if (vscode.workspace.getConfiguration('agentLoop').get<boolean>('openDashboardOnRun', true)) {
-        DashboardPanel.show(context.extensionUri);
+        DashboardPanel.show(context.extensionUri, context.secrets);
         void monitor?.refresh().then(() => monitor?.pushOverview());
       } else {
         void monitor?.refresh();
@@ -60,11 +61,11 @@ export function activate(context: vscode.ExtensionContext): void {
       runController?.stop();
     }),
     vscode.commands.registerCommand('agentLoop.openDashboard', () => {
-      DashboardPanel.show(context.extensionUri);
+      DashboardPanel.show(context.extensionUri, context.secrets);
       void monitor?.pushOverview();
     }),
     vscode.commands.registerCommand('agentLoop.showOverview', () => {
-      DashboardPanel.show(context.extensionUri);
+      DashboardPanel.show(context.extensionUri, context.secrets);
       void monitor?.pushOverview();
     }),
     vscode.commands.registerCommand('agentLoop.openFile', async (filePath?: string) => {
@@ -76,7 +77,7 @@ export function activate(context: vscode.ExtensionContext): void {
       }
     }),
     vscode.commands.registerCommand('agentLoop.openRunDashboard', async (statePath: string) => {
-      const panel = DashboardPanel.show(context.extensionUri);
+      const panel = DashboardPanel.show(context.extensionUri, context.secrets);
       const snapshot = await monitor?.showStatePathInDashboard(statePath);
       if (snapshot) panel.update(snapshot);
     }),
@@ -88,7 +89,7 @@ export function activate(context: vscode.ExtensionContext): void {
         vscode.window.showInformationMessage(`AgentLoop: ${taskPath} 暂无运行记录`);
         return;
       }
-      const panel = DashboardPanel.show(context.extensionUri);
+      const panel = DashboardPanel.show(context.extensionUri, context.secrets);
       const snapshot = await monitor?.showStatePathInDashboard(run.statePath);
       if (snapshot) panel.update(snapshot);
     }),

@@ -55,10 +55,10 @@ function activate(context) {
     const currentRunTree = new treeProviders_1.CurrentRunTreeProvider();
     const queueTree = new treeProviders_1.QueueTreeProvider(repoRoot);
     const runsTree = new treeProviders_1.RunsTreeProvider(repoRoot);
-    runController = new runController_1.RunController(repoRoot, output, () => {
+    runController = new runController_1.RunController(repoRoot, output, context.secrets, () => {
         monitor?.markRunStarted();
         if (vscode.workspace.getConfiguration('agentLoop').get('openDashboardOnRun', true)) {
-            dashboardPanel_1.DashboardPanel.show(context.extensionUri);
+            dashboardPanel_1.DashboardPanel.show(context.extensionUri, context.secrets);
             void monitor?.refresh().then(() => monitor?.pushOverview());
         }
         else {
@@ -78,10 +78,10 @@ function activate(context) {
     }), vscode.commands.registerCommand('agentLoop.stopRun', () => {
         runController?.stop();
     }), vscode.commands.registerCommand('agentLoop.openDashboard', () => {
-        dashboardPanel_1.DashboardPanel.show(context.extensionUri);
+        dashboardPanel_1.DashboardPanel.show(context.extensionUri, context.secrets);
         void monitor?.pushOverview();
     }), vscode.commands.registerCommand('agentLoop.showOverview', () => {
-        dashboardPanel_1.DashboardPanel.show(context.extensionUri);
+        dashboardPanel_1.DashboardPanel.show(context.extensionUri, context.secrets);
         void monitor?.pushOverview();
     }), vscode.commands.registerCommand('agentLoop.openFile', async (filePath) => {
         if (!filePath)
@@ -93,7 +93,7 @@ function activate(context) {
             vscode.window.showWarningMessage(`AgentLoop: 打不开 ${filePath}`);
         }
     }), vscode.commands.registerCommand('agentLoop.openRunDashboard', async (statePath) => {
-        const panel = dashboardPanel_1.DashboardPanel.show(context.extensionUri);
+        const panel = dashboardPanel_1.DashboardPanel.show(context.extensionUri, context.secrets);
         const snapshot = await monitor?.showStatePathInDashboard(statePath);
         if (snapshot)
             panel.update(snapshot);
@@ -106,7 +106,7 @@ function activate(context) {
             vscode.window.showInformationMessage(`AgentLoop: ${taskPath} 暂无运行记录`);
             return;
         }
-        const panel = dashboardPanel_1.DashboardPanel.show(context.extensionUri);
+        const panel = dashboardPanel_1.DashboardPanel.show(context.extensionUri, context.secrets);
         const snapshot = await monitor?.showStatePathInDashboard(run.statePath);
         if (snapshot)
             panel.update(snapshot);

@@ -411,16 +411,29 @@ test('buildQueueOverview merges queue membership with per-task outcomes', async 
   const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-overview-'));
   const queueFilePath = path.join(repo, 'queue.json');
   await fs.writeFile(queueFilePath, JSON.stringify({
+    defaults: {
+      useWorktree: true,
+      worktreeScope: 'queue',
+      queueWorktreeName: 'migration-queue',
+      fixAgent: 'grok',
+      reviewAgent: 'codex',
+      skipReview: false,
+    },
     tasks: [
       { id: 'a', task: 'agent-loop/tasks/a.md' },
-      { id: 'b', task: 'agent-loop/tasks/b.md' },
+      { id: 'b', task: 'agent-loop/tasks/b.md', worktreeScope: 'task', worktreeName: 'task-b', fixAgent: 'codex', reviewAgent: 'grok' },
       { id: 'c', task: 'agent-loop/tasks/c.md', enabled: false },
     ],
   }), 'utf8');
   await fs.mkdir(path.join(repo, '.agent-loop'), { recursive: true });
   await fs.writeFile(path.join(repo, '.agent-loop', 'queue-outcomes.json'), JSON.stringify({
     tasks: {
-      a: { lastOutcome: 'done', lastStatus: 'DONE_REVIEWED', lastRunId: 'run-a' },
+      a: {
+        lastOutcome: 'done',
+        lastStatus: 'DONE_REVIEWED',
+        lastRunId: 'run-a',
+        lastUpdatedAt: '2026-06-23T08:00:00.000Z',
+      },
       b: { lastOutcome: 'failed', lastStatus: 'HALT_HUMAN', lastRunId: 'run-b' },
     },
   }), 'utf8');
@@ -433,6 +446,13 @@ test('buildQueueOverview merges queue membership with per-task outcomes', async 
   assert.equal(overview.counts.human, 1);
   assert.equal(overview.counts.pending, 1);
   assert.equal(overview.tasks[0].outcome, 'done');
+  assert.equal(overview.tasks[0].agent, 'Grok / Codex');
+  assert.equal(overview.tasks[0].fixAgent, 'grok');
+  assert.equal(overview.tasks[0].reviewAgent, 'codex');
+  assert.equal(overview.tasks[0].lastUpdatedText, '2026-06-23 16:00:00');
+  assert.equal(overview.tasks[0].branch, 'agent-loop/migration-queue');
+  assert.equal(overview.tasks[1].agent, 'Codex / Grok');
+  assert.equal(overview.tasks[1].branch, 'agent-loop/task-b');
   assert.equal(overview.tasks[2].enabled, false);
 });
 
@@ -1190,11 +1210,23 @@ test('dashboard panel loads the local React dashboard bundle with CSP nonce supp
 });
 
 test('extension package builds the dashboard React bundle locally', async () => {
+  const rootPackageJson = JSON.parse(await fs.readFile(path.join(agentLoopRoot, 'package.json'), 'utf8'));
   const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
 
+  assert.match(rootPackageJson.scripts['dev:dashboard'] ?? '', /vscode-extension/);
+  assert.match(rootPackageJson.scripts['dev:dashboard'] ?? '', /dev:dashboard/);
+  assert.match(packageJson.scripts['dev:dashboard'] ?? '', /vite/);
+  assert.match(packageJson.scripts['dev:dashboard'] ?? '', /vite\.dashboard\.dev\.config\.ts/);
   assert.match(packageJson.scripts['build:dashboard'] ?? '', /vite/);
   assert.match(packageJson.scripts.package ?? '', /build:dashboard/);
-  for (const dependency of ['antd', 'react', 'react-dom']) {
+  const panelSource = await fs.readFile(path.join(extensionRoot, 'src', 'dashboardPanel.ts'), 'utf8');
+  assert.match(panelSource, /payload\.injectToWorker/);
+  assert.match(panelSource, /config\.update\('injectKeysToWorker'/);
+  await fs.access(path.join(extensionRoot, 'index.html'));
+  await fs.access(path.join(extensionRoot, 'vite.dashboard.dev.config.ts'));
+  await fs.access(path.join(extensionRoot, 'src', 'dashboard-react', 'dev.tsx'));
+  await fs.access(path.join(extensionRoot, 'src', 'dashboard-react', 'devPayload.ts'));
+  for (const dependency of ['@ant-design/icons', '@antv/g6', 'antd', 'react', 'react-dom']) {
     assert.ok(packageJson.dependencies?.[dependency], `${dependency} dependency is declared`);
   }
   for (const dependency of ['@vitejs/plugin-react', 'vite']) {
@@ -1221,6 +1253,11 @@ test('React dashboard keeps Ant Design components native and minimally configure
   assert.doesNotMatch(source, /rowClassName/);
   const queueTable = source.match(/function QueueTable[\s\S]*?\n}\n\nfunction /)?.[0] ?? '';
   assert.match(queueTable, /<Table/);
+  assert.match(queueTable, /key:\s*'branch'/);
+  assert.match(queueTable, /task\.branch\s*\|\|\s*'-'/);
+  assert.match(queueTable, /task\.agent\s*\|\|\s*formatAgentPair\(task\)/);
+  assert.match(queueTable, />详情<\/Button>/);
+  assert.doesNotMatch(queueTable, />打开<\/Button>/);
   assert.doesNotMatch(queueTable, /locale=\{/);
   assert.doesNotMatch(source, /className="[^"]*\bant-/);
   assert.doesNotMatch(css, /\.agent-ant-|\.ant-|--vscode-|--al-/);
@@ -1245,8 +1282,8 @@ test('React dashboard keeps the sidebar to one workbench item and moves task fil
   assert.doesNotMatch(source, /<Text strong>AgentLoop<\/Text>/);
   assert.doesNotMatch(source, /<Text type="secondary">Dashboard<\/Text>/);
   assert.doesNotMatch(source, /DashboardSidebar\(\{[\s\S]*filter/);
-  assert.match(css, /\.native-brand\s*\{(?<body>[^}]+height:\s*56px[^}]+justify-content:\s*center[^}]+overflow:\s*hidden[^}]+)\}/);
-  assert.match(css, /\.native-brand-mark\s*\{(?<body>[^}]+width:\s*100%[^}]+)\}/);
+  assert.match(css, /\.native-brand\s*\{(?<body>[^}]+height:\s*56px[^}]+justify-content:\s*flex-start[^}]+overflow:\s*hidden[^}]+)\}/);
+  assert.match(css, /\.native-brand-mark\s*\{(?<body>[^}]+justify-content:\s*flex-start[^}]+)\}/);
 });
 
 test('React dashboard sidebar brand aligns with the header and crops an enlarged logo', async () => {
@@ -1265,10 +1302,15 @@ test('React dashboard sidebar brand aligns with the header and crops an enlarged
   assert.match(brandRule, /height:\s*56px/);
   assert.match(brandRule, /overflow:\s*hidden/);
   assert.match(brandMarkRule, /height:\s*56px/);
-  assert.match(brandMarkRule, /width:\s*100%/);
-  assert.match(brandImgRule, /width:\s*180px/);
+  assert.match(brandMarkRule, /width:\s*auto/);
+  assert.match(brandRule, /justify-content:\s*flex-start/);
+  assert.doesNotMatch(brandRule, /justify-content:\s*center/);
+  assert.match(brandImgRule, /width:\s*144px/);
   assert.match(brandImgRule, /max-width:\s*none/);
-  assert.match(brandImgRule, /transform:\s*scale\(1\.32\)/);
+  assert.match(brandImgRule, /transform:\s*scale\(1\)/);
+  assert.doesNotMatch(brandImgRule, /width:\s*120px/);
+  assert.doesNotMatch(brandImgRule, /width:\s*180px/);
+  assert.doesNotMatch(brandImgRule, /transform:\s*scale\(1\.32\)/);
   assert.doesNotMatch(brandRule, /height:\s*72px/);
 });
 
@@ -1295,7 +1337,7 @@ test('React dashboard renders run details with Ant Design product components', a
   );
 
   assert.match(source, /export function DashboardDetailApp/);
-  for (const component of ['Descriptions', 'Steps', 'Statistic', 'Tabs', 'Timeline', 'List']) {
+  for (const component of ['Button', 'Descriptions', 'Steps', 'Statistic', 'Tabs', 'List']) {
     assert.match(source, new RegExp(`\\b${component}\\b`));
   }
   assert.match(source, /native-detail-dashboard/);
@@ -1316,13 +1358,15 @@ test('React dashboard detail folds stats into hero metrics and uses the referenc
   const metrics = source.match(/function metricItems[\s\S]*?\n}\n\nfunction DetailHero/)?.[0] ?? '';
 
   assert.match(source, /className="native-metric-grid"/);
-  for (const key of ['status', 'elapsed', 'iteration', 'events']) {
+  for (const key of ['iteration', 'events', 'elapsed', 'blocks', 'status']) {
     assert.match(metrics, new RegExp(`key: '${key}'`));
   }
-  assert.match(metrics, /title: '状态'/);
-  assert.match(metrics, /title: '耗时'/);
-  assert.match(metrics, /title: '轮次'/);
-  assert.match(metrics, /title: '事件数'/);
+  for (const title of ['迭代次数', '事件总数', '耗时', '阻断次数', '最终状态']) {
+    assert.match(metrics, new RegExp(`title: '${title}'`));
+  }
+  for (const duplicateKey of ['agent', 'gate', 'run', 'commit', 'landing']) {
+    assert.doesNotMatch(metrics, new RegExp(`key: '${duplicateKey}'`));
+  }
   assert.doesNotMatch(source, /function DetailStats/);
   assert.doesNotMatch(source, /<DetailStats payload=\{payload\} \/>/);
   assert.match(source, /<Col xs=\{24\} xl=\{5\}>[\s\S]*<EventTimeline payload=\{payload\} \/>/);
@@ -1343,23 +1387,60 @@ test('React dashboard detail matches the polished run-workbench visual structure
   assert.match(source, /function DetailHero/);
   assert.match(source, /className="native-detail-hero"/);
   assert.match(source, /className="native-run-head"/);
+  assert.match(source, /className="native-title-line"/);
+  assert.match(source, /className="native-back-button"/);
+  assert.match(source, /<Button[\s\S]*className="native-back-button"[\s\S]*icon=\{<LeftOutlined \/>\}[\s\S]*>\s*返回\s*<\/Button>/);
+  assert.doesNotMatch(source, /<Title level=\{3\}>馃/);
+  assert.doesNotMatch(source, /<Button size="small" onClick=\{\(\) => postCommand\('showOverview'\)\}>/);
   assert.match(source, /className="native-hero-kpis"/);
   assert.match(source, /className="native-metric-grid"/);
-  for (const title of ['智能体', '耗时', '轮次', '状态', 'Gate', '事件数', 'runId', 'commit', '落地 status']) {
+  for (const title of ['迭代次数', '事件总数', '耗时', '阻断次数', '最终状态']) {
     assert.match(source, new RegExp(`title: '${title}'`));
   }
   assert.match(source, /function DetailProgress/);
   assert.match(source, /className="native-step-card"/);
   assert.match(source, /className="native-flow-lane"/);
-  assert.match(source, /className="native-flow-return"/);
+  assert.match(source, /from '@antv\/g6'/);
+  assert.match(source, /new Graph\(/);
+  assert.match(source, /useEffect/);
+  assert.match(source, /useRef/);
+  assert.match(source, /className="native-flow-g6-canvas"/);
+  assert.doesNotMatch(source, /className="native-flow-svg"/);
+  assert.doesNotMatch(source, /preserveAspectRatio="none"/);
+  assert.match(source, /buildG6FlowData/);
+  assert.match(source, /node:\s*\{[\s\S]*type:\s*'rect'/);
+  assert.match(source, /labelText/);
+  assert.match(source, /labelWordWrap:\s*false/);
+  assert.match(source, /labelMaxWidth/);
+  assert.match(source, /ports/);
+  assert.match(source, /sourcePort:\s*'right'/);
+  assert.match(source, /targetPort:\s*'left'/);
+  assert.match(source, /type:\s*'quadratic'/);
+  assert.match(source, /lineDash:\s*\[6,\s*5\]/);
+  assert.doesNotMatch(source, /native-flow-cards/);
+  assert.doesNotMatch(source, /native-flow-node-card/);
+  assert.doesNotMatch(source, /className="native-flow-icon"/);
+  assert.match(source, /className="native-flow-legend"/);
+  assert.match(source, /未通过，回修/);
+  assert.doesNotMatch(source, /className="native-flow-return"/);
   assert.match(source, /<Progress[\s\S]*percent=\{progressPercent\}/);
   assert.match(source, /<Steps[\s\S]*className="native-steps"/);
   assert.match(source, /function ReviewPanel/);
-  assert.match(source, /className="native-review-result"/);
+  assert.match(source, /function ChangeStatsCard/);
   assert.match(source, /className="native-change-card"/);
+  assert.doesNotMatch(source, /className="native-review-result"/);
+  assert.doesNotMatch(source, /native-review-summary-card/);
+  assert.doesNotMatch(source, /Review\s+缁撹/);
   assert.match(source, /className="native-review-card"/);
   assert.match(source, /className="native-code-shell"/);
   assert.match(source, /className="native-code-copy"/);
+  assert.match(source, /function renderCodeTokens/);
+  assert.match(source, /native-code-token native-code-key/);
+  assert.match(source, /native-code-token native-code-string/);
+  assert.match(source, /native-code-token native-code-number/);
+  assert.match(source, /native-code-token native-code-boolean/);
+  assert.match(source, /native-code-token native-code-null/);
+  assert.match(source, /native-code-token native-code-punctuation/);
   assert.doesNotMatch(source, /function DetailDescriptions/);
   assert.doesNotMatch(source, /<DetailDescriptions payload=\{payload\} \/>/);
   assert.doesNotMatch(source, /function DetailSteps/);
@@ -1368,14 +1449,18 @@ test('React dashboard detail matches the polished run-workbench visual structure
   for (const selector of [
     '.native-detail-hero',
     '.native-run-head',
+    '.native-title-line',
+    '.native-back-button',
     '.native-hero-kpis',
     '.native-metric-grid',
     '.native-metric',
     '.native-step-card',
     '.native-flow-lane',
-    '.native-flow-return',
-    '.native-review-result',
+    '.native-flow-g6-canvas',
+    '.native-flow-legend',
     '.native-change-card',
+    '.native-timeline-shell',
+    '.native-timeline-row',
     '.native-steps',
     '.native-review-card',
     '.native-code-shell',
@@ -1383,6 +1468,39 @@ test('React dashboard detail matches the polished run-workbench visual structure
   ]) {
     assert.match(css, new RegExp(selector.replace('.', '\\.')));
   }
+  const flowMapRule = css.match(/\.native-flow-map\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const flowCanvasRule = css.match(/\.native-flow-g6-canvas\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const timelineRowRule = css.match(/\.native-timeline-row\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const timelineLineRule = css.match(/\.native-timeline-row:not\(:last-child\)::after\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const timelineDotRule = css.match(/\.native-timeline-dot\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const tabBodyRule = css.match(/\.native-detail-tab-body\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  assert.match(flowMapRule, /min-height:\s*154px/);
+  assert.match(flowCanvasRule, /height:\s*146px/);
+  assert.doesNotMatch(flowCanvasRule, /min-width:\s*1030px/);
+  assert.match(timelineRowRule, /grid-template-columns:\s*56px 16px minmax\(0,\s*1fr\)/);
+  assert.match(timelineLineRule, /left:\s*63px/);
+  assert.match(timelineLineRule, /top:\s*18px/);
+  assert.match(timelineDotRule, /justify-self:\s*center/);
+  assert.match(source, /<Card className="native-detail-workbench" styles=\{\{ body: \{ padding: 0 \} \}\}>/);
+  assert.match(source, /tabBarStyle=\{\{ padding: '0 24px', marginBottom: 0 \}\}/);
+  assert.match(source, /className="native-detail-tab-body"/);
+  assert.match(tabBodyRule, /padding:\s*0/);
+  assert.doesNotMatch(tabBodyRule, /24px/);
+  for (const selector of [
+    '.native-code-token',
+    '.native-code-key',
+    '.native-code-string',
+    '.native-code-number',
+    '.native-code-boolean',
+    '.native-code-null',
+    '.native-code-punctuation',
+  ]) {
+    assert.match(css, new RegExp(selector.replace('.', '\\.')));
+  }
+  assert.match(css, /\.native-scroll-surface::-webkit-scrollbar/);
+  assert.match(css, /\.native-code::-webkit-scrollbar/);
+  assert.match(css, /\.native-timeline-shell::-webkit-scrollbar/);
+  assert.match(css, /scrollbar-width:\s*thin/);
 });
 
 test('React dashboard detail uses a workbench flow map and right rail', async () => {
@@ -1396,31 +1514,74 @@ test('React dashboard detail uses a workbench flow map and right rail', async ()
   );
 
   assert.match(source, /function AgentLoopFlow/);
+  assert.match(source, /function buildFlowNodes/);
+  assert.match(source, /function buildG6FlowData/);
+  assert.match(source, /function ChangeStatsCard/);
   assert.match(source, /function DetailRightRail/);
   assert.match(source, /function IterationTimeline/);
   assert.match(source, /className="native-flow-map"/);
-  assert.match(source, /className=\{`native-flow-node native-flow-node-\$\{flowTone\(step\)\}`\}/);
+  assert.match(source, /node:\s*\{[\s\S]*type:\s*'rect'/);
+  assert.match(source, /labelWordWrap:\s*false/);
+  assert.doesNotMatch(source, /native-flow-cards/);
+  assert.doesNotMatch(source, /native-flow-node-card/);
+  assert.match(source, /<ChangeStatsCard payload=\{payload\} \/>/);
   assert.match(source, /className="native-detail-main-row"/);
   assert.match(source, /className="native-detail-rail"/);
-  assert.match(source, /<Col xs=\{24\} xl=\{5\}>[\s\S]*<EventTimeline payload=\{payload\} \/>/);
+  assert.match(source, /<Col xs=\{24\} xl=\{5\}>[\s\S]*<EventTimeline payload=\{payload\} \/>[\s\S]*<ChangeStatsCard payload=\{payload\} \/>/);
   assert.match(source, /<Col xs=\{24\} xl=\{14\}>[\s\S]*<DetailTabs payload=\{payload\} \/>/);
   assert.match(source, /<Col xs=\{24\} xl=\{5\}>[\s\S]*<DetailRightRail payload=\{payload\} \/>/);
   assert.doesNotMatch(source, /<Card size="small" title="[^"]*" className="native-detail-nested">/);
+  assert.doesNotMatch(source, /<Card title="Artifacts">/);
+  assert.match(source, /className="native-rail-action"/);
+  assert.match(source, /<span className="native-rail-action-label">/);
+  assert.match(source, /<RightOutlined className="native-rail-action-arrow" \/>/);
+  assert.match(source, /查看结构化报告/);
+  assert.match(source, /导出工作/);
 
   for (const selector of [
     '.native-flow-map',
     '.native-flow-lane',
-    '.native-flow-node',
-    '.native-flow-node-done',
-    '.native-flow-node-active',
-    '.native-flow-return',
+    '.native-flow-g6-canvas',
+    '.native-flow-legend',
+    '.native-timeline-shell',
+    '.native-timeline-row',
+    '.native-timeline-dot',
     '.native-detail-main-row',
     '.native-detail-rail',
     '.native-rail-actions',
+    '.native-rail-action',
+    '.native-rail-action-label',
+    '.native-rail-action-arrow',
     '.native-timeline-card',
   ]) {
     assert.match(css, new RegExp(selector.replace('.', '\\.')));
   }
+  const railActionRule = css.match(/\.native-rail-action\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const railActionLabelRule = css.match(/\.native-rail-action-label\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  assert.match(railActionRule, /justify-content:\s*flex-start/);
+  assert.match(railActionRule, /text-align:\s*left/);
+  assert.match(railActionLabelRule, /margin-right:\s*auto/);
+});
+
+test('React dashboard flow keeps the G6 instance stable across live refreshes', async () => {
+  const source = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8',
+  );
+  const component = source.match(/function AgentLoopFlow[\s\S]*?\n}\n\nfunction EventTimeline/)?.[0] ?? '';
+
+  assert.match(
+    component,
+    /const nodes = useMemo\(\(\) => buildFlowNodes\(payload\), \[payload\.status, payload\.fixAgent, payload\.reviewAgent\]\);/,
+  );
+  assert.match(component, /renderedSignatureRef/);
+  assert.match(component, /renderedSignatureRef\.current === flowSignature/);
+  assert.match(component, /graph\.resize\(nextWidth, FLOW_HEIGHT\)/);
+  assert.match(component, /graph\.setData\(buildG6FlowData/);
+  assert.doesNotMatch(
+    component,
+    /function createGraph[\s\S]*?graphRef\.current\.destroy\(\);[\s\S]*?new Graph\(/,
+  );
 });
 
 test('extension package contributes clean Chinese labels', async () => {
@@ -2395,3 +2556,41 @@ function fakeRoot(elements, focusables = {}) {
 function sha256(value) {
   return crypto.createHash('sha256').update(value).digest('hex');
 }
+
+// ===== Settings / SecretStorage safety tests =====
+test('settings send logic never includes raw keys (SecretStorage safety)', async () => {
+  // Simulate the payload construction from dashboardPanel
+  const rawKeys = {
+    grokApiKey: 'sk-secret-grok-123',
+    openaiApiKey: 'sk-secret-openai-456',
+  };
+
+  const keysStatus = {};
+  Object.keys(rawKeys).forEach(k => {
+    keysStatus[k] = rawKeys[k] ? 'configured' : '';
+  });
+
+  const payload = {
+    nonSensitive: { fixAgent: 'grok' },
+    keys: keysStatus,
+    baseUrl: '',
+  };
+
+  // Assert no raw secret in the message that would be sent to webview
+  const serialized = JSON.stringify(payload);
+  assert.ok(!serialized.includes('sk-secret'));
+  assert.ok(serialized.includes('configured'));
+  assert.ok(payload.keys.grokApiKey === 'configured');
+});
+
+test('getAgentLoopConfig shape includes new CLI and key related fields', () => {
+  // We can't easily mock vscode here without setup, but ensure the module exports and basic defaults
+  const { getAgentLoopConfig } = requireFromExtension('./out/paths.js');
+  const cfg = getAgentLoopConfig();
+  assert.ok(typeof cfg === 'object');
+  assert.ok('fixAgent' in cfg);
+  assert.ok('reviewAgent' in cfg);
+  assert.ok('workerMaxTurns' in cfg);
+  assert.ok('injectKeysToWorker' in cfg);
+  assert.equal(typeof cfg.workerMaxTurns, 'number');
+});

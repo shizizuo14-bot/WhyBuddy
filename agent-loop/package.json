@@ -9,6 +9,7 @@
     "loop": "node src/loop.js",
     "list-runs": "node src/list-runs.js",
     "sync:task-status": "node scripts/sync-task-status.mjs",
+    "dev:dashboard": "npm --prefix vscode-extension run dev:dashboard",
     "run-queue": "node scripts/run-queue.mjs",
     "loop-apply": "node scripts/loop-apply.mjs",
     "secret-scan": "node scripts/secret-scan.mjs",

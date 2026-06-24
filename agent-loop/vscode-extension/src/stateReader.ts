@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import { formatAgentLogTail, resolveActiveLogPath, resolveLogRoot } from './activeLog';
 import { resolveDisplayGate } from './gateSummary';
 import { activeAgentLabel, buildPipelineSteps, describeSnapshot, formatElapsed, phaseLabel, resolveAgentRoles } from './phaseLabels';
+import { getAgentLoopConfig } from './paths';
 import { parseRunIdDate, summarizeStateRun } from './runSummary';
 
 export { findNewestFixLog, formatAgentLogTail, resolveActiveLogCandidates, resolveActiveLogPath, resolveLogRoot } from './activeLog';
@@ -12,6 +13,10 @@ interface QueueOutcomeRecord {
   lastStatus?: string;
   lastOutcome?: string;
   lastRunId?: string;
+  agent?: string;
+  fixAgent?: string;
+  reviewAgent?: string | null;
+  branch?: string;
   autoDisabled?: boolean;
   autoDisabledAt?: string | null;
   consecutiveNoChanges?: number;
@@ -292,7 +297,7 @@ export async function buildQueueOverview(
   const landing = await readQueueLanding(repoRoot);
   const runningTask = options.runningTaskPath ? normalizeTaskPath(options.runningTaskPath) : null;
 
-  const tasks: QueueOverviewItem[] = await Promise.all((queue?.tasks || []).map(async (task) => {
+  const tasks: QueueOverviewItem[] = await Promise.all((queue?.tasks || []).map(async (task, index) => {
     const id = task.id || task.task;
     const record = outcomes.tasks?.[id];
     const sameAsRunning = runningTask !== null && normalizeTaskPath(task.task) === runningTask;
@@ -300,6 +305,13 @@ export async function buildQueueOverview(
     const stale = Boolean(options.currentRunStale) && sameAsRunning;
     const taskText = await readOptionalTextFile(path.join(repoRoot, task.task));
     const manualRescueLanded = detectManualRescueLanded(taskText, record);
+    const vsConfig = getAgentLoopConfig();
+    const fixAgent = record?.fixAgent || task.fixAgent || queue?.defaults?.fixAgent || vsConfig.fixAgent || 'grok';
+    const skipReview = task.skipReview ?? queue?.defaults?.skipReview ?? true;
+    const configuredReviewAgent = vsConfig.reviewAgent === 'none' ? null : vsConfig.reviewAgent;
+    const reviewAgent = skipReview
+      ? null
+      : (record?.reviewAgent ?? task.reviewAgent ?? queue?.defaults?.reviewAgent ?? configuredReviewAgent ?? 'grok');
     const outcomeGroup = manualRescueLanded
       ? 'manualRescueLanded'
       : classifyOutcomeGroup(record?.lastOutcome ?? null, record?.lastStatus ?? null, record);
@@ -307,6 +319,12 @@ export async function buildQueueOverview(
       id,
       task: task.task,
       enabled: task.enabled !== false,
+      agent: record?.agent || formatQueueAgentPair(fixAgent, reviewAgent),
+      fixAgent,
+      reviewAgent,
+      branch: resolveQueueTaskBranch(task, queue?.defaults, record, index),
+      lastUpdatedAt: record?.lastUpdatedAt ?? null,
+      lastUpdatedText: formatQueueUpdatedAt(record?.lastUpdatedAt),
       outcome: record?.lastOutcome ?? null,
       outcomeGroup,
       status: manualRescueLanded ? 'MANUAL_RESCUE_LANDED' : (record?.lastStatus ?? null),
@@ -382,6 +400,69 @@ export async function buildQueueOverview(
   }
 
   return { tasks, landing, counts, queueRunning: Boolean(options.queueRunning) };
+}
+
+function formatQueueAgentPair(fixAgent: string | null | undefined, reviewAgent: string | null | undefined): string | null {
+  const parts = [fixAgent, reviewAgent].filter(Boolean).map((agent) => titleCase(String(agent)));
+  return parts.length > 0 ? parts.join(' / ') : null;
+}
+
+function titleCase(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  return trimmed.charAt(0).toUpperCase() + trimmed.slice(1).toLowerCase();
+}
+
+function formatQueueUpdatedAt(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return value;
+  const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Shanghai',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    second: '2-digit',
+    hour12: false,
+  }).formatToParts(date);
+  const byType = Object.fromEntries(parts.map((part) => [part.type, part.value]));
+  return `${byType.year}-${byType.month}-${byType.day} ${byType.hour}:${byType.minute}:${byType.second}`;
+}
+
+function resolveQueueTaskBranch(
+  task: NonNullable<QueueFile['tasks']>[number],
+  defaults: QueueFile['defaults'] | undefined,
+  record: QueueOutcomeRecord | undefined,
+  index: number,
+): string | null {
+  const explicit = normalizeBranchName(record?.branch || task.branch);
+  if (explicit) return explicit;
+
+  const useWorktree = task.useWorktree ?? defaults?.useWorktree ?? false;
+  if (!useWorktree) return null;
+
+  const vsConfig = getAgentLoopConfig();
+  const scope = task.worktreeScope ?? defaults?.worktreeScope ?? vsConfig.worktreeScope ?? 'task';
+  const rawName = scope === 'queue'
+    ? defaults?.queueWorktreeName
+    : (task.worktreeName || task.id || `task-${index + 1}`);
+  const worktreeName = sanitizeOverviewWorktreeName(rawName);
+  return worktreeName ? `agent-loop/${worktreeName}` : null;
+}
+
+function normalizeBranchName(value: string | null | undefined): string | null {
+  const trimmed = String(value || '').trim();
+  if (!trimmed) return null;
+  return trimmed.replace(/^refs\/heads\//, '');
+}
+
+function sanitizeOverviewWorktreeName(value: string | null | undefined): string {
+  return String(value || '')
+    .replace(/[^A-Za-z0-9._-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 80);
 }
 
 // Collapse the granular outcome into the five triage lanes the overview groups by:
