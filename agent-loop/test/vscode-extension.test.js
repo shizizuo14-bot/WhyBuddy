@@ -764,21 +764,18 @@ test('dashboard detail promotes queue back and file actions into the header', as
     landingPath: 'C:/repo/.agent-loop/latest/landing.json',
     statePath: 'C:/repo/.agent-loop/latest/state.json',
   });
-  const brandIndex = html.indexOf('class="brand-mark"');
-  const backIndex = html.indexOf('class="btn ghost detail-back"');
-  const breadcrumbIndex = html.indexOf('class="detail-breadcrumbs"');
-  const actionIndex = html.indexOf('class="detail-actions"');
-
-  assert.ok(brandIndex >= 0, 'detail header keeps the logo');
-  assert.ok(backIndex > brandIndex, 'queue back button sits to the right of the logo');
-  assert.ok(breadcrumbIndex > backIndex, 'breadcrumbs sit after the queue back button');
-  assert.ok(actionIndex > 0, 'detail actions exist in the header');
-  assert.match(html, /class="btn ghost detail-back"[^>]*data-act="showOverview"[\s\S]*<span class="btn-icon">/);
-  assert.match(html, /class="detail-actions"[\s\S]*data-act="runTask"/);
-  assert.match(html, /class="detail-actions"[\s\S]*data-act="openReport"[\s\S]*final-report\.md/);
-  assert.match(html, /class="detail-actions"[\s\S]*data-act="openReport"[\s\S]*final-report\.json/);
-  assert.match(html, /class="detail-actions"[\s\S]*data-act="openReport"[\s\S]*landing\.json/);
-  assert.match(html, /class="detail-actions"[\s\S]*data-act="openState"[\s\S]*state\.json/);
+  // De-duplicated: brand lives in the sidebar, breadcrumb + actions in the topbar,
+  // and the detail header keeps only the title + meta (no second copy of any of them).
+  assert.match(html, /class="product-brand"[\s\S]*class="brand-mark"/);
+  assert.match(html, /class="product-crumbs"[\s\S]*header-actions-task/);
+  assert.match(html, /class="product-topbar-actions"[\s\S]*data-act="runTask"/);
+  assert.match(html, /data-act="openReport"[\s\S]*final-report\.md/);
+  assert.match(html, /data-act="openReport"[\s\S]*final-report\.json/);
+  assert.match(html, /data-act="openReport"[\s\S]*landing\.json/);
+  assert.match(html, /data-act="openState"[\s\S]*state\.json/);
+  assert.doesNotMatch(html, /class="detail-breadcrumbs"/);
+  assert.doesNotMatch(html, /class="detail-actions"/);
+  assert.doesNotMatch(html, /class="btn ghost detail-back"/);
   assert.doesNotMatch(html, /<div class="links">/);
 });
 
@@ -880,21 +877,25 @@ test('dashboard detail renders the v2 operations workbench layout', async () => 
   });
 
   assert.match(html, /class="[^"]*\bdetail-shell\b[^"]*"/);
-  assert.match(html, /class="detail-breadcrumbs"/);
-  assert.match(html, /Projects/);
-  assert.match(html, /SlideRule/);
+  assert.match(html, /class="product-crumbs"/);
   assert.match(html, /Runs/);
   assert.match(html, /backend-python-runtime-evidence-reconcile-89/);
   assert.match(html, /class="detail-meta"/);
-  assert.match(html, /Repo:/);
+  assert.match(html, /RunId:/);
   assert.match(html, /Commit:/);
   assert.match(html, /class="detail-stage-rail"/);
-  assert.match(html, /Init/);
-  assert.match(html, /Workspace/);
-  assert.match(html, /testGate/);
+  assert.match(html, /class="stage-svg"/);
+  assert.match(html, /任务准入/);
+  assert.match(html, /Worker \(/);
+  assert.match(html, /Reviewer \(/);
+  assert.match(html, /已交付/);
+  assert.match(html, /未通过，回修/);
+  assert.match(html, /class="stage-legend"/);
   assert.match(html, /class="run-kpi-grid"/);
-  assert.match(html, /状态/);
-  assert.match(html, /DONE_REVIEWED/);
+  assert.match(html, /迭代次数/);
+  assert.match(html, /事件总数/);
+  assert.match(html, /阻断次数/);
+  assert.match(html, /最终状态/);
   assert.match(html, /37KB/);
   assert.match(html, /codex \+ codex/);
   assert.match(html, /class="detail-workbench"/);
@@ -951,9 +952,9 @@ test('dashboard detail renders a product-style v3 run page', async () => {
   assert.match(html, /环境[\s\S]*cube-pets-office/);
   assert.match(html, /调度配置[\s\S]*基线 Gate 红/);
   assert.match(html, /class="[^"]*\bexecution-history\b[^"]*"/);
-  assert.match(html, /class="[^"]*\bant-page-header\b[^"]*"/);
+  assert.match(html, /class="detail-hero v2"/);
   assert.match(html, /class="[^"]*\bant-descriptions\b[^"]*"/);
-  assert.match(html, /class="[^"]*\bant-steps\b[^"]*"/);
+  assert.match(html, /class="stage-svg"/);
   assert.match(html, /class="[^"]*\bant-timeline\b[^"]*"/);
 });
 
@@ -1217,7 +1218,10 @@ test('React dashboard keeps Ant Design components native and minimally configure
   assert.doesNotMatch(source, /colorBg|colorText|colorBorder|colorPrimary/);
   assert.doesNotMatch(source, /Pagination/);
   assert.doesNotMatch(source, /visibleTasks\s*=\s*tasks\.slice/);
-  assert.doesNotMatch(source, /rowClassName|locale=\{/);
+  assert.doesNotMatch(source, /rowClassName/);
+  const queueTable = source.match(/function QueueTable[\s\S]*?\n}\n\nfunction /)?.[0] ?? '';
+  assert.match(queueTable, /<Table/);
+  assert.doesNotMatch(queueTable, /locale=\{/);
   assert.doesNotMatch(source, /className="[^"]*\bant-/);
   assert.doesNotMatch(css, /\.agent-ant-|\.ant-|--vscode-|--al-/);
 });
@@ -1241,8 +1245,31 @@ test('React dashboard keeps the sidebar to one workbench item and moves task fil
   assert.doesNotMatch(source, /<Text strong>AgentLoop<\/Text>/);
   assert.doesNotMatch(source, /<Text type="secondary">Dashboard<\/Text>/);
   assert.doesNotMatch(source, /DashboardSidebar\(\{[\s\S]*filter/);
-  assert.match(css, /\.native-brand\s*\{(?<body>[^}]+height:\s*72px[^}]+justify-content:\s*center[^}]+)\}/);
+  assert.match(css, /\.native-brand\s*\{(?<body>[^}]+height:\s*56px[^}]+justify-content:\s*center[^}]+overflow:\s*hidden[^}]+)\}/);
   assert.match(css, /\.native-brand-mark\s*\{(?<body>[^}]+width:\s*100%[^}]+)\}/);
+});
+
+test('React dashboard sidebar brand aligns with the header and crops an enlarged logo', async () => {
+  const css = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'dashboard-react.css'),
+    'utf8',
+  );
+  const sidebarRule = css.match(/\.native-sidebar\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const headerRule = css.match(/\.native-header\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const brandRule = css.match(/\.native-brand\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const brandMarkRule = css.match(/\.native-brand-mark\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const brandImgRule = css.match(/\.native-brand-mark img\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+
+  assert.match(sidebarRule, /padding:\s*0/);
+  assert.match(headerRule, /height:\s*56px/);
+  assert.match(brandRule, /height:\s*56px/);
+  assert.match(brandRule, /overflow:\s*hidden/);
+  assert.match(brandMarkRule, /height:\s*56px/);
+  assert.match(brandMarkRule, /width:\s*100%/);
+  assert.match(brandImgRule, /width:\s*180px/);
+  assert.match(brandImgRule, /max-width:\s*none/);
+  assert.match(brandImgRule, /transform:\s*scale\(1\.32\)/);
+  assert.doesNotMatch(brandRule, /height:\s*72px/);
 });
 
 test('React dashboard uses six table rows per page and keeps the logo only in the sidebar brand area', async () => {
@@ -1255,6 +1282,145 @@ test('React dashboard uses six table rows per page and keeps the logo only in th
   assert.match(source, /pagination=\{\{ pageSize: PAGE_SIZE \}\}/);
   assert.match(source, /<div className="native-brand">\s*<BrandMark \/>\s*<\/div>/);
   assert.doesNotMatch(source, /<Space align="center">\s*<BrandMark \/>[\s\S]*<Title level=\{3\}>AgentLoop 控制台<\/Title>/);
+});
+
+test('React dashboard renders run details with Ant Design product components', async () => {
+  const source = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8',
+  );
+  const entry = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'main.tsx'),
+    'utf8',
+  );
+
+  assert.match(source, /export function DashboardDetailApp/);
+  for (const component of ['Descriptions', 'Steps', 'Statistic', 'Tabs', 'Timeline', 'List']) {
+    assert.match(source, new RegExp(`\\b${component}\\b`));
+  }
+  assert.match(source, /native-detail-dashboard/);
+  assert.match(entry, /renderDetail/);
+  assert.match(entry, /DashboardDetailApp/);
+  assert.match(source, /postCommand\('showOverview'\)/);
+  assert.match(source, /payload\.reportJsonPath[\s\S]*postCommand\('openReport', \{ reportPath: payload\.reportJsonPath \}\)/);
+  assert.match(source, /payload\.landingPath[\s\S]*postCommand\('openReport', \{ reportPath: payload\.landingPath \}\)/);
+  assert.doesNotMatch(source, /postCommand\('backToQueue'/);
+  assert.doesNotMatch(source, /postCommand\('openReportJson'/);
+});
+
+test('React dashboard detail folds stats into hero metrics and uses the reference three-column layout', async () => {
+  const source = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8',
+  );
+  const metrics = source.match(/function metricItems[\s\S]*?\n}\n\nfunction DetailHero/)?.[0] ?? '';
+
+  assert.match(source, /className="native-metric-grid"/);
+  for (const key of ['status', 'elapsed', 'iteration', 'events']) {
+    assert.match(metrics, new RegExp(`key: '${key}'`));
+  }
+  assert.match(metrics, /title: '状态'/);
+  assert.match(metrics, /title: '耗时'/);
+  assert.match(metrics, /title: '轮次'/);
+  assert.match(metrics, /title: '事件数'/);
+  assert.doesNotMatch(source, /function DetailStats/);
+  assert.doesNotMatch(source, /<DetailStats payload=\{payload\} \/>/);
+  assert.match(source, /<Col xs=\{24\} xl=\{5\}>[\s\S]*<EventTimeline payload=\{payload\} \/>/);
+  assert.match(source, /<Col xs=\{24\} xl=\{14\}>[\s\S]*<DetailTabs payload=\{payload\} \/>/);
+  assert.match(source, /<Col xs=\{24\} xl=\{5\}>[\s\S]*<DetailRightRail payload=\{payload\} \/>/);
+});
+
+test('React dashboard detail matches the polished run-workbench visual structure', async () => {
+  const source = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8',
+  );
+  const css = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'dashboard-react.css'),
+    'utf8',
+  );
+
+  assert.match(source, /function DetailHero/);
+  assert.match(source, /className="native-detail-hero"/);
+  assert.match(source, /className="native-run-head"/);
+  assert.match(source, /className="native-hero-kpis"/);
+  assert.match(source, /className="native-metric-grid"/);
+  for (const title of ['智能体', '耗时', '轮次', '状态', 'Gate', '事件数', 'runId', 'commit', '落地 status']) {
+    assert.match(source, new RegExp(`title: '${title}'`));
+  }
+  assert.match(source, /function DetailProgress/);
+  assert.match(source, /className="native-step-card"/);
+  assert.match(source, /className="native-flow-lane"/);
+  assert.match(source, /className="native-flow-return"/);
+  assert.match(source, /<Progress[\s\S]*percent=\{progressPercent\}/);
+  assert.match(source, /<Steps[\s\S]*className="native-steps"/);
+  assert.match(source, /function ReviewPanel/);
+  assert.match(source, /className="native-review-result"/);
+  assert.match(source, /className="native-change-card"/);
+  assert.match(source, /className="native-review-card"/);
+  assert.match(source, /className="native-code-shell"/);
+  assert.match(source, /className="native-code-copy"/);
+  assert.doesNotMatch(source, /function DetailDescriptions/);
+  assert.doesNotMatch(source, /<DetailDescriptions payload=\{payload\} \/>/);
+  assert.doesNotMatch(source, /function DetailSteps/);
+  assert.doesNotMatch(source, /<DetailSteps payload=\{payload\} \/>/);
+
+  for (const selector of [
+    '.native-detail-hero',
+    '.native-run-head',
+    '.native-hero-kpis',
+    '.native-metric-grid',
+    '.native-metric',
+    '.native-step-card',
+    '.native-flow-lane',
+    '.native-flow-return',
+    '.native-review-result',
+    '.native-change-card',
+    '.native-steps',
+    '.native-review-card',
+    '.native-code-shell',
+    '.native-code-copy',
+  ]) {
+    assert.match(css, new RegExp(selector.replace('.', '\\.')));
+  }
+});
+
+test('React dashboard detail uses a workbench flow map and right rail', async () => {
+  const source = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8',
+  );
+  const css = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'dashboard-react.css'),
+    'utf8',
+  );
+
+  assert.match(source, /function AgentLoopFlow/);
+  assert.match(source, /function DetailRightRail/);
+  assert.match(source, /function IterationTimeline/);
+  assert.match(source, /className="native-flow-map"/);
+  assert.match(source, /className=\{`native-flow-node native-flow-node-\$\{flowTone\(step\)\}`\}/);
+  assert.match(source, /className="native-detail-main-row"/);
+  assert.match(source, /className="native-detail-rail"/);
+  assert.match(source, /<Col xs=\{24\} xl=\{5\}>[\s\S]*<EventTimeline payload=\{payload\} \/>/);
+  assert.match(source, /<Col xs=\{24\} xl=\{14\}>[\s\S]*<DetailTabs payload=\{payload\} \/>/);
+  assert.match(source, /<Col xs=\{24\} xl=\{5\}>[\s\S]*<DetailRightRail payload=\{payload\} \/>/);
+  assert.doesNotMatch(source, /<Card size="small" title="[^"]*" className="native-detail-nested">/);
+
+  for (const selector of [
+    '.native-flow-map',
+    '.native-flow-lane',
+    '.native-flow-node',
+    '.native-flow-node-done',
+    '.native-flow-node-active',
+    '.native-flow-return',
+    '.native-detail-main-row',
+    '.native-detail-rail',
+    '.native-rail-actions',
+    '.native-timeline-card',
+  ]) {
+    assert.match(css, new RegExp(selector.replace('.', '\\.')));
+  }
 });
 
 test('extension package contributes clean Chinese labels', async () => {
@@ -1477,6 +1643,43 @@ test('dashboard media delegates overview rendering to the React bridge when avai
   assert.match(app.innerHTML, /react-dashboard/);
 });
 
+test('dashboard media delegates detail rendering to the React bridge when available', async () => {
+  const calls = [];
+  const app = fakeAppRoot();
+  const win = await loadDashboardWindow({
+    document: { getElementById: () => app },
+  });
+  win.AgentLoopReactDashboard = {
+    renderOverview() {
+      throw new Error('overview bridge should not render detail payloads');
+    },
+    renderDetail(payload) {
+      calls.push(payload);
+      app.innerHTML = '<main class="native-dashboard native-detail-dashboard">React detail</main>';
+    },
+  };
+
+  win.__dispatchMessage({
+    type: 'detail',
+    payload: {
+      taskLabel: 'backend-python-detail-sync-104',
+      runId: 'detail-run',
+      status: 'DONE_REVIEWED',
+      phaseLabel: 'DONE_REVIEWED',
+      pipelineSteps: [],
+      iterations: [],
+      reviewRounds: [],
+      agentTail: 'detail output',
+    },
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].taskLabel, 'backend-python-detail-sync-104');
+  assert.equal(calls[0].activeTab, 'review');
+  assert.match(app.innerHTML, /native-detail-dashboard/);
+  assert.match(app.innerHTML, /React detail/);
+});
+
 test('dashboard media exposes the acquired VS Code API for the React bridge', async () => {
   const source = await fs.readFile(path.join(extensionRoot, 'media', 'dashboard.js'), 'utf8');
   const bridge = await fs.readFile(path.join(extensionRoot, 'src', 'dashboard-react', 'vscodeBridge.ts'), 'utf8');
@@ -1686,8 +1889,9 @@ test('React dashboard shell owns its two-column layout without relying on Ant ru
   assert.match(sidebarRule, /height:\s*100vh/);
   assert.match(sidebarRule, /overflow:\s*auto/);
   assert.match(mainRule, /min-width:\s*0/);
-  assert.match(contentRule, /height:\s*calc\(100vh - 56px\)/);
-  assert.match(contentRule, /overflow:\s*auto/);
+  assert.match(contentRule, /min-height:\s*calc\(100vh - 56px\)/);
+  assert.match(contentRule, /overflow-x:\s*hidden/);
+  assert.doesNotMatch(contentRule, /overflow:\s*auto/);
 });
 
 test('buildQueueOverview separates enabled queue size from all task size', async () => {

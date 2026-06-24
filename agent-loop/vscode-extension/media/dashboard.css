@@ -1834,90 +1834,96 @@ h2 {
 }
 
 .detail-stage-rail {
-  position: relative;
-  margin: 14px 0 10px;
-  padding: 2px 6px 0;
-}
-
-.detail-stage-rail .ant-steps {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(92px, 1fr));
-  gap: 0;
-}
-
-.detail-stage-rail .ant-steps::before {
-  content: "";
-  position: absolute;
-  left: 52px;
-  right: 52px;
-  top: 21px;
-  height: 3px;
-  border-radius: var(--al-radius-pill, 999px);
-  background: color-mix(in srgb, var(--ok) 58%, var(--border));
-}
-
-.stage-node {
-  position: relative;
-  z-index: 1;
-  display: grid;
-  justify-items: center;
-  gap: 8px;
-  min-width: 0;
-  color: var(--muted);
-  text-align: center;
-  font-size: 0.78rem;
-}
-
-.stage-dot {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 38px;
-  height: 38px;
-  border: 2px solid var(--border);
-  border-radius: 50%;
+  margin: 14px 0 12px;
+  padding: 10px 12px 8px;
+  border: 1px solid var(--border);
+  border-radius: var(--al-radius-md, 10px);
   background: var(--panel);
-  color: var(--muted);
-  font-family: var(--mono);
-  font-size: 0.86rem;
-  font-weight: 700;
   box-shadow: var(--shadow);
 }
 
-.stage-label {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+.stage-svg {
+  width: 100%;
+  height: auto;
+  display: block;
 }
 
-.stage-node.done {
-  color: var(--ok);
+.stage-svg .conn {
+  stroke: var(--border);
+  stroke-width: 2.5;
 }
+.stage-svg .conn.done { stroke: var(--ok); }
 
-.stage-node.done .stage-dot {
-  border-color: var(--ok);
-  background: var(--ok);
-  color: var(--accent-fg);
+.stage-svg .dot {
+  fill: var(--panel);
+  stroke: var(--border);
+  stroke-width: 2.5;
 }
+.stage-svg .dot.done { fill: var(--ok); stroke: var(--ok); }
+.stage-svg .dot.active { stroke: var(--accent); stroke-width: 3; }
+.stage-svg .dot.halt { stroke: var(--err); stroke-width: 3; }
 
-.stage-node.current:not(.done) {
-  color: var(--fg);
+.stage-svg .dot-mark {
+  font-size: 13px;
+  font-weight: 700;
+  text-anchor: middle;
+  dominant-baseline: central;
+  fill: #fff;
+}
+.stage-svg .dot-mark.active { fill: var(--accent); }
+.stage-svg .dot-mark.pending { fill: var(--muted); }
+.stage-svg .dot-mark.halt { fill: var(--err); }
+
+.stage-svg .node-title {
+  fill: var(--fg);
+  font-size: 13px;
   font-weight: 600;
+  text-anchor: middle;
+}
+.stage-svg .node-title.pending { fill: var(--muted); font-weight: 500; }
+.stage-svg .node-title.active { fill: var(--accent); }
+.stage-svg .node-sub { fill: var(--muted); font-size: 11px; text-anchor: middle; }
+
+.stage-svg .loopback {
+  fill: none;
+  stroke: var(--err);
+  stroke-width: 2;
+  stroke-dasharray: 5 4;
+}
+.stage-svg .arrow-head { fill: var(--err); }
+.stage-svg .loop-pill {
+  fill: var(--panel);
+  stroke: color-mix(in srgb, var(--err) 45%, var(--border));
+}
+.stage-svg .loop-text {
+  fill: var(--err);
+  font-size: 11px;
+  font-weight: 600;
+  text-anchor: middle;
+  dominant-baseline: central;
 }
 
-.stage-node.current:not(.done) .stage-dot,
-.stage-node.halt .stage-dot {
-  transform: translateY(-2px);
-  border-color: var(--warn);
-  background: var(--warn);
-  color: var(--accent-fg);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--warn) 22%, transparent);
+.stage-legend {
+  display: flex;
+  gap: 18px;
+  margin-top: 4px;
+  padding-top: 8px;
+  border-top: 1px solid var(--border-soft);
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+.stage-legend .lg { display: inline-flex; align-items: center; gap: 6px; }
+.stage-legend .lg-line { width: 18px; height: 0; border-top: 2px solid var(--ok); }
+.stage-legend .lg-line.redo { border-top-style: dashed; border-top-color: var(--err); }
+.stage-legend .lg-dot {
+  display: inline-flex; align-items: center; justify-content: center;
+  width: 16px; height: 16px; border-radius: 50%;
+  background: var(--ok); color: #fff; font-size: 10px;
 }
 
 .run-kpi-grid {
   display: grid;
-  grid-template-columns: repeat(6, minmax(130px, 1fr));
+  grid-template-columns: repeat(5, minmax(130px, 1fr));
   gap: 8px;
   margin: 0 0 10px;
 }

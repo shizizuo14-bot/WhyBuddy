@@ -552,31 +552,78 @@
     return `<section class="timeline">${items}</section>`;
   }
 
-  function renderDetailStageRail(status, steps) {
-    const list = Array.isArray(steps) && steps.length ? steps : [
-      { key: 'INIT', label: 'Init' },
-      { key: 'WORKSPACE', label: 'Workspace' },
-      { key: 'WORKTREE', label: 'Worktree' },
-      { key: 'BASELINE_GATE_RESULT', label: 'Gate' },
-      { key: 'CODEX_FIX', label: 'Codex' },
-      { key: 'POST_FIX_GATE_RESULT', label: 'testGate' },
-      { key: 'DONE', label: 'Done' },
+  function stageState(status) {
+    const s = status || '';
+    if (s.startsWith('DONE_')) return { idx: 5, done: true, halt: false };
+    if (s === 'HALT_NO_SUCCESS_CRITERIA') return { idx: 0, halt: true };
+    if (s.startsWith('HALT_') || s === 'STALE_INTERRUPTED') {
+      return { idx: s.includes('REVIEW') ? 4 : 2, halt: true };
+    }
+    if (s === 'INIT' || s === 'PROBED' || s === 'RESUMED' || s === 'WORKTREE_READY') return { idx: 0 };
+    if (s === 'BASELINE_GATE_RESULT') return { idx: 1 };
+    if (s === 'POST_FIX_GATE_RESULT') return { idx: 3 };
+    if (s.endsWith('_REVIEW')) return { idx: 4 };
+    if (s.endsWith('_FIX') || s === 'BUDGET_LOOP_HEAD' || s === 'REVIEW_NEEDS_CHANGES') return { idx: 2 };
+    return { idx: 0 };
+  }
+
+  function cap(value) {
+    const v = String(value || '');
+    return v ? v.charAt(0).toUpperCase() + v.slice(1) : v;
+  }
+
+  function renderDetailStageRail(payload) {
+    const status = payload.status;
+    const worker = cap(payload.fixAgent || 'Grok');
+    const reviewer = cap(payload.reviewAgent || 'Codex');
+    const nodes = [
+      ['任务准入', '条件检查'],
+      ['基线 Gate', '环境 & 约束'],
+      [`Worker (${worker})`, '修复代码'],
+      ['修复 Gate', '验证 & 测试'],
+      [`Reviewer (${reviewer})`, '复查 & 验收'],
+      ['已交付', '可合并'],
     ];
-    const terminal = (status || '').startsWith('DONE_') || (status || '').startsWith('HALT_') || status === 'STALE_INTERRUPTED';
-    const activeIndex = Math.max(0, resolveActiveIndex(status, list));
-    const items = list.map((step, index) => {
-      let cls = 'stage-node';
-      if (terminal && step.key === 'DONE') cls += ' current done';
-      else if (activeIndex === index) cls += ' current';
-      else if (activeIndex > index) cls += ' done';
-      if ((status || '').startsWith('HALT_') && activeIndex === index) cls += ' halt';
-      const marker = cls.includes('done') ? '✓' : index + 1;
-      return `<div class="${cls}">
-        <span class="stage-dot">${esc(marker)}</span>
-        <span class="stage-label">${esc(step.label)}</span>
-      </div>`;
+    const st = stageState(status);
+    const cx = (i) => 70 + i * 164;
+    const NY = 44;
+    const nodeState = (i) => {
+      if (st.done || i < st.idx) return 'done';
+      if (i === st.idx) return st.halt ? 'halt' : 'active';
+      return 'pending';
+    };
+
+    const conns = nodes.slice(0, -1).map((_, i) => {
+      const done = st.done || i < st.idx;
+      return `<line class="conn ${done ? 'done' : ''}" x1="${cx(i) + 16}" y1="${NY}" x2="${cx(i + 1) - 16}" y2="${NY}" />`;
     }).join('');
-    return `<section class="detail-stage-rail"><div class="ant-steps">${items}</div></section>`;
+
+    const dots = nodes.map(([title, sub], i) => {
+      const s = nodeState(i);
+      const mark = s === 'done' ? '✓' : s === 'halt' ? '!' : String(i + 1);
+      return `<g class="stage-node ${s}">
+        <circle class="dot ${s}" cx="${cx(i)}" cy="${NY}" r="16" />
+        <text class="dot-mark ${s}" x="${cx(i)}" y="${NY + 1}">${mark}</text>
+        <text class="node-title ${s}" x="${cx(i)}" y="82">${esc(title)}</text>
+        <text class="node-sub" x="${cx(i)}" y="98">${esc(sub)}</text>
+      </g>`;
+    }).join('');
+
+    const loop = `<path class="loopback" d="M${cx(4)},${NY + 16} C${cx(4)},115 ${cx(2)},115 ${cx(2)},${NY + 16}" marker-end="url(#al-arrow)" />
+      <rect class="loop-pill" x="${(cx(2) + cx(4)) / 2 - 48}" y="106" width="96" height="20" rx="10" />
+      <text class="loop-text" x="${(cx(2) + cx(4)) / 2}" y="117">↩ 未通过，回修</text>`;
+
+    return `<section class="detail-stage-rail">
+      <svg class="stage-svg" viewBox="0 0 960 138" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Agent Loop 流水线">
+        <defs><marker id="al-arrow" markerWidth="8" markerHeight="8" refX="6" refY="3" orient="auto"><path d="M0,0 L6,3 L0,6 Z" class="arrow-head"/></marker></defs>
+        ${conns}${loop}${dots}
+      </svg>
+      <div class="stage-legend">
+        <span class="lg"><i class="lg-line main"></i>主流程</span>
+        <span class="lg"><i class="lg-line redo"></i>未通过回修</span>
+        <span class="lg"><i class="lg-dot done">✓</i>已通过</span>
+      </div>
+    </section>`;
   }
 
   function gateClass(ok) {
@@ -615,17 +662,21 @@
   }
 
   function renderRunKpiCards(payload) {
-    const landing = payload.landing || { status: 'PENDING_APPLY' };
-    const diffSize = payload.hasDiff
-      ? formatBytes((payload.diffText || '').length || totalDiffBytes(payload.iterations))
-      : formatBytes(totalDiffBytes(payload.iterations));
+    const iterations = (payload.iterations || []).length;
+    const events = (payload.events || []).length;
+    const blocked = (payload.reviewRounds || []).filter(
+      (r) => r.decision === 'needs_changes' || r.decision === 'halt',
+    ).length;
+    const finalState = payload.phaseLabel || payload.status || '-';
+    const finalTone = (payload.status || '').startsWith('DONE_') ? 'ok'
+      : (payload.status || '').startsWith('HALT_') || payload.status === 'STALE_INTERRUPTED' ? 'err'
+      : 'run';
     return `<section class="run-kpi-grid">
-      ${renderRunKpi('状态', payload.status || payload.phaseLabel || '-', '✓', payload.status === 'STALE_INTERRUPTED' ? 'warn' : gateClass(payload.gateOk))}
+      ${renderRunKpi('迭代次数', `${iterations} 次`, '↻')}
+      ${renderRunKpi('事件总数', String(events), '☰')}
       ${renderRunKpi('耗时', payload.elapsedText || '-', '◷')}
-      ${renderRunKpi('变更', diffSize, '□')}
-      ${renderRunKpi('Agent', payload.agentText || payload.roleText || '-', '▤')}
-      ${renderRunKpi('门控', payload.gateText || '-', '♢', gateClass(payload.gateOk))}
-      ${renderRunKpi('落地', landing.status || '-', '↧', landingClass(landing.status))}
+      ${renderRunKpi('阻断次数', String(blocked), '⚑', blocked > 0 ? 'warn' : '')}
+      ${renderRunKpi('最终状态', finalState, '✓', finalTone)}
     </section>`;
   }
 
@@ -664,18 +715,10 @@
     const repo = payload.repo || 'github.com/acme/backend-python';
     const commit = payload.landing?.commit || payload.commit || '-';
     const started = payload.startedAt || payload.runId || '等待运行';
-    return `<section class="detail-hero v2 ant-page-header">
-      <div class="detail-hero-brand">
-        ${renderBrandMark()}
-        <button class="btn ghost detail-back" data-act="showOverview" title="返回队列"><span class="btn-icon">←</span><span>队列</span></button>
-        <div class="detail-breadcrumbs"><span>Projects</span><span>SlideRule</span><span>Runs</span><span>${esc(task)}</span></div>
-      </div>
-      <div class="detail-titlebar">
-        <div class="detail-title-copy">
-          <h1>${esc(task)}</h1>
-          <div class="detail-meta">Started ${esc(started)} · Repo: ${esc(repo)} · Commit: ${esc(commit)}</div>
-        </div>
-        <div class="detail-actions">${renderDetailActionButtons(payload)}</div>
+    return `<section class="detail-hero v2">
+      <div class="detail-title-copy">
+        <h1>${esc(task)}</h1>
+        <div class="detail-meta">Started ${esc(started)} · RunId: ${esc(payload.runId || '-')} · Commit: ${esc(commit)}</div>
       </div>
     </section>`;
   }
@@ -1024,7 +1067,7 @@
       ${renderRunPropertyGrid(payload)}
       ${renderRunMessageBox(payload)}
       ${renderHalt(payload)}
-      ${renderDetailStageRail(payload.status, payload.pipelineSteps)}
+      ${renderDetailStageRail(payload)}
       ${renderRunKpiCards(payload)}
       <section class="detail-workbench">
         <div class="workbench-left">
@@ -1186,6 +1229,14 @@
     return true;
   }
 
+  function renderReactDetail(payload) {
+    const bridge = window.AgentLoopReactDashboard;
+    if (!bridge || typeof bridge.renderDetail !== 'function') return false;
+    currentViewType = 'detail';
+    bridge.renderDetail(payload || {});
+    return true;
+  }
+
   function rerenderOverview() {
     if (lastOverviewPayload && renderReactOverview(lastOverviewPayload)) return;
     if (lastOverviewPayload) scheduleAppHtml(renderOverview(lastOverviewPayload), 'overview', true);
@@ -1193,12 +1244,14 @@
 
   function rerenderDetail(force = true) {
     if (!lastDetailPayload) return;
-    scheduleAppHtml(renderDetail({
+    const payload = {
       ...lastDetailPayload,
       activeTab: activeDetailTab,
       activeEventFilter,
       eventSearchQuery,
-    }), 'detail', force);
+    };
+    if (renderReactDetail(payload)) return;
+    scheduleAppHtml(renderDetail(payload), 'detail', force);
   }
 
   function rememberStableAgentTail(payload) {
@@ -1304,12 +1357,14 @@
         lastDetailIdentity = identity;
       }
       lastDetailPayload = rememberStableAgentTail(detailPayload);
-      scheduleAppHtml(renderDetail({
+      const payload = {
         ...lastDetailPayload,
         activeTab: activeDetailTab,
         activeEventFilter,
         eventSearchQuery,
-      }), 'detail', false);
+      };
+      if (renderReactDetail(payload)) return;
+      scheduleAppHtml(renderDetail(payload), 'detail', false);
     }
   });
 

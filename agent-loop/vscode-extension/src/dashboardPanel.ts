@@ -152,6 +152,8 @@ export class DashboardPanel {
         agentText,
         agentLogKb: snapshot.agentLogBytes ? Math.max(1, Math.round(snapshot.agentLogBytes / 1024)) : 0,
         roleText: `${snapshot.fixAgent}修${snapshot.reviewAgent ? ` + ${snapshot.reviewAgent}审` : ''}`,
+        fixAgent: snapshot.fixAgent,
+        reviewAgent: snapshot.reviewAgent,
         runMode: snapshot.runMode,
         pipelineSteps: snapshot.pipelineSteps,
         agentTail: snapshot.agentTail,
