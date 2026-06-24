@@ -206,6 +206,8 @@ class DashboardPanel {
     }
     getHtml(extensionUri) {
         const styleUri = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'dashboard.css'));
+        const bundleStyleUri = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'dashboard.bundle.css'));
+        const bundleScriptUri = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'dashboard.bundle.js'));
         const scriptUri = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'dashboard.js'));
         const brandUri = this.panel.webview.asWebviewUri(vscode.Uri.joinPath(extensionUri, 'media', 'sliderule-brand.svg'));
         const nonce = String(Date.now());
@@ -213,14 +215,16 @@ class DashboardPanel {
 <html lang="zh-CN">
 <head>
   <meta charset="UTF-8" />
-  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${this.panel.webview.cspSource} data:; style-src ${this.panel.webview.cspSource}; script-src 'nonce-${nonce}';" />
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; img-src ${this.panel.webview.cspSource} data:; style-src ${this.panel.webview.cspSource} 'nonce-${nonce}'; script-src 'nonce-${nonce}';" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <link rel="stylesheet" href="${styleUri}">
+  <link rel="stylesheet" href="${bundleStyleUri}">
   <title>AgentLoop</title>
 </head>
 <body>
   <div id="app"></div>
-  <script nonce="${nonce}">window.__AGENT_LOOP_ASSETS__ = { brandLogo: ${JSON.stringify(String(brandUri))} };</script>
+  <script nonce="${nonce}">window.__AGENT_LOOP_ASSETS__ = { brandLogo: ${JSON.stringify(String(brandUri))} }; window.__AGENT_LOOP_CSP_NONCE__ = ${JSON.stringify(nonce)};</script>
+  <script nonce="${nonce}" src="${bundleScriptUri}"></script>
   <script nonce="${nonce}" src="${scriptUri}"></script>
   <!-- Theme sync for robust --vscode-* variable bridging.
        VS Code updates body classes on theme change, so main CSS rules (body.vscode-*) react automatically.

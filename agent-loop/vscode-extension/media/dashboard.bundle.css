@@ -1,0 +1,78 @@
+.native-dashboard {
+  background: #f5f5f5;
+  color: rgba(0, 0, 0, 0.88);
+  min-height: 100vh;
+}
+
+.native-sidebar {
+  border-right: 1px solid #f0f0f0;
+  height: 100vh;
+  overflow: auto;
+  padding: 16px 0;
+}
+
+.native-brand {
+  align-items: center;
+  display: flex;
+  height: 72px;
+  justify-content: center;
+  padding: 0 16px 16px;
+  width: 100%;
+}
+
+.native-brand-mark {
+  align-items: center;
+  display: inline-flex;
+  height: 48px;
+  justify-content: center;
+  width: 100%;
+}
+
+.native-brand-mark img {
+  display: block;
+  max-height: 48px;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+.native-main {
+  min-width: 0;
+}
+
+.native-header {
+  align-items: center;
+  background: #fff;
+  border-bottom: 1px solid #f0f0f0;
+  display: flex;
+  height: 56px;
+  padding: 0 24px;
+}
+
+.native-content {
+  height: calc(100vh - 56px);
+  overflow: auto;
+  padding: 24px;
+}
+
+.native-stack,
+.native-side {
+  width: 100%;
+}
+
+.native-task-path {
+  max-width: 560px;
+}
+
+.native-dashboard h3 {
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .native-sidebar {
+    display: none;
+  }
+
+  .native-content {
+    padding: 16px;
+  }
+}

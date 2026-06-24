@@ -122,13 +122,23 @@
   },
   "scripts": {
     "compile": "tsc -p .",
+    "build:dashboard": "vite build --config vite.dashboard.config.ts",
     "watch": "tsc -watch -p .",
     "test": "node --test ../test/vscode-extension.test.js",
-    "package": "npm run compile && npx @vscode/vsce package --no-dependencies --no-rewrite-relative-links"
+    "package": "npm run compile && npm run build:dashboard && npx @vscode/vsce package --no-dependencies --no-rewrite-relative-links"
+  },
+  "dependencies": {
+    "antd": "^5.29.3",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1"
   },
   "devDependencies": {
+    "@types/react": "^19.2.1",
+    "@types/react-dom": "^19.2.1",
     "@types/node": "^20.11.0",
     "@types/vscode": "^1.85.0",
-    "typescript": "^5.4.0"
+    "@vitejs/plugin-react": "^5.0.4",
+    "typescript": "^5.4.0",
+    "vite": "^7.1.7"
   }
 }

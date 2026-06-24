@@ -29,6 +29,7 @@
 
   let lastOverviewPayload = null;
   let activeFilter = 'queue';
+  let queuePage = 1;
   let activeDetailTab = 'review';
   let activeEventFilter = 'all';
   let eventSearchQuery = '';
@@ -36,6 +37,7 @@
   let lastDetailIdentity = null;
   let lastNonEmptyAgentTail = '';
   let lastNonEmptyAgentLogKb = 0;
+  const QUEUE_PAGE_SIZE = 12;
   const ASSETS = window.__AGENT_LOOP_ASSETS__ || {};
 
   const HALT_GUIDANCE = {
@@ -76,6 +78,81 @@
     return `<span class="brand-mark" aria-label="SlideRule" role="img">
       <img src="${esc(brandLogo)}" alt="" loading="eager" />
     </span>`;
+  }
+
+  function renderProductSidebar(active) {
+    const nav = [
+      ['queue', 'Queue', '任务队列'],
+      ['run', 'Run', '当前运行'],
+      ['runs', 'Runs', '历史运行'],
+      ['artifacts', 'Artifacts', '产物'],
+      ['settings', 'Settings', '配置'],
+    ];
+    const items = nav.map(([key, label, title]) => {
+      const cls = `product-nav-item${active === key ? ' active' : ''}`;
+      const action = key === 'queue' ? ' data-act="showOverview"' : '';
+      return `<button class="${cls}"${action} title="${esc(title)}"><span>${esc(label)}</span></button>`;
+    }).join('');
+    return `<aside class="product-sidebar">
+      <div class="product-brand">
+        ${renderBrandMark()}
+        <div class="product-brand-copy">
+          <b>AgentLoop</b>
+          <span>Dashboard</span>
+        </div>
+      </div>
+      <div class="product-nav-section">
+        <div class="product-nav-label">智能体平台</div>
+        <nav class="product-nav">${items}</nav>
+      </div>
+      <div class="product-nav-section product-nav-bottom">
+        <div class="product-nav-label">运行配置</div>
+        <div class="product-mini-row">Grok worker</div>
+        <div class="product-mini-row">Codex review</div>
+      </div>
+    </aside>`;
+  }
+
+  function renderPageStatusBadge(label, tone = '') {
+    if (!label) return '';
+    return `<span class="page-status-badge ${esc(tone)}">${esc(label)}</span>`;
+  }
+
+  function renderProductTopbar(crumbs, statusLabel, statusTone, actions = '') {
+    const trail = (crumbs || []).map((crumb) => `<span>${esc(crumb)}</span>`).join('');
+    return `<header class="product-topbar">
+      <div class="product-crumbs">${trail}</div>
+      <div class="product-topbar-actions">
+        ${renderPageStatusBadge(statusLabel, statusTone)}
+        ${actions}
+      </div>
+    </header>`;
+  }
+
+  function renderProductPageHeader(title, subtitle, queueRunning, statusLabel, statusTone) {
+    return `<div class="console-head console-top product-page-header">
+      <div class="header-brand">
+        ${renderBrandMark()}
+        <div class="title-stack">
+          <h1>${esc(title)}</h1>
+          <div class="muted">${esc(subtitle || '')}</div>
+        </div>
+      </div>
+      <div class="product-header-actions">
+        ${renderPageStatusBadge(statusLabel, statusTone)}
+        ${renderToolbar(queueRunning)}
+      </div>
+    </div>`;
+  }
+
+  function renderProductShell(active, crumbs, statusLabel, statusTone, body, actions = '') {
+    return `<main class="dashboard product-shell ${active === 'queue' ? 'console-overview' : 'run-detail detail-shell'}">
+      ${renderProductSidebar(active)}
+      <section class="product-main">
+        ${renderProductTopbar(crumbs, statusLabel, statusTone, actions)}
+        <div class="product-page">${body}</div>
+      </section>
+    </main>`;
   }
 
   function renderConsoleHeader(title, subtitle, queueRunning, back) {
@@ -220,11 +297,11 @@
     const reEnable = task.autoDisabled
       ? `<button class="row-action" data-act="reEnable" data-id="${esc(task.id || task.task)}" title="清除自动禁用，下次队列重试">重开</button>`
       : '';
-    return `<div class="queue-row${active}${disabled}" data-task="${esc(task.task)}" data-state="${esc(badge || 'pending')}">
-      <span class="status-pill ${meta.cls}">${meta.icon}</span>
+    return `<div class="queue-row ant-table-row${active}${disabled}" data-task="${esc(task.task)}" data-state="${esc(badge || 'pending')}">
+      <span class="status-pill ant-tag ${meta.cls}">${meta.icon}</span>
       <span class="task-name"><b>${esc(task.taskLabel || task.task)}</b><small>${esc(status)}${extra}</small></span>
-      <span class="task-agent">${esc(taskAgentLabel(task))}</span>
-      <span class="task-diff">${esc(taskDiffLabel(task))}</span>
+      <span class="task-agent ant-tag">${esc(taskAgentLabel(task))}</span>
+      <span class="task-diff ant-badge">${esc(taskDiffLabel(task))}</span>
       <span class="task-updated">${esc(taskUpdatedLabel(task))}</span>
       <span class="task-actions"><button class="row-open" data-act="openTask" data-task="${esc(task.task)}">打开</button>${reEnable}<button class="row-more" aria-label="更多">···</button></span>
     </div>`;
@@ -257,13 +334,36 @@
     return renderTaskTable(tasks, '队列为空，请检查 migration-queue.json。');
   }
 
+  function clampQueuePage(total) {
+    const pageCount = Math.max(1, Math.ceil((Number(total) || 0) / QUEUE_PAGE_SIZE));
+    queuePage = Math.min(Math.max(1, Number(queuePage) || 1), pageCount);
+    return pageCount;
+  }
+
+  function renderPagination(total, start, end, pageCount) {
+    if (!total || pageCount <= 1) return '';
+    const pages = Array.from({ length: pageCount }, (_, index) => {
+      const page = index + 1;
+      return `<button data-page="${page}" class="pagination-btn${page === queuePage ? ' active' : ''}" type="button" aria-current="${page === queuePage ? 'page' : 'false'}">${page}</button>`;
+    }).join('');
+    return `<div class="ant-pagination queue-pagination">
+      <span class="pagination-total">${start + 1}-${end} / ${total}</span>
+      <div class="pagination-pages">${pages}</div>
+    </div>`;
+  }
+
   function renderTaskTable(tasks, emptyText, title) {
-    const rows = (tasks || []).map(renderTaskRow).join('');
-    const heading = title ? `<div class="panel-head"><h2>${esc(title)}</h2><span class="muted">${tasks.length} 项</span></div>` : '';
-    return `<section class="panel queue-table task-table">
+    const allTasks = tasks || [];
+    const pageCount = clampQueuePage(allTasks.length);
+    const start = allTasks.length ? (queuePage - 1) * QUEUE_PAGE_SIZE : 0;
+    const end = Math.min(start + QUEUE_PAGE_SIZE, allTasks.length);
+    const rows = allTasks.slice(start, end).map(renderTaskRow).join('');
+    const heading = title ? `<div class="panel-head"><h2>${esc(title)}</h2><span class="muted">${allTasks.length} 项</span></div>` : '';
+    return `<section class="panel queue-table task-table ant-table">
       ${heading}
       <div class="queue-head"><span>状态</span><span>任务名</span><span>Agent</span><span>变更</span><span>最后更新</span><span>操作</span></div>
       <div class="queue-body">${rows || `<div class="empty">${esc(emptyText)}</div>`}</div>
+      ${renderPagination(allTasks.length, start, end, pageCount)}
     </section>`;
   }
 
@@ -362,10 +462,38 @@
       || groups.attention.length;
     const disabled = countValue(counts, 'disabled') || groups.disabled.length;
     const pct = total ? Math.round((settled / total) * 100) : 0;
-    return `<section class="queue-summary">
+    return `<section class="queue-summary ant-descriptions">
       <div class="queue-summary-title">任务队列 ${queueTotal} · 全部 ${total} · 需关注 ${attention} · 已落地 ${landed} · 已禁用 ${disabled}</div>
+      <dl class="queue-description-list">
+        <div class="ant-descriptions-item"><dt>任务队列</dt><dd>${esc(queueTotal)}</dd></div>
+        <div class="ant-descriptions-item"><dt>全部任务</dt><dd>${esc(total)}</dd></div>
+        <div class="ant-descriptions-item"><dt>需关注</dt><dd>${esc(attention)}</dd></div>
+        <div class="ant-descriptions-item"><dt>已落地</dt><dd>${esc(landed)}</dd></div>
+        <div class="ant-descriptions-item"><dt>已禁用</dt><dd>${esc(disabled)}</dd></div>
+      </dl>
       <div class="queue-progress">
         <span>已运行 ${settled}/${total}</span>
+        <div class="progress mini"><div class="bar" style="width:${pct}%"></div></div>
+      </div>
+    </section>`;
+  }
+
+  function renderOverviewSidePanel(counts, queueTotal, settled, total) {
+    const pct = total ? Math.round((settled / total) * 100) : 0;
+    const stats = [
+      ['全部任务', counts.total || 0],
+      ['正在运行', countValue(counts, 'running')],
+      ['待执行', countValue(counts, 'pending')],
+      ['已禁用', countValue(counts, 'disabled')],
+    ];
+    const rows = stats.map(([label, value]) =>
+      `<div class="ant-statistic"><span>${esc(label)}</span><b>${esc(value)}</b></div>`,
+    ).join('');
+    return `<section class="panel product-side-panel ant-statistic-card">
+      <div class="panel-head"><h2>队列概览</h2><span class="muted">${queueTotal}</span></div>
+      <div class="product-side-list ant-statistic-list">${rows}</div>
+      <div class="side-progress ant-progress">
+        <div class="progress-meta"><span>已有结果</span><b>${esc(settled)}/${esc(total)}</b></div>
         <div class="progress mini"><div class="bar" style="width:${pct}%"></div></div>
       </div>
     </section>`;
@@ -377,15 +505,26 @@
     const groups = groupTasks(tasks);
     const queued = queueTasks(tasks);
     const queueTotal = Number.isFinite(Number(counts.queueTotal)) ? Number(counts.queueTotal) : queued.length;
-    return `<main class="dashboard console-overview">
-      ${renderConsoleHeader('AgentLoop 控制台', `${queueTotal} 个队列任务 / ${counts.total || 0} 个全部任务`, payload.queueRunning, false)}
+    const total = countValue(counts, 'total') || groupTotal(groups);
+    const settled = settledCount(counts);
+    const statusLabel = payload.queueRunning ? '运行中' : '待命';
+    const statusTone = payload.queueRunning ? 'run' : 'idle';
+    const content = `
+      ${renderProductPageHeader('AgentLoop 控制台', `${queueTotal} 个队列任务 / ${counts.total || 0} 个全部任务`, payload.queueRunning, statusLabel, statusTone)}
       ${renderAttentionBanner(groups)}
       ${renderLanding(payload.landing)}
-      ${renderQueueToolbar(groups, tasks, queued, counts)}
-      ${renderQueueSummary(groups, counts, queueTotal)}
-      ${renderCurrentRunBanner(payload.current)}
-      ${renderTaskList(groups, tasks)}
-    </main>`;
+      <section class="queue-product-grid">
+        <div class="queue-product-main">
+          ${renderQueueToolbar(groups, tasks, queued, counts)}
+          ${renderQueueSummary(groups, counts, queueTotal)}
+          ${renderTaskList(groups, tasks)}
+        </div>
+        <aside class="queue-product-aside">
+          ${renderCurrentRunBanner(payload.current)}
+          ${renderOverviewSidePanel(counts, queueTotal, settled, total)}
+        </aside>
+      </section>`;
+    return renderProductShell('queue', ['AgentLoop', 'Queue'], statusLabel, statusTone, content);
   }
 
   function resolveActiveIndex(status, steps) {
@@ -437,7 +576,7 @@
         <span class="stage-label">${esc(step.label)}</span>
       </div>`;
     }).join('');
-    return `<section class="detail-stage-rail">${items}</section>`;
+    return `<section class="detail-stage-rail"><div class="ant-steps">${items}</div></section>`;
   }
 
   function gateClass(ok) {
@@ -525,7 +664,7 @@
     const repo = payload.repo || 'github.com/acme/backend-python';
     const commit = payload.landing?.commit || payload.commit || '-';
     const started = payload.startedAt || payload.runId || '等待运行';
-    return `<section class="detail-hero v2">
+    return `<section class="detail-hero v2 ant-page-header">
       <div class="detail-hero-brand">
         ${renderBrandMark()}
         <button class="btn ghost detail-back" data-act="showOverview" title="返回队列"><span class="btn-icon">←</span><span>队列</span></button>
@@ -541,19 +680,47 @@
     </section>`;
   }
 
+  function renderRunPropertyGrid(payload) {
+    const landing = payload.landing || {};
+    const props = [
+      ['智能体', payload.agentText || payload.roleText || '-'],
+      ['环境', payload.repo || 'github.com/acme/backend-python'],
+      ['调度配置', payload.gateText || '-'],
+      ['时区', 'Asia/Shanghai'],
+      ['开始时间', payload.startedAt || payload.runId || '-'],
+      ['最大执行轮次', payload.workerMaxTurns || payload.grokMaxTurns || '128'],
+      ['失败次数', payload.failureCount ?? '0'],
+      ['落地状态', landing.status || 'PENDING_APPLY'],
+    ];
+    const cells = props.map(([label, value]) => `<div class="run-property">
+      <span>${esc(label)}</span>
+      <b>${esc(value)}</b>
+    </div>`).join('');
+    return `<section class="run-property-grid ant-descriptions">${cells}</section>`;
+  }
+
+  function renderRunMessageBox(payload) {
+    const details = (payload.details || []).join(' · ') || payload.phaseLabel || payload.status || '-';
+    return `<section class="run-message-box">
+      <div class="section-label">消息内容</div>
+      <div class="message-surface">${esc(details)}</div>
+    </section>`;
+  }
+
   function renderEvidence(payload) {
     const landing = payload.landing || {};
-    const details = (payload.details || []).map((line) => `<li>${esc(line)}</li>`).join('');
-    const commit = landing.commit ? `<li>commit: <code>${esc(landing.commit)}</code></li>` : '';
-    return `<section class="panel evidence">
+    const cells = [
+      ['runId', `<code>${esc(payload.runId || '-')}</code>`],
+      ['gate', esc(payload.gateText || '-')],
+      ['landing', esc(landing.status || 'PENDING_APPLY')],
+      landing.commit ? ['commit', `<code>${esc(landing.commit)}</code>`] : null,
+      ...(payload.details || []).map((line, index) => [`detail ${index + 1}`, esc(line)]),
+    ].filter(Boolean).map(([label, value]) =>
+      `<div class="ant-descriptions-item evidence-item"><dt>${esc(label)}</dt><dd>${value}</dd></div>`,
+    ).join('');
+    return `<section class="panel evidence ant-descriptions">
       <div class="panel-head"><h2>证据</h2><span class="muted">${esc(payload.runMode || '-')}</span></div>
-      <ul class="evidence-list">
-        <li>runId: <code>${esc(payload.runId || '-')}</code></li>
-        <li>gate: ${esc(payload.gateText || '-')}</li>
-        <li>landing: ${esc(landing.status || 'PENDING_APPLY')}</li>
-        ${commit}
-        ${details}
-      </ul>
+      <dl class="evidence-list">${cells}</dl>
     </section>`;
   }
 
@@ -574,9 +741,9 @@
         : '<span class="tag warn">Gate 未跑</span>';
       const kb = it.diffBytes ? `${Math.max(1, Math.round(it.diffBytes / 1024))}KB` : '0';
       const guard = it.guard ? '<span class="tag err">护栏命中</span>' : '';
-      return `<div class="evidence-row"><span class="idx">#${esc(it.iteration)}</span>${gate}<span class="tag">diff ${kb}</span><span class="tag">尝试 ${esc(it.attempts || 0)}</span>${guard}</div>`;
+      return `<div class="evidence-row timeline-item"><span class="idx">#${esc(it.iteration)}</span>${gate}<span class="tag">diff ${kb}</span><span class="tag">尝试 ${esc(it.attempts || 0)}</span>${guard}</div>`;
     }).join('');
-    return `<section class="panel iterations"><div class="panel-head"><h2>修复迭代</h2></div>${rows || '<div class="empty">没有修复迭代。</div>'}</section>`;
+    return `<section class="panel iterations ant-timeline"><div class="panel-head"><h2>修复迭代</h2></div>${rows || '<div class="empty">没有修复迭代。</div>'}</section>`;
   }
 
   function verdictClass(decision, verdict) {
@@ -660,7 +827,7 @@
       payload.statePath ? ['openState', payload.statePath, 'state.json'] : null,
     ].filter(Boolean);
     const buttons = links.map(([act, file, label]) =>
-      `<button class="artifact-row" data-act="${act}" data-path="${esc(file)}"><span>${esc(label)}</span><code>${esc(file)}</code></button>`,
+      `<button class="artifact-row ant-descriptions-item" data-act="${act}" data-path="${esc(file)}"><span>${esc(label)}</span><code>${esc(file)}</code></button>`,
     ).join('');
     return `<section class="${paneClass('workbench-pane artifacts-pane', activeTab, 'artifacts')}" data-pane="artifacts">
       <div class="pane-head"><h2>Artifacts</h2><span class="muted">${links.length}</span></div>
@@ -670,7 +837,7 @@
 
   function renderDetailTabs(payload) {
     const activeTab = normalizeDetailTab(payload.activeTab);
-    return `<section class="panel detail-tabs">
+    return `<section class="panel detail-tabs ant-tabs">
       <div class="workbench-tabs" role="tablist">
         <button class="${tabButtonClass(activeTab, 'review')}" data-tab="review">Review</button>
         <button class="${tabButtonClass(activeTab, 'diff')}" data-tab="diff">Diff</button>
@@ -836,7 +1003,7 @@
       </div>`;
     }).join('');
     const chipClass = (filter, extra = '') => `chip${extra ? ` ${extra}` : ''}${active === filter ? ' active' : ''}`;
-    return `<section class="panel event-workbench">
+    return `<section class="panel event-workbench execution-history ant-timeline">
       <div class="event-toolbar">
         <input class="event-search" data-event-search data-focus-key="event-search" type="search" value="${esc(query)}" placeholder="搜索事件..." aria-label="搜索事件" />
         <button class="${chipClass('all')}" data-event-filter="all">All</button>
@@ -849,10 +1016,15 @@
   }
 
   function renderDetail(payload) {
-    return `<main class="dashboard run-detail detail-shell">
+    const task = payload.taskLabel || '-';
+    const statusLabel = payload.phaseLabel || payload.status || '等待运行';
+    const statusTone = payload.gateOk === false ? 'err' : (payload.status === 'GROK_FIX' || payload.status === 'CODEX_FIX' ? 'run' : 'ok');
+    const content = `
       ${renderDetailHeader(payload)}
-      ${renderDetailStageRail(payload.status, payload.pipelineSteps)}
+      ${renderRunPropertyGrid(payload)}
+      ${renderRunMessageBox(payload)}
       ${renderHalt(payload)}
+      ${renderDetailStageRail(payload.status, payload.pipelineSteps)}
       ${renderRunKpiCards(payload)}
       <section class="detail-workbench">
         <div class="workbench-left">
@@ -868,7 +1040,8 @@
         </div>
       </section>
       ${renderGatePanel(payload)}
-    </main>`;
+    `;
+    return renderProductShell('run', ['AgentLoop', 'Runs', task], statusLabel, statusTone, content, renderDetailActionButtons(payload));
   }
 
   function captureScrollPositions(root, doc) {
@@ -975,12 +1148,19 @@
     return { markUserScroll, schedule, flushPending };
   }
 
-  const renderer = { renderOverview, renderDetail };
+  const renderer = {
+    renderOverview,
+    renderDetail,
+    setQueuePage(page) {
+      queuePage = Math.max(1, Number(page) || 1);
+    },
+  };
   window.AgentLoopDashboardRenderer = renderer;
   window.AgentLoopDashboardInternals = { captureScrollPositions, restoreScrollPositions, createRenderScheduler, filterEvents, normalizeEventFilter };
 
   const app = typeof document !== 'undefined' ? document.getElementById('app') : null;
   const vscode = typeof acquireVsCodeApi === 'function' ? acquireVsCodeApi() : { postMessage: () => {} };
+  window.__AGENT_LOOP_VSCODE_API__ = vscode;
   if (!app) return;
 
   function setAppHtml(html) {
@@ -998,7 +1178,16 @@
     renderScheduler.schedule(html, { force: Boolean(force || changedView) });
   }
 
+  function renderReactOverview(payload) {
+    const bridge = window.AgentLoopReactDashboard;
+    if (!bridge || typeof bridge.renderOverview !== 'function') return false;
+    currentViewType = 'overview';
+    bridge.renderOverview(payload || {});
+    return true;
+  }
+
   function rerenderOverview() {
+    if (lastOverviewPayload && renderReactOverview(lastOverviewPayload)) return;
     if (lastOverviewPayload) scheduleAppHtml(renderOverview(lastOverviewPayload), 'overview', true);
   }
 
@@ -1057,10 +1246,17 @@
       rerenderDetail();
       return;
     }
+    const pageEl = event.target.closest('[data-page]');
+    if (pageEl) {
+      queuePage = Math.max(1, Number(pageEl.getAttribute('data-page')) || 1);
+      rerenderOverview();
+      return;
+    }
     const filterEl = event.target.closest('[data-filter]');
     if (filterEl) {
       const next = filterEl.getAttribute('data-filter');
       activeFilter = (activeFilter === next && next !== 'queue') ? 'queue' : next;
+      queuePage = 1;
       rerenderOverview();
       return;
     }
@@ -1093,6 +1289,7 @@
     const message = event.data;
     if (message?.type === 'overview') {
       lastOverviewPayload = message.payload || {};
+      if (renderReactOverview(lastOverviewPayload)) return;
       scheduleAppHtml(renderOverview(lastOverviewPayload), 'overview', false);
     } else if (message?.type === 'detail') {
       lastOverviewPayload = null;

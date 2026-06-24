@@ -916,6 +916,47 @@ test('dashboard detail renders the v2 operations workbench layout', async () => 
   assert.match(html, /state\.json/);
 });
 
+test('dashboard detail renders a product-style v3 run page', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderDetail({
+    taskLabel: 'backend-python-blueprint-job-store-runtime-takeover-104',
+    runId: '2026-06-23T16-00-00-000Z',
+    status: 'GROK_FIX',
+    phaseLabel: 'Grok 修复中',
+    elapsedText: '12 分 03 秒',
+    gateText: '基线 Gate 红 (1)',
+    gateOk: false,
+    agentText: 'Grok',
+    repo: 'cube-pets-office',
+    commit: 'e7a3543d',
+    pipelineSteps: [{ key: 'INIT', label: '初始化' }, { key: 'GROK_FIX', label: 'Grok' }],
+    details: ['轮次 1', 'worktree: migration-queue'],
+    iterations: [],
+    reviewRounds: [],
+    agentTail: 'working...',
+    events: [
+      { status: 'INIT', label: '初始化', timeText: '16:00:00', iteration: null },
+      { status: 'GROK_FIX', label: 'Grok 修复中', timeText: '16:00:05', iteration: 1 },
+    ],
+    landing: { status: 'PENDING_APPLY' },
+  });
+
+  assert.match(html, /class="[^"]*\bproduct-shell\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bproduct-sidebar\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bproduct-topbar\b[^"]*"/);
+  assert.match(html, /AgentLoop[\s\S]*Runs[\s\S]*backend-python-blueprint-job-store-runtime-takeover-104/);
+  assert.match(html, /class="[^"]*\bpage-status-badge\b[^"]*[\s\S]*Grok 修复中/);
+  assert.match(html, /class="[^"]*\brun-property-grid\b[^"]*"/);
+  assert.match(html, /智能体[\s\S]*Grok/);
+  assert.match(html, /环境[\s\S]*cube-pets-office/);
+  assert.match(html, /调度配置[\s\S]*基线 Gate 红/);
+  assert.match(html, /class="[^"]*\bexecution-history\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bant-page-header\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bant-descriptions\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bant-steps\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bant-timeline\b[^"]*"/);
+});
+
 test('dashboard detail v2 uses fluid width and compact spacing', async () => {
   const css = await fs.readFile(path.join(extensionRoot, 'media', 'dashboard.css'), 'utf8');
   const detailRule = css.match(/\.run-detail\.detail-shell\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
@@ -1137,6 +1178,85 @@ test('dashboard panel exposes a Webview-safe SlideRule brand logo URI', async ()
   assert.match(source, /img-src \$\{this\.panel\.webview\.cspSource\} data:/);
 });
 
+test('dashboard panel loads the local React dashboard bundle with CSP nonce support', async () => {
+  const source = await fs.readFile(path.join(extensionRoot, 'src', 'dashboardPanel.ts'), 'utf8');
+
+  assert.match(source, /dashboard\.bundle\.css/);
+  assert.match(source, /dashboard\.bundle\.js/);
+  assert.match(source, /style-src \$\{this\.panel\.webview\.cspSource\} 'nonce-\$\{nonce\}'/);
+  assert.match(source, /window\.__AGENT_LOOP_CSP_NONCE__/);
+  assert.match(source, /src="\$\{bundleScriptUri\}"/);
+});
+
+test('extension package builds the dashboard React bundle locally', async () => {
+  const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
+
+  assert.match(packageJson.scripts['build:dashboard'] ?? '', /vite/);
+  assert.match(packageJson.scripts.package ?? '', /build:dashboard/);
+  for (const dependency of ['antd', 'react', 'react-dom']) {
+    assert.ok(packageJson.dependencies?.[dependency], `${dependency} dependency is declared`);
+  }
+  for (const dependency of ['@vitejs/plugin-react', 'vite']) {
+    assert.ok(packageJson.devDependencies?.[dependency], `${dependency} devDependency is declared`);
+  }
+});
+
+test('React dashboard keeps Ant Design components native and minimally configured', async () => {
+  const source = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8',
+  );
+  const css = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'dashboard-react.css'),
+    'utf8',
+  );
+
+  assert.match(source, /prefixCls="agent-ant"/);
+  assert.doesNotMatch(source, /document\.body\.classList/);
+  assert.doesNotMatch(source, /theme\./);
+  assert.doesNotMatch(source, /colorBg|colorText|colorBorder|colorPrimary/);
+  assert.doesNotMatch(source, /Pagination/);
+  assert.doesNotMatch(source, /visibleTasks\s*=\s*tasks\.slice/);
+  assert.doesNotMatch(source, /rowClassName|locale=\{/);
+  assert.doesNotMatch(source, /className="[^"]*\bant-/);
+  assert.doesNotMatch(css, /\.agent-ant-|\.ant-|--vscode-|--al-/);
+});
+
+test('React dashboard keeps the sidebar to one workbench item and moves task filters into table tabs', async () => {
+  const source = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8',
+  );
+  const css = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'dashboard-react.css'),
+    'utf8',
+  );
+
+  assert.match(source, /Tabs/);
+  assert.match(source, /label:\s*'工作台'/);
+  assert.match(source, /selectedKeys=\{\['workbench'\]\}/);
+  assert.match(source, /activeKey=\{filter\}/);
+  assert.match(source, /items=\{tabItems\}/);
+  assert.match(source, /title="任务列表"/);
+  assert.doesNotMatch(source, /<Text strong>AgentLoop<\/Text>/);
+  assert.doesNotMatch(source, /<Text type="secondary">Dashboard<\/Text>/);
+  assert.doesNotMatch(source, /DashboardSidebar\(\{[\s\S]*filter/);
+  assert.match(css, /\.native-brand\s*\{(?<body>[^}]+height:\s*72px[^}]+justify-content:\s*center[^}]+)\}/);
+  assert.match(css, /\.native-brand-mark\s*\{(?<body>[^}]+width:\s*100%[^}]+)\}/);
+});
+
+test('React dashboard uses six table rows per page and keeps the logo only in the sidebar brand area', async () => {
+  const source = await fs.readFile(
+    path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
+    'utf8',
+  );
+
+  assert.match(source, /const PAGE_SIZE = 6;/);
+  assert.match(source, /pagination=\{\{ pageSize: PAGE_SIZE \}\}/);
+  assert.match(source, /<div className="native-brand">\s*<BrandMark \/>\s*<\/div>/);
+  assert.doesNotMatch(source, /<Space align="center">\s*<BrandMark \/>[\s\S]*<Title level=\{3\}>AgentLoop 控制台<\/Title>/);
+});
+
 test('extension package contributes clean Chinese labels', async () => {
   const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
 
@@ -1211,6 +1331,8 @@ test('VSIX contents are self-contained for run summary', async () => {
   assert.match(listing, /extension\/out\/gateSummary\.js/);
   assert.match(listing, /extension\/media\/dashboard\.js/);
   assert.match(listing, /extension\/media\/dashboard\.css/);
+  assert.match(listing, /extension\/media\/dashboard\.bundle\.js/);
+  assert.match(listing, /extension\/media\/dashboard\.bundle\.css/);
   assert.match(listing, /extension\/media\/icon\.svg/);
   assert.match(listing, /extension\/media\/sliderule-icon\.png/);
   assert.match(listing, /extension\/media\/sliderule-brand\.png/);
@@ -1326,6 +1448,246 @@ test('dashboard overview renders the console v2 queue workbench layout', async (
   assert.match(html, /backend-python-auth-permission-audit-runtime-90/);
   assert.match(html, /完成（已 review）/);
   assert.match(html, /打开/);
+});
+
+test('dashboard media delegates overview rendering to the React bridge when available', async () => {
+  const calls = [];
+  const app = fakeAppRoot();
+  const win = await loadDashboardWindow({
+    document: { getElementById: () => app },
+  });
+  win.AgentLoopReactDashboard = {
+    renderOverview(payload) {
+      calls.push(payload);
+      app.innerHTML = '<main class="react-dashboard">React overview</main>';
+    },
+  };
+
+  win.__dispatchMessage({
+    type: 'overview',
+    payload: {
+      counts: { total: 1, queueTotal: 1 },
+      queueRunning: false,
+      tasks: [{ task: 'agent-loop/tasks/react.md', taskLabel: 'react', badge: 'pending', enabled: true }],
+    },
+  });
+
+  assert.equal(calls.length, 1);
+  assert.equal(calls[0].tasks[0].taskLabel, 'react');
+  assert.match(app.innerHTML, /react-dashboard/);
+});
+
+test('dashboard media exposes the acquired VS Code API for the React bridge', async () => {
+  const source = await fs.readFile(path.join(extensionRoot, 'media', 'dashboard.js'), 'utf8');
+  const bridge = await fs.readFile(path.join(extensionRoot, 'src', 'dashboard-react', 'vscodeBridge.ts'), 'utf8');
+
+  assert.match(source, /window\.__AGENT_LOOP_VSCODE_API__\s*=\s*vscode/);
+  assert.match(bridge, /window\.__AGENT_LOOP_VSCODE_API__/);
+});
+
+test('dashboard overview renders a product-style v3 shell', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderOverview({
+    counts: { total: 44, queueTotal: 19, running: 1, pending: 18, disabled: 25 },
+    queueRunning: true,
+    current: {
+      taskLabel: 'backend-python-blueprint-job-store-runtime-takeover-104',
+      phaseLabel: 'Grok 修复中',
+      elapsedText: '12 分 03 秒',
+      runId: '2026-06-23T16-00-00-000Z',
+    },
+    tasks: [
+      ...Array.from({ length: 19 }, (_, index) => ({
+        task: `agent-loop/tasks/backend-python-task-${index + 1}.md`,
+        taskLabel: `backend-python-task-${index + 1}`,
+        badge: index === 0 ? 'running' : 'pending',
+        statusLabel: index === 0 ? '运行中' : '待跑',
+        enabled: true,
+        running: index === 0,
+        category: index === 0 ? 'running' : 'pending',
+      })),
+    ],
+  });
+
+  assert.match(html, /class="[^"]*\bproduct-shell\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bproduct-sidebar\b[^"]*"/);
+  assert.match(html, /AgentLoop/);
+  assert.match(html, /Queue/);
+  assert.match(html, /Runs/);
+  assert.match(html, /class="[^"]*\bproduct-main\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bproduct-topbar\b[^"]*"/);
+  assert.match(html, /AgentLoop[\s\S]*Queue/);
+  assert.match(html, /class="[^"]*\bpage-status-badge\b[^"]*[\s\S]*运行中/);
+  assert.match(html, /class="[^"]*\bqueue-product-grid\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bant-descriptions\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bant-table\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bant-pagination\b[^"]*"/);
+  assert.match(html, /1-12 \/ 19/);
+  assert.match(html, /backend-python-task-12/);
+  assert.doesNotMatch(html, /backend-python-task-13/);
+});
+
+test('dashboard overview pagination state renders a later page', async () => {
+  const renderer = await loadDashboardRenderer();
+  renderer.setQueuePage(2);
+  const html = renderer.renderOverview({
+    counts: { total: 19, queueTotal: 19, running: 0, pending: 19, disabled: 0 },
+    queueRunning: false,
+    current: null,
+    tasks: [
+      {
+        task: 'agent-loop/tasks/placeholder.md',
+        taskLabel: 'placeholder',
+        badge: 'pending',
+        statusLabel: '待跑',
+        enabled: false,
+        running: false,
+        category: 'disabled',
+      },
+      ...Array.from({ length: 19 }, (_, index) => ({
+        task: `agent-loop/tasks/page-task-${index + 1}.md`,
+        taskLabel: `page-task-${index + 1}`,
+        badge: 'pending',
+        statusLabel: '待跑',
+        enabled: true,
+        running: false,
+        category: 'pending',
+      })),
+    ],
+  });
+
+  assert.match(html, /13-19 \/ 19/);
+  assert.doesNotMatch(html, /page-task-12/);
+  assert.match(html, /page-task-13/);
+  assert.match(html, /page-task-19/);
+  assert.match(html, /data-page="1"/);
+  assert.match(html, /data-page="2"[^>]*class="[^"]*\bactive\b/);
+});
+
+test('dashboard overview renders table rows with Tag and Badge component semantics', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderOverview({
+    counts: { total: 2, queueTotal: 2, running: 1, pending: 1, disabled: 0 },
+    queueRunning: true,
+    current: null,
+    tasks: [
+      {
+        task: 'agent-loop/tasks/running.md',
+        taskLabel: 'running-task',
+        badge: 'running',
+        statusLabel: '运行中',
+        enabled: true,
+        running: true,
+        category: 'running',
+        agent: 'Grok',
+        diffBytes: 4096,
+        lastUpdatedText: '刚刚',
+      },
+      {
+        task: 'agent-loop/tasks/pending.md',
+        taskLabel: 'pending-task',
+        badge: 'pending',
+        statusLabel: '待跑',
+        enabled: true,
+        running: false,
+        category: 'pending',
+      },
+    ],
+  });
+
+  assert.match(html, /class="[^"]*\bqueue-row\b[^"]*\bant-table-row\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bstatus-pill\b[^"]*\bant-tag\b[^"]*"/);
+  assert.match(html, /class="[^"]*\btask-agent\b[^"]*\bant-tag\b[^"]*"/);
+  assert.match(html, /class="[^"]*\btask-diff\b[^"]*\bant-badge\b[^"]*"/);
+  assert.match(html, /running-task/);
+  assert.match(html, /4KB/);
+});
+
+test('dashboard overview side panel uses Statistic and Progress component semantics', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderOverview({
+    counts: { total: 20, queueTotal: 8, running: 2, pending: 6, disabled: 12, reviewed: 5 },
+    queueRunning: true,
+    current: null,
+    tasks: [
+      ...Array.from({ length: 8 }, (_, index) => ({
+        task: `agent-loop/tasks/stat-${index + 1}.md`,
+        taskLabel: `stat-${index + 1}`,
+        badge: index < 2 ? 'running' : 'pending',
+        statusLabel: index < 2 ? '运行中' : '待跑',
+        enabled: true,
+        running: index < 2,
+        category: index < 2 ? 'running' : 'pending',
+      })),
+    ],
+  });
+
+  assert.match(html, /class="[^"]*\bproduct-side-panel\b[^"]*\bant-statistic-card\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bproduct-side-list\b[^"]*\bant-statistic-list\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bant-statistic\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bside-progress\b[^"]*\bant-progress\b[^"]*"/);
+});
+
+test('dashboard detail evidence iterations and artifacts use component semantics', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderDetail({
+    taskLabel: 'component-detail',
+    runId: '2026-06-24T01-00-00-000Z',
+    status: 'DONE_REVIEWED',
+    phaseLabel: '完成（已 review）',
+    elapsedText: '1 分 02 秒',
+    gateText: 'Gate 绿',
+    gateOk: true,
+    agentText: 'Grok',
+    iterations: [{ iteration: 1, gateOk: true, diffBytes: 2048, attempts: 2 }],
+    reviewRounds: [{ round: 1, verdict: 'pass', decision: 'pass', summary: 'ok', findings: [] }],
+    events: [{ status: 'DONE_REVIEWED', label: '完成', timeText: '09:00:00' }],
+    agentTail: 'done',
+    reportPath: 'C:/repo/final-report.md',
+    reportJsonPath: 'C:/repo/final-report.json',
+    landingPath: 'C:/repo/landing.json',
+    statePath: 'C:/repo/state.json',
+    landing: { status: 'MAIN_GATE_GREEN', commit: 'abc123' },
+    details: ['轮次 1', 'worktree: migration-queue'],
+  });
+
+  assert.match(html, /class="[^"]*\bevidence\b[^"]*\bant-descriptions\b[^"]*"/);
+  assert.match(html, /class="[^"]*\biterations\b[^"]*\bant-timeline\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bevidence-row\b[^"]*\btimeline-item\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bdetail-tabs\b[^"]*\bant-tabs\b[^"]*"/);
+  assert.match(html, /class="[^"]*\bartifact-row\b[^"]*\bant-descriptions-item\b[^"]*"/);
+});
+
+test('dashboard product shell constrains overflow to content regions instead of page chrome', async () => {
+  const css = await fs.readFile(path.join(extensionRoot, 'media', 'dashboard.css'), 'utf8');
+  const htmlRule = css.match(/html,\s*body\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const shellRule = css.match(/\.product-shell\.dashboard\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const mainRule = css.match(/\.product-main\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const pageRule = css.match(/\.product-page\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const tableBodyRule = css.match(/\.ant-table \.queue-body\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+
+  assert.match(htmlRule, /overflow:\s*hidden/);
+  assert.match(shellRule, /height:\s*100vh/);
+  assert.match(shellRule, /overflow:\s*hidden/);
+  assert.match(mainRule, /min-height:\s*0/);
+  assert.match(mainRule, /overflow:\s*hidden/);
+  assert.match(pageRule, /overflow:\s*auto/);
+  assert.match(tableBodyRule, /overflow:\s*visible/);
+});
+
+test('React dashboard shell owns its two-column layout without relying on Ant runtime CSS', async () => {
+  const css = await fs.readFile(path.join(extensionRoot, 'src', 'dashboard-react', 'dashboard-react.css'), 'utf8');
+  const shellRule = css.match(/\.native-dashboard\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const sidebarRule = css.match(/\.native-sidebar\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const mainRule = css.match(/\.native-main\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+  const contentRule = css.match(/\.native-content\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
+
+  assert.match(shellRule, /min-height:\s*100vh/);
+  assert.match(sidebarRule, /height:\s*100vh/);
+  assert.match(sidebarRule, /overflow:\s*auto/);
+  assert.match(mainRule, /min-width:\s*0/);
+  assert.match(contentRule, /height:\s*calc\(100vh - 56px\)/);
+  assert.match(contentRule, /overflow:\s*auto/);
 });
 
 test('buildQueueOverview separates enabled queue size from all task size', async () => {
