@@ -394,12 +394,11 @@ test('migration queue defaults configure local proxy env for worker agents', asy
   });
 });
 
-test('migration queue enables 107 settings full wave and disables superseded 100-106 waves', async () => {
+test('migration queue keeps 107 settings full wave available but disabled when superseded', async () => {
   const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
   const queue = JSON.parse(await fs.readFile(queuePath, 'utf8'));
   const tasks = queue.tasks || [];
 
-  const enabledIds = tasks.filter((task) => task.enabled).map((task) => task.id).sort();
   const expected107Ids = [
     'agent-loop-settings-schema-config-surface-107',
     'agent-loop-settings-effective-config-runtime-107',
@@ -423,7 +422,11 @@ test('migration queue enables 107 settings full wave and disables superseded 100
     'agent-loop-settings-runner-task-generation-107',
   ].sort();
 
-  assert.deepEqual(enabledIds, expected107Ids);
+  const present107Ids = tasks.filter((task) => task.id?.endsWith('-107')).map((task) => task.id).sort();
+  assert.deepEqual(present107Ids, expected107Ids);
+
+  const enabled107Ids = tasks.filter((task) => task.id?.endsWith('-107') && task.enabled).map((task) => task.id);
+  assert.deepEqual(enabled107Ids, [], '107 settings tasks should stay present for --only reruns but disabled while 108 is active');
 
   const stillEnabledSuperseded = tasks.filter(
     (task) => (
@@ -460,15 +463,15 @@ test('migration queue enables 107 settings full wave and disables superseded 100
   assert.deepEqual(guardEnabled, []);
 });
 
-test('migration queue 107 settings wave has task specific red gates', async () => {
+test('migration queue 107 settings wave keeps task specific red gates for single-rerun safety', async () => {
   const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
   const queue = JSON.parse(await fs.readFile(queuePath, 'utf8'));
   const tasks = queue.tasks || [];
 
-  const enabled107 = tasks.filter((t) => t.enabled && t.id && t.id.endsWith('-107'));
-  assert.ok(enabled107.length > 0, '107 wave must have enabled tasks');
+  const settings107 = tasks.filter((t) => t.id && t.id.endsWith('-107'));
+  assert.ok(settings107.length > 0, '107 wave must stay available for explicit --only reruns');
 
-  for (const entry of enabled107) {
+  for (const entry of settings107) {
     const gates = queue[entry.gatesKey] || [];
     assert.ok(Array.isArray(gates) && gates.length > 0, `missing gates array for ${entry.gatesKey}`);
     assert.match(gates[0] || '', /node -e .*Buffer\.from.*missing Settings 107 marker/, `${entry.gatesKey} must start with task-specific marker check (red gate)`);
@@ -479,6 +482,93 @@ test('migration queue 107 settings wave has task specific red gates', async () =
   // ensure 100-106 remain disabled
   const enabledOld = tasks.filter((t) => t.enabled && /^agent-loop-settings-.*-(100|101|102|103|104|105|106)$/.test(t.id || ''));
   assert.deepEqual(enabledOld, [], '100-106 settings must be disabled while 107 active');
+});
+
+test('migration queue enables 108 SlideRule AgentLoop integration wave and disables superseded waves', async () => {
+  const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
+  const queue = JSON.parse(await fs.readFile(queuePath, 'utf8'));
+  const tasks = queue.tasks || [];
+
+  const enabledIds = tasks.filter((task) => task.enabled).map((task) => task.id).sort();
+  const expected108Ids = [
+    'sliderule-agentloop-integration-inventory-108',
+    'sliderule-agentloop-runtime-boundary-design-108',
+    'sliderule-agentloop-data-model-alignment-108',
+    'sliderule-agentloop-runs-api-bootstrap-108',
+    'sliderule-agentloop-runs-overview-api-108',
+    'sliderule-agentloop-run-detail-api-108',
+    'sliderule-agentloop-event-stream-api-108',
+    'sliderule-agentloop-worker-bridge-108',
+    'sliderule-agentloop-command-api-108',
+    'sliderule-agentloop-settings-api-108',
+    'sliderule-agentloop-provider-health-api-108',
+    'sliderule-agentloop-dashboard-port-108',
+    'sliderule-agentloop-navigation-shell-108',
+    'sliderule-agentloop-task-detail-view-108',
+    'sliderule-agentloop-path-security-108',
+    'sliderule-agentloop-secret-redaction-108',
+    'sliderule-agentloop-python-tests-108',
+    'sliderule-agentloop-release-runbook-108',
+  ].sort();
+
+  assert.deepEqual(enabledIds, expected108Ids);
+
+  const enabledSuperseded = tasks.filter(
+    (task) => task.enabled && !expected108Ids.includes(task.id),
+  );
+  assert.deepEqual(
+    enabledSuperseded.map((task) => task.id),
+    [],
+    'only the 108 SlideRule AgentLoop integration wave should be enabled by default',
+  );
+});
+
+test('migration queue 108 SlideRule AgentLoop wave has task specific red gates', async () => {
+  const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
+  const queue = JSON.parse(await fs.readFile(queuePath, 'utf8'));
+  const tasks = queue.tasks || [];
+
+  const enabled108 = tasks.filter((task) => task.enabled && /^sliderule-agentloop-.*-108$/.test(task.id || ''));
+  assert.equal(enabled108.length, 18, '108 integration wave should have exactly 18 enabled tasks');
+
+  const missingTaskFiles = [];
+  const missingGates = [];
+  const gatesWithoutMarkers = [];
+  const gatesWithoutPytest = [];
+  const gatesWithoutMojibake = [];
+  const guardEnabled = [];
+  const non128Tasks = [];
+
+  for (const entry of enabled108) {
+    const taskPath = path.join(workspaceRoot, entry.task);
+    try {
+      await fs.access(taskPath);
+    } catch {
+      missingTaskFiles.push(entry.task);
+    }
+
+    const gates = queue[entry.gatesKey] || [];
+    if (!Array.isArray(gates) || gates.length === 0) missingGates.push(entry.gatesKey);
+    if (!String(gates[0] || '').includes('missing SlideRule AgentLoop 108 marker')) {
+      gatesWithoutMarkers.push(entry.gatesKey);
+    }
+    if (!gates.some((gate) => typeof gate === 'string' && gate.includes('-m pytest'))) {
+      gatesWithoutPytest.push(entry.gatesKey);
+    }
+    if (!gates.some((gate) => typeof gate === 'string' && gate.includes('check-mojibake.js'))) {
+      gatesWithoutMojibake.push(entry.gatesKey);
+    }
+    if (entry.guardTests) guardEnabled.push(entry.id);
+    if (entry.workerMaxTurns !== 128) non128Tasks.push(entry.id);
+  }
+
+  assert.deepEqual(missingTaskFiles, []);
+  assert.deepEqual(missingGates, []);
+  assert.deepEqual(gatesWithoutMarkers, []);
+  assert.deepEqual(gatesWithoutPytest, []);
+  assert.deepEqual(gatesWithoutMojibake, []);
+  assert.deepEqual(guardEnabled, []);
+  assert.deepEqual(non128Tasks, []);
 });
 
 test('migration queue release readiness 107 runs full extension tests', async () => {

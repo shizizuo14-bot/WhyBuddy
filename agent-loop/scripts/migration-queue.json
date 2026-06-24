@@ -176,7 +176,7 @@
       "id": "agent-loop-settings-schema-config-surface-107",
       "task": "agent-loop/tasks/agent-loop-settings-schema-config-surface-107.md",
       "gatesKey": "agentLoopSettingsSchemaConfigSurface107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -185,7 +185,7 @@
       "id": "agent-loop-settings-effective-config-runtime-107",
       "task": "agent-loop/tasks/agent-loop-settings-effective-config-runtime-107.md",
       "gatesKey": "agentLoopSettingsEffectiveConfigRuntime107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -194,7 +194,7 @@
       "id": "agent-loop-settings-worker-env-secret-injection-107",
       "task": "agent-loop/tasks/agent-loop-settings-worker-env-secret-injection-107.md",
       "gatesKey": "agentLoopSettingsWorkerEnvSecretInjection107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -203,7 +203,7 @@
       "id": "agent-loop-settings-cli-worker-routing-107",
       "task": "agent-loop/tasks/agent-loop-settings-cli-worker-routing-107.md",
       "gatesKey": "agentLoopSettingsCliWorkerRouting107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -212,7 +212,7 @@
       "id": "agent-loop-settings-provider-health-cli-107",
       "task": "agent-loop/tasks/agent-loop-settings-provider-health-cli-107.md",
       "gatesKey": "agentLoopSettingsProviderHealthCli107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -221,7 +221,7 @@
       "id": "agent-loop-settings-provider-health-cache-107",
       "task": "agent-loop/tasks/agent-loop-settings-provider-health-cache-107.md",
       "gatesKey": "agentLoopSettingsProviderHealthCache107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -230,7 +230,7 @@
       "id": "agent-loop-settings-profile-storage-schema-107",
       "task": "agent-loop/tasks/agent-loop-settings-profile-storage-schema-107.md",
       "gatesKey": "agentLoopSettingsProfileStorageSchema107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -239,7 +239,7 @@
       "id": "agent-loop-settings-profile-crud-ui-107",
       "task": "agent-loop/tasks/agent-loop-settings-profile-crud-ui-107.md",
       "gatesKey": "agentLoopSettingsProfileCrudUi107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -248,7 +248,7 @@
       "id": "agent-loop-settings-profile-run-guard-107",
       "task": "agent-loop/tasks/agent-loop-settings-profile-run-guard-107.md",
       "gatesKey": "agentLoopSettingsProfileRunGuard107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -257,7 +257,7 @@
       "id": "agent-loop-settings-queue-defaults-sync-107",
       "task": "agent-loop/tasks/agent-loop-settings-queue-defaults-sync-107.md",
       "gatesKey": "agentLoopSettingsQueueDefaultsSync107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -266,7 +266,7 @@
       "id": "agent-loop-settings-import-export-files-107",
       "task": "agent-loop/tasks/agent-loop-settings-import-export-files-107.md",
       "gatesKey": "agentLoopSettingsImportExportFiles107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -275,7 +275,7 @@
       "id": "agent-loop-settings-diagnostics-artifacts-107",
       "task": "agent-loop/tasks/agent-loop-settings-diagnostics-artifacts-107.md",
       "gatesKey": "agentLoopSettingsDiagnosticsArtifacts107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -284,7 +284,7 @@
       "id": "agent-loop-settings-ui-product-polish-107",
       "task": "agent-loop/tasks/agent-loop-settings-ui-product-polish-107.md",
       "gatesKey": "agentLoopSettingsUiProductPolish107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -293,7 +293,7 @@
       "id": "agent-loop-settings-dev-preview-mocks-107",
       "task": "agent-loop/tasks/agent-loop-settings-dev-preview-mocks-107.md",
       "gatesKey": "agentLoopSettingsDevPreviewMocks107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -302,7 +302,7 @@
       "id": "agent-loop-settings-test-harness-coverage-107",
       "task": "agent-loop/tasks/agent-loop-settings-test-harness-coverage-107.md",
       "gatesKey": "agentLoopSettingsTestHarnessCoverage107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -311,7 +311,7 @@
       "id": "agent-loop-settings-docs-operator-runbook-107",
       "task": "agent-loop/tasks/agent-loop-settings-docs-operator-runbook-107.md",
       "gatesKey": "agentLoopSettingsDocsOperatorRunbook107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -320,7 +320,7 @@
       "id": "agent-loop-settings-release-readiness-vsix-107",
       "task": "agent-loop/tasks/agent-loop-settings-release-readiness-vsix-107.md",
       "gatesKey": "agentLoopSettingsReleaseReadinessVsix107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -329,7 +329,7 @@
       "id": "agent-loop-settings-security-redaction-audit-107",
       "task": "agent-loop/tasks/agent-loop-settings-security-redaction-audit-107.md",
       "gatesKey": "agentLoopSettingsSecurityRedactionAudit107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -338,7 +338,7 @@
       "id": "agent-loop-settings-workspace-trust-107",
       "task": "agent-loop/tasks/agent-loop-settings-workspace-trust-107.md",
       "gatesKey": "agentLoopSettingsWorkspaceTrust107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -347,7 +347,7 @@
       "id": "agent-loop-settings-runner-task-generation-107",
       "task": "agent-loop/tasks/agent-loop-settings-runner-task-generation-107.md",
       "gatesKey": "agentLoopSettingsRunnerTaskGeneration107Gates",
-      "enabled": true,
+      "enabled": false,
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
@@ -2115,6 +2115,168 @@
       "workerMaxTurns": 128,
       "maxIterations": 2,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
+    },
+    {
+      "id": "sliderule-agentloop-integration-inventory-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-integration-inventory-108.md",
+      "gatesKey": "slideruleAgentLoopIntegrationInventory108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-runtime-boundary-design-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-runtime-boundary-design-108.md",
+      "gatesKey": "slideruleAgentLoopRuntimeBoundaryDesign108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-data-model-alignment-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-data-model-alignment-108.md",
+      "gatesKey": "slideruleAgentLoopDataModelAlignment108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-runs-api-bootstrap-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-runs-api-bootstrap-108.md",
+      "gatesKey": "slideruleAgentLoopRunsApiBootstrap108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-runs-overview-api-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-runs-overview-api-108.md",
+      "gatesKey": "slideruleAgentLoopRunsOverviewApi108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-run-detail-api-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-run-detail-api-108.md",
+      "gatesKey": "slideruleAgentLoopRunDetailApi108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-event-stream-api-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-event-stream-api-108.md",
+      "gatesKey": "slideruleAgentLoopEventStreamApi108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-worker-bridge-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-worker-bridge-108.md",
+      "gatesKey": "slideruleAgentLoopWorkerBridge108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-command-api-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-command-api-108.md",
+      "gatesKey": "slideruleAgentLoopCommandApi108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-settings-api-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-settings-api-108.md",
+      "gatesKey": "slideruleAgentLoopSettingsApi108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-provider-health-api-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-provider-health-api-108.md",
+      "gatesKey": "slideruleAgentLoopProviderHealthApi108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-dashboard-port-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-dashboard-port-108.md",
+      "gatesKey": "slideruleAgentLoopDashboardPort108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-navigation-shell-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-navigation-shell-108.md",
+      "gatesKey": "slideruleAgentLoopNavigationShell108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-task-detail-view-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-task-detail-view-108.md",
+      "gatesKey": "slideruleAgentLoopTaskDetailView108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-path-security-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-path-security-108.md",
+      "gatesKey": "slideruleAgentLoopPathSecurity108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-secret-redaction-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-secret-redaction-108.md",
+      "gatesKey": "slideruleAgentLoopSecretRedaction108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-python-tests-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-python-tests-108.md",
+      "gatesKey": "slideruleAgentLoopPythonTests108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-release-runbook-108",
+      "task": "agent-loop/tasks/sliderule-agentloop-release-runbook-108.md",
+      "gatesKey": "slideruleAgentLoopReleaseRunbook108Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
     }
   ],
   "nodeRouteInventory50Gates": [
@@ -3097,5 +3259,95 @@
     "cd agent-loop/vscode-extension; npm run compile",
     "node --test --test-name-pattern \"migration queue 107 settings wave\" agent-loop/test/run-queue.test.js",
     "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/scripts/migration-queue.json agent-loop/test/run-queue.test.js"
+  ],
+  "slideruleAgentLoopIntegrationInventory108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9pbnRlZ3JhdGlvbl9pbnZlbnRvcnkucHkKYWdlbnRsb29wIGludGVncmF0aW9uIGludmVudG9yeSAxMDggZG9jdW1lbnRzIHNvdXJjZSBib3VuZGFyaWVz','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_integration_inventory.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-integration-inventory-108.md tws-ai-slide-rule-python/AGENT_LOOP_INTEGRATION_INVENTORY.md tws-ai-slide-rule-python/tests/test_agent_loop_integration_inventory.py"
+  ],
+  "slideruleAgentLoopRuntimeBoundaryDesign108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9ydW50aW1lX2JvdW5kYXJ5LnB5CmFnZW50bG9vcCBydW50aW1lIGJvdW5kYXJ5IDEwOCBrZWVwcyBub2RlIHJ1bm5lciBiZWhpbmQgcHl0aG9uIGNvbnRyb2wgcGxhbmU=','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_runtime_boundary.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-runtime-boundary-design-108.md tws-ai-slide-rule-python/AGENT_LOOP_RUNTIME_BOUNDARY.md tws-ai-slide-rule-python/tests/test_agent_loop_runtime_boundary.py"
+  ],
+  "slideruleAgentLoopDataModelAlignment108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9tb2RlbHMucHkKYWdlbnRsb29wIGRhdGEgbW9kZWwgMTA4IHZhbGlkYXRlcyBydW4gc3VtbWFyeQ==','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_models.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-data-model-alignment-108.md tws-ai-slide-rule-python/models/agent_loop.py tws-ai-slide-rule-python/tests/test_agent_loop_models.py"
+  ],
+  "slideruleAgentLoopRunsApiBootstrap108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9hcGlfYm9vdHN0cmFwLnB5CmFnZW50bG9vcCBhcGkgYm9vdHN0cmFwIDEwOCBtb3VudHMgaGVhbHRoIGFuZCBjYXBhYmlsaXRpZXM=','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_api_bootstrap.py tests/test_v5_smoke.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-runs-api-bootstrap-108.md tws-ai-slide-rule-python/app.py tws-ai-slide-rule-python/routes/agent_loop.py tws-ai-slide-rule-python/tests/test_agent_loop_api_bootstrap.py"
+  ],
+  "slideruleAgentLoopRunsOverviewApi108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9ydW5zX292ZXJ2aWV3LnB5CmFnZW50bG9vcCBydW5zIG92ZXJ2aWV3IDEwOCBsaXN0cyBydW4gc3VtbWFyaWVzIGZyb20gc3RhdGUgZmlsZXM=','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_runs_overview.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-runs-overview-api-108.md tws-ai-slide-rule-python/routes/agent_loop.py tws-ai-slide-rule-python/services/agent_loop_runs.py tws-ai-slide-rule-python/tests/test_agent_loop_runs_overview.py"
+  ],
+  "slideruleAgentLoopRunDetailApi108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9ydW5fZGV0YWlsLnB5CmFnZW50bG9vcCBydW4gZGV0YWlsIDEwOCByZXR1cm5zIGJvdW5kZWQgc3RhdGUgcmVwb3J0IGxvZ3MgYW5kIGFydGlmYWN0cw==','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_run_detail.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-run-detail-api-108.md tws-ai-slide-rule-python/routes/agent_loop.py tws-ai-slide-rule-python/services/agent_loop_runs.py tws-ai-slide-rule-python/tests/test_agent_loop_run_detail.py"
+  ],
+  "slideruleAgentLoopEventStreamApi108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9ldmVudF9zdHJlYW0ucHkKYWdlbnRsb29wIGV2ZW50IHN0cmVhbSAxMDggZm9ybWF0cyBzdGF0ZSBjaGFuZ2VzIGFzIHNzZSBmcmFtZXM=','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_event_stream.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-event-stream-api-108.md tws-ai-slide-rule-python/routes/agent_loop.py tws-ai-slide-rule-python/services/agent_loop_events.py tws-ai-slide-rule-python/tests/test_agent_loop_event_stream.py"
+  ],
+  "slideruleAgentLoopWorkerBridge108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF93b3JrZXJfYnJpZGdlLnB5CmFnZW50bG9vcCB3b3JrZXIgYnJpZGdlIDEwOCBidWlsZHMgbm9kZSBxdWV1ZSBjb21tYW5kIHdpdGhvdXQgZXhlY3V0aW5nIGluIGRyeSBydW4=','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_worker_bridge.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-worker-bridge-108.md tws-ai-slide-rule-python/config/settings.py tws-ai-slide-rule-python/services/agent_loop_bridge.py tws-ai-slide-rule-python/tests/test_agent_loop_worker_bridge.py"
+  ],
+  "slideruleAgentLoopCommandApi108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9jb21tYW5kX2FwaS5weQphZ2VudGxvb3AgY29tbWFuZCBhcGkgMTA4IHN0YXJ0cyBxdWV1ZSB0aHJvdWdoIGJyaWRnZSBkcnkgcnVu','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_command_api.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-command-api-108.md tws-ai-slide-rule-python/routes/agent_loop.py tws-ai-slide-rule-python/services/agent_loop_bridge.py tws-ai-slide-rule-python/tests/test_agent_loop_command_api.py"
+  ],
+  "slideruleAgentLoopSettingsApi108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9zZXR0aW5nc19hcGkucHkKYWdlbnRsb29wIHNldHRpbmdzIGFwaSAxMDggc3RvcmVzIG5vbiBzZWNyZXQgc2V0dGluZ3MgYW5kIGhpZGVzIGtleXM=','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_settings_api.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-settings-api-108.md tws-ai-slide-rule-python/routes/agent_loop.py tws-ai-slide-rule-python/services/agent_loop_settings.py tws-ai-slide-rule-python/tests/test_agent_loop_settings_api.py"
+  ],
+  "slideruleAgentLoopProviderHealthApi108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9wcm92aWRlcl9oZWFsdGgucHkKYWdlbnRsb29wIHByb3ZpZGVyIGhlYWx0aCAxMDggcmVwb3J0cyBhdmFpbGFibGUgbWlzc2luZyBhbmQgc2tpcHBlZCBwcm92aWRlcnM=','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_provider_health.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-provider-health-api-108.md tws-ai-slide-rule-python/routes/agent_loop.py tws-ai-slide-rule-python/services/agent_loop_provider_health.py tws-ai-slide-rule-python/tests/test_agent_loop_provider_health.py"
+  ],
+  "slideruleAgentLoopDashboardPort108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9kYXNoYm9hcmRfcG9ydC5weQphZ2VudGxvb3AgZGFzaGJvYXJkIHBvcnQgMTA4IHNlcnZlcyBweXRob24gb3duZWQgZGFzaGJvYXJkIHNoZWxs','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_dashboard_port.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-dashboard-port-108.md tws-ai-slide-rule-python/routes/agent_loop.py tws-ai-slide-rule-python/static/agent-loop/index.html tws-ai-slide-rule-python/static/agent-loop/agent-loop-dashboard.js tws-ai-slide-rule-python/tests/test_agent_loop_dashboard_port.py"
+  ],
+  "slideruleAgentLoopNavigationShell108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9uYXZpZ2F0aW9uX3NoZWxsLnB5CmFnZW50bG9vcCBuYXZpZ2F0aW9uIHNoZWxsIDEwOCBleHBvc2VzIHdvcmtiZW5jaCBydW5zIHNldHRpbmdzIGFuZCBzbGlkZXJ1bGUgbGlua3M=','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_navigation_shell.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-navigation-shell-108.md tws-ai-slide-rule-python/static/agent-loop/index.html tws-ai-slide-rule-python/static/agent-loop/agent-loop-dashboard.js tws-ai-slide-rule-python/tests/test_agent_loop_navigation_shell.py"
+  ],
+  "slideruleAgentLoopTaskDetailView108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF90YXNrX2RldGFpbF92aWV3LnB5CmFnZW50bG9vcCB0YXNrIGRldGFpbCB2aWV3IDEwOCByZW5kZXJzIGZsb3cgdGltZWxpbmUgcmV2aWV3IGRpZmYgb3V0cHV0IGFuZCBhcnRpZmFjdHM=','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_task_detail_view.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-task-detail-view-108.md tws-ai-slide-rule-python/static/agent-loop/index.html tws-ai-slide-rule-python/static/agent-loop/agent-loop-dashboard.js tws-ai-slide-rule-python/tests/test_agent_loop_task_detail_view.py"
+  ],
+  "slideruleAgentLoopPathSecurity108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9wYXRoX3NlY3VyaXR5LnB5CmFnZW50bG9vcCBwYXRoIHNlY3VyaXR5IDEwOCByZWplY3RzIHRyYXZlcnNhbCBhbmQgYWJzb2x1dGUgZXNjYXBlcw==','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_path_security.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-path-security-108.md tws-ai-slide-rule-python/services/agent_loop_paths.py tws-ai-slide-rule-python/services/agent_loop_runs.py tws-ai-slide-rule-python/tests/test_agent_loop_path_security.py"
+  ],
+  "slideruleAgentLoopSecretRedaction108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9zZWNyZXRfcmVkYWN0aW9uLnB5CmFnZW50bG9vcCBzZWNyZXQgcmVkYWN0aW9uIDEwOCBtYXNrcyBrZXlzIHRva2VucyBwcm94eSBjcmVkZW50aWFscyBhbmQgZW52IG91dHB1dA==','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_secret_redaction.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-secret-redaction-108.md tws-ai-slide-rule-python/services/agent_loop_redaction.py tws-ai-slide-rule-python/services/agent_loop_runs.py tws-ai-slide-rule-python/services/agent_loop_bridge.py tws-ai-slide-rule-python/services/agent_loop_provider_health.py tws-ai-slide-rule-python/tests/test_agent_loop_secret_redaction.py"
+  ],
+  "slideruleAgentLoopPythonTests108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9weXRob25faGFybmVzcy5weQphZ2VudGxvb3AgcHl0aG9uIGhhcm5lc3MgMTA4IHByb3ZpZGVzIGRldGVybWluaXN0aWMgcnVuIGZpeHR1cmVz','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_python_harness.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-python-tests-108.md tws-ai-slide-rule-python/tests/test_agent_loop_python_harness.py tws-ai-slide-rule-python/tests/fixtures/agent_loop_run"
+  ],
+  "slideruleAgentLoopReleaseRunbook108Gates": [
+    "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9yZWxlYXNlX3J1bmJvb2sucHkKYWdlbnRsb29wIHJlbGVhc2UgcnVuYm9vayAxMDggZG9jdW1lbnRzIHN0YXJ0dXAgcXVldWUgc2V0dGluZ3Mgc2VjdXJpdHkgYW5kIHJvbGxiYWNr','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 108 marker: '+m);\"",
+    "cd tws-ai-slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_release_runbook.py -q --tb=short",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-release-runbook-108.md tws-ai-slide-rule-python/AGENT_LOOP_RUNBOOK.md tws-ai-slide-rule-python/README.md tws-ai-slide-rule-python/tests/test_agent_loop_release_runbook.py"
   ]
 }
