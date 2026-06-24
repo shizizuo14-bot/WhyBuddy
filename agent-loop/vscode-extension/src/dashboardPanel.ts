@@ -1,9 +1,25 @@
+import * as fs from 'node:fs/promises';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import { activeAgentLabel, formatElapsed, phaseLabel } from './phaseLabels';
-import { normalizeSaveSettingsPayload } from './settingsMessages';
-import { extractRunEvidence } from './stateReader';
+import { normalizeSaveSettingsPayload, redactSettingsMessageForLog } from './settingsMessages';
+import { extractRunEvidence, readJsonFile } from './stateReader';
+import { testProviderHealth, readQueueDefaults, previewQueueDefaults, applyQueueDefaults, SUPPORTED_QUEUE_DEFAULT_KEYS, createSettingsExport, validateAndPrepareSettingsImport } from './settingsConfig';
+import type { ProviderId } from './settingsConfig';
+import { getRepoRoot, queuePath } from './paths';
 import type { QueueOverview, RunSnapshot } from './types';
+
+export function computeActiveProfileName(snapshot: { fixAgent?: string | null; reviewAgent?: string | null } | null | undefined): string | null {
+  if (!snapshot) return null;
+  const parts = [snapshot.fixAgent, snapshot.reviewAgent].filter((x): x is string => Boolean(x && String(x).trim()));
+  return parts.length ? parts.join(' / ') : null;
+}
+
+export function shouldRejectProfileChangeWhileRunning(queueRunning: boolean, payload: Record<string, any>): boolean {
+  if (!queueRunning) return false;
+  const profileKeys = ['fixAgent', 'reviewAgent', 'queuePath', 'worktreeScope', 'baseUrl'] as const;
+  return profileKeys.some((k) => payload[k] !== undefined);
+}
 
 export type DashboardView = 'overview' | 'detail';
 
@@ -14,6 +30,8 @@ export class DashboardPanel {
   private secrets?: vscode.SecretStorage;
   private disposables: vscode.Disposable[] = [];
   private lastMessage: unknown = null;
+  private lastQueueRunning = false;
+  private lastActiveProfile: string | null = null;
 
   private post(message: unknown): void {
     this.lastMessage = message;
@@ -73,6 +91,27 @@ export class DashboardPanel {
         case 'saveSettings':
           void this.handleSaveSettings(normalizeSaveSettingsPayload(message));
           return;
+        case 'testProvider':
+          void this.handleTestProvider(message);
+          return;
+        case 'getQueueDefaults':
+          void this.sendQueueDefaults();
+          return;
+        case 'previewQueueDefaults':
+          void this.handlePreviewQueueDefaults(message);
+          return;
+        case 'applyQueueDefaults':
+          void this.handleApplyQueueDefaults(message);
+          return;
+        case 'exportSettings':
+          void this.sendSettingsExport();
+          return;
+        case 'importSettings':
+          void this.handleImportSettings(message && (message.payload || message));
+          return;
+        case 'getDiagnostics':
+          void this.sendDiagnostics();
+          return;
         default:
       }
     }, null, this.disposables);
@@ -101,6 +140,8 @@ export class DashboardPanel {
 
   public showOverview(overview: QueueOverview, current: RunSnapshot | null): void {
     this.view = 'overview';
+    this.lastQueueRunning = Boolean(overview.queueRunning);
+    this.lastActiveProfile = computeActiveProfileName(current ? { fixAgent: current.fixAgent, reviewAgent: current.reviewAgent } : null);
     this.panel.webview.postMessage({
       type: 'overview',
       payload: {
@@ -124,6 +165,7 @@ export class DashboardPanel {
             phaseLabel: current.phaseLabel,
             elapsedText: formatElapsed(current.elapsedMs),
             staleRun: current.staleRun,
+            profileName: this.lastActiveProfile,
           }
           : null,
       },
@@ -161,11 +203,22 @@ export class DashboardPanel {
         keys: keysStatus,
         baseUrl: config.get<string>('baseUrl', ''),
         injectToWorker: config.get<boolean>('injectKeysToWorker', true),
+        queueRunning: this.lastQueueRunning,
+        activeProfile: this.lastActiveProfile,
       },
     });
   }
 
   private async handleSaveSettings(payload: Record<string, any>) {
+    if (shouldRejectProfileChangeWhileRunning(this.lastQueueRunning, payload)) {
+      this.post({
+        type: 'saveBlocked',
+        payload: { reason: 'queueRunning', message: '队列运行中，禁止切换或编辑 profile（fixAgent/reviewAgent/queuePath 等）。' },
+      });
+      await this.sendSettings();
+      return;
+    }
+
     const config = vscode.workspace.getConfiguration('agentLoop');
     const promises: Thenable<unknown>[] = [];
 
@@ -210,6 +263,239 @@ export class DashboardPanel {
     await this.sendSettings();
   }
 
+  private async handleTestProvider(message: any) {
+    const provider = (message?.provider ?? message?.payload?.provider) as ProviderId | undefined;
+    if (!provider || !['grok', 'openai', 'anthropic'].includes(provider)) {
+      return;
+    }
+    const start = Date.now();
+    let payload: any;
+    try {
+      let key: string | undefined;
+      if (this.secrets) {
+        key = (await this.secrets.get(`agentLoop.${provider}ApiKey`)) || undefined;
+      }
+      const config = vscode.workspace.getConfiguration('agentLoop');
+      const baseUrl = config.get<string>('baseUrl', '');
+      const res = await testProviderHealth(provider, key, { baseUrl: baseUrl || undefined });
+      payload = res;
+    } catch (e: any) {
+      payload = {
+        provider,
+        status: 'failed',
+        durationMs: Date.now() - start,
+        reason: 'error',
+      };
+    }
+    this.post({ type: 'providerHealth', payload });
+  }
+
+  private async sendQueueDefaults() {
+    const repo = getRepoRoot() || process.cwd();
+    const qpath = queuePath(repo);
+    let defaults: Record<string, unknown> = {};
+    try {
+      defaults = await readQueueDefaults(qpath);
+    } catch {
+      defaults = {};
+    }
+    this.post({
+      type: 'queueDefaults',
+      payload: {
+        defaults,
+        supportedKeys: [...SUPPORTED_QUEUE_DEFAULT_KEYS],
+        queuePath: qpath,
+      },
+    });
+  }
+
+  private async handlePreviewQueueDefaults(message: any) {
+    const proposed = (message && (message.proposed || (message.payload && message.payload.proposed))) || {};
+    const repo = getRepoRoot() || process.cwd();
+    const qpath = queuePath(repo);
+    let result: any;
+    try {
+      result = await previewQueueDefaults(qpath, proposed);
+    } catch {
+      result = { ok: false, error: 'redacted error' };
+    }
+    this.post({ type: 'queuePreview', payload: result });
+  }
+
+  private async handleApplyQueueDefaults(message: any) {
+    const proposed = (message && (message.proposed || (message.payload && message.payload.proposed))) || {};
+    const repo = getRepoRoot() || process.cwd();
+    const qpath = queuePath(repo);
+    let result: any;
+    try {
+      result = await applyQueueDefaults(qpath, proposed);
+    } catch {
+      result = { ok: false, error: 'redacted error' };
+    }
+    this.post({ type: 'queueApply', payload: result });
+    if (result && result.ok) {
+      // refresh current defaults after successful apply
+      void this.sendQueueDefaults();
+    }
+  }
+
+  private async sendSettingsExport() {
+    const config = vscode.workspace.getConfiguration('agentLoop');
+
+    const nonSensitive = {
+      fixAgent: config.get<string>('fixAgent', 'grok'),
+      reviewAgent: config.get<string>('reviewAgent', 'codex'),
+      workerMaxTurns: config.get<number>('workerMaxTurns', 128),
+      workerMaxRetries: config.get<number>('workerMaxRetries', 2),
+      queuePath: config.get<string>('queuePath', 'agent-loop/scripts/migration-queue.json'),
+      worktreeScope: config.get<string>('worktreeScope', 'queue'),
+      baseUrl: config.get<string>('baseUrl', ''),
+      injectToWorker: config.get<boolean>('injectKeysToWorker', true),
+    };
+
+    const keysStatus: Record<string, string> = {
+      grokApiKey: '',
+      openaiApiKey: '',
+      anthropicApiKey: '',
+    };
+
+    if (this.secrets) {
+      keysStatus.grokApiKey = (await this.secrets.get('agentLoop.grokApiKey')) ? 'configured' : '';
+      keysStatus.openaiApiKey = (await this.secrets.get('agentLoop.openaiApiKey')) ? 'configured' : '';
+      keysStatus.anthropicApiKey = (await this.secrets.get('agentLoop.anthropicApiKey')) ? 'configured' : '';
+    }
+
+    const exportPayload = createSettingsExport(nonSensitive, keysStatus);
+    this.post({
+      type: 'settingsExported',
+      payload: exportPayload,
+    });
+  }
+
+  private async sendDiagnostics() {
+    const repo = getRepoRoot() || process.cwd();
+    const qpath = queuePath(repo);
+    const config = vscode.workspace.getConfiguration('agentLoop');
+
+    const effectiveConfig = {
+      fixAgent: config.get<string>('fixAgent', 'grok'),
+      reviewAgent: config.get<string>('reviewAgent', 'codex'),
+      workerMaxTurns: config.get<number>('workerMaxTurns', 128),
+      workerMaxRetries: config.get<number>('workerMaxRetries', 2),
+      queuePath: config.get<string>('queuePath', 'agent-loop/scripts/migration-queue.json'),
+      worktreeScope: config.get<string>('worktreeScope', 'queue'),
+      baseUrl: config.get<string>('baseUrl', ''),
+      injectToWorker: config.get<boolean>('injectKeysToWorker', true),
+    };
+
+    const configSources: Record<string, string> = {};
+    const sourceKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl', 'injectKeysToWorker'] as const;
+    for (const k of sourceKeys) {
+      const insp = config.inspect(k as string);
+      let src = 'default';
+      if (insp) {
+        if (insp.workspaceFolderValue !== undefined) src = 'workspaceFolder';
+        else if (insp.workspaceValue !== undefined) src = 'workspace';
+        else if (insp.globalValue !== undefined) src = 'user';
+      }
+      configSources[k] = src;
+    }
+
+    const keysStatus: Record<string, string> = {
+      grokApiKey: '',
+      openaiApiKey: '',
+      anthropicApiKey: '',
+    };
+    if (this.secrets) {
+      keysStatus.grokApiKey = (await this.secrets.get('agentLoop.grokApiKey')) ? 'configured' : '';
+      keysStatus.openaiApiKey = (await this.secrets.get('agentLoop.openaiApiKey')) ? 'configured' : '';
+      keysStatus.anthropicApiKey = (await this.secrets.get('agentLoop.anthropicApiKey')) ? 'configured' : '';
+    }
+
+    let queueFileExists = false;
+    try {
+      await fs.access(qpath);
+      queueFileExists = true;
+    } catch {}
+
+    let lastRunState: any = null;
+    try {
+      const latestStatePath = path.join(repo, '.agent-loop', 'latest', 'state.json');
+      lastRunState = await readJsonFile<any>(latestStatePath);
+    } catch {}
+
+    const lastStateSummary = lastRunState ? {
+      runId: lastRunState.runId ?? null,
+      status: lastRunState.status ?? null,
+      task: lastRunState.options?.task ?? null,
+    } : null;
+
+    const warnings: Array<{ category: 'ready' | 'skipped' | 'failed' | 'unknown'; message: string }> = [];
+    const anyKeyConfigured = Object.values(keysStatus).some((v) => v === 'configured');
+    warnings.push({
+      category: anyKeyConfigured ? 'ready' : 'skipped',
+      message: anyKeyConfigured ? 'provider key(s) configured' : 'no provider keys configured',
+    });
+    warnings.push({
+      category: effectiveConfig.injectToWorker ? 'ready' : 'skipped',
+      message: effectiveConfig.injectToWorker ? 'key injection enabled' : 'key injection disabled',
+    });
+    warnings.push({
+      category: queueFileExists ? 'ready' : 'failed',
+      message: queueFileExists ? 'queue file present at resolved path' : 'queue file missing',
+    });
+    const ls = (lastStateSummary && lastStateSummary.status) || 'unknown';
+    let lastCat: 'ready' | 'skipped' | 'failed' | 'unknown' = 'unknown';
+    if (/DONE|applied|reviewed/i.test(ls)) lastCat = 'ready';
+    else if (/HALT|fail|error|crash/i.test(ls)) lastCat = 'failed';
+    else if (!lastStateSummary) lastCat = 'skipped';
+    warnings.push({ category: lastCat, message: `last run state: ${ls}` });
+
+    const payload = {
+      effectiveConfig,
+      configSources,
+      keys: keysStatus,
+      queuePath: qpath,
+      repoRoot: repo,
+      lastRunState: lastStateSummary,
+      warnings,
+    };
+
+    this.post({ type: 'diagnostics', payload: redactSettingsMessageForLog(payload) });
+  }
+
+  private async handleImportSettings(raw: any) {
+    let result: { ok: boolean; nonSensitive?: Record<string, unknown>; error?: string };
+    try {
+      result = validateAndPrepareSettingsImport(raw);
+    } catch {
+      result = { ok: false, error: 'malformed JSON' };
+    }
+    if (!result.ok || !result.nonSensitive) {
+      this.post({ type: 'importSettingsResult', payload: { ok: false, error: result.error || 'invalid import' } });
+      return;
+    }
+    // Apply ONLY non-secret parts (never secrets/raw keys)
+    const payload = { ...result.nonSensitive };
+    // strip any accidental secret fields defensively
+    delete (payload as any).grokApiKey;
+    delete (payload as any).openaiApiKey;
+    delete (payload as any).anthropicApiKey;
+
+    const config = vscode.workspace.getConfiguration('agentLoop');
+    const promises: Thenable<unknown>[] = [];
+    const nonSecretKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl', 'injectToWorker'] as const;
+    for (const key of nonSecretKeys) {
+      if ((payload as any)[key] !== undefined) {
+        const target = (key === 'queuePath' || key === 'baseUrl') ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Workspace;
+        promises.push(config.update(key as string, (payload as any)[key], target));
+      }
+    }
+    await Promise.all(promises);
+    this.post({ type: 'importSettingsResult', payload: { ok: true } });
+    await this.sendSettings();
+  }
+
   public update(snapshot: RunSnapshot): void {
     this.view = 'detail';
     const state = snapshot.state;
@@ -243,6 +529,7 @@ export class DashboardPanel {
         roleText: `${snapshot.fixAgent}修${snapshot.reviewAgent ? ` + ${snapshot.reviewAgent}审` : ''}`,
         fixAgent: snapshot.fixAgent,
         reviewAgent: snapshot.reviewAgent,
+        profileName: computeActiveProfileName({ fixAgent: snapshot.fixAgent, reviewAgent: snapshot.reviewAgent }),
         runMode: snapshot.runMode,
         pipelineSteps: snapshot.pipelineSteps,
         agentTail: snapshot.agentTail,

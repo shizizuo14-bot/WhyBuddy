@@ -34,11 +34,28 @@ var __importStar = (this && this.__importStar) || (function () {
 })();
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.DashboardPanel = void 0;
+exports.computeActiveProfileName = computeActiveProfileName;
+exports.shouldRejectProfileChangeWhileRunning = shouldRejectProfileChangeWhileRunning;
+const fs = __importStar(require("node:fs/promises"));
 const path = __importStar(require("node:path"));
 const vscode = __importStar(require("vscode"));
 const phaseLabels_1 = require("./phaseLabels");
 const settingsMessages_1 = require("./settingsMessages");
 const stateReader_1 = require("./stateReader");
+const settingsConfig_1 = require("./settingsConfig");
+const paths_1 = require("./paths");
+function computeActiveProfileName(snapshot) {
+    if (!snapshot)
+        return null;
+    const parts = [snapshot.fixAgent, snapshot.reviewAgent].filter((x) => Boolean(x && String(x).trim()));
+    return parts.length ? parts.join(' / ') : null;
+}
+function shouldRejectProfileChangeWhileRunning(queueRunning, payload) {
+    if (!queueRunning)
+        return false;
+    const profileKeys = ['fixAgent', 'reviewAgent', 'queuePath', 'worktreeScope', 'baseUrl'];
+    return profileKeys.some((k) => payload[k] !== undefined);
+}
 class DashboardPanel {
     static current;
     view = 'overview';
@@ -46,6 +63,8 @@ class DashboardPanel {
     secrets;
     disposables = [];
     lastMessage = null;
+    lastQueueRunning = false;
+    lastActiveProfile = null;
     post(message) {
         this.lastMessage = message;
         void this.panel.webview.postMessage(message);
@@ -103,6 +122,27 @@ class DashboardPanel {
                 case 'saveSettings':
                     void this.handleSaveSettings((0, settingsMessages_1.normalizeSaveSettingsPayload)(message));
                     return;
+                case 'testProvider':
+                    void this.handleTestProvider(message);
+                    return;
+                case 'getQueueDefaults':
+                    void this.sendQueueDefaults();
+                    return;
+                case 'previewQueueDefaults':
+                    void this.handlePreviewQueueDefaults(message);
+                    return;
+                case 'applyQueueDefaults':
+                    void this.handleApplyQueueDefaults(message);
+                    return;
+                case 'exportSettings':
+                    void this.sendSettingsExport();
+                    return;
+                case 'importSettings':
+                    void this.handleImportSettings(message && (message.payload || message));
+                    return;
+                case 'getDiagnostics':
+                    void this.sendDiagnostics();
+                    return;
                 default:
             }
         }, null, this.disposables);
@@ -122,6 +162,8 @@ class DashboardPanel {
     }
     showOverview(overview, current) {
         this.view = 'overview';
+        this.lastQueueRunning = Boolean(overview.queueRunning);
+        this.lastActiveProfile = computeActiveProfileName(current ? { fixAgent: current.fixAgent, reviewAgent: current.reviewAgent } : null);
         this.panel.webview.postMessage({
             type: 'overview',
             payload: {
@@ -145,6 +187,7 @@ class DashboardPanel {
                         phaseLabel: current.phaseLabel,
                         elapsedText: (0, phaseLabels_1.formatElapsed)(current.elapsedMs),
                         staleRun: current.staleRun,
+                        profileName: this.lastActiveProfile,
                     }
                     : null,
             },
@@ -177,10 +220,20 @@ class DashboardPanel {
                 keys: keysStatus,
                 baseUrl: config.get('baseUrl', ''),
                 injectToWorker: config.get('injectKeysToWorker', true),
+                queueRunning: this.lastQueueRunning,
+                activeProfile: this.lastActiveProfile,
             },
         });
     }
     async handleSaveSettings(payload) {
+        if (shouldRejectProfileChangeWhileRunning(this.lastQueueRunning, payload)) {
+            this.post({
+                type: 'saveBlocked',
+                payload: { reason: 'queueRunning', message: '队列运行中，禁止切换或编辑 profile（fixAgent/reviewAgent/queuePath 等）。' },
+            });
+            await this.sendSettings();
+            return;
+        }
         const config = vscode.workspace.getConfiguration('agentLoop');
         const promises = [];
         // Non-sensitive settings -> workspace configuration
@@ -220,6 +273,231 @@ class DashboardPanel {
         // Refresh UI with latest
         await this.sendSettings();
     }
+    async handleTestProvider(message) {
+        const provider = (message?.provider ?? message?.payload?.provider);
+        if (!provider || !['grok', 'openai', 'anthropic'].includes(provider)) {
+            return;
+        }
+        const start = Date.now();
+        let payload;
+        try {
+            let key;
+            if (this.secrets) {
+                key = (await this.secrets.get(`agentLoop.${provider}ApiKey`)) || undefined;
+            }
+            const config = vscode.workspace.getConfiguration('agentLoop');
+            const baseUrl = config.get('baseUrl', '');
+            const res = await (0, settingsConfig_1.testProviderHealth)(provider, key, { baseUrl: baseUrl || undefined });
+            payload = res;
+        }
+        catch (e) {
+            payload = {
+                provider,
+                status: 'failed',
+                durationMs: Date.now() - start,
+                reason: 'error',
+            };
+        }
+        this.post({ type: 'providerHealth', payload });
+    }
+    async sendQueueDefaults() {
+        const repo = (0, paths_1.getRepoRoot)() || process.cwd();
+        const qpath = (0, paths_1.queuePath)(repo);
+        let defaults = {};
+        try {
+            defaults = await (0, settingsConfig_1.readQueueDefaults)(qpath);
+        }
+        catch {
+            defaults = {};
+        }
+        this.post({
+            type: 'queueDefaults',
+            payload: {
+                defaults,
+                supportedKeys: [...settingsConfig_1.SUPPORTED_QUEUE_DEFAULT_KEYS],
+                queuePath: qpath,
+            },
+        });
+    }
+    async handlePreviewQueueDefaults(message) {
+        const proposed = (message && (message.proposed || (message.payload && message.payload.proposed))) || {};
+        const repo = (0, paths_1.getRepoRoot)() || process.cwd();
+        const qpath = (0, paths_1.queuePath)(repo);
+        let result;
+        try {
+            result = await (0, settingsConfig_1.previewQueueDefaults)(qpath, proposed);
+        }
+        catch {
+            result = { ok: false, error: 'redacted error' };
+        }
+        this.post({ type: 'queuePreview', payload: result });
+    }
+    async handleApplyQueueDefaults(message) {
+        const proposed = (message && (message.proposed || (message.payload && message.payload.proposed))) || {};
+        const repo = (0, paths_1.getRepoRoot)() || process.cwd();
+        const qpath = (0, paths_1.queuePath)(repo);
+        let result;
+        try {
+            result = await (0, settingsConfig_1.applyQueueDefaults)(qpath, proposed);
+        }
+        catch {
+            result = { ok: false, error: 'redacted error' };
+        }
+        this.post({ type: 'queueApply', payload: result });
+        if (result && result.ok) {
+            // refresh current defaults after successful apply
+            void this.sendQueueDefaults();
+        }
+    }
+    async sendSettingsExport() {
+        const config = vscode.workspace.getConfiguration('agentLoop');
+        const nonSensitive = {
+            fixAgent: config.get('fixAgent', 'grok'),
+            reviewAgent: config.get('reviewAgent', 'codex'),
+            workerMaxTurns: config.get('workerMaxTurns', 128),
+            workerMaxRetries: config.get('workerMaxRetries', 2),
+            queuePath: config.get('queuePath', 'agent-loop/scripts/migration-queue.json'),
+            worktreeScope: config.get('worktreeScope', 'queue'),
+            baseUrl: config.get('baseUrl', ''),
+            injectToWorker: config.get('injectKeysToWorker', true),
+        };
+        const keysStatus = {
+            grokApiKey: '',
+            openaiApiKey: '',
+            anthropicApiKey: '',
+        };
+        if (this.secrets) {
+            keysStatus.grokApiKey = (await this.secrets.get('agentLoop.grokApiKey')) ? 'configured' : '';
+            keysStatus.openaiApiKey = (await this.secrets.get('agentLoop.openaiApiKey')) ? 'configured' : '';
+            keysStatus.anthropicApiKey = (await this.secrets.get('agentLoop.anthropicApiKey')) ? 'configured' : '';
+        }
+        const exportPayload = (0, settingsConfig_1.createSettingsExport)(nonSensitive, keysStatus);
+        this.post({
+            type: 'settingsExported',
+            payload: exportPayload,
+        });
+    }
+    async sendDiagnostics() {
+        const repo = (0, paths_1.getRepoRoot)() || process.cwd();
+        const qpath = (0, paths_1.queuePath)(repo);
+        const config = vscode.workspace.getConfiguration('agentLoop');
+        const effectiveConfig = {
+            fixAgent: config.get('fixAgent', 'grok'),
+            reviewAgent: config.get('reviewAgent', 'codex'),
+            workerMaxTurns: config.get('workerMaxTurns', 128),
+            workerMaxRetries: config.get('workerMaxRetries', 2),
+            queuePath: config.get('queuePath', 'agent-loop/scripts/migration-queue.json'),
+            worktreeScope: config.get('worktreeScope', 'queue'),
+            baseUrl: config.get('baseUrl', ''),
+            injectToWorker: config.get('injectKeysToWorker', true),
+        };
+        const configSources = {};
+        const sourceKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl', 'injectKeysToWorker'];
+        for (const k of sourceKeys) {
+            const insp = config.inspect(k);
+            let src = 'default';
+            if (insp) {
+                if (insp.workspaceFolderValue !== undefined)
+                    src = 'workspaceFolder';
+                else if (insp.workspaceValue !== undefined)
+                    src = 'workspace';
+                else if (insp.globalValue !== undefined)
+                    src = 'user';
+            }
+            configSources[k] = src;
+        }
+        const keysStatus = {
+            grokApiKey: '',
+            openaiApiKey: '',
+            anthropicApiKey: '',
+        };
+        if (this.secrets) {
+            keysStatus.grokApiKey = (await this.secrets.get('agentLoop.grokApiKey')) ? 'configured' : '';
+            keysStatus.openaiApiKey = (await this.secrets.get('agentLoop.openaiApiKey')) ? 'configured' : '';
+            keysStatus.anthropicApiKey = (await this.secrets.get('agentLoop.anthropicApiKey')) ? 'configured' : '';
+        }
+        let queueFileExists = false;
+        try {
+            await fs.access(qpath);
+            queueFileExists = true;
+        }
+        catch { }
+        let lastRunState = null;
+        try {
+            const latestStatePath = path.join(repo, '.agent-loop', 'latest', 'state.json');
+            lastRunState = await (0, stateReader_1.readJsonFile)(latestStatePath);
+        }
+        catch { }
+        const lastStateSummary = lastRunState ? {
+            runId: lastRunState.runId ?? null,
+            status: lastRunState.status ?? null,
+            task: lastRunState.options?.task ?? null,
+        } : null;
+        const warnings = [];
+        const anyKeyConfigured = Object.values(keysStatus).some((v) => v === 'configured');
+        warnings.push({
+            category: anyKeyConfigured ? 'ready' : 'skipped',
+            message: anyKeyConfigured ? 'provider key(s) configured' : 'no provider keys configured',
+        });
+        warnings.push({
+            category: effectiveConfig.injectToWorker ? 'ready' : 'skipped',
+            message: effectiveConfig.injectToWorker ? 'key injection enabled' : 'key injection disabled',
+        });
+        warnings.push({
+            category: queueFileExists ? 'ready' : 'failed',
+            message: queueFileExists ? 'queue file present at resolved path' : 'queue file missing',
+        });
+        const ls = (lastStateSummary && lastStateSummary.status) || 'unknown';
+        let lastCat = 'unknown';
+        if (/DONE|applied|reviewed/i.test(ls))
+            lastCat = 'ready';
+        else if (/HALT|fail|error|crash/i.test(ls))
+            lastCat = 'failed';
+        else if (!lastStateSummary)
+            lastCat = 'skipped';
+        warnings.push({ category: lastCat, message: `last run state: ${ls}` });
+        const payload = {
+            effectiveConfig,
+            configSources,
+            keys: keysStatus,
+            queuePath: qpath,
+            repoRoot: repo,
+            lastRunState: lastStateSummary,
+            warnings,
+        };
+        this.post({ type: 'diagnostics', payload: (0, settingsMessages_1.redactSettingsMessageForLog)(payload) });
+    }
+    async handleImportSettings(raw) {
+        let result;
+        try {
+            result = (0, settingsConfig_1.validateAndPrepareSettingsImport)(raw);
+        }
+        catch {
+            result = { ok: false, error: 'malformed JSON' };
+        }
+        if (!result.ok || !result.nonSensitive) {
+            this.post({ type: 'importSettingsResult', payload: { ok: false, error: result.error || 'invalid import' } });
+            return;
+        }
+        // Apply ONLY non-secret parts (never secrets/raw keys)
+        const payload = { ...result.nonSensitive };
+        // strip any accidental secret fields defensively
+        delete payload.grokApiKey;
+        delete payload.openaiApiKey;
+        delete payload.anthropicApiKey;
+        const config = vscode.workspace.getConfiguration('agentLoop');
+        const promises = [];
+        const nonSecretKeys = ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'queuePath', 'worktreeScope', 'baseUrl', 'injectToWorker'];
+        for (const key of nonSecretKeys) {
+            if (payload[key] !== undefined) {
+                const target = (key === 'queuePath' || key === 'baseUrl') ? vscode.ConfigurationTarget.Workspace : vscode.ConfigurationTarget.Workspace;
+                promises.push(config.update(key, payload[key], target));
+            }
+        }
+        await Promise.all(promises);
+        this.post({ type: 'importSettingsResult', payload: { ok: true } });
+        await this.sendSettings();
+    }
     update(snapshot) {
         this.view = 'detail';
         const state = snapshot.state;
@@ -252,6 +530,7 @@ class DashboardPanel {
                 roleText: `${snapshot.fixAgent}修${snapshot.reviewAgent ? ` + ${snapshot.reviewAgent}审` : ''}`,
                 fixAgent: snapshot.fixAgent,
                 reviewAgent: snapshot.reviewAgent,
+                profileName: computeActiveProfileName({ fixAgent: snapshot.fixAgent, reviewAgent: snapshot.reviewAgent }),
                 runMode: snapshot.runMode,
                 pipelineSteps: snapshot.pipelineSteps,
                 agentTail: snapshot.agentTail,

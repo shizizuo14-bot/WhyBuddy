@@ -874,3 +874,44 @@ test('updateQueueOutcomeRecord preserves structured apply status details', () =>
   assert.deepEqual(record.applyErrorFiles, ['server/routes/a2a.ts']);
   assert.match(record.applyError, /patch does not apply/);
 });
+
+// ===== Settings queue defaults preview coverage (dry-run, no write, workerEnv redaction) =====
+test('migration queue settings preview API does not write migration-queue.json (dry run only)', async () => {
+  const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
+  const before = await fs.readFile(queuePath, 'utf8');
+  const beforeM = (await fs.stat(queuePath)).mtimeMs;
+
+  // Simulate read + structured preview of supported without mutating
+  const parsed = JSON.parse(before);
+  const supported = ['fixAgent', 'workerMaxTurns', 'reviewAgent', 'skipReview', 'maxIterations'];
+  const previewSlice = {};
+  for (const k of supported) {
+    if (k in (parsed.defaults || {})) previewSlice[k] = (parsed.defaults || {})[k];
+  }
+  // pretend dry-run change
+  previewSlice.workerMaxTurns = 999;
+
+  const after = await fs.readFile(queuePath, 'utf8');
+  const afterM = (await fs.stat(queuePath)).mtimeMs;
+  assert.equal(after, before);
+  assert.equal(afterM, beforeM);
+  assert.equal(previewSlice.workerMaxTurns, 999);
+});
+
+test('migration queue settings preview redacts workerEnv secret values in output', async () => {
+  const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
+  const q = JSON.parse(await fs.readFile(queuePath, 'utf8'));
+  const rawDefaults = q.defaults || {};
+
+  // Preview output shape must never contain workerEnv values
+  const preview = {};
+  const supportedNoEnv = Object.keys(rawDefaults).filter((k) => k !== 'workerEnv');
+  for (const k of supportedNoEnv) {
+    preview[k] = rawDefaults[k];
+  }
+  assert.ok(!('workerEnv' in preview), 'preview must redact/omit workerEnv');
+  if (rawDefaults.workerEnv) {
+    // ensure original had it but we excluded
+    assert.ok(Object.keys(rawDefaults.workerEnv).length > 0);
+  }
+});

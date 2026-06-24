@@ -378,7 +378,7 @@ function QueueTable({ tasks }: { tasks: OverviewTask[] }) {
       key: 'action',
       render: (_, task) => (
         <Space>
-          <Typography.Link style={{ fontSize: 12 }} onClick={() => postCommand('openTask', { taskPath: task.task })}>详情</Typography.Link>
+          <Button size="small" onClick={() => postCommand('openTask', { taskPath: task.task })}>详情</Button>
           {task.enabled === false && task.id ? (
             <Button size="small" onClick={() => postCommand('reEnable', { taskId: task.id })}>启用</Button>
           ) : null}
@@ -401,12 +401,14 @@ function CurrentRun({ current }: { current: OverviewPayload['current'] }) {
   if (!current) {
     return <Alert type="info" showIcon message="当前没有运行中的任务" />;
   }
+  const baseDesc = `${current.phaseLabel || current.status || '-'} · ${current.elapsedText || '-'}`;
+  const prof = (current as any).profileName ? ` · 激活 Profile: ${(current as any).profileName}` : '';
   return (
     <Alert
       type={current.staleRun ? 'warning' : 'info'}
       showIcon
       message={current.taskLabel || '当前运行'}
-      description={`${current.phaseLabel || current.status || '-'} · ${current.elapsedText || '-'}`}
+      description={`${baseDesc}${prof}`}
     />
   );
 }
@@ -443,6 +445,13 @@ export function DashboardApp({ payload }: { payload: OverviewPayload }) {
   const [query, setQuery] = useState('');
   const [view, setView] = useState<ViewKey>('workbench');
   const [settingsData, setSettingsData] = useState<any>(null);
+  const [providerTests, setProviderTests] = useState<any[]>([]);
+  const [queueDefaultsData, setQueueDefaultsData] = useState<any>(null);
+  const [queuePreview, setQueuePreview] = useState<any>(null);
+  const [queueApply, setQueueApply] = useState<any>(null);
+  const [exportedSettings, setExportedSettings] = useState<any>(null);
+  const [importResult, setImportResult] = useState<any>(null);
+  const [diagnosticsData, setDiagnosticsData] = useState<any>(null);
 
   const tasks = payload.tasks || [];
   const visibleTasks = useMemo(() => filterTasks(tasks, filter, query), [tasks, filter, query]);
@@ -455,6 +464,8 @@ export function DashboardApp({ payload }: { payload: OverviewPayload }) {
   useEffect(() => {
     if (view === 'settings') {
       postCommand('getSettings');
+      postCommand('getQueueDefaults');
+      postCommand('getDiagnostics');
     }
   }, [view]);
 
@@ -465,6 +476,36 @@ export function DashboardApp({ payload }: { payload: OverviewPayload }) {
       if (msg?.type === 'settings') {
         setSettingsData(msg.payload);
       }
+      if (msg?.type === 'saveBlocked' && msg.payload) {
+        message.warning(msg.payload.message || '操作被阻止（队列运行中）');
+      }
+      if (msg?.type === 'providerHealth' && msg.payload) {
+        setProviderTests((prev) => {
+          const filtered = prev.filter((p: any) => p.provider !== msg.payload.provider);
+          return [...filtered, msg.payload];
+        });
+      }
+      if (msg?.type === 'queueDefaults' && msg.payload) {
+        setQueueDefaultsData(msg.payload);
+      }
+      if (msg?.type === 'queuePreview' && msg.payload) {
+        setQueuePreview(msg.payload);
+      }
+      if (msg?.type === 'queueApply' && msg.payload) {
+        setQueueApply(msg.payload);
+      }
+      if (msg?.type === 'settingsExported' && msg.payload) {
+        setExportedSettings(msg.payload);
+      }
+      if (msg?.type === 'importSettingsResult' && msg.payload) {
+        setImportResult(msg.payload);
+        if (msg.payload.ok) {
+          postCommand('getSettings');
+        }
+      }
+      if (msg?.type === 'diagnostics' && msg.payload) {
+        setDiagnosticsData(msg.payload);
+      }
     };
     window.addEventListener('message', handler);
     return () => window.removeEventListener('message', handler);
@@ -472,6 +513,35 @@ export function DashboardApp({ payload }: { payload: OverviewPayload }) {
 
   const handleSaveSettings = (values: Record<string, unknown>) => {
     postCommand('saveSettings', values);
+  };
+
+  const handlePreviewQueueDefaults = (proposed: Record<string, unknown>) => {
+    setQueuePreview(null);
+    setQueueApply(null);
+    postCommand('previewQueueDefaults', { proposed });
+  };
+
+  const handleApplyQueueDefaults = (proposed: Record<string, unknown>) => {
+    setQueueApply(null);
+    postCommand('applyQueueDefaults', { proposed });
+  };
+
+  const handleExportSettings = () => {
+    setExportedSettings(null);
+    setImportResult(null);
+    postCommand('exportSettings');
+  };
+
+  const handleImportSettings = (text: string) => {
+    setImportResult(null);
+    let parsed: any;
+    try {
+      parsed = JSON.parse(text || '{}');
+    } catch {
+      setImportResult({ ok: false, error: 'malformed JSON' });
+      return;
+    }
+    postCommand('importSettings', parsed);
   };
 
   const workbenchContent = (
@@ -511,7 +581,7 @@ export function DashboardApp({ payload }: { payload: OverviewPayload }) {
             <Breadcrumb items={[{ title: 'AgentLoop' }, { title: view === 'settings' ? '设置' : '工作台' }]} />
           </Header>
           <Content className="native-content">
-            {view === 'workbench' ? workbenchContent : <SettingsView data={settingsData} onSave={handleSaveSettings} />}
+            {view === 'workbench' ? workbenchContent : <SettingsView data={settingsData} onSave={handleSaveSettings} providerTests={providerTests} onTestProvider={(provider) => postCommand('testProvider', { provider })} queueDefaultsData={queueDefaultsData} queuePreview={queuePreview} onPreviewQueue={handlePreviewQueueDefaults} queueApply={queueApply} onApplyQueue={handleApplyQueueDefaults} exportedSettings={exportedSettings} importResult={importResult} onExportSettings={handleExportSettings} onImportSettings={handleImportSettings} diagnosticsData={diagnosticsData} onRefreshDiagnostics={() => postCommand('getDiagnostics')} />}
           </Content>
         </Layout>
       </Layout>
@@ -535,10 +605,18 @@ type SettingsData = {
   };
   baseUrl?: string;
   injectToWorker?: boolean;
+  queueRunning?: boolean;
+  activeProfile?: string | null;
+  queueDefaults?: {
+    defaults?: Record<string, unknown>;
+    supportedKeys?: string[];
+    queuePath?: string;
+  };
 };
 
-function CliConfigForm({ initial, onSave }: { initial: SettingsData['nonSensitive']; onSave: (v: any) => void }) {
+function CliConfigForm({ initial, onSave, queueRunning, activeProfile }: { initial: SettingsData['nonSensitive']; onSave: (v: any) => void; queueRunning?: boolean; activeProfile?: string | null }) {
   const [form] = Form.useForm();
+  const isRunning = Boolean(queueRunning);
 
   useEffect(() => {
     if (initial) {
@@ -554,21 +632,28 @@ function CliConfigForm({ initial, onSave }: { initial: SettingsData['nonSensitiv
   }, [initial, form]);
 
   const handleFinish = (values: any) => {
+    if (isRunning) {
+      message.warning('队列运行中，profile 切换已禁用');
+      return;
+    }
     onSave(values);
     message.success('CLI 配置已保存');
   };
 
   return (
     <Form form={form} layout="vertical" onFinish={handleFinish} style={{ maxWidth: 520 }}>
+      {isRunning ? (
+        <Alert type="warning" showIcon style={{ marginBottom: 12 }} message={`队列运行中 (激活 Profile: ${activeProfile || '未知'})，禁止修改 CLI profile 配置。`} />
+      ) : null}
       <Form.Item label="默认修复 Worker" name="fixAgent">
-        <Select>
+        <Select disabled={isRunning}>
           <Select.Option value="grok">Grok</Select.Option>
           <Select.Option value="codex">Codex</Select.Option>
         </Select>
       </Form.Item>
 
       <Form.Item label="默认 Review Worker" name="reviewAgent">
-        <Select>
+        <Select disabled={isRunning}>
           <Select.Option value="codex">Codex</Select.Option>
           <Select.Option value="grok">Grok</Select.Option>
           <Select.Option value="none">None（跳过审查）</Select.Option>
@@ -576,32 +661,32 @@ function CliConfigForm({ initial, onSave }: { initial: SettingsData['nonSensitiv
       </Form.Item>
 
       <Form.Item label="最大执行轮次" name="workerMaxTurns">
-        <InputNumber min={1} style={{ width: '100%' }} />
+        <InputNumber min={1} style={{ width: '100%' }} disabled={isRunning} />
       </Form.Item>
 
       <Form.Item label="最大重试次数" name="workerMaxRetries">
-        <InputNumber min={0} style={{ width: '100%' }} />
+        <InputNumber min={0} style={{ width: '100%' }} disabled={isRunning} />
       </Form.Item>
 
       <Form.Item label="队列文件路径" name="queuePath">
-        <Input placeholder="agent-loop/scripts/migration-queue.json" />
+        <Input placeholder="agent-loop/scripts/migration-queue.json" disabled={isRunning} />
       </Form.Item>
 
       <Form.Item label="工作树模式" name="worktreeScope">
-        <Select>
+        <Select disabled={isRunning}>
           <Select.Option value="queue">queue</Select.Option>
           <Select.Option value="task">task</Select.Option>
         </Select>
       </Form.Item>
 
       <Form.Item>
-        <Button type="primary" htmlType="submit">保存 CLI 配置</Button>
+        <Button type="primary" htmlType="submit" disabled={isRunning}>保存 CLI 配置</Button>
       </Form.Item>
     </Form>
   );
 }
 
-function LlmKeyForm({ initial, onSave }: { initial: SettingsData; onSave: (v: any) => void }) {
+function LlmKeyForm({ initial, onSave, providerTests, onTestProvider }: { initial: SettingsData; onSave: (v: any) => void; providerTests?: any[]; onTestProvider?: (p: string) => void }) {
   const [form] = Form.useForm();
 
   useEffect(() => {
@@ -613,7 +698,7 @@ function LlmKeyForm({ initial, onSave }: { initial: SettingsData; onSave: (v: an
     }
   }, [initial, form]);
 
-  const getKeyStatus = (key?: string) => key === 'configured' ? <Tag color="success">已配置</Tag> : <Tag>未配置</Tag>;
+  const getKeyStatus = (key?: string) => key === 'configured' ? <Tag color="success">已配置 (redacted)</Tag> : <Tag>未配置</Tag>;
 
   const handleFinish = (values: any) => {
     // Only send non-empty key values to avoid overwriting with empty
@@ -638,36 +723,64 @@ function LlmKeyForm({ initial, onSave }: { initial: SettingsData; onSave: (v: an
     message.success('已清除');
   };
 
+  const handleTest = (provider: string) => {
+    if (onTestProvider) {
+      onTestProvider(provider);
+    }
+  };
+
+  const getTestResult = (provider: string) => {
+    return (providerTests || []).find((r: any) => r.provider === provider);
+  };
+
+  const renderResult = (provider: string) => {
+    const r = getTestResult(provider);
+    if (!r) return null;
+    const tone = r.status === 'ok' ? 'success' : r.status === 'skipped' ? 'default' : 'error';
+    return (
+      <div style={{ marginTop: 4, fontSize: 12 }}>
+        <Tag color={tone}>{r.status}</Tag>
+        <span>{r.durationMs}ms · {r.reason}</span>
+      </div>
+    );
+  };
+
   return (
     <Form form={form} layout="vertical" onFinish={handleFinish} style={{ maxWidth: 620 }}>
       <Form.Item label="Grok API Key / Token">
         <Space>
           {getKeyStatus(initial?.keys?.grokApiKey)}
           <Button size="small" danger onClick={() => handleClear('grokApiKey')}>清除</Button>
+          <Button size="small" onClick={() => handleTest('grok')}>测试</Button>
         </Space>
         <Form.Item name="grokApiKey" noStyle>
           <Input.Password placeholder="输入新的 Grok Key（留空则不修改）" />
         </Form.Item>
+        {renderResult('grok')}
       </Form.Item>
 
       <Form.Item label="OpenAI API Key">
         <Space>
           {getKeyStatus(initial?.keys?.openaiApiKey)}
           <Button size="small" danger onClick={() => handleClear('openaiApiKey')}>清除</Button>
+          <Button size="small" onClick={() => handleTest('openai')}>测试</Button>
         </Space>
         <Form.Item name="openaiApiKey" noStyle>
           <Input.Password placeholder="输入新的 OpenAI Key（留空则不修改）" />
         </Form.Item>
+        {renderResult('openai')}
       </Form.Item>
 
       <Form.Item label="Anthropic API Key">
         <Space>
           {getKeyStatus(initial?.keys?.anthropicApiKey)}
           <Button size="small" danger onClick={() => handleClear('anthropicApiKey')}>清除</Button>
+          <Button size="small" onClick={() => handleTest('anthropic')}>测试</Button>
         </Space>
         <Form.Item name="anthropicApiKey" noStyle>
           <Input.Password placeholder="输入新的 Anthropic Key（留空则不修改）" />
         </Form.Item>
+        {renderResult('anthropic')}
       </Form.Item>
 
       <Form.Item label="代理地址 / Base URL" name="baseUrl">
@@ -690,13 +803,24 @@ function LlmKeyForm({ initial, onSave }: { initial: SettingsData; onSave: (v: an
       </Form.Item>
 
       <Text type="secondary" style={{ fontSize: 12 }}>
-        敏感 Key 使用 VS Code SecretStorage 安全存储，不会写入项目文件。
+        敏感 Key 使用 VS Code SecretStorage 安全存储，不会写入项目文件。点击“测试”触发显式 provider health check（不自动执行）。
       </Text>
+
+      {(providerTests && providerTests.length > 0) && (
+        <div style={{ marginTop: 12, padding: 8, background: '#fafafa', border: '1px solid #eee' }}>
+          <Text strong style={{ fontSize: 12 }}>最近 Provider 健康检查</Text>
+          {providerTests.map((r: any, idx: number) => (
+            <div key={idx} style={{ fontSize: 12, marginTop: 2 }}>
+              {r.provider} · {r.status} · {r.durationMs}ms · {r.reason}
+            </div>
+          ))}
+        </div>
+      )}
     </Form>
   );
 }
 
-function SettingsView({ data, onSave }: { data: SettingsData | null; onSave: (v: any) => void }) {
+function SettingsView({ data, onSave, providerTests, onTestProvider, queueDefaultsData, queuePreview, onPreviewQueue, queueApply, onApplyQueue, exportedSettings, importResult, onExportSettings, onImportSettings, diagnosticsData, onRefreshDiagnostics }: { data: SettingsData | null; onSave: (v: any) => void; providerTests?: any[]; onTestProvider?: (p: string) => void; queueDefaultsData?: any; queuePreview?: any; onPreviewQueue?: (p: any) => void; queueApply?: any; onApplyQueue?: (p: any) => void; exportedSettings?: any; importResult?: any; onExportSettings?: () => void; onImportSettings?: (text: string) => void; diagnosticsData?: any; onRefreshDiagnostics?: () => void; }) {
   return (
     <div style={{ padding: '8px 4px' }}>
       <Title level={4} style={{ marginBottom: 16 }}>AgentLoop 设置中心</Title>
@@ -706,18 +830,208 @@ function SettingsView({ data, onSave }: { data: SettingsData | null; onSave: (v:
           {
             key: 'cli',
             label: 'CLI 配置',
-            children: <CliConfigForm initial={data?.nonSensitive} onSave={onSave} />,
+            children: <CliConfigForm initial={data?.nonSensitive} onSave={onSave} queueRunning={(data as any)?.queueRunning} activeProfile={(data as any)?.activeProfile} />,
           },
           {
             key: 'keys',
             label: 'LLM Keys',
-            children: <LlmKeyForm initial={data || {}} onSave={onSave} />,
+            children: <LlmKeyForm initial={data || {}} onSave={onSave} providerTests={providerTests} onTestProvider={onTestProvider} />,
+          },
+          {
+            key: 'queue',
+            label: '队列默认值',
+            children: <QueueDefaultsView data={queueDefaultsData} preview={queuePreview} onPreview={onPreviewQueue || (() => {})} applyResult={queueApply} onApply={onApplyQueue || (() => {})} />,
+          },
+          {
+            key: 'diagnostics',
+            label: 'Diagnostics',
+            children: <DiagnosticsView data={diagnosticsData} onRefresh={onRefreshDiagnostics || (() => {})} />,
           },
         ]}
       />
       <div style={{ marginTop: 24, color: '#888', fontSize: 12 }}>
-        非敏感配置保存在 VS Code 工作区设置，敏感 Key 保存在 SecretStorage。
+        非敏感配置保存在 VS Code 工作区设置，敏感 Key 保存在 SecretStorage。队列 defaults 支持预览后确认 apply 写入；仅 owned 支持键；secrets 拒绝；写后 JSON + tasks 校验。
       </div>
+
+      {/* Settings import/export redaction UI (schema v1, profiles + non-secret + key status only; secrets never exported or imported raw) */}
+      <div style={{ marginTop: 20, paddingTop: 12, borderTop: '1px solid #eee' }}>
+        <Title level={5}>设置导入/导出（redacted）</Title>
+        <Space>
+          <Button icon={<DownloadOutlined />} onClick={() => onExportSettings && onExportSettings()}>导出设置（仅 profiles、非敏感、key 状态）</Button>
+          <Button onClick={() => {
+            const txt = prompt('粘贴要导入的 redacted 设置 JSON（schemaVersion 必须为 1；拒绝 secret 值）：') || '';
+            if (txt) onImportSettings && onImportSettings(txt);
+          }}>导入设置（粘贴 JSON）</Button>
+        </Space>
+        {exportedSettings && (
+          <div style={{ marginTop: 8 }}>
+            <Text strong>导出内容（secret 字段为状态，非明文）:</Text>
+            <pre style={{ background: '#fafafa', padding: 8, fontSize: 12, maxHeight: 200, overflow: 'auto' }}>{JSON.stringify(exportedSettings, null, 2)}</pre>
+            <Button size="small" onClick={() => { try { navigator.clipboard?.writeText(JSON.stringify(exportedSettings, null, 2)); message.success('已复制 redacted export'); } catch {} }}>复制导出</Button>
+            <Text type="secondary" style={{ marginLeft: 8, fontSize: 11 }}>schemaVersion: {exportedSettings.schemaVersion}；keys 只含 configured/'' 状态</Text>
+          </div>
+        )}
+        {importResult && (
+          <div style={{ marginTop: 8 }}>
+            {importResult.ok ? (
+              <Alert type="success" showIcon message="导入成功（仅应用了非敏感配置）" />
+            ) : (
+              <Alert type="error" showIcon message={importResult.error || '导入失败'} description="schema 校验或 secret 检测失败，未写入任何 secret" />
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function QueueDefaultsView({ data, preview, onPreview, applyResult, onApply }: { data: any; preview: any; onPreview: (proposed: Record<string, unknown>) => void; applyResult?: any; onApply?: (proposed: Record<string, unknown>) => void }) {
+  const [proposedText, setProposedText] = useState('{\n  "workerMaxTurns": 256\n}');
+  const current = (data && data.defaults) || {};
+  const supported = (data && data.supportedKeys) || [];
+
+  const doPreview = () => {
+    try {
+      const parsed = JSON.parse(proposedText || '{}');
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        onPreview(parsed);
+      } else {
+        message.error('proposed 必须是对象');
+      }
+    } catch {
+      message.error('proposed JSON 无效');
+    }
+  };
+
+  const doApply = () => {
+    try {
+      const parsed = JSON.parse(proposedText || '{}');
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
+        onApply && onApply(parsed);
+      } else {
+        message.error('proposed 必须是对象');
+      }
+    } catch {
+      message.error('proposed JSON 无效');
+    }
+  };
+
+  return (
+    <div style={{ padding: '4px 0', maxWidth: 620 }}>
+      <Title level={5}>队列 defaults（仅支持键，当前值）</Title>
+      <pre style={{ background: '#fafafa', padding: 8, fontSize: 12, maxHeight: 240, overflow: 'auto' }}>
+        {JSON.stringify(current, null, 2)}
+      </pre>
+      <Text type="secondary" style={{ fontSize: 12 }}>supported: {supported.join(', ')}</Text>
+
+      <div style={{ marginTop: 16 }}>
+        <Text strong>预览 patch（dry-run，仅支持键；不含 workerEnv）</Text>
+        <Input.TextArea
+          rows={5}
+          value={proposedText}
+          onChange={(e) => setProposedText(e.target.value)}
+          style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 6 }}
+        />
+        <Space style={{ marginTop: 8 }}>
+          <Button onClick={doPreview}>预览 structured diff（不写入）</Button>
+          {preview && preview.ok && onApply && (
+            <Button type="primary" onClick={doApply}>确认应用（写入队列文件）</Button>
+          )}
+        </Space>
+      </div>
+
+      {preview && (
+        <div style={{ marginTop: 12, padding: 8, background: preview.ok ? '#f6ffed' : '#fff1f0', border: '1px solid #eee' }}>
+          {preview.ok === false ? (
+            <Alert type="error" showIcon message={preview.error || 'redacted error'} />
+          ) : (
+            <>
+              <Text strong>Preview result (structured diff only for supported keys):</Text>
+              <pre style={{ fontSize: 12, marginTop: 4 }}>{JSON.stringify(preview.diff || [], null, 2)}</pre>
+              <div style={{ fontSize: 12 }}>before keys: {Object.keys(preview.before || {}).join(', ')}</div>
+              <div style={{ fontSize: 12 }}>after keys: {Object.keys(preview.after || {}).join(', ')}</div>
+            </>
+          )}
+        </div>
+      )}
+
+      {applyResult && (
+        <div style={{ marginTop: 12, padding: 8, background: applyResult.ok ? '#f6ffed' : '#fff1f0', border: '1px solid #eee' }}>
+          {applyResult.ok === false ? (
+            <Alert type="error" showIcon message={(applyResult.rolledBack ? 'rolled back: ' : '') + (applyResult.error || 'redacted error')} />
+          ) : (
+            <>
+              <Text strong>Apply result (written + validated):</Text>
+              <pre style={{ fontSize: 12, marginTop: 4 }}>{JSON.stringify(applyResult.diff || [], null, 2)}</pre>
+              <div style={{ fontSize: 12 }}>applied: {JSON.stringify(applyResult.applied || {})}</div>
+              <div style={{ fontSize: 12 }}>after keys: {Object.keys(applyResult.after || {}).join(', ')}</div>
+            </>
+          )}
+        </div>
+      )}
+
+      <Text type="secondary" style={{ fontSize: 11, marginTop: 8, display: 'block' }}>
+        预览确认后 apply 仅写入 owned 支持键；workerEnv/secrets 拒绝；写后强制 JSON 校验 + tasks 数组保留；失败时回滚。
+      </Text>
+    </div>
+  );
+}
+
+function DiagnosticsView({ data, onRefresh }: { data: any; onRefresh: () => void }) {
+  const d = data || {};
+  const eff = d.effectiveConfig || {};
+  const srcs = d.configSources || {};
+  const keys = d.keys || {};
+  const warns: Array<{ category: string; message: string }> = Array.isArray(d.warnings) ? d.warnings : [];
+  const catColor = (c: string) => (c === 'ready' ? 'success' : c === 'failed' ? 'error' : c === 'skipped' ? 'default' : 'warning');
+  return (
+    <div style={{ padding: '4px 0', maxWidth: 720 }}>
+      <Space style={{ marginBottom: 8 }}>
+        <Title level={5} style={{ margin: 0 }}>Diagnostics（只读）</Title>
+        <Button size="small" onClick={onRefresh}>刷新</Button>
+      </Space>
+      <div style={{ marginBottom: 12 }}>
+        <Text strong>Repo root:</Text> <Text code>{d.repoRoot || '-'}</Text>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <Text strong>Queue path:</Text> <Text code>{d.queuePath || '-'}</Text>
+      </div>
+      <div style={{ marginBottom: 12 }}>
+        <Text strong>Key status:</Text>{' '}
+        {Object.keys(keys).map((k) => (
+          <Tag key={k} color={keys[k] === 'configured' ? 'success' : undefined}>{k}:{keys[k] || 'unset'}</Tag>
+        ))}
+      </div>
+      <div style={{ marginBottom: 8 }}>
+        <Text strong>Effective config:</Text>
+        <pre style={{ background: '#fafafa', padding: 8, fontSize: 11, maxHeight: 160, overflow: 'auto' }}>{JSON.stringify(eff, null, 2)}</pre>
+      </div>
+      <div style={{ marginBottom: 8 }}>
+        <Text strong>Config sources:</Text>
+        <pre style={{ background: '#fafafa', padding: 8, fontSize: 11, maxHeight: 120, overflow: 'auto' }}>{JSON.stringify(srcs, null, 2)}</pre>
+      </div>
+      <div style={{ marginBottom: 8 }}>
+        <Text strong>Last run state:</Text>
+        <pre style={{ background: '#fafafa', padding: 8, fontSize: 11, maxHeight: 100, overflow: 'auto' }}>{JSON.stringify(d.lastRunState || null, null, 2)}</pre>
+      </div>
+      <div>
+        <Text strong>Warnings (categorized):</Text>
+        {warns.length === 0 ? (
+          <Text type="secondary">（无）</Text>
+        ) : (
+          <div style={{ marginTop: 4 }}>
+            {warns.map((w, i) => (
+              <div key={i} style={{ marginBottom: 2 }}>
+                <Tag color={catColor(w.category)}>{w.category}</Tag>
+                <Text>{w.message}</Text>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 12 }}>
+        所有数据已通过 redaction helper；不执行网络检查；只读。
+      </Text>
     </div>
   );
 }
@@ -783,6 +1097,7 @@ function DetailHero({ payload }: { payload: DetailPayload }) {
             <Tag>Queue</Tag>
             <Tag color={statusTone(payload.status)}>{finalStatus}</Tag>
             {payload.landing?.status ? <Tag color="success">{compactText(payload.landing.status)}</Tag> : null}
+            {(payload as any).profileName ? <Tag color="blue">Profile: {(payload as any).profileName}</Tag> : null}
           </Space>
           <Text type="secondary">
             Started {compactText(payload.runId)} · RunId: {compactText(payload.runId)} · Commit: {compactText(payload.commit)}
@@ -822,7 +1137,7 @@ function DetailProgress({ payload }: { payload: DetailPayload }) {
   const completed = Math.max(doneCount, activeIndex >= 0 ? activeIndex + 1 : 0);
   const progressPercent = Math.min(100, Math.round((completed / steps.length) * 100));
   return (
-    <Card className="native-step-card">
+    <Card className="native-step-card" styles={{ body: { padding: '14px 18px' } }}>
       <Space direction="vertical" size="small" className="native-stack">
         <Space className="native-progress-head" size="middle">
           <Text type="secondary">整体进度</Text>
@@ -1287,15 +1602,10 @@ function DetailTabs({ payload }: { payload: DetailPayload }) {
     <div className="native-detail-tab-body">{children}</div>
   );
   return (
-    <Card className="native-detail-workbench"
-      // styles={{ body: { padding: 0 } }}
-    >
+    <Card className="native-detail-workbench" styles={{ body: { padding: 0 } }}>
       <Tabs
         defaultActiveKey={payload.activeTab || 'review'}
-        tabBarStyle={{
-          // padding: '0 24px',
-          // marginBottom: 0
-        }}
+        tabBarStyle={{ padding: '0 24px', marginBottom: 0 }}
         items={[
           {
             key: 'review',

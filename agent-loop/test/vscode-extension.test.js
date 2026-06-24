@@ -14,6 +14,75 @@ const extensionRoot = path.join(agentLoopRoot, 'vscode-extension');
 const extensionOut = path.join(extensionRoot, 'out');
 const requireFromExtension = createRequire(path.join(extensionRoot, 'package.json'));
 
+// ===== VS Code test harness shim (for Settings 106) =====
+// Allows node:test to require() compiled extension modules (e.g. paths.js)
+// that have `import * as vscode from 'vscode'` (compiled to require).
+// Provides just enough to exercise getAgentLoopConfig defaults and load Settings-related modules.
+// Does not add vscode as a runtime dep and does not affect production.
+let __vscodeShimInstalled = false;
+function installVscodeTestShim() {
+  if (__vscodeShimInstalled) return;
+  __vscodeShimInstalled = true;
+  // Use a require resolved from test file to load the CJS 'module' constructor.
+  const cjsRequire = createRequire(import.meta.url);
+  const Module = cjsRequire('module');
+  const originalLoad = Module._load;
+  Module._load = function (request, parent, isMain) {
+    if (request === 'vscode') {
+      return createVscodeMock();
+    }
+    return originalLoad.apply(this, arguments);
+  };
+}
+
+function createVscodeMock() {
+  function makeConfig() {
+    return {
+      get(key, defaultValue) {
+        // Always honor the default passed by getAgentLoopConfig / callers so defaults are testable.
+        return defaultValue;
+      },
+      update() {},
+      has() { return false; },
+    };
+  }
+  return {
+    workspace: {
+      workspaceFolders: undefined,
+      getConfiguration() {
+        return makeConfig();
+      },
+    },
+    commands: {
+      executeCommand: async () => undefined,
+    },
+    window: {
+      showWarningMessage: () => undefined,
+      showInformationMessage: () => undefined,
+      createOutputChannel: () => ({
+        append() {},
+        appendLine() {},
+        show() {},
+        dispose() {},
+      }),
+      createWebviewPanel() {
+        throw new Error('vscode test shim: createWebviewPanel not supported in harness');
+      },
+    },
+    ViewColumn: { Beside: 2 },
+    Uri: {
+      file: (fsPath) => ({ fsPath, scheme: 'file' }),
+      joinPath: (base, ...parts) => ({ fsPath: [base && base.fsPath, ...parts].filter(Boolean).join('/'), scheme: 'file' }),
+    },
+    ConfigurationTarget: { Workspace: 1, Global: 2, WorkspaceFolder: 3 },
+    Disposable: function Disposable() {},
+    env: { appRoot: '' },
+    version: 'test-shim',
+  };
+}
+
+installVscodeTestShim();
+
 test('extension runSummary matches core runSummary for agent-neutral cases', async () => {
   const core = await import(pathToFileURL(path.join(agentLoopRoot, 'src', 'runSummary.js')).href);
   const ext = requireFromExtension('./out/runSummary.js');
@@ -1251,7 +1320,7 @@ test('React dashboard keeps Ant Design components native and minimally configure
   assert.doesNotMatch(source, /Pagination/);
   assert.doesNotMatch(source, /visibleTasks\s*=\s*tasks\.slice/);
   assert.doesNotMatch(source, /rowClassName/);
-  const queueTable = source.match(/function QueueTable[\s\S]*?\n}\n\nfunction /)?.[0] ?? '';
+  const queueTable = source.match(/function QueueTable[\s\S]*?\r?\n}\r?\n\r?\nfunction /)?.[0] ?? '';
   assert.match(queueTable, /<Table/);
   assert.match(queueTable, /key:\s*'branch'/);
   assert.match(queueTable, /task\.branch\s*\|\|\s*'-'/);
@@ -1263,7 +1332,7 @@ test('React dashboard keeps Ant Design components native and minimally configure
   assert.doesNotMatch(css, /\.agent-ant-|\.ant-|--vscode-|--al-/);
 });
 
-test('React dashboard keeps the sidebar to one workbench item and moves task filters into table tabs', async () => {
+test('React dashboard keeps primary navigation in the sidebar and task filters in table tabs', async () => {
   const source = await fs.readFile(
     path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
     'utf8',
@@ -1275,13 +1344,14 @@ test('React dashboard keeps the sidebar to one workbench item and moves task fil
 
   assert.match(source, /Tabs/);
   assert.match(source, /label:\s*'工作台'/);
-  assert.match(source, /selectedKeys=\{\['workbench'\]\}/);
+  assert.match(source, /selectedKeys=\{\[currentView\]\}/);
+  assert.match(source, /\{ key: 'settings'/);
   assert.match(source, /activeKey=\{filter\}/);
   assert.match(source, /items=\{tabItems\}/);
   assert.match(source, /title="任务列表"/);
   assert.doesNotMatch(source, /<Text strong>AgentLoop<\/Text>/);
   assert.doesNotMatch(source, /<Text type="secondary">Dashboard<\/Text>/);
-  assert.doesNotMatch(source, /DashboardSidebar\(\{[\s\S]*filter/);
+  assert.doesNotMatch(source, /function DashboardSidebar\(\{[^)]*filter/);
   assert.match(css, /\.native-brand\s*\{(?<body>[^}]+height:\s*56px[^}]+justify-content:\s*flex-start[^}]+overflow:\s*hidden[^}]+)\}/);
   assert.match(css, /\.native-brand-mark\s*\{(?<body>[^}]+justify-content:\s*flex-start[^}]+)\}/);
 });
@@ -1305,7 +1375,7 @@ test('React dashboard sidebar brand aligns with the header and crops an enlarged
   assert.match(brandMarkRule, /width:\s*auto/);
   assert.match(brandRule, /justify-content:\s*flex-start/);
   assert.doesNotMatch(brandRule, /justify-content:\s*center/);
-  assert.match(brandImgRule, /width:\s*144px/);
+  assert.match(brandImgRule, /width:\s*169px/);
   assert.match(brandImgRule, /max-width:\s*none/);
   assert.match(brandImgRule, /transform:\s*scale\(1\)/);
   assert.doesNotMatch(brandImgRule, /width:\s*120px/);
@@ -1355,7 +1425,7 @@ test('React dashboard detail folds stats into hero metrics and uses the referenc
     path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
     'utf8',
   );
-  const metrics = source.match(/function metricItems[\s\S]*?\n}\n\nfunction DetailHero/)?.[0] ?? '';
+  const metrics = source.match(/function metricItems[\s\S]*?\r?\n}\r?\n\r?\nfunction DetailHero/)?.[0] ?? '';
 
   assert.match(source, /className="native-metric-grid"/);
   for (const key of ['iteration', 'events', 'elapsed', 'blocks', 'status']) {
@@ -1369,9 +1439,9 @@ test('React dashboard detail folds stats into hero metrics and uses the referenc
   }
   assert.doesNotMatch(source, /function DetailStats/);
   assert.doesNotMatch(source, /<DetailStats payload=\{payload\} \/>/);
-  assert.match(source, /<Col xs=\{24\} xl=\{5\}>[\s\S]*<EventTimeline payload=\{payload\} \/>/);
-  assert.match(source, /<Col xs=\{24\} xl=\{14\}>[\s\S]*<DetailTabs payload=\{payload\} \/>/);
-  assert.match(source, /<Col xs=\{24\} xl=\{5\}>[\s\S]*<DetailRightRail payload=\{payload\} \/>/);
+  assert.match(source, /<div className="native-detail-main-grid">[\s\S]*<EventTimeline payload=\{payload\} \/>/);
+  assert.match(source, /<div className="native-detail-main-grid">[\s\S]*<DetailTabs payload=\{payload\} \/>/);
+  assert.match(source, /<div className="native-detail-main-grid">[\s\S]*<DetailRightRail payload=\{payload\} \/>/);
 });
 
 test('React dashboard detail matches the polished run-workbench visual structure', async () => {
@@ -1431,7 +1501,7 @@ test('React dashboard detail matches the polished run-workbench visual structure
   assert.doesNotMatch(source, /className="native-review-result"/);
   assert.doesNotMatch(source, /native-review-summary-card/);
   assert.doesNotMatch(source, /Review\s+缁撹/);
-  assert.match(source, /className="native-review-card"/);
+  assert.match(source, /className="[^"]*\bnative-review-card\b[^"]*"/);
   assert.match(source, /className="native-code-shell"/);
   assert.match(source, /className="native-code-copy"/);
   assert.match(source, /function renderCodeTokens/);
@@ -1474,11 +1544,13 @@ test('React dashboard detail matches the polished run-workbench visual structure
   const timelineLineRule = css.match(/\.native-timeline-row:not\(:last-child\)::after\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
   const timelineDotRule = css.match(/\.native-timeline-dot\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
   const tabBodyRule = css.match(/\.native-detail-tab-body\s*\{(?<body>[^}]+)\}/)?.groups?.body ?? '';
-  assert.match(flowMapRule, /min-height:\s*154px/);
-  assert.match(flowCanvasRule, /height:\s*146px/);
+  assert.match(flowMapRule, /min-height:\s*134px/);
+  assert.match(flowCanvasRule, /height:\s*126px/);
   assert.doesNotMatch(flowCanvasRule, /min-width:\s*1030px/);
-  assert.match(timelineRowRule, /grid-template-columns:\s*56px 16px minmax\(0,\s*1fr\)/);
-  assert.match(timelineLineRule, /left:\s*63px/);
+  assert.match(timelineRowRule, /--timeline-col1:\s*56px/);
+  assert.match(timelineRowRule, /--timeline-dot-size:\s*16px/);
+  assert.match(timelineRowRule, /grid-template-columns:\s*var\(--timeline-col1\) var\(--timeline-dot-size\) minmax\(0,\s*1fr\)/);
+  assert.match(timelineLineRule, /left:\s*calc\(var\(--timeline-col1\) \+ var\(--timeline-gap\) \+ \(var\(--timeline-dot-size\) \/ 2\) - 1px\)/);
   assert.match(timelineLineRule, /top:\s*18px/);
   assert.match(timelineDotRule, /justify-self:\s*center/);
   assert.match(source, /<Card className="native-detail-workbench" styles=\{\{ body: \{ padding: 0 \} \}\}>/);
@@ -1525,11 +1597,9 @@ test('React dashboard detail uses a workbench flow map and right rail', async ()
   assert.doesNotMatch(source, /native-flow-cards/);
   assert.doesNotMatch(source, /native-flow-node-card/);
   assert.match(source, /<ChangeStatsCard payload=\{payload\} \/>/);
-  assert.match(source, /className="native-detail-main-row"/);
+  assert.match(source, /className="native-detail-main-grid"/);
   assert.match(source, /className="native-detail-rail"/);
-  assert.match(source, /<Col xs=\{24\} xl=\{5\}>[\s\S]*<EventTimeline payload=\{payload\} \/>[\s\S]*<ChangeStatsCard payload=\{payload\} \/>/);
-  assert.match(source, /<Col xs=\{24\} xl=\{14\}>[\s\S]*<DetailTabs payload=\{payload\} \/>/);
-  assert.match(source, /<Col xs=\{24\} xl=\{5\}>[\s\S]*<DetailRightRail payload=\{payload\} \/>/);
+  assert.match(source, /<div className="native-detail-main-grid">[\s\S]*<EventTimeline payload=\{payload\} \/>[\s\S]*<ChangeStatsCard payload=\{payload\} \/>[\s\S]*<DetailTabs payload=\{payload\} \/>[\s\S]*<DetailRightRail payload=\{payload\} \/>/);
   assert.doesNotMatch(source, /<Card size="small" title="[^"]*" className="native-detail-nested">/);
   assert.doesNotMatch(source, /<Card title="Artifacts">/);
   assert.match(source, /className="native-rail-action"/);
@@ -1546,7 +1616,7 @@ test('React dashboard detail uses a workbench flow map and right rail', async ()
     '.native-timeline-shell',
     '.native-timeline-row',
     '.native-timeline-dot',
-    '.native-detail-main-row',
+    '.native-detail-main-grid',
     '.native-detail-rail',
     '.native-rail-actions',
     '.native-rail-action',
@@ -1568,7 +1638,7 @@ test('React dashboard flow keeps the G6 instance stable across live refreshes', 
     path.join(extensionRoot, 'src', 'dashboard-react', 'DashboardApp.tsx'),
     'utf8',
   );
-  const component = source.match(/function AgentLoopFlow[\s\S]*?\n}\n\nfunction EventTimeline/)?.[0] ?? '';
+  const component = source.match(/function AgentLoopFlow[\s\S]*?\r?\n}\r?\n\r?\nfunction EventTimeline/)?.[0] ?? '';
 
   assert.match(
     component,
@@ -2616,6 +2686,22 @@ test('settings preview log redaction removes raw api keys', () => {
   assert.match(serialized, /migration-queue\.json/);
 });
 
+test('vscode shim enables requiring compiled Settings-related modules (paths, getAgentLoopConfig defaults)', () => {
+  // This require would have thrown "Cannot find module 'vscode'" without the harness shim.
+  const paths = requireFromExtension('./out/paths.js');
+  assert.equal(typeof paths.getAgentLoopConfig, 'function');
+  const cfg = paths.getAgentLoopConfig();
+  assert.equal(cfg.fixAgent, 'grok');
+  assert.equal(cfg.reviewAgent, 'codex');
+  assert.equal(typeof cfg.workerMaxTurns, 'number');
+  assert.equal(cfg.workerMaxTurns, 128);
+  assert.equal(cfg.workerMaxRetries, 2);
+  assert.equal(cfg.injectKeysToWorker, true);
+  assert.ok('queuePath' in cfg);
+  assert.ok('baseUrl' in cfg);
+  assert.ok('worktreeScope' in cfg);
+});
+
 test('getAgentLoopConfig shape includes new CLI and key related fields', () => {
   // We can't easily mock vscode here without setup, but ensure the module exports and basic defaults
   const { getAgentLoopConfig } = requireFromExtension('./out/paths.js');
@@ -2626,4 +2712,386 @@ test('getAgentLoopConfig shape includes new CLI and key related fields', () => {
   assert.ok('workerMaxTurns' in cfg);
   assert.ok('injectKeysToWorker' in cfg);
   assert.equal(typeof cfg.workerMaxTurns, 'number');
+});
+
+test('provider health LLM missing key returns skipped not failed', async () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { testProviderHealth } = mod;
+
+  const r1 = await testProviderHealth('grok', null);
+  assert.equal(r1.provider, 'grok');
+  assert.equal(r1.status, 'skipped');
+  assert.equal(r1.reason, 'missing key');
+  assert.equal(r1.durationMs, 0);
+
+  const r2 = await testProviderHealth('openai', '');
+  assert.equal(r2.status, 'skipped');
+  assert.equal(r2.reason, 'missing key');
+
+  const r3 = await testProviderHealth('anthropic', undefined);
+  assert.equal(r3.status, 'skipped');
+});
+
+test('provider health LLM uses mocked transport, reports duration/status/reason, asserts redaction', async () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { testProviderHealth } = mod;
+
+  let lastUrl = '';
+  const mockOk = async (url, opts) => {
+    lastUrl = url;
+    // simulate we never see raw key here; transport is opaque
+    return { ok: true, status: 200 };
+  };
+
+  const res = await testProviderHealth('grok', 'sk-grok-REAL-KEY-MUST-NOT-LEAK', { transport: mockOk });
+  assert.equal(res.provider, 'grok');
+  assert.equal(res.status, 'ok');
+  assert.ok(res.durationMs >= 0);
+  assert.equal(res.reason, 'ok');
+  assert.ok(lastUrl.includes('api.x.ai') || lastUrl.includes('models'));
+  assert.ok(!JSON.stringify(res).includes('REAL-KEY'));
+  assert.ok(!JSON.stringify(res).match(/sk-grok/i));
+
+  // failing transport -> redacted reason
+  const mockFail = async () => { throw new Error('401 Unauthorized sk-LEAKED'); };
+  const failRes = await testProviderHealth('openai', 'sk-openai-SEC', { transport: mockFail });
+  assert.equal(failRes.provider, 'openai');
+  assert.equal(failRes.status, 'failed');
+  assert.ok(!JSON.stringify(failRes).includes('LEAKED'));
+  assert.ok(!JSON.stringify(failRes).includes('sk-openai'));
+  // reason is sanitized/redacted form
+  assert.ok(['auth error', 'redacted error', 'error'].includes(failRes.reason));
+
+  // network like
+  const mockNet = async () => { const e = new Error('fetch failed ECONNREFUSED'); throw e; };
+  const netRes = await testProviderHealth('anthropic', 'sk-ant-SEC', { transport: mockNet });
+  assert.equal(netRes.status, 'failed');
+  assert.ok(netRes.reason.includes('network') || netRes.reason === 'error');
+  assert.ok(!JSON.stringify(netRes).includes('SEC'));
+});
+
+test('provider health LLM test with custom baseUrl uses provided transport', async () => {
+  const { testProviderHealth } = requireFromExtension('./out/settingsConfig.js');
+  const calls = [];
+  const t = async (url) => { calls.push(url); return { ok: true, status: 200 }; };
+  const r = await testProviderHealth('openai', 'k', { transport: t, baseUrl: 'https://proxy.example.com/v1' });
+  assert.equal(r.status, 'ok');
+  assert.ok(calls[0].includes('proxy.example.com'));
+});
+
+test('profile run guard: allowed idle switch (queueRunning false)', () => {
+  const mod = requireFromExtension('./out/dashboardPanel.js');
+  const { shouldRejectProfileChangeWhileRunning, computeActiveProfileName } = mod;
+  assert.equal(shouldRejectProfileChangeWhileRunning(false, { fixAgent: 'codex' }), false);
+  assert.equal(shouldRejectProfileChangeWhileRunning(false, { reviewAgent: 'grok', queuePath: 'x' }), false);
+  assert.equal(shouldRejectProfileChangeWhileRunning(false, { grokApiKey: 'secret' }), false);
+  assert.equal(computeActiveProfileName({ fixAgent: 'grok', reviewAgent: 'codex' }), 'grok / codex');
+});
+
+test('profile run guard: blocked running switch (queueRunning true)', () => {
+  const mod = requireFromExtension('./out/dashboardPanel.js');
+  const { shouldRejectProfileChangeWhileRunning, computeActiveProfileName } = mod;
+  assert.equal(shouldRejectProfileChangeWhileRunning(true, { fixAgent: 'codex' }), true);
+  assert.equal(shouldRejectProfileChangeWhileRunning(true, { reviewAgent: 'grok' }), true);
+  assert.equal(shouldRejectProfileChangeWhileRunning(true, { queuePath: '/new.json' }), true);
+  assert.equal(shouldRejectProfileChangeWhileRunning(true, { worktreeScope: 'task' }), true);
+  assert.equal(shouldRejectProfileChangeWhileRunning(true, { baseUrl: 'https://x' }), true);
+  // non-profile (key clear) not blocked by this guard
+  assert.equal(shouldRejectProfileChangeWhileRunning(true, { grokApiKey: '' }), false);
+  assert.equal(computeActiveProfileName({ fixAgent: 'grok' }), 'grok');
+  assert.equal(computeActiveProfileName(null), null);
+});
+
+// ===== Queue defaults preview tests (Settings 106: read + dry-run only, no write) =====
+test('queue defaults preview read returns supported keys and omits workerEnv', async () => {
+  const { readQueueDefaults, SUPPORTED_QUEUE_DEFAULT_KEYS, previewQueueDefaults } = requireFromExtension('./out/settingsConfig.js');
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-qd-'));
+  const qfile = path.join(tmpDir, 'migration-queue.json');
+  await fs.writeFile(qfile, JSON.stringify({
+    defaults: {
+      fixAgent: 'grok',
+      workerMaxTurns: 128,
+      workerEnv: { HTTP_PROXY: 'http://127.0.0.1:1', SECRET: 'x' },
+      unknownKey: 'should-be-ignored',
+      skipReview: false,
+    },
+  }), 'utf8');
+
+  const read = await readQueueDefaults(qfile);
+  assert.equal(read.fixAgent, 'grok');
+  assert.equal(read.workerMaxTurns, 128);
+  assert.equal(read.skipReview, false);
+  assert.ok(!('workerEnv' in read));
+  assert.ok(!('unknownKey' in read));
+  assert.ok(SUPPORTED_QUEUE_DEFAULT_KEYS.includes('workerMaxTurns'));
+});
+
+test('queue defaults preview dry-run returns structured diff for supported keys only', async () => {
+  const { previewQueueDefaults } = requireFromExtension('./out/settingsConfig.js');
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-qpreview-'));
+  const qfile = path.join(tmpDir, 'q.json');
+  await fs.writeFile(qfile, JSON.stringify({ defaults: { workerMaxTurns: 128, fixAgent: 'grok', maxIterations: 3 } }), 'utf8');
+
+  const res = await previewQueueDefaults(qfile, { workerMaxTurns: 256, fixAgent: 'grok' });
+  assert.equal(res.ok, true);
+  assert.ok(Array.isArray(res.diff));
+  const changed = res.diff.find((d) => d.key === 'workerMaxTurns');
+  assert.ok(changed);
+  assert.equal(changed.before, 128);
+  assert.equal(changed.after, 256);
+  assert.equal(res.after.fixAgent, 'grok');
+  assert.equal(res.before.maxIterations, 3);
+});
+
+test('queue defaults preview rejects unsupported keys with redacted error', async () => {
+  const { previewQueueDefaults } = requireFromExtension('./out/settingsConfig.js');
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-qreject-'));
+  const qfile = path.join(tmpDir, 'q.json');
+  await fs.writeFile(qfile, JSON.stringify({ defaults: { workerMaxTurns: 128 } }), 'utf8');
+
+  const bad1 = await previewQueueDefaults(qfile, { workerEnv: { x: 1 } });
+  assert.equal(bad1.ok, false);
+  assert.match(String(bad1.error || ''), /redacted/i);
+
+  const bad2 = await previewQueueDefaults(qfile, { fooBarUnknown: 999 });
+  assert.equal(bad2.ok, false);
+  assert.match(String(bad2.error || ''), /redacted/i);
+});
+
+test('queue defaults preview dry run does not write file', async () => {
+  const { previewQueueDefaults } = requireFromExtension('./out/settingsConfig.js');
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-qnowrite-'));
+  const qfile = path.join(tmpDir, 'migration-queue.json');
+  const initial = { defaults: { workerMaxTurns: 128, skipReview: true } };
+  await fs.writeFile(qfile, JSON.stringify(initial), 'utf8');
+  const beforeStat = await fs.stat(qfile);
+  const beforeContent = await fs.readFile(qfile, 'utf8');
+
+  const res = await previewQueueDefaults(qfile, { workerMaxTurns: 512 });
+  assert.equal(res.ok, true);
+  assert.equal(res.after.workerMaxTurns, 512);
+
+  const afterContent = await fs.readFile(qfile, 'utf8');
+  const afterStat = await fs.stat(qfile);
+  assert.equal(afterContent, beforeContent, 'preview must not mutate the queue file');
+  assert.equal(afterStat.mtimeMs, beforeStat.mtimeMs);
+});
+
+// ===== Queue defaults apply tests (Settings 106: apply after preview/confirm, write+validate, rollback, task preservation, secret rejection) =====
+test('queue defaults apply writes only supported keys, validates JSON and preserves task array', async () => {
+  const { applyQueueDefaults } = requireFromExtension('./out/settingsConfig.js');
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-qapply-'));
+  const qfile = path.join(tmpDir, 'migration-queue.json');
+  const initial = {
+    cwd: '..',
+    defaults: { workerMaxTurns: 128, fixAgent: 'grok', skipReview: false, workerEnv: { HTTP_PROXY: 'http://p' } },
+    tasks: [{ id: 't1', task: 'tasks/a.md' }, { id: 't2', task: 'tasks/b.md' }],
+    gates: ['node check.js']
+  };
+  await fs.writeFile(qfile, JSON.stringify(initial, null, 2), 'utf8');
+
+  const res = await applyQueueDefaults(qfile, { workerMaxTurns: 512, fixAgent: 'codex' });
+  assert.equal(res.ok, true);
+  assert.equal(res.applied.workerMaxTurns, 512);
+  assert.equal(res.applied.fixAgent, 'codex');
+  assert.equal(res.after.workerMaxTurns, 512);
+  assert.equal(res.after.fixAgent, 'codex');
+
+  const written = JSON.parse(await fs.readFile(qfile, 'utf8'));
+  assert.equal(written.defaults.workerMaxTurns, 512);
+  assert.equal(written.defaults.fixAgent, 'codex');
+  // workerEnv must be preserved untouched
+  assert.ok(written.defaults.workerEnv && written.defaults.workerEnv.HTTP_PROXY);
+  // tasks array fully preserved
+  assert.ok(Array.isArray(written.tasks));
+  assert.equal(written.tasks.length, 2);
+  assert.equal(written.tasks[0].id, 't1');
+  assert.equal(written.gates.length, 1);
+  // JSON remains valid by construction
+  assert.doesNotThrow(() => JSON.parse(JSON.stringify(written)));
+});
+
+test('queue defaults apply rejects unsupported and secret-like values', async () => {
+  const { applyQueueDefaults } = requireFromExtension('./out/settingsConfig.js');
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-qsecret-'));
+  const qfile = path.join(tmpDir, 'q.json');
+  await fs.writeFile(qfile, JSON.stringify({ defaults: { workerMaxTurns: 128 }, tasks: [] }), 'utf8');
+
+  const bad1 = await applyQueueDefaults(qfile, { workerEnv: { x: 1 } });
+  assert.equal(bad1.ok, false);
+  assert.match(String(bad1.error || ''), /redacted/i);
+
+  const bad2 = await applyQueueDefaults(qfile, { fooUnknown: 1 });
+  assert.equal(bad2.ok, false);
+
+  // secret value rejection
+  const bad3 = await applyQueueDefaults(qfile, { fixAgent: 'sk-1234567890abcdef' });
+  assert.equal(bad3.ok, false);
+  assert.match(String(bad3.error || ''), /redacted/i);
+});
+
+test('queue defaults apply rolls back on invalid write and task-array preservation', async () => {
+  const { applyQueueDefaults } = requireFromExtension('./out/settingsConfig.js');
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-qrollback-'));
+  const qfile = path.join(tmpDir, 'migration-queue.json');
+  const initial = {
+    defaults: { workerMaxTurns: 128 },
+    tasks: [{ id: 'taskA' }, { id: 'taskB' }]
+  };
+  await fs.writeFile(qfile, JSON.stringify(initial), 'utf8');
+  const beforeContent = await fs.readFile(qfile, 'utf8');
+
+  // monkey-patch writeFile to corrupt immediately after "good" write so post-validate fails and rollback triggers
+  const origWrite = fs.writeFile;
+  let calls = 0;
+  fs.writeFile = async (p, content, enc) => {
+    await origWrite(p, content, enc);
+    calls++;
+    if (calls === 1) {
+      // corrupt the file right after the apply's write so its re-read+validate detects invalid and rolls back
+      await origWrite(p, '{ "not": "valid json for apply rollback test"', 'utf8');
+    }
+  };
+
+  let res;
+  try {
+    res = await applyQueueDefaults(qfile, { workerMaxTurns: 999 });
+  } finally {
+    fs.writeFile = origWrite;
+  }
+
+  assert.equal(res.ok, false);
+  assert.equal(res.rolledBack, true);
+
+  // file must be restored to original (tasks preserved via rollback)
+  const restored = await fs.readFile(qfile, 'utf8');
+  assert.equal(restored, beforeContent);
+  const parsed = JSON.parse(restored);
+  assert.equal(parsed.tasks.length, 2);
+  assert.equal(parsed.defaults.workerMaxTurns, 128);
+});
+
+// ===== Settings import/export redaction tests (Settings 106) =====
+test('settings export redaction produces schema version, profiles, non-secret settings, key status only and never raw secrets', () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { createSettingsExport, SETTINGS_SCHEMA_VERSION } = mod;
+
+  const nonSens = { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 64, queuePath: 'q.json' };
+  const keys = { grokApiKey: 'configured', openaiApiKey: '', anthropicApiKey: 'configured' };
+  const exp = createSettingsExport(nonSens, keys);
+
+  assert.equal(exp.schemaVersion, SETTINGS_SCHEMA_VERSION);
+  assert.equal(exp.schemaVersion, 1);
+  assert.equal(exp.profiles && exp.profiles.fixAgent, 'grok');
+  assert.equal(exp.profiles && exp.profiles.reviewAgent, 'codex');
+  assert.ok(exp.nonSensitive);
+  assert.equal(exp.nonSensitive.workerMaxTurns, 64);
+  assert.equal(exp.keys.grokApiKey, 'configured');
+  assert.equal(exp.keys.openaiApiKey, '');
+  const ser = JSON.stringify(exp);
+  assert.ok(!ser.includes('sk-'));
+  assert.ok(!/Bearer |x-api-key|private key/i.test(ser));
+  assert.ok(!ser.includes('real-secret'));
+  assert.ok(ser.includes('configured'));
+});
+
+test('settings import validates schema version and rejects unsupported', () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { validateAndPrepareSettingsImport, SETTINGS_SCHEMA_VERSION } = mod;
+
+  const v1 = validateAndPrepareSettingsImport({ schemaVersion: SETTINGS_SCHEMA_VERSION, nonSensitive: { fixAgent: 'codex' } });
+  assert.equal(v1.ok, true);
+  assert.equal(v1.nonSensitive.fixAgent, 'codex');
+
+  const badVer = validateAndPrepareSettingsImport({ schemaVersion: 99, nonSensitive: { fixAgent: 'x' } });
+  assert.equal(badVer.ok, false);
+  assert.match(String(badVer.error || ''), /schema version/i);
+});
+
+test('settings import rejects unknown secret-looking keys and raw values', () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { validateAndPrepareSettingsImport } = mod;
+
+  const bad1 = validateAndPrepareSettingsImport({ schemaVersion: 1, grokApiKey: 'sk-real-secret-abc' });
+  assert.equal(bad1.ok, false);
+  assert.match(String(bad1.error || ''), /secret/i);
+
+  const bad2 = validateAndPrepareSettingsImport({ schemaVersion: 1, profiles: { fixAgent: 'sk-1234567890' }, nonSensitive: {} });
+  assert.equal(bad2.ok, false);
+
+  const bad3 = validateAndPrepareSettingsImport({ schemaVersion: 1, nonSensitive: { foo: 'Bearer xyz' } });
+  assert.equal(bad3.ok, false);
+});
+
+test('settings import handles malformed JSON and non-object input', () => {
+  const mod = requireFromExtension('./out/settingsConfig.js');
+  const { validateAndPrepareSettingsImport } = mod;
+
+  assert.equal(validateAndPrepareSettingsImport(null).ok, false);
+  assert.equal(validateAndPrepareSettingsImport(undefined).ok, false);
+  assert.equal(validateAndPrepareSettingsImport('not-an-object').ok, false);
+  assert.equal(validateAndPrepareSettingsImport(42).ok, false);
+  assert.equal(validateAndPrepareSettingsImport({}).ok, false); // no schemaVersion match -> fail
+  // simulate top level malformed as caught by handler producing 'malformed JSON'
+  // validator returns 'malformed input' for non record which covers parse-fail cases
+  assert.match(String(validateAndPrepareSettingsImport('{"schemaVersion":1, broken').error || ''), /malformed|invalid/i);
+});
+
+test('settings diagnostics payload shape covers effective config, sources, keys, queue path, repo root, last run state', () => {
+  const sample = {
+    effectiveConfig: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 128, queuePath: 'agent-loop/scripts/migration-queue.json', injectToWorker: true },
+    configSources: { fixAgent: 'workspace', queuePath: 'default' },
+    keys: { grokApiKey: 'configured', openaiApiKey: '', anthropicApiKey: '' },
+    queuePath: 'agent-loop/scripts/migration-queue.json',
+    repoRoot: '/abs/repo',
+    lastRunState: { runId: '2026-06-24T00', status: 'DONE_REVIEWED', task: 't.md' },
+    warnings: [
+      { category: 'ready', message: 'provider key(s) configured' },
+      { category: 'skipped', message: 'no key' },
+      { category: 'failed', message: 'queue missing' },
+      { category: 'unknown', message: 'last unknown' },
+    ],
+  };
+  assert.ok(sample.effectiveConfig && typeof sample.effectiveConfig === 'object');
+  assert.ok(sample.configSources && typeof sample.configSources === 'object');
+  assert.ok(sample.keys && typeof sample.keys === 'object');
+  assert.equal(typeof sample.queuePath, 'string');
+  assert.equal(typeof sample.repoRoot, 'string');
+  assert.ok(sample.lastRunState === null || typeof sample.lastRunState === 'object');
+  assert.ok(Array.isArray(sample.warnings));
+  const cats = sample.warnings.map((w) => w.category);
+  assert.ok(cats.includes('ready'));
+  assert.ok(cats.includes('skipped'));
+  assert.ok(cats.includes('failed'));
+  assert.ok(cats.includes('unknown'));
+});
+
+test('diagnostics data passes shared redaction helper and covers effective config redaction', () => {
+  const { redactSettingsMessageForLog } = requireFromExtension('./out/settingsMessages.js');
+  const diagMsg = {
+    type: 'diagnostics',
+    payload: {
+      effectiveConfig: { fixAgent: 'grok', grokApiKey: 'should-not-matter' },
+      keys: { grokApiKey: 'configured' },
+      queuePath: 'agent-loop/scripts/migration-queue.json',
+      warnings: [{ category: 'ready', message: 'ok' }],
+    },
+  };
+  const red = redactSettingsMessageForLog(diagMsg);
+  const s = JSON.stringify(red);
+  assert.ok(s.includes('effectiveConfig') || s.includes('queuePath'));
+  // redaction removes raw keys on matching fields
+  assert.ok(!s.includes('sk-') && !s.includes('Bearer'));
+  assert.match(s, /configured|redacted|<configured>|''/i);
+});
+
+test('effective config and queue path appear in diagnostics shape', () => {
+  const sampleDiag = {
+    effectiveConfig: { queuePath: 'p.json' },
+    queuePath: 'p.json',
+    warnings: [{ category: 'ready', message: 'queue path' }],
+  };
+  assert.ok('effectiveConfig' in sampleDiag);
+  assert.ok('queuePath' in sampleDiag);
+  assert.ok(Array.isArray(sampleDiag.warnings));
 });

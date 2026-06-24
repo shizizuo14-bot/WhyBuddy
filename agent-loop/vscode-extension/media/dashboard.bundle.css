@@ -144,12 +144,6 @@
   box-shadow: 0 8px 22px rgba(15, 35, 75, 0.05);
 }
 
-/* Slightly tighter card body for the flow area (not as tight as before) */
-.native-step-card .agent-ant-card-body,
-.native-step-card .ant-card-body {
-  padding: 14px 18px;
-}
-
 .native-detail-hero {
   background: transparent;
   border-bottom: 1px solid #dfe8f6;
