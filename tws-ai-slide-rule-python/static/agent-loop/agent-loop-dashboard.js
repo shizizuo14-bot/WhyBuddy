@@ -103,14 +103,23 @@
   function renderDetail(d) {
     if (!d || typeof d !== 'object') d = {};
 
-    // flow: iterations as flow summary
+    // flow: render from reducer-projected events (110) with stable node/edge ids
+    // do not rebuild from log selection or iterations
     var flowEl = document.getElementById('flow');
-    var iters = Array.isArray(d.iterations) ? d.iterations : [];
+    var nodes = Array.isArray(d.flowNodes) ? d.flowNodes : [];
+    var edges = Array.isArray(d.flowEdges) ? d.flowEdges : [];
     var flowHtml = '';
-    if (iters.length > 0) {
-      flowHtml = '<ul>' + iters.map(function (it) {
-        return '<li>iteration ' + (it && it.iteration != null ? it.iteration : '?') + '</li>';
+    if (nodes.length > 0) {
+      flowHtml = '<ul class="flow-nodes">' + nodes.map(function (n) {
+        var id = (n && n.id) ? String(n.id) : '?';
+        var label = (n && n.label) ? ' ' + String(n.label) : '';
+        return '<li data-node-id="' + id.replace(/"/g, '') + '">' + id + label + '</li>';
       }).join('') + '</ul>';
+      if (edges.length > 0) {
+        flowHtml += '<div class="flow-edges">edges: ' + edges.map(function (e) {
+          return (e && e.id) ? String(e.id) : '';
+        }).join(' ') + '</div>';
+      }
     }
     renderSection(flowEl, '', flowHtml, 'No flow data.');
 

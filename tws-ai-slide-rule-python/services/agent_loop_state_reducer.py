@@ -34,8 +34,24 @@ def reduce_run_events(events: List[Dict[str, Any]]) -> Dict[str, Any]:
         "finalized": False,
     }
 
-    seen_node_ids: set = set()
     flow_order: List[str] = []
+    seen_node_ids: set = set()
+
+    def _flow_node_id(base: str, event: Dict[str, Any]) -> str:
+        if base not in seen_node_ids:
+            return base
+        ev_seq = event.get("seq")
+        if ev_seq is not None:
+            return f"{base}-{ev_seq}"
+        return f"{base}-{len(flow_order)}"
+
+    def _append_flow_node(base: str, node_type: str, label: str, event: Dict[str, Any]) -> None:
+        nid = _flow_node_id(base, event)
+        if nid in seen_node_ids:
+            return
+        snap["flowNodes"].append({"id": nid, "type": node_type, "label": label})
+        seen_node_ids.add(nid)
+        flow_order.append(nid)
 
     for e in events:
         if not isinstance(e, dict):
@@ -62,12 +78,7 @@ def reduce_run_events(events: List[Dict[str, Any]]) -> Dict[str, Any]:
                 snap["phase"] = phase
             if not snap["activeAgent"] and src:
                 snap["activeAgent"] = src
-            # stable node for start/queue
-            nid = "queue"
-            if nid not in seen_node_ids:
-                snap["flowNodes"].append({"id": nid, "type": "start", "label": "Queue"})
-                seen_node_ids.add(nid)
-                flow_order.append(nid)
+            _append_flow_node("queue", "start", "Queue", e)
 
         elif typ in ("GATE_RESULT", "BASELINE_GATE_RESULT", "POST_FIX_GATE_RESULT"):
             snap["gate"] = {
@@ -76,11 +87,7 @@ def reduce_run_events(events: List[Dict[str, Any]]) -> Dict[str, Any]:
             }
             if phase:
                 snap["phase"] = phase
-            nid = "gate"
-            if nid not in seen_node_ids:
-                snap["flowNodes"].append({"id": nid, "type": "gate", "label": "Gate check"})
-                seen_node_ids.add(nid)
-                flow_order.append(nid)
+            _append_flow_node("gate", "gate", "Gate check", e)
 
         elif typ == "REVIEW_RESULT":
             # REVIEW_RESULT controls review verdict exclusively
@@ -90,11 +97,7 @@ def reduce_run_events(events: List[Dict[str, Any]]) -> Dict[str, Any]:
             snap["reviewVerdict"] = verdict
             if phase:
                 snap["phase"] = phase
-            nid = "review"
-            if nid not in seen_node_ids:
-                snap["flowNodes"].append({"id": nid, "type": "review", "label": "Review"})
-                seen_node_ids.add(nid)
-                flow_order.append(nid)
+            _append_flow_node("review", "review", "Review", e)
 
         elif typ == "RUN_FINALIZED":
             # RUN_FINALIZED is required for final done state
@@ -102,31 +105,19 @@ def reduce_run_events(events: List[Dict[str, Any]]) -> Dict[str, Any]:
             snap["status"] = payload.get("status") or "DONE"
             if phase:
                 snap["phase"] = phase
-            nid = "finalize"
-            if nid not in seen_node_ids:
-                snap["flowNodes"].append({"id": nid, "type": "finalize", "label": "Finalized"})
-                seen_node_ids.add(nid)
-                flow_order.append(nid)
+            _append_flow_node("finalize", "finalize", "Finalized", e)
 
         elif typ == "RUN_FAILED":
             snap["status"] = "FAILED"
             snap["finalized"] = True
             if phase:
                 snap["phase"] = phase
-            nid = "finalize"
-            if nid not in seen_node_ids:
-                snap["flowNodes"].append({"id": nid, "type": "finalize", "label": "Finalized"})
-                seen_node_ids.add(nid)
-                flow_order.append(nid)
+            _append_flow_node("finalize", "finalize", "Finalized", e)
 
         elif typ in ("AGENT_FIX_STARTED", "AGENT_FIX_RESULT"):
             if phase:
                 snap["phase"] = phase
-            nid = "fix"
-            if nid not in seen_node_ids:
-                snap["flowNodes"].append({"id": nid, "type": "fix", "label": "Agent fix"})
-                seen_node_ids.add(nid)
-                flow_order.append(nid)
+            _append_flow_node("fix", "fix", "Agent fix", e)
 
         elif typ == "AGENT_LOG":
             # timeline records references, does not parse msg for status
