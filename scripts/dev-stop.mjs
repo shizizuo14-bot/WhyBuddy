@@ -14,8 +14,12 @@ async function stopWindowsProjectProcesses() {
   const command = [
     `$root = '${escapedRoot}'`,
     `$selfPid = ${escapedPid}`,
-    `function Test-ProjectProcess([string] $commandLine) {`,
+    `function Test-ProjectProcess([string] $name, [string] $commandLine) {`,
     `  if (-not $commandLine) { return $false }`,
+    `  if ($name -eq 'python.exe') {`,
+    `    # Only the slide-rule-python uvicorn dev server; never a stray pytest / LSP / worker.`,
+    `    return ($commandLine -match 'uvicorn\\s+app:app' -and $commandLine -like '*slide-rule-python*')`,
+    `  }`,
     `  if ($commandLine -like "*$root*") { return $true }`,
     `  if ($commandLine -match 'scripts[\\\\/]dev-all\\.mjs') { return $true }`,
     `  if ($commandLine -match '--import\\s+tsx/esm\\s+server/index\\.ts') { return $true }`,
@@ -28,9 +32,9 @@ async function stopWindowsProjectProcesses() {
     `}`,
     `$all = Get-CimInstance Win32_Process | Where-Object {`,
     `  $_.ProcessId -ne $selfPid -and`,
-    `  @('node.exe', 'npm.exe', 'cmd.exe') -contains $_.Name`,
+    `  @('node.exe', 'npm.exe', 'cmd.exe', 'python.exe') -contains $_.Name`,
     `}`,
-    `$matched = $all | Where-Object { Test-ProjectProcess $_.CommandLine }`,
+    `$matched = $all | Where-Object { Test-ProjectProcess $_.Name $_.CommandLine }`,
     `$processes = @($matched)`,
     `if (-not $processes) {`,
     `  Write-Output 'No project dev processes found.'`,
@@ -63,7 +67,16 @@ async function stopUnixProjectProcesses() {
       if (!match) return null;
       return { pid: Number(match[1]), command: match[2] };
     })
-    .filter((entry) => entry && entry.pid !== process.pid && entry.command.includes(projectRoot) && entry.command.includes("node"));
+    .filter((entry) => {
+      if (!entry || entry.pid === process.pid || !entry.command.includes(projectRoot)) return false;
+      if (entry.command.includes("node")) return true;
+      // Only the slide-rule-python uvicorn dev server; never a stray pytest / worker.
+      return (
+        entry.command.includes("uvicorn") &&
+        entry.command.includes("app:app") &&
+        entry.command.includes("slide-rule-python")
+      );
+    });
 
   if (!targets.length) {
     console.log("No project dev processes found.");

@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import net from "node:net";
@@ -320,7 +320,14 @@ function terminateChild(child) {
 }
 
 function run(name, command, args = [], extraEnv = {}, options = {}) {
-  const { waitForReady = false, readyText = "", portGuard } = options;
+  const {
+    waitForReady = false,
+    readyText = "",
+    portGuard,
+    cwd,
+    matchStderr = false,
+    critical = true,
+  } = options;
   const resolvedCommand = resolveCommand(command);
   const child = spawn(
     process.platform === "win32"
@@ -333,6 +340,7 @@ function run(name, command, args = [], extraEnv = {}, options = {}) {
         ...process.env,
         ...extraEnv,
       },
+      cwd: cwd || undefined,
       shell: process.platform === "win32",
       detached: process.platform !== "win32",
     }
@@ -367,6 +375,12 @@ function run(name, command, args = [], extraEnv = {}, options = {}) {
       const text = chunk.toString();
       process.stderr.write(text);
       stderrBuffer += text;
+
+      // Some servers (e.g. uvicorn) emit their readiness banner on stderr, not stdout.
+      if (!isReady && matchStderr && readyText && stderrBuffer.includes(readyText)) {
+        isReady = true;
+        readyResolve?.();
+      }
     });
   }
 
@@ -376,6 +390,10 @@ function run(name, command, args = [], extraEnv = {}, options = {}) {
     }
 
     if (shuttingDown) return;
+    if (!critical) {
+      console.warn(`[${name}] failed to start: ${error.message}. Continuing without it.`);
+      return;
+    }
     console.error(`[${name}] failed to start: ${error.message}`);
     shutdown(1);
   });
@@ -397,6 +415,13 @@ function run(name, command, args = [], extraEnv = {}, options = {}) {
 
     if (shuttingDown) return;
     const reason = signal ? `signal ${signal}` : `code ${code ?? 0}`;
+
+    // Non-critical children (e.g. the optional Python backend) must never tear down the
+    // whole dev stack when they exit — just report it and keep the rest running.
+    if (!critical) {
+      console.warn(`[${name}] exited with ${reason}. Dev stack stays up.`);
+      return;
+    }
 
     // On Windows, `npm run` / `npx` spawns the real Node process through a `cmd.exe /c`
     // wrapper. The wrapper sometimes exits with code 4294967295 (-1) after forwarding
@@ -512,6 +537,57 @@ async function main() {
       portGuard: Number(process.env.LOBSTER_EXECUTOR_PORT ?? 3031),
     }
   );
+
+  const pythonDir = resolve(__projectRoot, "slide-rule-python");
+  const pythonExe =
+    process.platform === "win32"
+      ? resolve(pythonDir, ".venv", "Scripts", "python.exe")
+      : resolve(pythonDir, ".venv", "bin", "python");
+
+  if (existsSync(pythonExe)) {
+    const pythonPort = process.env.SLIDE_RULE_PYTHON_PORT ?? "9700";
+    const python = run(
+      "slide-rule-python",
+      pythonExe,
+      ["-m", "uvicorn", "app:app", "--host", "127.0.0.1", "--port", pythonPort],
+      sharedDevEnv,
+      {
+        cwd: pythonDir,
+        portGuard: Number(pythonPort),
+        waitForReady: true,
+        // uvicorn prints its readiness banner on stderr, so match there.
+        readyText: "Application startup complete.",
+        matchStderr: true,
+        // Optional backend: if it crashes or never boots, keep the rest of the stack alive.
+        critical: false,
+      }
+    );
+
+    // Wait for uvicorn to bind 9700 so the Vite `/api/agent-loop` proxy does not race
+    // an unstarted backend. Unlike the Node server, a slow/failed Python boot must NOT
+    // tear down the whole stack — the backend is optional for most of the dev flow, so
+    // we only warn and keep going (consistent with the venv-missing branch above).
+    Promise.race([
+      python.readyPromise,
+      new Promise((_, reject) =>
+        setTimeout(
+          () => reject(new Error("readiness banner timeout")),
+          60000
+        )
+      ),
+    ]).catch(error => {
+      if (shuttingDown) return;
+      console.warn(
+        `[dev:all] slide-rule-python did not report ready (${error instanceof Error ? error.message : String(error)}). ` +
+          `Continuing; the AgentLoop page may show errors until the Python backend on ${pythonPort} is up.`
+      );
+    });
+  } else {
+    console.warn(
+      `[dev:all] slide-rule-python venv not found at ${pythonExe}. ` +
+        `Skipping Python backend. Run "cd slide-rule-python && python -m venv .venv && pip install -r requirements.txt" to set it up.`
+    );
+  }
 }
 
 void main();
