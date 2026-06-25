@@ -1,428 +1,303 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useRef, useState } from "react";
+
+import { DashboardApp, DashboardDetailApp } from "./dashboard/DashboardApp";
+import { setCommandHandler } from "./dashboard/bridge";
 import {
-  Activity,
-  ArrowLeft,
-  Bot,
-  CheckCircle2,
-  Clock3,
-  ExternalLink,
-  RefreshCw,
-  Rows3,
-  Server,
-  TriangleAlert,
-} from "lucide-react";
+  cancelCurrent,
+  fetchDetail,
+  fetchOverview,
+  fetchProviderHealth,
+  fetchSettings,
+  runQueue,
+  runSingleTask,
+  saveSettings,
+} from "./dashboard/agentLoopApi";
+import type { DetailPayload, OverviewPayload } from "./dashboard/dashboardTypes";
+import brandLogo from "./dashboard/sliderule-brand.svg";
+import "./dashboard/dashboard.css";
 
-import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { cn } from "@/lib/utils";
-
-type AgentLoopHealth = {
-  status?: string;
-  backend?: string;
-  mode?: string;
-  version?: string;
-};
-
-type AgentLoopRunSummary = {
-  runId: string;
-  status?: string | null;
-  task?: string | null;
-  runMode?: string | null;
-  iterations?: number | null;
-  fixAgent?: string | null;
-  reviewAgent?: string | null;
-  runTimeLocal?: string | null;
-  runTimeUtc?: string | null;
-  metadata?: Record<string, unknown>;
-};
-
-type LoadState = "idle" | "loading" | "ready" | "error";
-
-const RUNS_ENDPOINT = "/api/agent-loop/runs/overview";
-const HEALTH_ENDPOINT = "/api/agent-loop/health";
-
-function isDoneStatus(status?: string | null) {
-  const s = String(status || "").toUpperCase();
-  return s.startsWith("DONE");
+// Expose the brand asset the way the ported DashboardApp expects to read it.
+if (typeof window !== "undefined") {
+  window.__AGENT_LOOP_ASSETS__ = { brandLogo };
 }
 
-function isAttentionStatus(status?: string | null) {
-  const s = String(status || "").toUpperCase();
-  return (
-    s.startsWith("HALT") ||
-    s.includes("FAILED") ||
-    s.includes("CONFLICT") ||
-    s === "DEGRADED"
-  );
-}
-
-function statusTone(status?: string | null) {
-  if (isDoneStatus(status)) return "success";
-  if (isAttentionStatus(status)) return "danger";
-  if (String(status || "").toUpperCase().includes("REVIEW")) return "warning";
-  return "info";
-}
-
-function compactTaskName(task?: string | null) {
-  if (!task) return "未绑定任务";
-  const parts = task.replace(/\\/g, "/").split("/");
-  return parts[parts.length - 1] || task;
-}
-
-function formatAgentPair(run: AgentLoopRunSummary) {
-  const fix = run.fixAgent || "worker";
-  const review = run.reviewAgent || "none";
-  return `${fix} / ${review}`;
-}
-
-function MetricCard({
-  label,
-  value,
-  icon: Icon,
-  tone = "neutral",
-}: {
-  label: string;
-  value: string | number;
-  icon: typeof Activity;
-  tone?: "neutral" | "success" | "warning" | "danger";
-}) {
-  const toneClass = {
-    neutral: "border-slate-200 bg-white text-slate-700",
-    success: "border-emerald-100 bg-emerald-50/70 text-emerald-700",
-    warning: "border-amber-100 bg-amber-50/70 text-amber-700",
-    danger: "border-rose-100 bg-rose-50/70 text-rose-700",
-  }[tone];
-
-  return (
-    <div className={cn("rounded-lg border p-4 shadow-sm", toneClass)}>
-      <div className="flex items-center justify-between gap-3">
-        <div>
-          <div className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">
-            {label}
-          </div>
-          <div className="mt-2 font-data text-2xl font-black text-slate-950">
-            {value}
-          </div>
-        </div>
-        <span className="flex size-10 items-center justify-center rounded-lg bg-white/80 shadow-sm">
-          <Icon className="size-5" />
-        </span>
-      </div>
-    </div>
-  );
-}
-
-function StatusBadge({ status }: { status?: string | null }) {
-  const tone = statusTone(status);
-  const className =
-    tone === "success"
-      ? "border-emerald-200 bg-emerald-50 text-emerald-700"
-      : tone === "danger"
-        ? "border-rose-200 bg-rose-50 text-rose-700"
-        : tone === "warning"
-          ? "border-amber-200 bg-amber-50 text-amber-700"
-          : "border-sky-200 bg-sky-50 text-sky-700";
-
-  return (
-    <Badge variant="outline" className={className}>
-      {status || "UNKNOWN"}
-    </Badge>
-  );
-}
-
-function RunsTable({
-  runs,
-  selectedRunId,
-  onSelect,
-}: {
-  runs: AgentLoopRunSummary[];
-  selectedRunId: string | null;
-  onSelect: (run: AgentLoopRunSummary) => void;
-}) {
-  return (
-    <div
-      className="overflow-hidden rounded-lg border border-slate-200 bg-white"
-      data-testid="agent-loop-runs"
-    >
-      <table className="workspace-data-table w-full text-left text-sm">
-        <thead className="bg-slate-50 text-xs uppercase tracking-[0.08em]">
-          <tr>
-            <th className="px-4 py-3">任务</th>
-            <th className="px-4 py-3">状态</th>
-            <th className="px-4 py-3">Agent</th>
-            <th className="px-4 py-3">迭代</th>
-            <th className="px-4 py-3">最后更新</th>
-          </tr>
-        </thead>
-        <tbody>
-          {runs.length === 0 ? (
-            <tr>
-              <td className="px-4 py-8 text-center text-slate-500" colSpan={5}>
-                暂无运行记录。请确认 Python 后端已设置 AGENT_LOOP_RUNS_DIR。
-              </td>
-            </tr>
-          ) : (
-            runs.slice(0, 30).map(run => (
-              <tr
-                key={run.runId}
-                className={cn(
-                  "border-t border-slate-100 transition-colors hover:bg-slate-50",
-                  selectedRunId === run.runId && "bg-sky-50/70"
-                )}
-              >
-                <td className="min-w-[280px] px-4 py-3">
-                  <button
-                    type="button"
-                    onClick={() => onSelect(run)}
-                    className="block w-full text-left"
-                  >
-                    <span className="block truncate font-semibold text-slate-900">
-                      {compactTaskName(run.task)}
-                    </span>
-                    <span className="mt-1 block truncate font-data text-xs text-slate-500">
-                      {run.runId}
-                    </span>
-                  </button>
-                </td>
-                <td className="px-4 py-3">
-                  <StatusBadge status={run.status} />
-                </td>
-                <td className="px-4 py-3 text-slate-600">
-                  {formatAgentPair(run)}
-                </td>
-                <td className="px-4 py-3 font-data text-slate-700">
-                  {run.iterations ?? 0}
-                </td>
-                <td className="px-4 py-3 text-slate-600">
-                  {run.runTimeLocal || run.runTimeUtc || "-"}
-                </td>
-              </tr>
-            ))
-          )}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-
-function DetailPanel({ run }: { run: AgentLoopRunSummary | null }) {
-  if (!run) {
-    return (
-      <Card className="rounded-lg">
-        <CardHeader>
-          <CardTitle>运行详情</CardTitle>
-        </CardHeader>
-        <CardContent className="text-sm text-slate-500">
-          选择一条运行记录查看任务、Agent、状态和 Python API 入口。
-        </CardContent>
-      </Card>
-    );
-  }
-
-  const detailHref = `/api/agent-loop/runs/${encodeURIComponent(run.runId)}`;
-
-  return (
-    <Card className="rounded-lg">
-      <CardHeader>
-        <div className="flex items-center justify-between gap-3">
-          <CardTitle>运行详情</CardTitle>
-          <StatusBadge status={run.status} />
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-4 text-sm">
-        <div>
-          <div className="text-xs font-semibold text-slate-500">Run ID</div>
-          <div className="mt-1 break-all font-data text-slate-900">{run.runId}</div>
-        </div>
-        <div>
-          <div className="text-xs font-semibold text-slate-500">任务</div>
-          <div className="mt-1 text-slate-900">{run.task || "-"}</div>
-        </div>
-        <div className="grid grid-cols-2 gap-3">
-          <div className="rounded-lg bg-slate-50 p-3">
-            <div className="text-xs text-slate-500">运行模式</div>
-            <div className="mt-1 font-semibold text-slate-900">
-              {run.runMode || "-"}
-            </div>
-          </div>
-          <div className="rounded-lg bg-slate-50 p-3">
-            <div className="text-xs text-slate-500">Agent</div>
-            <div className="mt-1 font-semibold text-slate-900">
-              {formatAgentPair(run)}
-            </div>
-          </div>
-        </div>
-        <Button asChild variant="outline" className="w-full justify-between">
-          <a href={detailHref} target="_blank" rel="noreferrer">
-            打开 Python 详情 JSON
-            <ExternalLink className="size-4" />
-          </a>
-        </Button>
-      </CardContent>
-    </Card>
-  );
-}
+type View = "overview" | "detail";
 
 export default function AgentLoopPage() {
-  const [runs, setRuns] = useState<AgentLoopRunSummary[]>([]);
-  const [health, setHealth] = useState<AgentLoopHealth | null>(null);
-  const [loadState, setLoadState] = useState<LoadState>("idle");
+  const [view, setView] = useState<View>("overview");
+  const [overview, setOverview] = useState<OverviewPayload | null>(null);
+  const [detail, setDetail] = useState<DetailPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [selectedRunId, setSelectedRunId] = useState<string | null>(null);
+  // The ported dashboard is a client-only antd + g6 (canvas) tree that touches `window`
+  // during render, so it must not run under SSR. Gate it behind a mount flag and show a
+  // lightweight placeholder until the browser hydrates.
+  const [mounted, setMounted] = useState(false);
 
-  const selectedRun = useMemo(
-    () => runs.find(run => run.runId === selectedRunId) ?? runs[0] ?? null,
-    [runs, selectedRunId]
-  );
+  // Keep the latest overview in a ref so the (stable) command handler can resolve a
+  // task path back to its runId without being re-registered on every data refresh.
+  const overviewRef = useRef<OverviewPayload | null>(null);
+  overviewRef.current = overview;
+  const viewRef = useRef<View>("overview");
+  viewRef.current = view;
+  const detailRunIdRef = useRef<string | null>(null);
 
-  const stats = useMemo(() => {
-    const done = runs.filter(run => isDoneStatus(run.status)).length;
-    const attention = runs.filter(run => isAttentionStatus(run.status)).length;
-    const active = Math.max(0, runs.length - done - attention);
-    return { total: runs.length, done, attention, active };
-  }, [runs]);
-
-  async function load() {
-    setLoadState("loading");
+  async function loadOverview() {
     setError(null);
     try {
-      const [healthRes, runsRes] = await Promise.all([
-        fetch(HEALTH_ENDPOINT),
-        fetch(RUNS_ENDPOINT),
-      ]);
-
-      if (!healthRes.ok) {
-        throw new Error(`health ${healthRes.status}`);
-      }
-      if (!runsRes.ok) {
-        throw new Error(`runs ${runsRes.status}`);
-      }
-
-      const nextHealth = (await healthRes.json()) as AgentLoopHealth;
-      const nextRuns = (await runsRes.json()) as AgentLoopRunSummary[];
-      setHealth(nextHealth);
-      setRuns(Array.isArray(nextRuns) ? nextRuns : []);
-      setSelectedRunId(current => {
-        if (current && nextRuns.some(run => run.runId === current)) return current;
-        return nextRuns[0]?.runId ?? null;
-      });
-      setLoadState("ready");
+      setOverview(await fetchOverview());
     } catch (err) {
-      setLoadState("error");
       setError(err instanceof Error ? err.message : String(err));
     }
   }
 
+  async function openDetail(runId: string) {
+    setError(null);
+    try {
+      detailRunIdRef.current = runId;
+      const next = await fetchDetail(runId);
+      setDetail(next);
+      setView("detail");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    }
+  }
+
+  // Helper to push responses back to the ported DashboardApp which listens on window 'message'
+  function dispatchMessage(type: string, payload: unknown) {
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new MessageEvent("message", { data: { type, payload } }));
+    }
+  }
+
+  function adaptSettings(raw: any): any {
+    if (!raw) return raw;
+    // Python /settings returns {effective, keys, ...}; Dashboard expects nonSensitive or flat
+    const eff = raw.effective || raw;
+    return {
+      nonSensitive: eff,
+      keys: raw.keys || {},
+      activeProfile: eff?.activeProfile ?? raw.activeProfile ?? "local",
+      baseUrl: eff?.baseUrl ?? "",
+      injectToWorker: eff?.injectKeysToWorker ?? eff?.injectToWorker ?? true,
+      queueRunning: false,
+    };
+  }
+
   useEffect(() => {
-    void load();
+    setMounted(true);
+    void loadOverview();
+
+    setCommandHandler((type, extra) => {
+      switch (type) {
+        case "refresh": {
+          if (viewRef.current === "detail" && detailRunIdRef.current) {
+            void openDetail(detailRunIdRef.current);
+          } else {
+            void loadOverview();
+          }
+          return;
+        }
+        case "openTask": {
+          // Prefer the explicit runId the row carries; fall back to resolving the task
+          // path to its first matching run.
+          const taskPath = String(extra.taskPath ?? "");
+          const explicitRunId = extra.runId ? String(extra.runId) : "";
+          const match = (overviewRef.current?.tasks || []).find(
+            (t) => t.task === taskPath || t.id === taskPath,
+          );
+          const runId = explicitRunId || match?.id || taskPath;
+          if (runId) void openDetail(runId);
+          return;
+        }
+        case "showOverview": {
+          setView("overview");
+          void loadOverview();
+          return;
+        }
+        case "openReport":
+        case "openState": {
+          const url = String(extra.reportPath ?? extra.statePath ?? "");
+          if (url) window.open(url, "_blank", "noopener,noreferrer");
+          return;
+        }
+
+        // --- Run controls (wired to /queue/run /task/run /cancel) ---
+        case "runTask": {
+          void (async () => {
+            try {
+              await runSingleTask(extra);
+              // re-fetch current view
+              if (viewRef.current === "detail" && detailRunIdRef.current) {
+                void openDetail(detailRunIdRef.current);
+              } else {
+                void loadOverview();
+              }
+            } catch (e: any) {
+              window.alert(`运行任务失败：${e?.message || e}`);
+            }
+          })();
+          return;
+        }
+        case "runQueue": {
+          void (async () => {
+            try {
+              await runQueue(extra);
+              void loadOverview();
+            } catch (e: any) {
+              window.alert(`运行队列失败：${e?.message || e}`);
+            }
+          })();
+          return;
+        }
+        case "stopRun": {
+          void (async () => {
+            try {
+              await cancelCurrent(extra);
+              if (viewRef.current === "detail" && detailRunIdRef.current) {
+                void openDetail(detailRunIdRef.current);
+              } else {
+                void loadOverview();
+              }
+            } catch (e: any) {
+              // cancel in bridge is best-effort placeholder; do not hard fail UI
+              void loadOverview();
+            }
+          })();
+          return;
+        }
+
+        // --- Settings / profiles / diagnostics / run bridge (now wired to Python /api/agent-loop) ---
+        case "getSettings": {
+          void (async () => {
+            try {
+              const raw = await fetchSettings();
+              dispatchMessage("settings", adaptSettings(raw));
+            } catch (e) {
+              dispatchMessage("settings", { nonSensitive: {}, keys: {} });
+            }
+          })();
+          return;
+        }
+        case "saveSettings": {
+          void (async () => {
+            try {
+              await saveSettings(extra as any);
+              const raw = await fetchSettings();
+              dispatchMessage("settings", adaptSettings(raw));
+            } catch (e: any) {
+              dispatchMessage("saveBlocked", { message: e?.message || "save failed" });
+            }
+          })();
+          return;
+        }
+        case "getQueueDefaults": {
+          // Not yet modeled in Python control plane; return usable stub so UI renders
+          dispatchMessage("queueDefaults", {
+            defaults: {},
+            supportedKeys: ["fixAgent", "reviewAgent", "workerMaxTurns", "queuePath"],
+            queuePath: "agent-loop/scripts/migration-queue.json",
+          });
+          return;
+        }
+        case "previewQueueDefaults":
+        case "applyQueueDefaults": {
+          // Stub success; real apply would be handled by runner side for now
+          dispatchMessage("queuePreview", { ok: true, proposed: extra });
+          dispatchMessage("queueApply", { ok: true, proposed: extra });
+          return;
+        }
+        case "getDiagnostics": {
+          dispatchMessage("diagnostics", { ok: true, source: "web", note: "provider-health available separately" });
+          return;
+        }
+        case "listProfiles": {
+          dispatchMessage("profiles", { profiles: ["local"], active: "local" });
+          return;
+        }
+        case "createProfile":
+        case "renameProfile":
+        case "duplicateProfile":
+        case "deleteProfile":
+        case "selectProfile": {
+          // Minimal ack; profile mgmt not modeled yet beyond activeProfile in settings
+          dispatchMessage("profiles", { profiles: ["local"], active: (extra as any)?.newName || (extra as any)?.name || "local" });
+          dispatchMessage("profileError", null); // clear
+          // after change, refresh settings too
+          void (async () => {
+            try {
+              const raw = await fetchSettings();
+              dispatchMessage("settings", adaptSettings(raw));
+            } catch {}
+          })();
+          return;
+        }
+        case "exportSettings": {
+          void (async () => {
+            try {
+              const raw = await fetchSettings();
+              dispatchMessage("settingsExported", adaptSettings(raw));
+            } catch {}
+          })();
+          return;
+        }
+        case "importSettings": {
+          void (async () => {
+            try {
+              await saveSettings(extra as any);
+              const raw = await fetchSettings();
+              dispatchMessage("importSettingsResult", { ok: true });
+              dispatchMessage("settings", adaptSettings(raw));
+            } catch (e: any) {
+              dispatchMessage("importSettingsResult", { ok: false, error: e?.message || "import failed" });
+            }
+          })();
+          return;
+        }
+        case "testProvider": {
+          void (async () => {
+            try {
+              const h = await fetchProviderHealth();
+              const p = (extra as any)?.provider || "grok";
+              const entry = (h && (h[p] || h.providers?.[p])) || { provider: p, status: "ok" };
+              dispatchMessage("providerHealth", { provider: p, ok: true, ...entry });
+            } catch {
+              dispatchMessage("providerHealth", { provider: (extra as any)?.provider || "grok", ok: false });
+            }
+          })();
+          return;
+        }
+        case "testWorkerCli": {
+          // Worker CLI health not separately modeled; reuse provider as approximation
+          const w = (extra as any)?.worker || "grok";
+          dispatchMessage("workerCliHealth", { worker: w, ok: true, note: "see provider-health" });
+          return;
+        }
+        default:
+          // Unknown commands ignored silently (keeps old behavior for forward compat)
+          return;
+      }
+    });
+
+    return () => setCommandHandler(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   return (
-    <main
-      className="min-h-screen bg-slate-50 px-5 py-5 text-slate-900 md:px-8"
-      data-testid="agent-loop-page"
-    >
-      <div className="mx-auto flex max-w-[1480px] flex-col gap-5">
-        <header className="flex flex-wrap items-center justify-between gap-4 rounded-lg border border-slate-200 bg-white px-5 py-4 shadow-sm">
-          <div className="flex min-w-0 items-center gap-4">
-            <Button asChild variant="outline" size="sm">
-              <a href="/sliderule">
-                <ArrowLeft className="size-4" />
-                返回 SlideRule
-              </a>
-            </Button>
-            <div className="min-w-0">
-              <div className="flex items-center gap-2 text-xs font-black uppercase tracking-[0.18em] text-slate-500">
-                <Bot className="size-4" />
-                AgentLoop
-              </div>
-              <h1 className="mt-1 text-2xl font-black tracking-tight text-slate-950">
-                运行队列工作台
-              </h1>
-            </div>
-          </div>
-          <div className="flex flex-wrap items-center gap-3">
-            <Badge variant="outline" className="border-sky-200 bg-sky-50 text-sky-700">
-              <Server className="size-3" />
-              Python Runtime {health?.status || "checking"}
-            </Badge>
-            <Button
-              type="button"
-              onClick={() => void load()}
-              disabled={loadState === "loading"}
-              size="sm"
-            >
-              <RefreshCw
-                className={cn("size-4", loadState === "loading" && "animate-spin")}
-              />
-              刷新
-            </Button>
-          </div>
-        </header>
-
-        <section className="grid grid-cols-1 gap-4 md:grid-cols-4">
-          <MetricCard label="总运行" value={stats.total} icon={Rows3} />
-          <MetricCard label="已完成" value={stats.done} icon={CheckCircle2} tone="success" />
-          <MetricCard label="需关注" value={stats.attention} icon={TriangleAlert} tone="danger" />
-          <MetricCard label="进行中/其他" value={stats.active} icon={Clock3} tone="warning" />
-        </section>
-
-        <section className="grid grid-cols-1 gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-          <Card className="rounded-lg">
-            <CardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <CardTitle>运行队列</CardTitle>
-                  <p className="mt-1 text-sm text-slate-500">
-                    数据来自 <code>{RUNS_ENDPOINT}</code>
-                  </p>
-                </div>
-                {loadState === "error" ? (
-                  <Badge variant="outline" className="border-rose-200 bg-rose-50 text-rose-700">
-                    {error || "加载失败"}
-                  </Badge>
-                ) : null}
-              </div>
-            </CardHeader>
-            <CardContent>
-              <RunsTable
-                runs={runs}
-                selectedRunId={selectedRun?.runId ?? null}
-                onSelect={run => setSelectedRunId(run.runId)}
-              />
-            </CardContent>
-          </Card>
-
-          <div className="space-y-5">
-            <DetailPanel run={selectedRun} />
-            <Card className="rounded-lg">
-              <CardHeader>
-                <CardTitle>运行入口</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-3 text-sm text-slate-600">
-                <div className="rounded-lg bg-slate-50 p-3">
-                  <div className="text-xs font-semibold text-slate-500">
-                    Health
-                  </div>
-                  <div className="mt-1 font-data text-slate-900">
-                    {HEALTH_ENDPOINT}
-                  </div>
-                </div>
-                <div className="rounded-lg bg-slate-50 p-3">
-                  <div className="text-xs font-semibold text-slate-500">
-                    Backend
-                  </div>
-                  <div className="mt-1 text-slate-900">
-                    {health?.backend || "sliderule-python"}
-                    {health?.mode ? ` / ${health.mode}` : ""}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </section>
-      </div>
+    <main data-testid="agent-loop-page" className="agent-loop-root">
+      {error ? (
+        <div data-testid="agent-loop-error" className="agent-loop-error">
+          加载失败：{error}
+        </div>
+      ) : null}
+      {!mounted ? (
+        <div data-testid="agent-loop-loading" className="agent-loop-loading">
+          AgentLoop 控制台加载中…
+        </div>
+      ) : view === "detail" && detail ? (
+        <DashboardDetailApp payload={detail} />
+      ) : (
+        <DashboardApp payload={overview ?? { tasks: [], counts: {} }} />
+      )}
     </main>
   );
 }

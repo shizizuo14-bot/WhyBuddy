@@ -2457,6 +2457,51 @@
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-secret-settings-semantics-111",
+      "task": "agent-loop/tasks/sliderule-agentloop-secret-settings-semantics-111.md",
+      "gatesKey": "slideruleAgentLoopSecretSettingsSemantics111Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-cancel-semantics-111",
+      "task": "agent-loop/tasks/sliderule-agentloop-cancel-semantics-111.md",
+      "gatesKey": "slideruleAgentLoopCancelSemantics111Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-artifact-route-truth-111",
+      "task": "agent-loop/tasks/sliderule-agentloop-artifact-route-truth-111.md",
+      "gatesKey": "slideruleAgentLoopArtifactRouteTruth111Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-settings-profile-runtime-111",
+      "task": "agent-loop/tasks/sliderule-agentloop-settings-profile-runtime-111.md",
+      "gatesKey": "slideruleAgentLoopSettingsProfileRuntime111Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-web-bridge-interaction-tests-111",
+      "task": "agent-loop/tasks/sliderule-agentloop-web-bridge-interaction-tests-111.md",
+      "gatesKey": "slideruleAgentLoopWebBridgeInteractionTests111Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
     }
   ],
   "nodeRouteInventory50Gates": [
@@ -3619,5 +3664,32 @@
     "node -e \"const fs=require('fs'); const [p,m]=Buffer.from('dHdzLWFpLXNsaWRlLXJ1bGUtcHl0aG9uL3Rlc3RzL3Rlc3RfYWdlbnRfbG9vcF9yZXBsYXlfcmVsZWFzZV9yZWFkaW5lc3MucHkKYWdlbnRsb29wIHJlcGxheSByZWxlYXNlIHJlYWRpbmVzcyAxMTAgdmVyaWZpZXMgdjIgc3NvdCByb2xsb3V0IGFuZCByb2xsYmFjaw==','base64').toString('utf8').split('\\n'); if(!fs.existsSync(p) || !fs.readFileSync(p,'utf8').includes(m)) throw new Error('missing SlideRule AgentLoop 110 marker: '+m);\"",
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_replay_release_readiness.py -q --tb=short",
     "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-replay-release-readiness-110.md slide-rule-python/AGENT_LOOP_V2_RUNTIME_SSOT.md slide-rule-python/AGENT_LOOP_RUNBOOK.md slide-rule-python/README.md slide-rule-python/tests/test_agent_loop_replay_release_readiness.py"
+  ],
+  "slideruleAgentLoopSecretSettingsSemantics111Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-secret-settings-semantics-111.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/AgentLoopPage.test.tsx"
+  ],
+  "slideruleAgentLoopCancelSemantics111Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-cancel-semantics-111.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/dashboard/agentLoopApi.ts slide-rule-python/routes/agent_loop.py client/src/pages/agent-loop/AgentLoopPage.test.tsx"
+  ],
+  "slideruleAgentLoopArtifactRouteTruth111Gates": [
+    "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_run_detail.py -q --tb=short",
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-artifact-route-truth-111.md client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/AgentLoopPage.test.tsx slide-rule-python/routes/agent_loop.py slide-rule-python/services/agent_loop_runs.py slide-rule-python/services/agent_loop_artifacts.py"
+  ],
+  "slideruleAgentLoopSettingsProfileRuntime111Gates": [
+    "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_agent_loop_settings_runtime.py -q --tb=short",
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-settings-profile-runtime-111.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/AgentLoopPage.test.tsx slide-rule-python/routes/agent_loop.py slide-rule-python/services/agent_loop_settings.py"
+  ],
+  "slideruleAgentLoopWebBridgeInteractionTests111Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-web-bridge-interaction-tests-111.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/AgentLoopPage.test.tsx"
   ]
 }

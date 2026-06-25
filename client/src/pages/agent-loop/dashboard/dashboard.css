@@ -1,0 +1,587 @@
+.native-dashboard {
+  background: #f6f9fd;
+  color: rgba(0, 0, 0, 0.88);
+  min-height: 100vh;
+}
+
+.native-sidebar {
+  background: #fff;
+  border-right: 1px solid #dbe6f5;
+  height: 100vh;
+  overflow: auto;
+  padding: 0;
+}
+
+.native-brand {
+  align-items: center;
+  display: flex;
+  height: 56px;
+  justify-content: flex-start;
+  overflow: hidden;
+  /* padding: 0 24px; */
+  width: 100%;
+}
+
+.native-brand-mark {
+  align-items: center;
+  display: inline-flex;
+  height: 56px;
+  justify-content: flex-start;
+  width: auto;
+}
+
+.native-brand-mark img {
+  display: block;
+  max-height: none;
+  max-width: none;
+  object-fit: contain;
+  transform: scale(1);
+  transform-origin: center;
+  width: 169px;
+}
+
+.native-main {
+  min-width: 0;
+}
+
+.native-header {
+  align-items: center;
+  background: #fff;
+  border-bottom: 1px solid #dbe6f5;
+  display: flex;
+  height: 56px;
+  padding: 0 24px;
+}
+
+.native-content {
+  min-height: calc(100vh - 56px);
+  overflow-x: hidden;
+  padding: 24px;
+}
+
+.native-scroll-surface,
+.native-sidebar,
+.native-content,
+.native-timeline-shell,
+.native-code {
+  scrollbar-color: rgba(86, 111, 148, 0.34) transparent;
+  scrollbar-width: thin;
+}
+
+.native-scroll-surface::-webkit-scrollbar,
+.native-sidebar::-webkit-scrollbar,
+.native-content::-webkit-scrollbar,
+.native-timeline-shell::-webkit-scrollbar,
+.native-code::-webkit-scrollbar {
+  height: 8px;
+  width: 8px;
+}
+
+.native-scroll-surface::-webkit-scrollbar-track,
+.native-sidebar::-webkit-scrollbar-track,
+.native-content::-webkit-scrollbar-track,
+.native-timeline-shell::-webkit-scrollbar-track,
+.native-code::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.native-scroll-surface::-webkit-scrollbar-thumb,
+.native-sidebar::-webkit-scrollbar-thumb,
+.native-content::-webkit-scrollbar-thumb,
+.native-timeline-shell::-webkit-scrollbar-thumb,
+.native-code::-webkit-scrollbar-thumb {
+  background: rgba(86, 111, 148, 0.3);
+  background-clip: padding-box;
+  border: 2px solid transparent;
+  border-radius: 999px;
+}
+
+.native-scroll-surface::-webkit-scrollbar-thumb:hover,
+.native-sidebar::-webkit-scrollbar-thumb:hover,
+.native-content::-webkit-scrollbar-thumb:hover,
+.native-timeline-shell::-webkit-scrollbar-thumb:hover,
+.native-code::-webkit-scrollbar-thumb:hover {
+  background: rgba(66, 91, 128, 0.44);
+  background-clip: padding-box;
+}
+
+.native-stack,
+.native-side {
+  width: 100%;
+}
+
+.native-dev-toolbar {
+  background: rgba(255, 255, 255, 0.94);
+  border: 1px solid #dbe6f5;
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(15, 35, 75, 0.1);
+  padding: 8px;
+  position: fixed;
+  right: 16px;
+  top: 16px;
+  z-index: 20;
+}
+
+.native-task-path {
+  max-width: 560px;
+}
+
+.native-dashboard h3 {
+  margin: 0;
+}
+
+.native-detail-dashboard .native-content {
+  background: linear-gradient(180deg, #fff 0%, #f7fbff 260px, #f6f9fd 100%);
+  padding: 18px 24px 22px;
+}
+
+.native-step-card,
+.native-detail-workbench,
+.native-timeline-card,
+.native-detail-rail > * {
+  border-color: #dfe8f6;
+  border-radius: 8px;
+  box-shadow: 0 8px 22px rgba(15, 35, 75, 0.05);
+}
+
+.native-detail-hero {
+  background: transparent;
+  border-bottom: 1px solid #dfe8f6;
+  padding-bottom: 14px;
+}
+
+.native-run-head {
+  align-items: flex-start;
+  display: flex;
+  gap: 18px;
+  justify-content: space-between;
+  margin-bottom: 14px;
+}
+
+.native-run-title {
+  min-width: 0;
+}
+
+.native-title-line {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  min-width: 0;
+}
+
+.native-back-button {
+  flex: 0 0 auto;
+}
+
+.native-detail-hero h3 {
+  line-height: 1.2;
+}
+
+.native-run-actions {
+  justify-content: flex-end;
+}
+
+.native-hero-kpis {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.native-metric-grid {
+  display: grid;
+  gap: 0;
+  grid-template-columns: repeat(5, minmax(118px, 1fr));
+  max-width: 720px;
+}
+
+.native-metric {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-left: 1px solid #dfe8f6;
+  border-radius: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  justify-content: center;
+  min-width: 0;
+  padding: 4px 14px;
+  text-align: center;
+}
+
+.native-metric-success {
+  color: #1f9d55;
+}
+
+.native-metric-warning {
+  color: #b7791f;
+}
+
+.native-metric-error {
+  color: #cf1322;
+}
+
+.native-metric-icon {
+  display: none;
+}
+
+.native-metric-copy {
+  display: inline-flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.native-progress-head {
+  width: 100%;
+  font-size: 12px;
+}
+
+.native-progress-track {
+  flex: 1;
+  min-width: 140px;
+}
+
+.native-flow-map {
+  min-height: 134px;
+  position: relative;
+  width: 100%;
+}
+
+.native-flow-lane {
+  padding: 3px 0 0;
+  position: relative;
+}
+
+.native-flow-g6-canvas {
+  height: 126px;
+  max-width: 1120px;
+  margin: 0 auto;
+  pointer-events: none;
+  position: relative;
+  width: 100%;
+  z-index: 0;
+}
+
+.native-flow-legend {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  justify-content: center;
+  margin-top: -3px;
+}
+
+.native-flow-legend span {
+  align-items: center;
+  color: rgba(0, 0, 0, 0.55);
+  display: inline-flex;
+  font-size: 11px;
+  gap: 5px;
+}
+
+.native-flow-legend-line {
+  border-radius: 999px;
+  display: inline-block;
+  height: 3px;
+  width: 22px;
+}
+
+.native-flow-legend-main {
+  background: #22b14c;
+}
+
+.native-flow-legend-redo {
+  background: repeating-linear-gradient(90deg, #ff4d4f 0 6px, transparent 6px 10px);
+}
+
+.native-flow-legend-dot {
+  align-items: center;
+  background: #22b14c;
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 10px;
+  font-style: normal;
+  font-weight: 800;
+  height: 16px;
+  justify-content: center;
+  width: 16px;
+}
+
+.native-steps {
+  display: none;
+  padding-top: 6px;
+}
+
+.native-detail-nested {
+  margin-top: 16px;
+}
+
+.native-detail-main-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: 1fr;
+  align-items: start;
+}
+
+/* On wide screens use the original 5 : 14 : 5 proportion.
+   Grid gap provides consistent 16px separation between sections.
+   No antd Col padding means the cards align their edges cleanly with
+   the hero/progress above (no "extra margin on the last side"). */
+@media (min-width: 1200px) {
+  .native-detail-main-grid {
+    grid-template-columns: 5fr 14fr 5fr;
+  }
+}
+
+.native-detail-workbench {
+  padding-top: 0;
+}
+
+.native-detail-tab-body {
+  padding: 0;
+}
+
+.native-timeline-card {
+  overflow: hidden;
+}
+
+.native-detail-rail {
+  width: 100%;
+}
+
+.native-rail-actions {
+  background: #fbfdff;
+}
+
+.native-rail-action {
+  align-items: center;
+  display: inline-flex;
+  justify-content: flex-start;
+  text-align: left;
+}
+
+.native-rail-action-label {
+  margin-right: auto;
+  min-width: 0;
+}
+
+.native-rail-action-arrow {
+  flex: 0 0 auto;
+  margin-left: 8px;
+}
+
+.native-review-card {
+  background: #fbfdff;
+  border-color: #dfe8f6;
+}
+
+.native-change-card {
+  background: #fff;
+}
+
+.native-timeline-shell {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  max-height: 430px;
+  overflow: auto;
+  padding: 2px 0;
+}
+
+.native-timeline-row {
+  --timeline-col1: 56px;
+  --timeline-gap: 9px;
+  --timeline-dot-size: 16px;
+  display: grid;
+  gap: var(--timeline-gap);
+  grid-template-columns: var(--timeline-col1) var(--timeline-dot-size) minmax(0, 1fr);
+  min-height: 54px;
+  position: relative;
+}
+
+.native-timeline-row:not(:last-child)::after {
+  background: #d6e5ff;
+  bottom: -2px;
+  content: "";
+  left: calc(var(--timeline-col1) + var(--timeline-gap) + (var(--timeline-dot-size) / 2) - 1px);
+  position: absolute;
+  top: 18px;
+  width: 2px;
+}
+
+.native-timeline-time {
+  color: rgba(0, 0, 0, 0.5);
+  font-size: 12px;
+  padding-top: 2px;
+  text-align: right;
+  white-space: nowrap;
+}
+
+.native-timeline-dot {
+  align-items: center;
+  background: #2f7dff;
+  border-radius: 999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 10px;
+  height: var(--timeline-dot-size);
+  justify-content: center;
+  justify-self: center;
+  margin-top: 1px;
+  position: relative;
+  width: var(--timeline-dot-size);
+  z-index: 1;
+}
+
+.native-timeline-row-success .native-timeline-dot {
+  background: #22b14c;
+}
+
+.native-timeline-row-warning .native-timeline-dot,
+.native-timeline-row-error .native-timeline-dot {
+  background: #ff4d4f;
+}
+
+.native-timeline-copy {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.native-code-shell {
+  background: #111820;
+  border: 1px solid #273545;
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+}
+
+.native-code-copy {
+  background: rgba(255, 255, 255, 0.12);
+  border: 0;
+  border-radius: 6px;
+  color: rgba(255, 255, 255, 0.78);
+  cursor: pointer;
+  font-size: 11px;
+  padding: 4px 8px;
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 1;
+}
+
+.native-code {
+  background: transparent;
+  color: rgba(232, 241, 255, 0.92);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  margin: 0;
+  max-height: 420px;
+  overflow: auto;
+  padding: 16px;
+  white-space: pre-wrap;
+}
+
+.native-code::-webkit-scrollbar-thumb {
+  background: rgba(214, 226, 242, 0.36);
+  background-clip: padding-box;
+  border-color: #111820;
+}
+
+.native-code::-webkit-scrollbar-thumb:hover {
+  background: rgba(214, 226, 242, 0.5);
+  background-clip: padding-box;
+}
+
+.native-code-line {
+  display: grid;
+  grid-template-columns: 36px minmax(0, 1fr);
+}
+
+.native-code-no {
+  color: rgba(186, 205, 230, 0.58);
+  padding-right: 14px;
+  text-align: right;
+  user-select: none;
+}
+
+.native-code-text {
+  border-left: 1px solid rgba(186, 205, 230, 0.18);
+  padding-left: 14px;
+}
+
+.native-code-token {
+  color: rgba(232, 241, 255, 0.92);
+}
+
+.native-code-key {
+  color: #8ec5ff;
+}
+
+.native-code-string {
+  color: #b7e889;
+}
+
+.native-code-number {
+  color: #f6c177;
+}
+
+.native-code-boolean {
+  color: #f5a6d6;
+}
+
+.native-code-null {
+  color: #8ea0b8;
+  font-style: italic;
+}
+
+.native-code-punctuation {
+  color: #7f93ad;
+}
+
+@media (max-width: 900px) {
+  .native-sidebar {
+    display: none;
+  }
+
+  .native-content {
+    padding: 16px;
+  }
+
+  .native-metric-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-width: none;
+  }
+
+  .native-run-head,
+  .native-hero-kpis {
+    display: block;
+  }
+
+  .native-flow-map {
+    overflow-x: auto;
+  }
+
+  .native-steps {
+    display: block;
+  }
+
+  .native-flow-g6-canvas {
+    min-width: 720px;
+  }
+
+  .native-timeline-card {
+    max-height: none;
+  }
+}
+
+@media (max-width: 1400px) {
+  .native-metric-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+/* profile crud UI 107 */
+.profile-actions button { margin-left: 4px; }
