@@ -17,9 +17,9 @@
 当前 task executor runtime bridge 只能计入 executor client 行为，不覆盖 `/api/tasks` route、mission store、event replay 和完整 lifecycle。本任务只补最小 task lifecycle runtime boundary，让后续能更诚实地计入一个小 runtime 切片。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/task_lifecycle_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_task_lifecycle_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_task_executor_runtime_bridge.py`
+- `slide-rule-python/services/task_lifecycle_runtime.py`
+- `slide-rule-python/tests/test_task_lifecycle_runtime_boundary.py`
+- `slide-rule-python/tests/test_task_executor_runtime_bridge.py`
 - `server/routes/tasks.ts`
 - `server/tests/task-lifecycle-python-runtime.test.ts`
 - `server/tests/executor-client-python-runtime.test.ts`

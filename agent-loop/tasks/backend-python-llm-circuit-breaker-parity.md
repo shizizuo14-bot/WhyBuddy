@@ -17,10 +17,10 @@
 上一批有 pool resilience 和 observability。下一步补更像 Node 的 circuit breaker 行为，减少后续生产接线风险。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/sliderule_llm/pool.py`
-- `tws-ai-slide-rule-python/tests/test_pool_circuit_breaker.py`
-- `tws-ai-slide-rule-python/tests/test_pool_resilience.py`
-- `tws-ai-slide-rule-python/tests/test_pool_observability.py`
+- `slide-rule-python/sliderule_llm/pool.py`
+- `slide-rule-python/tests/test_pool_circuit_breaker.py`
+- `slide-rule-python/tests/test_pool_resilience.py`
+- `slide-rule-python/tests/test_pool_observability.py`
 - `agent-loop/tasks/backend-python-llm-circuit-breaker-parity.md`
 
 ## 禁止扩大范围

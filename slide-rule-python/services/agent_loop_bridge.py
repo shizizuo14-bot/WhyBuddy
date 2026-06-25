@@ -37,14 +37,14 @@ except Exception:
 
 
 def _resolve_repo_root() -> Path:
-    """Resolve repository root containing agent-loop/ and tws-ai-slide-rule-python/."""
+    """Resolve repository root containing agent-loop/ and slide-rule-python/."""
     here = Path(__file__).resolve()
     candidates = [
-        here.parent.parent,  # services/ -> tws-ai-slide-rule-python/
+        here.parent.parent,  # services/ -> slide-rule-python/
         here.parent.parent.parent,  # ... -> repo root
     ]
     for cand in candidates:
-        if (cand / "agent-loop").is_dir() or (cand / "tws-ai-slide-rule-python").is_dir():
+        if (cand / "agent-loop").is_dir() or (cand / "slide-rule-python").is_dir():
             return cand
     return here.parent.parent
 

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Merge AgentLoop into `tws-ai-slide-rule-python` as a SlideRule-owned control plane while keeping the existing Node AgentLoop runner as an internal worker bridge for the first wave.
+**Goal:** Merge AgentLoop into `slide-rule-python` as a SlideRule-owned control plane while keeping the existing Node AgentLoop runner as an internal worker bridge for the first wave.
 
 **Architecture:** FastAPI becomes the product and API owner for AgentLoop runs, tasks, settings, events, and commands. The current Node runner stays in place behind a bounded bridge until its stable pieces can be ported to Python. UI work moves toward a normal SlideRule web surface instead of being coupled to the VS Code webview.
 
@@ -15,31 +15,31 @@
 - `agent-loop/tasks/sliderule-agentloop-*-108.md`: queue-ready task specs for the first integration wave.
 - `agent-loop/scripts/migration-queue.json`: enables only the 108 integration wave and defines task-specific red gates.
 - `agent-loop/test/run-queue.test.js`: validates 108 queue integrity, disabled superseded waves, task files, gate keys, marker checks, and mojibake gates.
-- `tws-ai-slide-rule-python/routes/agent_loop.py`: future FastAPI router for `/api/agent-loop/*`.
-- `tws-ai-slide-rule-python/models/agent_loop.py`: future Pydantic contracts for runs, tasks, settings, commands, events, and artifacts.
-- `tws-ai-slide-rule-python/services/agent_loop_*.py`: future service modules for run reading, path safety, command bridge, settings, provider health, and redaction.
-- `tws-ai-slide-rule-python/tests/test_agent_loop_*.py`: future Python tests proving each slice before runtime code lands.
-- `tws-ai-slide-rule-python/static/agent-loop/`: future browser dashboard shell if the web UI is served directly by FastAPI.
+- `slide-rule-python/routes/agent_loop.py`: future FastAPI router for `/api/agent-loop/*`.
+- `slide-rule-python/models/agent_loop.py`: future Pydantic contracts for runs, tasks, settings, commands, events, and artifacts.
+- `slide-rule-python/services/agent_loop_*.py`: future service modules for run reading, path safety, command bridge, settings, provider health, and redaction.
+- `slide-rule-python/tests/test_agent_loop_*.py`: future Python tests proving each slice before runtime code lands.
+- `slide-rule-python/static/agent-loop/`: future browser dashboard shell if the web UI is served directly by FastAPI.
 
 ## Task Wave
 
 ### Task 1: Integration Inventory
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/AGENT_LOOP_INTEGRATION_INVENTORY.md`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_integration_inventory.py`
+- Create: `slide-rule-python/AGENT_LOOP_INTEGRATION_INVENTORY.md`
+- Test: `slide-rule-python/tests/test_agent_loop_integration_inventory.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-integration-inventory-108.md`
 
 - [ ] Write a failing pytest named `agentloop integration inventory 108 documents source boundaries`.
 - [ ] Document current AgentLoop runner, queue, state, artifact, settings, and dashboard ownership.
-- [ ] Run `cd tws-ai-slide-rule-python; & "{{pythonExe}}" -m pytest tests/test_agent_loop_integration_inventory.py -q --tb=short`.
+- [ ] Run `cd slide-rule-python; & "{{pythonExe}}" -m pytest tests/test_agent_loop_integration_inventory.py -q --tb=short`.
 - [ ] Commit only the inventory document, test, and task status update.
 
 ### Task 2: Runtime Boundary Design
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/AGENT_LOOP_RUNTIME_BOUNDARY.md`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_runtime_boundary.py`
+- Create: `slide-rule-python/AGENT_LOOP_RUNTIME_BOUNDARY.md`
+- Test: `slide-rule-python/tests/test_agent_loop_runtime_boundary.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-runtime-boundary-design-108.md`
 
 - [ ] Write a failing pytest named `agentloop runtime boundary 108 keeps node runner behind python control plane`.
@@ -50,8 +50,8 @@
 ### Task 3: Data Model Alignment
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/models/agent_loop.py`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_models.py`
+- Create: `slide-rule-python/models/agent_loop.py`
+- Test: `slide-rule-python/tests/test_agent_loop_models.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-data-model-alignment-108.md`
 
 - [ ] Write failing model tests for run summary, run detail, task entry, event, artifact, settings, and command request.
@@ -62,9 +62,9 @@
 ### Task 4: API Bootstrap
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/routes/agent_loop.py`
-- Modify: `tws-ai-slide-rule-python/app.py`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_api_bootstrap.py`
+- Create: `slide-rule-python/routes/agent_loop.py`
+- Modify: `slide-rule-python/app.py`
+- Test: `slide-rule-python/tests/test_agent_loop_api_bootstrap.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-api-bootstrap-108.md`
 
 - [ ] Write a failing TestClient test named `agentloop api bootstrap 108 mounts health and capabilities`.
@@ -75,9 +75,9 @@
 ### Task 5: Runs Overview API
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/services/agent_loop_runs.py`
-- Modify: `tws-ai-slide-rule-python/routes/agent_loop.py`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_runs_overview.py`
+- Create: `slide-rule-python/services/agent_loop_runs.py`
+- Modify: `slide-rule-python/routes/agent_loop.py`
+- Test: `slide-rule-python/tests/test_agent_loop_runs_overview.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-runs-overview-api-108.md`
 
 - [ ] Write failing tests for listing runs from `.agent-loop/runs`.
@@ -88,9 +88,9 @@
 ### Task 6: Run Detail API
 
 **Files:**
-- Modify: `tws-ai-slide-rule-python/services/agent_loop_runs.py`
-- Modify: `tws-ai-slide-rule-python/routes/agent_loop.py`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_run_detail.py`
+- Modify: `slide-rule-python/services/agent_loop_runs.py`
+- Modify: `slide-rule-python/routes/agent_loop.py`
+- Test: `slide-rule-python/tests/test_agent_loop_run_detail.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-run-detail-api-108.md`
 
 - [ ] Write failing tests for state, final report, logs, artifacts, and missing run handling.
@@ -101,9 +101,9 @@
 ### Task 7: Event Stream API
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/services/agent_loop_events.py`
-- Modify: `tws-ai-slide-rule-python/routes/agent_loop.py`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_event_stream.py`
+- Create: `slide-rule-python/services/agent_loop_events.py`
+- Modify: `slide-rule-python/routes/agent_loop.py`
+- Test: `slide-rule-python/tests/test_agent_loop_event_stream.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-event-stream-api-108.md`
 
 - [ ] Write failing tests for normalized event snapshots and SSE framing.
@@ -114,9 +114,9 @@
 ### Task 8: Worker Bridge
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/services/agent_loop_bridge.py`
-- Modify: `tws-ai-slide-rule-python/config/settings.py`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_worker_bridge.py`
+- Create: `slide-rule-python/services/agent_loop_bridge.py`
+- Modify: `slide-rule-python/config/settings.py`
+- Test: `slide-rule-python/tests/test_agent_loop_worker_bridge.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-worker-bridge-108.md`
 
 - [ ] Write failing tests proving command construction, cwd, timeout, env redaction, and disabled execution in test mode.
@@ -127,9 +127,9 @@
 ### Task 9: Command API
 
 **Files:**
-- Modify: `tws-ai-slide-rule-python/routes/agent_loop.py`
-- Modify: `tws-ai-slide-rule-python/services/agent_loop_bridge.py`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_command_api.py`
+- Modify: `slide-rule-python/routes/agent_loop.py`
+- Modify: `slide-rule-python/services/agent_loop_bridge.py`
+- Test: `slide-rule-python/tests/test_agent_loop_command_api.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-command-api-108.md`
 
 - [ ] Write failing tests for start queue, single task run, cancel placeholder, and rerun request validation.
@@ -140,9 +140,9 @@
 ### Task 10: Settings API
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/services/agent_loop_settings.py`
-- Modify: `tws-ai-slide-rule-python/routes/agent_loop.py`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_settings_api.py`
+- Create: `slide-rule-python/services/agent_loop_settings.py`
+- Modify: `slide-rule-python/routes/agent_loop.py`
+- Test: `slide-rule-python/tests/test_agent_loop_settings_api.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-settings-api-108.md`
 
 - [ ] Write failing tests for non-secret settings, secret status, and no raw key echo.
@@ -153,9 +153,9 @@
 ### Task 11: Provider Health API
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/services/agent_loop_provider_health.py`
-- Modify: `tws-ai-slide-rule-python/routes/agent_loop.py`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_provider_health.py`
+- Create: `slide-rule-python/services/agent_loop_provider_health.py`
+- Modify: `slide-rule-python/routes/agent_loop.py`
+- Test: `slide-rule-python/tests/test_agent_loop_provider_health.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-provider-health-api-108.md`
 
 - [ ] Write failing tests for Grok, Codex, OpenAI, Anthropic, and unavailable CLI classification.
@@ -166,10 +166,10 @@
 ### Task 12: Dashboard Port
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/static/agent-loop/index.html`
-- Create: `tws-ai-slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
-- Modify: `tws-ai-slide-rule-python/routes/agent_loop.py`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_dashboard_port.py`
+- Create: `slide-rule-python/static/agent-loop/index.html`
+- Create: `slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
+- Modify: `slide-rule-python/routes/agent_loop.py`
+- Test: `slide-rule-python/tests/test_agent_loop_dashboard_port.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-dashboard-port-108.md`
 
 - [ ] Write failing tests proving the dashboard shell is served from Python.
@@ -180,9 +180,9 @@
 ### Task 13: Navigation Shell
 
 **Files:**
-- Modify: `tws-ai-slide-rule-python/static/agent-loop/index.html`
-- Modify: `tws-ai-slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_navigation_shell.py`
+- Modify: `slide-rule-python/static/agent-loop/index.html`
+- Modify: `slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
+- Test: `slide-rule-python/tests/test_agent_loop_navigation_shell.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-navigation-shell-108.md`
 
 - [ ] Write failing tests for workbench, runs, settings, and SlideRule back-link labels.
@@ -193,9 +193,9 @@
 ### Task 14: Task Detail View
 
 **Files:**
-- Modify: `tws-ai-slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
-- Modify: `tws-ai-slide-rule-python/static/agent-loop/index.html`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_task_detail_view.py`
+- Modify: `slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
+- Modify: `slide-rule-python/static/agent-loop/index.html`
+- Test: `slide-rule-python/tests/test_agent_loop_task_detail_view.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-task-detail-view-108.md`
 
 - [ ] Write failing tests for detail panel anchors and API usage.
@@ -206,9 +206,9 @@
 ### Task 15: Path Security
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/services/agent_loop_paths.py`
-- Modify: `tws-ai-slide-rule-python/services/agent_loop_runs.py`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_path_security.py`
+- Create: `slide-rule-python/services/agent_loop_paths.py`
+- Modify: `slide-rule-python/services/agent_loop_runs.py`
+- Test: `slide-rule-python/tests/test_agent_loop_path_security.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-path-security-108.md`
 
 - [ ] Write failing tests for path traversal, absolute path escape, symlink escape, and allowed run paths.
@@ -219,10 +219,10 @@
 ### Task 16: Secret Redaction
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/services/agent_loop_redaction.py`
-- Modify: `tws-ai-slide-rule-python/services/agent_loop_runs.py`
-- Modify: `tws-ai-slide-rule-python/services/agent_loop_bridge.py`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_secret_redaction.py`
+- Create: `slide-rule-python/services/agent_loop_redaction.py`
+- Modify: `slide-rule-python/services/agent_loop_runs.py`
+- Modify: `slide-rule-python/services/agent_loop_bridge.py`
+- Test: `slide-rule-python/tests/test_agent_loop_secret_redaction.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-secret-redaction-108.md`
 
 - [ ] Write failing tests for API keys, bearer tokens, proxy credentials, env output, and command receipts.
@@ -233,8 +233,8 @@
 ### Task 17: Python Test Harness
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/tests/fixtures/agent_loop_run/`
-- Create: `tws-ai-slide-rule-python/tests/test_agent_loop_python_harness.py`
+- Create: `slide-rule-python/tests/fixtures/agent_loop_run/`
+- Create: `slide-rule-python/tests/test_agent_loop_python_harness.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-python-tests-108.md`
 
 - [ ] Write fixture-backed tests for overview, detail, event, command dry-run, settings, and redaction.
@@ -245,9 +245,9 @@
 ### Task 18: Release Runbook
 
 **Files:**
-- Create: `tws-ai-slide-rule-python/AGENT_LOOP_RUNBOOK.md`
-- Modify: `tws-ai-slide-rule-python/README.md`
-- Test: `tws-ai-slide-rule-python/tests/test_agent_loop_release_runbook.py`
+- Create: `slide-rule-python/AGENT_LOOP_RUNBOOK.md`
+- Modify: `slide-rule-python/README.md`
+- Test: `slide-rule-python/tests/test_agent_loop_release_runbook.py`
 - Task: `agent-loop/tasks/sliderule-agentloop-release-runbook-108.md`
 
 - [ ] Write failing tests that check documented startup, queue execution, settings, security, and rollback commands.

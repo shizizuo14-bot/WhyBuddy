@@ -17,9 +17,9 @@
 当前 stage edit 证据偏 proxy/contract。本任务只补一个有边界的 runtime bridge，让 Python 能执行最小编辑判断并返回稳定 envelope，Node 仍决定是否写入主状态。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/blueprint_stage_edit.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_stage_edit_runtime_bridge.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_stage_edit_proxy_contract.py`
+- `slide-rule-python/services/blueprint_stage_edit.py`
+- `slide-rule-python/tests/test_blueprint_stage_edit_runtime_bridge.py`
+- `slide-rule-python/tests/test_blueprint_stage_edit_proxy_contract.py`
 - `server/routes/blueprint/stage-edit-python-runtime.ts`
 - `server/routes/__tests__/blueprint.stage-edit-python-runtime.test.ts`
 - `server/routes/__tests__/blueprint.stage-edit-python-proxy.test.ts`

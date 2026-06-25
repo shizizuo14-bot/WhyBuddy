@@ -1,6 +1,6 @@
 /**
  * Thin delegation helper for calling the Python SlideRule V5 backend
- * (tws-ai-slide-rule-python).
+ * (slide-rule-python).
  *
  * Runtime boundary:
  * - PYTHON_SLIDE_RULE_BASE_URL controls the target service, default localhost:9700.

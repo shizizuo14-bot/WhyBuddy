@@ -60,7 +60,7 @@ def _resolve_store() -> Path:
     envf = os.getenv(NONSECRET_STORE_ENV)
     if envf:
         return Path(envf)
-    # relative to repo root (tws-ai-slide-rule-python parent or self)
+    # relative to repo root (slide-rule-python parent or self)
     here = Path(__file__).resolve()
     root = here.parents[1] if (here.parent.parent / "agent-loop").exists() or (here.parents[2] / "agent-loop").exists() else here.parent.parent
     # try locate repo root

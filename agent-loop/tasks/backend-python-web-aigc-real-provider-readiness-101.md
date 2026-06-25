@@ -17,14 +17,14 @@
 Web AIGC 在 96/97/100 阶段补了多个 runtime adapter 和 provider closure，但状态表仍然写着长尾大部分和 real external providers 仍是 Node-owned gap。101 这一刀不接真实供应商密钥，只把 readiness matrix、跳过原因、生产观测字段补实。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/web_aigc_real_provider_readiness.py`
-- `tws-ai-slide-rule-python/services/web_aigc_provider_closure.py`
-- `tws-ai-slide-rule-python/services/web_aigc_search_adapter.py`
-- `tws-ai-slide-rule-python/services/web_aigc_file_adapter.py`
-- `tws-ai-slide-rule-python/services/web_aigc_vision_audio_adapter.py`
-- `tws-ai-slide-rule-python/services/web_aigc_ocr_static_adapter.py`
-- `tws-ai-slide-rule-python/services/web_aigc_ai_ppt_adapter.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_real_provider_readiness_101.py`
+- `slide-rule-python/services/web_aigc_real_provider_readiness.py`
+- `slide-rule-python/services/web_aigc_provider_closure.py`
+- `slide-rule-python/services/web_aigc_search_adapter.py`
+- `slide-rule-python/services/web_aigc_file_adapter.py`
+- `slide-rule-python/services/web_aigc_vision_audio_adapter.py`
+- `slide-rule-python/services/web_aigc_ocr_static_adapter.py`
+- `slide-rule-python/services/web_aigc_ai_ppt_adapter.py`
+- `slide-rule-python/tests/test_web_aigc_real_provider_readiness_101.py`
 - `server/core/web-aigc-runtime-extra-adapters.ts`
 - `server/core/web-aigc-runtime-observability.ts`
 - `server/tests/web-aigc-real-provider-readiness-101.test.ts`

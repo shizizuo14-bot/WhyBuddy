@@ -21,12 +21,12 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/task_mission_store_runtime_slice.py`
-- `tws-ai-slide-rule-python/services/task_lifecycle_durable_ownership_closure.py`
-- `tws-ai-slide-rule-python/services/task_store_auth_scheduler_cutover.py`
-- `tws-ai-slide-rule-python/services/mission_event_replay.py`
-- `tws-ai-slide-rule-python/tests/test_task_mission_store_runtime_slice_103.py`
-- `tws-ai-slide-rule-python/tests/test_task_lifecycle_durable_ownership_closure_102.py`
+- `slide-rule-python/services/task_mission_store_runtime_slice.py`
+- `slide-rule-python/services/task_lifecycle_durable_ownership_closure.py`
+- `slide-rule-python/services/task_store_auth_scheduler_cutover.py`
+- `slide-rule-python/services/mission_event_replay.py`
+- `slide-rule-python/tests/test_task_mission_store_runtime_slice_103.py`
+- `slide-rule-python/tests/test_task_lifecycle_durable_ownership_closure_102.py`
 - `server/tasks/mission-store.ts`
 - `server/tasks/mission-runtime.ts`
 - `server/tasks/mission-projection.ts`

@@ -18,8 +18,8 @@
 
 ## 允许修改的文件
 - `agent-loop/tasks/backend-python-web-aigc-file-adapter-contract.md`
-- `tws-ai-slide-rule-python/services/web_aigc_file_adapter.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_file_adapter_contract.py`
+- `slide-rule-python/services/web_aigc_file_adapter.py`
+- `slide-rule-python/tests/test_web_aigc_file_adapter_contract.py`
 - `server/routes/node-adapters/file-generation-node-adapter.ts`
 - `server/routes/node-adapters/file-slicing-node-adapter.ts`
 - `server/routes/node-adapters/file-translation-node-adapter.ts`

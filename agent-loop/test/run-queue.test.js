@@ -101,31 +101,31 @@ test('resolveEntryGates throws for unknown gatesKey', () => {
 });
 
 test('resolveQueueGate substitutes repo-root pythonExe for worktree gates', () => {
-  const gate = 'cd tws-ai-slide-rule-python; & "{{pythonExe}}" -m pytest tests/test_client_parity.py -q';
+  const gate = 'cd slide-rule-python; & "{{pythonExe}}" -m pytest tests/test_client_parity.py -q';
   const resolved = resolveQueueGate(gate, {
     repoRoot,
-    pythonExe: 'tws-ai-slide-rule-python/.venv/Scripts/python.exe',
+    pythonExe: 'slide-rule-python/.venv/Scripts/python.exe',
   });
 
   assert.equal(
     resolved,
-    `cd tws-ai-slide-rule-python; & "${path.join(repoRoot, 'tws-ai-slide-rule-python', '.venv', 'Scripts', 'python.exe')}" -m pytest tests/test_client_parity.py -q`,
+    `cd slide-rule-python; & "${path.join(repoRoot, 'slide-rule-python', '.venv', 'Scripts', 'python.exe')}" -m pytest tests/test_client_parity.py -q`,
   );
   assert.match(resolved, /& "/);
   assert.equal(resolvePythonExe(repoRoot, null).endsWith(`${path.sep}python.exe`), process.platform === 'win32');
 });
 
 test('resolveQueueGate substitutes taskFile for scoped mojibake gates', () => {
-  const gate = 'node agent-loop/src/check-mojibake.js {{taskFile}} tws-ai-slide-rule-python/sliderule_llm/client.py';
+  const gate = 'node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/sliderule_llm/client.py';
   const resolved = resolveQueueGate(gate, {
     repoRoot,
-    pythonExe: 'tws-ai-slide-rule-python/.venv/Scripts/python.exe',
+    pythonExe: 'slide-rule-python/.venv/Scripts/python.exe',
     taskFile: 'agent-loop/tasks/backend-python-llm-client-parity.md',
   });
 
   assert.equal(
     resolved,
-    'node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-llm-client-parity.md tws-ai-slide-rule-python/sliderule_llm/client.py',
+    'node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-llm-client-parity.md slide-rule-python/sliderule_llm/client.py',
   );
 });
 
@@ -202,11 +202,11 @@ test('buildQueueCompletionMessage says queue finished is not the same as all suc
 test('resolveQueueGate uses repo-root node bins for worktree Node gates', () => {
   const vitest = resolveQueueGate(
     'pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.execute-capability.test.ts --reporter=dot',
-    { repoRoot, pythonExe: 'tws-ai-slide-rule-python/.venv/Scripts/python.exe' },
+    { repoRoot, pythonExe: 'slide-rule-python/.venv/Scripts/python.exe' },
   );
   const tsc = resolveQueueGate(
     'pnpm exec tsc --noEmit --pretty false',
-    { repoRoot, pythonExe: 'tws-ai-slide-rule-python/.venv/Scripts/python.exe' },
+    { repoRoot, pythonExe: 'slide-rule-python/.venv/Scripts/python.exe' },
   );
 
   const binExt = process.platform === 'win32' ? '.cmd' : '';
@@ -222,7 +222,7 @@ test('evaluateGate runs powershell call operator with resolved pythonExe', async
     return;
   }
 
-  const pythonExe = resolvePythonExe(workspaceRoot, 'tws-ai-slide-rule-python/.venv/Scripts/python.exe');
+  const pythonExe = resolvePythonExe(workspaceRoot, 'slide-rule-python/.venv/Scripts/python.exe');
   try {
     await fs.access(pythonExe);
   } catch {
@@ -231,8 +231,8 @@ test('evaluateGate runs powershell call operator with resolved pythonExe', async
   }
 
   const command = resolveQueueGate(
-    'cd tws-ai-slide-rule-python; & "{{pythonExe}}" -c "print(\'ok\')"',
-    { repoRoot: workspaceRoot, pythonExe: 'tws-ai-slide-rule-python/.venv/Scripts/python.exe' },
+    'cd slide-rule-python; & "{{pythonExe}}" -c "print(\'ok\')"',
+    { repoRoot: workspaceRoot, pythonExe: 'slide-rule-python/.venv/Scripts/python.exe' },
   );
   const gate = await evaluateGate({
     cwd: workspaceRoot,
@@ -269,12 +269,12 @@ test('buildLoopArgsForQueueEntry uses worktree and omits fix-cwd', () => {
       agentIdleTimeoutMs: 120000,
       agentTimeoutMs: 240000,
       lang: 'zh-CN',
-      pythonExe: 'tws-ai-slide-rule-python/.venv/Scripts/python.exe',
+      pythonExe: 'slide-rule-python/.venv/Scripts/python.exe',
     },
     index: 0,
     gateSets: {
       gates: ['default-gate'],
-      infraGates: ['cd tws-ai-slide-rule-python; & "{{pythonExe}}" -m pytest tests/test_client_parity.py -q'],
+      infraGates: ['cd slide-rule-python; & "{{pythonExe}}" -m pytest tests/test_client_parity.py -q'],
     },
     defaultGates: ['default-gate'],
   });
@@ -297,7 +297,7 @@ test('buildLoopArgsForQueueEntry uses worktree and omits fix-cwd', () => {
   assert.deepEqual(args.slice(args.indexOf('--agent-timeout-ms'), args.indexOf('--agent-timeout-ms') + 2), ['--agent-timeout-ms', '240000']);
   assert.match(gateArg, /test_client_parity\.py/);
   assert.match(gateArg, /& "/);
-  assert.match(gateArg, /tws-ai-slide-rule-python[\\/]\.venv[\\/]Scripts[\\/]python\.exe/);
+  assert.match(gateArg, /slide-rule-python[\\/]\.venv[\\/]Scripts[\\/]python\.exe/);
 });
 
 test('buildLoopArgsForQueueEntry passes merged worker env from defaults and entry', () => {

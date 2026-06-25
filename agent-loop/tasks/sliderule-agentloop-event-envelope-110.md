@@ -9,9 +9,9 @@
 Wave 110 starts the Runtime SSOT migration described in `AGENT_LOOP_V2_RUNTIME_SSOT.md`. The first slice must make the event shape explicit before storage, reducers, streams, or UI projections build on it.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/AGENT_LOOP_V2_RUNTIME_SSOT.md`
-- `tws-ai-slide-rule-python/services/agent_loop_event_schema.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_event_envelope.py`
+- `slide-rule-python/AGENT_LOOP_V2_RUNTIME_SSOT.md`
+- `slide-rule-python/services/agent_loop_event_schema.py`
+- `slide-rule-python/tests/test_agent_loop_event_envelope.py`
 - `agent-loop/tasks/sliderule-agentloop-event-envelope-110.md`
 - This task file
 

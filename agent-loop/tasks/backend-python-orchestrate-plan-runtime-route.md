@@ -22,9 +22,9 @@
 - `server/sliderule/python-delegation.ts`
 - `server/routes/__tests__/sliderule.orchestrate-plan-python-runtime.test.ts`
 - `server/routes/__tests__/sliderule.orchestrate-plan-python-contract.test.ts`
-- `tws-ai-slide-rule-python/routes/sliderule.py`
-- `tws-ai-slide-rule-python/routes/sliderule_full.py`
-- `tws-ai-slide-rule-python/tests/test_orchestrate_plan_runtime_route.py`
+- `slide-rule-python/routes/sliderule.py`
+- `slide-rule-python/routes/sliderule_full.py`
+- `slide-rule-python/tests/test_orchestrate_plan_runtime_route.py`
 - `agent-loop/tasks/backend-python-orchestrate-plan-runtime-route.md`
 
 ## 禁止扩大范围

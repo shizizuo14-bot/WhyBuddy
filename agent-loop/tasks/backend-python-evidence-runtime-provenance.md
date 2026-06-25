@@ -23,9 +23,9 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/evidence.py`
-- `tws-ai-slide-rule-python/tests/test_evidence_runtime_provenance.py`
-- `tws-ai-slide-rule-python/tests/test_evidence_retrieval_parity.py`
+- `slide-rule-python/sliderule_llm/evidence.py`
+- `slide-rule-python/tests/test_evidence_runtime_provenance.py`
+- `slide-rule-python/tests/test_evidence_retrieval_parity.py`
 - `server/routes/__tests__/sliderule.evidence-python-proxy-contract.test.ts`
 - `agent-loop/tasks/backend-python-evidence-runtime-provenance.md`
 

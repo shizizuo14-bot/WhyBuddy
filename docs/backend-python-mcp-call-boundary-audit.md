@@ -6,7 +6,7 @@ This document audits the **current** boundary of the SlideRule V5 `mcp.call` cap
 
 | Question | Answer |
 | --- | --- |
-| Is `mcp.call` a Python native LLM capability today? | **No.** It is absent from `CAPABILITY_PROMPTS` and `STRUCTURED_JSON_CAPABILITIES` in `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`. |
+| Is `mcp.call` a Python native LLM capability today? | **No.** It is absent from `CAPABILITY_PROMPTS` and `STRUCTURED_JSON_CAPABILITIES` in `slide-rule-python/sliderule_llm/capabilities.py`. |
 | Does Node delegate `mcp.call` to Python in default mode? | **Yes.** `SLIDERULE_V5_BACKEND=python` (default) includes `mcp.call` in the Python V5 whitelist in `server/routes/sliderule.ts`. |
 | Does Python execute a real MCP tool call for `mcp.call`? | **No.** Python routes through the mapped/stub path and returns keyword-baseline RAG output with `provenance: python-rag`. |
 | Does Node execute a real MCP tool call for `mcp.call`? | **No.** Node does not call `McpToolAdapter` for the `mcp.call` capability. Real MCP infrastructure exists elsewhere but is not wired to this capability id. |
@@ -34,7 +34,7 @@ When Node delegates `mcp.call` to Python (default mode), Python does **not** use
 ```
 Node server/routes/sliderule.ts
   -> POST /api/sliderule/execute-capability
-  -> tws-ai-slide-rule-python/routes/sliderule.py or sliderule_full.py
+  -> slide-rule-python/routes/sliderule.py or sliderule_full.py
   -> is_python_native_capability("mcp.call") == False
   -> execute_mapped_capability()
   -> capability_maps.execute_mcp_or_skill()
@@ -49,9 +49,9 @@ In legacy Node mode (`SLIDERULE_V5_BACKEND=legacy`), `mcp.call` is not LLM-backe
 
 | Layer | Path | Behavior |
 | --- | --- | --- |
-| Keyword retrieval | `tws-ai-slide-rule-python/services/rag_service.py` | `retrieve_evidence()` scores a hard-coded `KNOWLEDGE_BASE` by keyword overlap. No Qdrant, no embeddings, no external tool fetch. |
-| Stub generation | `tws-ai-slide-rule-python/services/rag_service.py` | `generate_with_rag()` formats retrieved snippets into prose. It simulates LLM output; it does not call a configured model endpoint for `mcp.call`. |
-| Forced provenance | `tws-ai-slide-rule-python/routes/sliderule_full.py` | For `mcp.call`, `skill.invoke`, `evidence.search`, sets `summary = "检索了外部证据"` and `provenance = "python-rag"`. |
+| Keyword retrieval | `slide-rule-python/services/rag_service.py` | `retrieve_evidence()` scores a hard-coded `KNOWLEDGE_BASE` by keyword overlap. No Qdrant, no embeddings, no external tool fetch. |
+| Stub generation | `slide-rule-python/services/rag_service.py` | `generate_with_rag()` formats retrieved snippets into prose. It simulates LLM output; it does not call a configured model endpoint for `mcp.call`. |
+| Forced provenance | `slide-rule-python/routes/sliderule_full.py` | For `mcp.call`, `skill.invoke`, `evidence.search`, sets `summary = "检索了外部证据"` and `provenance = "python-rag"`. |
 
 Returned shape may include `toolName` from `slide_rule_executor.py`, but that field mirrors the capability id for labeling only. No MCP `serverId`, no tool arguments, no adapter invocation occurs.
 
@@ -76,7 +76,7 @@ File: `server/routes/sliderule.ts`
 
 ### Native LLM gate (rejects `mcp.call`)
 
-File: `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`
+File: `slide-rule-python/sliderule_llm/capabilities.py`
 
 ```python
 def is_python_native_capability(capability_id: str) -> bool:
@@ -85,14 +85,14 @@ def is_python_native_capability(capability_id: str) -> bool:
 
 `mcp.call` is in neither set. `execute_capability()` raises `UnsupportedCapability` if called directly.
 
-Test evidence: `tws-ai-slide-rule-python/tests/test_capabilities.py` asserts native coverage for 18 capabilities and does **not** include `mcp.call`.
+Test evidence: `slide-rule-python/tests/test_capabilities.py` asserts native coverage for 18 capabilities and does **not** include `mcp.call`.
 
 ### Mapped executor (actual handler)
 
 Files:
 
-- `tws-ai-slide-rule-python/services/capability_maps.py` — maps `"mcp.call": execute_mcp_or_skill`
-- `tws-ai-slide-rule-python/services/slide_rule_executor.py` — shared stub for `mcp.call`, `skill.invoke`, `evidence.search`
+- `slide-rule-python/services/capability_maps.py` — maps `"mcp.call": execute_mcp_or_skill`
+- `slide-rule-python/services/slide_rule_executor.py` — shared stub for `mcp.call`, `skill.invoke`, `evidence.search`
 
 Output contract today:
 
@@ -128,7 +128,7 @@ Both routes are thin proxies; neither adds MCP client code.
 ## Risks
 
 1. **False completion signal:** Node delegation plus `python-rag` provenance can look like migration progress even though no MCP server or tool is invoked.
-2. **README drift:** `tws-ai-slide-rule-python/README.md` claims "real tool/skill execution" for `mcp.call` / `skill.invoke`. Code evidence contradicts that for `mcp.call`.
+2. **README drift:** `slide-rule-python/README.md` claims "real tool/skill execution" for `mcp.call` / `skill.invoke`. Code evidence contradicts that for `mcp.call`.
 3. **UI label mismatch:** `capability-process-labels.ts` shows live tool-call wording while the backend returns stub evidence.
 4. **Coverage gate pressure:** `slide_rule_coverage.py` and shared coverage gates still require `mcp.call`, so sessions can mark coverage satisfied without external tool evidence.
 5. **Conflation with GitHub MCP:** `mcp:github` capabilities are real fetch paths but are different capability ids; they must not be rolled into `mcp.call` completion metrics.
@@ -174,17 +174,17 @@ Delegating to Python is transport migration, not MCP runtime migration.
 | Claim | Primary evidence |
 | --- | --- |
 | Node delegates `mcp.call` in default Python mode | `server/routes/sliderule.ts` (`isPythonV5Cap`, `v5Backend === 'python'`) |
-| Not Python native LLM | `tws-ai-slide-rule-python/sliderule_llm/capabilities.py` (`is_python_native_capability`), `tws-ai-slide-rule-python/tests/test_capabilities.py` (18-cap matrix omits `mcp.call`) |
-| Mapped fallback handler | `tws-ai-slide-rule-python/services/capability_maps.py` (`"mcp.call": execute_mcp_or_skill`), `tws-ai-slide-rule-python/routes/sliderule.py` (`execute_mapped_capability`) |
-| Stub RAG execution (no MCP client) | `tws-ai-slide-rule-python/services/slide_rule_executor.py`, `tws-ai-slide-rule-python/services/rag_service.py` |
-| Forced `python-rag` provenance on tool caps | `tws-ai-slide-rule-python/routes/sliderule_full.py` (lines 80–82) |
+| Not Python native LLM | `slide-rule-python/sliderule_llm/capabilities.py` (`is_python_native_capability`), `slide-rule-python/tests/test_capabilities.py` (18-cap matrix omits `mcp.call`) |
+| Mapped fallback handler | `slide-rule-python/services/capability_maps.py` (`"mcp.call": execute_mcp_or_skill`), `slide-rule-python/routes/sliderule.py` (`execute_mapped_capability`) |
+| Stub RAG execution (no MCP client) | `slide-rule-python/services/slide_rule_executor.py`, `slide-rule-python/services/rag_service.py` |
+| Forced `python-rag` provenance on tool caps | `slide-rule-python/routes/sliderule_full.py` (lines 80–82) |
 | Node does not call `McpToolAdapter` for `mcp.call` | `server/routes/sliderule.ts` (delegation branch only; no `mcpToolAdapter` import/use on this cap) |
 | Real MCP stack exists elsewhere | `server/tool/api/mcp-tool-adapter.ts`, `server/tool/api/internal-mcp-tool-invoker.ts`, `server/routes/mcp.ts` |
 | GitHub MCP is a separate capability path | `server/sliderule/github-mcp-adapter.ts`, `server/routes/sliderule.ts` (pre-whitelist branch for `source.github.inspect` / `evidence.github.collect`) |
 | Legacy Node mode has no `mcp.call` executor | `server/routes/sliderule.ts` (non-delegated path throws for unhandled caps) |
 | Python delegation failure shape | `server/routes/sliderule.ts` (`provenance: 'python-delegated-failed'`, HTTP 502) |
-| Coverage still requires `mcp.call` | `tws-ai-slide-rule-python/services/slide_rule_coverage.py` |
-| README overclaims real tool execution | `tws-ai-slide-rule-python/README.md` (contradicted by stub path above) |
+| Coverage still requires `mcp.call` | `slide-rule-python/services/slide_rule_coverage.py` |
+| README overclaims real tool execution | `slide-rule-python/README.md` (contradicted by stub path above) |
 | UI labels imply live tool call | `shared/blueprint/capability-process-labels.ts` (`mcp.call` process labels) |
 | Prior inventory agrees: not native LLM | `docs/backend-python-rag-inventory.md`, `docs/sliderule-python-native-capability-audit.md` |
 

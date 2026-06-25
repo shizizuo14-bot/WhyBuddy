@@ -9,9 +9,9 @@
 The VS Code detail page already has useful flow, timeline, review, diff, agent output, and artifact sections. This task ports the first browser version against Python APIs.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/static/agent-loop/index.html`
-- `tws-ai-slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_task_detail_view.py`
+- `slide-rule-python/static/agent-loop/index.html`
+- `slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
+- `slide-rule-python/tests/test_agent_loop_task_detail_view.py`
 - `agent-loop/tasks/sliderule-agentloop-task-detail-view-108.md`
 - This task file
 

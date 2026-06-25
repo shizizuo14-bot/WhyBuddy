@@ -21,12 +21,12 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/a2a_session_stream_runtime_slice.py`
-- `tws-ai-slide-rule-python/services/a2a_production_transport_ownership_closure.py`
-- `tws-ai-slide-rule-python/services/a2a_core_route_cutover.py`
-- `tws-ai-slide-rule-python/services/a2a_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_a2a_session_stream_runtime_slice_103.py`
-- `tws-ai-slide-rule-python/tests/test_a2a_production_transport_ownership_closure_102.py`
+- `slide-rule-python/services/a2a_session_stream_runtime_slice.py`
+- `slide-rule-python/services/a2a_production_transport_ownership_closure.py`
+- `slide-rule-python/services/a2a_core_route_cutover.py`
+- `slide-rule-python/services/a2a_runtime.py`
+- `slide-rule-python/tests/test_a2a_session_stream_runtime_slice_103.py`
+- `slide-rule-python/tests/test_a2a_production_transport_ownership_closure_102.py`
 - `server/routes/a2a-python-runtime.ts`
 - `server/core/a2a-client.ts`
 - `server/core/a2a-server.ts`

@@ -9,8 +9,8 @@
 Blueprint ledger remained `node-retained` after 103. This task should not chase the full ledger if it is too large; it should implement the smallest useful runtime proof or lock the surface as retained.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/blueprint_ledger_runtime_takeover.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_ledger_runtime_takeover_104.py`
+- `slide-rule-python/services/blueprint_ledger_runtime_takeover.py`
+- `slide-rule-python/tests/test_blueprint_ledger_runtime_takeover_104.py`
 - `server/routes/blueprint/ledger-runtime-takeover-python.ts`
 - `server/routes/blueprint/jobs/service.ts`
 - `server/routes/__tests__/blueprint.ledger-runtime-takeover-104.test.ts`

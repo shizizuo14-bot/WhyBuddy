@@ -43,7 +43,7 @@ def test_python_health_path_identifies_backend():
     assert response.status_code == 200
     data = response.json()
     assert data["status"] == "ok"
-    assert data["backend"] == "tws-ai-slide-rule-python"
+    assert data["backend"] == "slide-rule-python"
 
 
 def test_generate_one_smoke_returns_response_shape_from_mounted_app():

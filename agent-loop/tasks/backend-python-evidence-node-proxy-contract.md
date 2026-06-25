@@ -26,7 +26,7 @@
 - `server/sliderule/python-delegation.ts`
 - `server/routes/sliderule.ts`
 - `server/routes/__tests__/sliderule.evidence-python-proxy-contract.test.ts`
-- `tws-ai-slide-rule-python/tests/test_evidence_retrieval_parity.py`
+- `slide-rule-python/tests/test_evidence_retrieval_parity.py`
 - `agent-loop/tasks/backend-python-evidence-node-proxy-contract.md`
 
 ## 禁止扩大范围

@@ -9,10 +9,10 @@
 103 showed many Web AIGC real providers are `external-owned` or `skipped-live`, and A2A transport/registry can require external agents. This task should not fake live readiness; it should either prove live-ready Python-owned takeover or formally exclude/retain the surface.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/final_provider_a2a_scope_reconciliation.py`
-- `tws-ai-slide-rule-python/services/web_aigc_real_provider_live_contract.py`
-- `tws-ai-slide-rule-python/services/a2a_session_stream_runtime_slice.py`
-- `tws-ai-slide-rule-python/tests/test_final_provider_a2a_scope_reconciliation_104.py`
+- `slide-rule-python/services/final_provider_a2a_scope_reconciliation.py`
+- `slide-rule-python/services/web_aigc_real_provider_live_contract.py`
+- `slide-rule-python/services/a2a_session_stream_runtime_slice.py`
+- `slide-rule-python/tests/test_final_provider_a2a_scope_reconciliation_104.py`
 - `server/core/web-aigc-runtime-extra-adapters.ts`
 - `server/routes/a2a-python-runtime.ts`
 - `server/tests/final-provider-a2a-scope-reconciliation-104.test.ts`

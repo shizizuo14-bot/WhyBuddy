@@ -21,9 +21,9 @@
 - `server/sliderule/python-delegation.ts`
 - `server/routes/__tests__/sliderule.evidence-python-runtime.test.ts`
 - `server/routes/__tests__/sliderule.evidence-python-proxy-contract.test.ts`
-- `tws-ai-slide-rule-python/routes/sliderule.py`
-- `tws-ai-slide-rule-python/sliderule_llm/evidence.py`
-- `tws-ai-slide-rule-python/tests/test_evidence_node_runtime_wiring.py`
+- `slide-rule-python/routes/sliderule.py`
+- `slide-rule-python/sliderule_llm/evidence.py`
+- `slide-rule-python/tests/test_evidence_node_runtime_wiring.py`
 - `agent-loop/tasks/backend-python-evidence-node-runtime-wiring.md`
 
 ## 禁止扩大范围

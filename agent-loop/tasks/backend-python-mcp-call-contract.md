@@ -23,9 +23,9 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/tests/test_mcp_call_contract.py`
-- `tws-ai-slide-rule-python/services/capability_maps.py`
-- `tws-ai-slide-rule-python/services/slide_rule_executor.py`
+- `slide-rule-python/tests/test_mcp_call_contract.py`
+- `slide-rule-python/services/capability_maps.py`
+- `slide-rule-python/services/slide_rule_executor.py`
 - `server/routes/__tests__/sliderule.mcp-call-contract.test.ts`
 - `docs/backend-python-mcp-call-boundary-audit.md`
 - `agent-loop/tasks/backend-python-mcp-call-contract.md`

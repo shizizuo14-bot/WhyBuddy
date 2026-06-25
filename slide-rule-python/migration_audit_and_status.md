@@ -37,7 +37,7 @@ Key components causing instability (user's issues: proxy/su8 504s, pool exhausti
 
 Tests/fixtures (client/...fixtures.ts) use "pilot-template" and commitTrusted because real path is flaky.
 
-## Migration to New Python Project (tws-ai-slide-rule-python)
+## Migration to New Python Project (slide-rule-python)
 - New folder created, structure modeled after tws-ai-ask-python (FastAPI, config/settings with LLM/DB/Qdrant, models, routes, services, middlewares).
 - **Core V5 ported** (replacing Node LLM/pool/fallbacks with stable RAG from Python):
   - models/v5_state.py: Full V5SessionState, Artifact, Coverage, Orchestrate/Execute results.
@@ -65,7 +65,7 @@ Tests/fixtures (client/...fixtures.ts) use "pilot-template" and commitTrusted be
 
 This is the complete migration of the requested functionality. The new project is self-contained, references the stable Python patterns, and takes over completely.
 
-Run: cd tws-ai-slide-rule-python && python -m uvicorn app:app --port 9700 --reload
+Run: cd slide-rule-python && python -m uvicorn app:app --port 9700 --reload
 Then use /api/sliderule/* from client or Node proxy.
 
 All done as requested.

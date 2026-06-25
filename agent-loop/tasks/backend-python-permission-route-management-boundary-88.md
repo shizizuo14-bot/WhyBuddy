@@ -17,9 +17,9 @@
 permission check engine 已有 runtime 证据，但 `/api/permissions` 管理面、role/policy/token store、dynamic manager、conflict detector 仍大多 Node-owned。本任务只补管理面最小边界或明确保留 Node 所有权，避免把 check-engine runtime 误当完整 permission 迁移。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/permission_management.py`
-- `tws-ai-slide-rule-python/tests/test_permission_route_management_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_permission_check_runtime_boundary.py`
+- `slide-rule-python/services/permission_management.py`
+- `slide-rule-python/tests/test_permission_route_management_boundary.py`
+- `slide-rule-python/tests/test_permission_check_runtime_boundary.py`
 - `server/routes/permissions.ts`
 - `server/permission/management-python-boundary.ts`
 - `server/permission/management-python-boundary.test.ts`

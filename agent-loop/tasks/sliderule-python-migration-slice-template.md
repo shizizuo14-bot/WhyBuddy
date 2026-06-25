@@ -33,7 +33,7 @@
   - `.env`
   - 日志
   - Python cache
-  - `tws-ai-slide-rule-python/data/`
+  - `slide-rule-python/data/`
 - 不加入密钥、真实 API key、数据库密码、Qdrant key、Bearer token。
 
 ## 具体任务必须写清楚
@@ -78,7 +78,7 @@
 SlideRule V5 切片至少使用这些 gate：
 
 ```powershell
-cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short
+cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short
 ```
 
 ```powershell

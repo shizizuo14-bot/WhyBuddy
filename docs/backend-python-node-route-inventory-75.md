@@ -51,5 +51,5 @@ The migration target is this repository's NodeJS backend moving toward Python im
 - `agent-loop/tasks/sliderule-python-migration-status.md`
 - `.agent-loop/queue-outcomes.json` when present
 - `.agent-loop/runs/*/final-report.md` and `.agent-loop/runs/*/final-report.json` as read-only evidence
-- Python tests under `tws-ai-slide-rule-python/tests/`
+- Python tests under `slide-rule-python/tests/`
 - Node tests under `server/tests/`, `server/routes/__tests__/`, and route-local `*.test.ts` files

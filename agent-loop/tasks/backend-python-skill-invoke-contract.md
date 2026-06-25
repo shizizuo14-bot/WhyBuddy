@@ -23,9 +23,9 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/tests/test_skill_invoke_contract.py`
-- `tws-ai-slide-rule-python/services/capability_maps.py`
-- `tws-ai-slide-rule-python/services/slide_rule_executor.py`
+- `slide-rule-python/tests/test_skill_invoke_contract.py`
+- `slide-rule-python/services/capability_maps.py`
+- `slide-rule-python/services/slide_rule_executor.py`
 - `server/routes/__tests__/sliderule.skill-invoke-contract.test.ts`
 - `docs/backend-python-skill-invoke-boundary-audit.md`
 - `agent-loop/tasks/backend-python-skill-invoke-contract.md`

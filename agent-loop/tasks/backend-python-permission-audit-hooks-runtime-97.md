@@ -20,10 +20,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/permission_management.py`
-- `tws-ai-slide-rule-python/services/permission_audit_hooks.py`
-- `tws-ai-slide-rule-python/tests/test_permission_audit_hooks_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_permission_check_runtime_boundary.py`
+- `slide-rule-python/services/permission_management.py`
+- `slide-rule-python/services/permission_audit_hooks.py`
+- `slide-rule-python/tests/test_permission_audit_hooks_runtime.py`
+- `slide-rule-python/tests/test_permission_check_runtime_boundary.py`
 - `server/permission/check-engine.ts`
 - `server/permission/audit-logger.ts`
 - `server/permission/policy-store.ts`

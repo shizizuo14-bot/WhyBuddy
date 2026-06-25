@@ -113,9 +113,9 @@
 
 Python 侧可以先新增：
 
-- `tws-ai-slide-rule-python/routes/blueprint_spec_docs.py`
-- `tws-ai-slide-rule-python/sliderule_llm/blueprint_spec_docs.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_spec_docs_proxy.py`
+- `slide-rule-python/routes/blueprint_spec_docs.py`
+- `slide-rule-python/sliderule_llm/blueprint_spec_docs.py`
+- `slide-rule-python/tests/test_blueprint_spec_docs_proxy.py`
 
 ### 暂时不该迁到 Python 的
 
@@ -220,10 +220,10 @@ if (!(Test-Path docs/backend-python-blueprint-spec-docs-inventory.md)) { throw '
 建议使用 queue 里的 `blueprintProxyGates`：
 
 ```powershell
-cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_blueprint_spec_docs_proxy.py tests/test_config.py -q --tb=short
+cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_blueprint_spec_docs_proxy.py tests/test_config.py -q --tb=short
 pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/blueprint.spec-docs-python-proxy.test.ts --reporter=dot
 pnpm exec tsc --noEmit --pretty false
-node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-blueprint-spec-docs-proxy-contract.md tws-ai-slide-rule-python/routes/blueprint_spec_docs.py server/routes/__tests__/blueprint.spec-docs-python-proxy.test.ts
+node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-blueprint-spec-docs-proxy-contract.md slide-rule-python/routes/blueprint_spec_docs.py server/routes/__tests__/blueprint.spec-docs-python-proxy.test.ts
 ```
 
 ## 风险

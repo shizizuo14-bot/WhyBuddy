@@ -37,8 +37,8 @@
 - `server/permission/**`
 - `server/audit/**`
 - `server/routes/node-adapters/**`
-- `tws-ai-slide-rule-python/services/**`
-- `tws-ai-slide-rule-python/tests/**`
+- `slide-rule-python/services/**`
+- `slide-rule-python/tests/**`
 
 ## 禁止扩大范围
 

@@ -27,11 +27,11 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/task_lifecycle_production_closure.py`
-- `tws-ai-slide-rule-python/services/task_lifecycle_runtime.py`
-- `tws-ai-slide-rule-python/services/task_executor_runtime.py`
-- `tws-ai-slide-rule-python/services/mission_event_replay.py`
-- `tws-ai-slide-rule-python/tests/test_task_lifecycle_production_closure_100.py`
+- `slide-rule-python/services/task_lifecycle_production_closure.py`
+- `slide-rule-python/services/task_lifecycle_runtime.py`
+- `slide-rule-python/services/task_executor_runtime.py`
+- `slide-rule-python/services/mission_event_replay.py`
+- `slide-rule-python/tests/test_task_lifecycle_production_closure_100.py`
 - `server/tests/task-lifecycle-production-closure-100.test.ts`
 - `server/tests/task-mission-event-replay-python-runtime.test.ts`
 - `server/tests/task-lifecycle-python-runtime.test.ts`

@@ -17,8 +17,8 @@
 Blueprint/spec-docs 要继续往 Python 迁，artifact memory 是重要边界。这个任务只锁 proxy contract，不迁真实 artifact store。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/routes/blueprint_spec_docs.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_artifact_memory_proxy.py`
+- `slide-rule-python/routes/blueprint_spec_docs.py`
+- `slide-rule-python/tests/test_blueprint_artifact_memory_proxy.py`
 - `server/routes/blueprint/artifact-memory/service.ts`
 - `server/routes/blueprint/artifact-memory/service.test.ts`
 - `server/routes/__tests__/blueprint.artifact-memory-python-proxy.test.ts`

@@ -41,10 +41,10 @@
 
 只允许修改这些文件，除非 gate 明确证明必须多改一个文件：
 
-- `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`
-- `tws-ai-slide-rule-python/routes/sliderule_full.py`（仅当 gate 证明路由未优先走 native path）
-- `tws-ai-slide-rule-python/tests/test_capabilities.py`
-- `tws-ai-slide-rule-python/tests/test_v5_contract_expansion.py`
+- `slide-rule-python/sliderule_llm/capabilities.py`
+- `slide-rule-python/routes/sliderule_full.py`（仅当 gate 证明路由未优先走 native path）
+- `slide-rule-python/tests/test_capabilities.py`
+- `slide-rule-python/tests/test_v5_contract_expansion.py`
 - `server/routes/sliderule.ts`
 - `server/routes/__tests__/sliderule.execute-capability.test.ts`
 
@@ -52,7 +52,7 @@
 
 - `client/`、`server/core/`、`shared/blueprint/`、`scripts/`
 - `server/sliderule/orchestrate-plan.ts`、`server/sliderule/pool-json-llm.ts`
-- `tws-ai-slide-rule-python/data/`
+- `slide-rule-python/data/`
 - `.agent-loop/`、`.env`、`tmp/`、`probes/`
 
 ## 必须保持的行为
@@ -74,7 +74,7 @@
 ## 必跑 gate
 
 ```powershell
-cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short
+cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short
 ```
 
 ```powershell
@@ -86,7 +86,7 @@ pnpm exec tsc --noEmit --pretty false
 ```
 
 ```powershell
-node agent-loop/src/check-mojibake.js tws-ai-slide-rule-python server/routes/__tests__/sliderule.execute-capability.test.ts
+node agent-loop/src/check-mojibake.js slide-rule-python server/routes/__tests__/sliderule.execute-capability.test.ts
 ```
 
 ## 成功标准

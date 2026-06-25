@@ -19,11 +19,11 @@
 这不是接真实 Qdrant 的任务。可以加生产接线接口和配置契约，但测试必须继续使用 fake/in-memory runtime（假/内存运行时）。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/sliderule_llm/vector.py`
-- `tws-ai-slide-rule-python/sliderule_llm/evidence.py`
-- `tws-ai-slide-rule-python/sliderule_llm/config.py`
-- `tws-ai-slide-rule-python/tests/test_real_vector_retrieval_production_wiring.py`
-- `tws-ai-slide-rule-python/tests/test_real_vector_retrieval_runtime.py`
+- `slide-rule-python/sliderule_llm/vector.py`
+- `slide-rule-python/sliderule_llm/evidence.py`
+- `slide-rule-python/sliderule_llm/config.py`
+- `slide-rule-python/tests/test_real_vector_retrieval_production_wiring.py`
+- `slide-rule-python/tests/test_real_vector_retrieval_runtime.py`
 - `agent-loop/tasks/backend-python-real-vector-retrieval-production-wiring.md`
 
 ## 禁止扩大范围

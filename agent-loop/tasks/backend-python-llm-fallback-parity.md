@@ -27,12 +27,12 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/client.py`
-- `tws-ai-slide-rule-python/sliderule_llm/config.py`
-- `tws-ai-slide-rule-python/sliderule_llm/__init__.py`
-- `tws-ai-slide-rule-python/tests/test_fallback_parity.py`
-- `tws-ai-slide-rule-python/tests/test_client_parity.py`
-- `tws-ai-slide-rule-python/tests/test_config.py`
+- `slide-rule-python/sliderule_llm/client.py`
+- `slide-rule-python/sliderule_llm/config.py`
+- `slide-rule-python/sliderule_llm/__init__.py`
+- `slide-rule-python/tests/test_fallback_parity.py`
+- `slide-rule-python/tests/test_client_parity.py`
+- `slide-rule-python/tests/test_config.py`
 - `agent-loop/tasks/backend-python-llm-fallback-parity.md`
 
 ## 禁止扩大范围

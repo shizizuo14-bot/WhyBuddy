@@ -17,7 +17,7 @@
 audit 是大后端的重要分母。这个任务先锁 Python audit event contract，为后续采集/查询/导出迁移铺路。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_audit_event_contract.py`
+- `slide-rule-python/tests/test_audit_event_contract.py`
 - `server/audit/audit-collector.ts`
 - `server/tests/audit-collector.test.ts`
 - `server/tests/audit-event-python-contract.test.ts`

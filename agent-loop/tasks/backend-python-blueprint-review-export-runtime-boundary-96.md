@@ -17,9 +17,9 @@
 当前 review/export 主要停在 proxy 层。本任务只迁一个可测的 Python runtime boundary：根据输入的 Blueprint artifacts/review items 生成稳定 manifest、summary、warnings 和 error envelope。Node 仍然保留 route shell 和 UI 入口。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/blueprint_review_export.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_review_export_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_review_export_proxy.py`
+- `slide-rule-python/services/blueprint_review_export.py`
+- `slide-rule-python/tests/test_blueprint_review_export_runtime_boundary.py`
+- `slide-rule-python/tests/test_blueprint_review_export_proxy.py`
 - `server/routes/__tests__/blueprint.review-export-python-runtime.test.ts`
 - `server/routes/__tests__/blueprint.review-export-python-proxy.test.ts`
 - `server/routes/blueprint/review-export-python-runtime.ts`

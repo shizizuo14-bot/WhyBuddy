@@ -20,7 +20,7 @@ The Node backend (server/) for V5 was the source of all instability you reported
 
 This matched exactly your marathon logs, degraded tools, template report, proxy issues, and why fullpath tests used simulation.
 
-## New Python Project (tws-ai-slide-rule-python)
+## New Python Project (slide-rule-python)
 Created fresh (no use of old tws-ai-ask-python content, only structure reference: FastAPI, config/settings with LLM/DB/vector, models, routes, services/rag, middlewares, utils, app.py with lifespan).
 
 **Baseline migration delivered (directionally correct, realistic scope):**
@@ -42,7 +42,7 @@ Created fresh (no use of old tws-ai-ask-python content, only structure reference
 - Other: LLM Phase 1 strong (~80%), real RAG 10-15%, full server migration low single digits outside V5, end-to-end Node+Python automated stability ~25-30%.
 
 ## What has been delivered (non-overclaiming)
-- Fresh tws-ai-slide-rule-python (no reuse of old ask-python internals beyond reference structure).
+- Fresh slide-rule-python (no reuse of old ask-python internals beyond reference structure).
 - Core ports: V5 models/state, RAG (keyword with "外部证据" + sources for report/evidence/risk/tools), orchestrator (dynamic), full capability executor for many caps (mcp/skill/evidence/report/risk/structure/document/traceability/task/instruction/visual/handoff/ux etc.), driver/session/coverage, FastAPI routes matching the Node /api/sliderule surface, internal key auth.
 - Node side: delegation helper extracted, backend switch + live read, delegation if for the 14-ish caps, old ask block removed, .env points to new PYTHON_SLIDE_RULE_*.
 - Python smoke + Node tsc green.

@@ -95,7 +95,7 @@ async def serve_agentloop_alias():
 async def health():
     return {
         "status": "ok",
-        "backend": "tws-ai-slide-rule-python",
+        "backend": "slide-rule-python",
         "migration": "v5-baseline",
         "note": "Active target for Node PYTHON_SLIDE_RULE_* delegation. execute-capability uses mapped executor for core + expanded caps. Keyword RAG. Realistic progress per FINAL_MIGRATION_STATUS.md (~38-42% baseline)."
     }

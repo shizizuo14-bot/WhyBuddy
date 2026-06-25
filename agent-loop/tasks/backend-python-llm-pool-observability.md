@@ -23,10 +23,10 @@ Python pool 已有基础 fallback 和 resilience 测试。下一步补 observabi
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/pool.py`
-- `tws-ai-slide-rule-python/tests/test_pool_observability.py`
-- `tws-ai-slide-rule-python/tests/test_pool_resilience.py`
-- `tws-ai-slide-rule-python/tests/test_pool_parity.py`
+- `slide-rule-python/sliderule_llm/pool.py`
+- `slide-rule-python/tests/test_pool_observability.py`
+- `slide-rule-python/tests/test_pool_resilience.py`
+- `slide-rule-python/tests/test_pool_parity.py`
 - `agent-loop/tasks/backend-python-llm-pool-observability.md`
 
 ## 禁止扩大范围

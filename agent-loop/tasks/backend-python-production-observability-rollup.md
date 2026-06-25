@@ -17,8 +17,8 @@
 迁移推进到 75% 候选阶段时，不能只看功能 gate。需要有一个轻量 production observability rollup，帮助后续判断 Python runtime 是否可部署、可诊断。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_production_observability_rollup.py`
-- `tws-ai-slide-rule-python/tests/test_telemetry_route_contract.py`
+- `slide-rule-python/tests/test_production_observability_rollup.py`
+- `slide-rule-python/tests/test_telemetry_route_contract.py`
 - `server/routes/__tests__/python-observability-rollup.test.ts`
 - `server/routes/__tests__/telemetry-python-route-contract.test.ts`
 - `shared/telemetry/contracts.ts`

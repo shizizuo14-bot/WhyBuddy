@@ -27,8 +27,8 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`
-- `tws-ai-slide-rule-python/tests/test_capabilities.py`
+- `slide-rule-python/sliderule_llm/capabilities.py`
+- `slide-rule-python/tests/test_capabilities.py`
 - `server/routes/sliderule.ts`
 - `server/routes/__tests__/sliderule.execute-capability.test.ts`
 

@@ -31,16 +31,16 @@
 ## 当前证据 / 背景
 
 - Node 当前实现：`server/sliderule/delivery-exec-map.ts` 的 `instruction.package` 分支调用 `buildPromptPackContent()`，provenance 为 `ai_generated`。
-- Python 当前实现：`tws-ai-slide-rule-python/services/capability_maps.py` 的 `execute_prompt_pack()`，先走 RAG，再追加固定 Prompt Pack 段落，provenance 为 `python-rag`。
+- Python 当前实现：`slide-rule-python/services/capability_maps.py` 的 `execute_prompt_pack()`，先走 RAG，再追加固定 Prompt Pack 段落，provenance 为 `python-rag`。
 - Python contract（契约）当前只检查几个 section name（段名），还没有证明输出来自 Python native LLM。
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`
-- `tws-ai-slide-rule-python/services/capability_maps.py`
-- `tws-ai-slide-rule-python/routes/sliderule_full.py`
-- `tws-ai-slide-rule-python/tests/test_capabilities.py`
-- `tws-ai-slide-rule-python/tests/test_v5_contract_expansion.py`
+- `slide-rule-python/sliderule_llm/capabilities.py`
+- `slide-rule-python/services/capability_maps.py`
+- `slide-rule-python/routes/sliderule_full.py`
+- `slide-rule-python/tests/test_capabilities.py`
+- `slide-rule-python/tests/test_v5_contract_expansion.py`
 - `server/routes/__tests__/sliderule.execute-capability.test.ts`
 - 如必须同步 Node 契约，可改：
   - `server/sliderule/delivery-exec-map.ts`

@@ -9,11 +9,11 @@
 After the envelope exists, Python needs a bounded, redacted, append-only event store that can later back replay APIs and dashboard streams.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/agent_loop_event_schema.py`
-- `tws-ai-slide-rule-python/services/agent_loop_event_store.py`
-- `tws-ai-slide-rule-python/services/agent_loop_paths.py`
-- `tws-ai-slide-rule-python/services/agent_loop_redaction.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_event_store.py`
+- `slide-rule-python/services/agent_loop_event_schema.py`
+- `slide-rule-python/services/agent_loop_event_store.py`
+- `slide-rule-python/services/agent_loop_paths.py`
+- `slide-rule-python/services/agent_loop_redaction.py`
+- `slide-rule-python/tests/test_agent_loop_event_store.py`
 - `agent-loop/tasks/sliderule-agentloop-event-store-110.md`
 - This task file
 

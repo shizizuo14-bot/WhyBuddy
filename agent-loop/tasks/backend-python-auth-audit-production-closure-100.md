@@ -27,14 +27,14 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/auth_audit_production_closure.py`
-- `tws-ai-slide-rule-python/services/auth_identity_runtime.py`
-- `tws-ai-slide-rule-python/services/auth_session_persistence.py`
-- `tws-ai-slide-rule-python/services/permission_audit_hooks.py`
-- `tws-ai-slide-rule-python/services/permission_management.py`
-- `tws-ai-slide-rule-python/services/audit_retention_export.py`
-- `tws-ai-slide-rule-python/services/audit_sink.py`
-- `tws-ai-slide-rule-python/tests/test_auth_audit_production_closure_100.py`
+- `slide-rule-python/services/auth_audit_production_closure.py`
+- `slide-rule-python/services/auth_identity_runtime.py`
+- `slide-rule-python/services/auth_session_persistence.py`
+- `slide-rule-python/services/permission_audit_hooks.py`
+- `slide-rule-python/services/permission_management.py`
+- `slide-rule-python/services/audit_retention_export.py`
+- `slide-rule-python/services/audit_sink.py`
+- `slide-rule-python/tests/test_auth_audit_production_closure_100.py`
 - `server/tests/auth-audit-production-closure-100.test.ts`
 - `server/routes/auth.ts`
 - `server/auth/session-service.ts`

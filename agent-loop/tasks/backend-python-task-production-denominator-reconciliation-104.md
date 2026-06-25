@@ -9,8 +9,8 @@
 The Task lifecycle status must not depend on scattered task files. This task aggregates 104 evidence into a code-consumable decision.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/task_production_denominator_reconciliation.py`
-- `tws-ai-slide-rule-python/tests/test_task_production_denominator_reconciliation_104.py`
+- `slide-rule-python/services/task_production_denominator_reconciliation.py`
+- `slide-rule-python/tests/test_task_production_denominator_reconciliation_104.py`
 - `server/tasks/mission-runtime.ts`
 - `server/tests/task-production-denominator-reconciliation-104.test.ts`
 - Relevant 104 Task services/tests

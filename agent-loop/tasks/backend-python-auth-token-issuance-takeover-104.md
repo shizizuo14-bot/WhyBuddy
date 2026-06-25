@@ -9,8 +9,8 @@
 103 kept `tokenIssuance` as `node-retained`. This task must prove Python can own a token lifecycle decision without compromising existing auth behavior.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/auth_token_issuance_takeover.py`
-- `tws-ai-slide-rule-python/tests/test_auth_token_issuance_takeover_104.py`
+- `slide-rule-python/services/auth_token_issuance_takeover.py`
+- `slide-rule-python/tests/test_auth_token_issuance_takeover_104.py`
 - `server/auth/session-service.ts`
 - `server/routes/auth.ts`
 - `server/tests/auth-token-issuance-takeover-104.test.ts`

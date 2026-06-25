@@ -17,9 +17,9 @@
 上一轮已经有 vision/audio contract。这个任务推进 Node 到 Python runtime bridge，但仍使用 fake provider。重点是防止 unsupported/unavailable 被伪装成成功。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/web_aigc_vision_audio_adapter.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_vision_audio_runtime_bridge.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_vision_audio_adapter_contract.py`
+- `slide-rule-python/services/web_aigc_vision_audio_adapter.py`
+- `slide-rule-python/tests/test_web_aigc_vision_audio_runtime_bridge.py`
+- `slide-rule-python/tests/test_web_aigc_vision_audio_adapter_contract.py`
 - `server/routes/node-adapters/*vision*.ts`
 - `server/routes/node-adapters/*audio*.ts`
 - `server/routes/node-adapters/*ocr*.ts`

@@ -9,9 +9,9 @@
 103 classified Blueprint jobStore/eventBus/ledger/replan/promptPackage/previewState as mostly `node-retained`, with only a thin `jobStateSlice` as `python-owned`. This task must either make job store state read/write behavior demonstrably Python-owned for a small production-shaped slice, or prove with code/tests why the durable store stays retained.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/blueprint_job_store_runtime_takeover.py`
-- `tws-ai-slide-rule-python/services/blueprint_job_store_scope_decision.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_job_store_runtime_takeover_104.py`
+- `slide-rule-python/services/blueprint_job_store_runtime_takeover.py`
+- `slide-rule-python/services/blueprint_job_store_scope_decision.py`
+- `slide-rule-python/tests/test_blueprint_job_store_runtime_takeover_104.py`
 - `server/routes/blueprint/job-store-runtime-takeover-python.ts`
 - `server/routes/blueprint/job-store-scope-decision-python.ts`
 - `server/routes/blueprint/jobs/service.ts`

@@ -27,15 +27,15 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/web_aigc_provider_closure.py`
-- `tws-ai-slide-rule-python/services/web_aigc_search_adapter.py`
-- `tws-ai-slide-rule-python/services/web_aigc_file_adapter.py`
-- `tws-ai-slide-rule-python/services/web_aigc_vision_audio_adapter.py`
-- `tws-ai-slide-rule-python/services/web_aigc_ocr_static_adapter.py`
-- `tws-ai-slide-rule-python/services/web_aigc_ai_ppt_adapter.py`
-- `tws-ai-slide-rule-python/services/web_aigc_dynamic_chart_adapter.py`
-- `tws-ai-slide-rule-python/services/web_aigc_transaction_flow_adapter.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_provider_closure_100.py`
+- `slide-rule-python/services/web_aigc_provider_closure.py`
+- `slide-rule-python/services/web_aigc_search_adapter.py`
+- `slide-rule-python/services/web_aigc_file_adapter.py`
+- `slide-rule-python/services/web_aigc_vision_audio_adapter.py`
+- `slide-rule-python/services/web_aigc_ocr_static_adapter.py`
+- `slide-rule-python/services/web_aigc_ai_ppt_adapter.py`
+- `slide-rule-python/services/web_aigc_dynamic_chart_adapter.py`
+- `slide-rule-python/services/web_aigc_transaction_flow_adapter.py`
+- `slide-rule-python/tests/test_web_aigc_provider_closure_100.py`
 - `server/tests/web-aigc-provider-closure-100.test.ts`
 - `server/core/web-aigc-runtime-extra-adapters.ts`
 - `server/core/web-aigc-runtime-observability.ts`

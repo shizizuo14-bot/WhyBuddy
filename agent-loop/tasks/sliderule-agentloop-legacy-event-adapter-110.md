@@ -9,11 +9,11 @@
 Existing runs will not have native v2 event logs. The Web console still needs to render them through the same reducer and flow projection used for new runs.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/agent_loop_legacy_adapter.py`
-- `tws-ai-slide-rule-python/services/agent_loop_runs.py`
-- `tws-ai-slide-rule-python/services/agent_loop_event_schema.py`
-- `tws-ai-slide-rule-python/tests/fixtures/agent_loop_run/`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_legacy_event_adapter.py`
+- `slide-rule-python/services/agent_loop_legacy_adapter.py`
+- `slide-rule-python/services/agent_loop_runs.py`
+- `slide-rule-python/services/agent_loop_event_schema.py`
+- `slide-rule-python/tests/fixtures/agent_loop_run/`
+- `slide-rule-python/tests/test_agent_loop_legacy_event_adapter.py`
 - `agent-loop/tasks/sliderule-agentloop-legacy-event-adapter-110.md`
 - This task file
 

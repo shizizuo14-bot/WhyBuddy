@@ -9,9 +9,9 @@
 Python will increasingly run tools, tests, and control-plane checks. Those results must enter the same event stream as Node, Grok, and Codex instead of becoming a separate truth source.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/agent_loop_python_worker.py`
-- `tws-ai-slide-rule-python/services/agent_loop_event_schema.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_python_worker_adapter.py`
+- `slide-rule-python/services/agent_loop_python_worker.py`
+- `slide-rule-python/services/agent_loop_event_schema.py`
+- `slide-rule-python/tests/test_agent_loop_python_worker_adapter.py`
 - `agent-loop/tasks/sliderule-agentloop-python-worker-adapter-110.md`
 - This task file
 

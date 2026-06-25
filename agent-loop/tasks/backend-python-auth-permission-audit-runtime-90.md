@@ -34,30 +34,30 @@ Current `HEAD`:
 
 Visible bounded runtime-boundary evidence:
 
-- `tws-ai-slide-rule-python/tests/test_permission_check_runtime_boundary.py`
+- `slide-rule-python/tests/test_permission_check_runtime_boundary.py`
 - `server/permission/check-engine-python-runtime.test.ts`
 - `shared/permission/contracts.ts`
-- `tws-ai-slide-rule-python/middlewares/auth.py`
+- `slide-rule-python/middlewares/auth.py`
 - Commit evidence: `61097ed0 feat(backend-python): add permission check runtime boundary`
 
 Visible contract-only evidence:
 
-- `tws-ai-slide-rule-python/tests/test_auth_session_contract.py`
+- `slide-rule-python/tests/test_auth_session_contract.py`
 - `server/tests/auth-session-python-contract.test.ts`
-- `tws-ai-slide-rule-python/tests/test_permission_rate_limit_contract.py`
+- `slide-rule-python/tests/test_permission_rate_limit_contract.py`
 - `server/permission/rate-limiter-python-contract.test.ts`
-- `tws-ai-slide-rule-python/tests/test_audit_event_contract.py`
+- `slide-rule-python/tests/test_audit_event_contract.py`
 - `server/tests/audit-event-python-contract.test.ts`
 - `shared/audit/contracts.ts`
 - Contract commit evidence: `6d9194f8 Advance backend Python migration slices`
 
 Missing runtime-boundary paths in current `HEAD`:
 
-- `tws-ai-slide-rule-python/tests/test_auth_session_runtime_boundary.py`
+- `slide-rule-python/tests/test_auth_session_runtime_boundary.py`
 - `server/tests/auth-session-runtime-boundary.test.ts`
-- `tws-ai-slide-rule-python/tests/test_permission_rate_limit_runtime_boundary.py`
+- `slide-rule-python/tests/test_permission_rate_limit_runtime_boundary.py`
 - `server/permission/rate-limiter-python-runtime.test.ts`
-- `tws-ai-slide-rule-python/tests/test_audit_event_runtime_boundary.py`
+- `slide-rule-python/tests/test_audit_event_runtime_boundary.py`
 - `server/tests/audit-event-python-runtime.test.ts`
 
 ## Counting Posture
@@ -75,14 +75,14 @@ overall backend migration progress at 90%.
 
 ## Allowed Files
 
-- `tws-ai-slide-rule-python/tests/test_auth_session_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_auth_session_contract.py`
-- `tws-ai-slide-rule-python/tests/test_permission_check_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_permission_check_contract.py`
-- `tws-ai-slide-rule-python/tests/test_permission_rate_limit_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_permission_rate_limit_contract.py`
-- `tws-ai-slide-rule-python/tests/test_audit_event_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_audit_event_contract.py`
+- `slide-rule-python/tests/test_auth_session_runtime_boundary.py`
+- `slide-rule-python/tests/test_auth_session_contract.py`
+- `slide-rule-python/tests/test_permission_check_runtime_boundary.py`
+- `slide-rule-python/tests/test_permission_check_contract.py`
+- `slide-rule-python/tests/test_permission_rate_limit_runtime_boundary.py`
+- `slide-rule-python/tests/test_permission_rate_limit_contract.py`
+- `slide-rule-python/tests/test_audit_event_runtime_boundary.py`
+- `slide-rule-python/tests/test_audit_event_contract.py`
 - `server/tests/auth-session-runtime-boundary.test.ts`
 - `server/tests/auth-session-python-contract.test.ts`
 - `server/permission/check-engine-python-runtime.test.ts`

@@ -31,8 +31,8 @@ Current `HEAD`:
 
 Visible contract/service projection evidence:
 
-- `tws-ai-slide-rule-python/services/a2a_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_a2a_runtime_contract.py`
+- `slide-rule-python/services/a2a_runtime.py`
+- `slide-rule-python/tests/test_a2a_runtime_contract.py`
 - `server/routes/__tests__/a2a-python-runtime-contract.test.ts`
 - `shared/a2a-protocol.ts`
 - Commit evidence:
@@ -47,7 +47,7 @@ Visible Node-owned stream transport files:
 
 Missing stream runtime-boundary paths in current `HEAD`:
 
-- `tws-ai-slide-rule-python/tests/test_a2a_stream_runtime_boundary.py`
+- `slide-rule-python/tests/test_a2a_stream_runtime_boundary.py`
 - `server/routes/__tests__/a2a-python-stream-runtime.test.ts`
 
 ## Counting Posture
@@ -64,9 +64,9 @@ stream migration.
 
 ## Allowed Files
 
-- `tws-ai-slide-rule-python/services/a2a_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_a2a_stream_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_a2a_runtime_contract.py`
+- `slide-rule-python/services/a2a_runtime.py`
+- `slide-rule-python/tests/test_a2a_stream_runtime_boundary.py`
+- `slide-rule-python/tests/test_a2a_runtime_contract.py`
 - `server/routes/a2a.ts`
 - `server/core/a2a-client.ts`
 - `server/core/a2a-server.ts`

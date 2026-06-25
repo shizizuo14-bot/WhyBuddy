@@ -32,16 +32,16 @@
 ## 当前证据 / 背景
 
 - Node 当前实现：`server/sliderule/delivery-exec-map.ts` 的 `document.draft` 分支，输出 requirements / design / tasks 骨架，provenance 为 `ai_generated`。
-- Python 当前实现：`tws-ai-slide-rule-python/services/capability_maps.py` 的 `execute_document()`，仍走 `python-rag` mapped baseline。
+- Python 当前实现：`slide-rule-python/services/capability_maps.py` 的 `execute_document()`，仍走 `python-rag` mapped baseline。
 - Python contract（契约）当前在 `tests/test_v5_contract_expansion.py` 里把 delivery caps 作为 expanded mapped capability 验证。
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`
-- `tws-ai-slide-rule-python/services/capability_maps.py`
-- `tws-ai-slide-rule-python/routes/sliderule_full.py`
-- `tws-ai-slide-rule-python/tests/test_capabilities.py`
-- `tws-ai-slide-rule-python/tests/test_v5_contract_expansion.py`
+- `slide-rule-python/sliderule_llm/capabilities.py`
+- `slide-rule-python/services/capability_maps.py`
+- `slide-rule-python/routes/sliderule_full.py`
+- `slide-rule-python/tests/test_capabilities.py`
+- `slide-rule-python/tests/test_v5_contract_expansion.py`
 - `server/routes/__tests__/sliderule.execute-capability.test.ts`
 - 如必须同步 Node 契约，可改：
   - `server/sliderule/delivery-exec-map.ts`
@@ -54,7 +54,7 @@
 - 不改 Node LLM / pool WIP，除非 gate 明确证明该 capability 的代理契约必须更新。
 - 不迁其它 delivery / visual capability。
 - 不删除、不弱化、不跳过测试。
-- 不提交 `.agent-loop/`、`.worktrees/`、`tmp/`、`.env`、日志、cache、`tws-ai-slide-rule-python/data/`。
+- 不提交 `.agent-loop/`、`.worktrees/`、`tmp/`、`.env`、日志、cache、`slide-rule-python/data/`。
 
 ## 必跑 gate
 

@@ -21,8 +21,8 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/config/settings.py`
-- `tws-ai-slide-rule-python/tests/test_runtime_config_boundary.py`
+- `slide-rule-python/config/settings.py`
+- `slide-rule-python/tests/test_runtime_config_boundary.py`
 - `server/sliderule/python-delegation.ts`
 - `server/routes/__tests__/python-runtime-config-boundary.test.ts`
 - `docs/backend-python-runtime-config-boundary.md`

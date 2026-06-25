@@ -21,7 +21,7 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/tests/test_blueprint_spec_docs_smoke.py`
+- `slide-rule-python/tests/test_blueprint_spec_docs_smoke.py`
 - `server/routes/__tests__/blueprint.spec-docs-smoke.test.ts`
 - `agent-loop/scripts/migration-queue.json`（仅 gate 命令必要时）
 - `agent-loop/tasks/backend-python-blueprint-spec-docs-smoke-gate.md`

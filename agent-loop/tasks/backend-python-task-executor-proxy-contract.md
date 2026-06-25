@@ -17,7 +17,7 @@
 executor/tasks 是整体后端大块。这个任务只锁 proxy contract，让后续迁移可以按 start/status/cancel 分片推进。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_task_executor_proxy_contract.py`
+- `slide-rule-python/tests/test_task_executor_proxy_contract.py`
 - `server/core/executor-client.ts`
 - `server/tests/executor-client-python-proxy-contract.test.ts`
 - `server/tests/executor-client-capabilities.test.ts`

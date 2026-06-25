@@ -3,7 +3,7 @@
 ## Purpose
 Document the exact current AgentLoop and SlideRule Python boundaries before merging product ownership.
 
-The 108 wave merges AgentLoop into `tws-ai-slide-rule-python` using a Python control plane and the existing Node AgentLoop runner as an internal worker bridge. This inventory prevents blind migration by cataloguing the source system and target seams.
+The 108 wave merges AgentLoop into `slide-rule-python` using a Python control plane and the existing Node AgentLoop runner as an internal worker bridge. This inventory prevents blind migration by cataloguing the source system and target seams.
 
 **This wave only inventories.** No runtime code moved, no queue execution logic edited, Python does not own AgentLoop execution yet.
 
@@ -59,12 +59,12 @@ Python control plane will treat the Node runner/queue/engine as an internal work
 - Agent connectors + parsers: `agent-loop/src/agentProcess.js`, `agent-loop/src/resolveAgents.js`, `agent-loop/src/reviewParser.js`, `agent-loop/src/grokPrompt.js`.
 - Smoke / probe helpers and queue outcomes: `agent-loop/scripts/smoke-*.mjs`, `agent-loop/src/queueOutcomes.js`.
 
-Future Python control plane concerns (orchestration, queue driving, state projection, artifact mgmt, settings resolution for runs) will be owned in `tws-ai-slide-rule-python/services/` + supporting `config/`, `models/`, and `sliderule_llm/` where LLM control intersects. Node `runQueue.js` + `loopEngine.js` + runner CLI remain the execution worker bridge.
+Future Python control plane concerns (orchestration, queue driving, state projection, artifact mgmt, settings resolution for runs) will be owned in `slide-rule-python/services/` + supporting `config/`, `models/`, and `sliderule_llm/` where LLM control intersects. Node `runQueue.js` + `loopEngine.js` + runner CLI remain the execution worker bridge.
 
 ## References
 - `agent-loop/agent_loop_v1.md`
 - `agent-loop/tasks/sliderule-agentloop-integration-inventory-108.md`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_integration_inventory.py`
+- `slide-rule-python/tests/test_agent_loop_integration_inventory.py`
 - Python patterns: `services/task_lifecycle_runtime.py`, `services/slide_rule_orchestrator.py`, `config/settings.py`, `services/persistence.py`
 
 Wave 108 scope: inventory + marker test only. Ownership transfer and bridge wiring are later waves.

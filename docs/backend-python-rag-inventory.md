@@ -46,7 +46,7 @@ Node 侧核心目录是 `server/rag/` 和 `shared/rag/`。
 
 ### 已经是真 LLM 的 SlideRule 能力
 
-`tws-ai-slide-rule-python/sliderule_llm/capabilities.py` 里当前 `is_python_native_capability()` 覆盖 18 个 SlideRule V5 capability（能力）。这些能力返回 `provenance="python-llm"`，意思是：它们是 Python 真 LLM 路径，不是旧 `python-rag` 罐头。
+`slide-rule-python/sliderule_llm/capabilities.py` 里当前 `is_python_native_capability()` 覆盖 18 个 SlideRule V5 capability（能力）。这些能力返回 `provenance="python-llm"`，意思是：它们是 Python 真 LLM 路径，不是旧 `python-rag` 罐头。
 
 代表能力包括：
 
@@ -75,10 +75,10 @@ Node 侧核心目录是 `server/rag/` 和 `shared/rag/`。
 
 Python 侧旧 RAG 基线主要在：
 
-- `tws-ai-slide-rule-python/services/rag_service.py`
-- `tws-ai-slide-rule-python/services/slide_rule_executor.py`
-- `tws-ai-slide-rule-python/services/capability_maps.py`
-- `tws-ai-slide-rule-python/routes/sliderule_full.py`
+- `slide-rule-python/services/rag_service.py`
+- `slide-rule-python/services/slide_rule_executor.py`
+- `slide-rule-python/services/capability_maps.py`
+- `slide-rule-python/routes/sliderule_full.py`
 
 这些路径的特点：
 
@@ -100,7 +100,7 @@ Python 侧旧 RAG 基线主要在：
 
 ### Python 配置已有但能力未接实
 
-`tws-ai-slide-rule-python/config/settings.py` 已有：
+`slide-rule-python/config/settings.py` 已有：
 
 - `QDRANT_URL`
 - `QDRANT_API_KEY`
@@ -132,7 +132,7 @@ Python 侧旧 RAG 基线主要在：
 
 建议范围：
 
-- 新增 `tws-ai-slide-rule-python/sliderule_llm/vector.py`。
+- 新增 `slide-rule-python/sliderule_llm/vector.py`。
 - 支持配置读取：Qdrant URL、API key、collection、timeout、dimension。
 - 支持最小方法：`health_check()`、`upsert()`、`search()`、`delete()`。
 - 先用 fake HTTP / injectable transport 写测试，不要求本地真的起 Qdrant。
@@ -145,7 +145,7 @@ Python 侧旧 RAG 基线主要在：
 
 建议范围：
 
-- 新增 `tws-ai-slide-rule-python/sliderule_llm/evidence.py`。
+- 新增 `slide-rule-python/sliderule_llm/evidence.py`。
 - 定义 `EvidenceSource` / `EvidenceResult` 形状。
 - 支持 vector client 注入。
 - vector 不可用时允许显式 fallback 到 keyword baseline，但 provenance（来源标记）必须说清楚。
@@ -191,8 +191,8 @@ if (!(Test-Path docs/backend-python-rag-inventory.md)) { throw 'missing docs/bac
 建议：
 
 ```powershell
-cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_vector_client_parity.py tests/test_config.py -q --tb=short
-node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-vector-client-parity.md tws-ai-slide-rule-python/sliderule_llm/vector.py tws-ai-slide-rule-python/tests/test_vector_client_parity.py
+cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_vector_client_parity.py tests/test_config.py -q --tb=short
+node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-vector-client-parity.md slide-rule-python/sliderule_llm/vector.py slide-rule-python/tests/test_vector_client_parity.py
 ```
 
 ### 下一片 evidence retrieval gate
@@ -200,8 +200,8 @@ node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-vector-cli
 建议：
 
 ```powershell
-cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_evidence_retrieval_parity.py tests/test_capabilities.py -q --tb=short
-node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-evidence-retrieval-parity.md tws-ai-slide-rule-python/sliderule_llm/evidence.py tws-ai-slide-rule-python/tests/test_evidence_retrieval_parity.py
+cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_evidence_retrieval_parity.py tests/test_capabilities.py -q --tb=short
+node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-evidence-retrieval-parity.md slide-rule-python/sliderule_llm/evidence.py slide-rule-python/tests/test_evidence_retrieval_parity.py
 ```
 
 ## 风险清单

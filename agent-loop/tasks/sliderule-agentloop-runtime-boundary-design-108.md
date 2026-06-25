@@ -9,8 +9,8 @@
 The merge must make SlideRule the product owner without rewriting the runner in one jump. This task writes the boundary contract that later API, UI, and bridge tasks must follow.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/AGENT_LOOP_RUNTIME_BOUNDARY.md`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_runtime_boundary.py`
+- `slide-rule-python/AGENT_LOOP_RUNTIME_BOUNDARY.md`
+- `slide-rule-python/tests/test_agent_loop_runtime_boundary.py`
 - `agent-loop/tasks/sliderule-agentloop-runtime-boundary-design-108.md`
 - This task file
 

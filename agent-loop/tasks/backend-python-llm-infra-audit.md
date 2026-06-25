@@ -29,10 +29,10 @@
   - [x] 2.5 扫描直接调用 LLM 的 route/service，列出还有哪些绕过统一入口的调用点
 
 - [x] 3. 盘点 Python LLM infra 现状
-  - [x] 3.1 扫描 `tws-ai-slide-rule-python/sliderule_llm/config.py`
-  - [x] 3.2 扫描 `tws-ai-slide-rule-python/sliderule_llm/client.py`
-  - [x] 3.3 扫描 `tws-ai-slide-rule-python/sliderule_llm/pool.py`
-  - [x] 3.4 扫描 `tws-ai-slide-rule-python/tests/test_config.py` 和 `tests/test_su8_live.py`
+  - [x] 3.1 扫描 `slide-rule-python/sliderule_llm/config.py`
+  - [x] 3.2 扫描 `slide-rule-python/sliderule_llm/client.py`
+  - [x] 3.3 扫描 `slide-rule-python/sliderule_llm/pool.py`
+  - [x] 3.4 扫描 `slide-rule-python/tests/test_config.py` 和 `tests/test_su8_live.py`
   - [x] 3.5 标出 Python 已有能力、缺失能力、假 stub 或不该继续依赖的路径
 
 - [x] 4. 形成 LLM infra parity 表
@@ -74,10 +74,10 @@
 - `server/routes/blueprint/**/service.ts`
 - `server/tests/*llm*`
 - `shared/llm/`
-- `tws-ai-slide-rule-python/sliderule_llm/`
-- `tws-ai-slide-rule-python/tests/test_config.py`
-- `tws-ai-slide-rule-python/tests/test_su8_live.py`
-- `tws-ai-slide-rule-python/PHASE1_LLM_STATUS.md`
+- `slide-rule-python/sliderule_llm/`
+- `slide-rule-python/tests/test_config.py`
+- `slide-rule-python/tests/test_su8_live.py`
+- `slide-rule-python/PHASE1_LLM_STATUS.md`
 - `agent-loop/tasks/sliderule-python-migration-status.md`
 
 允许本轮更新的文件只有：
@@ -96,7 +96,7 @@
 - 不启动真实 live LLM，除非后续单独确认。
 - 不暂存、不提交。
 - 不使用 `git add -A`。
-- 不提交 `.agent-loop/`、`tmp/`、`probes/`、日志、cache、`tws-ai-slide-rule-python/data/`。
+- 不提交 `.agent-loop/`、`tmp/`、`probes/`、日志、cache、`slide-rule-python/data/`。
 
 ## 审计输出要求
 
@@ -131,11 +131,11 @@ cd agent-loop; npm test
 ```
 
 ```powershell
-node agent-loop/src/check-mojibake.js agent-loop/tasks agent-loop/src agent-loop/test tws-ai-slide-rule-python/sliderule_llm
+node agent-loop/src/check-mojibake.js agent-loop/tasks agent-loop/src agent-loop/test slide-rule-python/sliderule_llm
 ```
 
 ```powershell
-rg -n -e llm-client -e ai-config -e pool-json-llm -e llm-key-pool -e callLLMJsonWithUsage -e callPoolJsonLlm -e LLM_WIRE_API -e LLM_REASONING_EFFORT -e BLUEPRINT_SPEC_DOCS_LLM_POOL server shared tws-ai-slide-rule-python agent-loop/tasks
+rg -n -e llm-client -e ai-config -e pool-json-llm -e llm-key-pool -e callLLMJsonWithUsage -e callPoolJsonLlm -e LLM_WIRE_API -e LLM_REASONING_EFFORT -e BLUEPRINT_SPEC_DOCS_LLM_POOL server shared slide-rule-python agent-loop/tasks
 ```
 
 ## AgentLoop gate-only 命令
@@ -147,8 +147,8 @@ node agent-loop/src/loop.js `
   --cwd C:\Users\wangchunji\Documents\cube-pets-office `
   --task agent-loop/tasks/backend-python-llm-infra-audit.md `
   --gate "cd agent-loop; npm test" `
-  --gate "node agent-loop/src/check-mojibake.js agent-loop/tasks agent-loop/src agent-loop/test tws-ai-slide-rule-python/sliderule_llm" `
-  --gate "rg -n -e llm-client -e ai-config -e pool-json-llm -e llm-key-pool -e callLLMJsonWithUsage -e callPoolJsonLlm -e LLM_WIRE_API -e LLM_REASONING_EFFORT -e BLUEPRINT_SPEC_DOCS_LLM_POOL server shared tws-ai-slide-rule-python agent-loop/tasks" `
+  --gate "node agent-loop/src/check-mojibake.js agent-loop/tasks agent-loop/src agent-loop/test slide-rule-python/sliderule_llm" `
+  --gate "rg -n -e llm-client -e ai-config -e pool-json-llm -e llm-key-pool -e callLLMJsonWithUsage -e callPoolJsonLlm -e LLM_WIRE_API -e LLM_REASONING_EFFORT -e BLUEPRINT_SPEC_DOCS_LLM_POOL server shared slide-rule-python agent-loop/tasks" `
   --skip-review `
   --max-iterations 1 `
   --lang zh-CN
@@ -196,11 +196,11 @@ node agent-loop/src/loop.js `
 
 | Python 文件 | 已有能力 | 缺口 |
 |---|---|---|
-| `tws-ai-slide-rule-python/sliderule_llm/config.py` | 读取主 LLM env、基础 wire 选择、pool keys/labels/base/model/timeout、pool race mode | 缺 `LLM_ROUTER_MODEL`、`OPENAI_ROUTER_MODEL`、`FALLBACK_LLM_*`、`LLM_MODEL_FALLBACKS`、`LLM_MAX_CONTEXT`、`LLM_CHAT_THINKING_TYPE`、`LLM_MAX_CONCURRENT`、`BLUEPRINT_SPEC_DOCS_LLM_POOL_WIRE_API` |
-| `tws-ai-slide-rule-python/sliderule_llm/client.py` | `httpx` 真实调用；chat/responses；基础状态码归一；基础 JSON helper；失败时抛 `LlmError` | 缺 SSE、多模态 content parts、provider fallback、模型 fallback、重试退避、冷却、telemetry/cost、并发限制、finish reason/length 处理、usage 标准化 |
-| `tws-ai-slide-rule-python/sliderule_llm/pool.py` | 低层 key pool；parallel/sequential；失败返回 `None` | pool key 调用固定 `chat_completions`；缺 responses wire、504 惩罚、transient retry、代理感知默认 sequential、pool metadata、skip primary 策略、spec-doc 形状校验 |
-| `tws-ai-slide-rule-python/tests/test_config.py` | 覆盖基础 wire 选择、env 读取、pool keys/labels 解析 | 还没覆盖 router/fallback/model fallback/NO_PROXY/pool wire/并发限制 |
-| `tws-ai-slide-rule-python/tests/test_su8_live.py` | opt-in live 验证主模型、JSON、pool 真实调用 | live 测试不是默认 gate；不能当作稳定 CI 证据 |
+| `slide-rule-python/sliderule_llm/config.py` | 读取主 LLM env、基础 wire 选择、pool keys/labels/base/model/timeout、pool race mode | 缺 `LLM_ROUTER_MODEL`、`OPENAI_ROUTER_MODEL`、`FALLBACK_LLM_*`、`LLM_MODEL_FALLBACKS`、`LLM_MAX_CONTEXT`、`LLM_CHAT_THINKING_TYPE`、`LLM_MAX_CONCURRENT`、`BLUEPRINT_SPEC_DOCS_LLM_POOL_WIRE_API` |
+| `slide-rule-python/sliderule_llm/client.py` | `httpx` 真实调用；chat/responses；基础状态码归一；基础 JSON helper；失败时抛 `LlmError` | 缺 SSE、多模态 content parts、provider fallback、模型 fallback、重试退避、冷却、telemetry/cost、并发限制、finish reason/length 处理、usage 标准化 |
+| `slide-rule-python/sliderule_llm/pool.py` | 低层 key pool；parallel/sequential；失败返回 `None` | pool key 调用固定 `chat_completions`；缺 responses wire、504 惩罚、transient retry、代理感知默认 sequential、pool metadata、skip primary 策略、spec-doc 形状校验 |
+| `slide-rule-python/tests/test_config.py` | 覆盖基础 wire 选择、env 读取、pool keys/labels 解析 | 还没覆盖 router/fallback/model fallback/NO_PROXY/pool wire/并发限制 |
+| `slide-rule-python/tests/test_su8_live.py` | opt-in live 验证主模型、JSON、pool 真实调用 | live 测试不是默认 gate；不能当作稳定 CI 证据 |
 | 旧 `services/*.py` 路径 | 一些迁移早期 stub/包装 | 不应作为整体 LLM infra 依据；后续应继续把真实能力收敛到 `sliderule_llm` |
 
 ## Node env 与 Python env 对照表
@@ -281,8 +281,8 @@ Python 侧 `httpx.Client(timeout=..., trust_env=True)` 是对的，它能读取 
 - 日志只打 provider host、pool label、状态码、错误分类，不打 key 值。
 - pool label 可以记录，key 本体不能写入报告。
 - live smoke 必须 opt-in，并且不要把响应里的敏感上下文写进长期文档。
-- `tws-ai-slide-rule-python/config/settings.py` 里的历史硬编码敏感配置仍然是清理风险点，不能在提交时带入历史。
-- `.agent-loop/`、日志、cache、`tws-ai-slide-rule-python/data/` 仍然按运行产物处理，不进入提交。
+- `slide-rule-python/config/settings.py` 里的历史硬编码敏感配置仍然是清理风险点，不能在提交时带入历史。
+- `.agent-loop/`、日志、cache、`slide-rule-python/data/` 仍然按运行产物处理，不进入提交。
 
 ## 对整体迁移进度的影响
 
@@ -358,12 +358,12 @@ Python 侧 `httpx.Client(timeout=..., trust_env=True)` 是对的，它能读取 
 - `server/sliderule/orchestrate-plan.ts`
 - `server/routes/blueprint/llm-key-pool.ts`
 - `shared/llm/contracts.ts`
-- `tws-ai-slide-rule-python/sliderule_llm/config.py`
-- `tws-ai-slide-rule-python/sliderule_llm/client.py`
-- `tws-ai-slide-rule-python/sliderule_llm/pool.py`
-- `tws-ai-slide-rule-python/tests/test_config.py`
-- `tws-ai-slide-rule-python/tests/test_su8_live.py`
-- `tws-ai-slide-rule-python/PHASE1_LLM_STATUS.md`
+- `slide-rule-python/sliderule_llm/config.py`
+- `slide-rule-python/sliderule_llm/client.py`
+- `slide-rule-python/sliderule_llm/pool.py`
+- `slide-rule-python/tests/test_config.py`
+- `slide-rule-python/tests/test_su8_live.py`
+- `slide-rule-python/PHASE1_LLM_STATUS.md`
 
 已扫描调用点：
 

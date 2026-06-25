@@ -9,8 +9,8 @@
 103 left scheduler boundaries as `node-retained`. This task should move one scheduler decision into Python runtime with tests for cancel/retry/replay interactions.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/task_scheduler_runtime_takeover.py`
-- `tws-ai-slide-rule-python/tests/test_task_scheduler_runtime_takeover_104.py`
+- `slide-rule-python/services/task_scheduler_runtime_takeover.py`
+- `slide-rule-python/tests/test_task_scheduler_runtime_takeover_104.py`
 - `server/tasks/mission-runtime.ts`
 - `server/routes/tasks.ts`
 - `server/tests/task-scheduler-runtime-takeover-104.test.ts`

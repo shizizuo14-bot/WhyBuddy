@@ -17,11 +17,11 @@
 Auth 在 96/97/100 阶段已经补了 session persistence、refresh/logout、login/register 和 auth-audit closure，但状态表仍然指出生产 persistence、email、policy、external audit 还有 Node-owned gap。101 这一刀只补 token/mailer/session 的 cutover readiness，不假装接管真实外部邮件平台或完整用户仓库。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/auth_token_mailer_session_cutover.py`
-- `tws-ai-slide-rule-python/services/auth_audit_production_closure.py`
-- `tws-ai-slide-rule-python/services/auth_identity_runtime.py`
-- `tws-ai-slide-rule-python/services/auth_session_persistence.py`
-- `tws-ai-slide-rule-python/tests/test_auth_token_mailer_session_cutover_101.py`
+- `slide-rule-python/services/auth_token_mailer_session_cutover.py`
+- `slide-rule-python/services/auth_audit_production_closure.py`
+- `slide-rule-python/services/auth_identity_runtime.py`
+- `slide-rule-python/services/auth_session_persistence.py`
+- `slide-rule-python/tests/test_auth_token_mailer_session_cutover_101.py`
 - `server/routes/auth.ts`
 - `server/auth/session-service.ts`
 - `server/auth/email-code-service.ts`

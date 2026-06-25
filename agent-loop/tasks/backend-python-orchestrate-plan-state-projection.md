@@ -17,9 +17,9 @@
 `orchestrate.plan` 迁移不能只返回文本或一次性 JSON。它需要能表达计划阶段、步骤、风险和恢复点的 state projection，供 Node 继续承载主状态机。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/slide_rule_orchestrator.py`
-- `tws-ai-slide-rule-python/models/v5_state.py`
-- `tws-ai-slide-rule-python/tests/test_orchestrate_plan_state_projection.py`
+- `slide-rule-python/services/slide_rule_orchestrator.py`
+- `slide-rule-python/models/v5_state.py`
+- `slide-rule-python/tests/test_orchestrate_plan_state_projection.py`
 - `server/routes/__tests__/sliderule.orchestrate-plan-state-projection.test.ts`
 - `shared/blueprint/sliderule-plan-validation.ts`
 - `agent-loop/tasks/backend-python-orchestrate-plan-state-projection.md`

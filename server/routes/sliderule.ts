@@ -598,7 +598,7 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
 
     // V5 backend switch (per migration audit) - read live from process.env so tests can vi.stubEnv per-it.
     // Must run before Node mapped structure/delivery/visual/evidence handlers so python mode wins.
-    // - 'python' (default): listed V5 caps delegate to tws-ai-slide-rule-python (real RAG, python-rag provenance).
+    // - 'python' (default): listed V5 caps delegate to slide-rule-python (real RAG, python-rag provenance).
     // - 'legacy': preserve old Node LLM/pool/llm_fallback paths + legacy contract tests for report/risk/etc.
     const v5Backend = (process.env.SLIDERULE_V5_BACKEND || 'python').toLowerCase().trim();
 
@@ -626,7 +626,7 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
       capabilityId === 'ux.preview';
 
     if (v5Backend === 'python' && isPythonV5Cap) {
-      // Delegate V5 paths to the new tws-ai-slide-rule-python backend (correct /api/sliderule/* surface)
+      // Delegate V5 paths to the new slide-rule-python backend (correct /api/sliderule/* surface)
       // This replaces the old Node LLM pool / primary path for these capabilities.
       // Use stable Python RAG for real external evidence (no more template/degraded).
       // Controlled by SLIDERULE_V5_BACKEND=python (default) | legacy .
@@ -665,7 +665,7 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
         {
           title: `${capabilityId} (delegated)`,
           summary: 'Python V5 backend unavailable',
-          content: '委托 tws-ai-slide-rule-python 失败（服务不可用、端口或 key 错误等）。',
+          content: '委托 slide-rule-python 失败（服务不可用、端口或 key 错误等）。',
           provenance: 'python-delegated-failed',
           degraded: true,
           error: 'python_unavailable',

@@ -29,7 +29,7 @@ no custom dispatcher, so the Node undici-version-skew "invalid onRequestStart" b
 
 ## How to run
 ```powershell
-# from tws-ai-slide-rule-python/
+# from slide-rule-python/
 python -m venv .venv
 .\.venv\Scripts\python -m pip install -r requirements-llm.txt
 

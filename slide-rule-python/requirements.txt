@@ -1,4 +1,4 @@
-# tws-ai-slide-rule-python - requirements for runnable V5 backend
+# slide-rule-python - requirements for runnable V5 backend
 # Modeled on tws-ai-ask-python structure (FastAPI + services for RAG/LLM/knowledge)
 # This makes the Python side actually importable and the /api/sliderule surface testable
 

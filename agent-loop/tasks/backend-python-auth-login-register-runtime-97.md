@@ -20,10 +20,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/auth_session_persistence.py`
-- `tws-ai-slide-rule-python/services/auth_identity_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_auth_login_register_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_auth_session_refresh_logout_runtime.py`
+- `slide-rule-python/services/auth_session_persistence.py`
+- `slide-rule-python/services/auth_identity_runtime.py`
+- `slide-rule-python/tests/test_auth_login_register_runtime.py`
+- `slide-rule-python/tests/test_auth_session_refresh_logout_runtime.py`
 - `server/routes/auth.ts`
 - `server/auth/session-service.ts`
 - `server/auth/email-code-service.ts`

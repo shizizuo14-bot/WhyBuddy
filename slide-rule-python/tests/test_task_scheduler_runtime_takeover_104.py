@@ -1,6 +1,6 @@
 import pytest
 
-# Import after ensuring package path; tests run from tws-ai-slide-rule-python
+# Import after ensuring package path; tests run from slide-rule-python
 from services.task_scheduler_runtime_takeover import (
     compute_mission_scheduler_decision,
     decide_on_replay,

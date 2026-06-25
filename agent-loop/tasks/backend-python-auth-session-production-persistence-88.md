@@ -17,9 +17,9 @@
 auth/session 是整体后端分母，当前证据主要是 contract 或 session persistence boundary。本任务只补最小 production persistence 证据：可配置、可失败、可诊断，不迁 email code、OAuth、IAM 或完整用户系统。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/auth_session_persistence.py`
-- `tws-ai-slide-rule-python/tests/test_auth_session_production_persistence.py`
-- `tws-ai-slide-rule-python/tests/test_auth_session_runtime_boundary.py`
+- `slide-rule-python/services/auth_session_persistence.py`
+- `slide-rule-python/tests/test_auth_session_production_persistence.py`
+- `slide-rule-python/tests/test_auth_session_runtime_boundary.py`
 - `server/auth/session-service.ts`
 - `server/tests/auth-session-production-persistence.test.ts`
 - `server/tests/auth-session-runtime-boundary.test.ts`

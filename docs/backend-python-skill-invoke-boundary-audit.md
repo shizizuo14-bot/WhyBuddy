@@ -6,7 +6,7 @@ This document audits the **current** boundary of the SlideRule V5 `skill.invoke`
 
 | Question | Answer |
 | --- | --- |
-| Is `skill.invoke` a Python native LLM capability today? | **No.** It is absent from `CAPABILITY_PROMPTS` and `STRUCTURED_JSON_CAPABILITIES` in `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`. |
+| Is `skill.invoke` a Python native LLM capability today? | **No.** It is absent from `CAPABILITY_PROMPTS` and `STRUCTURED_JSON_CAPABILITIES` in `slide-rule-python/sliderule_llm/capabilities.py`. |
 | Does Node delegate `skill.invoke` to Python in default mode? | **Yes.** `SLIDERULE_V5_BACKEND=python` (default) includes `skill.invoke` in the Python V5 whitelist in `server/routes/sliderule.ts`. |
 | Does Python execute a real registered skill for `skill.invoke`? | **No.** Python routes through the mapped/stub path and returns keyword-baseline RAG output with `provenance: python-rag`. No skill registry lookup, no `SkillRegistryDependency`, no script invocation. |
 | Does Node execute a real registered skill for `skill.invoke`? | **No.** Node does not call Blueprint `runtime.skill.invoke()` or `SkillRegistryDependency.loadForRole()` for the SlideRule `skill.invoke` capability id. Real skill infrastructure exists elsewhere but is not wired to this capability id. |
@@ -36,7 +36,7 @@ When Node delegates `skill.invoke` to Python (default mode), Python does **not**
 ```
 Node server/routes/sliderule.ts
   -> POST /api/sliderule/execute-capability
-  -> tws-ai-slide-rule-python/routes/sliderule.py or sliderule_full.py
+  -> slide-rule-python/routes/sliderule.py or sliderule_full.py
   -> is_python_native_capability("skill.invoke") == False
   -> execute_mapped_capability()
   -> capability_maps.execute_mcp_or_skill()
@@ -51,10 +51,10 @@ In legacy Node mode (`SLIDERULE_V5_BACKEND=legacy`), `skill.invoke` is not LLM-b
 
 | Layer | Path | Behavior |
 | --- | --- | --- |
-| Keyword retrieval | `tws-ai-slide-rule-python/services/rag_service.py` | `retrieve_evidence()` scores a hard-coded `KNOWLEDGE_BASE` by keyword overlap. No skill script, no registry, no external fetch. |
-| Stub generation | `tws-ai-slide-rule-python/services/rag_service.py` | `generate_with_rag()` formats retrieved snippets into prose. It simulates LLM output; it does not call a configured model endpoint for `skill.invoke`. |
-| Forced provenance | `tws-ai-slide-rule-python/routes/sliderule_full.py` | For `mcp.call`, `skill.invoke`, `evidence.search`, sets `summary = "检索了外部证据"` and `provenance = "python-rag"`. |
-| Display metadata only | `tws-ai-slide-rule-python/services/slide_rule_executor.py` | Sets `skillName = "skill.invoke"` (the capability id string), not a registered skill id from `roleCtx.skill.list()`. |
+| Keyword retrieval | `slide-rule-python/services/rag_service.py` | `retrieve_evidence()` scores a hard-coded `KNOWLEDGE_BASE` by keyword overlap. No skill script, no registry, no external fetch. |
+| Stub generation | `slide-rule-python/services/rag_service.py` | `generate_with_rag()` formats retrieved snippets into prose. It simulates LLM output; it does not call a configured model endpoint for `skill.invoke`. |
+| Forced provenance | `slide-rule-python/routes/sliderule_full.py` | For `mcp.call`, `skill.invoke`, `evidence.search`, sets `summary = "检索了外部证据"` and `provenance = "python-rag"`. |
+| Display metadata only | `slide-rule-python/services/slide_rule_executor.py` | Sets `skillName = "skill.invoke"` (the capability id string), not a registered skill id from `roleCtx.skill.list()`. |
 
 Returned shape may include `skillName`, but that field mirrors the capability id for labeling only. No `skillId` resolution, no `loadForRole()`, no script execution occurs.
 
@@ -80,7 +80,7 @@ File: `server/routes/sliderule.ts`
 
 ### Native LLM gate (rejects `skill.invoke`)
 
-File: `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`
+File: `slide-rule-python/sliderule_llm/capabilities.py`
 
 ```python
 def is_python_native_capability(capability_id: str) -> bool:
@@ -89,14 +89,14 @@ def is_python_native_capability(capability_id: str) -> bool:
 
 `skill.invoke` is in neither set. `execute_capability()` raises `UnsupportedCapability` if called directly.
 
-Test evidence: `tws-ai-slide-rule-python/tests/test_capabilities.py` asserts native coverage for 18 capabilities (including `evidence.search`) and does **not** include `skill.invoke`.
+Test evidence: `slide-rule-python/tests/test_capabilities.py` asserts native coverage for 18 capabilities (including `evidence.search`) and does **not** include `skill.invoke`.
 
 ### Mapped executor (actual handler)
 
 Files:
 
-- `tws-ai-slide-rule-python/services/capability_maps.py` — maps `"skill.invoke": execute_mcp_or_skill`
-- `tws-ai-slide-rule-python/services/slide_rule_executor.py` — shared stub for `mcp.call`, `skill.invoke`, `evidence.search`
+- `slide-rule-python/services/capability_maps.py` — maps `"skill.invoke": execute_mcp_or_skill`
+- `slide-rule-python/services/slide_rule_executor.py` — shared stub for `mcp.call`, `skill.invoke`, `evidence.search`
 
 Output contract today:
 
@@ -120,9 +120,9 @@ Both routes are thin proxies; neither adds skill registry or script runner code.
 
 ### Orchestrator and coverage pressure
 
-- `tws-ai-slide-rule-python/services/slide_rule_orchestrator.py` can pick `skill.invoke` in plan output (`why: "Use skill-style synthesis evidence"`).
-- `tws-ai-slide-rule-python/services/slide_rule_coverage.py` requires `mcp.call` and `skill.invoke` for coverage satisfaction.
-- `tws-ai-slide-rule-python/tests/test_v5_smoke.py` asserts smoke plans include `skill.invoke`.
+- `slide-rule-python/services/slide_rule_orchestrator.py` can pick `skill.invoke` in plan output (`why: "Use skill-style synthesis evidence"`).
+- `slide-rule-python/services/slide_rule_coverage.py` requires `mcp.call` and `skill.invoke` for coverage satisfaction.
+- `slide-rule-python/tests/test_v5_smoke.py` asserts smoke plans include `skill.invoke`.
 
 These paths treat `skill.invoke` as a required V5 capability id, but they do not verify real skill execution.
 
@@ -141,7 +141,7 @@ These paths treat `skill.invoke` as a required V5 capability id, but they do not
 ## Risks
 
 1. **False completion signal:** Node delegation plus `python-rag` provenance can look like migration progress even though no skill registry or script is invoked.
-2. **README drift:** `tws-ai-slide-rule-python/README.md` claims "real tool/skill execution" for `mcp.call` / `skill.invoke`. Code evidence contradicts that for `skill.invoke`.
+2. **README drift:** `slide-rule-python/README.md` claims "real tool/skill execution" for `mcp.call` / `skill.invoke`. Code evidence contradicts that for `skill.invoke`.
 3. **UI label mismatch:** `capability-process-labels.ts` shows live skill-call wording (`正在调用技能 …`) while the backend returns stub evidence and `skillName` defaults to "未命名" because the title lacks a skill suffix.
 4. **Coverage gate pressure:** `slide_rule_coverage.py` and shared coverage gates still require `skill.invoke`, so sessions can mark coverage satisfied without external skill evidence.
 5. **Conflation with Blueprint skill runtime:** `runtime.skill.invoke()` and `skill.*` tool routing are real paths but use different entry points and capability ids; they must not be rolled into SlideRule `skill.invoke` completion metrics.
@@ -188,17 +188,17 @@ Delegating to Python is transport migration, not skill runtime migration.
 | Claim | Primary evidence |
 | --- | --- |
 | Node delegates `skill.invoke` in default Python mode | `server/routes/sliderule.ts` (`isPythonV5Cap`, `v5Backend === 'python'`) |
-| Not Python native LLM | `tws-ai-slide-rule-python/sliderule_llm/capabilities.py` (`is_python_native_capability`), `tws-ai-slide-rule-python/tests/test_capabilities.py` (18-cap matrix omits `skill.invoke`) |
-| Mapped fallback handler | `tws-ai-slide-rule-python/services/capability_maps.py` (`"skill.invoke": execute_mcp_or_skill`), `tws-ai-slide-rule-python/routes/sliderule.py` (`execute_mapped_capability`) |
-| Stub RAG execution (no skill registry) | `tws-ai-slide-rule-python/services/slide_rule_executor.py`, `tws-ai-slide-rule-python/services/rag_service.py` |
-| Forced `python-rag` provenance on tool caps | `tws-ai-slide-rule-python/routes/sliderule_full.py` (lines 80-82) |
+| Not Python native LLM | `slide-rule-python/sliderule_llm/capabilities.py` (`is_python_native_capability`), `slide-rule-python/tests/test_capabilities.py` (18-cap matrix omits `skill.invoke`) |
+| Mapped fallback handler | `slide-rule-python/services/capability_maps.py` (`"skill.invoke": execute_mcp_or_skill`), `slide-rule-python/routes/sliderule.py` (`execute_mapped_capability`) |
+| Stub RAG execution (no skill registry) | `slide-rule-python/services/slide_rule_executor.py`, `slide-rule-python/services/rag_service.py` |
+| Forced `python-rag` provenance on tool caps | `slide-rule-python/routes/sliderule_full.py` (lines 80-82) |
 | Node does not call skill registry for `skill.invoke` | `server/routes/sliderule.ts` (delegation branch only; no `skillRegistry` / `runtime.skill` on this cap) |
 | Real skill stack exists elsewhere | `server/routes/blueprint/role-agent-runtime/lite-agent-runtime.ts`, `tool-proxy-server.ts`, `role-container-loader/loader.test.ts` |
 | Stage maps `skill.invoke` at contract level | `shared/blueprint/contracts.ts` (`runtime_capability: ["mcp.call", "skill.invoke"]`) |
 | Legacy Node mode has no `skill.invoke` executor | `server/routes/sliderule.ts` (non-delegated path throws for unhandled caps) |
 | Python delegation failure shape | `server/routes/sliderule.ts` (`provenance: 'python-delegated-failed'`, HTTP 502) |
-| Coverage still requires `skill.invoke` | `tws-ai-slide-rule-python/services/slide_rule_coverage.py` |
-| README overclaims real skill execution | `tws-ai-slide-rule-python/README.md` (contradicted by stub path above) |
+| Coverage still requires `skill.invoke` | `slide-rule-python/services/slide_rule_coverage.py` |
+| README overclaims real skill execution | `slide-rule-python/README.md` (contradicted by stub path above) |
 | UI labels imply live skill call | `shared/blueprint/capability-process-labels.ts` (`skill.invoke` process labels) |
 | Prior inventory agrees: not native LLM | `docs/backend-python-rag-inventory.md`, `docs/sliderule-python-native-capability-audit.md` |
 

@@ -17,8 +17,8 @@
 rate limit（限流）不要和 permission check 混在一个任务里。这个任务只锁住限流输入输出和错误语义。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_permission_rate_limit_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_permission_rate_limit_contract.py`
+- `slide-rule-python/tests/test_permission_rate_limit_runtime_boundary.py`
+- `slide-rule-python/tests/test_permission_rate_limit_contract.py`
 - `server/permission/rate-limiter.ts`
 - `server/permission/rate-limiter-python-runtime.test.ts`
 - `server/permission/rate-limiter-python-contract.test.ts`

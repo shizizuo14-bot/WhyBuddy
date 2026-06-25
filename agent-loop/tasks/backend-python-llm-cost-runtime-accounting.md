@@ -17,10 +17,10 @@
 LLM infra 要继续从 55-62% 往上走，cost accounting 是必要底座。这个任务只做 runtime metadata，不接真实账单系统。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/sliderule_llm/client.py`
-- `tws-ai-slide-rule-python/sliderule_llm/pool.py`
-- `tws-ai-slide-rule-python/tests/test_cost_runtime_accounting.py`
-- `tws-ai-slide-rule-python/tests/test_telemetry_cost.py`
+- `slide-rule-python/sliderule_llm/client.py`
+- `slide-rule-python/sliderule_llm/pool.py`
+- `slide-rule-python/tests/test_cost_runtime_accounting.py`
+- `slide-rule-python/tests/test_telemetry_cost.py`
 - `agent-loop/tasks/backend-python-llm-cost-runtime-accounting.md`
 
 ## 禁止扩大范围

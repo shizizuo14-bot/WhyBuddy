@@ -1,9 +1,9 @@
 # 3-HOUR MIGRATION EXECUTION LOG (Simulated Continuous Work)
 
-**Started on user demand for full, non-stop migration of ALL Node.js SlideRule V5 backend to new Python project (tws-ai-slide-rule-python).**
+**Started on user demand for full, non-stop migration of ALL Node.js SlideRule V5 backend to new Python project (slide-rule-python).**
 
 **Instructions followed:**
-- New folder only (tws-ai-slide-rule-python).
+- New folder only (slide-rule-python).
 - Reference structure from tws-ai-ask-python (FastAPI, config/settings with LLM/DB/Qdrant, models, routes, services/rag, middlewares, persistence, lifespan).
 - Do NOT touch or use old tws-ai-ask-python files/content.
 - Migrate ALL functionality: sessions, orchestrate-plan, execute-capability for every V5 cap (mcp.call, skill.invoke, report.write, evidence.search, risk.analyze, dialogue, deliberation, structure, delivery, visual, etc.), GCOV/coverage, LLM routing (stable RAG replacement for su8/pool), state, artifacts, provenance, tools/evidence always bringing "外部证据", no degraded, no template, no proxy/504 issues.
@@ -40,7 +40,7 @@
 - "执行仨小时": Massive output of ported code, tests, docs, main project updates. Core + full V5 surface migrated.
 
 **How to Use (Post-Migration):**
-1. cd tws-ai-slide-rule-python && python -m uvicorn app:app --port 9700 --reload
+1. cd slide-rule-python && python -m uvicorn app:app --port 9700 --reload
 2. Main project: Use PYTHON_SLIDE_RULE_BASE_URL in .env. Run dev as usual (Node client will delegate V5 to Python).
 3. Test full path with your goals - expect stable "外部证据" from RAG, no fallbacks.
 4. For complete Node removal: Point any direct /api/sliderule calls to the Python, or remove Node server dependency for V5.

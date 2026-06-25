@@ -47,7 +47,7 @@ def test_agentloop_integration_inventory_108_documents_source_boundaries():
     assert "vs code" in content or "vscode" in content or "vs code-only" in content
 
     # Names target python modules (at least references services or python paths)
-    assert "services/" in content or "tws-ai-slide-rule-python/services" in content or "config/settings.py" in content or "models/" in content
+    assert "services/" in content or "slide-rule-python/services" in content or "config/settings.py" in content or "models/" in content
 
     # Explicit keep statement for this wave
     assert "this wave" in content

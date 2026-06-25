@@ -32,7 +32,7 @@
 
 - 不改 `server/sliderule/orchestrate-plan.ts`。
 - 不改 `server/sliderule/pool-json-llm.ts`。
-- 不改 `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`。
+- 不改 `slide-rule-python/sliderule_llm/capabilities.py`。
 - 不新增真实 MCP 调用实现。
 - 不把 fallback / simulated / stub 说成真实 runtime。
 - 不更新全局迁移百分比。

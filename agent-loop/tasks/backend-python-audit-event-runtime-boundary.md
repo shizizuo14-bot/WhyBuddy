@@ -17,8 +17,8 @@
 这个任务不迁真实 audit store。只推进事件校验、脱敏和结果语义，让后续采集/查询/导出迁移有硬边界。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_audit_event_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_audit_event_contract.py`
+- `slide-rule-python/tests/test_audit_event_runtime_boundary.py`
+- `slide-rule-python/tests/test_audit_event_contract.py`
 - `server/audit/audit-collector.ts`
 - `server/tests/audit-event-python-runtime.test.ts`
 - `server/tests/audit-event-python-contract.test.ts`

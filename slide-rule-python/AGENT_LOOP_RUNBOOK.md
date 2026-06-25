@@ -9,7 +9,7 @@
 Start the SlideRule Python backend (control plane):
 
 ```bash
-cd tws-ai-slide-rule-python
+cd slide-rule-python
 python -m uvicorn app:app --port 9700 --reload
 ```
 
@@ -175,8 +175,8 @@ For deeper: see AGENT_LOOP_RUNTIME_BOUNDARY.md, AGENT_LOOP_INTEGRATION_INVENTORY
 ## References
 
 - task: agent-loop/tasks/sliderule-agentloop-release-runbook-109.md
-- test: tws-ai-slide-rule-python/tests/test_agent_loop_release_runbook.py
-- Python app: tws-ai-slide-rule-python/app.py, routes/agent_loop.py, config/settings.py
+- test: slide-rule-python/tests/test_agent_loop_release_runbook.py
+- Python app: slide-rule-python/app.py, routes/agent_loop.py, config/settings.py
 - Bridge: services/agent_loop_bridge.py, agent_loop_settings.py, agent_loop_provider_health.py, agent_loop_runs.py
 - Node remains: agent-loop/scripts/run-queue.mjs, agent-loop/src/loop.js (execution owner)
 

@@ -17,7 +17,7 @@
 executor callback 是任务系统迁移的关键边界。先锁 contract，再迁 runtime。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_executor_callback_contract.py`
+- `slide-rule-python/tests/test_executor_callback_contract.py`
 - `server/core/executor-callback-routing.ts`
 - `server/tests/executor-callback-routing.test.ts`
 - `server/tests/executor-callback-python-contract.test.ts`

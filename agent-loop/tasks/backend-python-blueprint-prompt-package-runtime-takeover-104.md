@@ -9,8 +9,8 @@
 103 marked `promptPackage` as `node-retained`. This task should target validation, normalization, or package metadata generation, not the full prompt stack.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/blueprint_prompt_package_runtime_takeover.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_prompt_package_runtime_takeover_104.py`
+- `slide-rule-python/services/blueprint_prompt_package_runtime_takeover.py`
+- `slide-rule-python/tests/test_blueprint_prompt_package_runtime_takeover_104.py`
 - `server/routes/blueprint/prompt-package-runtime-takeover-python.ts`
 - `server/routes/blueprint/prompt-package/*`
 - `server/routes/__tests__/blueprint.prompt-package-runtime-takeover-104.test.ts`

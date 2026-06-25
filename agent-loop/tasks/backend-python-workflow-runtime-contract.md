@@ -18,8 +18,8 @@ workflow 是 Node 后端大块。此任务只迁最小 runtime contract，避免
 
 ## 允许修改的文件
 - `agent-loop/tasks/backend-python-workflow-runtime-contract.md`
-- `tws-ai-slide-rule-python/services/workflow_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_workflow_runtime_contract.py`
+- `slide-rule-python/services/workflow_runtime.py`
+- `slide-rule-python/tests/test_workflow_runtime_contract.py`
 - `server/core/workflow-runtime-engine.ts`
 - `server/core/workflow-engine.ts`
 - `server/routes/workflows.ts`

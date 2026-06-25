@@ -17,8 +17,8 @@
 当前 task executor 已有 runtime bridge，但 `/api/tasks` route、mission store、event replay 和 cancel/error lifecycle 仍主要是 Node-owned。本任务只迁有边界的 lifecycle decision envelope，让整体后端迁移有真实 runtime 增量。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/task_lifecycle_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_task_lifecycle_runtime_boundary.py`
+- `slide-rule-python/services/task_lifecycle_runtime.py`
+- `slide-rule-python/tests/test_task_lifecycle_runtime_boundary.py`
 - `server/routes/tasks.ts`
 - `server/tasks/mission-runtime.ts`
 - `server/tasks/mission-store.ts`

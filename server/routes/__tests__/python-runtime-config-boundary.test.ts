@@ -103,7 +103,7 @@ describe("Python SlideRule runtime config boundary", () => {
   it("checks Python health without sending the internal key", async () => {
     const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValue(
       new Response(
-        JSON.stringify({ status: "ok", backend: "tws-ai-slide-rule-python" }),
+        JSON.stringify({ status: "ok", backend: "slide-rule-python" }),
         { status: 200, headers: { "Content-Type": "application/json" } },
       ),
     );
@@ -120,7 +120,7 @@ describe("Python SlideRule runtime config boundary", () => {
       ok: true,
       url: "http://python.test/health",
       status: 200,
-      backend: "tws-ai-slide-rule-python",
+      backend: "slide-rule-python",
       error: undefined,
     });
     const [, init] = fetchSpy.mock.calls[0];

@@ -29,10 +29,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`
-- `tws-ai-slide-rule-python/routes/sliderule_full.py`
-- `tws-ai-slide-rule-python/tests/test_capabilities.py`
-- `tws-ai-slide-rule-python/tests/test_v5_contract_expansion.py`
+- `slide-rule-python/sliderule_llm/capabilities.py`
+- `slide-rule-python/routes/sliderule_full.py`
+- `slide-rule-python/tests/test_capabilities.py`
+- `slide-rule-python/tests/test_v5_contract_expansion.py`
 - `server/routes/__tests__/sliderule.execute-capability.test.ts`
 
 ## 禁止扩大范围

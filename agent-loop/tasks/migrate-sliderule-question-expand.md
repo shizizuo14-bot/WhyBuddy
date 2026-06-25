@@ -27,7 +27,7 @@
 - [x] Node vitest gate 通过
 - [x] TypeScript gate 通过
 - [x] mojibake 扫描通过
-- [x] 未提交 `.agent-loop/`、`tmp/`、`probes/`、`.env`、`tws-ai-slide-rule-python/data/`
+- [x] 未提交 `.agent-loop/`、`tmp/`、`probes/`、`.env`、`slide-rule-python/data/`
 
 目标：把 `question.expand` 这一个 SlideRule V5 对话类能力迁到 Python 后端的真 LLM 执行路径，并确认 Node 在 `SLIDERULE_V5_BACKEND=python` 时只做薄代理，不再调用 Node LLM 或 Node pool。
 
@@ -44,9 +44,9 @@
 
 只允许修改这些文件，除非 gate 明确证明必须多改一个文件：
 
-- `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`
-- `tws-ai-slide-rule-python/tests/test_capabilities.py`
-- `tws-ai-slide-rule-python/tests/test_v5_contract_expansion.py`
+- `slide-rule-python/sliderule_llm/capabilities.py`
+- `slide-rule-python/tests/test_capabilities.py`
+- `slide-rule-python/tests/test_v5_contract_expansion.py`
 - `server/routes/sliderule.ts`
 - `server/routes/__tests__/sliderule.execute-capability.test.ts`
 - `server/routes/__tests__/sliderule.live-delegation.test.ts`
@@ -59,7 +59,7 @@
 - 不改 `shared/blueprint/`。
 - 不改 LLM infra WIP。
 - 不迁移 `report.write`、`structure.decompose` 等结构化能力。
-- 不提交 `.agent-loop/`、`tmp/`、`probes/`、`.env`、日志、cache、`tws-ai-slide-rule-python/data/`。
+- 不提交 `.agent-loop/`、`tmp/`、`probes/`、`.env`、日志、cache、`slide-rule-python/data/`。
 - 不加入或打印真实密钥、数据库密码、Qdrant key、Bearer token。
 
 ## 必须保持的行为
@@ -84,7 +84,7 @@
 从仓库根目录运行：
 
 ```powershell
-cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short
+cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short
 ```
 
 ```powershell
@@ -96,7 +96,7 @@ pnpm exec tsc --noEmit --pretty false
 ```
 
 ```powershell
-node agent-loop/src/check-mojibake.js agent-loop/tasks tws-ai-slide-rule-python server/routes/__tests__/sliderule.live-delegation.test.ts server/routes/__tests__/sliderule.execute-capability.test.ts
+node agent-loop/src/check-mojibake.js agent-loop/tasks slide-rule-python server/routes/__tests__/sliderule.live-delegation.test.ts server/routes/__tests__/sliderule.execute-capability.test.ts
 ```
 
 ## AgentLoop gate-only 命令
@@ -107,10 +107,10 @@ node agent-loop/src/check-mojibake.js agent-loop/tasks tws-ai-slide-rule-python 
 node agent-loop/src/loop.js `
   --cwd C:\Users\wangchunji\Documents\cube-pets-office `
   --task agent-loop/tasks/migrate-sliderule-question-expand.md `
-  --gate "cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short" `
+  --gate "cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short" `
   --gate "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.execute-capability.test.ts server/routes/__tests__/sliderule.live-delegation.test.ts --reporter=dot" `
   --gate "pnpm exec tsc --noEmit --pretty false" `
-  --gate "node agent-loop/src/check-mojibake.js agent-loop/tasks tws-ai-slide-rule-python server/routes/__tests__/sliderule.live-delegation.test.ts server/routes/__tests__/sliderule.execute-capability.test.ts" `
+  --gate "node agent-loop/src/check-mojibake.js agent-loop/tasks slide-rule-python server/routes/__tests__/sliderule.live-delegation.test.ts server/routes/__tests__/sliderule.execute-capability.test.ts" `
   --skip-review `
   --max-iterations 1 `
   --lang zh-CN

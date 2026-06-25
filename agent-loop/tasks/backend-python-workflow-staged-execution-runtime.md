@@ -17,9 +17,9 @@
 workflow 是大块，不能一口气重写。这个任务只迁 graph validation（图校验）和 node_result projection（节点结果投影），把真实执行继续留在 Node 或 fake provider 边界。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/workflow_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_workflow_staged_execution_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_workflow_runtime_contract.py`
+- `slide-rule-python/services/workflow_runtime.py`
+- `slide-rule-python/tests/test_workflow_staged_execution_runtime.py`
+- `slide-rule-python/tests/test_workflow_runtime_contract.py`
 - `server/core/workflow-runtime-engine.ts`
 - `server/routes/workflows.ts`
 - `server/routes/__tests__/workflow-python-staged-runtime.test.ts`

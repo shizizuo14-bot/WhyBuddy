@@ -17,9 +17,9 @@
 A2A invoke/list/cancel 已有 bounded runtime bridge，stream 仍主要是 contract 和 Node-owned transport。本任务只补 Python stream runtime boundary 的最小证据：chunk、session status、error/cancelled 语义稳定。完整外部 agent stream、registry persistence 和长链路 transport 仍保留在后续任务。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/a2a_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_a2a_stream_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_a2a_runtime_contract.py`
+- `slide-rule-python/services/a2a_runtime.py`
+- `slide-rule-python/tests/test_a2a_stream_runtime_boundary.py`
+- `slide-rule-python/tests/test_a2a_runtime_contract.py`
 - `server/routes/a2a.ts`
 - `server/core/a2a-client.ts`
 - `server/core/a2a-server.ts`

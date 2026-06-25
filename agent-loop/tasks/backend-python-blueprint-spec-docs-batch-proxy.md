@@ -17,8 +17,8 @@
 上一批已经有单文档 spec-docs proxy。现在推进 batch proxy，让一组文档可一次请求 Python，但 artifact store、review/export/UI 仍留在 Node。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/routes/blueprint_spec_docs.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_spec_docs_batch_proxy.py`
+- `slide-rule-python/routes/blueprint_spec_docs.py`
+- `slide-rule-python/tests/test_blueprint_spec_docs_batch_proxy.py`
 - `server/routes/blueprint.ts`
 - `server/routes/__tests__/blueprint.spec-docs-batch-python-proxy.test.ts`
 - `agent-loop/tasks/backend-python-blueprint-spec-docs-batch-proxy.md`

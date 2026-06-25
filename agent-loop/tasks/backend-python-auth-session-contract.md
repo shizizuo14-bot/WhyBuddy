@@ -17,8 +17,8 @@
 auth 是整体后端大分母。要冲 45%，不能只做 SlideRule。这个任务先锁 auth session 的 Python contract，为后续逐步迁移做边界。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/middlewares/auth.py`
-- `tws-ai-slide-rule-python/tests/test_auth_session_contract.py`
+- `slide-rule-python/middlewares/auth.py`
+- `slide-rule-python/tests/test_auth_session_contract.py`
 - `server/auth/session-service.ts`
 - `server/tests/auth-session-python-contract.test.ts`
 - `server/tests/auth-session-middleware.test.ts`

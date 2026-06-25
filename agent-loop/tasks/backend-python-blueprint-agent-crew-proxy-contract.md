@@ -17,7 +17,7 @@
 Blueprint/Autopilot 大块仍在 Node。agent crew 是重要边界，先建立 Python proxy contract。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_blueprint_agent_crew_proxy_contract.py`
+- `slide-rule-python/tests/test_blueprint_agent_crew_proxy_contract.py`
 - `server/routes/blueprint/agent-crew/service.ts`
 - `server/routes/blueprint/agent-crew/service.test.ts`
 - `server/routes/__tests__/blueprint.agent-crew-python-proxy.test.ts`

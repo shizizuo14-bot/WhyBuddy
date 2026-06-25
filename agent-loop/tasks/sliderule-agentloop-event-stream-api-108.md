@@ -9,9 +9,9 @@
 AgentLoop dashboard refresh should be driven by Python-owned event data. This task adds deterministic event formatting and stream framing without requiring a long-running live worker in tests.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/routes/agent_loop.py`
-- `tws-ai-slide-rule-python/services/agent_loop_events.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_event_stream.py`
+- `slide-rule-python/routes/agent_loop.py`
+- `slide-rule-python/services/agent_loop_events.py`
+- `slide-rule-python/tests/test_agent_loop_event_stream.py`
 - `agent-loop/tasks/sliderule-agentloop-event-stream-api-108.md`
 - This task file
 

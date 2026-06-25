@@ -20,14 +20,14 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/blueprint_main_runtime_closure.py`
-- `tws-ai-slide-rule-python/services/blueprint_state_runtime.py`
-- `tws-ai-slide-rule-python/services/blueprint_job_runtime.py`
-- `tws-ai-slide-rule-python/services/blueprint_job_event_stream.py`
-- `tws-ai-slide-rule-python/services/blueprint_prompt_preview.py`
-- `tws-ai-slide-rule-python/services/blueprint_review_export.py`
-- `tws-ai-slide-rule-python/services/blueprint_artifact_memory.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_main_runtime_closure_100.py`
+- `slide-rule-python/services/blueprint_main_runtime_closure.py`
+- `slide-rule-python/services/blueprint_state_runtime.py`
+- `slide-rule-python/services/blueprint_job_runtime.py`
+- `slide-rule-python/services/blueprint_job_event_stream.py`
+- `slide-rule-python/services/blueprint_prompt_preview.py`
+- `slide-rule-python/services/blueprint_review_export.py`
+- `slide-rule-python/services/blueprint_artifact_memory.py`
+- `slide-rule-python/tests/test_blueprint_main_runtime_closure_100.py`
 - `server/routes/blueprint/main-runtime-closure-python.ts`
 - `server/routes/__tests__/blueprint.main-runtime-closure-100.test.ts`
 - `server/routes/blueprint/main-state-python-runtime.ts`

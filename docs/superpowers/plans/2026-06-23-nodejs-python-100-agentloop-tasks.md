@@ -31,7 +31,7 @@ Expected: task produces real Python/Node runtime diff and all `blueprintMainRunt
 Check:
 
 ```powershell
-git diff -- tws-ai-slide-rule-python server/routes/blueprint server/routes/__tests__ shared/blueprint agent-loop/tasks/backend-python-blueprint-main-runtime-closure-100.md
+git diff -- slide-rule-python server/routes/blueprint server/routes/__tests__ shared/blueprint agent-loop/tasks/backend-python-blueprint-main-runtime-closure-100.md
 ```
 
 Expected: no `.agent-loop` artifacts; no broad Blueprint route rewrite; no fake 100% status update.
@@ -57,7 +57,7 @@ Expected: task produces real Auth/Audit/Permission closure code and all `authAud
 Check:
 
 ```powershell
-git diff -- tws-ai-slide-rule-python server/auth server/audit server/permission server/routes/auth.ts server/routes/audit.ts shared/auth.ts shared/audit shared/permission
+git diff -- slide-rule-python server/auth server/audit server/permission server/routes/auth.ts server/routes/audit.ts shared/auth.ts shared/audit shared/permission
 ```
 
 Expected: no real secrets, no forced external service access, no relaxed auth/audit semantics.
@@ -83,7 +83,7 @@ Expected: task produces mission/task lifecycle closure code and all `taskLifecyc
 Check:
 
 ```powershell
-git diff -- tws-ai-slide-rule-python/services tws-ai-slide-rule-python/tests server/tasks server/routes/tasks.ts shared/mission
+git diff -- slide-rule-python/services slide-rule-python/tests server/tasks server/routes/tasks.ts shared/mission
 ```
 
 Expected: no scheduler rewrite; cancel/error/replay semantics are preserved.
@@ -109,7 +109,7 @@ Expected: task produces Web AIGC provider closure code and all `webAigcProviderC
 Check:
 
 ```powershell
-git diff -- tws-ai-slide-rule-python/services tws-ai-slide-rule-python/tests server/core server/routes/node-adapters shared/web-aigc-*
+git diff -- slide-rule-python/services slide-rule-python/tests server/core server/routes/node-adapters shared/web-aigc-*
 ```
 
 Expected: provider_missing/config_missing are not reported as healthy; no user files or generated media are committed.
@@ -135,7 +135,7 @@ Expected: task produces cutover readiness code and all `externalProviderCutover1
 Check:
 
 ```powershell
-git diff -- tws-ai-slide-rule-python/services tws-ai-slide-rule-python/sliderule_llm tws-ai-slide-rule-python/tests server/rag server/core/web-aigc-runtime-observability.ts shared/telemetry
+git diff -- slide-rule-python/services slide-rule-python/sliderule_llm slide-rule-python/tests server/rag server/core/web-aigc-runtime-observability.ts shared/telemetry
 ```
 
 Expected: no secrets, no forced external network dependency, skipped/config_missing remain explicit.

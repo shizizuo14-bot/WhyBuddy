@@ -17,7 +17,7 @@
 Blueprint/Autopilot 主状态机仍是整体迁移的大分母。这个任务只做 runtime boundary，不直接迁复杂编排，避免把状态机、job、stage edit、artifact memory 混成一团。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_blueprint_main_state_contract.py`
+- `slide-rule-python/tests/test_blueprint_main_state_contract.py`
 - `server/routes/__tests__/blueprint.main-state-python-contract.test.ts`
 - `shared/blueprint/__tests__/index-barrel.test.ts`
 - `shared/blueprint/*`

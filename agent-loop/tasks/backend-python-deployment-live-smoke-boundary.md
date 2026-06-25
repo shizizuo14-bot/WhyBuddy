@@ -17,7 +17,7 @@
 薄代理链路已经接近闭合，但部署可见性还不够。这个任务只做 live smoke boundary，让运行时配置和健康状态可测试。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_deployment_live_smoke_boundary.py`
+- `slide-rule-python/tests/test_deployment_live_smoke_boundary.py`
 - `server/routes/__tests__/python-deployment-live-smoke.test.ts`
 - `server/tests/persistence-health-routes.test.ts`
 - `agent-loop/tasks/backend-python-deployment-live-smoke-boundary.md`

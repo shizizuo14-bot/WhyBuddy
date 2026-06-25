@@ -9,9 +9,9 @@
 Once AgentLoop is controlled by SlideRule Python, operators need one clear runbook for startup, queue execution, settings, troubleshooting, security, and rollback. This documentation must be explicit that Node runner ownership still exists during the bridge phase.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/AGENT_LOOP_RUNBOOK.md`
-- `tws-ai-slide-rule-python/README.md`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_release_runbook.py`
+- `slide-rule-python/AGENT_LOOP_RUNBOOK.md`
+- `slide-rule-python/README.md`
+- `slide-rule-python/tests/test_agent_loop_release_runbook.py`
 - `agent-loop/tasks/sliderule-agentloop-release-runbook-109.md`
 - This task file
 

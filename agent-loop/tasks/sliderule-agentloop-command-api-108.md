@@ -9,9 +9,9 @@
 The product UI needs Python-owned actions even while the Node runner remains the execution worker. This task wraps the bridge behind validated FastAPI endpoints.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/routes/agent_loop.py`
-- `tws-ai-slide-rule-python/services/agent_loop_bridge.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_command_api.py`
+- `slide-rule-python/routes/agent_loop.py`
+- `slide-rule-python/services/agent_loop_bridge.py`
+- `slide-rule-python/tests/test_agent_loop_command_api.py`
 - `agent-loop/tasks/sliderule-agentloop-command-api-108.md`
 - This task file
 

@@ -55,11 +55,11 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/config.py`
-- `tws-ai-slide-rule-python/sliderule_llm/__init__.py`
-- `tws-ai-slide-rule-python/sliderule_llm/pool.py`
-- `tws-ai-slide-rule-python/tests/test_config.py`
-- `tws-ai-slide-rule-python/tests/test_pool.py`
+- `slide-rule-python/sliderule_llm/config.py`
+- `slide-rule-python/sliderule_llm/__init__.py`
+- `slide-rule-python/sliderule_llm/pool.py`
+- `slide-rule-python/tests/test_config.py`
+- `slide-rule-python/tests/test_pool.py`
 - `agent-loop/tasks/backend-python-llm-config-parity.md`
 - `agent-loop/tasks/sliderule-python-migration-status.md`，仅限同步 LLM infra 状态摘要时使用
 
@@ -73,7 +73,7 @@
 - 不启动 live LLM。
 - 不暂存、不提交。
 - 不使用 `git add -A`。
-- 不提交 `.agent-loop/`、`tmp/`、`probes/`、日志、cache、`tws-ai-slide-rule-python/data/`。
+- 不提交 `.agent-loop/`、`tmp/`、`probes/`、日志、cache、`slide-rule-python/data/`。
 
 ## 本轮实现内容
 
@@ -126,7 +126,7 @@
 红灯：
 
 ```powershell
-.\tws-ai-slide-rule-python\.venv\Scripts\python.exe -m pytest tws-ai-slide-rule-python/tests/test_config.py -q --tb=short
+.\slide-rule-python\.venv\Scripts\python.exe -m pytest slide-rule-python/tests/test_config.py -q --tb=short
 ```
 
 结果：新增测试先失败，失败原因是 `get_fallback_llm_config` 尚未从 `sliderule_llm.config` 导出。
@@ -134,7 +134,7 @@
 绿灯：
 
 ```powershell
-.\tws-ai-slide-rule-python\.venv\Scripts\python.exe -m pytest tws-ai-slide-rule-python/tests/test_config.py -q --tb=short
+.\slide-rule-python\.venv\Scripts\python.exe -m pytest slide-rule-python/tests/test_config.py -q --tb=short
 ```
 
 结果：`12 passed in 0.03s`
@@ -142,7 +142,7 @@
 兼容回归：
 
 ```powershell
-.\tws-ai-slide-rule-python\.venv\Scripts\python.exe -m pytest tws-ai-slide-rule-python/tests/test_config.py tws-ai-slide-rule-python/tests/test_pool.py tws-ai-slide-rule-python/tests/test_capabilities.py -q --tb=short
+.\slide-rule-python\.venv\Scripts\python.exe -m pytest slide-rule-python/tests/test_config.py slide-rule-python/tests/test_pool.py slide-rule-python/tests/test_capabilities.py -q --tb=short
 ```
 
 结果：`20 passed, 1 skipped`
@@ -153,8 +153,8 @@
 node agent-loop/src/loop.js `
   --cwd C:\Users\wangchunji\Documents\cube-pets-office `
   --task agent-loop/tasks/backend-python-llm-config-parity.md `
-  --gate ".\tws-ai-slide-rule-python\.venv\Scripts\python.exe -m pytest tws-ai-slide-rule-python/tests/test_config.py tws-ai-slide-rule-python/tests/test_pool.py tws-ai-slide-rule-python/tests/test_capabilities.py -q --tb=short" `
-  --gate "node agent-loop/src/check-mojibake.js agent-loop/tasks tws-ai-slide-rule-python/sliderule_llm tws-ai-slide-rule-python/tests/test_config.py tws-ai-slide-rule-python/tests/test_pool.py" `
+  --gate ".\slide-rule-python\.venv\Scripts\python.exe -m pytest slide-rule-python/tests/test_config.py slide-rule-python/tests/test_pool.py slide-rule-python/tests/test_capabilities.py -q --tb=short" `
+  --gate "node agent-loop/src/check-mojibake.js agent-loop/tasks slide-rule-python/sliderule_llm slide-rule-python/tests/test_config.py slide-rule-python/tests/test_pool.py" `
   --skip-review `
   --max-iterations 1 `
   --lang zh-CN

@@ -19,7 +19,7 @@
 
 - 最近执行：2026-06-19
 - 执行方式：Codex 本地实现，测试使用 fake vector client / fake embedding，不连接真实检索服务
-- 新增实现：`tws-ai-slide-rule-python/sliderule_llm/evidence.py`
+- 新增实现：`slide-rule-python/sliderule_llm/evidence.py`
 - 关键行为：`sources[].provenance` 可区分 `retrieved` / `fallback` / `generated`
 - gate 结果：`evidenceRetrievalGates` 通过
 
@@ -29,11 +29,11 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/evidence.py`
-- `tws-ai-slide-rule-python/sliderule_llm/vector.py`
-- `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`
-- `tws-ai-slide-rule-python/tests/test_evidence_retrieval_parity.py`
-- `tws-ai-slide-rule-python/tests/test_capabilities.py`
+- `slide-rule-python/sliderule_llm/evidence.py`
+- `slide-rule-python/sliderule_llm/vector.py`
+- `slide-rule-python/sliderule_llm/capabilities.py`
+- `slide-rule-python/tests/test_evidence_retrieval_parity.py`
+- `slide-rule-python/tests/test_capabilities.py`
 - `agent-loop/tasks/backend-python-evidence-retrieval-parity.md`
 
 ## 禁止扩大范围

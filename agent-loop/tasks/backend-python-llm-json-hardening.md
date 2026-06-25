@@ -33,10 +33,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/client.py`
-- `tws-ai-slide-rule-python/sliderule_llm/__init__.py`
-- `tws-ai-slide-rule-python/tests/test_json_hardening.py`
-- `tws-ai-slide-rule-python/tests/test_client_parity.py`（仅当 gate 证明共享 helper）
+- `slide-rule-python/sliderule_llm/client.py`
+- `slide-rule-python/sliderule_llm/__init__.py`
+- `slide-rule-python/tests/test_json_hardening.py`
+- `slide-rule-python/tests/test_client_parity.py`（仅当 gate 证明共享 helper）
 - `agent-loop/tasks/backend-python-llm-json-hardening.md`
 
 ## 禁止事项
@@ -48,11 +48,11 @@
 ## 必跑 gate
 
 ```powershell
-cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_json_hardening.py tests/test_client_parity.py tests/test_capabilities.py -q --tb=short
+cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_json_hardening.py tests/test_client_parity.py tests/test_capabilities.py -q --tb=short
 ```
 
 ```powershell
-node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-llm-json-hardening.md tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_json_hardening.py
+node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-llm-json-hardening.md slide-rule-python/sliderule_llm/client.py slide-rule-python/tests/test_json_hardening.py
 ```
 
 ## 成功标准

@@ -17,10 +17,10 @@
 上一轮已经有 `backend-python-rag-ingestion-runtime-contract`，但它主要锁住 contract 和 fake runtime。这个任务只往前推进一小步：加 production storage 的接口边界和可测试 adapter，不接真实 Qdrant、真实数据库或真实 embedding。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/rag_service.py`
-- `tws-ai-slide-rule-python/sliderule_llm/vector.py`
-- `tws-ai-slide-rule-python/tests/test_rag_ingestion_production_storage.py`
-- `tws-ai-slide-rule-python/tests/test_rag_ingestion_runtime_contract.py`
+- `slide-rule-python/services/rag_service.py`
+- `slide-rule-python/sliderule_llm/vector.py`
+- `slide-rule-python/tests/test_rag_ingestion_production_storage.py`
+- `slide-rule-python/tests/test_rag_ingestion_runtime_contract.py`
 - `server/routes/__tests__/rag-ingestion-python-production-storage.test.ts`
 - `server/routes/__tests__/rag-ingestion-python-runtime-contract.test.ts`
 - `agent-loop/tasks/backend-python-rag-ingestion-production-storage.md`

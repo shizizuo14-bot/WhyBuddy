@@ -17,9 +17,9 @@
 permission check engine 和 permission route management 已有边界证据，但 rate-limit 仍主要是 contract-only。本任务只补最小 runtime boundary，让 Python 可以表达同样的 rate-limit decision envelope。Node 仍拥有生产路由、真实存储和策略编排。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/permission_rate_limit.py`
-- `tws-ai-slide-rule-python/tests/test_permission_rate_limit_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_permission_rate_limit_contract.py`
+- `slide-rule-python/services/permission_rate_limit.py`
+- `slide-rule-python/tests/test_permission_rate_limit_runtime_boundary.py`
+- `slide-rule-python/tests/test_permission_rate_limit_contract.py`
 - `server/permission/rate-limiter-python-runtime.ts`
 - `server/permission/rate-limiter-python-runtime.test.ts`
 - `server/permission/rate-limiter-python-contract.test.ts`

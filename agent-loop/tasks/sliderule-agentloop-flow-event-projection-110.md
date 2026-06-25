@@ -9,10 +9,10 @@
 The current browser detail view can flicker because it renders sections from snapshots and artifacts. Flow must be derived from event replay so updates are stable and deterministic.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/static/agent-loop/index.html`
-- `tws-ai-slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
-- `tws-ai-slide-rule-python/services/agent_loop_state_reducer.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_flow_event_projection.py`
+- `slide-rule-python/static/agent-loop/index.html`
+- `slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
+- `slide-rule-python/services/agent_loop_state_reducer.py`
+- `slide-rule-python/tests/test_agent_loop_flow_event_projection.py`
 - `agent-loop/tasks/sliderule-agentloop-flow-event-projection-110.md`
 - This task file
 

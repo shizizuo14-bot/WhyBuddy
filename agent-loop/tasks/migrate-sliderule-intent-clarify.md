@@ -29,10 +29,10 @@
 - `server/routes/sliderule.ts`
 - `server/routes/__tests__/sliderule.execute-capability.test.ts`
 - `server/routes/__tests__/sliderule.live-delegation.test.ts`
-- `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`
-- `tws-ai-slide-rule-python/routes/sliderule_full.py`
-- `tws-ai-slide-rule-python/tests/test_capabilities.py`
-- `tws-ai-slide-rule-python/tests/test_v5_contract_expansion.py`
+- `slide-rule-python/sliderule_llm/capabilities.py`
+- `slide-rule-python/routes/sliderule_full.py`
+- `slide-rule-python/tests/test_capabilities.py`
+- `slide-rule-python/tests/test_v5_contract_expansion.py`
 
 不要碰这些内容：
 
@@ -81,7 +81,7 @@
 从仓库根目录运行：
 
 ```powershell
-cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short
+cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short
 ```
 
 ```powershell
@@ -93,7 +93,7 @@ pnpm exec tsc --noEmit --pretty false
 ```
 
 ```powershell
-node agent-loop/src/check-mojibake.js tws-ai-slide-rule-python server/routes/__tests__/sliderule.live-delegation.test.ts server/routes/__tests__/sliderule.execute-capability.test.ts
+node agent-loop/src/check-mojibake.js slide-rule-python server/routes/__tests__/sliderule.live-delegation.test.ts server/routes/__tests__/sliderule.execute-capability.test.ts
 ```
 
 ## live 验证建议
@@ -103,7 +103,7 @@ node agent-loop/src/check-mojibake.js tws-ai-slide-rule-python server/routes/__t
 建议临时启动隔离端口，例如 9711：
 
 ```powershell
-cd tws-ai-slide-rule-python
+cd slide-rule-python
 .\.venv\Scripts\python.exe -m uvicorn app:app --host 127.0.0.1 --port 9711 --log-level warning
 ```
 
@@ -127,17 +127,17 @@ Remove-Item Env:\PYTHON_SLIDE_RULE_BASE_URL
 node agent-loop/src/loop.js `
   --cwd C:\Users\wangchunji\Documents\cube-pets-office `
   --task agent-loop/tasks/migrate-sliderule-intent-clarify.md `
-  --gate "cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short" `
+  --gate "cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short" `
   --gate "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.execute-capability.test.ts server/routes/__tests__/sliderule.live-delegation.test.ts --reporter=dot" `
   --gate "pnpm exec tsc --noEmit --pretty false" `
-  --gate "node agent-loop/src/check-mojibake.js tws-ai-slide-rule-python server/routes/__tests__/sliderule.live-delegation.test.ts server/routes/__tests__/sliderule.execute-capability.test.ts" `
+  --gate "node agent-loop/src/check-mojibake.js slide-rule-python server/routes/__tests__/sliderule.live-delegation.test.ts server/routes/__tests__/sliderule.execute-capability.test.ts" `
   --skip-review `
   --max-iterations 1
 ```
 
 ## 人工复查清单
 
-- `git diff -- server/routes/sliderule.ts server/routes/__tests__/sliderule.execute-capability.test.ts server/routes/__tests__/sliderule.live-delegation.test.ts tws-ai-slide-rule-python/sliderule_llm/capabilities.py tws-ai-slide-rule-python/routes/sliderule_full.py tws-ai-slide-rule-python/tests/test_capabilities.py tws-ai-slide-rule-python/tests/test_v5_contract_expansion.py`
+- `git diff -- server/routes/sliderule.ts server/routes/__tests__/sliderule.execute-capability.test.ts server/routes/__tests__/sliderule.live-delegation.test.ts slide-rule-python/sliderule_llm/capabilities.py slide-rule-python/routes/sliderule_full.py slide-rule-python/tests/test_capabilities.py slide-rule-python/tests/test_v5_contract_expansion.py`
 - `git status --short`
-- 确认没有 `.agent-loop/`、`tmp/`、`probes/`、`tws-ai-slide-rule-python/data/`、`.env`、日志、缓存文件被暂存。
+- 确认没有 `.agent-loop/`、`tmp/`、`probes/`、`slide-rule-python/data/`、`.env`、日志、缓存文件被暂存。
 - 确认没有真实密钥、数据库密码、Qdrant key、Bearer token 被加入代码或测试。

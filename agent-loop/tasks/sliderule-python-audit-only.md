@@ -13,7 +13,7 @@
 
 ## 审计范围
 
-- 检查 `tws-ai-slide-rule-python/`、`server/routes/sliderule.ts`、`server/sliderule/python-delegation.ts` 和相关 server 测试。
+- 检查 `slide-rule-python/`、`server/routes/sliderule.ts`、`server/sliderule/python-delegation.ts` 和相关 server 测试。
 - 报告必须分层，不要把所有进度压成一个百分比：
   - 整体 NodeJS 后端迁 Python。
   - SlideRule V5 子系统迁移。
@@ -35,7 +35,7 @@
 ## 必跑 gate
 
 ```powershell
-cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short
+cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short
 ```
 
 ```powershell
@@ -54,7 +54,7 @@ pnpm exec tsc --noEmit --pretty false
 node agent-loop/src/loop.js `
   --cwd C:\Users\wangchunji\Documents\cube-pets-office `
   --task agent-loop/tasks/sliderule-python-audit-only.md `
-  --gate "cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short" `
+  --gate "cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short" `
   --gate "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.execute-capability.test.ts server/routes/__tests__/sliderule.live-delegation.test.ts --reporter=dot" `
   --gate "pnpm exec tsc --noEmit --pretty false" `
   --skip-review `

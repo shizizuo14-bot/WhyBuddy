@@ -18,8 +18,8 @@ NL command 是 Node 后端核心编排能力之一。此任务只建立 Python c
 
 ## 允许修改的文件
 - `agent-loop/tasks/backend-python-nl-command-runtime-contract.md`
-- `tws-ai-slide-rule-python/services/nl_command_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_nl_command_runtime_contract.py`
+- `slide-rule-python/services/nl_command_runtime.py`
+- `slide-rule-python/tests/test_nl_command_runtime_contract.py`
 - `server/core/nl-command/**/*.ts`
 - `server/routes/__tests__/nl-command-python-runtime-contract.test.ts`
 - `shared/nl-command/*.ts`

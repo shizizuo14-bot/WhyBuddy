@@ -17,9 +17,9 @@
 A2A stream（流式）长链路复杂，先不迁。这个任务只做最小 invoke/list/cancel bridge，让状态语义硬起来。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/a2a_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_a2a_invoke_runtime_bridge.py`
-- `tws-ai-slide-rule-python/tests/test_a2a_runtime_contract.py`
+- `slide-rule-python/services/a2a_runtime.py`
+- `slide-rule-python/tests/test_a2a_invoke_runtime_bridge.py`
+- `slide-rule-python/tests/test_a2a_runtime_contract.py`
 - `server/routes/a2a.ts`
 - `server/core/a2a-client.ts`
 - `server/core/a2a-server.ts`

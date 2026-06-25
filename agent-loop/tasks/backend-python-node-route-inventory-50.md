@@ -21,7 +21,7 @@
 - `docs/backend-python-node-route-inventory-50.md`
 
 ## 禁止扩大范围
-- 不改 `server/`、`shared/`、`tws-ai-slide-rule-python/` 代码。
+- 不改 `server/`、`shared/`、`slide-rule-python/` 代码。
 - 不把参考项目 `tws-ai-ask-python` 写成迁移目标。
 - 不修改其它 task checklist。
 - 不提交 `.agent-loop/` 运行产物。

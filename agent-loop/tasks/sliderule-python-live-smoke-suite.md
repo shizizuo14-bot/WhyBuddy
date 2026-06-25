@@ -26,7 +26,7 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/tests/test_v5_live_smoke.py`
+- `slide-rule-python/tests/test_v5_live_smoke.py`
 - `server/routes/__tests__/sliderule.live-delegation.test.ts`
 - `agent-loop/tasks/sliderule-python-live-smoke-suite.md`
 - `agent-loop/scripts/migration-queue.json`（仅 gate 命令必要时）

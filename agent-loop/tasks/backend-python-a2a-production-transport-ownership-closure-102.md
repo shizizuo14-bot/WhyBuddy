@@ -20,10 +20,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/a2a_production_transport_ownership_closure.py`
-- `tws-ai-slide-rule-python/services/a2a_core_route_cutover.py`
-- `tws-ai-slide-rule-python/services/a2a_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_a2a_production_transport_ownership_closure_102.py`
+- `slide-rule-python/services/a2a_production_transport_ownership_closure.py`
+- `slide-rule-python/services/a2a_core_route_cutover.py`
+- `slide-rule-python/services/a2a_runtime.py`
+- `slide-rule-python/tests/test_a2a_production_transport_ownership_closure_102.py`
 - `server/routes/a2a-python-runtime.ts`
 - `server/routes/__tests__/a2a-production-transport-ownership-closure-102.test.ts`
 - `server/routes/__tests__/a2a-core-route-cutover-101.test.ts`

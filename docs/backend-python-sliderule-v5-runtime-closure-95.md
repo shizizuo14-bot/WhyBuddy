@@ -31,12 +31,12 @@ services, and does not update the overall NodeJS backend migration percentage.
 
 | Slice | Queue status from `../../.agent-loop/queue-outcomes.json` | Current HEAD gate evidence | Audit posture |
 |---|---|---|---|
-| `backend-python-mcp-call-real-runtime` | `DONE_REVIEWED` / `done` | `tws-ai-slide-rule-python/tests/test_mcp_call_real_runtime.py` | Count as bounded `runtime`. |
-| `backend-python-skill-invoke-real-runtime` | `DONE_REVIEWED` / `done` | `tws-ai-slide-rule-python/tests/test_skill_invoke_real_runtime.py` | Count as bounded `runtime`. |
-| `backend-python-orchestrate-plan-runtime-route` | `DONE_REVIEWED` / `done` | `tws-ai-slide-rule-python/tests/test_orchestrate_plan_runtime_route.py`; `server/routes/__tests__/sliderule.orchestrate-plan-python-runtime.test.ts` | Count as bounded `runtime`. |
-| `backend-python-orchestrate-plan-state-projection` | `DONE_REVIEWED` / `done` | `tws-ai-slide-rule-python/tests/test_orchestrate_plan_state_projection.py`; `server/routes/__tests__/sliderule.orchestrate-plan-state-projection.test.ts` | Count as bounded runtime projection evidence, with Node still owning state mutation. |
-| `backend-python-real-vector-retrieval-production-wiring` | `HALT_HUMAN` / `crashed` | `tws-ai-slide-rule-python/tests/test_real_vector_retrieval_production_wiring.py` | Count only as current HEAD `production-wiring smoke`; do not count as clean queue-completed production takeover. |
-| `backend-python-rag-ingestion-production-storage` | `HALT_HUMAN` / `crashed` | `tws-ai-slide-rule-python/tests/test_rag_ingestion_production_storage.py`; `server/routes/__tests__/rag-ingestion-python-production-storage.test.ts` | Count only as current HEAD `production-wiring smoke`; do not count as clean queue-completed production storage migration. |
+| `backend-python-mcp-call-real-runtime` | `DONE_REVIEWED` / `done` | `slide-rule-python/tests/test_mcp_call_real_runtime.py` | Count as bounded `runtime`. |
+| `backend-python-skill-invoke-real-runtime` | `DONE_REVIEWED` / `done` | `slide-rule-python/tests/test_skill_invoke_real_runtime.py` | Count as bounded `runtime`. |
+| `backend-python-orchestrate-plan-runtime-route` | `DONE_REVIEWED` / `done` | `slide-rule-python/tests/test_orchestrate_plan_runtime_route.py`; `server/routes/__tests__/sliderule.orchestrate-plan-python-runtime.test.ts` | Count as bounded `runtime`. |
+| `backend-python-orchestrate-plan-state-projection` | `DONE_REVIEWED` / `done` | `slide-rule-python/tests/test_orchestrate_plan_state_projection.py`; `server/routes/__tests__/sliderule.orchestrate-plan-state-projection.test.ts` | Count as bounded runtime projection evidence, with Node still owning state mutation. |
+| `backend-python-real-vector-retrieval-production-wiring` | `HALT_HUMAN` / `crashed` | `slide-rule-python/tests/test_real_vector_retrieval_production_wiring.py` | Count only as current HEAD `production-wiring smoke`; do not count as clean queue-completed production takeover. |
+| `backend-python-rag-ingestion-production-storage` | `HALT_HUMAN` / `crashed` | `slide-rule-python/tests/test_rag_ingestion_production_storage.py`; `server/routes/__tests__/rag-ingestion-python-production-storage.test.ts` | Count only as current HEAD `production-wiring smoke`; do not count as clean queue-completed production storage migration. |
 | LLM cost and circuit breaker support | `backend-python-llm-cost-runtime-accounting` and `backend-python-llm-circuit-breaker-parity` are `DONE_REVIEWED` / `done` | Status docs describe Python `sliderule_llm` support for cost accounting, pool, fallback, observability, and circuit breaker. | Count as supporting backend maturity, not as a direct SlideRule V5 runtime handoff in this 95 gate. |
 
 ## Capability Evidence Matrix
@@ -119,7 +119,7 @@ The relevant gate key is `slideruleV5RuntimeClosureAudit95Gates` from
 `agent-loop/scripts/migration-queue.json`:
 
 ```powershell
-cd tws-ai-slide-rule-python; & "{{pythonExe}}" -m pytest tests/test_mcp_call_real_runtime.py tests/test_skill_invoke_real_runtime.py tests/test_orchestrate_plan_runtime_route.py tests/test_orchestrate_plan_state_projection.py tests/test_real_vector_retrieval_production_wiring.py tests/test_rag_ingestion_production_storage.py -q --tb=short
+cd slide-rule-python; & "{{pythonExe}}" -m pytest tests/test_mcp_call_real_runtime.py tests/test_skill_invoke_real_runtime.py tests/test_orchestrate_plan_runtime_route.py tests/test_orchestrate_plan_state_projection.py tests/test_real_vector_retrieval_production_wiring.py tests/test_rag_ingestion_production_storage.py -q --tb=short
 pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.orchestrate-plan-python-runtime.test.ts server/routes/__tests__/sliderule.orchestrate-plan-state-projection.test.ts server/routes/__tests__/rag-ingestion-python-production-storage.test.ts --reporter=dot
 pnpm exec tsc --noEmit --pretty false
 node -e "const fs=require('fs'); const p='docs/backend-python-sliderule-v5-runtime-closure-95.md'; const s=fs.readFileSync(p,'utf8'); if(!s.includes('SlideRule V5') || !s.includes('95')) throw new Error('missing SlideRule V5 runtime closure 95 report content');"

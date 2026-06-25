@@ -31,16 +31,16 @@
 ## 当前证据 / 背景
 
 - Node 当前实现：`server/sliderule/delivery-exec-map.ts` 的 `task.write` 分支，生成固定工程任务骨架，provenance 为 `ai_generated`。
-- Python 当前实现：`tws-ai-slide-rule-python/services/capability_maps.py` 把 `task.write` 复用到 `execute_document()`，仍走 `python-rag` mapped baseline。
+- Python 当前实现：`slide-rule-python/services/capability_maps.py` 把 `task.write` 复用到 `execute_document()`，仍走 `python-rag` mapped baseline。
 - 需要把 task（任务）输出和 document.draft（文档草稿）输出区分开，避免两个 capability 返回同一类泛化内容。
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`
-- `tws-ai-slide-rule-python/services/capability_maps.py`
-- `tws-ai-slide-rule-python/routes/sliderule_full.py`
-- `tws-ai-slide-rule-python/tests/test_capabilities.py`
-- `tws-ai-slide-rule-python/tests/test_v5_contract_expansion.py`
+- `slide-rule-python/sliderule_llm/capabilities.py`
+- `slide-rule-python/services/capability_maps.py`
+- `slide-rule-python/routes/sliderule_full.py`
+- `slide-rule-python/tests/test_capabilities.py`
+- `slide-rule-python/tests/test_v5_contract_expansion.py`
 - `server/routes/__tests__/sliderule.execute-capability.test.ts`
 - 如必须同步 Node 契约，可改：
   - `server/sliderule/delivery-exec-map.ts`

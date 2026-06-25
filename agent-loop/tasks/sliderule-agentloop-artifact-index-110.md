@@ -9,11 +9,11 @@
 The UI should not guess newest log files. Artifacts need stable ids and event references so Review, Diff, Agent Output, and Artifacts tabs all agree.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/agent_loop_artifacts.py`
-- `tws-ai-slide-rule-python/services/agent_loop_runs.py`
-- `tws-ai-slide-rule-python/services/agent_loop_paths.py`
-- `tws-ai-slide-rule-python/services/agent_loop_redaction.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_artifact_index.py`
+- `slide-rule-python/services/agent_loop_artifacts.py`
+- `slide-rule-python/services/agent_loop_runs.py`
+- `slide-rule-python/services/agent_loop_paths.py`
+- `slide-rule-python/services/agent_loop_redaction.py`
+- `slide-rule-python/tests/test_agent_loop_artifact_index.py`
 - `agent-loop/tasks/sliderule-agentloop-artifact-index-110.md`
 - This task file
 

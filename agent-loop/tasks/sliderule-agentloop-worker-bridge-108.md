@@ -9,9 +9,9 @@
 This wave keeps AgentLoop execution in Node but puts SlideRule Python in charge of commands. The bridge must be deterministic and safe before command endpoints call it.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/config/settings.py`
-- `tws-ai-slide-rule-python/services/agent_loop_bridge.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_worker_bridge.py`
+- `slide-rule-python/config/settings.py`
+- `slide-rule-python/services/agent_loop_bridge.py`
+- `slide-rule-python/tests/test_agent_loop_worker_bridge.py`
 - `agent-loop/tasks/sliderule-agentloop-worker-bridge-108.md`
 - This task file
 

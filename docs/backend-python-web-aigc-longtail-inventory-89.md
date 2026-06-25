@@ -15,7 +15,7 @@ Source evidence is limited to current repository files:
 - Web AIGC route files under `server/routes/`
 - Web AIGC Node adapters under `server/routes/node-adapters/`
 - Node tests under `server/tests/` and `server/routes/__tests__/`
-- Existing Python Web AIGC bridge files under `tws-ai-slide-rule-python/`
+- Existing Python Web AIGC bridge files under `slide-rule-python/`
 
 ## Classification Rules
 
@@ -31,7 +31,7 @@ slices and is not expanded by this document:
 
 | Existing bridge slice | Current evidence | Boundary |
 |---|---|---|
-| Search/file/vision/audio bridge group | `server/routes/__tests__/web-aigc.search-python-runtime.test.ts`, `web-aigc.file-python-runtime.test.ts`, `web-aigc.vision-audio-python-runtime.test.ts`; Python services/tests under `tws-ai-slide-rule-python/services/web_aigc_*` and `tws-ai-slide-rule-python/tests/test_web_aigc_*`. | Bounded fake-provider or synthetic runtime evidence only; real external search, OCR, vision, STT, TTS, file persistence, and storage remain production gaps. |
+| Search/file/vision/audio bridge group | `server/routes/__tests__/web-aigc.search-python-runtime.test.ts`, `web-aigc.file-python-runtime.test.ts`, `web-aigc.vision-audio-python-runtime.test.ts`; Python services/tests under `slide-rule-python/services/web_aigc_*` and `slide-rule-python/tests/test_web_aigc_*`. | Bounded fake-provider or synthetic runtime evidence only; real external search, OCR, vision, STT, TTS, file persistence, and storage remain production gaps. |
 
 ## Long-Tail Route Inventory
 

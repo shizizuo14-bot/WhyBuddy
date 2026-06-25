@@ -17,9 +17,9 @@
 当前 artifact memory 已有 proxy/contract 证据，但整体迁移进度不能把 proxy 当成 runtime 完成。本任务只做一个有边界的 Python runtime store：输入输出、session/project scope、not-found/error 语义稳定，并通过 Node 测试证明 route/service 层没有吞掉 Python 状态。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/blueprint_artifact_memory.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_artifact_memory_runtime_store.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_artifact_memory_proxy.py`
+- `slide-rule-python/services/blueprint_artifact_memory.py`
+- `slide-rule-python/tests/test_blueprint_artifact_memory_runtime_store.py`
+- `slide-rule-python/tests/test_blueprint_artifact_memory_proxy.py`
 - `server/routes/blueprint/artifact-memory/service.ts`
 - `server/routes/blueprint/artifact-memory/service.test.ts`
 - `server/routes/__tests__/blueprint.artifact-memory-python-runtime.test.ts`

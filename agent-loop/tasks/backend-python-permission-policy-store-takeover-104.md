@@ -9,8 +9,8 @@
 103 kept `policyStore` as `node-retained`. This task should prove a Python-owned policy decision or formally classify the retained store.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/permission_policy_store_takeover.py`
-- `tws-ai-slide-rule-python/tests/test_permission_policy_store_takeover_104.py`
+- `slide-rule-python/services/permission_policy_store_takeover.py`
+- `slide-rule-python/tests/test_permission_policy_store_takeover_104.py`
 - `server/permission/policy-store.ts`
 - `server/permission/check-engine.ts`
 - `server/tests/permission-policy-store-takeover-104.test.ts`

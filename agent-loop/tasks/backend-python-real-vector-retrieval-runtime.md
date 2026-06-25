@@ -23,10 +23,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/evidence.py`
-- `tws-ai-slide-rule-python/sliderule_llm/vector.py`
-- `tws-ai-slide-rule-python/tests/test_real_vector_retrieval_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_real_vector_retrieval_smoke.py`
+- `slide-rule-python/sliderule_llm/evidence.py`
+- `slide-rule-python/sliderule_llm/vector.py`
+- `slide-rule-python/tests/test_real_vector_retrieval_runtime.py`
+- `slide-rule-python/tests/test_real_vector_retrieval_smoke.py`
 - `agent-loop/tasks/backend-python-real-vector-retrieval-runtime.md`
 
 ## 禁止扩大范围

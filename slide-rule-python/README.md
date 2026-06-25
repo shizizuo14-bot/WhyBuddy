@@ -1,4 +1,4 @@
-# tws-ai-slide-rule-python
+# slide-rule-python
 
 Migrated backend from Node.js SlideRule V5 (cube-pets-office server/).
 

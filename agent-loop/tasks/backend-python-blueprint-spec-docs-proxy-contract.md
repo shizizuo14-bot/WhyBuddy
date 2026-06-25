@@ -29,8 +29,8 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/routes/blueprint_spec_docs.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_spec_docs_proxy.py`
+- `slide-rule-python/routes/blueprint_spec_docs.py`
+- `slide-rule-python/tests/test_blueprint_spec_docs_proxy.py`
 - `server/routes/__tests__/blueprint.spec-docs-python-proxy.test.ts`
 - `server/routes/blueprint/**`（仅 proxy wiring 必要处）
 - `agent-loop/tasks/backend-python-blueprint-spec-docs-proxy-contract.md`

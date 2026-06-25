@@ -9,9 +9,9 @@
 Wave 108 landed the run detail API and static dashboard shell. This task ports the first browser detail experience against the Python endpoint without relying on the VS Code webview. Keep the implementation small and browser-native for this bridge phase.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/static/agent-loop/index.html`
-- `tws-ai-slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_task_detail_view.py`
+- `slide-rule-python/static/agent-loop/index.html`
+- `slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
+- `slide-rule-python/tests/test_agent_loop_task_detail_view.py`
 - `agent-loop/tasks/sliderule-agentloop-task-detail-view-109.md`
 - This task file
 

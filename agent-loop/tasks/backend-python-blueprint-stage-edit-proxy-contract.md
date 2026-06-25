@@ -18,8 +18,8 @@
 
 ## 允许修改的文件
 - `agent-loop/tasks/backend-python-blueprint-stage-edit-proxy-contract.md`
-- `tws-ai-slide-rule-python/services/blueprint_stage_edit.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_stage_edit_proxy_contract.py`
+- `slide-rule-python/services/blueprint_stage_edit.py`
+- `slide-rule-python/tests/test_blueprint_stage_edit_proxy_contract.py`
 - `server/routes/blueprint/stage-edit/**/*.ts`
 - `server/routes/__tests__/blueprint.stage-edit-python-proxy.test.ts`
 

@@ -36,7 +36,7 @@ const planRequestBody = {
 
 const goldenFixture = JSON.parse(
   fs.readFileSync(
-    path.resolve(process.cwd(), 'tws-ai-slide-rule-python/tests/fixtures/orchestrate_plan_golden.json'),
+    path.resolve(process.cwd(), 'slide-rule-python/tests/fixtures/orchestrate_plan_golden.json'),
     'utf8',
   ),
 );

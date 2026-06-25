@@ -20,11 +20,11 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/permission_audit_production_ownership_closure.py`
-- `tws-ai-slide-rule-python/services/permission_audit_policy_store_cutover.py`
-- `tws-ai-slide-rule-python/services/permission_audit_hooks.py`
-- `tws-ai-slide-rule-python/services/audit_retention_export.py`
-- `tws-ai-slide-rule-python/tests/test_permission_audit_production_ownership_closure_102.py`
+- `slide-rule-python/services/permission_audit_production_ownership_closure.py`
+- `slide-rule-python/services/permission_audit_policy_store_cutover.py`
+- `slide-rule-python/services/permission_audit_hooks.py`
+- `slide-rule-python/services/audit_retention_export.py`
+- `slide-rule-python/tests/test_permission_audit_production_ownership_closure_102.py`
 - `server/permission/check-engine.ts`
 - `server/permission/audit-logger.ts`
 - `server/audit/audit-hooks.ts`

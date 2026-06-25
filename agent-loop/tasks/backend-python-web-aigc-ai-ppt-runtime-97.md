@@ -20,8 +20,8 @@ AI PPT 是 Web AIGC 长尾里用户可见度高、分母较大的 route。这个
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/web_aigc_ai_ppt_adapter.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_ai_ppt_runtime.py`
+- `slide-rule-python/services/web_aigc_ai_ppt_adapter.py`
+- `slide-rule-python/tests/test_web_aigc_ai_ppt_runtime.py`
 - `server/routes/ai-ppt.ts`
 - `server/routes/node-adapters/ai-ppt-node-adapter.ts`
 - `server/core/ai-ppt-generation-provider.ts`

@@ -9,9 +9,9 @@
 The detail page must stop depending on VS Code extension state readers. This task creates the Python detail surface using existing run artifacts.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/routes/agent_loop.py`
-- `tws-ai-slide-rule-python/services/agent_loop_runs.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_run_detail.py`
+- `slide-rule-python/routes/agent_loop.py`
+- `slide-rule-python/services/agent_loop_runs.py`
+- `slide-rule-python/tests/test_agent_loop_run_detail.py`
 - `agent-loop/tasks/sliderule-agentloop-run-detail-api-108.md`
 - This task file
 

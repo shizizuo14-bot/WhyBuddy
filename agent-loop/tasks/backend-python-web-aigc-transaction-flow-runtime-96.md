@@ -17,8 +17,8 @@
 transaction-flow 是 Web AIGC long-tail 里对整体后端迁移影响较大的 node-only 路由。本任务只迁 Python 决策边界：解析步骤、返回决策、保留 permission/audit metadata，并确保失败语义不被吞掉。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/web_aigc_transaction_flow_adapter.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_transaction_flow_runtime.py`
+- `slide-rule-python/services/web_aigc_transaction_flow_adapter.py`
+- `slide-rule-python/tests/test_web_aigc_transaction_flow_runtime.py`
 - `server/routes/transaction-flow.ts`
 - `server/routes/node-adapters/transaction-flow-node-adapter.ts`
 - `server/tests/transaction-flow-python-runtime.test.ts`

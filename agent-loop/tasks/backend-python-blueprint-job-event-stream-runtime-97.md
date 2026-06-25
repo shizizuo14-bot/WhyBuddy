@@ -20,10 +20,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/blueprint_job_runtime.py`
-- `tws-ai-slide-rule-python/services/blueprint_job_event_stream.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_job_event_stream_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_job_runtime_boundary.py`
+- `slide-rule-python/services/blueprint_job_runtime.py`
+- `slide-rule-python/services/blueprint_job_event_stream.py`
+- `slide-rule-python/tests/test_blueprint_job_event_stream_runtime.py`
+- `slide-rule-python/tests/test_blueprint_job_runtime_boundary.py`
 - `server/routes/blueprint/jobs/service.ts`
 - `server/routes/blueprint/job-store.ts`
 - `server/routes/blueprint/event-bus.ts`

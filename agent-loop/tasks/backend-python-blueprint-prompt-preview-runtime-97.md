@@ -21,8 +21,8 @@ Blueprint prompt package、effect preview、preview audit 仍是整体 95 的阻
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/blueprint_prompt_preview.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_prompt_preview_runtime.py`
+- `slide-rule-python/services/blueprint_prompt_preview.py`
+- `slide-rule-python/tests/test_blueprint_prompt_preview_runtime.py`
 - `server/routes/blueprint/prompt-package/service.ts`
 - `server/routes/blueprint/prompt-package/normalize.ts`
 - `server/routes/blueprint/prompt-package/render.ts`

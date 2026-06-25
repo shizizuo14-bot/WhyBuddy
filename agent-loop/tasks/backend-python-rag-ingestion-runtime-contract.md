@@ -18,8 +18,8 @@
 
 ## 允许修改的文件
 - `agent-loop/tasks/backend-python-rag-ingestion-runtime-contract.md`
-- `tws-ai-slide-rule-python/services/rag_ingestion.py`
-- `tws-ai-slide-rule-python/tests/test_rag_ingestion_runtime_contract.py`
+- `slide-rule-python/services/rag_ingestion.py`
+- `slide-rule-python/tests/test_rag_ingestion_runtime_contract.py`
 - `server/routes/rag.ts`
 - `server/routes/vector-update.ts`
 - `server/routes/vector-delete.ts`

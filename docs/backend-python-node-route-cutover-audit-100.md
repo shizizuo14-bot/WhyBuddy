@@ -18,7 +18,7 @@ Evidence drawn strictly from:
 - `docs/backend-python-runtime-depth-audit-90.md`
 - `docs/backend-python-production-wiring-reality-95.md`
 - Current `server/routes/**`, `server/core/**`, `server/auth/**`, `server/tasks/**`, `server/permission/**`, `server/audit/**`, `server/routes/node-adapters/**`
-- `tws-ai-slide-rule-python/services/**` and `tests/**`
+- `slide-rule-python/services/**` and `tests/**`
 
 ## Classification Rules for Cutover 100
 | Classification       | Meaning                                                                 | Can support 100%? |
@@ -36,7 +36,7 @@ No "fake/synthetic/degraded/skipped" may be written as production takeover.
 | Surface                  | Classification      | Evidence / Notes |
 |--------------------------|---------------------|------------------|
 | `server/index.ts` top-level mounts (`/api/*`, health, executor/events, blueprint shell, web-aigc, etc.) | production-owned, intentionally-retained | Still the single Express app mounting all families. Delegates only specific subpaths. Primary production API owner. |
-| `/api/sliderule` + python-delegation | thin-proxy | `server/routes/sliderule.ts` + `server/sliderule/python-delegation.ts` (callPythonSlideRule, resolve config to PYTHON_SLIDE_RULE_BASE_URL). `tws-ai-slide-rule-python/app.py` + `routes/sliderule_full.py` and `services/slide_rule_*.py` own the V5 baseline. Contract tests exist. |
+| `/api/sliderule` + python-delegation | thin-proxy | `server/routes/sliderule.ts` + `server/sliderule/python-delegation.ts` (callPythonSlideRule, resolve config to PYTHON_SLIDE_RULE_BASE_URL). `slide-rule-python/app.py` + `routes/sliderule_full.py` and `services/slide_rule_*.py` own the V5 baseline. Contract tests exist. |
 | `/api/rag`, vector-*, rag risk | compat-shell + production-wiring (bounded) | Python rag_service/rag_ingestion have runtime contracts; Node rag.ts still owns ingestion pipeline + Qdrant adapter surface. Production wiring docs note fake/synthetic for real external. |
 | `/api/mcp`, `/api/skills` | thin-proxy + runtime (bounded) | `server/routes/mcp.ts`; python `mcp_runtime.py`, `skill_runtime.py`. Full external tool auth/orchestration remains Node/mixed. |
 | `/api/workflows`, `/api/nl-command` | compat-shell | Contract + runtime bridges; production dispatch stays Node. |
@@ -92,7 +92,7 @@ No "fake/synthetic/degraded/skipped" may be written as production takeover.
 | Vector adapters, risk actions | production-wiring (Node side) | Still Node adapters calling into Python RAG boundaries. |
 
 ## Python Ownership Reality (100-candidate baseline)
-- Python (tws-ai-slide-rule-python) owns:
+- Python (slide-rule-python) owns:
   - V5 SlideRule baseline: sessions, orchestrate-plan, execute-capability (via maps), drive-full, spec-docs proxy.
   - Bounded runtime slices: rag, telemetry, mcp/skill, workflow/nl, auth-identity, permission-audit-hooks, task-executor/mission-replay, blueprint closures (job/event/prompt/artifact/review/role/stage), web-aigc selected, external smoke diagnostics.
 - Python does **not** own: main Express surface, full Blueprint state machine + stores, task/mission full lifecycle, auth prod stores+mail, permission policy engine, audit durable platform, most web-aigc longtail, external production providers (real Qdrant, search, OCR, vision, billing, etc.).

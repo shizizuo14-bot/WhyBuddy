@@ -23,9 +23,9 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/routes/sliderule.py`
-- `tws-ai-slide-rule-python/routes/sliderule_full.py`
-- `tws-ai-slide-rule-python/tests/test_orchestrate_plan_contract.py`
+- `slide-rule-python/routes/sliderule.py`
+- `slide-rule-python/routes/sliderule_full.py`
+- `slide-rule-python/tests/test_orchestrate_plan_contract.py`
 - `server/routes/__tests__/sliderule.orchestrate-plan-python-contract.test.ts`
 - `docs/backend-python-orchestrate-plan-contract.md`
 - `agent-loop/tasks/backend-python-orchestrate-plan-contract.md`

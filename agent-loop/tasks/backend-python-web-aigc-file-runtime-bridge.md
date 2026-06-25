@@ -17,9 +17,9 @@
 这不是迁真实文件系统的任务。只建立安全 runtime bridge，让 Node 侧能调用 Python 返回稳定 envelope（信封）和 artifact metadata（产物元数据）。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/web_aigc_file_adapter.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_file_runtime_bridge.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_file_adapter_contract.py`
+- `slide-rule-python/services/web_aigc_file_adapter.py`
+- `slide-rule-python/tests/test_web_aigc_file_runtime_bridge.py`
+- `slide-rule-python/tests/test_web_aigc_file_adapter_contract.py`
 - `server/routes/node-adapters/file-*.ts`
 - `server/routes/__tests__/web-aigc.file-python-runtime.test.ts`
 - `server/routes/__tests__/web-aigc.file-python-contract.test.ts`

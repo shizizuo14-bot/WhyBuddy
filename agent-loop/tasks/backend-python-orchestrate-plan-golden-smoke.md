@@ -23,8 +23,8 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/tests/test_orchestrate_plan_golden_smoke.py`
-- `tws-ai-slide-rule-python/tests/fixtures/orchestrate_plan_golden.json`
+- `slide-rule-python/tests/test_orchestrate_plan_golden_smoke.py`
+- `slide-rule-python/tests/fixtures/orchestrate_plan_golden.json`
 - `server/routes/__tests__/sliderule.orchestrate-plan-python-contract.test.ts`
 - `docs/backend-python-orchestrate-plan-contract.md`
 - `agent-loop/tasks/backend-python-orchestrate-plan-golden-smoke.md`

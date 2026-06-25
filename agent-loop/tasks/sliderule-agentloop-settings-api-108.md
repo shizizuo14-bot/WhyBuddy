@@ -9,9 +9,9 @@
 The VS Code Settings page cannot be the long-term product settings store. This task creates Python settings APIs that can later power the browser dashboard.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/routes/agent_loop.py`
-- `tws-ai-slide-rule-python/services/agent_loop_settings.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_settings_api.py`
+- `slide-rule-python/routes/agent_loop.py`
+- `slide-rule-python/services/agent_loop_settings.py`
+- `slide-rule-python/tests/test_agent_loop_settings_api.py`
 - `agent-loop/tasks/sliderule-agentloop-settings-api-108.md`
 - This task file
 

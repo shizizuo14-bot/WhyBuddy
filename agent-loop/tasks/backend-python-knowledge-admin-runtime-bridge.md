@@ -26,9 +26,9 @@ knowledge admin 是 RAG/知识库迁移的管理入口。先做可测试的 runt
 - 旧 `KNOWLEDGE_ADMIN_PYTHON_PROXY=true` proxy contract 路径保留原 contract-only 行为。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/knowledge_admin_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_knowledge_admin_runtime_bridge.py`
-- `tws-ai-slide-rule-python/tests/test_knowledge_admin_proxy_contract.py`
+- `slide-rule-python/services/knowledge_admin_runtime.py`
+- `slide-rule-python/tests/test_knowledge_admin_runtime_bridge.py`
+- `slide-rule-python/tests/test_knowledge_admin_proxy_contract.py`
 - `server/routes/knowledge-admin.ts`
 - `server/routes/__tests__/knowledge-admin-python-runtime.test.ts`
 - `server/routes/__tests__/knowledge-admin-python-proxy.test.ts`

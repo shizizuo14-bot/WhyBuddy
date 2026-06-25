@@ -17,11 +17,11 @@
 `skill.invoke` 现在已有 contract 和 smoke。这个任务要把它推进成可替换 adapter，而不是把测试里的 fake 逻辑写死在 executor 里。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/capability_maps.py`
-- `tws-ai-slide-rule-python/services/slide_rule_executor.py`
-- `tws-ai-slide-rule-python/services/skill_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_skill_invoke_real_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_skill_invoke_runtime_smoke.py`
+- `slide-rule-python/services/capability_maps.py`
+- `slide-rule-python/services/slide_rule_executor.py`
+- `slide-rule-python/services/skill_runtime.py`
+- `slide-rule-python/tests/test_skill_invoke_real_runtime.py`
+- `slide-rule-python/tests/test_skill_invoke_runtime_smoke.py`
 - `agent-loop/tasks/backend-python-skill-invoke-real-runtime.md`
 
 ## 禁止扩大范围

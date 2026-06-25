@@ -17,8 +17,8 @@
 audit query 是 audit event 之后的下一片。这个任务只锁查询 envelope、分页、过滤和错误语义，不迁真实 audit store。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_audit_query_proxy_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_audit_query_proxy_contract.py`
+- `slide-rule-python/tests/test_audit_query_proxy_boundary.py`
+- `slide-rule-python/tests/test_audit_query_proxy_contract.py`
 - `server/routes/audit.ts`
 - `server/tests/audit-query-python-boundary.test.ts`
 - `server/tests/audit-query-python-proxy.test.ts`

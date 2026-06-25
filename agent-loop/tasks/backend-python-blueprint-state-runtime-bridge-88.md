@@ -17,10 +17,10 @@
 Blueprint 是大分母，但不能一次迁完整路由。本任务只选 main state 的小边界：读状态、投影状态、返回可审计错误，不碰 job/event/ledger/preview/prompt package。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/blueprint_state_runtime.py`
-- `tws-ai-slide-rule-python/models/blueprint_state.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_state_runtime_bridge.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_main_state_contract.py`
+- `slide-rule-python/services/blueprint_state_runtime.py`
+- `slide-rule-python/models/blueprint_state.py`
+- `slide-rule-python/tests/test_blueprint_state_runtime_bridge.py`
+- `slide-rule-python/tests/test_blueprint_main_state_contract.py`
 - `server/routes/blueprint/main-state-python-runtime.ts`
 - `server/routes/__tests__/blueprint.state-python-runtime.test.ts`
 - `server/routes/__tests__/blueprint.main-state-python-contract.test.ts`

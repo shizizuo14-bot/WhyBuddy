@@ -18,8 +18,8 @@
 
 ## 允许修改的文件
 - `agent-loop/tasks/backend-python-web-aigc-search-adapter-contract.md`
-- `tws-ai-slide-rule-python/services/web_aigc_search_adapter.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_search_adapter_contract.py`
+- `slide-rule-python/services/web_aigc_search_adapter.py`
+- `slide-rule-python/tests/test_web_aigc_search_adapter_contract.py`
 - `server/routes/node-adapters/web-search-node-adapter.ts`
 - `server/routes/node-adapters/graph-search-node-adapter.ts`
 - `server/routes/node-adapters/image-search-node-adapter.ts`

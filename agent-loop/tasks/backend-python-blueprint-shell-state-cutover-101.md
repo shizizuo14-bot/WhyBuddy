@@ -17,12 +17,12 @@
 100 阶段已经补了 `blueprint_main_runtime_closure` 这类汇总能力，但状态文档里仍然指出 Blueprint 主 state、job、event bus、ledger、prompt package 等大分母还有 Node-owned gap。101 这一刀不追求“一把全迁完”，只收紧主入口 shell/state/job/event 的交接边界，让 Python 能更明确地说出“我能接哪一段、不能接哪一段、为什么不能接”。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/blueprint_shell_state_cutover.py`
-- `tws-ai-slide-rule-python/services/blueprint_main_runtime_closure.py`
-- `tws-ai-slide-rule-python/services/blueprint_state_runtime.py`
-- `tws-ai-slide-rule-python/services/blueprint_job_runtime.py`
-- `tws-ai-slide-rule-python/services/blueprint_job_event_stream.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_shell_state_cutover_101.py`
+- `slide-rule-python/services/blueprint_shell_state_cutover.py`
+- `slide-rule-python/services/blueprint_main_runtime_closure.py`
+- `slide-rule-python/services/blueprint_state_runtime.py`
+- `slide-rule-python/services/blueprint_job_runtime.py`
+- `slide-rule-python/services/blueprint_job_event_stream.py`
+- `slide-rule-python/tests/test_blueprint_shell_state_cutover_101.py`
 - `server/routes/blueprint/shell-state-cutover-python.ts`
 - `server/routes/blueprint/main-runtime-closure-python.ts`
 - `server/routes/blueprint/main-state-python-runtime.ts`

@@ -18,8 +18,8 @@ role runtime 是 Node 后端大块之一。此任务只让 Python 接住最小 c
 
 ## 允许修改的文件
 - `agent-loop/tasks/backend-python-role-runtime-proxy-contract.md`
-- `tws-ai-slide-rule-python/services/role_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_role_runtime_proxy_contract.py`
+- `slide-rule-python/services/role_runtime.py`
+- `slide-rule-python/tests/test_role_runtime_proxy_contract.py`
 - `server/routes/blueprint/role-agent-runtime/**/*.ts`
 - `server/routes/__tests__/blueprint.role-runtime-python-proxy.test.ts`
 - `shared/blueprint/role-container/types.ts`

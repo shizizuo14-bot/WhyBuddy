@@ -33,10 +33,10 @@
 - `agent-loop/tasks/sliderule-python-migration-status.md`
 - `docs/backend-python-node-route-inventory-90.md`
 - `docs/backend-python-runtime-depth-audit-90.md`
-- `tws-ai-slide-rule-python/tests/test_orchestrate_plan_state_projection.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_spec_docs_batch_proxy.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_artifact_memory_proxy.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_review_export_proxy.py`
+- `slide-rule-python/tests/test_orchestrate_plan_state_projection.py`
+- `slide-rule-python/tests/test_blueprint_spec_docs_batch_proxy.py`
+- `slide-rule-python/tests/test_blueprint_artifact_memory_proxy.py`
+- `slide-rule-python/tests/test_blueprint_review_export_proxy.py`
 - `server/routes/__tests__/sliderule.orchestrate-plan-state-projection.test.ts`
 - `server/routes/__tests__/blueprint.spec-docs-batch-python-proxy.test.ts`
 - `server/routes/__tests__/blueprint.artifact-memory-python-proxy.test.ts`

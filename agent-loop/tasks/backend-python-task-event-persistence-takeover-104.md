@@ -9,8 +9,8 @@
 Task event append persistence remained a blocker after 103. This task should prove a durable-ish event boundary, not just in-memory replay.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/task_event_persistence_takeover.py`
-- `tws-ai-slide-rule-python/tests/test_task_event_persistence_takeover_104.py`
+- `slide-rule-python/services/task_event_persistence_takeover.py`
+- `slide-rule-python/tests/test_task_event_persistence_takeover_104.py`
 - `server/tasks/mission-store.ts`
 - `server/tasks/mission-projection.ts`
 - `server/tests/task-event-persistence-takeover-104.test.ts`

@@ -17,9 +17,9 @@
 audit 现在有 contract/query proxy/runtime boundary 证据，但 production sink 仍是短板。本任务只补一个最小 sink：写入成功、写入失败、降级状态、来源字段稳定。不接真实外部审计平台。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/audit_sink.py`
-- `tws-ai-slide-rule-python/tests/test_audit_production_sink.py`
-- `tws-ai-slide-rule-python/tests/test_audit_event_runtime_boundary.py`
+- `slide-rule-python/services/audit_sink.py`
+- `slide-rule-python/tests/test_audit_production_sink.py`
+- `slide-rule-python/tests/test_audit_event_runtime_boundary.py`
 - `server/audit/python-sink.ts`
 - `server/tests/audit-production-sink.test.ts`
 - `server/tests/audit-event-python-runtime.test.ts`

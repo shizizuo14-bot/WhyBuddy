@@ -20,10 +20,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/external_dependency_live_smoke.py`
-- `tws-ai-slide-rule-python/tests/test_external_dependency_live_smoke_97.py`
-- `tws-ai-slide-rule-python/tests/test_deployment_live_smoke_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_real_vector_retrieval_production_wiring.py`
+- `slide-rule-python/services/external_dependency_live_smoke.py`
+- `slide-rule-python/tests/test_external_dependency_live_smoke_97.py`
+- `slide-rule-python/tests/test_deployment_live_smoke_boundary.py`
+- `slide-rule-python/tests/test_real_vector_retrieval_production_wiring.py`
 - `server/routes/__tests__/python-external-dependency-live-smoke.test.ts`
 - `server/routes/__tests__/python-deployment-live-smoke.test.ts`
 - `server/rag/store/qdrant-adapter.ts`

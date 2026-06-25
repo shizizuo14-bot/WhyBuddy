@@ -17,8 +17,8 @@
 session persistence 是后续 auth、audit、Blueprint runtime 的底座之一。先把 runtime boundary 做硬，避免后续任务用 fallback 假装已迁移。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/persistence.py`
-- `tws-ai-slide-rule-python/tests/test_session_persistence_contract.py`
+- `slide-rule-python/services/persistence.py`
+- `slide-rule-python/tests/test_session_persistence_contract.py`
 - `server/routes/__tests__/sliderule.sessions-store.test.ts`
 - `agent-loop/tasks/backend-python-session-persistence-runtime-boundary.md`
 

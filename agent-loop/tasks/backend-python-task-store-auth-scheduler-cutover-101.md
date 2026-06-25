@@ -17,12 +17,12 @@
 97/100 阶段已经补了 mission event replay 和 task lifecycle closure，但状态表里仍然写着 mission store、project auth、full scheduler 仍是 Node-owned gap。101 这一刀只做任务生命周期剩余短板的最小闭环：让 Python 能参与判断和生成 runtime decision，让 Node 保留真实存储和 transport。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/task_store_auth_scheduler_cutover.py`
-- `tws-ai-slide-rule-python/services/task_lifecycle_production_closure.py`
-- `tws-ai-slide-rule-python/services/task_lifecycle_runtime.py`
-- `tws-ai-slide-rule-python/services/mission_event_replay.py`
-- `tws-ai-slide-rule-python/services/task_executor_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_task_store_auth_scheduler_cutover_101.py`
+- `slide-rule-python/services/task_store_auth_scheduler_cutover.py`
+- `slide-rule-python/services/task_lifecycle_production_closure.py`
+- `slide-rule-python/services/task_lifecycle_runtime.py`
+- `slide-rule-python/services/mission_event_replay.py`
+- `slide-rule-python/services/task_executor_runtime.py`
+- `slide-rule-python/tests/test_task_store_auth_scheduler_cutover_101.py`
 - `server/tasks/mission-store.ts`
 - `server/tasks/mission-runtime.ts`
 - `server/tasks/mission-projection.ts`

@@ -9,8 +9,8 @@
 103 marked Blueprint `replan` as `node-retained`. This task should prove a Python-owned replan slice if feasible: branch validation, downstream invalidation, or conflict classification.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/blueprint_replan_runtime_takeover.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_replan_runtime_takeover_104.py`
+- `slide-rule-python/services/blueprint_replan_runtime_takeover.py`
+- `slide-rule-python/tests/test_blueprint_replan_runtime_takeover_104.py`
 - `server/routes/blueprint/replan-runtime-takeover-python.ts`
 - `server/routes/blueprint/replan/*`
 - `server/routes/__tests__/blueprint.replan-runtime-takeover-104.test.ts`

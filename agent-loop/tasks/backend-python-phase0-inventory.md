@@ -29,7 +29,7 @@
 - [x] 3. 盘点 Node 后端迁移分母
   - [x] 3.1 扫描 `server/`，按 route、core、service、LLM infra、测试分组
   - [x] 3.2 扫描 `shared/`，标出后端契约、前后端共享类型和不能直接迁移的兼容层
-  - [x] 3.3 扫描 `tws-ai-slide-rule-python/`，标出已有 Python 对应实现
+  - [x] 3.3 扫描 `slide-rule-python/`，标出已有 Python 对应实现
   - [x] 3.4 列出只有 Node 实现、只有 Python stub、已有 Python 真实现三类资产
 
 - [x] 4. 形成 Phase 0 盘点结论
@@ -47,7 +47,7 @@
 
 本轮结论很直接：**整体 NodeJS 后端迁 Python 仍应按约 8-12% 口径看待，不能因为 SlideRule V5 局部链路已经较成熟，就把整个后端进度抬高。**
 
-原因是整体后端的分母很大：`server/` 约 1191 个文件，其中 `server/routes/` 约 519 个文件、`server/tests/` 约 387 个文件、`server/core/` 约 102 个文件；`shared/` 约 214 个文件，其中 `shared/blueprint/` 约 96 个文件。Python 侧当前主要集中在 `tws-ai-slide-rule-python/`，排除运行目录后约 37 个文件，入口也集中在 `/api/sliderule/*`。
+原因是整体后端的分母很大：`server/` 约 1191 个文件，其中 `server/routes/` 约 519 个文件、`server/tests/` 约 387 个文件、`server/core/` 约 102 个文件；`shared/` 约 214 个文件，其中 `shared/blueprint/` 约 96 个文件。Python 侧当前主要集中在 `slide-rule-python/`，排除运行目录后约 37 个文件，入口也集中在 `/api/sliderule/*`。
 
 所以当前不是“整体后端迁了一半”，而是：
 
@@ -59,7 +59,7 @@
 
 | 资产组 | Node 现状 | Python 对应 | 迁移状态 | 风险 | 推荐阶段 |
 |---|---|---|---|---|---|
-| SlideRule V5 路由与能力 | `server/routes/sliderule.ts`，包含 sessions、orchestrate-plan、execute-capability、respond 等路径 | `tws-ai-slide-rule-python/app.py`、`routes/sliderule_full.py`、`sliderule_llm/capabilities.py`、`services/capability_maps.py` | 局部迁移中；Node 在 `SLIDERULE_V5_BACKEND=python` 下可委托一批 V5 capability | 中：能力覆盖和 provenance 仍需逐片校准 | Phase 1 继续 |
+| SlideRule V5 路由与能力 | `server/routes/sliderule.ts`，包含 sessions、orchestrate-plan、execute-capability、respond 等路径 | `slide-rule-python/app.py`、`routes/sliderule_full.py`、`sliderule_llm/capabilities.py`、`services/capability_maps.py` | 局部迁移中；Node 在 `SLIDERULE_V5_BACKEND=python` 下可委托一批 V5 capability | 中：能力覆盖和 provenance 仍需逐片校准 | Phase 1 继续 |
 | Blueprint / Autopilot 主流程 | `server/routes/blueprint/` 和 `shared/blueprint/` 是最大业务块之一，包含 spec tree、spec docs、effect preview、role runtime、replan、traceability 等 | 暂无同等 Python 服务 | 基本未迁 | 高：业务链路深、契约多、前端依赖强 | Phase 2 |
 | LLM infra / provider pool | `server/core/*`、`server/routes/blueprint/llm-key-pool.ts`、`server/sliderule/pool-json-llm.ts` 等 | `sliderule_llm/client.py`、`sliderule_llm/pool.py` 只覆盖 SlideRule Python 侧 | 部分能力可用，但不是全后端 LLM 平台 | 高：模型输出契约、代理、重试、密钥池和结构化解析都要统一 | Phase 1 |
 | RAG / vector / knowledge | `server/rag/`、`server/knowledge/`、`shared/rag/` 等 | Python 当前主要是 `services/rag_service.py` 的 baseline，未证明完整 Qdrant/embedding parity | 低到中 | 高：数据兼容、索引、证据 provenance、迁移脚本 | Phase 2 |
@@ -139,7 +139,7 @@
 
 - `server/`
 - `shared/`
-- `tws-ai-slide-rule-python/`
+- `slide-rule-python/`
 - `agent-loop/tasks/sliderule-python-migration-status.md`
 - 相关测试文件
 
@@ -156,7 +156,7 @@
 - 不修改 Python 业务实现。
 - 不暂存、不提交。
 - 不使用 `git add -A`。
-- 不提交 `.agent-loop/`、`tmp/`、`probes/`、`.env`、日志、cache、`tws-ai-slide-rule-python/data/`。
+- 不提交 `.agent-loop/`、`tmp/`、`probes/`、`.env`、日志、cache、`slide-rule-python/data/`。
 - 不加入或打印真实密钥、数据库密码、Qdrant key、Bearer token。
 
 ## 盘点输出要求
@@ -192,7 +192,7 @@ node agent-loop/src/check-mojibake.js agent-loop/tasks agent-loop/src agent-loop
 ```
 
 ```powershell
-rg -n -e intent\.clarify -e gap\.ask -e question\.expand -e report\.write -e structure\.decompose -e provenance -e SLIDERULE_V5_BACKEND -e python-delegation server shared tws-ai-slide-rule-python agent-loop/tasks
+rg -n -e intent\.clarify -e gap\.ask -e question\.expand -e report\.write -e structure\.decompose -e provenance -e SLIDERULE_V5_BACKEND -e python-delegation server shared slide-rule-python agent-loop/tasks
 ```
 
 ## AgentLoop 命令
@@ -205,7 +205,7 @@ node agent-loop/src/loop.js `
   --task agent-loop/tasks/backend-python-phase0-inventory.md `
   --gate "cd agent-loop; npm test" `
   --gate "node agent-loop/src/check-mojibake.js agent-loop/tasks agent-loop/src agent-loop/test" `
-  --gate "rg -n -e intent\.clarify -e gap\.ask -e question\.expand -e report\.write -e structure\.decompose -e provenance -e SLIDERULE_V5_BACKEND -e python-delegation server shared tws-ai-slide-rule-python agent-loop/tasks" `
+  --gate "rg -n -e intent\.clarify -e gap\.ask -e question\.expand -e report\.write -e structure\.decompose -e provenance -e SLIDERULE_V5_BACKEND -e python-delegation server shared slide-rule-python agent-loop/tasks" `
   --skip-review `
   --max-iterations 1 `
   --lang zh-CN

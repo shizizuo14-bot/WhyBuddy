@@ -9,9 +9,9 @@
 AgentLoop needs clear diagnostics for Grok, Codex, OpenAI, Anthropic, proxy, and CLI availability. This task moves those diagnostics to Python without requiring live paid calls in tests.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/routes/agent_loop.py`
-- `tws-ai-slide-rule-python/services/agent_loop_provider_health.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_provider_health.py`
+- `slide-rule-python/routes/agent_loop.py`
+- `slide-rule-python/services/agent_loop_provider_health.py`
+- `slide-rule-python/tests/test_agent_loop_provider_health.py`
 - `agent-loop/tasks/sliderule-agentloop-provider-health-api-108.md`
 - This task file
 

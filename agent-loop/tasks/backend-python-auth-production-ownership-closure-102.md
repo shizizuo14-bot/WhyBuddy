@@ -20,10 +20,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/auth_production_ownership_closure.py`
-- `tws-ai-slide-rule-python/services/auth_token_mailer_session_cutover.py`
-- `tws-ai-slide-rule-python/services/auth_audit_production_closure.py`
-- `tws-ai-slide-rule-python/tests/test_auth_production_ownership_closure_102.py`
+- `slide-rule-python/services/auth_production_ownership_closure.py`
+- `slide-rule-python/services/auth_token_mailer_session_cutover.py`
+- `slide-rule-python/services/auth_audit_production_closure.py`
+- `slide-rule-python/tests/test_auth_production_ownership_closure_102.py`
 - `server/routes/auth.ts`
 - `server/auth/session-service.ts`
 - `server/auth/email-code-service.ts`

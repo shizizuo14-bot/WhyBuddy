@@ -9,8 +9,8 @@
 103 marked `previewState` as `node-retained`. This task should prove a narrow runtime projection path that can be consumed by Node without breaking current preview behavior.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/blueprint_preview_state_runtime_takeover.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_preview_state_runtime_takeover_104.py`
+- `slide-rule-python/services/blueprint_preview_state_runtime_takeover.py`
+- `slide-rule-python/tests/test_blueprint_preview_state_runtime_takeover_104.py`
 - `server/routes/blueprint/preview-state-runtime-takeover-python.ts`
 - `server/routes/blueprint/*preview*`
 - `server/routes/__tests__/blueprint.preview-state-runtime-takeover-104.test.ts`

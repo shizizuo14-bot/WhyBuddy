@@ -9,9 +9,9 @@
 SlideRule Python must become the public AgentLoop control plane. This task adds the router without depending on live Node worker availability.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/app.py`
-- `tws-ai-slide-rule-python/routes/agent_loop.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_api_bootstrap.py`
+- `slide-rule-python/app.py`
+- `slide-rule-python/routes/agent_loop.py`
+- `slide-rule-python/tests/test_agent_loop_api_bootstrap.py`
 - `agent-loop/tasks/sliderule-agentloop-runs-api-bootstrap-108.md`
 - This task file
 

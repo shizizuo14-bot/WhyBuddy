@@ -9,9 +9,9 @@
 Wave 108 landed the Python AgentLoop bridge foundation, but this UI shell task did not produce business-file changes because the worker failed with `403 Forbidden` before completing the implementation. Continue from the Python-served dashboard now present in `static/agent-loop`.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/static/agent-loop/index.html`
-- `tws-ai-slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_navigation_shell.py`
+- `slide-rule-python/static/agent-loop/index.html`
+- `slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
+- `slide-rule-python/tests/test_agent_loop_navigation_shell.py`
 - `agent-loop/tasks/sliderule-agentloop-navigation-shell-109.md`
 - This task file
 

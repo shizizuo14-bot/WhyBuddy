@@ -4,9 +4,9 @@ import { summarizeRunRecord } from './runSummary.js';
 
 export function defaultPythonExe(repoRoot) {
   if (process.platform === 'win32') {
-    return path.join(repoRoot, 'tws-ai-slide-rule-python', '.venv', 'Scripts', 'python.exe');
+    return path.join(repoRoot, 'slide-rule-python', '.venv', 'Scripts', 'python.exe');
   }
-  return path.join(repoRoot, 'tws-ai-slide-rule-python', '.venv', 'bin', 'python');
+  return path.join(repoRoot, 'slide-rule-python', '.venv', 'bin', 'python');
 }
 
 export function resolvePythonExe(repoRoot, pythonExe) {

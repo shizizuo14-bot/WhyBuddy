@@ -9,9 +9,9 @@
 The dashboard needs a Python source of truth for run lists. This task reads existing `.agent-loop/runs` data safely without changing the Node writer.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/routes/agent_loop.py`
-- `tws-ai-slide-rule-python/services/agent_loop_runs.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_runs_overview.py`
+- `slide-rule-python/routes/agent_loop.py`
+- `slide-rule-python/services/agent_loop_runs.py`
+- `slide-rule-python/tests/test_agent_loop_runs_overview.py`
 - `agent-loop/tasks/sliderule-agentloop-runs-overview-api-108.md`
 - This task file
 

@@ -17,9 +17,9 @@
 Blueprint jobs 目前有 proxy 证据，但 job lifecycle、event streams、diagnostics 和 store 仍是 Node-owned。本任务只补最小 Python runtime boundary，让 selected job 状态 envelope 能被 Python 表达和 Node 校验。完整 job store 和 event bus 不在本任务范围内。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/blueprint_job_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_job_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_job_runtime_proxy.py`
+- `slide-rule-python/services/blueprint_job_runtime.py`
+- `slide-rule-python/tests/test_blueprint_job_runtime_boundary.py`
+- `slide-rule-python/tests/test_blueprint_job_runtime_proxy.py`
 - `server/routes/blueprint/jobs/service.ts`
 - `server/routes/__tests__/blueprint.job-runtime-python-boundary.test.ts`
 - `server/routes/__tests__/blueprint.job-runtime-python-proxy.test.ts`

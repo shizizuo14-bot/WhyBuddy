@@ -9,8 +9,8 @@
 103 kept `sessionRepository` as `node-retained`. This task must attack that blocker directly with runtime evidence or a retained decision.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/auth_session_repository_takeover.py`
-- `tws-ai-slide-rule-python/tests/test_auth_session_repository_takeover_104.py`
+- `slide-rule-python/services/auth_session_repository_takeover.py`
+- `slide-rule-python/tests/test_auth_session_repository_takeover_104.py`
 - `server/auth/session-service.ts`
 - `server/routes/auth.ts`
 - `server/tests/auth-session-repository-takeover-104.test.ts`

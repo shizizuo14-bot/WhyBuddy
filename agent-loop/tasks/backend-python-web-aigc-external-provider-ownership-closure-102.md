@@ -20,10 +20,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/web_aigc_external_provider_ownership_closure.py`
-- `tws-ai-slide-rule-python/services/web_aigc_real_provider_readiness.py`
-- `tws-ai-slide-rule-python/services/web_aigc_provider_closure.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_external_provider_ownership_closure_102.py`
+- `slide-rule-python/services/web_aigc_external_provider_ownership_closure.py`
+- `slide-rule-python/services/web_aigc_real_provider_readiness.py`
+- `slide-rule-python/services/web_aigc_provider_closure.py`
+- `slide-rule-python/tests/test_web_aigc_external_provider_ownership_closure_102.py`
 - `server/core/web-aigc-runtime-extra-adapters.ts`
 - `server/core/web-aigc-runtime-observability.ts`
 - `server/tests/web-aigc-external-provider-ownership-closure-102.test.ts`

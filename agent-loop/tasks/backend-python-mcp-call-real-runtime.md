@@ -17,11 +17,11 @@
 上一批只锁住了 `mcp.call` runtime smoke。现在要补真正的 adapter 边界：调用参数、结果、错误、权限拒绝和来源标记都要有稳定形状。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/capability_maps.py`
-- `tws-ai-slide-rule-python/services/slide_rule_executor.py`
-- `tws-ai-slide-rule-python/services/mcp_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_mcp_call_real_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_mcp_call_runtime_smoke.py`
+- `slide-rule-python/services/capability_maps.py`
+- `slide-rule-python/services/slide_rule_executor.py`
+- `slide-rule-python/services/mcp_runtime.py`
+- `slide-rule-python/tests/test_mcp_call_real_runtime.py`
+- `slide-rule-python/tests/test_mcp_call_runtime_smoke.py`
 - `agent-loop/tasks/backend-python-mcp-call-real-runtime.md`
 
 ## 禁止扩大范围

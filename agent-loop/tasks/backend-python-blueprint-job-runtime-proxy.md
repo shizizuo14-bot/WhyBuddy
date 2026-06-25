@@ -18,9 +18,9 @@
 
 ## 允许修改的文件
 - `agent-loop/tasks/backend-python-blueprint-job-runtime-proxy.md`
-- `tws-ai-slide-rule-python/routes/blueprint_jobs.py`
-- `tws-ai-slide-rule-python/services/blueprint_job_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_job_runtime_proxy.py`
+- `slide-rule-python/routes/blueprint_jobs.py`
+- `slide-rule-python/services/blueprint_job_runtime.py`
+- `slide-rule-python/tests/test_blueprint_job_runtime_proxy.py`
 - `server/routes/blueprint/jobs/service.ts`
 - `server/routes/blueprint/jobs/service.test.ts`
 - `server/routes/__tests__/blueprint.job-runtime-python-proxy.test.ts`

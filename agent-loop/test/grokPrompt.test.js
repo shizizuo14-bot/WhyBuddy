@@ -30,7 +30,7 @@ test('buildAgentFixPrompt gives a direct fast path for missing gate files listed
       '',
       '## allowed files',
       '',
-      '- `tws-ai-slide-rule-python/tests/test_missing_runtime.py`',
+      '- `slide-rule-python/tests/test_missing_runtime.py`',
       '',
       '## success criteria',
       '',

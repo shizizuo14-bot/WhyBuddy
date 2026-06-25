@@ -9,11 +9,11 @@
 The current event stream is a finite snapshot helper. v2 needs an event-oriented stream that the Web console can replay incrementally while preserving finite testability.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/routes/agent_loop.py`
-- `tws-ai-slide-rule-python/services/agent_loop_events.py`
-- `tws-ai-slide-rule-python/services/agent_loop_event_store.py`
-- `tws-ai-slide-rule-python/services/agent_loop_state_reducer.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_sse_stream_v2.py`
+- `slide-rule-python/routes/agent_loop.py`
+- `slide-rule-python/services/agent_loop_events.py`
+- `slide-rule-python/services/agent_loop_event_store.py`
+- `slide-rule-python/services/agent_loop_state_reducer.py`
+- `slide-rule-python/tests/test_agent_loop_sse_stream_v2.py`
 - `agent-loop/tasks/sliderule-agentloop-sse-stream-v2-110.md`
 - This task file
 

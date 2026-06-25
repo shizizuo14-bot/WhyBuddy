@@ -7,7 +7,7 @@ health failures are diagnosed. It does not migrate new business capabilities.
 
 ## Python service defaults
 
-The Python service is `tws-ai-slide-rule-python/app.py`.
+The Python service is `slide-rule-python/app.py`.
 
 | Setting | Default | Meaning |
 | --- | --- | --- |
@@ -61,8 +61,8 @@ payloads that look like retrieved Python evidence.
 The migration queue uses `runtimeConfigGates`:
 
 ```powershell
-cd tws-ai-slide-rule-python; & "tws-ai-slide-rule-python/.venv/Scripts/python.exe" -m pytest tests/test_runtime_config_boundary.py tests/test_config.py -q --tb=short
+cd slide-rule-python; & "slide-rule-python/.venv/Scripts/python.exe" -m pytest tests/test_runtime_config_boundary.py tests/test_config.py -q --tb=short
 pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/python-runtime-config-boundary.test.ts --reporter=dot
 pnpm exec tsc --noEmit --pretty false
-node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-runtime-config-boundary.md docs/backend-python-runtime-config-boundary.md tws-ai-slide-rule-python/tests/test_runtime_config_boundary.py server/routes/__tests__/python-runtime-config-boundary.test.ts
+node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-runtime-config-boundary.md docs/backend-python-runtime-config-boundary.md slide-rule-python/tests/test_runtime_config_boundary.py server/routes/__tests__/python-runtime-config-boundary.test.ts
 ```

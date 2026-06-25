@@ -21,12 +21,12 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/blueprint_job_store_scope_decision.py`
-- `tws-ai-slide-rule-python/services/blueprint_production_ownership_closure.py`
-- `tws-ai-slide-rule-python/services/blueprint_shell_state_cutover.py`
-- `tws-ai-slide-rule-python/services/blueprint_job_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_job_store_scope_decision_103.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_production_ownership_closure_102.py`
+- `slide-rule-python/services/blueprint_job_store_scope_decision.py`
+- `slide-rule-python/services/blueprint_production_ownership_closure.py`
+- `slide-rule-python/services/blueprint_shell_state_cutover.py`
+- `slide-rule-python/services/blueprint_job_runtime.py`
+- `slide-rule-python/tests/test_blueprint_job_store_scope_decision_103.py`
+- `slide-rule-python/tests/test_blueprint_production_ownership_closure_102.py`
 - `server/routes/blueprint/job-store-scope-decision-python.ts`
 - `server/routes/blueprint/production-ownership-closure-python.ts`
 - `server/routes/blueprint/jobs/service.ts`

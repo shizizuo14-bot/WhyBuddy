@@ -21,10 +21,10 @@ Web AIGC 长尾里 dynamic chart 和 transaction-flow 已经落地，OCR 和 sta
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/web_aigc_ocr_static_adapter.py`
-- `tws-ai-slide-rule-python/services/web_aigc_media_adapter.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_ocr_static_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_vision_audio_runtime_bridge.py`
+- `slide-rule-python/services/web_aigc_ocr_static_adapter.py`
+- `slide-rule-python/services/web_aigc_media_adapter.py`
+- `slide-rule-python/tests/test_web_aigc_ocr_static_runtime.py`
+- `slide-rule-python/tests/test_web_aigc_vision_audio_runtime_bridge.py`
 - `server/routes/ocr-recognition.ts`
 - `server/routes/static-webpage-read.ts`
 - `server/routes/node-adapters/ocr-recognition-node-adapter.ts`

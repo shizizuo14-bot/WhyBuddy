@@ -17,8 +17,8 @@
 Blueprint/spec-docs 迁移不只生成文档，还需要审查和导出边界。这个任务只做 proxy contract，为后续真正 runtime 迁移铺路。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/routes/blueprint_spec_docs.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_review_export_proxy.py`
+- `slide-rule-python/routes/blueprint_spec_docs.py`
+- `slide-rule-python/tests/test_blueprint_review_export_proxy.py`
 - `server/routes/blueprint.ts`
 - `server/routes/__tests__/blueprint.review-export-python-proxy.test.ts`
 - `agent-loop/tasks/backend-python-blueprint-review-export-proxy.md`

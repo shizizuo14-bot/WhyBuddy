@@ -34,11 +34,11 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/client.py`
-- `tws-ai-slide-rule-python/sliderule_llm/__init__.py`
-- `tws-ai-slide-rule-python/tests/test_client_parity.py`
-- `tws-ai-slide-rule-python/tests/test_config.py`（仅当 gate 证明必须联动）
-- `tws-ai-slide-rule-python/tests/test_capabilities.py`（仅当 gate 包含该文件且需修正回归口径）
+- `slide-rule-python/sliderule_llm/client.py`
+- `slide-rule-python/sliderule_llm/__init__.py`
+- `slide-rule-python/tests/test_client_parity.py`
+- `slide-rule-python/tests/test_config.py`（仅当 gate 证明必须联动）
+- `slide-rule-python/tests/test_capabilities.py`（仅当 gate 包含该文件且需修正回归口径）
 - `agent-loop/tasks/backend-python-llm-client-parity.md`
 
 ## 禁止事项
@@ -52,11 +52,11 @@
 ## 必跑 gate
 
 ```powershell
-cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_client_parity.py tests/test_config.py tests/test_capabilities.py -q --tb=short
+cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_client_parity.py tests/test_config.py tests/test_capabilities.py -q --tb=short
 ```
 
 ```powershell
-node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-llm-client-parity.md tws-ai-slide-rule-python/sliderule_llm/client.py tws-ai-slide-rule-python/tests/test_client_parity.py
+node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-llm-client-parity.md slide-rule-python/sliderule_llm/client.py slide-rule-python/tests/test_client_parity.py
 ```
 
 ## 成功标准

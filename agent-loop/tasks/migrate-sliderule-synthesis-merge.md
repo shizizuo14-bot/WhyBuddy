@@ -30,10 +30,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/capabilities.py`
-- `tws-ai-slide-rule-python/routes/sliderule_full.py`（仅当路由未走 native）
-- `tws-ai-slide-rule-python/tests/test_capabilities.py`
-- `tws-ai-slide-rule-python/tests/test_v5_contract_expansion.py`
+- `slide-rule-python/sliderule_llm/capabilities.py`
+- `slide-rule-python/routes/sliderule_full.py`（仅当路由未走 native）
+- `slide-rule-python/tests/test_capabilities.py`
+- `slide-rule-python/tests/test_v5_contract_expansion.py`
 - `server/routes/sliderule.ts`
 - `server/routes/__tests__/sliderule.execute-capability.test.ts`
 
@@ -46,7 +46,7 @@
 ## 必跑 gate
 
 ```powershell
-cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short
+cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_capabilities.py tests/test_config.py tests/test_v5_smoke.py tests/test_v5_contract_expansion.py -q --tb=short
 ```
 
 ```powershell
@@ -58,7 +58,7 @@ pnpm exec tsc --noEmit --pretty false
 ```
 
 ```powershell
-node agent-loop/src/check-mojibake.js tws-ai-slide-rule-python server/routes/__tests__/sliderule.execute-capability.test.ts
+node agent-loop/src/check-mojibake.js slide-rule-python server/routes/__tests__/sliderule.execute-capability.test.ts
 ```
 
 ## 成功标准

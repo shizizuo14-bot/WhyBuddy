@@ -9,8 +9,8 @@
 The Python control plane needs stable response models before routes and UI can rely on AgentLoop data. This task creates the shared model layer.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/models/agent_loop.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_models.py`
+- `slide-rule-python/models/agent_loop.py`
+- `slide-rule-python/tests/test_agent_loop_models.py`
 - `agent-loop/tasks/sliderule-agentloop-data-model-alignment-108.md`
 - This task file
 

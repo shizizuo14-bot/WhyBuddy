@@ -17,7 +17,7 @@
 Blueprint brainstorm 是主状态机前段大块。这个任务只建立 Python contract，让后续可逐步迁移。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_blueprint_brainstorm_contract.py`
+- `slide-rule-python/tests/test_blueprint_brainstorm_contract.py`
 - `server/routes/blueprint/brainstorm/decision-gate.ts`
 - `server/routes/blueprint/brainstorm/brainstorm-event-guard.property.test.ts`
 - `server/routes/__tests__/blueprint.brainstorm-python-contract.test.ts`

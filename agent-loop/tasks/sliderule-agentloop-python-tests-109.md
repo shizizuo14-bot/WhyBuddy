@@ -9,8 +9,8 @@
 The merged product should be testable without live workers or local `.agent-loop/runs` state. This task creates reusable fixtures for run state, reports, logs, artifacts, settings, and redaction tests.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/tests/fixtures/agent_loop_run/`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_python_harness.py`
+- `slide-rule-python/tests/fixtures/agent_loop_run/`
+- `slide-rule-python/tests/test_agent_loop_python_harness.py`
 - `agent-loop/tasks/sliderule-agentloop-python-tests-109.md`
 - This task file
 

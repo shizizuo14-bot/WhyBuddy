@@ -43,7 +43,7 @@ def test_python_health_exposes_deployment_boundary_without_secrets():
     assert response.status_code == 200
     body = response.json()
     assert body["status"] == "ok"
-    assert body["backend"] == "tws-ai-slide-rule-python"
+    assert body["backend"] == "slide-rule-python"
     assert body["migration"] == "v5-baseline"
     assert "PYTHON_SLIDE_RULE" in body["note"]
     assert INTERNAL_KEY not in response.text

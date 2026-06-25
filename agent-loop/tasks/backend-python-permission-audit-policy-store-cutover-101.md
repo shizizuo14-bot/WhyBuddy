@@ -17,12 +17,12 @@
 97/100 阶段已经补了 permission audit hooks 和 auth-audit production closure，但状态表仍然把 persistence、policy、external audit 标成 Node-owned gap。101 这一刀只补 policy store 与 audit durable boundary 的 cutover readiness，不假装替换完整企业审计平台。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/permission_audit_policy_store_cutover.py`
-- `tws-ai-slide-rule-python/services/permission_audit_hooks.py`
-- `tws-ai-slide-rule-python/services/permission_management.py`
-- `tws-ai-slide-rule-python/services/audit_retention_export.py`
-- `tws-ai-slide-rule-python/services/audit_sink.py`
-- `tws-ai-slide-rule-python/tests/test_permission_audit_policy_store_cutover_101.py`
+- `slide-rule-python/services/permission_audit_policy_store_cutover.py`
+- `slide-rule-python/services/permission_audit_hooks.py`
+- `slide-rule-python/services/permission_management.py`
+- `slide-rule-python/services/audit_retention_export.py`
+- `slide-rule-python/services/audit_sink.py`
+- `slide-rule-python/tests/test_permission_audit_policy_store_cutover_101.py`
 - `server/permission/check-engine.ts`
 - `server/permission/audit-logger.ts`
 - `server/audit/audit-hooks.ts`

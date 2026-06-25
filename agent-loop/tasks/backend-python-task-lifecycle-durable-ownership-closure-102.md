@@ -20,10 +20,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/task_lifecycle_durable_ownership_closure.py`
-- `tws-ai-slide-rule-python/services/task_store_auth_scheduler_cutover.py`
-- `tws-ai-slide-rule-python/services/task_lifecycle_production_closure.py`
-- `tws-ai-slide-rule-python/tests/test_task_lifecycle_durable_ownership_closure_102.py`
+- `slide-rule-python/services/task_lifecycle_durable_ownership_closure.py`
+- `slide-rule-python/services/task_store_auth_scheduler_cutover.py`
+- `slide-rule-python/services/task_lifecycle_production_closure.py`
+- `slide-rule-python/tests/test_task_lifecycle_durable_ownership_closure_102.py`
 - `server/routes/tasks.ts`
 - `server/tasks/mission-store.ts`
 - `server/tasks/mission-runtime.ts`

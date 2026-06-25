@@ -17,11 +17,11 @@
 当前 audit event/query/sink 已有部分 contract/runtime/production smoke，但 retention/export/anomaly/compliance 仍是整体后端 95 的阻塞项。本任务只做 retention/export 最小 runtime boundary，为后续 anomaly/compliance 拆片留边界。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/audit_sink.py`
-- `tws-ai-slide-rule-python/services/audit_retention_export.py`
-- `tws-ai-slide-rule-python/tests/test_audit_retention_export_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_audit_production_sink.py`
-- `tws-ai-slide-rule-python/tests/test_audit_event_runtime_boundary.py`
+- `slide-rule-python/services/audit_sink.py`
+- `slide-rule-python/services/audit_retention_export.py`
+- `slide-rule-python/tests/test_audit_retention_export_runtime.py`
+- `slide-rule-python/tests/test_audit_production_sink.py`
+- `slide-rule-python/tests/test_audit_event_runtime_boundary.py`
 - `server/routes/audit.ts`
 - `server/audit/audit-retention.ts`
 - `server/audit/audit-export.ts`

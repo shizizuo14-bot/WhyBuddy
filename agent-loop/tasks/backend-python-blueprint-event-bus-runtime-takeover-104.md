@@ -9,8 +9,8 @@
 103 left Blueprint `eventBus` as `node-retained`. This task attacks that exact blocker. A small slice is acceptable, but it must be real code with tests, not a markdown claim.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/blueprint_event_bus_runtime_takeover.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_event_bus_runtime_takeover_104.py`
+- `slide-rule-python/services/blueprint_event_bus_runtime_takeover.py`
+- `slide-rule-python/tests/test_blueprint_event_bus_runtime_takeover_104.py`
 - `server/routes/blueprint/event-bus-runtime-takeover-python.ts`
 - `server/routes/blueprint/event-bus.ts`
 - `server/routes/__tests__/blueprint.event-bus-runtime-takeover-104.test.ts`

@@ -20,13 +20,13 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/external_provider_cutover.py`
-- `tws-ai-slide-rule-python/services/external_dependency_live_smoke.py`
-- `tws-ai-slide-rule-python/services/telemetry.py`
-- `tws-ai-slide-rule-python/sliderule_llm/vector.py`
-- `tws-ai-slide-rule-python/sliderule_llm/evidence.py`
-- `tws-ai-slide-rule-python/tests/test_external_provider_cutover_100.py`
-- `tws-ai-slide-rule-python/tests/test_external_dependency_live_smoke_97.py`
+- `slide-rule-python/services/external_provider_cutover.py`
+- `slide-rule-python/services/external_dependency_live_smoke.py`
+- `slide-rule-python/services/telemetry.py`
+- `slide-rule-python/sliderule_llm/vector.py`
+- `slide-rule-python/sliderule_llm/evidence.py`
+- `slide-rule-python/tests/test_external_provider_cutover_100.py`
+- `slide-rule-python/tests/test_external_dependency_live_smoke_97.py`
 - `server/routes/__tests__/python-external-provider-cutover-100.test.ts`
 - `server/routes/__tests__/python-external-dependency-live-smoke.test.ts`
 - `server/rag/store/qdrant-adapter.ts`

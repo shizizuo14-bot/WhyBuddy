@@ -9,10 +9,10 @@
 The UI should migrate out of VS Code as the primary product surface. This task makes the Python-served Web route explicit while keeping the bridge shell small.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/routes/agent_loop.py`
-- `tws-ai-slide-rule-python/static/agent-loop/index.html`
-- `tws-ai-slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_web_route_shell.py`
+- `slide-rule-python/routes/agent_loop.py`
+- `slide-rule-python/static/agent-loop/index.html`
+- `slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
+- `slide-rule-python/tests/test_agent_loop_web_route_shell.py`
 - `agent-loop/tasks/sliderule-agentloop-web-route-shell-110.md`
 - This task file
 

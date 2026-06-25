@@ -17,8 +17,8 @@
 permission 是后端迁移大块。先锁 Python contract，后续再逐步迁 runtime。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_permission_check_contract.py`
-- `tws-ai-slide-rule-python/middlewares/auth.py`
+- `slide-rule-python/tests/test_permission_check_contract.py`
+- `slide-rule-python/middlewares/auth.py`
 - `server/permission/check-engine.ts`
 - `server/permission/check-engine.test.ts`
 - `server/permission/check-engine-python-contract.test.ts`

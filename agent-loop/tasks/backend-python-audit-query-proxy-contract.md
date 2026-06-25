@@ -17,7 +17,7 @@
 audit event contract 只锁写入形状。这个任务锁查询形状，为后续 audit 子系统迁移铺路。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_audit_query_proxy_contract.py`
+- `slide-rule-python/tests/test_audit_query_proxy_contract.py`
 - `server/audit/audit-query.ts`
 - `server/tests/audit-query.test.ts`
 - `server/tests/audit-query-python-proxy.test.ts`

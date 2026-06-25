@@ -9,9 +9,9 @@
 The dashboard should feel like part of SlideRule, not a transplanted VS Code panel. This task adds the first browser navigation structure.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/static/agent-loop/index.html`
-- `tws-ai-slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_navigation_shell.py`
+- `slide-rule-python/static/agent-loop/index.html`
+- `slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
+- `slide-rule-python/tests/test_agent_loop_navigation_shell.py`
 - `agent-loop/tasks/sliderule-agentloop-navigation-shell-108.md`
 - This task file
 

@@ -9,7 +9,7 @@
 ### 状态清单
 
 - [x] 已执行 AgentLoop
-- [x] 已新增 `tws-ai-slide-rule-python/tests/test_evidence_vector_contract.py`
+- [x] 已新增 `slide-rule-python/tests/test_evidence_vector_contract.py`
 - [x] 测试覆盖 retrieved / fallback / generated 三种 provenance（来源）
 - [x] 测试不依赖真实 Qdrant、真实 embedding 或真实 LLM key
 - [x] gate 全绿
@@ -23,13 +23,13 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/tests/test_evidence_vector_contract.py`
+- `slide-rule-python/tests/test_evidence_vector_contract.py`
 - `agent-loop/tasks/backend-python-evidence-vector-contract.md`
 
 ## 禁止扩大范围
 
-- 不改 `tws-ai-slide-rule-python/sliderule_llm/evidence.py`，除非测试暴露了明确 bug。
-- 不改 `tws-ai-slide-rule-python/sliderule_llm/vector.py`，除非测试暴露了明确 bug。
+- 不改 `slide-rule-python/sliderule_llm/evidence.py`，除非测试暴露了明确 bug。
+- 不改 `slide-rule-python/sliderule_llm/vector.py`，除非测试暴露了明确 bug。
 - 不接真实 Qdrant。
 - 不接真实 embedding provider。
 - 不接真实 LLM。

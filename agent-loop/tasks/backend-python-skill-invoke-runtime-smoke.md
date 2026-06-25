@@ -23,10 +23,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/slide_rule_executor.py`
-- `tws-ai-slide-rule-python/services/capability_maps.py`
-- `tws-ai-slide-rule-python/tests/test_skill_invoke_runtime_smoke.py`
-- `tws-ai-slide-rule-python/tests/test_skill_invoke_contract.py`
+- `slide-rule-python/services/slide_rule_executor.py`
+- `slide-rule-python/services/capability_maps.py`
+- `slide-rule-python/tests/test_skill_invoke_runtime_smoke.py`
+- `slide-rule-python/tests/test_skill_invoke_contract.py`
 - `server/routes/__tests__/sliderule.skill-invoke-contract.test.ts`
 - `agent-loop/tasks/backend-python-skill-invoke-runtime-smoke.md`
 

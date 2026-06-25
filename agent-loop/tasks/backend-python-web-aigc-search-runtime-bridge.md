@@ -17,9 +17,9 @@
 上一轮已经有 search adapter contract。这个任务推进到 runtime bridge，但 provider 仍使用 fake/in-memory provider（假/内存提供方）。重点是 Node 到 Python 的调用边界、状态字段和 provenance（来源）稳定。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/web_aigc_search_adapter.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_search_runtime_bridge.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_search_adapter_contract.py`
+- `slide-rule-python/services/web_aigc_search_adapter.py`
+- `slide-rule-python/tests/test_web_aigc_search_runtime_bridge.py`
+- `slide-rule-python/tests/test_web_aigc_search_adapter_contract.py`
 - `server/routes/node-adapters/web-search-node-adapter.ts`
 - `server/routes/node-adapters/graph-search-node-adapter.ts`
 - `server/routes/node-adapters/image-search-node-adapter.ts`

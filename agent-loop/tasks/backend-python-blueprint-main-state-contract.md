@@ -18,9 +18,9 @@
 
 ## 允许修改的文件
 - `agent-loop/tasks/backend-python-blueprint-main-state-contract.md`
-- `tws-ai-slide-rule-python/models/blueprint_state.py`
-- `tws-ai-slide-rule-python/services/blueprint_state.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_main_state_contract.py`
+- `slide-rule-python/models/blueprint_state.py`
+- `slide-rule-python/services/blueprint_state.py`
+- `slide-rule-python/tests/test_blueprint_main_state_contract.py`
 - `shared/blueprint/*.ts`
 - `server/routes/__tests__/blueprint.main-state-python-contract.test.ts`
 

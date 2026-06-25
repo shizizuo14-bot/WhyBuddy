@@ -9,8 +9,8 @@
 103 kept `emailCodeMailer` and `userRepository` as Node retained. These may not be worth migrating, but they must be formally classified so they stop being vague 100% blockers.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/auth_mailer_user_store_scope.py`
-- `tws-ai-slide-rule-python/tests/test_auth_mailer_user_store_scope_104.py`
+- `slide-rule-python/services/auth_mailer_user_store_scope.py`
+- `slide-rule-python/tests/test_auth_mailer_user_store_scope_104.py`
 - `server/auth/email-code-service.ts`
 - `server/auth/email-mailer.ts`
 - `server/routes/auth.ts`

@@ -20,10 +20,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/blueprint_production_ownership_closure.py`
-- `tws-ai-slide-rule-python/services/blueprint_shell_state_cutover.py`
-- `tws-ai-slide-rule-python/services/blueprint_main_runtime_closure.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_production_ownership_closure_102.py`
+- `slide-rule-python/services/blueprint_production_ownership_closure.py`
+- `slide-rule-python/services/blueprint_shell_state_cutover.py`
+- `slide-rule-python/services/blueprint_main_runtime_closure.py`
+- `slide-rule-python/tests/test_blueprint_production_ownership_closure_102.py`
 - `server/routes/blueprint/production-ownership-closure-python.ts`
 - `server/routes/blueprint/shell-state-cutover-python.ts`
 - `server/routes/blueprint/main-runtime-closure-python.ts`

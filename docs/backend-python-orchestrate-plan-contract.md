@@ -84,8 +84,8 @@ planner output.
 
 The migration gate locks the contract with:
 
-- `tws-ai-slide-rule-python/tests/test_orchestrate_plan_contract.py`
-- `tws-ai-slide-rule-python/tests/test_orchestrate_plan_error_recovery.py`
-- `tws-ai-slide-rule-python/tests/test_orchestrate_plan_thin_planner.py`
+- `slide-rule-python/tests/test_orchestrate_plan_contract.py`
+- `slide-rule-python/tests/test_orchestrate_plan_error_recovery.py`
+- `slide-rule-python/tests/test_orchestrate_plan_thin_planner.py`
 - `server/routes/__tests__/sliderule.orchestrate-plan-python-contract.test.ts`
 - existing `server/routes/__tests__/sliderule.orchestrate-plan.test.ts`

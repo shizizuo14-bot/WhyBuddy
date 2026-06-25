@@ -23,9 +23,9 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/client.py`
-- `tws-ai-slide-rule-python/tests/test_stream_runtime_adapter.py`
-- `tws-ai-slide-rule-python/tests/test_stream_contract.py`
+- `slide-rule-python/sliderule_llm/client.py`
+- `slide-rule-python/tests/test_stream_runtime_adapter.py`
+- `slide-rule-python/tests/test_stream_contract.py`
 - `agent-loop/tasks/backend-python-llm-stream-runtime-adapter.md`
 
 ## 禁止扩大范围

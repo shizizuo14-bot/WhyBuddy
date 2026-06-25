@@ -17,9 +17,9 @@
 这个任务不是全面替换权限系统。只把 permission check 的输入、输出、原因码和 failure 语义做成可运行边界。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/middlewares/auth.py`
-- `tws-ai-slide-rule-python/tests/test_permission_check_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_permission_check_contract.py`
+- `slide-rule-python/middlewares/auth.py`
+- `slide-rule-python/tests/test_permission_check_runtime_boundary.py`
+- `slide-rule-python/tests/test_permission_check_contract.py`
 - `server/permission/check-engine.ts`
 - `server/permission/check-engine-python-runtime.test.ts`
 - `server/permission/check-engine-python-contract.test.ts`

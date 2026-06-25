@@ -17,11 +17,11 @@
 多模态是 LLM infra 大分母之一。先锁输入输出 contract，为后续真实 provider 支持铺路。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/sliderule_llm/client.py`
-- `tws-ai-slide-rule-python/sliderule_llm/config.py`
-- `tws-ai-slide-rule-python/tests/test_multimodal_contract.py`
-- `tws-ai-slide-rule-python/tests/test_client_parity.py`
-- `tws-ai-slide-rule-python/tests/test_json_hardening.py`
+- `slide-rule-python/sliderule_llm/client.py`
+- `slide-rule-python/sliderule_llm/config.py`
+- `slide-rule-python/tests/test_multimodal_contract.py`
+- `slide-rule-python/tests/test_client_parity.py`
+- `slide-rule-python/tests/test_json_hardening.py`
 - `agent-loop/tasks/backend-python-llm-multimodal-contract.md`
 
 ## 禁止扩大范围

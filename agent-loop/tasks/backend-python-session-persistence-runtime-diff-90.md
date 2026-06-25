@@ -17,8 +17,8 @@
 90% 阶段不能让 `DONE_REVIEWED_NO_DIFF` 悬着。这个任务要么补一个真实 diff（差异补丁），要么用当前代码和测试证明它只是已有能力复核。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/persistence.py`
-- `tws-ai-slide-rule-python/tests/test_session_persistence_contract.py`
+- `slide-rule-python/services/persistence.py`
+- `slide-rule-python/tests/test_session_persistence_contract.py`
 - `server/routes/__tests__/sliderule.sessions-store.test.ts`
 - `agent-loop/tasks/backend-python-session-persistence-runtime-diff-90.md`
 

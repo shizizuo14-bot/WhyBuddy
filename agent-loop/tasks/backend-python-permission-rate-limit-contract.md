@@ -17,7 +17,7 @@
 permission 迁移不能只看 check-engine，还要覆盖 rate limiter。这个任务先锁 contract。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_permission_rate_limit_contract.py`
+- `slide-rule-python/tests/test_permission_rate_limit_contract.py`
 - `server/permission/rate-limiter.ts`
 - `server/permission/rate-limiter.test.ts`
 - `server/permission/rate-limiter-python-contract.test.ts`

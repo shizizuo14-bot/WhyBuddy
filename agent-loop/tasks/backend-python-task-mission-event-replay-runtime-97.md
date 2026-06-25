@@ -20,10 +20,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/services/task_lifecycle_runtime.py`
-- `tws-ai-slide-rule-python/services/mission_event_replay.py`
-- `tws-ai-slide-rule-python/tests/test_task_mission_event_replay_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_task_lifecycle_runtime_boundary.py`
+- `slide-rule-python/services/task_lifecycle_runtime.py`
+- `slide-rule-python/services/mission_event_replay.py`
+- `slide-rule-python/tests/test_task_mission_event_replay_runtime.py`
+- `slide-rule-python/tests/test_task_lifecycle_runtime_boundary.py`
 - `server/routes/tasks.ts`
 - `server/tasks/mission-store.ts`
 - `server/tasks/mission-runtime.ts`

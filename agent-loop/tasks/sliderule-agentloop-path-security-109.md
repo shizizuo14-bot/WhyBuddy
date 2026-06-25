@@ -9,9 +9,9 @@
 The Python control plane now reads Node AgentLoop artifacts. Before adding richer artifact/log APIs, path resolution must be centralized and bounded so browser input cannot escape documented run roots.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/agent_loop_paths.py`
-- `tws-ai-slide-rule-python/services/agent_loop_runs.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_path_security.py`
+- `slide-rule-python/services/agent_loop_paths.py`
+- `slide-rule-python/services/agent_loop_runs.py`
+- `slide-rule-python/tests/test_agent_loop_path_security.py`
 - `agent-loop/tasks/sliderule-agentloop-path-security-109.md`
 - This task file
 

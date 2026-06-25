@@ -9,9 +9,9 @@
 The reducer is the core SSOT bridge: UI state, flow graph, timeline, and final status must come from replayed events instead of artifact guessing.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/agent_loop_event_schema.py`
-- `tws-ai-slide-rule-python/services/agent_loop_state_reducer.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_state_reducer.py`
+- `slide-rule-python/services/agent_loop_event_schema.py`
+- `slide-rule-python/services/agent_loop_state_reducer.py`
+- `slide-rule-python/tests/test_agent_loop_state_reducer.py`
 - `agent-loop/tasks/sliderule-agentloop-state-reducer-110.md`
 - This task file
 

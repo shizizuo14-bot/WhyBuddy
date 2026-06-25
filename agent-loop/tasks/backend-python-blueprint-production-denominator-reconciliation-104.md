@@ -9,8 +9,8 @@
 After job store, event bus, ledger, replan, prompt package, and preview state are attempted, this task must summarize which Blueprint surfaces are truly `python-owned`, which are `node-retained`, and which are `out-of-scope`.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/blueprint_production_denominator_reconciliation.py`
-- `tws-ai-slide-rule-python/tests/test_blueprint_production_denominator_reconciliation_104.py`
+- `slide-rule-python/services/blueprint_production_denominator_reconciliation.py`
+- `slide-rule-python/tests/test_blueprint_production_denominator_reconciliation_104.py`
 - `server/routes/blueprint/production-denominator-reconciliation-python.ts`
 - `server/routes/__tests__/blueprint.production-denominator-reconciliation-104.test.ts`
 - Relevant 104 Blueprint service/test files

@@ -9,7 +9,7 @@
 ### 状态清单
 
 - [x] 已执行 AgentLoop
-- [x] 已新增或更新 `tws-ai-slide-rule-python/tests/test_real_vector_retrieval_smoke.py`
+- [x] 已新增或更新 `slide-rule-python/tests/test_real_vector_retrieval_smoke.py`
 - [x] fake/in-memory vector store 能跑通 retrieved 路径
 - [x] fallback 路径仍然诚实标记，不伪装成 retrieved
 - [x] gate 全绿
@@ -23,10 +23,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/evidence.py`
-- `tws-ai-slide-rule-python/sliderule_llm/vector.py`
-- `tws-ai-slide-rule-python/tests/test_real_vector_retrieval_smoke.py`
-- `tws-ai-slide-rule-python/tests/test_evidence_vector_contract.py`
+- `slide-rule-python/sliderule_llm/evidence.py`
+- `slide-rule-python/sliderule_llm/vector.py`
+- `slide-rule-python/tests/test_real_vector_retrieval_smoke.py`
+- `slide-rule-python/tests/test_evidence_vector_contract.py`
 - `agent-loop/tasks/backend-python-real-vector-retrieval-smoke.md`
 
 ## 禁止扩大范围

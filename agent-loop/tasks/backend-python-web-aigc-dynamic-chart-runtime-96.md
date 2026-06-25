@@ -17,8 +17,8 @@
 Web AIGC long-tail 中 dynamic chart 当前仍是 node-only。本任务只迁 dynamic chart decision envelope，让 Python 负责规范化 chart spec、校验输入和返回可诊断错误。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/web_aigc_dynamic_chart_adapter.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_dynamic_chart_runtime.py`
+- `slide-rule-python/services/web_aigc_dynamic_chart_adapter.py`
+- `slide-rule-python/tests/test_web_aigc_dynamic_chart_runtime.py`
 - `server/routes/dynamic-chart.ts`
 - `server/routes/node-adapters/dynamic-chart-node-adapter.ts`
 - `server/tests/dynamic-chart-python-runtime.test.ts`

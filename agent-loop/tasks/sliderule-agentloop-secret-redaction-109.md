@@ -9,11 +9,11 @@
 AgentLoop touches provider keys, proxy URLs, bearer tokens, environment variables, command receipts, and worker stderr. The Python control plane must redact before returning anything to the browser or tests.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/agent_loop_redaction.py`
-- `tws-ai-slide-rule-python/services/agent_loop_runs.py`
-- `tws-ai-slide-rule-python/services/agent_loop_bridge.py`
-- `tws-ai-slide-rule-python/services/agent_loop_provider_health.py`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_secret_redaction.py`
+- `slide-rule-python/services/agent_loop_redaction.py`
+- `slide-rule-python/services/agent_loop_runs.py`
+- `slide-rule-python/services/agent_loop_bridge.py`
+- `slide-rule-python/services/agent_loop_provider_health.py`
+- `slide-rule-python/tests/test_agent_loop_secret_redaction.py`
 - `agent-loop/tasks/sliderule-agentloop-secret-redaction-109.md`
 - This task file
 

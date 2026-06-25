@@ -17,9 +17,9 @@
 上一轮 telemetry route 已经区分 synthetic/estimated/actual。这个任务推进到 sink adapter，但仍不接真实生产监控系统。重点是数据来源不能乱。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/telemetry.py`
-- `tws-ai-slide-rule-python/tests/test_telemetry_production_sink.py`
-- `tws-ai-slide-rule-python/tests/test_telemetry_route_contract.py`
+- `slide-rule-python/services/telemetry.py`
+- `slide-rule-python/tests/test_telemetry_production_sink.py`
+- `slide-rule-python/tests/test_telemetry_route_contract.py`
 - `server/routes/telemetry.ts`
 - `server/routes/__tests__/telemetry-python-production-sink.test.ts`
 - `server/routes/__tests__/telemetry-python-route-contract.test.ts`

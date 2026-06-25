@@ -18,8 +18,8 @@
 
 ## 允许修改的文件
 - `agent-loop/tasks/backend-python-web-aigc-vision-audio-adapter-contract.md`
-- `tws-ai-slide-rule-python/services/web_aigc_media_adapter.py`
-- `tws-ai-slide-rule-python/tests/test_web_aigc_vision_audio_adapter_contract.py`
+- `slide-rule-python/services/web_aigc_media_adapter.py`
+- `slide-rule-python/tests/test_web_aigc_vision_audio_adapter_contract.py`
 - `server/routes/node-adapters/ocr-recognition-node-adapter.ts`
 - `server/routes/node-adapters/audio-recognition-node-adapter.ts`
 - `server/core/vision-provider.ts`

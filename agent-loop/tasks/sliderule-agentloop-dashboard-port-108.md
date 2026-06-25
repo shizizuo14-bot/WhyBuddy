@@ -2,17 +2,17 @@
 
 ## Execution status
 - Status: pending
-- Goal: serve an initial AgentLoop browser dashboard from `tws-ai-slide-rule-python`.
+- Goal: serve an initial AgentLoop browser dashboard from `slide-rule-python`.
 - Required gate: `slideruleAgentLoopDashboardPort108Gates`
 
 ## Context
 The user wants AgentLoop and SlideRule to become one product. This task creates the first Python-served dashboard shell instead of relying on the VS Code webview as the primary UI.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/routes/agent_loop.py`
-- `tws-ai-slide-rule-python/static/agent-loop/index.html`
-- `tws-ai-slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_dashboard_port.py`
+- `slide-rule-python/routes/agent_loop.py`
+- `slide-rule-python/static/agent-loop/index.html`
+- `slide-rule-python/static/agent-loop/agent-loop-dashboard.js`
+- `slide-rule-python/tests/test_agent_loop_dashboard_port.py`
 - `agent-loop/tasks/sliderule-agentloop-dashboard-port-108.md`
 - This task file
 

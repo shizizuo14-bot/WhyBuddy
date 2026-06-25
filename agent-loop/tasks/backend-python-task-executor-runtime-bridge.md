@@ -17,9 +17,9 @@
 executor/tasks 是整体 NodeJS 后端迁移的大块之一。上一批 proxy contract 容易卡在 HALT_NO_CHANGES，这次要用最小 runtime bridge 产生真实迁移 diff，并把错误状态语义固定下来。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/task_executor_runtime.py`
-- `tws-ai-slide-rule-python/tests/test_task_executor_runtime_bridge.py`
-- `tws-ai-slide-rule-python/tests/test_task_executor_proxy_contract.py`
+- `slide-rule-python/services/task_executor_runtime.py`
+- `slide-rule-python/tests/test_task_executor_runtime_bridge.py`
+- `slide-rule-python/tests/test_task_executor_proxy_contract.py`
 - `server/core/executor-client.ts`
 - `server/tests/executor-client-python-runtime.test.ts`
 - `server/tests/executor-client-python-proxy-contract.test.ts`

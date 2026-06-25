@@ -17,9 +17,9 @@
 auth 是整体后端大分母。这个任务只推进 session validation 的 runtime boundary，不迁登录、注册、密码重置或真实 token 签发。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/middlewares/auth.py`
-- `tws-ai-slide-rule-python/tests/test_auth_session_runtime_boundary.py`
-- `tws-ai-slide-rule-python/tests/test_auth_session_contract.py`
+- `slide-rule-python/middlewares/auth.py`
+- `slide-rule-python/tests/test_auth_session_runtime_boundary.py`
+- `slide-rule-python/tests/test_auth_session_contract.py`
 - `server/auth/session-service.ts`
 - `server/tests/auth-session-runtime-boundary.test.ts`
 - `server/tests/auth-session-python-contract.test.ts`

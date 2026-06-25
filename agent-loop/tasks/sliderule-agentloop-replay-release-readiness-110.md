@@ -9,10 +9,10 @@
 The wave should finish with a release-readiness slice that proves replay, fallback, rollback, and operator docs are aligned before deeper runner rewrites begin.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/AGENT_LOOP_V2_RUNTIME_SSOT.md`
-- `tws-ai-slide-rule-python/AGENT_LOOP_RUNBOOK.md`
-- `tws-ai-slide-rule-python/README.md`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_replay_release_readiness.py`
+- `slide-rule-python/AGENT_LOOP_V2_RUNTIME_SSOT.md`
+- `slide-rule-python/AGENT_LOOP_RUNBOOK.md`
+- `slide-rule-python/README.md`
+- `slide-rule-python/tests/test_agent_loop_replay_release_readiness.py`
 - `agent-loop/tasks/sliderule-agentloop-replay-release-readiness-110.md`
 - This task file
 

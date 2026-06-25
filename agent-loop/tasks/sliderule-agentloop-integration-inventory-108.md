@@ -6,11 +6,11 @@
 - Required gate: `slideruleAgentLoopIntegrationInventory108Gates`
 
 ## Context
-The 108 wave merges AgentLoop into `tws-ai-slide-rule-python` using a Python control plane and the existing Node AgentLoop runner as an internal worker bridge. This first task prevents blind migration by inventorying the source system and target seams.
+The 108 wave merges AgentLoop into `slide-rule-python` using a Python control plane and the existing Node AgentLoop runner as an internal worker bridge. This first task prevents blind migration by inventorying the source system and target seams.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/AGENT_LOOP_INTEGRATION_INVENTORY.md`
-- `tws-ai-slide-rule-python/tests/test_agent_loop_integration_inventory.py`
+- `slide-rule-python/AGENT_LOOP_INTEGRATION_INVENTORY.md`
+- `slide-rule-python/tests/test_agent_loop_integration_inventory.py`
 - `agent-loop/tasks/sliderule-agentloop-integration-inventory-108.md`
 - This task file
 

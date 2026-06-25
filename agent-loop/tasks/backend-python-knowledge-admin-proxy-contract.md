@@ -17,8 +17,8 @@
 RAG/vector 继续推进时，knowledge admin 是大边界。这个任务只锁 proxy contract，不迁真实存储。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/rag_service.py`
-- `tws-ai-slide-rule-python/tests/test_knowledge_admin_proxy_contract.py`
+- `slide-rule-python/services/rag_service.py`
+- `slide-rule-python/tests/test_knowledge_admin_proxy_contract.py`
 - `server/routes/knowledge-admin.ts`
 - `server/routes/__tests__/knowledge-admin-python-proxy.test.ts`
 - `agent-loop/tasks/backend-python-knowledge-admin-proxy-contract.md`

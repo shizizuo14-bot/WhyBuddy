@@ -9,8 +9,8 @@
 103 kept audit durable store and retention as `node-retained`, while external audit platform stayed `external-owned`. This task should close or classify that production compliance blocker.
 
 ## Allowed files
-- `tws-ai-slide-rule-python/services/audit_durable_store_retention_takeover.py`
-- `tws-ai-slide-rule-python/tests/test_audit_durable_store_retention_takeover_104.py`
+- `slide-rule-python/services/audit_durable_store_retention_takeover.py`
+- `slide-rule-python/tests/test_audit_durable_store_retention_takeover_104.py`
 - `server/audit/audit-store.ts`
 - `server/audit/audit-retention.ts`
 - `server/routes/audit.ts`

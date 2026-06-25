@@ -6,8 +6,8 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 
-const pythonExe = path.resolve(process.cwd(), "tws-ai-slide-rule-python/.venv/Scripts/python.exe");
-const pythonCwd = path.resolve(process.cwd(), "tws-ai-slide-rule-python");
+const pythonExe = path.resolve(process.cwd(), "slide-rule-python/.venv/Scripts/python.exe");
+const pythonCwd = path.resolve(process.cwd(), "slide-rule-python");
 
 function runPythonPersistence(script: string, storeFile: string) {
   const result = spawnSync(pythonExe, ["-c", script], {

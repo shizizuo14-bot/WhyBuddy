@@ -17,7 +17,7 @@
 admin 是整体后端大分母。这个任务只建立 contract，不迁真实 admin 功能。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/tests/test_admin_route_contract.py`
+- `slide-rule-python/tests/test_admin_route_contract.py`
 - `server/routes/admin.ts`
 - `server/tests/admin-routes.test.ts`
 - `server/tests/admin-python-contract.test.ts`

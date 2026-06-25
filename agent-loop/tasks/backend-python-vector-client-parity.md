@@ -20,8 +20,8 @@
 
 - 最近执行：2026-06-19
 - 执行方式：Codex 本地实现，测试使用 fake transport，不连接真实 Qdrant
-- 新增实现：`tws-ai-slide-rule-python/sliderule_llm/vector.py`
-- 新增测试：`tws-ai-slide-rule-python/tests/test_vector_client_parity.py`
+- 新增实现：`slide-rule-python/sliderule_llm/vector.py`
+- 新增测试：`slide-rule-python/tests/test_vector_client_parity.py`
 - gate 结果：`vectorGates` 通过
 
 ## 目标
@@ -30,10 +30,10 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/vector.py`
-- `tws-ai-slide-rule-python/sliderule_llm/config.py`
-- `tws-ai-slide-rule-python/tests/test_vector_client_parity.py`
-- `tws-ai-slide-rule-python/tests/test_config.py`
+- `slide-rule-python/sliderule_llm/vector.py`
+- `slide-rule-python/sliderule_llm/config.py`
+- `slide-rule-python/tests/test_vector_client_parity.py`
+- `slide-rule-python/tests/test_config.py`
 - `agent-loop/tasks/backend-python-vector-client-parity.md`
 
 ## 禁止扩大范围

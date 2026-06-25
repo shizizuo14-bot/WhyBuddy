@@ -17,9 +17,9 @@
 SlideRule V5 子系统接近完成，但 session persistence 仍是重要运行时边界。这个任务锁 Python/Node 会话持久化 contract。
 
 ## 允许修改的文件
-- `tws-ai-slide-rule-python/services/persistence.py`
-- `tws-ai-slide-rule-python/services/slide_rule_session.py`
-- `tws-ai-slide-rule-python/tests/test_session_persistence_contract.py`
+- `slide-rule-python/services/persistence.py`
+- `slide-rule-python/services/slide_rule_session.py`
+- `slide-rule-python/tests/test_session_persistence_contract.py`
 - `server/routes/__tests__/sliderule.sessions-store.test.ts`
 - `agent-loop/tasks/backend-python-session-persistence-contract.md`
 

@@ -31,11 +31,11 @@
 
 ## 允许修改的文件
 
-- `tws-ai-slide-rule-python/sliderule_llm/pool.py`
-- `tws-ai-slide-rule-python/sliderule_llm/config.py`（仅 pool 相关字段）
-- `tws-ai-slide-rule-python/sliderule_llm/__init__.py`
-- `tws-ai-slide-rule-python/tests/test_pool_parity.py`
-- `tws-ai-slide-rule-python/tests/test_pool.py`
+- `slide-rule-python/sliderule_llm/pool.py`
+- `slide-rule-python/sliderule_llm/config.py`（仅 pool 相关字段）
+- `slide-rule-python/sliderule_llm/__init__.py`
+- `slide-rule-python/tests/test_pool_parity.py`
+- `slide-rule-python/tests/test_pool.py`
 - `agent-loop/tasks/backend-python-llm-pool-parity.md`
 
 ## 禁止事项
@@ -48,11 +48,11 @@
 ## 必跑 gate
 
 ```powershell
-cd tws-ai-slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_pool_parity.py tests/test_pool.py tests/test_config.py -q --tb=short
+cd slide-rule-python; .\.venv\Scripts\python.exe -m pytest tests/test_pool_parity.py tests/test_pool.py tests/test_config.py -q --tb=short
 ```
 
 ```powershell
-node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-llm-pool-parity.md tws-ai-slide-rule-python/sliderule_llm/pool.py tws-ai-slide-rule-python/tests/test_pool_parity.py
+node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-llm-pool-parity.md slide-rule-python/sliderule_llm/pool.py slide-rule-python/tests/test_pool_parity.py
 ```
 
 ## 成功标准
