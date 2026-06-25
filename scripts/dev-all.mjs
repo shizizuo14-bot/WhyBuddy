@@ -546,11 +546,25 @@ async function main() {
 
   if (existsSync(pythonExe)) {
     const pythonPort = process.env.SLIDE_RULE_PYTHON_PORT ?? "9700";
+    // The backend defaults its runs/events roots to the RELATIVE `.agent-loop/*`,
+    // resolved against the process cwd. Since we launch uvicorn with cwd set to the
+    // python package dir (so `app:app` imports), pin these to the repo-root absolute
+    // paths — otherwise the AgentLoop page reads an empty `slide-rule-python/.agent-loop`
+    // and shows zero runs. A user-set value always wins.
+    const pythonEnv = {
+      ...sharedDevEnv,
+      AGENT_LOOP_RUNS_DIR:
+        process.env.AGENT_LOOP_RUNS_DIR ??
+        resolve(__projectRoot, ".agent-loop", "runs"),
+      AGENT_LOOP_EVENTS_DIR:
+        process.env.AGENT_LOOP_EVENTS_DIR ??
+        resolve(__projectRoot, ".agent-loop", "events"),
+    };
     const python = run(
       "slide-rule-python",
       pythonExe,
       ["-m", "uvicorn", "app:app", "--host", "127.0.0.1", "--port", pythonPort],
-      sharedDevEnv,
+      pythonEnv,
       {
         cwd: pythonDir,
         portGuard: Number(pythonPort),
