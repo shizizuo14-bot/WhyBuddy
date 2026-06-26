@@ -211,6 +211,21 @@ export const rbacSkill: Skill<RbacModel> & CrossSkill<RbacModel> = {
         });
     });
 
+    // 2b) Separation of Duties (PDP kernel ◆ SoD) -------------------------
+    for (const sod of model.sodConstraints ?? []) {
+      const exclusive = new Set(sod.mutuallyExclusive);
+      for (const role of model.roles) {
+        const held = role.permissionCodes.filter(pc => exclusive.has(pc));
+        if (held.length > 1)
+          f.push({
+            code: "RBAC_SOD_VIOLATION",
+            severity: "error",
+            path: `roles[${role.id}].permissionCodes`,
+            message: `职责分离冲突「${sod.name}」：角色「${role.name}」同时持有互斥权限 [${held.join(", ")}]`,
+          });
+      }
+    }
+
     // 3) Tree integrity (menus + departments) ------------------------------
     for (const [label, nodes, dupCode] of [
       ["菜单", model.menus, "RBAC_MENU_TREE_FAULT"],
