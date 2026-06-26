@@ -9,6 +9,8 @@ import sys
 
 import pytest
 
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
 try:
     from fastapi.testclient import TestClient
     from app import app
@@ -67,9 +69,13 @@ def test_agentloop_command_api_108_starts_queue_through_bridge_dry_run():
     # queue path validation + use
     resp_qp = client.post(
         "/api/agent-loop/queue/run",
-        json={"queue": "scripts/run-queue.mjs", "dryRun": True},
+        json={"queue": "agent-loop/scripts/sliderule-v2-hardening-115-queue.json", "dryRun": True},
     )
     assert resp_qp.status_code == 200
+    queue_cmd = resp_qp.json().get("command") or ""
+    assert "run-queue.mjs" in queue_cmd
+    assert "--queue" in queue_cmd
+    assert "sliderule-v2-hardening-115-queue.json" in queue_cmd
 
     # task id validation
     bad_task = client.post("/api/agent-loop/queue/run", json={"task": "", "dryRun": True})

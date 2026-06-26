@@ -49,6 +49,18 @@ def test_agentloop_worker_bridge_108_builds_node_queue_command_without_executing
     assert "--only" in cmd_single
     assert "worker-bridge-108" in cmd_single
 
+    # explicit queue definition keeps run-queue.mjs as the executable and passes
+    # the queue JSON as data, not as the node script.
+    req_queue_file = build_agent_loop_command(
+        queue_run=True,
+        queue_path="agent-loop/scripts/sliderule-v2-hardening-115-queue.json",
+    )
+    cmd_queue_file = " ".join([req_queue_file.command] + (req_queue_file.args or []))
+    assert "run-queue.mjs" in cmd_queue_file
+    assert "--queue" in cmd_queue_file
+    assert "sliderule-v2-hardening-115-queue.json" in cmd_queue_file
+    assert not (req_queue_file.args or [""])[0].endswith("sliderule-v2-hardening-115-queue.json")
+
     # timeout, cwd, env overrides
     req_opts = build_agent_loop_command(
         queue_run=False,  # exercise loop script path for single-task style

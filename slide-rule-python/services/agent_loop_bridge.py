@@ -89,12 +89,15 @@ def build_agent_loop_command(
     args: List[str] = []
     if queue_run:
         q_name = getattr(s, "AGENT_LOOP_RUN_QUEUE", "scripts/run-queue.mjs") or "scripts/run-queue.mjs"
-        if queue_path:
-            q_name = queue_path
         script = Path(q_name)
         if not script.is_absolute():
             script = al_dir / script
         args = [str(script)]
+        if queue_path:
+            queue_file = Path(queue_path)
+            if not queue_file.is_absolute():
+                queue_file = (_resolve_repo_root() / queue_path).resolve()
+            args.extend(["--queue", str(queue_file)])
         if task:
             args.extend(["--only", task])
     else:
