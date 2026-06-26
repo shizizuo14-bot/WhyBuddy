@@ -36,6 +36,14 @@ function bindingNodeId(pageRef: string, workflowRef: string | undefined, mode: s
   return `bind_${sanitizeId(pageRef)}_${sanitizeId(workflowRef ?? "none")}_${sanitizeId(mode)}`;
 }
 
+function publishGateNodeId(appId: string): string {
+  return `gate_${sanitizeId(appId)}`;
+}
+
+function runtimeSnapshotNodeId(appId: string): string {
+  return `snap_${sanitizeId(appId)}`;
+}
+
 function pushMissingSurfaceFindings(
   f: Finding[],
   code: string,
@@ -72,6 +80,39 @@ const REQUIRED_PIN_SKILLS: AppBundleSkillId[] = ["datamodel", "rbac", "workflow"
 
 function pinnedRef(skillId: AppBundleSkillId, ref: string, version: string): string {
   return `${skillId}:${ref}@${version}`;
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values)];
+}
+
+function expectedVersionPinRefs(model: AppBundleModel): Array<{ skillId: AppBundleSkillId; ref: string }> {
+  return [
+    ...unique(model.entityRefs).map(ref => ({ skillId: "datamodel" as const, ref })),
+    ...unique([...model.roleRefs, ...menuRoleRefs(model.menuEntries)]).map(ref => ({ skillId: "rbac" as const, ref })),
+    ...unique([...model.workflowRefs, ...model.pageBindings.flatMap(binding => (binding.workflowRef ? [binding.workflowRef] : []))]).map(ref => ({
+      skillId: "workflow" as const,
+      ref,
+    })),
+    ...unique([...model.pageRefs, ...model.menuEntries.map(menu => menu.pageRef), ...model.pageBindings.map(binding => binding.pageRef)]).map(ref => ({
+      skillId: "page" as const,
+      ref,
+    })),
+    { skillId: "appbundle" as const, ref: model.id },
+  ];
+}
+
+export interface AppBundlePublishGateContext extends ValidateContext {
+  skillFindings?: Finding[];
+}
+
+export interface AppBundlePublishGateReport {
+  publishable: boolean;
+  blockers: Finding[];
+}
+
+function publishBlocker(code: string, path: string, message: string): Finding {
+  return { code, severity: "error", path, message };
 }
 
 export const appBundleSkill: Skill<AppBundleModel> & CrossSkill<AppBundleModel> = {
@@ -248,6 +289,12 @@ export const appBundleSkill: Skill<AppBundleModel> & CrossSkill<AppBundleModel> 
         label: `${binding.mode}: ${binding.pageRef}`,
         kind: "binding",
       })),
+      ...(model.publishManifest
+        ? [{ id: publishGateNodeId(model.id), label: `publish gate: ${model.publishManifest.gateStatus}`, kind: "publishGate" }]
+        : []),
+      ...(model.runtimeSnapshot
+        ? [{ id: runtimeSnapshotNodeId(model.id), label: `runtime snapshot: ${model.runtimeSnapshot.appVersion}`, kind: "runtimeSnapshot" }]
+        : []),
     ];
     const edges: Projection["edges"] = [
       ...model.menuEntries.map(menu => ({
@@ -262,6 +309,12 @@ export const appBundleSkill: Skill<AppBundleModel> & CrossSkill<AppBundleModel> 
         label: binding.mode,
         kind: "binding",
       })),
+      ...(model.publishManifest
+        ? [{ from: appNodeId(model.id), to: publishGateNodeId(model.id), label: "closure", kind: "publishGate" }]
+        : []),
+      ...(model.publishManifest && model.runtimeSnapshot
+        ? [{ from: publishGateNodeId(model.id), to: runtimeSnapshotNodeId(model.id), label: "pins", kind: "runtimeSnapshot" }]
+        : []),
     ];
 
     const lines: string[] = ["flowchart LR"];
@@ -283,6 +336,54 @@ export const appBundleSkill: Skill<AppBundleModel> & CrossSkill<AppBundleModel> 
     throw new Error(`appBundleSkill.generate: needs the reasoning engine to package an app bundle for intent: "${intent}"`);
   },
 };
+
+export function validateAppBundlePublishGate(
+  model: AppBundleModel,
+  ctx: AppBundlePublishGateContext = {},
+): AppBundlePublishGateReport {
+  const blockers: Finding[] = [];
+  const report = appBundleSkill.validate(model, ctx);
+
+  report.errors.forEach(error => {
+    if (error.code.startsWith("APPBUNDLE_REF_MISSING_")) {
+      blockers.push(publishBlocker("APPBUNDLE_PUBLISH_REF_MISSING", error.path, error.message));
+      return;
+    }
+    if (error.code === "APPBUNDLE_SNAPSHOT_REF_NOT_PINNED" || error.code === "APPBUNDLE_VERSION_PIN_MISSING") {
+      blockers.push(publishBlocker("APPBUNDLE_VERSION_UNPINNED", error.path, error.message));
+      return;
+    }
+    blockers.push(error);
+  });
+
+  report.warnings.forEach(warning => {
+    if (warning.code.endsWith("_UNRESOLVED")) {
+      blockers.push(publishBlocker("APPBUNDLE_GHOST_REF", warning.path, warning.message));
+    }
+  });
+
+  const actualPins = new Set((model.versionPins ?? []).map(pin => pinnedRef(pin.skillId, pin.ref, pin.version)));
+  expectedVersionPinRefs(model).forEach(expected => {
+    const hasPin = (model.versionPins ?? []).some(pin => pin.skillId === expected.skillId && pin.ref === expected.ref && actualPins.has(pinnedRef(pin.skillId, pin.ref, pin.version)));
+    if (!hasPin) {
+      blockers.push(
+        publishBlocker(
+          "APPBUNDLE_VERSION_UNPINNED",
+          `versionPins.${expected.skillId}.${expected.ref}`,
+          `AppBundle publish gate requires a pinned version for ${expected.skillId}:${expected.ref}.`,
+        ),
+      );
+    }
+  });
+
+  (ctx.skillFindings ?? []).forEach(finding => {
+    if (finding.code === "PAGE_PEP_BYPASS" || finding.code === "WF_PEP_BYPASS") {
+      blockers.push(publishBlocker("APPBUNDLE_PEP_BYPASS", finding.path, finding.message));
+    }
+  });
+
+  return { publishable: blockers.length === 0, blockers };
+}
 
 export const leaveApprovalAppBundle: AppBundleModel = {
   id: "app_leave_approval",

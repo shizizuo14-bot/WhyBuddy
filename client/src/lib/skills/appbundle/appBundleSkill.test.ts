@@ -4,7 +4,7 @@ import { dataModelSkill, leaveRequestDataModel } from "../datamodel/dataModelSki
 import { leaveApprovalPage, pageSkill } from "../page/pageSkill";
 import { leaveApprovalRbac, rbacSkill } from "../rbac/rbacSkill";
 import { leaveApprovalWorkflow, workflowSkill } from "../workflow/workflowSkill";
-import { appBundleSkill, leaveApprovalAppBundle } from "./appBundleSkill";
+import { appBundleSkill, leaveApprovalAppBundle, validateAppBundlePublishGate } from "./appBundleSkill";
 import type { AppBundleModel } from "./appBundleModel";
 
 const clone = (m: AppBundleModel): AppBundleModel => structuredClone(m);
@@ -153,5 +153,60 @@ describe("appBundleSkill - V2 version pins and runtime snapshot", () => {
     expect(app.runtimeSnapshot.pinnedRefs).toContain("page:page_leave_request@1.0.0");
     expect(app.runtimeSnapshot.pinnedRefs).toContain("appbundle:app_leave_approval@1.0.0");
     expect(app.runtimeSnapshot.liveRefs).toBeUndefined();
+  });
+});
+
+describe("appBundleSkill - V2 publish gate", () => {
+  it("blocks missing assembled refs with APPBUNDLE_PUBLISH_REF_MISSING", () => {
+    const broken = clone(leaveApprovalAppBundle);
+    broken.roleRefs.push("director");
+
+    const gate = validateAppBundlePublishGate(broken, { external: fullSurface });
+
+    expect(gate.publishable).toBe(false);
+    expect(gate.blockers.some(b => b.code === "APPBUNDLE_PUBLISH_REF_MISSING")).toBe(true);
+  });
+
+  it("blocks unpinned assembled surfaces with APPBUNDLE_VERSION_UNPINNED", () => {
+    const broken = clone(leaveApprovalAppBundle);
+    broken.versionPins = broken.versionPins?.filter(pin => !(pin.skillId === "page" && pin.ref === "page_leave_request"));
+
+    const gate = validateAppBundlePublishGate(broken, { external: fullSurface });
+
+    expect(gate.publishable).toBe(false);
+    expect(gate.blockers.some(b => b.code === "APPBUNDLE_VERSION_UNPINNED")).toBe(true);
+  });
+
+  it("blocks unresolved cross-skill surfaces with APPBUNDLE_GHOST_REF", () => {
+    const gate = validateAppBundlePublishGate(leaveApprovalAppBundle, {
+      external: { rbac: fullSurface.rbac, workflow: fullSurface.workflow, page: fullSurface.page },
+    });
+
+    expect(gate.publishable).toBe(false);
+    expect(gate.blockers.some(b => b.code === "APPBUNDLE_GHOST_REF")).toBe(true);
+  });
+
+  it("blocks Page or Workflow PEP bypass errors with APPBUNDLE_PEP_BYPASS", () => {
+    const badPage = structuredClone(leaveApprovalPage);
+    delete badPage.components.find(c => c.id === "approve")!.permissionRender;
+    const pageReport = pageSkill.validate(badPage, { external: fullSurface });
+
+    const gate = validateAppBundlePublishGate(leaveApprovalAppBundle, {
+      external: fullSurface,
+      skillFindings: pageReport.errors,
+    });
+
+    expect(pageReport.errors.some(e => e.code === "PAGE_PEP_BYPASS")).toBe(true);
+    expect(gate.publishable).toBe(false);
+    expect(gate.blockers.some(b => b.code === "APPBUNDLE_PEP_BYPASS")).toBe(true);
+  });
+
+  it("projects assembly root, closure gate, and runtime snapshot", () => {
+    const projection = appBundleSkill.project(leaveApprovalAppBundle);
+
+    expect(projection.nodes.some(n => n.id === "gate_app_leave_approval" && n.kind === "publishGate")).toBe(true);
+    expect(projection.nodes.some(n => n.id === "snap_app_leave_approval" && n.kind === "runtimeSnapshot")).toBe(true);
+    expect(projection.edges.some(e => e.from === "app_app_leave_approval" && e.to === "gate_app_leave_approval" && e.kind === "publishGate")).toBe(true);
+    expect(projection.edges.some(e => e.from === "gate_app_leave_approval" && e.to === "snap_app_leave_approval" && e.kind === "runtimeSnapshot")).toBe(true);
   });
 });
