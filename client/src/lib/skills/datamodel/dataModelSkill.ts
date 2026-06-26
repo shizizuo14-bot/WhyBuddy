@@ -135,16 +135,36 @@ export const dataModelSkill: Skill<DataModelModel> & CrossSkill<DataModelModel> 
     return finalizeReport(f);
   },
 
-  // -- THE PROJECTOR (entities as nodes, ref fields as relations) ----------
+  // -- THE PROJECTOR (entities as nodes, fields as distinct SSOT nodes) ----------
   project(model: DataModelModel): Projection {
-    const nodes = model.entities.map(e => ({ id: `dm_${sanitizeId(e.id)}`, label: e.name, kind: "entity" }));
+    const entityNodes = model.entities.map(e => ({ id: `dm_${sanitizeId(e.id)}`, label: e.name, kind: "entity" }));
+    const fieldNodes = model.entities.flatMap(e =>
+      e.fields.map(fl => ({
+        id: `dm_${sanitizeId(e.id)}_${sanitizeId(fl.key)}`,
+        label: fl.name,
+        kind: "field",
+      }))
+    );
+    const nodes = [...entityNodes, ...fieldNodes];
     const edges: Projection["edges"] = [];
+    // preserve entity-level ref relations for coarse consumers
     model.entities.forEach(e => {
       e.fields
         .filter(fl => fl.type === "ref" && fl.refEntity)
         .forEach(fl =>
           edges.push({ from: `dm_${sanitizeId(e.id)}`, to: `dm_${sanitizeId(fl.refEntity!)}`, label: fl.name, kind: "relation" }),
         );
+    });
+    // ownership edges so diagrams clearly connect entities to their SSOT fields
+    model.entities.forEach(e => {
+      e.fields.forEach(fl => {
+        edges.push({
+          from: `dm_${sanitizeId(e.id)}`,
+          to: `dm_${sanitizeId(e.id)}_${sanitizeId(fl.key)}`,
+          label: "field",
+          kind: "contains",
+        });
+      });
     });
     const lines: string[] = ["flowchart LR"];
     for (const n of nodes) lines.push(`  ${n.id}[("${n.label}")]`);
@@ -154,10 +174,22 @@ export const dataModelSkill: Skill<DataModelModel> & CrossSkill<DataModelModel> 
 
   // -- CROSS-SKILL SURFACE (others reference entities + fields) -------------
   resolve(model: DataModelModel): ResolvableSurface {
-    return {
+    // return extra 'fields' (with metadata) via cast because ResolvableSurface type (outside allowed) only declares entity/field strings
+    const surf: any = {
       entity: model.entities.map(e => e.id),
+      // keep bare string field refs for compat with entity-level / coarse consumers
       field: model.entities.flatMap(e => e.fields.map(fl => `${e.id}.${fl.key}`)),
+      // field-level SSOT surface with version + lifecycle metadata (for downstream field refs)
+      fields: model.entities.flatMap(e =>
+        e.fields.map(fl => ({
+          ref: `${e.id}.${fl.key}`,
+          version: fl.version ?? 1,
+          lifecycle: fl.lifecycle ?? "active",
+          fieldId: fl.fieldId,
+        }))
+      ),
     };
+    return surf;
   },
 
   // DataModel is a provider — it references nothing external.
@@ -166,7 +198,13 @@ export const dataModelSkill: Skill<DataModelModel> & CrossSkill<DataModelModel> 
   },
   refNodeId(kind: string, value: string): string | null {
     if (kind === "entity") return `dm_${sanitizeId(value)}`;
-    if (kind === "field") return `dm_${sanitizeId(value.split(".")[0])}`; // point at the owning entity
+    if (kind === "field") {
+      // support "entity.field" and "entity.field@vN" (or equiv); map to distinct field node
+      const base = value.split("@")[0];
+      const [ent, fld] = base.split(".");
+      if (ent && fld) return `dm_${sanitizeId(ent)}_${sanitizeId(fld)}`;
+      return null;
+    }
     return null;
   },
 

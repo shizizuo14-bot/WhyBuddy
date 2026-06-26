@@ -32,6 +32,9 @@ describe("dataModelSkill — the gate", () => {
     const surface = dataModelSkill.resolve(leaveRequestDataModel);
     expect(surface.entity).toContain("leave_request");
     expect(surface.field).toContain("leave_request.approved");
+    // metadata via fields surface
+    const approved = surface.fields.find((f: any) => f.ref === "leave_request.approved");
+    expect(approved).toBeTruthy();
   });
 
   it("supports SSOT stable field identity, lifecycle, namespace and storageRole without breaking existing resolve/validate", () => {
@@ -43,6 +46,10 @@ describe("dataModelSkill — the gate", () => {
     expect(origSurface.entity).toContain("leave_request");
     expect(origSurface.field).toContain("leave_request.approved");
     expect(origSurface.field).toContain("employee.name");
+    const origApproved = origSurface.fields.find((f: any) => f.ref === "leave_request.approved");
+    const origName = origSurface.fields.find((f: any) => f.ref === "employee.name");
+    expect(origApproved).toBeTruthy();
+    expect(origName).toBeTruthy();
 
     // The real leave-approval sample is the SSOT host; do not prove this only
     // with a temporary test-only model.
@@ -99,8 +106,14 @@ describe("dataModelSkill — the gate", () => {
     const ssotSurface = dataModelSkill.resolve(ssotLeaveModel);
     expect(ssotSurface.entity).toContain("leave_request");
     expect(ssotSurface.field).toContain("leave_request.approved");
-    // current resolve still uses keys (no breakage of relationship behavior)
     expect(ssotSurface.field).toContain("employee.dept");
+    const approvedF = ssotSurface.fields.find((f: any) => f.ref === "leave_request.approved");
+    const deptF = ssotSurface.fields.find((f: any) => f.ref === "employee.dept");
+    expect(approvedF).toBeTruthy();
+    expect(deptF).toBeTruthy();
+    // metadata carried for field-level refs
+    expect(approvedF.version).toBe(1);
+    expect(approvedF.lifecycle).toBe("active");
 
     // Prove stable IDs and SSOT markers are carried on fields
     const idField = ssotLeaveModel.entities[1].fields.find(f => f.key === "id")!;
@@ -242,5 +255,45 @@ describe("dataModelSkill — the gate", () => {
     const report = dataModelSkill.validate(olapMisuse);
     expect(report.ok).toBe(false);
     expect(report.errors.some(e => e.code === "DM_OLAP_NOT_SSOT")).toBe(true);
+  });
+
+  it("resolve() exposes entity and field surfaces with version/lifecycle metadata", () => {
+    const surface = dataModelSkill.resolve(leaveRequestDataModel);
+    expect(Array.isArray(surface.entity)).toBe(true);
+    expect(surface.entity).toContain("leave_request");
+    expect(Array.isArray(surface.field)).toBe(true);
+    expect(surface.field).toContain("leave_request.approved");
+    // detailed fields surface carries metadata
+    expect(Array.isArray(surface.fields)).toBe(true);
+    const approved = surface.fields.find((f: any) => f.ref === "leave_request.approved");
+    expect(approved).toBeTruthy();
+    expect(approved.version).toBe(1);
+    expect(approved.lifecycle).toBe("active");
+    const idF = surface.fields.find((f: any) => f.ref === "leave_request.id");
+    expect(idF && idF.fieldId).toBe("f_leave_id_v1");
+  });
+
+  it("refNodeId('field', ...) maps to distinct field node (supports @vN form)", () => {
+    const f1 = dataModelSkill.refNodeId("field", "leave_request.approved");
+    const f2 = dataModelSkill.refNodeId("field", "leave_request.approved@v1");
+    expect(f1).toBe("dm_leave_request_approved");
+    expect(f2).toBe("dm_leave_request_approved");
+    // field node is not the entity node
+    expect(f1).not.toBe("dm_leave_request");
+    expect(dataModelSkill.refNodeId("entity", "leave_request")).toBe("dm_leave_request");
+    // also for other field
+    expect(dataModelSkill.refNodeId("field", "employee.name")).toBe("dm_employee_name");
+  });
+
+  it("project() emits distinct readable SSOT field nodes (entities kept)", () => {
+    const proj = dataModelSkill.project(leaveRequestDataModel);
+    const entNodes = proj.nodes.filter((n: any) => n.kind === "entity");
+    const fldNodes = proj.nodes.filter((n: any) => n.kind === "field");
+    expect(entNodes.map((n: any) => n.id)).toContain("dm_leave_request");
+    expect(fldNodes.map((n: any) => n.id)).toContain("dm_leave_request_approved");
+    expect(fldNodes.length).toBeGreaterThan(0);
+    // entities and fields remain distinct sets
+    const allIds = new Set([...entNodes.map((n: any) => n.id), ...fldNodes.map((n: any) => n.id)]);
+    expect(allIds.size).toBe(entNodes.length + fldNodes.length);
   });
 });

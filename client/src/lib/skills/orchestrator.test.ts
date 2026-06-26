@@ -4,6 +4,7 @@ import { deriveApplication, slideRule } from "./slideRule";
 import { leaveApprovalRbac } from "./rbac/rbacSkill";
 import { leaveApprovalWorkflow } from "./workflow/workflowSkill";
 import type { WorkflowModel } from "./workflow/workflowModel";
+import { dataModelSkill, leaveRequestDataModel } from "./datamodel/dataModelSkill";
 
 describe("SlideRule orchestrator — end-to-end (一句话 → 架构 + gate)", () => {
   it("derives a coherent application from one intent, with the gate green", async () => {
@@ -52,6 +53,15 @@ describe("SlideRule orchestrator — end-to-end (一句话 → 架构 + gate)", 
     // RBAC data rule now points at the REAL datamodel entity node, not a ghost
     expect(result.mermaid).toContain("-.->|数据| dm_leave_request");
     expect(result.mermaid).not.toContain("(未接入)");
+    // derive real SSOT entity and field nodes from model (no hard-coded field node ids)
+    const dmProj = dataModelSkill.project(leaveRequestDataModel);
+    const dmEntityNode = dmProj.nodes.find((n: any) => n.kind === "entity" && n.id.includes("leave_request"))!.id;
+    const dmFieldNode = dmProj.nodes.find((n: any) => n.kind === "field" && n.id.includes("leave_request"))!.id;
+    expect(dmEntityNode).toBe("dm_leave_request");
+    expect(dmFieldNode).toMatch(/^dm_leave_request_/);
+    // diagram now includes the derived real SSOT field node (in addition to entity)
+    expect(result.mermaid).toContain(dmEntityNode);
+    expect(result.mermaid).toContain(dmFieldNode);
   });
 
   it("the aggregate gate goes RED when a cross-skill ref is broken", () => {
