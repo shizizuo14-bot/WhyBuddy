@@ -32,6 +32,19 @@ function pageNodeId(pageId: string): string {
   return `page_${sanitizeId(pageId)}`;
 }
 
+function dataModelFieldNodeId(fieldRef: string): string {
+  const [entity, field] = fieldRef.split(".");
+  return entity && field ? `dm_${sanitizeId(entity)}_${sanitizeId(field)}` : `dm_${sanitizeId(fieldRef)}`;
+}
+
+function rbacRoleNodeId(roleRef: string): string {
+  return `role_${sanitizeId(roleRef)}`;
+}
+
+function rbacPermissionNodeId(permissionRef: string): string {
+  return `perm_${sanitizeId(permissionRef)}`;
+}
+
 function componentById(model: PageModel): Map<string, PageComponent> {
   return new Map(model.components.map(c => [c.id, c]));
 }
@@ -73,6 +86,15 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
           label: "字段",
         });
       }
+      if (component.bindingSchema && component.bindingSchema.field !== component.field) {
+        refs.push({
+          fromNode: componentNodeId(component.id),
+          toSkill: "datamodel",
+          toKind: "field",
+          toValue: component.bindingSchema.field,
+          label: "BindingSchema",
+        });
+      }
       component.visibleToRoles?.forEach(role => {
         refs.push({
           fromNode: componentNodeId(component.id),
@@ -80,6 +102,26 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
           toKind: "role",
           toValue: role,
           label: "可见角色",
+        });
+      });
+      component.permissionRender?.roleRefs
+        .filter(role => !component.visibleToRoles?.includes(role))
+        .forEach(role => {
+          refs.push({
+            fromNode: componentNodeId(component.id),
+            toSkill: "rbac",
+            toKind: "role",
+            toValue: role,
+            label: "PDP role",
+          });
+        });
+      component.permissionRender?.permissionRefs?.forEach(permission => {
+        refs.push({
+          fromNode: componentNodeId(component.id),
+          toSkill: "rbac",
+          toKind: "permission",
+          toValue: permission,
+          label: "PDP permission",
         });
       });
     });
@@ -99,6 +141,12 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
     const datamodelEntities = ctx?.external?.datamodel?.entity;
     const datamodelFields = ctx?.external?.datamodel?.field;
     const rbacRoles = ctx?.external?.rbac?.role;
+    const rbacPermissions = ctx?.external?.rbac?.permission;
+    const isV2Mode = Boolean(
+      model.traceSpan ||
+      model.componentVersion ||
+      model.components.some(c => c.bindingSchema || c.permissionRender || c.componentVersion),
+    );
 
     for (const dup of findDuplicates(model.components.map(c => c.id))) {
       f.push({
@@ -161,6 +209,79 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
           });
         }
       });
+
+      if (component.bindingSchema) {
+        if (datamodelEntities === undefined || datamodelFields === undefined) {
+          f.push({
+            code: "PAGE_BINDING_UNRESOLVED",
+            severity: "warning",
+            path: `components[${componentIndex}].bindingSchema`,
+            message: `Component "${component.label}" has a BindingSchema, but no DataModel SSOT surface was provided.`,
+          });
+        } else {
+          if (!datamodelEntities.includes(component.bindingSchema.entity)) {
+            f.push({
+              code: "PAGE_BINDING_ENTITY_MISSING",
+              severity: "error",
+              path: `components[${componentIndex}].bindingSchema.entity`,
+              message: `Component "${component.label}" binds missing DataModel entity: ${component.bindingSchema.entity}`,
+            });
+          }
+          if (!datamodelFields.includes(component.bindingSchema.field)) {
+            f.push({
+              code: "PAGE_BINDING_FIELD_MISSING",
+              severity: "error",
+              path: `components[${componentIndex}].bindingSchema.field`,
+              message: `Component "${component.label}" binds missing DataModel SSOT field: ${component.bindingSchema.field}`,
+            });
+          }
+        }
+      }
+
+      if (isV2Mode && component.visibleToRoles?.length && !component.permissionRender) {
+        f.push({
+          code: "PAGE_PEP_BYPASS",
+          severity: "error",
+          path: `components[${componentIndex}].visibleToRoles`,
+          message: `Component "${component.label}" uses local-only role visibility in V2 mode instead of delegating to RBAC PDP.`,
+        });
+      }
+
+      component.permissionRender?.roleRefs.forEach((role, roleIndex) => {
+        if (rbacRoles === undefined) {
+          f.push({
+            code: "PAGE_PERMISSION_REF_UNRESOLVED",
+            severity: "warning",
+            path: `components[${componentIndex}].permissionRender.roleRefs[${roleIndex}]`,
+            message: `Component "${component.label}" delegates role "${role}" to RBAC PDP, but no RBAC role surface was provided.`,
+          });
+        } else if (!rbacRoles.includes(role)) {
+          f.push({
+            code: "PAGE_PERMISSION_REF_MISSING",
+            severity: "error",
+            path: `components[${componentIndex}].permissionRender.roleRefs[${roleIndex}]`,
+            message: `Component "${component.label}" delegates missing RBAC PDP role: ${role}`,
+          });
+        }
+      });
+
+      component.permissionRender?.permissionRefs?.forEach((permission, permissionIndex) => {
+        if (rbacPermissions === undefined) {
+          f.push({
+            code: "PAGE_PERMISSION_REF_UNRESOLVED",
+            severity: "warning",
+            path: `components[${componentIndex}].permissionRender.permissionRefs[${permissionIndex}]`,
+            message: `Component "${component.label}" delegates permission "${permission}" to RBAC PDP, but no RBAC permission surface was provided.`,
+          });
+        } else if (!rbacPermissions.includes(permission)) {
+          f.push({
+            code: "PAGE_PERMISSION_REF_MISSING",
+            severity: "error",
+            path: `components[${componentIndex}].permissionRender.permissionRefs[${permissionIndex}]`,
+            message: `Component "${component.label}" delegates missing RBAC PDP permission: ${permission}`,
+          });
+        }
+      });
     });
 
     model.linkageRules.forEach((rule, ruleIndex) => {
@@ -218,6 +339,34 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
         label: rule.target.action,
         kind: "linkage",
       })),
+      ...model.components.flatMap(component => {
+        const pepEdges: Projection["edges"] = [];
+        if (component.bindingSchema) {
+          pepEdges.push({
+            from: componentNodeId(component.id),
+            to: dataModelFieldNodeId(component.bindingSchema.field),
+            label: "BindingSchema",
+            kind: "binding",
+          });
+        }
+        component.permissionRender?.roleRefs.forEach(role => {
+          pepEdges.push({
+            from: componentNodeId(component.id),
+            to: rbacRoleNodeId(role),
+            label: "PDP role",
+            kind: "permission",
+          });
+        });
+        component.permissionRender?.permissionRefs?.forEach(permission => {
+          pepEdges.push({
+            from: componentNodeId(component.id),
+            to: rbacPermissionNodeId(permission),
+            label: "PDP permission",
+            kind: "permission",
+          });
+        });
+        return pepEdges;
+      }),
     ];
 
     const lines: string[] = ["flowchart LR"];
@@ -231,7 +380,12 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
       page: [model.id],
       component: model.components.map(c => c.id),
       entity: [model.entity],
-      field: model.components.flatMap(c => (c.field ? [c.field] : [])),
+      field: [
+        ...new Set(model.components.flatMap(c => {
+          const field = c.bindingSchema?.field ?? c.field;
+          return field ? [field] : [];
+        })),
+      ],
     };
   },
 

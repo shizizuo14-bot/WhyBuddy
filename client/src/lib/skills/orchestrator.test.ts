@@ -55,6 +55,8 @@ describe("SlideRule orchestrator — end-to-end (一句话 → 架构 + gate)", 
     expect(result.mermaid).toContain("subgraph appbundle[");
     expect(result.mermaid).toMatch(/cmp_approve -\.->\|.*\| dm_leave_request/);
     expect(result.mermaid).toMatch(/cmp_approve -\.->\|.*\| role_manager/);
+    expect(result.mermaid).toMatch(/cmp_submit -\.->\|.*\| perm_leave_create/);
+    expect(result.mermaid).toMatch(/cmp_approve -\.->\|.*\| perm_leave_approve/);
     expect(result.mermaid).toMatch(/app_app_leave_approval -\.->\|.*\| page_page_leave_request/);
     expect(result.mermaid).toMatch(/app_app_leave_approval -\.->\|.*\| wf_wf_leave_approval/);
     // workflow approval node -.-> rbac role node

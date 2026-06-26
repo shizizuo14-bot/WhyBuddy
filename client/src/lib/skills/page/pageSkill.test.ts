@@ -173,3 +173,51 @@ describe("pageSkill — V2 PEP model (BindingSchema, PermissionRender, component
     expect(report.ok).toBe(true); // this one is compatible
   });
 });
+
+describe("pageSkill - V2 PEP gate and projection", () => {
+  it("rejects a BindingSchema that points at a missing DataModel SSOT field", () => {
+    const broken = clone(leaveApprovalPage);
+    const days = broken.components.find(c => c.id === "days")!;
+    days.bindingSchema = { entity: "leave_request", field: "leave_request.ghost" };
+
+    const report = pageSkill.validate(broken, { external: fullSurface });
+
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "PAGE_BINDING_FIELD_MISSING")).toBe(true);
+  });
+
+  it("rejects PermissionRender refs that RBAC PDP cannot resolve", () => {
+    const broken = clone(leaveApprovalPage);
+    const approve = broken.components.find(c => c.id === "approve")!;
+    approve.permissionRender = {
+      roleRefs: ["director"],
+      permissionRefs: ["leave:delete"],
+    };
+
+    const report = pageSkill.validate(broken, { external: fullSurface });
+
+    expect(report.ok).toBe(false);
+    expect(report.errors.filter(e => e.code === "PAGE_PERMISSION_REF_MISSING")).toHaveLength(2);
+  });
+
+  it("rejects local-only role visibility in V2 mode instead of bypassing PDP delegation", () => {
+    const broken = clone(leaveApprovalPage);
+    const approve = broken.components.find(c => c.id === "approve")!;
+    delete approve.permissionRender;
+
+    const report = pageSkill.validate(broken, { external: fullSurface });
+
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "PAGE_PEP_BYPASS")).toBe(true);
+  });
+
+  it("projects Page as a PEP canvas with BindingSchema, PermissionRender, and local linkage edges", () => {
+    const projection = pageSkill.project(leaveApprovalPage);
+
+    expect(projection.nodes.some(n => n.id === "cmp_approve" && n.kind === "button")).toBe(true);
+    expect(projection.edges.some(e => e.from === "cmp_approve" && e.to === "dm_leave_request_approved" && e.kind === "binding")).toBe(true);
+    expect(projection.edges.some(e => e.from === "cmp_approve" && e.to === "role_manager" && e.kind === "permission")).toBe(true);
+    expect(projection.edges.some(e => e.from === "cmp_approve" && e.to === "perm_leave_approve" && e.kind === "permission")).toBe(true);
+    expect(projection.edges.some(e => e.from === "cmp_approve" && e.to === "cmp_reason" && e.kind === "linkage")).toBe(true);
+  });
+});
