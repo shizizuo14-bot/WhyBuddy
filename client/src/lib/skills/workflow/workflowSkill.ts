@@ -84,6 +84,7 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
       }));
   },
   refNodeId(kind: string, value: string): string | null {
+    if (kind === "workflow") return `wf_${sanitizeId(value)}`;
     // other skills may reference a workflow node by id.
     return kind === "node" ? `wf_${sanitizeId(value)}` : null;
   },
@@ -213,15 +214,29 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
       }
     };
     const idOf = new Map(model.nodes.map(n => [n.id, `wf_${sanitizeId(n.id)}`]));
-    const nodes = model.nodes.map(n => ({ id: idOf.get(n.id)!, label: n.name, kind: n.type }));
-    const edges = model.edges.map(e => ({
-      from: idOf.get(e.from) ?? `wf_${sanitizeId(e.from)}`,
-      to: idOf.get(e.to) ?? `wf_${sanitizeId(e.to)}`,
-      label: e.isDefault ? "默认" : e.when ? `${e.when.op}${e.when.value}` : "",
-      kind: "flow",
-    }));
+    const workflowId = `wf_${sanitizeId(model.id)}`;
+    const startNodes = model.nodes.filter(n => n.type === "start");
+    const nodes = [
+      { id: workflowId, label: model.name, kind: "workflow" },
+      ...model.nodes.map(n => ({ id: idOf.get(n.id)!, label: n.name, kind: n.type })),
+    ];
+    const edges = [
+      ...startNodes.map(n => ({
+        from: workflowId,
+        to: idOf.get(n.id) ?? `wf_${sanitizeId(n.id)}`,
+        label: "entry",
+        kind: "workflow",
+      })),
+      ...model.edges.map(e => ({
+        from: idOf.get(e.from) ?? `wf_${sanitizeId(e.from)}`,
+        to: idOf.get(e.to) ?? `wf_${sanitizeId(e.to)}`,
+        label: e.isDefault ? "默认" : e.when ? `${e.when.op}${e.when.value}` : "",
+        kind: "flow",
+      })),
+    ];
 
     const lines: string[] = ["flowchart TD"];
+    lines.push(`  ${workflowId}["${model.name}"]`);
     for (const n of model.nodes) lines.push(`  ${shape(n)[1]}`);
     for (const e of edges) lines.push(`  ${e.from} -->${e.label ? `|${e.label}|` : ""} ${e.to}`);
     return { nodes, edges, mermaid: lines.join("\n") };

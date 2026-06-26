@@ -8,6 +8,7 @@ The goal is to distill heavy application-platform subsystems into pure metamodel
 - `rbac`: roles, permissions, menus, users, departments, positions, and data rules.
 - `workflow`: start, approval, branch, and end flow semantics.
 - `page`: page components, DataModel field binding, RBAC visibility, and linkage rules.
+- `appbundle`: application-center packaging across entities, roles, workflows, pages, menus, and page-workflow bindings.
 - `orchestrator`: generic dependency-threading, validation aggregation, unified SPEC, and combined relation diagram generation.
 
 Each skill exposes the same shape:
@@ -21,12 +22,13 @@ Each skill exposes the same shape:
 Current verified slice:
 
 - Intent: `我要一个请假审批平台`.
-- Skills: DataModel -> RBAC -> Workflow -> Page.
+- Skills: DataModel -> RBAC -> Workflow -> Page -> AppBundle.
 - Cross-skill gates:
   - RBAC data rules resolve against DataModel entities.
   - Workflow approval assignees resolve against RBAC roles.
   - Page component fields resolve against DataModel fields.
   - Page component visibility resolves against RBAC roles.
+  - AppBundle packaging resolves against DataModel, RBAC, Workflow, and Page refs.
 - Output:
   - Unified application SPEC.
   - Aggregate gate report.
@@ -34,6 +36,5 @@ Current verified slice:
 
 Not included yet:
 
-- AppBundle-Skill.
 - Real LLM-backed generation.
 - Materialization into the heavy low-code platform or AgentLoop-generated code.

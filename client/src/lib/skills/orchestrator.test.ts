@@ -11,13 +11,14 @@ describe("SlideRule orchestrator — end-to-end (一句话 → 架构 + gate)", 
 
     expect(result.ok).toBe(true);
     expect(result.report.totals.errors).toBe(0);
-    expect(result.report.bySkill.map(s => s.skillId)).toEqual(["datamodel", "rbac", "workflow", "page"]);
+    expect(result.report.bySkill.map(s => s.skillId)).toEqual(["datamodel", "rbac", "workflow", "page", "appbundle"]);
 
     // unified SPEC carries every skill's model
     expect(result.spec.skills.datamodel).toBeTruthy();
     expect(result.spec.skills.rbac).toBeTruthy();
     expect(result.spec.skills.workflow).toBeTruthy();
     expect(result.spec.skills.page).toBeTruthy();
+    expect(result.spec.skills.appbundle).toBeTruthy();
   });
 
   it("wiring in DataModel RESOLVES RBAC's previously-dangling data-rule reference", async () => {
@@ -35,14 +36,17 @@ describe("SlideRule orchestrator — end-to-end (一句话 → 架构 + gate)", 
     expect(wf.warnings.some(w => w.code === "WF_ASSIGNEE_UNRESOLVED")).toBe(false);
   });
 
-  it("the combined diagram now has 4 subgraphs, the cross-skill edges resolve to REAL nodes, ghost gone", async () => {
+  it("the combined diagram now has 5 subgraphs, the cross-skill edges resolve to REAL nodes, ghost gone", async () => {
     const result = await deriveApplication("请假审批");
     expect(result.mermaid).toContain('subgraph datamodel["数据中台"]');
     expect(result.mermaid).toContain('subgraph rbac["RBAC 权限"]');
     expect(result.mermaid).toContain('subgraph workflow["工作流"]');
     expect(result.mermaid).toContain("subgraph page[");
+    expect(result.mermaid).toContain("subgraph appbundle[");
     expect(result.mermaid).toMatch(/cmp_approve -\.->\|.*\| dm_leave_request/);
     expect(result.mermaid).toMatch(/cmp_approve -\.->\|.*\| role_manager/);
+    expect(result.mermaid).toMatch(/app_app_leave_approval -\.->\|.*\| page_page_leave_request/);
+    expect(result.mermaid).toMatch(/app_app_leave_approval -\.->\|.*\| wf_wf_leave_approval/);
     // workflow approval node -.-> rbac role node
     expect(result.mermaid).toContain("wf_a_mgr -.->|审批人| role_manager");
     // RBAC data rule now points at the REAL datamodel entity node, not a ghost
