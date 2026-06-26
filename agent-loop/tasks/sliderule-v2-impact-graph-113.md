@@ -1,7 +1,7 @@
 # SlideRule V2 Skills 113.14: global impact graph
 
 ## Execution status
-- Status: pending
+- Status: DONE_REVIEWED - committed 37eec60d
 - Goal: implement a global dependency and impact graph so a changed role, field, workflow, or page can report all affected downstream surfaces and AppBundles.
 - Required gate: `slideruleV2ImpactGraph113Gates`
 
@@ -24,19 +24,25 @@ V2 architecture diagrams repeatedly point to a global dependency graph. This tas
 - Do not add AIGC impact in this wave.
 
 ## Implementation steps
-- [ ] Add tests for field impact: DataModel field -> Page binding -> AppBundle.
-- [ ] Add tests for role impact: RBAC role -> Workflow approval/Page render/Menu or permission -> AppBundle.
-- [ ] Add tests for workflow impact: Workflow -> AppBundle.
-- [ ] Add tests for page impact: Page -> AppBundle.
-- [ ] Implement `buildDependencyGraph()` from orchestrator Skill outputs and cross refs.
-- [ ] Implement `impact(ref)` returning direct and multi-hop affected nodes with paths.
-- [ ] Ensure diagrams or debug output can include impact paths without changing normal projection.
+- [x] Add tests for field impact: DataModel field -> Page binding -> AppBundle.
+- [x] Add tests for role impact: RBAC role -> Workflow approval/Page render/Menu or permission -> AppBundle.
+- [x] Add tests for workflow impact: Workflow -> AppBundle.
+- [x] Add tests for page impact: Page -> AppBundle.
+- [x] Implement `buildDependencyGraph()` from orchestrator Skill outputs and cross refs.
+- [x] Implement `impact(ref)` returning direct and multi-hop affected nodes with paths.
+- [x] Ensure diagrams or debug output can include impact paths without changing normal projection.
 
 ## Required validation
 - `pnpm exec vitest run client/src/lib/skills/impact.test.ts client/src/lib/skills/orchestrator.test.ts --reporter=dot`
 - `pnpm exec vitest run client/src/lib/skills --reporter=dot`
 - `pnpm exec tsc --noEmit --pretty false`
 - `node agent-loop/src/check-mojibake.js client/src/lib/skills/impact.ts client/src/lib/skills/impact.test.ts client/src/lib/skills/orchestrator.ts client/src/lib/skills/orchestrator.test.ts`
+
+## Review evidence
+- `pnpm exec vitest run client/src/lib/skills/impact.test.ts client/src/lib/skills/orchestrator.test.ts --reporter=dot`: 2 files, 13 tests passed.
+- `pnpm exec vitest run client/src/lib/skills --reporter=dot`: 8 files, 111 tests passed.
+- `pnpm exec tsc --noEmit --pretty false`: exit 0.
+- `node agent-loop/src/check-mojibake.js client/src/lib/skills/impact.ts client/src/lib/skills/impact.test.ts client/src/lib/skills/orchestrator.ts client/src/lib/skills/orchestrator.test.ts`: No mojibake findings.
 
 ## Acceptance criteria
 - Impact analysis supports role, field, workflow, page, and app-level refs.
