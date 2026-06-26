@@ -1,7 +1,7 @@
 # SlideRule V2 Skills 113.06: DataModel SSOT gate
 
 ## Execution status
-- Status: pending
+- Status: DONE_REVIEWED - committed 6eba157b
 - Goal: implement SSOT validation so field identity, lifecycle, version, and OLAP misuse are objectively checked before downstream Skills bind to data facts.
 - Required gate: `slideruleV2DataModelSsotGate113Gates`
 

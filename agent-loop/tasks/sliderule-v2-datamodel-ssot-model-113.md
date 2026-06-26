@@ -1,7 +1,7 @@
 # SlideRule V2 Skills 113.05: DataModel SSOT model
 
 ## Execution status
-- Status: pending
+- Status: DONE_REVIEWED - committed b11ec2bf
 - Goal: upgrade DataModel Skill model so it acts as the V2 SSOT host for entities and fields, with stable field IDs, versions, lifecycle, namespace, and OLAP separation.
 - Required gate: `slideruleV2DataModelSsotModel113Gates`
 

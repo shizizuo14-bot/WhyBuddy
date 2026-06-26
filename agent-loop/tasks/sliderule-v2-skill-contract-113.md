@@ -1,7 +1,7 @@
 # SlideRule V2 Skills 113.01: shared contract and kernel vocabulary
 
 ## Execution status
-- Status: pending
+- Status: DONE_REVIEWED - committed 31ff137b
 - Goal: establish the shared V2 Skill contract so every runtime-less Skill can declare its kernel role, dependency references, policy decisions, publish gate reports, and impact reports in one typed vocabulary.
 - Required gate: `slideruleV2SkillContract113Gates`
 

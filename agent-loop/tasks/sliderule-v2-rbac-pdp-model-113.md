@@ -1,7 +1,7 @@
 # SlideRule V2 Skills 113.02: RBAC PDP model
 
 ## Execution status
-- Status: pending
+- Status: DONE_REVIEWED - committed 0f1aa2a4
 - Goal: upgrade the RBAC Skill model so it represents the V2 PDP host, including role inheritance, SoD rules, and fail-closed policy posture.
 - Required gate: `slideruleV2RbacPdpModel113Gates`
 

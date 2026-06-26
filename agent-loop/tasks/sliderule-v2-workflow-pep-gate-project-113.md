@@ -1,7 +1,7 @@
 # SlideRule V2 Skills 113.09: Workflow PEP gate and projection
 
 ## Execution status
-- Status: pending
+- Status: DONE_REVIEWED - committed 5e533daa
 - Goal: enforce Workflow PEP delegation and update projection so workflows show RBAC PDP checks, DataModel SSOT bindings, and existing execution-semantics gates in one diagram.
 - Required gate: `slideruleV2WorkflowPepGateProject113Gates`
 

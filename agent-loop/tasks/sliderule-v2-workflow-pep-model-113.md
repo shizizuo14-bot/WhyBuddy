@@ -1,7 +1,7 @@
 # SlideRule V2 Skills 113.08: Workflow PEP model
 
 ## Execution status
-- Status: pending
+- Status: DONE_REVIEWED - committed b5e4b641
 - Goal: upgrade Workflow model into a V2 PEP execution point that delegates actor/permission decisions to RBAC PDP and binds form/branch fields to DataModel SSOT.
 - Required gate: `slideruleV2WorkflowPepModel113Gates`
 

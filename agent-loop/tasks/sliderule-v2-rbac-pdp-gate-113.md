@@ -1,7 +1,7 @@
 # SlideRule V2 Skills 113.03: RBAC PDP gate and decisions
 
 ## Execution status
-- Status: pending
+- Status: DONE_REVIEWED - committed 763039ca
 - Goal: implement the RBAC PDP gate so invalid role inheritance, SoD conflicts, and local decision bypasses are caught before downstream Skills can publish.
 - Required gate: `slideruleV2RbacPdpGate113Gates`
 

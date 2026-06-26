@@ -1,7 +1,7 @@
 # SlideRule V2 Skills 113.07: DataModel SSOT project and resolve surface
 
 ## Execution status
-- Status: pending
+- Status: DONE_REVIEWED - committed f44a8fb8
 - Goal: expose DataModel as field-level SSOT so downstream Skills can resolve entity and field references, and diagrams can show real field nodes instead of coarse entity-only links.
 - Required gate: `slideruleV2DataModelSsotProjectResolve113Gates`
 

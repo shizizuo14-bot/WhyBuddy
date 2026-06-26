@@ -1,7 +1,7 @@
 # SlideRule V2 Skills 113.04: RBAC PDP project and resolve surface
 
 ## Execution status
-- Status: pending
+- Status: DONE_REVIEWED - committed 40b823f6
 - Goal: make RBAC project and resolve expose PDP semantics so other Skills can delegate permission decisions and diagrams can show inbound PDP delegation.
 - Required gate: `slideruleV2RbacPdpProjectResolve113Gates`
 
