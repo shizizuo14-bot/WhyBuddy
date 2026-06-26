@@ -21,6 +21,7 @@ describe("purchase approval E2E scenario", () => {
       "rbac",
       "workflow",
       "page",
+      "aigc",
       "appbundle",
     ]);
     expect(result.mermaid).not.toContain("未接入");
@@ -29,7 +30,13 @@ describe("purchase approval E2E scenario", () => {
       roleRefs: ["requester", "department_manager", "finance", "procurement"],
       workflowRefs: ["wf_purchase_approval"],
       pageRefs: ["page_purchase_request"],
+      aigcCapabilityRefs: ["budget_risk_summary"],
     });
+    expect(result.spec.skills.aigc).toMatchObject({
+      id: "aigc_purchase_risk",
+    });
+    expect((result.spec.skills.aigc as any).outputSchemas[0].fields.map((field: any) => field.key)).toContain("recommendedAction");
+    expect(result.mermaid).toContain("budget_risk_summary");
   });
 
   it("keeps the purchase approval publishGate green", async () => {
@@ -55,7 +62,7 @@ describe("purchase approval E2E scenario", () => {
 
     expect(amountImpact.safe).toBe(false);
     expect(amountImpact.impacted.map(hit => hit.node)).toEqual(
-      expect.arrayContaining(["cmp_amount", "page_page_purchase_request", "app_app_purchase_approval"]),
+      expect.arrayContaining(["cmp_amount", "aigc_cap_budget_risk_summary", "page_page_purchase_request", "app_app_purchase_approval"]),
     );
     expect(pathIncludes(amountImpact, [
       "dm_purchase_request_amount",
@@ -63,15 +70,25 @@ describe("purchase approval E2E scenario", () => {
       "page_page_purchase_request",
       "app_app_purchase_approval",
     ])).toBe(true);
+    expect(pathIncludes(amountImpact, [
+      "dm_purchase_request_amount",
+      "aigc_cap_budget_risk_summary",
+      "app_app_purchase_approval",
+    ])).toBe(true);
 
     expect(financeImpact.safe).toBe(false);
     expect(financeImpact.impacted.map(hit => hit.node)).toEqual(
-      expect.arrayContaining(["wf_finance", "cmp_financeApprove", "app_app_purchase_approval"]),
+      expect.arrayContaining(["wf_finance", "cmp_financeApprove", "aigc_cap_budget_risk_summary", "app_app_purchase_approval"]),
     );
     expect(pathIncludes(financeImpact, [
       "role_finance",
       "wf_finance",
       "wf_wf_purchase_approval",
+      "app_app_purchase_approval",
+    ])).toBe(true);
+    expect(pathIncludes(financeImpact, [
+      "role_finance",
+      "aigc_cap_budget_risk_summary",
       "app_app_purchase_approval",
     ])).toBe(true);
   });

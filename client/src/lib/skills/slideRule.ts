@@ -1,6 +1,7 @@
 // The default SlideRule instance.
 
 import { Orchestrator } from "./orchestrator";
+import { aigcSkill } from "./aigc/aigcSkill";
 import { appBundleSkill } from "./appbundle/appBundleSkill";
 import { dataModelSkill } from "./datamodel/dataModelSkill";
 import { pageSkill } from "./page/pageSkill";
@@ -14,6 +15,7 @@ export const slideRule = new Orchestrator()
   .use(rbacSkill)
   .use(workflowSkill)
   .use(pageSkill)
+  .use(aigcSkill)
   .use(appBundleSkill);
 
 /** One call: 一句话意图 → 统一 SPEC + 总关联图 + 汇总 gate 报告。 */

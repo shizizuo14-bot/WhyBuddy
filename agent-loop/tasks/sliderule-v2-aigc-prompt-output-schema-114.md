@@ -1,7 +1,7 @@
 # SlideRule V2 AIGC 114.03: prompt templates and output schemas
 
 ## Execution status
-- Status: PENDING
+- Status: DONE_REVIEWED
 - Goal: add PromptTemplate and OutputSchema gates so AI outputs are structured and versioned.
 - Required gate: `slideruleV2AigcPromptOutputSchema114Gates`
 
@@ -37,3 +37,8 @@ The AIGC V2 diagram requires prompt versions and structured output schemas. The 
 - Output schema fields are typed and validated.
 - The purchase risk summary has a deterministic output schema.
 
+
+## Review evidence
+- Evidence: `pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot` -> 17 passed.
+- Evidence: `pnpm exec vitest run client/src/lib/skills --reporter=dot` -> 10 files / 137 tests passed.
+- Evidence: `pnpm exec tsc --noEmit --pretty false` -> exit code 0.

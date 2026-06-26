@@ -1,7 +1,7 @@
 # SlideRule V2 AIGC 114.04: RAG retrieval and citation policy
 
 ## Execution status
-- Status: PENDING
+- Status: DONE_REVIEWED
 - Goal: model RAG knowledge sources, retrieval policy, and citation policy with gates.
 - Required gate: `slideruleV2AigcRagPolicy114Gates`
 
@@ -37,3 +37,8 @@ RAG is a PEP surface: retrieval authorization is delegated to RBAC PDP, and know
 - Retrieval policy is clearly PEP and delegates authorization to RBAC.
 - Citation-required capabilities cannot omit citation policy.
 
+
+## Review evidence
+- Evidence: `pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot` -> 17 passed.
+- Evidence: `pnpm exec vitest run client/src/lib/skills --reporter=dot` -> 10 files / 137 tests passed.
+- Evidence: `pnpm exec tsc --noEmit --pretty false` -> exit code 0.

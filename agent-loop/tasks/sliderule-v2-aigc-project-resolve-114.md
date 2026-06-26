@@ -1,7 +1,7 @@
 # SlideRule V2 AIGC 114.08: project, resolve, and crossRefs
 
 ## Execution status
-- Status: PENDING
+- Status: DONE_REVIEWED
 - Goal: expose AIGC capability projection, resolve surface, and cross-skill references.
 - Required gate: `slideruleV2AigcProjectResolve114Gates`
 
@@ -40,3 +40,8 @@ The combined Intent-to-App graph must show AIGC capabilities, providers, prompts
 - AIGC refs resolve through existing RBAC and DataModel surfaces.
 - Full existing Skill suite remains green.
 
+
+## Review evidence
+- Evidence: `pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot` -> 17 passed.
+- Evidence: `pnpm exec vitest run client/src/lib/skills --reporter=dot` -> 10 files / 137 tests passed.
+- Evidence: `pnpm exec tsc --noEmit --pretty false` -> exit code 0.

@@ -1,0 +1,578 @@
+import {
+  finalizeReport,
+  type CrossRefEdge,
+  type CrossSkill,
+  type Finding,
+  type Projection,
+  type ResolvableSurface,
+  type Skill,
+  type ValidateContext,
+} from "../skill";
+import type {
+  AigcCapability,
+  AigcCapabilityKind,
+  AigcModel,
+  OutputSchemaFieldType,
+} from "./aigcModel";
+
+const capabilityKinds: AigcCapabilityKind[] = [
+  "summary",
+  "classification",
+  "extraction",
+  "recommendation",
+  "tool_orchestration",
+];
+
+const outputFieldTypes: OutputSchemaFieldType[] = ["string", "number", "boolean", "enum", "object", "array"];
+
+function sanitizeId(raw: string): string {
+  return raw.replace(/[^a-zA-Z0-9_]/g, "_");
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values)];
+}
+
+function findDuplicates(values: string[]): string[] {
+  const seen = new Set<string>();
+  const duplicates = new Set<string>();
+  for (const value of values) {
+    if (seen.has(value)) duplicates.add(value);
+    seen.add(value);
+  }
+  return [...duplicates];
+}
+
+function nodeId(kind: string, id: string): string {
+  return `aigc_${kind}_${sanitizeId(id)}`;
+}
+
+function capabilityNodeId(id: string): string {
+  return nodeId("cap", id);
+}
+
+function pushFinding(
+  findings: Finding[],
+  code: string,
+  severity: Finding["severity"],
+  path: string,
+  message: string,
+): void {
+  findings.push({ code, severity, path, message });
+}
+
+function stringSet(values: Array<{ id: string }> | undefined): Set<string> {
+  return new Set((values ?? []).map(item => item.id));
+}
+
+function hasRawSecret(provider: Record<string, unknown>): boolean {
+  return ["apiKey", "secret", "rawKey"].some(key => {
+    const value = provider[key];
+    return typeof value === "string" && value.length > 0;
+  });
+}
+
+function fieldMetadata(surface: ResolvableSurface | undefined, ref: string): any | null {
+  const fields = (surface as any)?.fields;
+  if (!Array.isArray(fields)) return null;
+  return fields.find((field: any) => field?.ref === ref) ?? null;
+}
+
+function validateRoleRef(
+  findings: Finding[],
+  roles: string[] | undefined,
+  ref: string,
+  path: string,
+): void {
+  if (roles === undefined) {
+    pushFinding(findings, "AIGC_ROLE_UNRESOLVED", "warning", path, `RBAC role surface was not provided for ${ref}.`);
+  } else if (!roles.includes(ref)) {
+    pushFinding(findings, "AIGC_ROLE_MISSING", "error", path, `AIGC references missing RBAC role: ${ref}.`);
+  }
+}
+
+function validatePermissionRef(
+  findings: Finding[],
+  permissions: string[] | undefined,
+  ref: string,
+  path: string,
+): void {
+  if (permissions === undefined) {
+    pushFinding(findings, "AIGC_PERMISSION_UNRESOLVED", "warning", path, `RBAC permission surface was not provided for ${ref}.`);
+  } else if (!permissions.includes(ref)) {
+    pushFinding(findings, "AIGC_PERMISSION_MISSING", "error", path, `AIGC references missing RBAC permission: ${ref}.`);
+  }
+}
+
+function validateFieldRef(
+  findings: Finding[],
+  datamodel: ResolvableSurface | undefined,
+  ref: string,
+  path: string,
+  missingCode: "AIGC_INPUT_FIELD_MISSING" | "AIGC_OUTPUT_FIELD_MISSING",
+): void {
+  const fields = datamodel?.field;
+  if (fields === undefined) {
+    pushFinding(findings, "AIGC_FIELD_UNRESOLVED", "warning", path, `DataModel field surface was not provided for ${ref}.`);
+    return;
+  }
+  if (!fields.includes(ref)) {
+    pushFinding(findings, missingCode, "error", path, `AIGC references missing DataModel SSOT field: ${ref}.`);
+    return;
+  }
+
+  const metadata = fieldMetadata(datamodel, ref);
+  if (metadata?.lifecycle === "deprecated") {
+    pushFinding(findings, "AIGC_FIELD_DEPRECATED", "warning", path, `AIGC references deprecated DataModel field: ${ref}.`);
+  } else if (metadata?.lifecycle === "removed") {
+    pushFinding(findings, "AIGC_FIELD_REMOVED", "error", path, `AIGC references removed DataModel field: ${ref}.`);
+  }
+}
+
+function capabilityRefs(model: AigcModel): {
+  roleRefs: string[];
+  permissionRefs: string[];
+  inputFieldRefs: string[];
+  outputFieldRefs: string[];
+} {
+  return {
+    roleRefs: unique([
+      ...model.capabilities.flatMap(cap => cap.allowedRoleRefs ?? []),
+      ...model.retrievalPolicies.flatMap(policy => policy.allowedRoleRefs),
+    ]),
+    permissionRefs: unique([
+      ...model.capabilities.flatMap(cap => cap.permissionRefs ?? []),
+      ...model.retrievalPolicies.flatMap(policy => policy.permissionRefs),
+      ...model.toolConfigs.flatMap(tool => tool.permissionRefs),
+      ...model.toolPolicies.flatMap(policy => policy.permissionRefs),
+    ]),
+    inputFieldRefs: unique([
+      ...model.capabilities.flatMap(cap => cap.inputFieldRefs ?? []),
+      ...model.knowledgeSources.flatMap(source => source.fieldRefs ?? []),
+      ...model.citationPolicies.flatMap(policy => policy.sourceFieldRefs ?? []),
+    ]),
+    outputFieldRefs: unique([
+      ...model.capabilities.flatMap(cap => cap.outputFieldRefs ?? []),
+      ...model.outputSchemas.flatMap(schema => schema.fields.flatMap(field => (field.writebackFieldRef ? [field.writebackFieldRef] : []))),
+    ]),
+  };
+}
+
+export const aigcSkill: Skill<AigcModel> & CrossSkill<AigcModel> = {
+  id: "aigc",
+  title: "AIGC Center",
+
+  validate(model: AigcModel, ctx?: ValidateContext): ReturnType<Skill<AigcModel>["validate"]> {
+    const findings: Finding[] = [];
+    const providerIds = stringSet(model.providers);
+    const promptIds = stringSet(model.promptTemplates);
+    const outputSchemaIds = stringSet(model.outputSchemas);
+    const knowledgeSourceIds = stringSet(model.knowledgeSources);
+    const retrievalPolicyIds = stringSet(model.retrievalPolicies);
+    const citationPolicyIds = stringSet(model.citationPolicies);
+    const toolConfigIds = stringSet(model.toolConfigs);
+    const toolPolicyIds = stringSet(model.toolPolicies);
+    const rbac = ctx?.external?.rbac;
+    const datamodel = ctx?.external?.datamodel;
+
+    if (model.pep !== "pep") {
+      pushFinding(findings, "AIGC_PEP_BYPASS", "error", "pep", "AIGC must declare itself as a PEP execution point.");
+    }
+
+    for (const duplicate of findDuplicates(model.capabilities.map(cap => cap.id))) {
+      pushFinding(findings, "AIGC_DUP_CAP_ID", "error", "capabilities", `Duplicate AIGC capability id: ${duplicate}.`);
+    }
+
+    model.capabilities.forEach((capability, index) => {
+      const path = `capabilities[${index}]`;
+      if (!capabilityKinds.includes(capability.kind)) {
+        pushFinding(findings, "AIGC_INVALID_KIND", "error", `${path}.kind`, `Invalid AIGC capability kind: ${capability.kind}.`);
+      }
+      if (capability.allowWithoutPdp) {
+        pushFinding(findings, "AIGC_PEP_BYPASS", "error", `${path}.allowWithoutPdp`, "AIGC cannot make local-only authorization decisions.");
+      }
+      if (!capability.providerRef || !providerIds.has(capability.providerRef)) {
+        pushFinding(findings, "AIGC_PROVIDER_MISSING", "error", `${path}.providerRef`, `Missing provider route: ${capability.providerRef ?? ""}.`);
+      }
+      if (!capability.promptRef || !promptIds.has(capability.promptRef)) {
+        pushFinding(findings, "AIGC_PROMPT_MISSING", "error", `${path}.promptRef`, `Missing prompt template: ${capability.promptRef ?? ""}.`);
+      }
+      if (!capability.outputSchemaRef || !outputSchemaIds.has(capability.outputSchemaRef)) {
+        pushFinding(findings, "AIGC_OUTPUT_SCHEMA_MISSING", "error", `${path}.outputSchemaRef`, `Missing output schema: ${capability.outputSchemaRef ?? ""}.`);
+      }
+      (capability.knowledgeSourceRefs ?? []).forEach((ref, refIndex) => {
+        if (!knowledgeSourceIds.has(ref)) {
+          pushFinding(findings, "AIGC_RAG_SOURCE_MISSING", "error", `${path}.knowledgeSourceRefs[${refIndex}]`, `Missing RAG knowledge source: ${ref}.`);
+        }
+      });
+      if (capability.knowledgeSourceRefs?.length && (!capability.retrievalPolicyRef || !retrievalPolicyIds.has(capability.retrievalPolicyRef))) {
+        pushFinding(findings, "AIGC_RETRIEVAL_POLICY_MISSING", "error", `${path}.retrievalPolicyRef`, `Missing retrieval policy: ${capability.retrievalPolicyRef ?? ""}.`);
+      }
+      const citationPolicy = capability.citationPolicyRef
+        ? model.citationPolicies.find(policy => policy.id === capability.citationPolicyRef)
+        : null;
+      if (capability.knowledgeSourceRefs?.length && (!citationPolicy || !citationPolicy.citationRequired)) {
+        pushFinding(findings, "AIGC_CITATION_REQUIRED", "error", `${path}.citationPolicyRef`, "RAG-backed AIGC capabilities must declare a citation-required policy.");
+      } else if (capability.citationPolicyRef && !citationPolicyIds.has(capability.citationPolicyRef)) {
+        pushFinding(findings, "AIGC_CITATION_REQUIRED", "error", `${path}.citationPolicyRef`, `Missing citation policy: ${capability.citationPolicyRef}.`);
+      }
+      (capability.toolRefs ?? []).forEach((ref, refIndex) => {
+        if (!toolConfigIds.has(ref)) {
+          pushFinding(findings, "AIGC_TOOL_MISSING", "error", `${path}.toolRefs[${refIndex}]`, `Missing tool config: ${ref}.`);
+        }
+      });
+      if (capability.toolRefs?.length && (!capability.toolPolicyRef || !toolPolicyIds.has(capability.toolPolicyRef))) {
+        pushFinding(findings, "AIGC_TOOL_POLICY_MISSING", "error", `${path}.toolPolicyRef`, `Missing tool policy: ${capability.toolPolicyRef ?? ""}.`);
+      }
+      (capability.allowedRoleRefs ?? []).forEach((ref, refIndex) =>
+        validateRoleRef(findings, rbac?.role, ref, `${path}.allowedRoleRefs[${refIndex}]`),
+      );
+      (capability.permissionRefs ?? []).forEach((ref, refIndex) =>
+        validatePermissionRef(findings, rbac?.permission, ref, `${path}.permissionRefs[${refIndex}]`),
+      );
+      (capability.inputFieldRefs ?? []).forEach((ref, refIndex) =>
+        validateFieldRef(findings, datamodel, ref, `${path}.inputFieldRefs[${refIndex}]`, "AIGC_INPUT_FIELD_MISSING"),
+      );
+      (capability.outputFieldRefs ?? []).forEach((ref, refIndex) =>
+        validateFieldRef(findings, datamodel, ref, `${path}.outputFieldRefs[${refIndex}]`, "AIGC_OUTPUT_FIELD_MISSING"),
+      );
+    });
+
+    model.providers.forEach((provider, index) => {
+      if (!provider.modelRef) {
+        pushFinding(findings, "AIGC_MODEL_MISSING", "error", `providers[${index}].modelRef`, `Provider ${provider.id} is missing modelRef.`);
+      }
+      if (!Number.isFinite(provider.tokenBudget) || provider.tokenBudget <= 0) {
+        pushFinding(findings, "AIGC_TOKEN_BUDGET_INVALID", "error", `providers[${index}].tokenBudget`, `Provider ${provider.id} has invalid token budget.`);
+      }
+      if (hasRawSecret(provider as unknown as Record<string, unknown>)) {
+        pushFinding(findings, "AIGC_RAW_SECRET", "error", `providers[${index}]`, `Provider ${provider.id} contains a raw secret.`);
+      }
+      if (!provider.keyRef && !provider.secretRef) {
+        pushFinding(findings, "AIGC_PROVIDER_MISSING", "error", `providers[${index}].keyRef`, `Provider ${provider.id} must use keyRef or secretRef.`);
+      }
+    });
+
+    model.promptTemplates.forEach((prompt, index) => {
+      if (!prompt.version) {
+        pushFinding(findings, "AIGC_PROMPT_VERSION_MISSING", "error", `promptTemplates[${index}].version`, `Prompt ${prompt.id} must be versioned.`);
+      }
+    });
+
+    model.outputSchemas.forEach((schema, schemaIndex) => {
+      if (!schema.version || schema.fields.length === 0) {
+        pushFinding(findings, "AIGC_OUTPUT_SCHEMA_INVALID", "error", `outputSchemas[${schemaIndex}]`, `Output schema ${schema.id} must be versioned and non-empty.`);
+      }
+      schema.fields.forEach((field, fieldIndex) => {
+        if (!field.key || !outputFieldTypes.includes(field.type)) {
+          pushFinding(findings, "AIGC_OUTPUT_SCHEMA_INVALID", "error", `outputSchemas[${schemaIndex}].fields[${fieldIndex}]`, `Invalid output schema field.`);
+        }
+        if (field.type === "enum" && (!field.enumValues || field.enumValues.length === 0)) {
+          pushFinding(findings, "AIGC_OUTPUT_SCHEMA_INVALID", "error", `outputSchemas[${schemaIndex}].fields[${fieldIndex}].enumValues`, `Enum output field must declare values.`);
+        }
+        if (field.writebackFieldRef) {
+          validateFieldRef(
+            findings,
+            datamodel,
+            field.writebackFieldRef,
+            `outputSchemas[${schemaIndex}].fields[${fieldIndex}].writebackFieldRef`,
+            "AIGC_OUTPUT_FIELD_MISSING",
+          );
+        }
+      });
+    });
+
+    model.knowledgeSources.forEach((source, sourceIndex) => {
+      (source.fieldRefs ?? []).forEach((ref, refIndex) =>
+        validateFieldRef(findings, datamodel, ref, `knowledgeSources[${sourceIndex}].fieldRefs[${refIndex}]`, "AIGC_INPUT_FIELD_MISSING"),
+      );
+    });
+
+    model.retrievalPolicies.forEach((policy, index) => {
+      if (policy.localDecision || (policy.allowedRoleRefs.length === 0 && policy.permissionRefs.length === 0)) {
+        pushFinding(findings, "AIGC_RETRIEVAL_PEP_BYPASS", "error", `retrievalPolicies[${index}]`, `Retrieval policy ${policy.id} must delegate authorization to RBAC.`);
+      }
+      policy.allowedRoleRefs.forEach((ref, refIndex) =>
+        validateRoleRef(findings, rbac?.role, ref, `retrievalPolicies[${index}].allowedRoleRefs[${refIndex}]`),
+      );
+      policy.permissionRefs.forEach((ref, refIndex) =>
+        validatePermissionRef(findings, rbac?.permission, ref, `retrievalPolicies[${index}].permissionRefs[${refIndex}]`),
+      );
+    });
+
+    model.citationPolicies.forEach((policy, index) => {
+      (policy.sourceFieldRefs ?? []).forEach((ref, refIndex) =>
+        validateFieldRef(findings, datamodel, ref, `citationPolicies[${index}].sourceFieldRefs[${refIndex}]`, "AIGC_INPUT_FIELD_MISSING"),
+      );
+    });
+
+    model.toolConfigs.forEach((tool, index) => {
+      if (tool.permissionRefs.length === 0) {
+        pushFinding(findings, "AIGC_TOOL_PERMISSION_MISSING", "error", `toolConfigs[${index}].permissionRefs`, `Tool config ${tool.id} must declare RBAC permission refs.`);
+      }
+      tool.permissionRefs.forEach((ref, refIndex) =>
+        validatePermissionRef(findings, rbac?.permission, ref, `toolConfigs[${index}].permissionRefs[${refIndex}]`),
+      );
+      if (!tool.budgetPolicyRef || !toolPolicyIds.has(tool.budgetPolicyRef)) {
+        pushFinding(findings, "AIGC_TOOL_POLICY_MISSING", "error", `toolConfigs[${index}].budgetPolicyRef`, `Tool config ${tool.id} references missing tool policy.`);
+      }
+    });
+
+    model.toolPolicies.forEach((policy, index) => {
+      if (policy.maxCalls <= 0 || policy.timeoutMs <= 0) {
+        pushFinding(findings, "AIGC_TOOL_BUDGET_INVALID", "error", `toolPolicies[${index}]`, `Tool policy ${policy.id} has invalid maxCalls or timeout.`);
+      }
+      if (policy.permissionRefs.length === 0) {
+        pushFinding(findings, "AIGC_TOOL_PERMISSION_MISSING", "error", `toolPolicies[${index}].permissionRefs`, `Tool policy ${policy.id} must declare RBAC permission refs.`);
+      }
+      policy.permissionRefs.forEach((ref, refIndex) =>
+        validatePermissionRef(findings, rbac?.permission, ref, `toolPolicies[${index}].permissionRefs[${refIndex}]`),
+      );
+    });
+
+    return finalizeReport(findings);
+  },
+
+  project(model: AigcModel): Projection {
+    const nodes: Projection["nodes"] = [
+      { id: nodeId("root", model.id), label: model.name, kind: "aigc" },
+      ...model.capabilities.map(cap => ({ id: capabilityNodeId(cap.id), label: cap.id, kind: "capability" })),
+      ...model.providers.map(provider => ({ id: nodeId("provider", provider.id), label: provider.id, kind: "provider" })),
+      ...model.promptTemplates.map(prompt => ({ id: nodeId("prompt", prompt.id), label: prompt.id, kind: "prompt" })),
+      ...model.outputSchemas.map(schema => ({ id: nodeId("schema", schema.id), label: schema.id, kind: "outputSchema" })),
+      ...model.knowledgeSources.map(source => ({ id: nodeId("knowledge", source.id), label: source.id, kind: "knowledgeSource" })),
+      ...model.retrievalPolicies.map(policy => ({ id: nodeId("retrieval", policy.id), label: policy.id, kind: "retrievalPolicy" })),
+      ...model.citationPolicies.map(policy => ({ id: nodeId("citation", policy.id), label: policy.id, kind: "citationPolicy" })),
+      ...model.toolConfigs.map(tool => ({ id: nodeId("tool", tool.id), label: tool.id, kind: "tool" })),
+      ...model.toolPolicies.map(policy => ({ id: nodeId("toolPolicy", policy.id), label: policy.id, kind: "toolPolicy" })),
+    ];
+
+    const edges: Projection["edges"] = [];
+    model.capabilities.forEach(cap => {
+      edges.push({ from: nodeId("root", model.id), to: capabilityNodeId(cap.id), label: cap.kind, kind: "contains" });
+      if (cap.providerRef) edges.push({ from: capabilityNodeId(cap.id), to: nodeId("provider", cap.providerRef), label: "provider", kind: "binding" });
+      if (cap.promptRef) edges.push({ from: capabilityNodeId(cap.id), to: nodeId("prompt", cap.promptRef), label: "prompt", kind: "binding" });
+      if (cap.outputSchemaRef) edges.push({ from: capabilityNodeId(cap.id), to: nodeId("schema", cap.outputSchemaRef), label: "output", kind: "binding" });
+      (cap.knowledgeSourceRefs ?? []).forEach(ref =>
+        edges.push({ from: capabilityNodeId(cap.id), to: nodeId("knowledge", ref), label: "RAG", kind: "binding" }),
+      );
+      if (cap.retrievalPolicyRef) edges.push({ from: capabilityNodeId(cap.id), to: nodeId("retrieval", cap.retrievalPolicyRef), label: "retrieval", kind: "binding" });
+      if (cap.citationPolicyRef) edges.push({ from: capabilityNodeId(cap.id), to: nodeId("citation", cap.citationPolicyRef), label: "citation", kind: "binding" });
+      (cap.toolRefs ?? []).forEach(ref =>
+        edges.push({ from: capabilityNodeId(cap.id), to: nodeId("tool", ref), label: "tool", kind: "binding" }),
+      );
+      if (cap.toolPolicyRef) edges.push({ from: capabilityNodeId(cap.id), to: nodeId("toolPolicy", cap.toolPolicyRef), label: "tool policy", kind: "binding" });
+    });
+    model.toolConfigs.forEach(tool => {
+      if (tool.budgetPolicyRef) edges.push({ from: nodeId("tool", tool.id), to: nodeId("toolPolicy", tool.budgetPolicyRef), label: "budget", kind: "binding" });
+    });
+
+    const lines = ["flowchart LR"];
+    for (const n of nodes) lines.push(`  ${n.id}["${n.label.replace(/"/g, "'")}"]`);
+    for (const e of edges) lines.push(`  ${e.from} -->|${e.label ?? ""}| ${e.to}`);
+    return { nodes, edges, mermaid: lines.join("\n") };
+  },
+
+  resolve(model: AigcModel): ResolvableSurface {
+    const refs = capabilityRefs(model);
+    return {
+      aigc: [model.id],
+      capability: model.capabilities.map(cap => cap.id),
+      provider: model.providers.map(provider => provider.id),
+      prompt: model.promptTemplates.map(prompt => prompt.id),
+      outputSchema: model.outputSchemas.map(schema => schema.id),
+      knowledgeSource: model.knowledgeSources.map(source => source.id),
+      retrievalPolicy: model.retrievalPolicies.map(policy => policy.id),
+      citationPolicy: model.citationPolicies.map(policy => policy.id),
+      tool: model.toolConfigs.map(tool => tool.id),
+      toolPolicy: model.toolPolicies.map(policy => policy.id),
+      role: refs.roleRefs,
+      permission: refs.permissionRefs,
+      field: unique([...refs.inputFieldRefs, ...refs.outputFieldRefs]),
+    };
+  },
+
+  crossRefs(model: AigcModel): CrossRefEdge[] {
+    const refs: CrossRefEdge[] = [];
+    model.capabilities.forEach(cap => {
+      const fromNode = capabilityNodeId(cap.id);
+      (cap.inputFieldRefs ?? []).forEach(ref =>
+        refs.push({ fromNode, toSkill: "datamodel", toKind: "field", toValue: ref, label: "input" }),
+      );
+      (cap.outputFieldRefs ?? []).forEach(ref =>
+        refs.push({ fromNode, toSkill: "datamodel", toKind: "field", toValue: ref, label: "output" }),
+      );
+      (cap.allowedRoleRefs ?? []).forEach(ref =>
+        refs.push({ fromNode, toSkill: "rbac", toKind: "role", toValue: ref, label: "PDP role" }),
+      );
+      (cap.permissionRefs ?? []).forEach(ref =>
+        refs.push({ fromNode, toSkill: "rbac", toKind: "permission", toValue: ref, label: "PDP permission" }),
+      );
+    });
+    model.knowledgeSources.forEach(source => {
+      (source.fieldRefs ?? []).forEach(ref =>
+        refs.push({ fromNode: nodeId("knowledge", source.id), toSkill: "datamodel", toKind: "field", toValue: ref, label: "source field" }),
+      );
+    });
+    model.retrievalPolicies.forEach(policy => {
+      policy.allowedRoleRefs.forEach(ref =>
+        refs.push({ fromNode: nodeId("retrieval", policy.id), toSkill: "rbac", toKind: "role", toValue: ref, label: "retrieval role" }),
+      );
+      policy.permissionRefs.forEach(ref =>
+        refs.push({ fromNode: nodeId("retrieval", policy.id), toSkill: "rbac", toKind: "permission", toValue: ref, label: "retrieval permission" }),
+      );
+    });
+    model.toolConfigs.forEach(tool => {
+      tool.permissionRefs.forEach(ref =>
+        refs.push({ fromNode: nodeId("tool", tool.id), toSkill: "rbac", toKind: "permission", toValue: ref, label: "tool permission" }),
+      );
+    });
+    return refs;
+  },
+
+  refNodeId(kind: string, value: string): string | null {
+    switch (kind) {
+      case "aigc":
+        return nodeId("root", value);
+      case "capability":
+        return capabilityNodeId(value);
+      case "provider":
+        return nodeId("provider", value);
+      case "prompt":
+        return nodeId("prompt", value);
+      case "outputSchema":
+        return nodeId("schema", value);
+      case "knowledgeSource":
+        return nodeId("knowledge", value);
+      case "tool":
+        return nodeId("tool", value);
+      default:
+        return null;
+    }
+  },
+
+  async generate(intent: string): Promise<AigcModel> {
+    if (/purchase|procurement|risk|budget|采购/i.test(intent)) return purchaseRiskAigcModel;
+    return emptyLeaveAigcModel;
+  },
+};
+
+export const emptyLeaveAigcModel: AigcModel = {
+  id: "aigc_empty_leave",
+  name: "No AIGC capability for leave approval",
+  pep: "pep",
+  capabilities: [],
+  providers: [],
+  promptTemplates: [],
+  outputSchemas: [],
+  knowledgeSources: [],
+  retrievalPolicies: [],
+  citationPolicies: [],
+  toolConfigs: [],
+  toolPolicies: [],
+  traceSpan: "aigc.leave.none.v1",
+};
+
+export const purchaseRiskAigcModel: AigcModel = {
+  id: "aigc_purchase_risk",
+  name: "Purchase Risk AIGC",
+  pep: "pep",
+  traceSpan: "aigc.purchase.risk.v1",
+  capabilities: [
+    {
+      id: "budget_risk_summary",
+      name: "Budget Risk Summary",
+      kind: "summary",
+      flowRef: "aigc_flow_purchase_risk",
+      providerRef: "openai_gpt4o_ref",
+      promptRef: "purchase_risk_prompt",
+      outputSchemaRef: "purchase_risk_output",
+      inputFieldRefs: [
+        "purchase_request.amount",
+        "purchase_request.department",
+        "purchase_request.vendor",
+        "purchase_request.budgetChecked",
+      ],
+      outputFieldRefs: [],
+      allowedRoleRefs: ["finance", "department_manager"],
+      permissionRefs: ["purchase:view", "purchase:finance_approve"],
+      knowledgeSourceRefs: ["vendor_policy_knowledge"],
+      retrievalPolicyRef: "purchase_risk_retrieval",
+      citationPolicyRef: "purchase_risk_citation",
+      toolRefs: ["budget_policy_lookup"],
+      toolPolicyRef: "purchase_tool_policy",
+      traceSpan: "aigc.purchase.risk.summary.v1",
+    },
+  ],
+  providers: [
+    {
+      id: "openai_gpt4o_ref",
+      name: "OpenAI GPT-4o reference",
+      providerRef: "openai",
+      modelRef: "gpt-4o",
+      tokenBudget: 16000,
+      keyRef: "keyref:llm/openai/default",
+    },
+  ],
+  promptTemplates: [
+    {
+      id: "purchase_risk_prompt",
+      version: "1.0.0",
+      template: "Summarize purchase risk using approved SSOT fields only.",
+      variables: ["amount", "department", "vendor", "budgetChecked"],
+    },
+  ],
+  outputSchemas: [
+    {
+      id: "purchase_risk_output",
+      version: "1.0.0",
+      fields: [
+        { key: "riskLevel", type: "enum", required: true, enumValues: ["low", "medium", "high"] },
+        { key: "summary", type: "string", required: true },
+        { key: "recommendedAction", type: "string", required: true },
+      ],
+    },
+  ],
+  knowledgeSources: [
+    {
+      id: "vendor_policy_knowledge",
+      name: "Vendor and budget policy corpus",
+      datasourceRef: "knowledge.procurement.policy",
+      fieldRefs: ["purchase_request.vendor", "purchase_request.department"],
+    },
+  ],
+  retrievalPolicies: [
+    {
+      id: "purchase_risk_retrieval",
+      allowedRoleRefs: ["finance", "department_manager"],
+      permissionRefs: ["purchase:view"],
+      maxResults: 5,
+    },
+  ],
+  citationPolicies: [
+    {
+      id: "purchase_risk_citation",
+      citationRequired: true,
+      sourceFieldRefs: ["purchase_request.vendor"],
+    },
+  ],
+  toolConfigs: [
+    {
+      id: "budget_policy_lookup",
+      name: "Budget policy lookup",
+      kind: "lookup",
+      toolRefs: ["budget_policy"],
+      permissionRefs: ["purchase:finance_approve"],
+      budgetPolicyRef: "purchase_tool_policy",
+    },
+  ],
+  toolPolicies: [
+    {
+      id: "purchase_tool_policy",
+      whitelist: ["budget_policy"],
+      permissionRefs: ["purchase:finance_approve"],
+      maxCalls: 2,
+      timeoutMs: 3000,
+    },
+  ],
+};

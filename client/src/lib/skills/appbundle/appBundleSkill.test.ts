@@ -1,10 +1,11 @@
 import { describe, expect, it } from "vitest";
 
+import { aigcSkill, purchaseRiskAigcModel } from "../aigc/aigcSkill";
 import { dataModelSkill, leaveRequestDataModel } from "../datamodel/dataModelSkill";
 import { leaveApprovalPage, pageSkill } from "../page/pageSkill";
 import { leaveApprovalRbac, rbacSkill } from "../rbac/rbacSkill";
 import { leaveApprovalWorkflow, workflowSkill } from "../workflow/workflowSkill";
-import { appBundleSkill, leaveApprovalAppBundle, validateAppBundlePublishGate } from "./appBundleSkill";
+import { appBundleSkill, leaveApprovalAppBundle, purchaseApprovalAppBundle, validateAppBundlePublishGate } from "./appBundleSkill";
 import type { AppBundleModel } from "./appBundleModel";
 
 const clone = (m: AppBundleModel): AppBundleModel => structuredClone(m);
@@ -14,6 +15,10 @@ const fullSurface = {
   rbac: rbacSkill.resolve(leaveApprovalRbac),
   workflow: workflowSkill.resolve(leaveApprovalWorkflow),
   page: pageSkill.resolve(leaveApprovalPage),
+};
+
+const purchaseAigcSurface = {
+  aigc: aigcSkill.resolve(purchaseRiskAigcModel),
 };
 
 describe("appBundleSkill - the gate", () => {
@@ -208,5 +213,42 @@ describe("appBundleSkill - V2 publish gate", () => {
     expect(projection.nodes.some(n => n.id === "snap_app_leave_approval" && n.kind === "runtimeSnapshot")).toBe(true);
     expect(projection.edges.some(e => e.from === "app_app_leave_approval" && e.to === "gate_app_leave_approval" && e.kind === "publishGate")).toBe(true);
     expect(projection.edges.some(e => e.from === "gate_app_leave_approval" && e.to === "snap_app_leave_approval" && e.kind === "runtimeSnapshot")).toBe(true);
+  });
+});
+
+describe("appBundleSkill - AIGC assembly refs (114.10)", () => {
+  it("assembles AIGC capability refs with version pins", () => {
+    const report = appBundleSkill.validate(purchaseApprovalAppBundle, {
+      external: {
+        aigc: purchaseAigcSurface.aigc,
+      },
+    });
+
+    expect(report.ok).toBe(true);
+    expect(purchaseApprovalAppBundle.aigcCapabilityRefs).toContain("budget_risk_summary");
+    expect(purchaseApprovalAppBundle.versionPins?.some(pin => pin.skillId === "aigc" && pin.ref === "budget_risk_summary")).toBe(true);
+    expect(purchaseApprovalAppBundle.runtimeSnapshot?.pinnedRefs).toContain("aigc:budget_risk_summary@1.0.0");
+  });
+
+  it("warns on unresolved AIGC surfaces and fails on ghost AIGC capability refs", () => {
+    const unresolved = appBundleSkill.validate(purchaseApprovalAppBundle);
+    expect(unresolved.warnings.some(w => w.code === "APPBUNDLE_AIGC_UNRESOLVED")).toBe(true);
+
+    const broken = clone(purchaseApprovalAppBundle);
+    broken.aigcCapabilityRefs = ["ghost_ai_capability"];
+    const missing = appBundleSkill.validate(broken, { external: purchaseAigcSurface });
+
+    expect(missing.ok).toBe(false);
+    expect(missing.errors.some(e => e.code === "APPBUNDLE_REF_MISSING_AIGC")).toBe(true);
+  });
+
+  it("blocks missing AIGC version pins before publish", () => {
+    const broken = clone(purchaseApprovalAppBundle);
+    broken.versionPins = broken.versionPins?.filter(pin => !(pin.skillId === "aigc" && pin.ref === "budget_risk_summary"));
+
+    const gate = validateAppBundlePublishGate(broken, { external: purchaseAigcSurface });
+
+    expect(gate.publishable).toBe(false);
+    expect(gate.blockers.some(blocker => blocker.code === "APPBUNDLE_VERSION_UNPINNED")).toBe(true);
   });
 });

@@ -16,7 +16,7 @@ export interface AppMenuEntry {
   roleRefs: string[];
 }
 
-export type AppBundleSkillId = "datamodel" | "rbac" | "workflow" | "page" | "appbundle";
+export type AppBundleSkillId = "datamodel" | "rbac" | "workflow" | "page" | "aigc" | "appbundle";
 
 export interface AppBundleVersionPin {
   skillId: AppBundleSkillId;
@@ -30,6 +30,7 @@ export interface AppBundleIncludedRefs {
   roles: string[];
   workflows: string[];
   pages: string[];
+  aigcCapabilities?: string[];
   app: string[];
 }
 
@@ -58,6 +59,7 @@ export interface AppBundleModel {
   roleRefs: string[];
   workflowRefs: string[];
   pageRefs: string[];
+  aigcCapabilityRefs?: string[];
   pageBindings: PageWorkflowBinding[];
   menuEntries: AppMenuEntry[];
   versionPins?: AppBundleVersionPin[];

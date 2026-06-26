@@ -1,7 +1,7 @@
 # SlideRule V2 AIGC 114.01: base metamodel
 
 ## Execution status
-- Status: PENDING
+- Status: DONE_REVIEWED
 - Goal: create the runtime-less AIGC-Skill base model so AIGC can join the Skill graph as a PEP execution point.
 - Required gate: `slideruleV2AigcModel114Gates`
 
@@ -39,3 +39,8 @@ AIGC must not become a new PDP, SSOT, or assembly root. It is a PEP execution po
 - No runtime provider, database, Redis, or real LLM code is introduced.
 - Tests fail before implementation and pass after implementation.
 
+
+## Review evidence
+- Evidence: `pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot` -> 17 passed.
+- Evidence: `pnpm exec vitest run client/src/lib/skills --reporter=dot` -> 10 files / 137 tests passed.
+- Evidence: `pnpm exec tsc --noEmit --pretty false` -> exit code 0.

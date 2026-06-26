@@ -1,7 +1,7 @@
 # SlideRule V2 AIGC 114.10: AppBundle AIGC pins and publish gate
 
 ## Execution status
-- Status: PENDING
+- Status: DONE_REVIEWED
 - Goal: let AppBundle assemble AIGC capabilities with version pins and publish gate checks.
 - Required gate: `slideruleV2AppbundleAigcPinsPublish114Gates`
 
@@ -41,3 +41,8 @@ AppBundle is the assembly root. Once AIGC enters the Skill graph, AppBundle must
 - AIGC refs must be pinned before publish.
 - Existing AppBundle publish gate behavior remains green.
 
+
+## Review evidence
+- Evidence: `pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot` -> 17 passed.
+- Evidence: `pnpm exec vitest run client/src/lib/skills --reporter=dot` -> 10 files / 137 tests passed.
+- Evidence: `pnpm exec tsc --noEmit --pretty false` -> exit code 0.

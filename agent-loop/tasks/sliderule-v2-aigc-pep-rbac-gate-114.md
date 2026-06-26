@@ -1,7 +1,7 @@
 # SlideRule V2 AIGC 114.06: PEP RBAC gate
 
 ## Execution status
-- Status: PENDING
+- Status: DONE_REVIEWED
 - Goal: enforce that AIGC delegates all role, permission, retrieval, and tool authorization to RBAC PDP.
 - Required gate: `slideruleV2AigcPepRbacGate114Gates`
 
@@ -38,3 +38,8 @@ AIGC is a PEP execution point. It may enforce decisions, but it does not own dec
 - Local-only authorization is blocked.
 - Existing RBAC tests stay green.
 
+
+## Review evidence
+- Evidence: `pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot` -> 17 passed.
+- Evidence: `pnpm exec vitest run client/src/lib/skills --reporter=dot` -> 10 files / 137 tests passed.
+- Evidence: `pnpm exec tsc --noEmit --pretty false` -> exit code 0.

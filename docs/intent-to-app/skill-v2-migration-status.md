@@ -1,58 +1,70 @@
 # Intent-to-App Skill V2 迁移状态
 
-本文档是 AgentLoop 队列 `sliderule-v2-skills-113` 的收口记录。目标是把 V2 架构里的五系统闭包落到 runtime-less Skill 层：RBAC=PDP，DataModel=SSOT，Workflow/Page=PEP，AppBundle=组装根，并具备 publish gate 与 impact graph。
+本文档记录 runtime-less Skill 层的 V2 迁移进度。目标是把产品推演平台从“只画架构图”推进到“能生成结构化 SPEC、能校验闭包、能自动投影总图、能做影响分析”的状态。
 
-## 最终状态
+## 当前结论
 
-- 状态：16/16 task 已完成并进入 `DONE_REVIEWED` 流程。
-- 覆盖面：Skill contract、RBAC、DataModel、Workflow、Page、AppBundle、publish gate、impact graph、第二个 purchase approval 端到端样例、最终 handoff。
-- 当前样例：`leave approval` 与 `purchase approval`。
-- 当前非目标：真实 LLM 生成、数据库物化、AIGC impact、AgentLoop 设置页改造、V2 架构图源文件改造。
+- 113 队列：五系统闭包已完成，覆盖 DataModel、RBAC、Workflow、Page、AppBundle。
+- 114 队列：AIGC 已作为第六个 PEP Skill 接入。
+- 当前默认闭包：`DataModel -> RBAC -> Workflow -> Page -> AIGC -> AppBundle`。
+- 当前端到端样例：`leave approval` 和 `purchase approval`。
+- 当前重点样例：`purchase approval` 已包含 AIGC `budget_risk_summary` capability，并进入 publish gate、version pins、runtime snapshot 和 impact graph。
 
-## Task 表
+## 113 五系统结果
 
-| Task | 状态 | 主要成果 | 证据 |
-|---|---|---|---|
-| 113.01 `sliderule-v2-skill-contract-113` | DONE_REVIEWED | V2 共享 Skill contract，包含 PDP/SSOT/PEP、DependencyRef、VersionPin、PublishGateReport、ImpactReport。 | `pnpm exec vitest run client/src/lib/skills/kernel.test.ts --reporter=dot`; committed `31ff137b` |
-| 113.02 `sliderule-v2-rbac-pdp-model-113` | DONE_REVIEWED | RBAC 模型补齐角色继承、SoD、PolicyContext、failClosed。 | `pnpm exec vitest run client/src/lib/skills/rbac/rbacSkill.test.ts --reporter=dot`; committed `0f1aa2a4` |
-| 113.03 `sliderule-v2-rbac-pdp-gate-113` | DONE_REVIEWED | RBAC PDP 决策、角色继承环、SoD、fail-closed gate。 | `pnpm exec vitest run client/src/lib/skills --reporter=dot`; committed `763039ca` |
-| 113.04 `sliderule-v2-rbac-pdp-project-resolve-113` | DONE_REVIEWED | RBAC projection/resolve 暴露 role、permission、policy、decision。 | RBAC + orchestrator tests; committed `40b823f6` |
-| 113.05 `sliderule-v2-datamodel-ssot-model-113` | DONE_REVIEWED | DataModel SSOT 字段 identity、version、lifecycle、storageRole、namespace。 | DataModel tests + tsc; committed `b11ec2bf` |
-| 113.06 `sliderule-v2-datamodel-ssot-gate-113` | DONE_REVIEWED | DataModel 字段版本、deprecated/removed、OLAP 非 SSOT gate。 | Full skills tests; committed `6eba157b` |
-| 113.07 `sliderule-v2-datamodel-ssot-project-resolve-113` | DONE_REVIEWED | DataModel field/entity projection 与 resolve，供 Workflow/Page/RBAC 引用。 | DataModel + orchestrator tests; committed `f44a8fb8` |
-| 113.08 `sliderule-v2-workflow-pep-model-113` | DONE_REVIEWED | Workflow PEP 模型补 actorRoleRef、policyCheckRefs、fieldRefs、traceSpan。 | Workflow tests + tsc; committed `b5e4b641` |
-| 113.09 `sliderule-v2-workflow-pep-gate-project-113` | DONE_REVIEWED | Workflow 审批人委托 RBAC、字段委托 DataModel、PEP bypass gate。 | Workflow + orchestrator + full skills tests; committed `5e533daa` |
-| 113.10 `sliderule-v2-page-pep-model-113` | DONE_REVIEWED | Page PEP 模型补 BindingSchema、PermissionRender、componentVersion、traceSpan。 | Page tests + tsc; committed `365da934` |
-| 113.11 `sliderule-v2-page-pep-gate-project-113` | DONE_REVIEWED | Page 字段绑定、权限渲染、PEP bypass 与 linkage 校验。 | Page + orchestrator + full skills tests; committed `c184e96d` |
-| 113.12 `sliderule-v2-appbundle-version-pins-113` | DONE_REVIEWED | AppBundle versionPins、publishManifest、runtimeSnapshot。 | AppBundle tests + full skills tests; committed `21609919` |
-| 113.13 `sliderule-v2-appbundle-publish-gate-113` | DONE_REVIEWED | AppBundle publish gate 阻断未闭合引用、未钉版本、ghost ref、PEP bypass。 | AppBundle + orchestrator + full skills tests; committed `0be7610e` |
-| 113.14 `sliderule-v2-impact-graph-113` | DONE_REVIEWED | 全局 dependency graph 与 multi-hop impact paths。 | `pnpm exec vitest run client/src/lib/skills/impact.test.ts client/src/lib/skills/orchestrator.test.ts --reporter=dot`; committed `37eec60d` |
-| 113.15 `sliderule-v2-e2e-purchase-approval-113` | DONE_REVIEWED | 第二个 purchase approval 端到端样例，覆盖四角色、采购数据、流程、页面、AppBundle、publish gate、impact。 | `pnpm exec vitest run client/src/lib/skills/purchaseApproval.test.ts client/src/lib/skills/orchestrator.test.ts --reporter=dot`; committed `21aa44cd` |
-| 113.16 `sliderule-v2-verification-handoff-113` | DONE_REVIEWED | README 与迁移状态 handoff，最终验证记录。 | `pnpm exec vitest run client/src/lib/skills --reporter=dot`; `pnpm exec tsc --noEmit --pretty false`; mojibake check |
+| 能力 | V2 角色 | 状态 |
+|---|---|---|
+| DataModel | SSOT 宿主 | DONE_REVIEWED |
+| RBAC | PDP 宿主 | DONE_REVIEWED |
+| Workflow | PEP 执行点 | DONE_REVIEWED |
+| Page | PEP 执行点 | DONE_REVIEWED |
+| AppBundle | 组装根宿主 | DONE_REVIEWED |
+| Publish gate | 应用发布门禁 | DONE_REVIEWED |
+| Impact graph | 全局影响分析 | DONE_REVIEWED |
 
-## 最终验证
-
-本轮收口前在隔离 worktree 中执行：
-
-```powershell
-pnpm exec vitest run client/src/lib/skills --reporter=dot
-pnpm exec tsc --noEmit --pretty false
-node agent-loop/src/check-mojibake.js client/src/lib/skills/README.md
-git diff --name-only
-```
-
-结果：
+113 收口验证记录：
 
 - `pnpm exec vitest run client/src/lib/skills --reporter=dot`：9 个测试文件，115 个测试通过。
 - `pnpm exec tsc --noEmit --pretty false`：退出码 0。
-- `node agent-loop/src/check-mojibake.js client/src/lib/skills/README.md`：No mojibake findings。
-- `git diff --name-only`：写文档前为空；写文档后仅包含本 task 允许的 README、status doc、task markdown。
 
-## Handoff
+## 114 AIGC 结果
 
-下一轮可以从三个方向继续：
+| 能力 | V2 角色 | 状态 |
+|---|---|---|
+| AIGC base model | PEP 元模型 | DONE_REVIEWED |
+| Provider router | KeyRef/SecretRef 元数据 | DONE_REVIEWED |
+| Prompt + OutputSchema | 版本化 prompt 和结构化输出 | DONE_REVIEWED |
+| RAG + Citation | 检索策略和引用策略 | DONE_REVIEWED |
+| ToolSkillConfig | 工具治理元数据 | DONE_REVIEWED |
+| RBAC PEP gate | 委托 RBAC PDP | DONE_REVIEWED |
+| DataModel SSOT gate | 绑定 DataModel 字段 | DONE_REVIEWED |
+| Project/Resolve/CrossRefs | 进入统一图 | DONE_REVIEWED |
+| Impact graph | 字段/角色变更能追到 AIGC | DONE_REVIEWED |
+| AppBundle pins | AIGC capability 进入应用包钉选 | DONE_REVIEWED |
+| Purchase E2E | 六系统采购审批闭包 | DONE_REVIEWED |
+| Handoff docs | README/status/handoff | DONE_REVIEWED |
 
-- 接真实 LLM：把 `generate()` 从 deterministic sample 改成受 schema/gate 约束的模型生成。
-- 接物化：把通过 publish gate 的 AppBundle SPEC 写入重型低代码平台或由 AgentLoop 生成补充代码。
-- 接 AIGC Skill：把 AIGC 作为 PEP 执行点接入同一套 resolve/crossRefs/publish gate/impact graph。
+114 收口验证记录：
 
+- `pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot`：1 个测试文件，17 个测试通过。
+- `pnpm exec vitest run client/src/lib/skills --reporter=dot`：10 个测试文件，137 个测试通过。
+- `pnpm exec tsc --noEmit --pretty false`：退出码 0。
+- `node agent-loop/src/check-mojibake.js client/src/lib/skills/README.md docs/intent-to-app/skill-v2-migration-status.md docs/intent-to-app/aigc-skill-114-status.md`：No mojibake findings。
+
+## 当前非目标
+
+- 不接真实 LLM provider。
+- 不保存真实 key，不读取 `.env`，不调用外部网络。
+- 不执行工具/MCP/API runtime。
+- 不物化到重型低代码平台。
+- 不承诺业务设计一定正确；gate 只保证结构和引用闭包。
+
+## 下一步建议：115 V2 Skill Hardening
+
+114 接入 AIGC 后，下一轮建议开 `115 V2 Skill hardening` 队列，专门补五个老系统的深水区：
+
+- RBAC：更完整的 PDP decision matrix、租户边界、数据规则组合。
+- DataModel：字段演进、兼容性、引用迁移、OLAP 投影边界。
+- Workflow：并行、会签、超时、委托、子流程。
+- Page：复杂组件树、页面状态、跨组件依赖图。
+- AppBundle：更严格的闭包快照、版本升级影响、发布回滚。

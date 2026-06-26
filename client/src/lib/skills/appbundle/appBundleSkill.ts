@@ -98,6 +98,7 @@ function expectedVersionPinRefs(model: AppBundleModel): Array<{ skillId: AppBund
       skillId: "page" as const,
       ref,
     })),
+    ...unique(model.aigcCapabilityRefs ?? []).map(ref => ({ skillId: "aigc" as const, ref })),
     { skillId: "appbundle" as const, ref: model.id },
   ];
 }
@@ -134,6 +135,9 @@ export const appBundleSkill: Skill<AppBundleModel> & CrossSkill<AppBundleModel> 
     );
     model.pageRefs.forEach(page =>
       refs.push({ fromNode, toSkill: "page", toKind: "page", toValue: page, label: "页面" }),
+    );
+    (model.aigcCapabilityRefs ?? []).forEach(capability =>
+      refs.push({ fromNode, toSkill: "aigc", toKind: "capability", toValue: capability, label: "AIGC" }),
     );
 
     model.menuEntries.forEach(menu => {
@@ -184,6 +188,7 @@ export const appBundleSkill: Skill<AppBundleModel> & CrossSkill<AppBundleModel> 
     const rbacRoles = ctx?.external?.rbac?.role;
     const workflowIds = ctx?.external?.workflow?.workflow;
     const pageIds = ctx?.external?.page?.page;
+    const aigcCapabilities = ctx?.external?.aigc?.capability;
 
     for (const dup of findDuplicates(model.menuEntries.map(menu => menu.id))) {
       f.push({
@@ -276,6 +281,15 @@ export const appBundleSkill: Skill<AppBundleModel> & CrossSkill<AppBundleModel> 
       "pageRefs",
       "Page",
     );
+    pushMissingSurfaceFindings(
+      f,
+      "APPBUNDLE_AIGC_UNRESOLVED",
+      model.aigcCapabilityRefs ?? [],
+      aigcCapabilities,
+      "APPBUNDLE_REF_MISSING_AIGC",
+      "aigcCapabilityRefs",
+      "AIGC capability",
+    );
 
     return finalizeReport(f);
   },
@@ -358,6 +372,10 @@ export function validateAppBundlePublishGate(
   });
 
   report.warnings.forEach(warning => {
+    if (warning.code === "APPBUNDLE_AIGC_UNRESOLVED") {
+      blockers.push(publishBlocker("APPBUNDLE_AIGC_UNRESOLVED", warning.path, warning.message));
+      return;
+    }
     if (warning.code.endsWith("_UNRESOLVED")) {
       blockers.push(publishBlocker("APPBUNDLE_GHOST_REF", warning.path, warning.message));
     }
@@ -444,6 +462,7 @@ export const purchaseApprovalAppBundle: AppBundleModel = {
   roleRefs: ["requester", "department_manager", "finance", "procurement"],
   workflowRefs: ["wf_purchase_approval"],
   pageRefs: ["page_purchase_request"],
+  aigcCapabilityRefs: ["budget_risk_summary"],
   pageBindings: [{ pageRef: "page_purchase_request", workflowRef: "wf_purchase_approval", mode: "approve" }],
   versionPins: [
     { skillId: "datamodel", ref: "employee", version: "1.0.0", pinnedAt: "PUBLISH_TIME" },
@@ -456,6 +475,7 @@ export const purchaseApprovalAppBundle: AppBundleModel = {
     { skillId: "rbac", ref: "procurement", version: "1.0.0", pinnedAt: "PUBLISH_TIME" },
     { skillId: "workflow", ref: "wf_purchase_approval", version: "1.0.0", pinnedAt: "PUBLISH_TIME" },
     { skillId: "page", ref: "page_purchase_request", version: "1.0.0", pinnedAt: "PUBLISH_TIME" },
+    { skillId: "aigc", ref: "budget_risk_summary", version: "1.0.0", pinnedAt: "PUBLISH_TIME" },
     { skillId: "appbundle", ref: "app_purchase_approval", version: "1.0.0", pinnedAt: "PUBLISH_TIME" },
   ],
   publishManifest: {
@@ -468,6 +488,7 @@ export const purchaseApprovalAppBundle: AppBundleModel = {
       roles: ["requester", "department_manager", "finance", "procurement"],
       workflows: ["wf_purchase_approval"],
       pages: ["page_purchase_request"],
+      aigcCapabilities: ["budget_risk_summary"],
       app: ["app_purchase_approval"],
     },
   },
@@ -486,6 +507,7 @@ export const purchaseApprovalAppBundle: AppBundleModel = {
       "rbac:procurement@1.0.0",
       "workflow:wf_purchase_approval@1.0.0",
       "page:page_purchase_request@1.0.0",
+      "aigc:budget_risk_summary@1.0.0",
       "appbundle:app_purchase_approval@1.0.0",
     ],
   },

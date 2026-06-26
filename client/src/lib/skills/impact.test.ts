@@ -1,11 +1,12 @@
 import { describe, expect, it } from "vitest";
 
 import { slideRule } from "./slideRule";
+import { purchaseRiskAigcModel } from "./aigc/aigcSkill";
 import { leaveApprovalAppBundle } from "./appbundle/appBundleSkill";
-import { leaveRequestDataModel } from "./datamodel/dataModelSkill";
+import { leaveRequestDataModel, purchaseApprovalDataModel } from "./datamodel/dataModelSkill";
 import { leaveApprovalPage } from "./page/pageSkill";
-import { leaveApprovalRbac } from "./rbac/rbacSkill";
-import { leaveApprovalWorkflow } from "./workflow/workflowSkill";
+import { leaveApprovalRbac, purchaseApprovalRbac } from "./rbac/rbacSkill";
+import { leaveApprovalWorkflow, purchaseApprovalWorkflow } from "./workflow/workflowSkill";
 import type { ImpactReport } from "./orchestrator";
 
 const models = {
@@ -14,6 +15,13 @@ const models = {
   workflow: leaveApprovalWorkflow,
   page: leaveApprovalPage,
   appbundle: leaveApprovalAppBundle,
+};
+
+const purchaseModels = {
+  datamodel: purchaseApprovalDataModel,
+  rbac: purchaseApprovalRbac,
+  workflow: purchaseApprovalWorkflow,
+  aigc: purchaseRiskAigcModel,
 };
 
 function impactedNodes(report: ImpactReport): string[] {
@@ -112,5 +120,29 @@ describe("cross-system impact analysis (global dependency graph)", () => {
 
     expect(report.safe).toBe(true);
     expect(report.impacted).toHaveLength(0);
+  });
+
+  it("a purchase_request.amount field change impacts the AIGC budget risk summary", () => {
+    const report = slideRule.impact(purchaseModels, {
+      skill: "datamodel",
+      kind: "field",
+      value: "purchase_request.amount",
+    });
+
+    expect(report.safe).toBe(false);
+    expect(impactedNodes(report)).toEqual(expect.arrayContaining(["aigc_cap_budget_risk_summary"]));
+    expect(hasPath(report, ["dm_purchase_request_amount", "aigc_cap_budget_risk_summary"])).toBe(true);
+  });
+
+  it("a finance role change impacts the AIGC budget risk summary", () => {
+    const report = slideRule.impact(purchaseModels, {
+      skill: "rbac",
+      kind: "role",
+      value: "finance",
+    });
+
+    expect(report.safe).toBe(false);
+    expect(impactedNodes(report)).toEqual(expect.arrayContaining(["aigc_cap_budget_risk_summary"]));
+    expect(hasPath(report, ["role_finance", "aigc_cap_budget_risk_summary"])).toBe(true);
   });
 });

@@ -1,7 +1,7 @@
 # SlideRule V2 AIGC 114.11: purchase approval E2E
 
 ## Execution status
-- Status: PENDING
+- Status: DONE_REVIEWED
 - Goal: add a deterministic purchase approval E2E sample with an AI budget risk summary.
 - Required gate: `slideruleV2AigcPurchaseApprovalE2e114Gates`
 
@@ -41,3 +41,8 @@ The existing purchase approval scenario proves five-system closure. This task ex
 - AIGC is covered by publish gate and impact graph.
 - No real LLM/provider/runtime work is introduced.
 
+
+## Review evidence
+- Evidence: `pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot` -> 17 passed.
+- Evidence: `pnpm exec vitest run client/src/lib/skills --reporter=dot` -> 10 files / 137 tests passed.
+- Evidence: `pnpm exec tsc --noEmit --pretty false` -> exit code 0.

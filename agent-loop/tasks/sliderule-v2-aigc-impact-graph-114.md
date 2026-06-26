@@ -1,7 +1,7 @@
 # SlideRule V2 AIGC 114.09: impact graph integration
 
 ## Execution status
-- Status: PENDING
+- Status: DONE_REVIEWED
 - Goal: include AIGC in the global dependency and impact graph.
 - Required gate: `slideruleV2AigcImpactGraph114Gates`
 
@@ -37,3 +37,8 @@ If a business field or role changes, the user should see affected AIGC capabilit
 - Existing non-AIGC impact paths do not regress.
 - No engine rewrite unless tests prove it is needed.
 
+
+## Review evidence
+- Evidence: `pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot` -> 17 passed.
+- Evidence: `pnpm exec vitest run client/src/lib/skills --reporter=dot` -> 10 files / 137 tests passed.
+- Evidence: `pnpm exec tsc --noEmit --pretty false` -> exit code 0.

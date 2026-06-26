@@ -1,7 +1,7 @@
 # SlideRule V2 AIGC 114.02: provider router and no-secret contract
 
 ## Execution status
-- Status: PENDING
+- Status: DONE_REVIEWED
 - Goal: add provider/model router validation and enforce KeyRef/SecretRef instead of raw secrets.
 - Required gate: `slideruleV2AigcProviderRouter114Gates`
 
@@ -37,3 +37,8 @@ AIGC may reference model providers, model names, and budgets, but this runtime-l
 - Raw secrets are always rejected.
 - No network/provider runtime is added.
 
+
+## Review evidence
+- Evidence: `pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot` -> 17 passed.
+- Evidence: `pnpm exec vitest run client/src/lib/skills --reporter=dot` -> 10 files / 137 tests passed.
+- Evidence: `pnpm exec tsc --noEmit --pretty false` -> exit code 0.

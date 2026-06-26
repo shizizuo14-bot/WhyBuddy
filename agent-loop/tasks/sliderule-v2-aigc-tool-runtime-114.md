@@ -1,7 +1,7 @@
 # SlideRule V2 AIGC 114.05: tool skill config and policy
 
 ## Execution status
-- Status: PENDING
+- Status: DONE_REVIEWED
 - Goal: model tool execution metadata, tool whitelist policy, permission refs, and budget gates.
 - Required gate: `slideruleV2AigcToolRuntime114Gates`
 
@@ -37,3 +37,8 @@ AIGC can orchestrate tools, MCP plugins, and API calls, but the runtime-less Ski
 - Tool permissions are delegated to RBAC through refs.
 - Budget/timeout metadata is validated.
 
+
+## Review evidence
+- Evidence: `pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot` -> 17 passed.
+- Evidence: `pnpm exec vitest run client/src/lib/skills --reporter=dot` -> 10 files / 137 tests passed.
+- Evidence: `pnpm exec tsc --noEmit --pretty false` -> exit code 0.

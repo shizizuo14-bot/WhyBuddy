@@ -1,7 +1,7 @@
 # SlideRule V2 AIGC 114.07: SSOT DataModel binding gate
 
 ## Execution status
-- Status: PENDING
+- Status: DONE_REVIEWED
 - Goal: enforce DataModel SSOT binding for all AIGC input and output field refs.
 - Required gate: `slideruleV2AigcSsotBindingGate114Gates`
 
@@ -37,3 +37,8 @@ AIGC may read business fields and produce structured outputs, but those fields m
 - Removed fields fail; deprecated fields warn.
 - Existing DataModel tests stay green.
 
+
+## Review evidence
+- Evidence: `pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot` -> 17 passed.
+- Evidence: `pnpm exec vitest run client/src/lib/skills --reporter=dot` -> 10 files / 137 tests passed.
+- Evidence: `pnpm exec tsc --noEmit --pretty false` -> exit code 0.
