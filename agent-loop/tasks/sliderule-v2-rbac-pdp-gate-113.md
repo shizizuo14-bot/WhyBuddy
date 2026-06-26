@@ -41,3 +41,4 @@ The PDP must be objective. If another Skill asks for an authorization decision a
 - Inheritance cycles fail validation.
 - SoD conflicts fail validation.
 - Existing RBAC gate errors still work.
+

@@ -39,3 +39,4 @@ Workflow must prove two things: the process can execute, and the process does no
 - Workflow remains a PEP and cannot authorize locally.
 - Workflow field refs bind to DataModel SSOT.
 - Generated diagrams show both process execution and kernel delegation.
+

@@ -36,3 +36,4 @@ V2 needs Page and Workflow to bind exact fields. `resolve()` should therefore ex
 - DataModel resolver supports field-level cross-Skill refs.
 - Diagrams show SSOT field facts clearly.
 - Existing entity-level consumers still work.
+

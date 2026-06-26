@@ -48,3 +48,4 @@ This task creates the shared contract only. It must not implement any individual
 - Existing RBAC, DataModel, Workflow, Page, AppBundle tests still compile.
 - No runtime dependency is introduced.
 - README explains the V2 terms in product-friendly language.
+

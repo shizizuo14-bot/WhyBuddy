@@ -37,3 +37,4 @@ The V2 diagrams make RBAC the PDP host. The runtime-less Skill must reflect that
 - RBAC can be consumed as the authoritative PDP surface by downstream Skills.
 - Generated diagrams show RBAC as PDP host rather than a passive role table.
 - Cross-Skill references still resolve deterministically.
+

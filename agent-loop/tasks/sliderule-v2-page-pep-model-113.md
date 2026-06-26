@@ -39,3 +39,4 @@ Page Designer keeps canvas/rendering/local linkage, but it does not own authoriz
 - Component visibility is expressible as RBAC PDP delegation.
 - Component data bindings are expressible as DataModel SSOT refs.
 - Existing Page sample remains readable.
+

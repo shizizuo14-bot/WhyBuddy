@@ -38,3 +38,4 @@ RBAC is no longer just a static role-permission graph. In V2 it is Kernel 1, the
 - RBAC model can express inheritance, SoD, policy context, and fail-closed mode.
 - Existing RBAC sample remains valid.
 - No other Skill behavior changes in this task.
+

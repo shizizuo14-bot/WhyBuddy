@@ -105,29 +105,40 @@ export function finalizeReport(findings: Finding[]): ValidationReport {
 
 export type KernelRole =
   | "pdp"           // RBAC = Kernel 1, the PDP host
+  | "pdp-host"      // V2 diagram wording for the PDP host
   | "ssot"          // DataModel = Kernel 2, the SSOT host
+  | "ssot-host"     // V2 diagram wording for the SSOT host
   | "pep"           // Workflow and Page are PEP execution points that delegate to PDP and bind to SSOT
   | "assembly-root" // AppBundle = Kernel 6, the assembly root that checks closure and pins versions
   | "orchestrator";
 
-export type SkillRuntimeRole = "kernel" | "pep" | "assembly" | "delegated";
+export type SkillRuntimeRole = "kernel" | "pep" | "pep-execution" | "assembly" | "delegated";
 
 export interface DependencyRef {
-  skill: string;
+  skill?: string;
+  to?: string;
   kind?: string;
+  ref?: string;
   value?: string;
   label?: string;
 }
 
 export interface VersionPin {
-  skill: string;
+  skill?: string;
+  skillId?: string;
   version: string;
   pinnedAt?: string;
 }
 
 export interface PolicyDecision {
-  effect: "allow" | "deny";
-  reasonCode: string;
+  effect?: "allow" | "deny";
+  decision?: "allow" | "deny";
+  reasonCode?: string;
+  reason?: string;
+  ruleId?: string;
+  subject?: string;
+  action?: string;
+  resource?: string;
   message?: string;
   by?: string;
 }
@@ -136,36 +147,48 @@ export interface PublishGateReport {
   publishable: boolean;
   blockers: Finding[];
   perSkill?: Record<string, { ok: boolean; errors: number; warnings: number }>;
+  unresolvedRefs?: CrossRefEdge[];
 }
 
+/** Report of change impact across the skill graph. */
 export interface ImpactReport {
-  target: { skill: string; kind: string; value: string };
-  safe: boolean;
-  impacted: Array<{
+  target?: { skill: string; kind: string; value: string };
+  safe?: boolean;
+  impacted?: Array<{
     skill: string;
     node: string;
     label: string;
     via: string;
     depth: number;
   }>;
+  affectedSkills?: string[];
+  impactGraph?: Projection;
+  summary?: string;
 }
 
+/** Typed surface a V2 Skill can publish for orchestrator and other skills. */
 export interface SkillCapabilitySurface {
   kernelRole?: KernelRole;
   runtimeRole?: SkillRuntimeRole;
-  provides?: ResolvableSurface;
+  provides?: ResolvableSurface | string[];
   delegatesTo?: DependencyRef[];
   bindsTo?: DependencyRef[];
   versionPins?: VersionPin[];
+  policyDecisions?: PolicyDecision[];
+  publishGates?: PublishGateReport[];
+  impacts?: ImpactReport[];
 }
 
-/** V2 declaration for a Skill. New fields are optional for source compatibility. */
-export interface SkillDefinition<TModel = unknown> {
+/** SkillDefinition carries optional V2 metadata block (additive, source-compatible). */
+export interface SkillDefinition<TModel = any> {
   readonly id: string;
   readonly title: string;
+  /** Optional link to the Skill impl surface. */
+  skill?: Skill<TModel>;
+  /** V2 kernel metadata (optional, additive). */
   runtimeRole?: SkillRuntimeRole;
   kernelRole?: KernelRole;
-  provides?: ResolvableSurface;
+  provides?: ResolvableSurface | string[];
   delegatesTo?: DependencyRef[];
   bindsTo?: DependencyRef[];
   capability?: SkillCapabilitySurface;

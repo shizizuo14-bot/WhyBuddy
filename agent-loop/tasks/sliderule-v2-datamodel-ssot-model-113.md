@@ -10,6 +10,7 @@ DataModel is Kernel 2, the single source of truth. Workflow branch fields, Page 
 
 ## Allowed files
 - `client/src/lib/skills/datamodel/dataModelModel.ts`
+- `client/src/lib/skills/datamodel/dataModelSkill.ts`
 - `client/src/lib/skills/datamodel/dataModelSkill.test.ts`
 - `client/src/lib/skills/skill.ts` only for additive shared type fixes
 - `agent-loop/tasks/sliderule-v2-datamodel-ssot-model-113.md`
@@ -32,9 +33,10 @@ DataModel is Kernel 2, the single source of truth. Workflow branch fields, Page 
 ## Required validation
 - `pnpm exec vitest run client/src/lib/skills/datamodel/dataModelSkill.test.ts --reporter=dot`
 - `pnpm exec tsc --noEmit --pretty false`
-- `node agent-loop/src/check-mojibake.js client/src/lib/skills/datamodel/dataModelModel.ts client/src/lib/skills/datamodel/dataModelSkill.test.ts`
+- `node agent-loop/src/check-mojibake.js client/src/lib/skills/datamodel/dataModelModel.ts client/src/lib/skills/datamodel/dataModelSkill.ts client/src/lib/skills/datamodel/dataModelSkill.test.ts`
 
 ## Acceptance criteria
 - DataModel can represent SSOT entities and field-level versioned facts.
 - OLAP is represented as a projection role, not a source of truth.
 - Existing DataModel sample and tests remain valid.
+
