@@ -65,6 +65,24 @@ describe("rbacSkill — cross-skill surface (resolve)", () => {
     expect(surface.role).toEqual(["employee", "manager"]);
     expect(surface.permission).toContain("leave:approve");
   });
+
+  it("exposes role, permission, policy, and decision surfaces", () => {
+    const surface = rbacSkill.resolve(leaveApprovalRbac);
+    expect(surface.role).toBeDefined();
+    expect(surface.permission).toBeDefined();
+    expect(surface.policy).toBeDefined();
+    expect(Array.isArray(surface.policy)).toBe(true);
+    expect(surface.decision).toBeDefined();
+    expect(Array.isArray(surface.decision)).toBe(true);
+    expect(surface.decision).toContain("RBAC_DECISION_FAIL_CLOSED");
+  });
+
+  it("refNodeId(\"role\", \"manager\") maps to the real role node", () => {
+    const nodeId = rbacSkill.refNodeId("role", "manager");
+    expect(nodeId).toBe("role_manager");
+    const proj = rbacSkill.project(leaveApprovalRbac);
+    expect(proj.nodes.some(n => n.id === nodeId)).toBe(true);
+  });
 });
 
 describe("rbacSkill — projector (architecture diagram falls out of the model)", () => {
@@ -76,6 +94,27 @@ describe("rbacSkill — projector (architecture diagram falls out of the model)"
       projection.edges.some(e => e.from === "role_manager" && e.to === "perm_leave_approve"),
     ).toBe(true);
     expect(projection.mermaid.startsWith("flowchart LR")).toBe(true);
+  });
+
+  it("contains PDP host, fail-closed, inheritance, and SoD nodes when the model declares them", () => {
+    const projection = rbacSkill.project(leaveApprovalRbac);
+    expect(projection.nodes.some(n => n.kind === "pdp-host" && n.label === "RBAC PDP")).toBe(true);
+    expect(projection.nodes.some(n => n.label === "fail-closed")).toBe(true);
+    expect(projection.nodes.some(n => n.kind === "decision")).toBe(true);
+    // add inheritance + SoD to model (base declares failClosed)
+    const m = clone(leaveApprovalRbac);
+    m.roles.find(r => r.id === "manager")!.inheritsRoleIds = ["employee"];
+    m.sodRules = [
+      {
+        id: "sod_test",
+        name: "测试SoD",
+        exclusiveRoleIds: ["employee", "manager"],
+        severity: "error",
+      },
+    ];
+    const p2 = rbacSkill.project(m);
+    expect(p2.nodes.some(n => n.kind === "inheritance")).toBe(true);
+    expect(p2.nodes.some(n => n.kind === "sod" && n.id.includes("sod_test"))).toBe(true);
   });
 });
 
