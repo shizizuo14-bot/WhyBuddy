@@ -1,7 +1,7 @@
 # SlideRule V2 Skills 113.11: Page PEP gate and projection
 
 ## Execution status
-- Status: pending
+- Status: DONE_REVIEWED - committed c184e96d
 - Goal: validate Page PEP delegation and project canvas, bindings, permission rendering, and local linkage into the unified architecture graph.
 - Required gate: `slideruleV2PagePepGateProject113Gates`
 
@@ -22,12 +22,12 @@ Page Designer is where users see product depth. The gate must prove that visible
 - Do not modify AppBundle publish logic in this task.
 
 ## Implementation steps
-- [ ] Add tests that a component binding to a missing SSOT field fails with `PAGE_BINDING_FIELD_MISSING`.
-- [ ] Add tests that a component permission render referencing a missing RBAC role or permission fails with `PAGE_PERMISSION_REF_MISSING`.
-- [ ] Add tests that V2 mode rejects local-only auth with `PAGE_PEP_BYPASS`.
-- [ ] Preserve linkage/dependency tests for component source/target closure.
-- [ ] Update `project()` to show canvas components, BindingSchema edges to DataModel, PermissionRender edges to RBAC, and local linkage edges.
-- [ ] Update orchestrator tests so Page cross-refs resolve to real RBAC/DataModel nodes.
+- [x] Add tests that a component binding to a missing SSOT field fails with `PAGE_BINDING_FIELD_MISSING`.
+- [x] Add tests that a component permission render referencing a missing RBAC role or permission fails with `PAGE_PERMISSION_REF_MISSING`.
+- [x] Add tests that V2 mode rejects local-only auth with `PAGE_PEP_BYPASS`.
+- [x] Preserve linkage/dependency tests for component source/target closure.
+- [x] Update `project()` to show canvas components, BindingSchema edges to DataModel, PermissionRender edges to RBAC, and local linkage edges.
+- [x] Update orchestrator tests so Page cross-refs resolve to real RBAC/DataModel nodes.
 
 ## Required validation
 - `pnpm exec vitest run client/src/lib/skills/page/pageSkill.test.ts client/src/lib/skills/orchestrator.test.ts --reporter=dot`
