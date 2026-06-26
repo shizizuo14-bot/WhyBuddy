@@ -13,6 +13,7 @@ from typing import Any, Dict, Optional
 from pathlib import Path
 
 from services.agent_loop_runs import get_agent_loop_run_detail, list_agent_loop_run_summaries
+from services.agent_loop_runs import get_agent_loop_queue_overview
 from services.agent_loop_paths import resolve_artifact_path
 from services.agent_loop_events import (
     build_event_snapshot,
@@ -42,7 +43,13 @@ _DASHBOARD_STATIC = Path(__file__).resolve().parent.parent / "static" / "agent-l
 
 
 class CommandRequest(BaseModel):
-    """Validated input for command endpoints (task/queue/mode)."""
+    """Validated input for command endpoints (task/queue/mode).
+    Non-secret runtime linkage fields (112) are accepted here so they are not dropped by Pydantic.
+    - queuePath: mapped to effective queue for run (affects which queue file the bridged runner loads).
+    - fixAgent/reviewAgent/workerMax*/worktreeScope/activeProfile: accepted for client contract + display linkage;
+      execution behavior for agents/turns/scope is primarily owned by persisted settings + selected queue's "defaults"
+      (load_agent_loop_settings + queue json) at the Node runner layer. Declaring prevents silent ignore.
+    """
     task: Optional[str] = None
     queue: Optional[str] = None
     mode: str = "queue"
@@ -50,6 +57,14 @@ class CommandRequest(BaseModel):
     timeoutMs: Optional[int] = None
     cwd: Optional[str] = None
     env: Optional[Dict[str, str]] = None
+    # non-secret runtime options (112 linkage)
+    fixAgent: Optional[str] = None
+    reviewAgent: Optional[str] = None
+    workerMaxTurns: Optional[int] = None
+    workerMaxRetries: Optional[int] = None
+    worktreeScope: Optional[str] = None
+    activeProfile: Optional[str] = None
+    queuePath: Optional[str] = None
 
 
 def _validate_task_id(task: Optional[str]) -> Optional[str]:
@@ -137,6 +152,15 @@ async def runs_overview():
     return [s.model_dump(mode="json") for s in summaries]
 
 
+@router.get("/queue/overview")
+async def queue_overview():
+    """Queue overview aligned to the VS Code dashboard queue view.
+
+    Reads the same queue definition / outcomes / landing files that the extension uses.
+    """
+    return get_agent_loop_queue_overview()
+
+
 @router.get("/runs/{run_id}")
 async def run_detail(run_id: str):
     """Single AgentLoop run detail using existing run artifacts (state, events, reports, logs).
@@ -198,9 +222,14 @@ async def run_events_stream_v2(run_id: str):
 async def start_queue_run(req: CommandRequest):
     """Start a queue run via bridge. Validates task id, queue path, mode.
     Dry-run returns the exact redacted command without executing.
+    Runtime non-secrets from payload (112) are now visible to this layer (no longer dropped by CommandRequest).
+    queuePath (if no queue) is mapped to queue_path for build -- this makes active queuePath setting affect executed run.
+    fixAgent etc are accepted; backend execution layer owns their application via persisted settings + queue.defaults.
     """
     task = _validate_task_id(req.task)
-    queue = _validate_queue_path(req.queue)
+    # map queuePath -> queue so that runtime queuePath from settings influences the queue file chosen for execution
+    effective_queue = req.queue or req.queuePath
+    queue = _validate_queue_path(effective_queue)
     mode = _validate_mode(req.mode)
     dry = bool(req.dryRun) or mode == "dry-run"
     queue_run = mode not in ("single", "task")
@@ -229,7 +258,9 @@ async def start_queue_run(req: CommandRequest):
 
 @router.post("/task/run")
 async def start_task_run(req: CommandRequest):
-    """Single-task run endpoint. Validates inputs. Dry-run supported."""
+    """Single-task run endpoint. Validates inputs. Dry-run supported.
+    Accepts runtime non-secret fields (see CommandRequest) for contract; backend owns most resolution.
+    """
     task = _validate_task_id(req.task)
     mode = _validate_mode(req.mode or "single")
     dry = bool(req.dryRun) or mode == "dry-run"

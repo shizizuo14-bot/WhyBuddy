@@ -52,7 +52,7 @@ const routerBase =
   import.meta.env.BASE_URL === "/"
     ? ""
     : import.meta.env.BASE_URL.replace(/\/$/, "");
-const AGENT_LOOP_PATH = "/AgentLoop";
+const AGENT_LOOP_PATH = "/agent-loop";
 
 function Router() {
   return (
@@ -141,6 +141,13 @@ function Router() {
       <Route path={"/debug/:section"} component={DebugPage} />
       <Route path={`${SLIDERULE_PATH}/dev`} component={SlideRuleDevPage} />
       <Route path={SLIDERULE_PATH} component={SlideRulePage} />
+      {/* Legacy support for old /AgentLoop casing (case-insensitive web habit); redirect to canonical lowercase. */}
+      <Route path={"/AgentLoop"}>
+        {() => <RedirectRoute to={AGENT_LOOP_PATH} />}
+      </Route>
+      <Route path={"/AgentLoop/"}>
+        {() => <RedirectRoute to={AGENT_LOOP_PATH} />}
+      </Route>
       <Route path={AGENT_LOOP_PATH} component={AgentLoopPage} />
       {/* V5 chrome-free workspace: SlideRule is deliberately isolated from the old stage sequencer / AppShell chrome.
           All guards, sidebar, mobile tab, config panel, and project-workspace auth checks are skipped for this route
@@ -324,9 +331,21 @@ function isSlideRuleLocation(location: string) {
   return pathname === SLIDERULE_PATH || pathname.startsWith(`${SLIDERULE_PATH}/`);
 }
 
-function isAgentLoopLocation(location: string) {
-  const [pathname] = location.trim().split(/[?#]/, 1);
-  return pathname === AGENT_LOOP_PATH || pathname.startsWith(`${AGENT_LOOP_PATH}/`);
+export function isAgentLoopLocation(location: string) {
+  // Robust match: case-insensitive + ignore trailing slash (common when typing URLs or bookmarks).
+  // Supports both canonical "/agent-loop" and legacy "/AgentLoop" (or its lower "agentloop") forms
+  // so chrome-free sidebar suppression always works regardless of how the URL was entered.
+  const [raw] = location.trim().split(/[?#]/, 1);
+  let pathname = (raw || "/").toLowerCase();
+  if (pathname.length > 1 && pathname.endsWith("/")) pathname = pathname.slice(0, -1);
+  const target = AGENT_LOOP_PATH.toLowerCase();
+  const legacyNoHyphen = "/agentloop";
+  return (
+    pathname === target ||
+    pathname.startsWith(`${target}/`) ||
+    pathname === legacyNoHyphen ||
+    pathname.startsWith(`${legacyNoHyphen}/`)
+  );
 }
 
 export function isProjectWorkspaceLocation(location: string) {

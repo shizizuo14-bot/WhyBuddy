@@ -17,7 +17,7 @@ const { deployTargetState, locationState, viewportState } = vi.hoisted(() => ({
   },
 }));
 
-import { AppShell, isProjectWorkspaceLocation } from "./App";
+import { AppShell, isAgentLoopLocation, isProjectWorkspaceLocation } from "./App";
 
 vi.mock("./lib/deploy-target", () => ({
   CAN_USE_ADVANCED_RUNTIME: true,
@@ -60,7 +60,11 @@ vi.mock("wouter", () => ({
       (path === "/debug/:section" &&
         current.startsWith("/debug/") &&
         current !== "/debug/autopilot-spec-documents-workbench") ||
-      (path === "/AgentLoop" && current === "/AgentLoop") ||
+      (path?.toLowerCase() === "/agent-loop" &&
+        (current.toLowerCase().replace(/\/$/, "") === "/agent-loop" ||
+         current.toLowerCase().replace(/\/$/, "").startsWith("/agent-loop/") ||
+         current.toLowerCase().replace(/\/$/, "") === "/agentloop" ||
+         current.toLowerCase().replace(/\/$/, "").startsWith("/agentloop/"))) ||
       (!path && current === "/404");
 
     if (!matches) return null;
@@ -298,12 +302,14 @@ describe("AppShell fixed sidebar layout", () => {
     expect(isProjectWorkspaceLocation("/login")).toBe(false);
     expect(isProjectWorkspaceLocation("/admin")).toBe(false);
     expect(isProjectWorkspaceLocation("/debug")).toBe(false);
+    expect(isProjectWorkspaceLocation("/agent-loop")).toBe(false);
+    // legacy casing still treated as non-project (chrome-free)
     expect(isProjectWorkspaceLocation("/AgentLoop")).toBe(false);
   });
 
   it("mounts AgentLoop as a chrome-free first-class route", () => {
     signInForShell();
-    locationState.current = "/AgentLoop";
+    locationState.current = "/agent-loop";
     viewportState.isMobile = false;
     viewportState.isTablet = false;
 
@@ -314,6 +320,15 @@ describe("AppShell fixed sidebar layout", () => {
     expect(markup).not.toContain('data-testid="app-sidebar"');
     expect(shell).toContain("--sidebar-width:0px");
     expect(shell).toContain("padding-left:0");
+  });
+
+  it("chrome-free logic + isAgentLoopLocation is case and slash tolerant", () => {
+    // even if user visits /AgentLoop or /agent-loop/ the main sidebar must be suppressed
+    expect(isAgentLoopLocation("/agent-loop")).toBe(true);
+    expect(isAgentLoopLocation("/AgentLoop")).toBe(true);
+    expect(isAgentLoopLocation("/AGENT-LOOP/")).toBe(true);
+    expect(isAgentLoopLocation("/agent-loop?foo=1")).toBe(true);
+    expect(isAgentLoopLocation("/something")).toBe(false);
   });
 
   it("mounts the direct spec documents workbench fixture route before debug sections", () => {

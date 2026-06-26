@@ -2502,6 +2502,114 @@
       "guardTests": false,
       "workerMaxTurns": 128,
       "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-setting-shell-independent-route-112",
+      "task": "agent-loop/tasks/sliderule-agentloop-setting-shell-independent-route-112.md",
+      "gatesKey": "slideruleAgentLoopSettingShellIndependentRoute112Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-setting-view-model-contract-112",
+      "task": "agent-loop/tasks/sliderule-agentloop-setting-view-model-contract-112.md",
+      "gatesKey": "slideruleAgentLoopSettingViewModelContract112Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-setting-layout-summary-tabs-112",
+      "task": "agent-loop/tasks/sliderule-agentloop-setting-layout-summary-tabs-112.md",
+      "gatesKey": "slideruleAgentLoopSettingLayoutSummaryTabs112Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-setting-cli-config-panel-112",
+      "task": "agent-loop/tasks/sliderule-agentloop-setting-cli-config-panel-112.md",
+      "gatesKey": "slideruleAgentLoopSettingCliConfigPanel112Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-setting-llm-keys-panel-112",
+      "task": "agent-loop/tasks/sliderule-agentloop-setting-llm-keys-panel-112.md",
+      "gatesKey": "slideruleAgentLoopSettingLlmKeysPanel112Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-setting-queue-defaults-panel-112",
+      "task": "agent-loop/tasks/sliderule-agentloop-setting-queue-defaults-panel-112.md",
+      "gatesKey": "slideruleAgentLoopSettingQueueDefaultsPanel112Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-setting-diagnostics-panel-112",
+      "task": "agent-loop/tasks/sliderule-agentloop-setting-diagnostics-panel-112.md",
+      "gatesKey": "slideruleAgentLoopSettingDiagnosticsPanel112Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-setting-profiles-panel-112",
+      "task": "agent-loop/tasks/sliderule-agentloop-setting-profiles-panel-112.md",
+      "gatesKey": "slideruleAgentLoopSettingProfilesPanel112Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-setting-import-export-redacted-112",
+      "task": "agent-loop/tasks/sliderule-agentloop-setting-import-export-redacted-112.md",
+      "gatesKey": "slideruleAgentLoopSettingImportExportRedacted112Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-setting-component-split-112",
+      "task": "agent-loop/tasks/sliderule-agentloop-setting-component-split-112.md",
+      "gatesKey": "slideruleAgentLoopSettingComponentSplit112Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-setting-runtime-linkage-112",
+      "task": "agent-loop/tasks/sliderule-agentloop-setting-runtime-linkage-112.md",
+      "gatesKey": "slideruleAgentLoopSettingRuntimeLinkage112Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
+    },
+    {
+      "id": "sliderule-agentloop-setting-visual-regression-readiness-112",
+      "task": "agent-loop/tasks/sliderule-agentloop-setting-visual-regression-readiness-112.md",
+      "gatesKey": "slideruleAgentLoopSettingVisualRegressionReadiness112Gates",
+      "enabled": true,
+      "guardTests": false,
+      "workerMaxTurns": 128,
+      "maxIterations": 3
     }
   ],
   "nodeRouteInventory50Gates": [
@@ -3691,5 +3799,65 @@
     "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
     "pnpm exec tsc --noEmit --pretty false",
     "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-web-bridge-interaction-tests-111.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/AgentLoopPage.test.tsx"
+  ],
+  "slideruleAgentLoopSettingShellIndependentRoute112Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-setting-shell-independent-route-112.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/AgentLoopPage.test.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/dashboard.css client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/dashboard/dashboardTypes.ts"
+  ],
+  "slideruleAgentLoopSettingViewModelContract112Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-setting-view-model-contract-112.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/AgentLoopPage.test.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/dashboard.css client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/dashboard/dashboardTypes.ts"
+  ],
+  "slideruleAgentLoopSettingLayoutSummaryTabs112Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-setting-layout-summary-tabs-112.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/AgentLoopPage.test.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/dashboard.css client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/dashboard/dashboardTypes.ts"
+  ],
+  "slideruleAgentLoopSettingCliConfigPanel112Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-setting-cli-config-panel-112.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/AgentLoopPage.test.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/dashboard.css client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/dashboard/dashboardTypes.ts"
+  ],
+  "slideruleAgentLoopSettingLlmKeysPanel112Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-setting-llm-keys-panel-112.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/AgentLoopPage.test.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/dashboard.css client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/dashboard/dashboardTypes.ts"
+  ],
+  "slideruleAgentLoopSettingQueueDefaultsPanel112Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-setting-queue-defaults-panel-112.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/AgentLoopPage.test.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/dashboard.css client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/dashboard/dashboardTypes.ts"
+  ],
+  "slideruleAgentLoopSettingDiagnosticsPanel112Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-setting-diagnostics-panel-112.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/AgentLoopPage.test.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/dashboard.css client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/dashboard/dashboardTypes.ts"
+  ],
+  "slideruleAgentLoopSettingProfilesPanel112Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-setting-profiles-panel-112.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/AgentLoopPage.test.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/dashboard.css client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/dashboard/dashboardTypes.ts"
+  ],
+  "slideruleAgentLoopSettingImportExportRedacted112Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-setting-import-export-redacted-112.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/AgentLoopPage.test.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/dashboard.css client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/dashboard/dashboardTypes.ts"
+  ],
+  "slideruleAgentLoopSettingComponentSplit112Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-setting-component-split-112.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/AgentLoopPage.test.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/dashboard.css client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/dashboard/dashboardTypes.ts"
+  ],
+  "slideruleAgentLoopSettingRuntimeLinkage112Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-setting-runtime-linkage-112.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/AgentLoopPage.test.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/dashboard.css client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/dashboard/dashboardTypes.ts"
+  ],
+  "slideruleAgentLoopSettingVisualRegressionReadiness112Gates": [
+    "pnpm exec vitest run client/src/pages/agent-loop/AgentLoopPage.test.tsx --reporter=dot",
+    "pnpm exec tsc --noEmit --pretty false",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-agentloop-setting-visual-regression-readiness-112.md client/src/pages/agent-loop/AgentLoopPage.tsx client/src/pages/agent-loop/AgentLoopPage.test.tsx client/src/pages/agent-loop/dashboard/DashboardApp.tsx client/src/pages/agent-loop/dashboard/dashboard.css client/src/pages/agent-loop/dashboard/agentLoopApi.ts client/src/pages/agent-loop/dashboard/dashboardTypes.ts"
   ]
 }

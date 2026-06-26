@@ -24,6 +24,7 @@ export type OverviewTask = {
   applyErrorKind?: string | null;
   applyError?: string | null;
   applyErrorFiles?: string[];
+  lastRunId?: string | null;
 };
 
 export type OverviewPayload = {
@@ -65,6 +66,7 @@ export type DetailPayload = {
   agentTail?: string | null;
   diffText?: string | null;
   failingGateText?: string | null;
+  artifacts?: Array<{ id?: string; kind?: string; title?: string | null; content?: string | null }>;
   reportPath?: string | null;
   reportJsonPath?: string | null;
   landingPath?: string | null;
@@ -74,6 +76,25 @@ export type DetailPayload = {
 
 export type VsCodeApi = {
   postMessage(message: unknown): void;
+};
+
+// Typed settings view model contract (112): stable renderable UI shape for settings panels.
+// Raw secrets (grokApiKey etc values or keys) MUST be stripped before this reaches components.
+export type AgentLoopSettingsViewModel = {
+  activeProfile: string | null;
+  fixAgent?: string | null;
+  reviewAgent?: string | null;
+  queuePath?: string | null;
+  worktreeScope?: string | null;
+  baseUrl?: string;
+  injectToWorker?: boolean;
+  queueRunning?: boolean;
+  keys?: Record<string, 'configured' | ''>;
+  nonSensitive?: Record<string, unknown>;
+  // Additional normalized sections for contract (queue/diag/profiles may be separate but referenced here for panels)
+  queueDefaults?: { defaults?: Record<string, unknown>; supportedKeys?: string[]; queuePath?: string | null };
+  diagnostics?: Record<string, unknown> | null;
+  profiles?: { profiles?: Record<string, unknown>; activeProfile?: string | null } | null;
 };
 
 declare global {

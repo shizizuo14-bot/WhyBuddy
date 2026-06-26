@@ -4,7 +4,7 @@
 // Python `/api/agent-loop/*` endpoints and projects their raw run state into the
 // OverviewPayload / DetailPayload shapes that DashboardApp renders.
 
-import type { DetailPayload, OverviewPayload, OverviewTask } from "./dashboardTypes";
+import type { AgentLoopSettingsViewModel, DetailPayload, OverviewPayload, OverviewTask } from "./dashboardTypes";
 import {
   activeAgentLabel,
   buildPipelineSteps,
@@ -52,7 +52,11 @@ function formatClock(ts: string | null | undefined): string {
 
 async function getJson<T>(url: string): Promise<T> {
   const res = await fetch(url);
-  if (!res.ok) throw new Error(`${url} → HTTP ${res.status}`);
+  if (!res.ok) {
+    // Do not leak full internal URLs to users in error messages
+    const short = url.replace(/.*\/api\/agent-loop/, "/api/agent-loop");
+    throw new Error(`${short} → HTTP ${res.status}`);
+  }
   return (await res.json()) as T;
 }
 
@@ -101,24 +105,37 @@ function deriveCounts(runs: AgentLoopRunSummary[]): Record<string, number> {
 }
 
 export async function fetchOverview(): Promise<OverviewPayload> {
-  const runs = await getJson<AgentLoopRunSummary[]>(`${BASE}/runs/overview`);
-  const list = Array.isArray(runs) ? runs : [];
-  const tasks = list.map(summaryToTask);
-  const counts = deriveCounts(list);
-  const currentRun = list.find((run) => isRunningStatus(run.status)) || null;
-  return {
-    queueRunning: Boolean(currentRun),
-    counts,
-    tasks,
-    current: currentRun
-      ? {
-          taskLabel: shortTaskLabel(currentRun.task),
-          phaseLabel: phaseLabel(currentRun.status),
-          status: currentRun.status ?? null,
-          elapsedText: null,
-        }
-      : null,
-  };
+  try {
+    const overview = await getJson<OverviewPayload>(`${BASE}/queue/overview`);
+    const tasks = Array.isArray(overview?.tasks) ? overview.tasks : [];
+    const counts = overview?.counts && typeof overview.counts === "object" ? overview.counts : {};
+    return {
+      queueRunning: Boolean(overview?.queueRunning),
+      counts,
+      tasks,
+      current: overview?.current ?? null,
+      landing: overview?.landing ?? null,
+    };
+  } catch {
+    const runs = await getJson<AgentLoopRunSummary[]>(`${BASE}/runs/overview`);
+    const list = Array.isArray(runs) ? runs : [];
+    const tasks = list.map(summaryToTask);
+    const counts = deriveCounts(list);
+    const currentRun = list.find((run) => isRunningStatus(run.status)) || null;
+    return {
+      queueRunning: Boolean(currentRun),
+      counts,
+      tasks,
+      current: currentRun
+        ? {
+            taskLabel: shortTaskLabel(currentRun.task),
+            phaseLabel: phaseLabel(currentRun.status),
+            status: currentRun.status ?? null,
+            elapsedText: null,
+          }
+        : null,
+    };
+  }
 }
 
 // ---- Detail ---------------------------------------------------------------
@@ -135,7 +152,10 @@ type RawState = {
   updatedAt?: string | null;
   commit?: string | null;
   landing?: Record<string, unknown> | null;
-  artifacts?: Array<{ id?: string; kind?: string; title?: string | null; path?: string | null }> | null;
+  artifacts?: Array<{ id?: string; kind?: string; title?: string | null; path?: string | null; content?: string | null }> | null;
+  agentReview?: Record<string, unknown> | null;
+  codexReview?: Record<string, unknown> | null;
+  grokReview?: Record<string, unknown> | null;
 };
 
 function taskPathOf(state: RawState): string | null {
@@ -165,6 +185,11 @@ function elapsedMsOf(state: RawState): number {
 
 export async function fetchDetail(runId: string): Promise<DetailPayload> {
   const state = await getJson<RawState>(`${BASE}/runs/${encodeURIComponent(runId)}`);
+  // Best effort: also pull snapshot for richer replay-derived fields (reviewVerdict, flow, etc.)
+  let snap: any = {};
+  try {
+    snap = await getJson(`${BASE}/runs/${encodeURIComponent(runId)}/snapshot`);
+  } catch {}
   const roles = resolveAgentRoles(state);
   const steps = markPipeline(buildPipelineSteps(state), state);
   const elapsedMs = elapsedMsOf(state);
@@ -196,7 +221,7 @@ export async function fetchDetail(runId: string): Promise<DetailPayload> {
   // Use explicit /artifacts/{name} subroutes (distinct per semantic resource).
   // Fall back only if no artifact index entry (missing degrades cleanly, no crash, no lie).
   // Never collapse distinct artifacts onto identical generic routes.
-  const arts = (state.artifacts || []) as Array<{ id?: string; kind?: string; title?: string | null; path?: string | null }>;
+  const arts = (state.artifacts || []) as Array<{ id?: string; kind?: string; title?: string | null; path?: string | null; content?: string | null }>;
   function pickArt(cands: string[], kindHint?: string): string | null {
     for (const c of cands) {
       if (arts.some((a) => a && (a.id === c || a.path === c || (a.title || "") === c))) return c;
@@ -217,6 +242,92 @@ export async function fetchDetail(runId: string): Promise<DetailPayload> {
   const landingP = landingArt ? `${BASE}/runs/${encId}/artifacts/${encodeURIComponent(landingArt)}` : `${BASE}/runs/${encId}/snapshot`;
   const stateP = stateArt ? `${BASE}/runs/${encId}/artifacts/${encodeURIComponent(stateArt)}` : `${BASE}/runs/${encId}/snapshot`;
 
+  // Derive the fields the UI tabs expect (Diff / Agent 输出 / Review).
+  // These come from artifact contents (bounded) or fallbacks.
+  // Diff: prefer explicit diff/patch artifact content.
+  let diffText: string | null = null;
+  let agentTail: string | null = null;
+  for (const a of arts) {
+    const name = ((a.id || a.path || a.title) || "").toLowerCase();
+    const content = (a.content || "").toString();
+    if (!diffText && content && (name.includes("diff") || name.includes("patch"))) {
+      diffText = content;
+    }
+    if (!agentTail && content && (name.includes("log") || name.includes("stdout") || name.includes("stderr") || name.includes("agent") || name.includes("worker") || name.includes("output"))) {
+      agentTail = content;
+    }
+  }
+  // Fallback for diff: last iteration may carry raw diff/patch
+  if (!diffText && iterations.length) {
+    const lastIt = iterations[iterations.length - 1] as any;
+    diffText = lastIt?.diff || lastIt?.patch || lastIt?.diffText || null;
+  }
+
+  // Review rounds: if backend didn't put reviewRounds at top level, try to derive simple rounds from events
+  let finalReviewRounds = reviewRounds;
+  if (!finalReviewRounds.length) {
+    const reviewEvents = (state.events || []).filter((e: any) => {
+      const st = String(e.status || e.type || "").toUpperCase();
+      return st.includes("REVIEW") || st.includes("VERDICT");
+    });
+    if (reviewEvents.length) {
+      finalReviewRounds = reviewEvents.map((e: any, i: number) => {
+        const p = e.payload || e;
+        return {
+          round: e.iteration ?? i + 1,
+          verdict: p.verdict || e.verdict || e.status || "REVIEW",
+          decision: p.verdict || e.decision || e.status,
+          summary: p.summary || e.summary || p.message || null,
+          riskLevel: p.riskLevel || null,
+          findings: Array.isArray(p.findings) ? p.findings : [],
+        };
+      });
+    }
+  }
+
+  // Enrich review summary from review log artifact if the structured summary is missing.
+  // The review log often contains the exact JSON the reviewer output, which has the short "summary" text description.
+  const reviewLog = arts.find((a: any) => {
+    const n = ((a.id || a.path || a.title) || '').toLowerCase();
+    return n.includes('review') && (n.includes('stdout') || n.includes('output') || n.includes('log'));
+  });
+  if (reviewLog?.content && finalReviewRounds.length) {
+    let desc = '';
+    const contentStr = String(reviewLog.content || '').trim();
+    try {
+      // Try to parse JSON from the log (common for structured grok/scoped reviews)
+      const match = contentStr.match(/\{[\s\S]*\}/);
+      if (match) {
+        const parsed = JSON.parse(match[0]);
+        if (parsed && typeof parsed === 'object') {
+          desc = parsed.summary || parsed.description || parsed.text || '';
+        }
+      }
+    } catch {}
+    if (!desc) {
+      // Fallback to truncated plain text from log
+      desc = contentStr.slice(0, 300) + (contentStr.length > 300 ? '…' : '');
+    }
+    finalReviewRounds = finalReviewRounds.map((r: any) => ({
+      ...r,
+      summary: r.summary || desc || null,
+    }));
+  }
+
+  // Also try to enrich from state review objects if still missing (legacy review summary locations)
+  if (finalReviewRounds.length) {
+    const reviewObjs = [state.agentReview, state.codexReview, state.grokReview, state.agentReview].filter(Boolean);
+    for (const ro of reviewObjs) {
+      if (ro && ro.summary) {
+        finalReviewRounds = finalReviewRounds.map((r: any) => ({
+          ...r,
+          summary: r.summary || ro.summary,
+        }));
+        break;
+      }
+    }
+  }
+
   return {
     taskLabel: shortTaskLabel(taskPathOf(state)),
     taskPath: taskPathOf(state),
@@ -231,9 +342,12 @@ export async function fetchDetail(runId: string): Promise<DetailPayload> {
     activeTab: "review",
     pipelineSteps: steps,
     iterations,
-    reviewRounds,
+    reviewRounds: finalReviewRounds,
     events,
     landing: state.landing ?? null,
+    diffText,
+    agentTail,
+    artifacts: arts,
     reportPath: reportP,
     reportJsonPath: reportJsonP,
     landingPath: landingP,
@@ -284,11 +398,21 @@ export async function fetchProviderHealth(): Promise<any> {
 }
 
 export async function runQueue(payload: Record<string, unknown> = {}): Promise<any> {
+  // Runtime linkage (112): forward supported non-secret runtime options from settings
+  // (fixAgent, reviewAgent, workerMaxTurns, workerMaxRetries, worktreeScope, activeProfile, queuePath).
+  // queuePath is mapped to `queue` (the field backend CommandRequest + build uses); queuePath also kept in payload.
+  // Other opts are accepted by backend model (even if some resolution owned by persisted settings/queue defaults at exec time).
+  // Never include secrets (enforced by callers + saveSettings redaction; no raw key path here).
+  const q = payload.queue || (payload as any).queuePath;
   const body: any = {
     mode: "queue",
     dryRun: false,
-    ...(payload.queue ? { queue: payload.queue } : {}),
+    ...(q ? { queue: q } : {}),
   };
+  const rtKeys = ["fixAgent", "reviewAgent", "workerMaxTurns", "workerMaxRetries", "worktreeScope", "activeProfile", "queuePath"];
+  for (const k of rtKeys) {
+    if (k in payload && payload[k] != null) body[k] = payload[k];
+  }
   const res = await fetch(`${BASE}/queue/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -299,8 +423,16 @@ export async function runQueue(payload: Record<string, unknown> = {}): Promise<a
 }
 
 export async function runSingleTask(payload: Record<string, unknown> = {}): Promise<any> {
+  // Runtime linkage (112): forward supported non-secret runtime options from settings when provided by run controls.
+  // Backend CommandRequest accepts them; queuePath only relevant for queue runs (mapped in runQueue).
+  // Backend owns execution-time resolution from persisted active settings/queue defaults for most opts when absent.
+  // Explicit contract: client forwards only non-secrets; no secret values reach this boundary.
   const task = payload.task || payload.taskPath || "";
   const body: any = { task: String(task || ""), mode: "single", dryRun: false };
+  const rtKeys = ["fixAgent", "reviewAgent", "workerMaxTurns", "workerMaxRetries", "worktreeScope", "activeProfile", "queuePath"];
+  for (const k of rtKeys) {
+    if (k in payload && payload[k] != null) body[k] = payload[k];
+  }
   const res = await fetch(`${BASE}/task/run`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -319,4 +451,89 @@ export async function cancelCurrent(payload: Record<string, unknown> = {}): Prom
   });
   if (!res.ok) throw new Error(`POST /cancel → HTTP ${res.status}`);
   return res.json();
+}
+
+// ---- Settings View Model Adapter (112) ----
+// Typed normalization: projects backend payload (effective + keys) into stable renderable UI contract.
+// Explicitly strips ALL raw secret fields (by name or heuristic) so they NEVER reach nonSensitive / render state.
+// Provides fields: activeProfile, fixAgent, reviewAgent, queuePath, worktreeScope, provider key status, etc.
+const SECRET_KEY_NAMES = ['grokApiKey', 'openaiApiKey', 'anthropicApiKey', 'llmApiKey'];
+const SECRET_KEY_RE = /(api[key]|secret|token|password|auth|credential|privatekey)/i;
+
+function isSecretKeyName(k: string): boolean {
+  if (!k) return false;
+  if (SECRET_KEY_NAMES.includes(k)) return true;
+  const kl = String(k).toLowerCase().replace(/[_-]/g, '');
+  return SECRET_KEY_RE.test(kl);
+}
+
+function stripRawSecretsDeep(input: any): any {
+  if (input == null || typeof input !== 'object') return input;
+  if (Array.isArray(input)) return input.map(stripRawSecretsDeep);
+  const out: Record<string, unknown> = {};
+  for (const [k, v] of Object.entries(input)) {
+    if (isSecretKeyName(k)) continue;
+    // drop values that look like raw API key material (never render secrets)
+    if (typeof v === 'string' && v.length > 12 && /^(sk-|xai-|ghp_|AIza|anthropic|openai)/i.test(v)) continue;
+    out[k] = stripRawSecretsDeep(v);
+  }
+  return out;
+}
+
+export function normalizeSettingsForUI(raw: any): AgentLoopSettingsViewModel {
+  if (!raw || typeof raw !== 'object') {
+    return { activeProfile: 'local', keys: {}, nonSensitive: {} };
+  }
+  const effSrc = raw.effective || raw || {};
+  const cleanEff = stripRawSecretsDeep(effSrc);
+  // safe keys: status strings only (map keys intentionally use *ApiKey names for provider status).
+  // Never copy raw values; coerce to 'configured' | '' . Do not apply name-skip on the status map.
+  const rawKeys = (raw.keys && typeof raw.keys === 'object') ? raw.keys : {};
+  const safeKeys: Record<string, 'configured' | ''> = {};
+  for (const [k, v] of Object.entries(rawKeys)) {
+    const sv = String(v ?? '').toLowerCase().trim();
+    safeKeys[k] = sv === 'configured' ? 'configured' : '';
+  }
+  // top level secrets in raw also stripped implicitly
+  const activeProfile = (cleanEff as any).activeProfile ?? raw.activeProfile ?? 'local';
+  const vm: AgentLoopSettingsViewModel = {
+    activeProfile: activeProfile != null ? String(activeProfile) : 'local',
+    fixAgent: (cleanEff as any).fixAgent ?? null,
+    reviewAgent: (cleanEff as any).reviewAgent ?? null,
+    queuePath: (cleanEff as any).queuePath ?? null,
+    worktreeScope: (cleanEff as any).worktreeScope ?? null,
+    baseUrl: (cleanEff as any).baseUrl ?? '',
+    injectToWorker: (cleanEff as any).injectKeysToWorker ?? (cleanEff as any).injectToWorker ?? true,
+    queueRunning: !!raw.queueRunning,
+    keys: safeKeys,
+    nonSensitive: cleanEff,
+  };
+  return vm;
+}
+
+// Queue defaults contract helper (112): always supported-keys only; explicitly drop workerEnv + any secret-like keys.
+// Used by sync-from-settings and structured preview before calling bridge (no synthetic success).
+export function filterSupportedQueuePatch(
+  proposed: Record<string, unknown>,
+  supported: string[] | undefined | null
+): { patch: Record<string, unknown>; rejected: string[] } {
+  const sup = new Set(Array.isArray(supported) ? supported : []);
+  const patch: Record<string, unknown> = {};
+  const rejected: string[] = [];
+  const isSecretLike = (k: string, v: unknown) =>
+    /workerEnv/i.test(k) ||
+    /(apiKey|secret|token|password|auth|credential|private)/i.test(k) ||
+    (typeof v === "string" && /^(sk-|xai-|ghp_|AIza|anthropic-)/i.test(v));
+  for (const [k, v] of Object.entries(proposed || {})) {
+    if (isSecretLike(k, v)) {
+      rejected.push(k);
+      continue;
+    }
+    if (sup.size > 0 && !sup.has(k)) {
+      rejected.push(k);
+      continue;
+    }
+    patch[k] = v;
+  }
+  return { patch, rejected };
 }

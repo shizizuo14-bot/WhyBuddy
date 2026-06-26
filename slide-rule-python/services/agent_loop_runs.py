@@ -34,7 +34,9 @@ from services.agent_loop_paths import (
     get_agent_loop_runs_root,
     resolve_run_dir,
     resolve_artifact_path,
+    resolve_safe_path,
 )
+from services.agent_loop_settings import load_agent_loop_settings
 
 # 110: central stable artifact index (event refs + size + no-mtime active selection)
 try:
@@ -200,6 +202,325 @@ def _build_summary_dict(state: Dict[str, Any], run_id: str) -> Dict[str, Any]:
     }
     # extras from state (if any) go to metadata via AgentLoopBase validator
     return payload
+
+
+
+
+def _safe_read_json(path_obj: Path) -> Optional[Dict[str, Any]]:
+    try:
+        if not path_obj.exists() or not path_obj.is_file():
+            return None
+        data = json.loads(path_obj.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else None
+    except Exception:
+        return None
+
+
+def _get_repo_root() -> Path:
+    here = Path(__file__).resolve()
+    for cand in [here.parent.parent, here.parent.parent.parent]:
+        if (cand / "agent-loop").is_dir() or (cand / "slide-rule-python").is_dir():
+            return cand
+    return here.parent.parent
+
+
+def _default_queue_file_path(repo: Optional[Path] = None) -> Path:
+    root = repo or _get_repo_root()
+    return root / "agent-loop" / "scripts" / "migration-queue.json"
+
+
+def _default_queue_outcomes_path(repo: Optional[Path] = None) -> Path:
+    root = repo or _get_repo_root()
+    return root / ".agent-loop" / "queue-outcomes.json"
+
+
+def _default_queue_landing_path(repo: Optional[Path] = None) -> Path:
+    root = repo or _get_repo_root()
+    return root / ".agent-loop" / "queue-landing.json"
+
+
+def _default_latest_state_path(repo: Optional[Path] = None) -> Path:
+    root = repo or _get_repo_root()
+    return root / ".agent-loop" / "latest" / "state.json"
+
+
+def _normalize_task_path(value: Optional[str]) -> str:
+    return str(value or "").replace("\\", "/").replace("./", "").removeprefix("agent-loop/")
+
+
+def _read_latest_state(repo: Path) -> Optional[Dict[str, Any]]:
+    latest_path = _default_latest_state_path(repo)
+    return _safe_read_json(latest_path)
+
+
+def _resolve_queue_file_path(repo: Path) -> Path:
+    settings = load_agent_loop_settings()
+    configured = str(settings.get("queuePath") or "").strip()
+    if configured:
+        try:
+            resolved = resolve_safe_path(repo, configured)
+            if resolved is not None:
+                return resolved
+        except Exception:
+            pass
+    return _default_queue_file_path(repo)
+
+
+def _is_active_status(status: Optional[str]) -> bool:
+    text = str(status or "").strip().upper()
+    return text in {"CODEX_FIX", "GROK_FIX", "CODEX_REVIEW", "GROK_REVIEW", "BUDGET_LOOP_HEAD", "REVIEW_NEEDS_CHANGES"}
+
+
+def _classify_triage_category(enabled: bool, auto_disabled: bool, running: bool, outcome_group: Optional[str], stale: bool = False) -> str:
+    if running:
+        return "running"
+    if stale:
+        return "attention"
+    if not enabled and not auto_disabled:
+        return "disabled"
+    if auto_disabled or outcome_group in {"applyConflict", "rescuePatch", "human", "failed", "crashed", "quarantined", "stopped"}:
+        return "attention"
+    if outcome_group in {"applied", "reviewed", "noDiff", "manualRescueLanded"}:
+        return "landed"
+    return "pending"
+
+
+def _classify_outcome_group(status: Optional[str], outcome: Optional[str], record: Optional[Dict[str, Any]]) -> Optional[str]:
+    if status == "DONE_REVIEWED_NO_DIFF":
+        return "noDiff"
+    if status == "APPLY_CONFLICT":
+        return "applyConflict"
+    if record and (record.get("applyStatus") == "RESCUE_PATCH_AVAILABLE" or record.get("rescuePatchAvailable")):
+        return "rescuePatch"
+    if status in {"DIRTY_MAIN_NEEDS_COMMIT", "HALT_STOPPED"}:
+        return "stopped"
+    if status == "HALT_HUMAN":
+        return "human"
+    if outcome == "done":
+        if status == "DONE_REVIEWED":
+            return "reviewed"
+        return "applied"
+    return outcome
+
+
+def _format_updated_text(value: Optional[str]) -> Optional[str]:
+    if not value:
+        return None
+    return value.replace("T", " ").replace("Z", "")[:19]
+
+
+def _sanitize_overview_worktree_name(value: Optional[str]) -> str:
+    return re.sub(r"[^A-Za-z0-9._-]+", "-", str(value or "").strip()).strip("-")[:80]
+
+
+def _phase_label(status: Optional[str]) -> str:
+    text = str(status or "").strip()
+    labels = {
+        "INIT": "初始化",
+        "RESUMED": "恢复运行",
+        "PROBED": "探测 agent",
+        "WORKTREE_READY": "worktree 就绪",
+        "BASELINE_GATE_RESULT": "基线 gate 完成",
+        "BUDGET_LOOP_HEAD": "修复轮次开始",
+        "GROK_FIX": "Grok 修复中",
+        "CODEX_FIX": "Codex 修复中",
+        "POST_FIX_GATE_RESULT": "修复后 gate 完成",
+        "CODEX_REVIEW": "Codex review 中",
+        "GROK_REVIEW": "Grok review 中",
+        "DONE_REVIEWED": "已完成（已 review）",
+        "DONE_FIXED": "已完成（已修复）",
+        "DONE_GATE_ONLY": "已完成（仅 gate）",
+        "MANUAL_RESCUE_LANDED": "人工救回",
+        "HALT_HUMAN": "需人工接管",
+        "HALT_NO_CHANGES": "修复无 diff",
+        "HALT_NO_PROGRESS": "gate 无进展",
+        "HALT_BUDGET": "达到最大轮次",
+        "HALT_AGENT_NOT_FOUND": "缺少 agent",
+        "HALT_NO_SUCCESS_CRITERIA": "缺少成功标准",
+        "HALT_STOPPED": "已停止",
+        "PAUSED_BEFORE_FIX": "修复前暂停",
+        "PAUSED_AFTER_ITERATION": "迭代后暂停",
+    }
+    if not text:
+        return "等待运行"
+    if text == "STALE_INTERRUPTED":
+        return "运行中断"
+    if text.startswith("DONE_"):
+        return labels.get(text, "已完成")
+    if text.startswith("HALT_"):
+        return labels.get(text, "已停止")
+    return labels.get(text, text)
+
+
+def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any]:
+    repo = Path(repo_root) if repo_root else _get_repo_root()
+    queue_file = _resolve_queue_file_path(repo)
+    outcomes_file = _default_queue_outcomes_path(repo)
+    landing_file = _default_queue_landing_path(repo)
+    latest_state = _read_latest_state(repo)
+
+    queue = _safe_read_json(queue_file) or {}
+    outcomes = _safe_read_json(outcomes_file) or {"tasks": {}}
+    landing = _safe_read_json(landing_file)
+
+    tasks_in = queue.get("tasks") if isinstance(queue.get("tasks"), list) else []
+    queue_defaults = queue.get("defaults") if isinstance(queue.get("defaults"), dict) else {}
+    outcome_map = outcomes.get("tasks") if isinstance(outcomes.get("tasks"), dict) else {}
+    latest_options = latest_state.get("options") if isinstance(latest_state, dict) and isinstance(latest_state.get("options"), dict) else {}
+    latest_profile = None
+    if isinstance(latest_options, dict):
+        latest_fix = latest_options.get("fixAgent") or queue_defaults.get("fixAgent")
+        latest_review = None if latest_options.get("skipReview") is True else (latest_options.get("reviewAgent") or queue_defaults.get("reviewAgent"))
+        if latest_review == "none":
+            latest_review = None
+        parts = [latest_fix, latest_review]
+        profile_parts = [str(part) for part in parts if part and str(part).strip()]
+        latest_profile = " / ".join(profile_parts) if profile_parts else None
+
+    items: List[Dict[str, Any]] = []
+    counts: Dict[str, int] = {
+        "total": len(tasks_in),
+        "queueTotal": 0,
+        "done": 0,
+        "applied": 0,
+        "reviewed": 0,
+        "noDiff": 0,
+        "manualRescueLanded": 0,
+        "applyConflict": 0,
+        "rescuePatch": 0,
+        "human": 0,
+        "failed": 0,
+        "crashed": 0,
+        "quarantined": 0,
+        "stopped": 0,
+        "running": 0,
+        "pending": 0,
+    }
+
+    queue_running = _is_active_status(latest_state.get("status") if isinstance(latest_state, dict) else None)
+    running_task_path = _normalize_task_path(
+        (latest_state.get("options") or {}).get("task") if isinstance(latest_state, dict) and isinstance(latest_state.get("options"), dict) else None
+    )
+
+    for index, task in enumerate(tasks_in):
+        if not isinstance(task, dict):
+            continue
+        task_id = str(task.get("id") or task.get("task") or "").strip()
+        task_path = str(task.get("task") or "").strip()
+        record = outcome_map.get(task_id) if isinstance(outcome_map, dict) else None
+        if not isinstance(record, dict):
+            record = {}
+        enabled = task.get("enabled") is not False
+        if enabled:
+            counts["queueTotal"] += 1
+        same_as_running = bool(running_task_path) and _normalize_task_path(task_path) == running_task_path
+        running = bool(queue_running) and same_as_running
+        stale = False
+        manual_rescue_landed = False
+        if task_path:
+            task_text = ""
+            try:
+                task_text = (repo / task_path).read_text(encoding="utf-8")
+            except Exception:
+                task_text = ""
+            manual_rescue_landed = bool(record.get("applyStatus") == "MANUAL_RESCUE_LANDED" or record.get("manualRescue") or record.get("manualRescueLanded")) and bool(task_text)
+        outcome_group = "manualRescueLanded" if manual_rescue_landed else _classify_outcome_group(record.get("lastStatus"), record.get("lastOutcome"), record)
+        item_status = "MANUAL_RESCUE_LANDED" if manual_rescue_landed else record.get("lastStatus")
+        branch = None
+        explicit_branch = str(record.get("branch") or task.get("branch") or "").strip()
+        if explicit_branch:
+            branch = explicit_branch.replace("refs/heads/", "")
+        else:
+            use_worktree = task.get("useWorktree")
+            if use_worktree is None:
+                use_worktree = queue_defaults.get("useWorktree")
+            scope = str(task.get("worktreeScope") or queue_defaults.get("worktreeScope") or "queue").strip().lower()
+            if bool(use_worktree):
+                raw_name = queue_defaults.get("queueWorktreeName") if scope == "queue" else (task.get("worktreeName") or task_id or f"task-{index + 1}")
+                clean_name = _sanitize_overview_worktree_name(raw_name)
+                branch = f"agent-loop/{clean_name}" if clean_name else None
+        item: Dict[str, Any] = {
+            "id": task_id or task_path,
+            "task": task_path,
+            "enabled": enabled,
+            "agent": record.get("agent") or None,
+            "fixAgent": record.get("fixAgent") or task.get("fixAgent") or queue_defaults.get("fixAgent") or "grok",
+            "reviewAgent": None if task.get("skipReview") is True else (record.get("reviewAgent") or task.get("reviewAgent") or queue_defaults.get("reviewAgent") or "codex"),
+            "branch": branch,
+            "lastUpdatedAt": record.get("lastUpdatedAt"),
+            "lastUpdatedText": _format_updated_text(record.get("lastUpdatedAt")),
+            "outcome": record.get("lastOutcome"),
+            "outcomeGroup": outcome_group,
+            "status": item_status,
+            "rawStatus": record.get("lastStatus"),
+            "lastRunId": record.get("lastRunId"),
+            "autoDisabled": bool(record.get("autoDisabled")),
+            "running": running,
+            "stale": stale,
+            "applyStatus": record.get("applyStatus"),
+            "rawApplyStatus": record.get("applyStatus"),
+            "applyErrorKind": record.get("applyErrorKind"),
+            "rawApplyErrorKind": record.get("applyErrorKind"),
+            "applyErrorFiles": record.get("applyErrorFiles") if isinstance(record.get("applyErrorFiles"), list) else [],
+            "applyError": record.get("applyError"),
+            "rescuePatchAvailable": bool(record.get("rescuePatchAvailable")),
+            "diffBytes": int(record.get("diffBytes") or 0),
+            "worktreeErrorFiles": record.get("worktreeErrorFiles") if isinstance(record.get("worktreeErrorFiles"), list) else [],
+        }
+        item["category"] = _classify_triage_category(enabled, bool(record.get("autoDisabled")), running, outcome_group, stale)
+        items.append(item)
+
+        if running:
+            counts["running"] += 1
+        elif outcome_group == "applied":
+            counts["applied"] += 1
+            counts["done"] += 1
+        elif outcome_group == "reviewed":
+            counts["reviewed"] += 1
+            counts["done"] += 1
+        elif outcome_group == "noDiff":
+            counts["noDiff"] += 1
+        elif outcome_group == "manualRescueLanded":
+            counts["manualRescueLanded"] += 1
+            counts["done"] += 1
+        elif outcome_group == "applyConflict":
+            counts["applyConflict"] += 1
+        elif outcome_group == "rescuePatch":
+            counts["rescuePatch"] += 1
+            counts["failed"] += 1
+        elif outcome_group == "human":
+            counts["human"] += 1
+        elif outcome_group == "failed":
+            counts["failed"] += 1
+        elif outcome_group == "crashed":
+            counts["crashed"] += 1
+        elif outcome_group == "quarantined":
+            counts["quarantined"] += 1
+        elif outcome_group == "stopped":
+            counts["stopped"] += 1
+        else:
+            counts["pending"] += 1
+
+    current = None
+    if queue_running and isinstance(latest_state, dict):
+        latest_task = _normalize_task_path(
+            (latest_state.get("options") or {}).get("task") if isinstance(latest_state.get("options"), dict) else latest_state.get("task")
+        )
+        if latest_task:
+            current = {
+                "taskLabel": latest_task.split("/")[-1].replace(".md", ""),
+                "phaseLabel": _phase_label(latest_state.get("status")),
+                "status": latest_state.get("status"),
+                "elapsedText": None,
+                "staleRun": None,
+                "profileName": latest_profile,
+            }
+
+    return {"tasks": items, "landing": landing, "counts": counts, "queueRunning": bool(queue_running), "current": current}
+
+
+def get_agent_loop_queue_overview(repo_root: Optional[str] = None) -> Dict[str, Any]:
+    return _queue_overview_from_files(repo_root)
 
 
 def list_agent_loop_run_summaries(runs_root: Optional[str] = None) -> List[AgentLoopRunSummary]:
@@ -477,6 +798,10 @@ def get_agent_loop_run_detail(run_id: str, runs_root: Optional[str] = None) -> O
     if not isinstance(iterations, list):
         iterations = []
 
+    reviewRounds = _sanitize_for_response(state.get("reviewRounds") or [])
+    if not isinstance(reviewRounds, list):
+        reviewRounds = []
+
     # events bounded
     events_p = resolve_artifact_path(run_id, "events.jsonl", runs_root)
     events = _read_detail_events(run_id, events_p, runs_root, 60)
@@ -519,6 +844,7 @@ def get_agent_loop_run_detail(run_id: str, runs_root: Optional[str] = None) -> O
         iterations=iterations,
         events=events,
         artifacts=artifacts,
+        reviewRounds=reviewRounds,
         grokFix=_sanitize_for_response(state.get("grokFix")),
         agentFix=_sanitize_for_response(state.get("agentFix")),
         codexReview=_sanitize_for_response(state.get("codexReview")),

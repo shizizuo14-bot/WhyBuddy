@@ -1,47 +1,30 @@
+.agent-loop-root {
+  height: 100vh;
+  overflow: hidden;
+  /* ensure the dashboard layout takes full constrained height */
+}
+
 .native-dashboard {
   background: #f6f9fd;
   color: rgba(0, 0, 0, 0.88);
   min-height: 100vh;
-}
-
-.native-sidebar {
-  background: #fff;
-  border-right: 1px solid #dbe6f5;
-  height: 100vh;
-  overflow: auto;
-  padding: 0;
-}
-
-.native-brand {
-  align-items: center;
-  display: flex;
-  height: 56px;
-  justify-content: flex-start;
-  overflow: hidden;
-  /* padding: 0 24px; */
-  width: 100%;
-}
-
-.native-brand-mark {
-  align-items: center;
-  display: inline-flex;
-  height: 56px;
-  justify-content: flex-start;
-  width: auto;
-}
-
-.native-brand-mark img {
+  /* standalone /agent-loop route: full width, no internal sidebar (was VS Code nested shell) */
   display: block;
-  max-height: none;
-  max-width: none;
-  object-fit: contain;
-  transform: scale(1);
-  transform-origin: center;
-  width: 169px;
 }
 
 .native-main {
+  width: 100%;
+}
+
+/* sidebar chrome removed for standalone route shell (112); full width content only */
+
+.native-main {
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .native-header {
@@ -49,18 +32,26 @@
   background: #fff;
   border-bottom: 1px solid #dbe6f5;
   display: flex;
+  flex: 0 0 auto;
   height: 56px;
   padding: 0 24px;
 }
 
 .native-content {
-  min-height: calc(100vh - 56px);
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
   overflow-x: hidden;
   padding: 24px;
 }
 
+/* Detail uses same scroll container; specificity overrides padding/bg only */
+.native-detail-dashboard .native-content {
+  background: linear-gradient(180deg, #fff 0%, #f7fbff 260px, #f6f9fd 100%);
+  padding: 18px 24px 22px;
+}
+
 .native-scroll-surface,
-.native-sidebar,
 .native-content,
 .native-timeline-shell,
 .native-code {
@@ -69,7 +60,6 @@
 }
 
 .native-scroll-surface::-webkit-scrollbar,
-.native-sidebar::-webkit-scrollbar,
 .native-content::-webkit-scrollbar,
 .native-timeline-shell::-webkit-scrollbar,
 .native-code::-webkit-scrollbar {
@@ -78,7 +68,6 @@
 }
 
 .native-scroll-surface::-webkit-scrollbar-track,
-.native-sidebar::-webkit-scrollbar-track,
 .native-content::-webkit-scrollbar-track,
 .native-timeline-shell::-webkit-scrollbar-track,
 .native-code::-webkit-scrollbar-track {
@@ -86,7 +75,6 @@
 }
 
 .native-scroll-surface::-webkit-scrollbar-thumb,
-.native-sidebar::-webkit-scrollbar-thumb,
 .native-content::-webkit-scrollbar-thumb,
 .native-timeline-shell::-webkit-scrollbar-thumb,
 .native-code::-webkit-scrollbar-thumb {
@@ -97,7 +85,6 @@
 }
 
 .native-scroll-surface::-webkit-scrollbar-thumb:hover,
-.native-sidebar::-webkit-scrollbar-thumb:hover,
 .native-content::-webkit-scrollbar-thumb:hover,
 .native-timeline-shell::-webkit-scrollbar-thumb:hover,
 .native-code::-webkit-scrollbar-thumb:hover {
@@ -128,11 +115,6 @@
 
 .native-dashboard h3 {
   margin: 0;
-}
-
-.native-detail-dashboard .native-content {
-  background: linear-gradient(180deg, #fff 0%, #f7fbff 260px, #f6f9fd 100%);
-  padding: 18px 24px 22px;
 }
 
 .native-step-card,
@@ -338,7 +320,7 @@
 }
 
 .native-detail-tab-body {
-  padding: 0;
+  padding: 16px 24px 20px;
 }
 
 .native-timeline-card {
@@ -542,10 +524,6 @@
 }
 
 @media (max-width: 900px) {
-  .native-sidebar {
-    display: none;
-  }
-
   .native-content {
     padding: 16px;
   }

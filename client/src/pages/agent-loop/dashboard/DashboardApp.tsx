@@ -10,6 +10,7 @@ import {
   RobotOutlined,
   SnippetsOutlined,
   UploadOutlined,
+  UserOutlined,
 } from '@ant-design/icons';
 import { Graph, type GraphData } from '@antv/g6';
 import {
@@ -26,10 +27,10 @@ import {
   InputNumber,
   Layout,
   List,
-  Menu,
   Modal,
   Progress,
   Row,
+  Segmented,
   Select,
   Space,
   Statistic,
@@ -46,10 +47,15 @@ import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 export type ViewKey = 'workbench' | 'settings';
-import type { DetailPayload, OverviewPayload, OverviewTask } from './dashboardTypes';
+import type { AgentLoopSettingsViewModel, DetailPayload, OverviewPayload, OverviewTask } from './dashboardTypes';
 import { postCommand } from './bridge';
+import { filterSupportedQueuePatch } from './agentLoopApi';
+import SettingsView from './settings/SettingsView';
+import { CliConfigForm } from './settings/CliConfigPanel';
+import { QueueDefaultsView } from './settings/QueueDefaultsPanel';
+import { ProfileCrudView } from './settings/ProfilesPanel';
 
-const { Header, Sider, Content } = Layout;
+const { Header, Content } = Layout;
 const { Text, Title } = Typography;
 
 const PAGE_SIZE = 6;
@@ -238,43 +244,23 @@ function filterCount(tasks: OverviewTask[], filter: FilterKey, counts: OverviewP
   return tasks.filter((task) => taskCategory(task) === filter).length;
 }
 
-function BrandMark() {
-  const brandLogo = window.__AGENT_LOOP_ASSETS__?.brandLogo || 'media/sliderule-brand.svg';
-  return (
-    <span className="native-brand-mark" aria-label="SlideRule" role="img">
-      <img src={brandLogo} alt="" />
-    </span>
-  );
-}
-
-function DashboardSidebar({ currentView, onViewChange }: { currentView: ViewKey; onViewChange: (view: ViewKey) => void }) {
-  return (
-    <Sider width={224} theme="light" className="native-sidebar">
-      <div className="native-brand">
-        <BrandMark />
-      </div>
-      <Menu
-        mode="inline"
-        selectedKeys={[currentView]}
-        onClick={(info) => {
-          const key = info.key as ViewKey;
-          if (key === 'workbench' || key === 'settings') {
-            onViewChange(key);
-          }
-        }}
-        items={[
-          { key: 'workbench', label: '工作台' },
-          { key: 'settings', label: '设置' },
-        ]}
-      />
-    </Sider>
-  );
-}
-
-function OverviewHeader({ payload }: { payload: OverviewPayload }) {
+function OverviewHeader({ payload, settings }: { payload: OverviewPayload; settings?: AgentLoopSettingsViewModel | null }) {
   const queueRunning = Boolean(payload.queueRunning);
   const queueTotal = countValue(payload.counts, 'queueTotal') || queueTasks(payload.tasks || []).length;
   const total = countValue(payload.counts, 'total') || (payload.tasks || []).length;
+  const eff = (settings && (settings.nonSensitive || settings)) || {};
+  const ap = settings?.activeProfile || (eff as any).activeProfile || '';
+  const f = settings?.fixAgent || (eff as any).fixAgent || '';
+  const r = settings?.reviewAgent || (eff as any).reviewAgent || '';
+  const rtOpts = {
+    ...(f ? { fixAgent: f } : {}),
+    ...(r ? { reviewAgent: r } : {}),
+    ...(ap ? { activeProfile: ap } : {}),
+    ...((eff as any).workerMaxTurns != null ? { workerMaxTurns: (eff as any).workerMaxTurns } : {}),
+    ...((eff as any).workerMaxRetries != null ? { workerMaxRetries: (eff as any).workerMaxRetries } : {}),
+    ...((eff as any).worktreeScope ? { worktreeScope: (eff as any).worktreeScope } : {}),
+    ...((eff as any).queuePath ? { queuePath: (eff as any).queuePath } : {}),
+  };
 
   return (
     <Card>
@@ -282,6 +268,13 @@ function OverviewHeader({ payload }: { payload: OverviewPayload }) {
         <Col flex="auto">
           <Title level={3}>AgentLoop 控制台</Title>
           <Text type="secondary">{queueTotal} 个队列任务 / {total} 个全部任务</Text>
+          {(ap || f || r) && (
+            <div style={{ marginTop: 4 }}>
+              <Tag color="blue">活跃设置</Tag>
+              {ap ? <Tag>Profile: {ap}</Tag> : null}
+              {(f || r) ? <Tag>Agent: {f || 'grok'} / {r || 'codex'}</Tag> : null}
+            </div>
+          )}
         </Col>
         <Col>
           <Space wrap>
@@ -289,7 +282,7 @@ function OverviewHeader({ payload }: { payload: OverviewPayload }) {
             {queueRunning ? (
               <Button danger onClick={() => postCommand('stopRun')}>停止</Button>
             ) : (
-              <Button type="primary" onClick={() => postCommand('runQueue')}>运行队列</Button>
+              <Button type="primary" onClick={() => postCommand('runQueue', rtOpts)}>运行队列</Button>
             )}
             <Button onClick={() => postCommand('refresh')}>刷新</Button>
           </Space>
@@ -348,7 +341,7 @@ function QueueTable({ tasks }: { tasks: OverviewTask[] }) {
       key: 'task',
       render: (_, task) => (
         <Space direction="vertical" size={0}>
-          <Typography.Link onClick={() => postCommand('openTask', { taskPath: task.task, runId: task.id })}>
+          <Typography.Link onClick={() => postCommand('openTask', { taskPath: task.task, runId: task.lastRunId || task.id })}>
             {taskLabel(task)}
           </Typography.Link>
           <Text type="secondary" className="native-task-path" ellipsis={{ tooltip: task.task }}>
@@ -382,7 +375,7 @@ function QueueTable({ tasks }: { tasks: OverviewTask[] }) {
       key: 'action',
       render: (_, task) => (
         <Space>
-          <Button size="small" onClick={() => postCommand('openTask', { taskPath: task.task, runId: task.id })}>详情</Button>
+          <Button size="small" onClick={() => postCommand('openTask', { taskPath: task.task, runId: task.lastRunId || task.id })}>详情</Button>
           {task.enabled === false && task.id ? (
             <Button size="small" onClick={() => postCommand('reEnable', { taskId: task.id })}>启用</Button>
           ) : null}
@@ -417,7 +410,7 @@ function CurrentRun({ current }: { current: OverviewPayload['current'] }) {
   );
 }
 
-function SidePanel({ payload }: { payload: OverviewPayload }) {
+function SidePanel({ payload, settings }: { payload: OverviewPayload; settings?: AgentLoopSettingsViewModel | null }) {
   const counts = payload.counts || {};
   const tasks = payload.tasks || [];
   const total = countValue(counts, 'total') || tasks.length || 1;
@@ -427,11 +420,14 @@ function SidePanel({ payload }: { payload: OverviewPayload }) {
     + countValue(counts, 'manualRescueLanded')
     + countValue(counts, 'noDiff');
   const progress = Math.min(100, Math.round((landed / total) * 100));
+  const eff = (settings && (settings.nonSensitive || settings)) || {};
+  const profLabel = settings?.activeProfile || (eff as any).activeProfile;
 
   return (
     <Space direction="vertical" size="middle" className="native-side">
       <Card title="当前任务">
         <CurrentRun current={payload.current || null} />
+        {profLabel ? <Text type="secondary" style={{ fontSize: 12 }}>Profile: {profLabel}</Text> : null}
       </Card>
       <Card>
         <Space direction="vertical" size="middle" className="native-side">
@@ -444,11 +440,11 @@ function SidePanel({ payload }: { payload: OverviewPayload }) {
   );
 }
 
-export function DashboardApp({ payload }: { payload: OverviewPayload }) {
+export function DashboardApp({ payload, initialView = 'workbench' as ViewKey }: { payload: OverviewPayload; initialView?: ViewKey }) {
   const [filter, setFilter] = useState<FilterKey>('queue');
   const [query, setQuery] = useState('');
-  const [view, setView] = useState<ViewKey>('workbench');
-  const [settingsData, setSettingsData] = useState<any>(null);
+  const [view, setView] = useState<ViewKey>(initialView);
+  const [settingsData, setSettingsData] = useState<AgentLoopSettingsViewModel | null>(null);
   const [providerTests, setProviderTests] = useState<any[]>([]);
   const [workerCliTests, setWorkerCliTests] = useState<any[]>([]);
   const [queueDefaultsData, setQueueDefaultsData] = useState<any>(null);
@@ -466,10 +462,16 @@ export function DashboardApp({ payload }: { payload: OverviewPayload }) {
     label: `${FILTER_LABELS[key]} ${filterCount(tasks, key, payload.counts)}`,
   }));
 
-  // Load settings data when switching to settings view
+  // Load settings on initial mount so that workbench overview/detail labels (active profile, fix/review agents)
+  // and run control rtOpts reflect non-secret settings immediately (per runtime linkage acceptance).
+  // getQueueDefaults etc remain lazy until settings tab per prior design.
+  useEffect(() => {
+    postCommand('getSettings');
+  }, []);
+
+  // Load additional settings-tab data when switching to settings view
   useEffect(() => {
     if (view === 'settings') {
-      postCommand('getSettings');
       postCommand('getQueueDefaults');
       postCommand('getDiagnostics');
       postCommand('listProfiles');
@@ -599,7 +601,7 @@ export function DashboardApp({ payload }: { payload: OverviewPayload }) {
 
   const workbenchContent = (
     <Space direction="vertical" size="middle" className="native-stack">
-      <OverviewHeader payload={payload} />
+      <OverviewHeader payload={payload} settings={settingsData} />
       <SummaryStats payload={payload} />
       <Row gutter={[16, 16]} align="top">
         <Col xs={24} xl={18}>
@@ -616,7 +618,7 @@ export function DashboardApp({ payload }: { payload: OverviewPayload }) {
           </Card>
         </Col>
         <Col xs={24} xl={6}>
-          <SidePanel payload={payload} />
+          <SidePanel payload={payload} settings={settingsData} />
         </Col>
       </Row>
     </Space>
@@ -625,13 +627,24 @@ export function DashboardApp({ payload }: { payload: OverviewPayload }) {
   return (
     <ConfigProvider
       prefixCls="agent-ant"
-      csp={window.__AGENT_LOOP_CSP_NONCE__ ? { nonce: window.__AGENT_LOOP_CSP_NONCE__ } : undefined}
+      csp={typeof window !== 'undefined' && window.__AGENT_LOOP_CSP_NONCE__ ? { nonce: window.__AGENT_LOOP_CSP_NONCE__ } : undefined}
     >
       <Layout className="native-dashboard">
-        <DashboardSidebar currentView={view} onViewChange={setView} />
         <Layout className="native-main">
           <Header className="native-header">
-            <Breadcrumb items={[{ title: 'AgentLoop' }, { title: view === 'settings' ? '设置' : '工作台' }]} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, width: '100%' }}>
+              <Breadcrumb items={[{ title: 'AgentLoop' }, { title: view === 'settings' ? '设置' : '工作台' }]} />
+              <div style={{ marginLeft: 'auto' }}>
+                <Segmented
+                  options={[
+                    { label: '工作台', value: 'workbench' as const },
+                    { label: '设置', value: 'settings' as const },
+                  ]}
+                  value={view}
+                  onChange={(v) => setView(v as ViewKey)}
+                />
+              </div>
+            </div>
           </Header>
           <Content className="native-content">
             {view === 'workbench' ? workbenchContent : <SettingsView data={settingsData} onSave={handleSaveSettings} providerTests={providerTests} onTestProvider={(provider) => postCommand('testProvider', { provider })} workerCliTests={workerCliTests} onTestWorkerCli={(w) => postCommand('testWorkerCli', { worker: w })} queueDefaultsData={queueDefaultsData} queuePreview={queuePreview} onPreviewQueue={handlePreviewQueueDefaults} queueApply={queueApply} onApplyQueue={handleApplyQueueDefaults} exportedSettings={exportedSettings} importResult={importResult} onExportSettings={handleExportSettings} onImportSettings={handleImportSettings} diagnosticsData={diagnosticsData} onRefreshDiagnostics={() => postCommand('getDiagnostics')} profilesData={profilesData} onListProfiles={handleListProfiles} onCreateProfile={handleCreateProfile} onRenameProfile={handleRenameProfile} onDuplicateProfile={handleDuplicateProfile} onDeleteProfile={handleDeleteProfile} onSelectProfile={handleSelectProfile} />}
@@ -642,7 +655,15 @@ export function DashboardApp({ payload }: { payload: OverviewPayload }) {
   );
 }
 
-type SettingsData = {
+// Re-exports for test contract (agentloop setting * 112 tests directly import sub components from DashboardApp).
+// Real impl lives in ./settings/* focused modules per component split task.
+export { CliConfigForm } from './settings/CliConfigPanel';
+export { QueueDefaultsView } from './settings/QueueDefaultsPanel';
+export { ProfileCrudView } from './settings/ProfilesPanel';
+export { default as SettingsView } from './settings/SettingsView';
+
+// Local compat type kept only for any residual references (delegated to settings modules).
+type SettingsData = Partial<AgentLoopSettingsViewModel> & {
   nonSensitive?: {
     fixAgent?: string;
     reviewAgent?: string;
@@ -651,97 +672,9 @@ type SettingsData = {
     queuePath?: string;
     worktreeScope?: string;
   };
-  keys?: {
-    grokApiKey?: string;
-    openaiApiKey?: string;
-    anthropicApiKey?: string;
-  };
-  baseUrl?: string;
-  injectToWorker?: boolean;
-  queueRunning?: boolean;
-  activeProfile?: string | null;
-  profiles?: Record<string, any>;
-  queueDefaults?: {
-    defaults?: Record<string, unknown>;
-    supportedKeys?: string[];
-    queuePath?: string;
-  };
 };
 
-function CliConfigForm({ initial, onSave, queueRunning, activeProfile }: { initial: SettingsData['nonSensitive']; onSave: (v: any) => void; queueRunning?: boolean; activeProfile?: string | null }) {
-  const [form] = Form.useForm();
-  const isRunning = Boolean(queueRunning);
-  const runtimeLocked = (f: string) => isRunning && ['fixAgent', 'reviewAgent', 'queuePath', 'worktreeScope'].includes(f);
-
-  useEffect(() => {
-    if (initial) {
-      form.setFieldsValue({
-        fixAgent: initial.fixAgent || 'grok',
-        reviewAgent: initial.reviewAgent || 'codex',
-        workerMaxTurns: initial.workerMaxTurns ?? 128,
-        workerMaxRetries: initial.workerMaxRetries ?? 2,
-        queuePath: initial.queuePath || 'agent-loop/scripts/migration-queue.json',
-        worktreeScope: initial.worktreeScope || 'queue',
-      });
-    }
-  }, [initial, form]);
-
-  const handleFinish = (values: any) => {
-    // client-side guard; backend also enforces with structured result
-    if (runtimeLocked('fixAgent') || runtimeLocked('reviewAgent') || runtimeLocked('queuePath') || runtimeLocked('worktreeScope')) {
-      message.warning('队列运行中，运行时 profile 字段已禁用');
-      return;
-    }
-    onSave(values);
-    message.success('CLI 配置已保存');
-  };
-
-  return (
-    <Form form={form} layout="vertical" onFinish={handleFinish} style={{ maxWidth: 520 }}>
-      {isRunning ? (
-        <Alert type="warning" showIcon style={{ marginBottom: 12 }} message={`队列运行中 (激活 Profile: ${activeProfile || '未知'})，运行时字段已锁定`} description="已锁定: fixAgent, reviewAgent, queuePath, worktreeScope（影响运行 profile/worker 配置）。workerMaxTurns / workerMaxRetries 为安全非运行时字段，可正常编辑。" />
-      ) : null}
-      <Form.Item label="默认修复 Worker" name="fixAgent">
-        <Select disabled={runtimeLocked('fixAgent')}>
-          <Select.Option value="grok">Grok</Select.Option>
-          <Select.Option value="codex">Codex</Select.Option>
-        </Select>
-      </Form.Item>
-
-      <Form.Item label="默认 Review Worker" name="reviewAgent">
-        <Select disabled={runtimeLocked('reviewAgent')}>
-          <Select.Option value="codex">Codex</Select.Option>
-          <Select.Option value="grok">Grok</Select.Option>
-          <Select.Option value="none">None（跳过审查）</Select.Option>
-        </Select>
-      </Form.Item>
-
-      <Form.Item label="最大执行轮次" name="workerMaxTurns">
-        <InputNumber min={1} style={{ width: '100%' }} disabled={false} />
-      </Form.Item>
-
-      <Form.Item label="最大重试次数" name="workerMaxRetries">
-        <InputNumber min={0} style={{ width: '100%' }} disabled={false} />
-      </Form.Item>
-
-      <Form.Item label="队列文件路径" name="queuePath">
-        <Input placeholder="agent-loop/scripts/migration-queue.json" disabled={runtimeLocked('queuePath')} />
-      </Form.Item>
-
-      <Form.Item label="工作树模式" name="worktreeScope">
-        <Select disabled={runtimeLocked('worktreeScope')}>
-          <Select.Option value="queue">queue</Select.Option>
-          <Select.Option value="task">task</Select.Option>
-        </Select>
-      </Form.Item>
-
-      <Form.Item>
-        <Button type="primary" htmlType="submit" disabled={runtimeLocked('fixAgent') || runtimeLocked('reviewAgent')}>保存 CLI 配置</Button>
-      </Form.Item>
-    </Form>
-  );
-}
-
+// Legacy LlmKeyForm kept as internal for now; the primary Llm keys panel is in settings/LlmKeysPanel (rendered via SettingsView).
 function LlmKeyForm({ initial, onSave, providerTests, onTestProvider, workerCliTests, onTestWorkerCli, queueRunning }: { initial: SettingsData; onSave: (v: any) => void; providerTests?: any[]; onTestProvider?: (p: string) => void; workerCliTests?: any[]; onTestWorkerCli?: (w: string) => void; queueRunning?: boolean; }) {
   const [form] = Form.useForm();
   const isRunning = Boolean(queueRunning);
@@ -907,646 +840,10 @@ function LlmKeyForm({ initial, onSave, providerTests, onTestProvider, workerCliT
   );
 }
 
-function SettingsView({ data, onSave, providerTests, onTestProvider, workerCliTests, onTestWorkerCli, queueDefaultsData, queuePreview, onPreviewQueue, queueApply, onApplyQueue, exportedSettings, importResult, onExportSettings, onImportSettings, diagnosticsData, onRefreshDiagnostics, profilesData, onListProfiles, onCreateProfile, onRenameProfile, onDuplicateProfile, onDeleteProfile, onSelectProfile }: { data: SettingsData | null; onSave: (v: any) => void; providerTests?: any[]; onTestProvider?: (p: string) => void; workerCliTests?: any[]; onTestWorkerCli?: (w: string) => void; queueDefaultsData?: any; queuePreview?: any; onPreviewQueue?: (p: any) => void; queueApply?: any; onApplyQueue?: (p: any) => void; exportedSettings?: any; importResult?: any; onExportSettings?: () => void; onImportSettings?: (text: string) => void; diagnosticsData?: any; onRefreshDiagnostics?: () => void; profilesData?: any; onListProfiles?: () => void; onCreateProfile?: (n: string, v?: any) => void; onRenameProfile?: (o: string, n: string) => void; onDuplicateProfile?: (n: string, nn: string) => void; onDeleteProfile?: (n: string) => void; onSelectProfile?: (n: string) => void; }) {
-  return (
-    <Space direction="vertical" size="large" style={{ width: '100%' }}>
-      <Title level={4} style={{ marginBottom: 0 }}>AgentLoop 设置中心</Title>
-      {data && (
-        <Descriptions size="small" column={2}>
-          <Descriptions.Item label="活跃 Profile">{(data as any)?.activeProfile || 'local'}</Descriptions.Item>
-          <Descriptions.Item label="Fix Agent">{data.nonSensitive?.fixAgent || '-'}</Descriptions.Item>
-          <Descriptions.Item label="Review Agent">{data.nonSensitive?.reviewAgent || '-'}</Descriptions.Item>
-        </Descriptions>
-      )}
-      <Tabs
-        defaultActiveKey="cli"
-        items={[
-          {
-            key: 'cli',
-            label: 'CLI 配置',
-            children: <CliConfigForm initial={data?.nonSensitive} onSave={onSave} queueRunning={(data as any)?.queueRunning} activeProfile={(data as any)?.activeProfile} />,
-          },
-          {
-            key: 'keys',
-            label: 'LLM Keys',
-            children: <LlmKeyForm initial={data || {}} onSave={onSave} providerTests={providerTests} onTestProvider={onTestProvider} workerCliTests={workerCliTests} onTestWorkerCli={onTestWorkerCli} queueRunning={(data as any)?.queueRunning} />,
-          },
-          {
-            key: 'queue',
-            label: '队列默认值',
-            children: <QueueDefaultsView data={queueDefaultsData} preview={queuePreview} onPreview={onPreviewQueue || (() => {})} applyResult={queueApply} onApply={onApplyQueue || (() => {})} settingsData={data} />,
-          },
-          {
-            key: 'diagnostics',
-            label: 'Diagnostics',
-            children: <DiagnosticsView data={diagnosticsData} onRefresh={onRefreshDiagnostics || (() => {})} />,
-          },
-          {
-            key: 'profiles',
-            label: 'Profiles',
-            children: <ProfileCrudView
-              data={profilesData}
-              queueRunning={(data as any)?.queueRunning}
-              activeProfile={(data as any)?.activeProfile}
-              onList={onListProfiles || (() => {})}
-              onCreate={onCreateProfile || (() => {})}
-              onRename={onRenameProfile || (() => {})}
-              onDuplicate={onDuplicateProfile || (() => {})}
-              onDelete={onDeleteProfile || (() => {})}
-              onSelect={onSelectProfile || (() => {})}
-            />,
-          },
-        ]}
-      />
-      <div style={{ marginTop: 24, color: '#888', fontSize: 12 }}>
-        非敏感配置通过 /api/agent-loop/settings 持久化；LLM key 仅暴露 configured 状态（此 web 切片不支持秘密保存/清除）。队列 defaults 支持预览后确认 apply 写入；仅 owned 支持键；secrets 拒绝；写后 JSON + tasks 校验。
-      </div>
+// Old inline SettingsView/QueueDefaultsView/DiagnosticsView/ProfileCrudView removed.
+// Delegated to ./settings/* (SettingsView, *Panel modules). Re-exports above preserve render + test contracts.
 
-      {/* Settings import/export redaction UI (schema v1, activeProfile + non-secret + key status only; secrets never exported or imported raw). Uses AntD Upload + download buttons for file-like controls (107). */}
-      <div style={{ marginTop: 20, paddingTop: 12, borderTop: '1px solid #eee' }}>
-        <Title level={5}>设置导入/导出（redacted）</Title>
-        <Space>
-          <Button icon={<DownloadOutlined />} onClick={() => onExportSettings && onExportSettings()}>导出设置（仅 activeProfile、非敏感、key 状态）</Button>
-          <Upload
-            accept=".json,application/json"
-            showUploadList={false}
-            beforeUpload={(file) => {
-              const reader = new FileReader();
-              reader.onload = (e) => {
-                const txt = (e.target && (e.target as any).result) || '';
-                if (txt) onImportSettings && onImportSettings(String(txt));
-              };
-              reader.readAsText(file);
-              return false;
-            }}
-          >
-            <Button icon={<UploadOutlined />}>导入设置（文件上传）</Button>
-          </Upload>
-        </Space>
-        {exportedSettings && (
-          <div style={{ marginTop: 8 }}>
-            <Text strong>导出内容（secret 字段为状态，非明文）:</Text>
-            <pre style={{ background: '#fafafa', padding: 8, fontSize: 12, maxHeight: 200, overflow: 'auto' }}>{JSON.stringify(exportedSettings, null, 2)}</pre>
-            <Space size={8}>
-              <Button size="small" onClick={() => { try { navigator.clipboard?.writeText(JSON.stringify(exportedSettings, null, 2)); message.success('已复制 redacted export'); } catch {} }}>复制导出</Button>
-              <Button size="small" icon={<DownloadOutlined />} onClick={() => {
-                try {
-                  const dataStr = JSON.stringify(exportedSettings, null, 2);
-                  const blob = new Blob([dataStr], { type: 'application/json' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = 'agentloop-settings-redacted.json';
-                  document.body.appendChild(a);
-                  a.click();
-                  document.body.removeChild(a);
-                  URL.revokeObjectURL(url);
-                  message.success('已下载 redacted payload');
-                } catch {}
-              }}>下载文件</Button>
-            </Space>
-            <Text type="secondary" style={{ marginLeft: 8, fontSize: 11 }}>schemaVersion: {exportedSettings.schemaVersion}；activeProfile + keys 只含 configured/'' 状态</Text>
-          </div>
-        )}
-        {importResult && (
-          <div style={{ marginTop: 8 }}>
-            {importResult.ok ? (
-              <Alert type="success" showIcon message="导入成功（仅应用了非敏感配置）" />
-            ) : (
-              <Alert type="error" showIcon message={importResult.error || '导入失败'} description="schema 校验或 secret 检测失败，未写入任何 secret" />
-            )}
-          </div>
-        )}
-      </div>
-    </Space>
-  );
-}
-
-function QueueDefaultsView({ data, preview, onPreview, applyResult, onApply, settingsData }: { data: any; preview: any; onPreview: (proposed: Record<string, unknown>) => void; applyResult?: any; onApply?: (proposed: Record<string, unknown>) => void; settingsData?: any }) {
-  const [proposedText, setProposedText] = useState('{\n  "workerMaxTurns": 256\n}');
-  const current = (data && data.defaults) || {};
-  const supported = (data && data.supportedKeys) || [];
-
-  const doPreview = () => {
-    try {
-      const parsed = JSON.parse(proposedText || '{}');
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        onPreview(parsed);
-      } else {
-        message.error('proposed 必须是对象');
-      }
-    } catch {
-      message.error('proposed JSON 无效');
-    }
-  };
-
-  const doApply = () => {
-    try {
-      const parsed = JSON.parse(proposedText || '{}');
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        onApply && onApply(parsed);
-      } else {
-        message.error('proposed 必须是对象');
-      }
-    } catch {
-      message.error('proposed JSON 无效');
-    }
-  };
-
-  const doSyncFromSettings = () => {
-    const ns = (settingsData && (settingsData.nonSensitive || settingsData)) || {};
-    const prop: Record<string, unknown> = {};
-    const sup = new Set(supported);
-    for (const [k, v] of Object.entries(ns)) {
-      if (sup.has(k) && k !== 'workerEnv') {
-        prop[k] = v;
-      }
-    }
-    if (Object.keys(prop).length === 0) {
-      // fallback common supported keys from settings shape
-      if (ns.fixAgent !== undefined) prop.fixAgent = ns.fixAgent;
-      if (ns.reviewAgent !== undefined) prop.reviewAgent = ns.reviewAgent;
-      if (ns.workerMaxTurns !== undefined) prop.workerMaxTurns = ns.workerMaxTurns;
-      if (ns.workerMaxRetries !== undefined) prop.workerMaxRetries = ns.workerMaxRetries;
-      if (ns.worktreeScope !== undefined) prop.worktreeScope = ns.worktreeScope;
-    }
-    const json = JSON.stringify(prop, null, 2) || '{}';
-    setProposedText(json);
-    try {
-      const parsed = JSON.parse(json);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) {
-        onPreview(parsed);
-      }
-    } catch {}
-  };
-
-  return (
-    <div style={{ maxWidth: 620 }}>
-      <Title level={5}>队列 defaults（仅支持键，当前值）</Title>
-      <pre style={{ background: '#fafafa', padding: 8, fontSize: 12, maxHeight: 240, overflow: 'auto' }}>
-        {JSON.stringify(current, null, 2)}
-      </pre>
-      <Text type="secondary" style={{ fontSize: 12 }}>supported: {supported.join(', ')}</Text>
-
-      <div style={{ marginTop: 16 }}>
-        <Text strong>预览 patch（dry-run，仅支持键；不含 workerEnv）</Text>
-        <Input.TextArea
-          rows={5}
-          value={proposedText}
-          onChange={(e) => setProposedText(e.target.value)}
-          style={{ fontFamily: 'monospace', fontSize: 12, marginTop: 6 }}
-        />
-        <Space style={{ marginTop: 8 }}>
-          <Button onClick={doSyncFromSettings}>从 Settings 同步并预览 diff</Button>
-          <Button onClick={doPreview}>预览 structured diff（不写入）</Button>
-          {preview && preview.ok && onApply && (
-            <Button type="primary" onClick={doApply}>确认应用（写入队列文件）</Button>
-          )}
-        </Space>
-      </div>
-
-      {preview && (
-        <div style={{ marginTop: 12, padding: 8, background: preview.ok ? '#f6ffed' : '#fff1f0', border: '1px solid #eee' }}>
-          {preview.ok === false ? (
-            <Alert type="error" showIcon message={preview.error || 'redacted error'} />
-          ) : (
-            <>
-              <Text strong>Preview result (before/after diff for supported keys):</Text>
-              {Array.isArray(preview.diff) && preview.diff.length > 0 ? (
-                <Table
-                  size="small"
-                  style={{ marginTop: 4 }}
-                  columns={[
-                    { title: 'Key', dataIndex: 'key', key: 'key' },
-                    { title: 'Before', dataIndex: 'before', key: 'before', render: (v: unknown) => JSON.stringify(v) },
-                    { title: 'After', dataIndex: 'after', key: 'after', render: (v: unknown) => JSON.stringify(v) },
-                  ]}
-                  dataSource={(preview.diff || []).map((d: any, i: number) => ({ ...d, key: d.key || String(i) }))}
-                  pagination={false}
-                  rowKey="key"
-                />
-              ) : (
-                <div style={{ fontSize: 12 }}>no diff (values match)</div>
-              )}
-              <div style={{ fontSize: 12, marginTop: 4 }}>before keys: {Object.keys(preview.before || {}).join(', ')}</div>
-              <div style={{ fontSize: 12 }}>after keys: {Object.keys(preview.after || {}).join(', ')}</div>
-            </>
-          )}
-        </div>
-      )}
-
-      {applyResult && (
-        <div style={{ marginTop: 12, padding: 8, background: applyResult.ok ? '#f6ffed' : '#fff1f0', border: '1px solid #eee' }}>
-          {applyResult.ok === false ? (
-            <Alert type="error" showIcon message={(applyResult.rolledBack ? 'rolled back: ' : '') + (applyResult.error || 'redacted error')} />
-          ) : (
-            <>
-              <Text strong>Apply result (written + validated):</Text>
-              {Array.isArray(applyResult.diff) && applyResult.diff.length > 0 ? (
-                <Table
-                  size="small"
-                  style={{ marginTop: 4 }}
-                  columns={[
-                    { title: 'Key', dataIndex: 'key', key: 'key' },
-                    { title: 'Before', dataIndex: 'before', key: 'before', render: (v: unknown) => JSON.stringify(v) },
-                    { title: 'After', dataIndex: 'after', key: 'after', render: (v: unknown) => JSON.stringify(v) },
-                  ]}
-                  dataSource={(applyResult.diff || []).map((d: any, i: number) => ({ ...d, key: d.key || String(i) }))}
-                  pagination={false}
-                  rowKey="key"
-                />
-              ) : (
-                <div style={{ fontSize: 12 }}>no diff</div>
-              )}
-              <div style={{ fontSize: 12, marginTop: 4 }}>applied: {JSON.stringify(applyResult.applied || {})}</div>
-              <div style={{ fontSize: 12 }}>after keys: {Object.keys(applyResult.after || {}).join(', ')}</div>
-            </>
-          )}
-        </div>
-      )}
-
-      <Text type="secondary" style={{ fontSize: 11, marginTop: 8, display: 'block' }}>
-        预览确认后 apply 仅写入 owned 支持键；workerEnv/secrets 拒绝；写后强制 JSON 校验 + tasks 数组保留；失败时回滚。
-      </Text>
-    </div>
-  );
-}
-
-function DiagnosticsView({ data, onRefresh }: { data: any; onRefresh: () => void }) {
-  const d = data || {};
-  const eff = d.effectiveConfig || {};
-  const srcs = d.configSources || {};
-  const keys = d.keys || {};
-  const warns: Array<{ category: string; message: string }> = Array.isArray(d.warnings) ? d.warnings : [];
-  const catColor = (c: string) => (c === 'ready' ? 'success' : c === 'failed' ? 'error' : c === 'skipped' ? 'default' : 'warning');
-  const handleCopy = () => {
-    try {
-      const text = JSON.stringify(d, null, 2);
-      if (navigator.clipboard && navigator.clipboard.writeText) {
-        navigator.clipboard.writeText(text).then(() => {
-          message.success('已复制红acted diagnostics artifact JSON');
-        }).catch(() => {
-          message.info('复制到剪贴板（手动）');
-        });
-      } else {
-        message.info('复制到剪贴板（手动）');
-      }
-    } catch {
-      message.info('复制到剪贴板（手动）');
-    }
-  };
-  return (
-    <div style={{ maxWidth: 720 }}>
-      <Space style={{ marginBottom: 8 }}>
-        <Title level={5} style={{ margin: 0 }}>Diagnostics（只读）</Title>
-        <Button size="small" onClick={onRefresh}>刷新</Button>
-        <Button size="small" onClick={handleCopy}>Copy JSON</Button>
-      </Space>
-      <div style={{ marginBottom: 12 }}>
-        <Text strong>Repo root:</Text> <Text code>{d.repoRoot || '-'}</Text>
-      </div>
-      <div style={{ marginBottom: 12 }}>
-        <Text strong>Queue path:</Text> <Text code>{d.queuePath || '-'}</Text>
-      </div>
-      <div style={{ marginBottom: 12 }}>
-        <Text strong>Key status:</Text>{' '}
-        {Object.keys(keys).map((k) => (
-          <Tag key={k} color={keys[k] === 'configured' ? 'success' : undefined}>{k}:{keys[k] || 'unset'}</Tag>
-        ))}
-      </div>
-      <div style={{ marginBottom: 8 }}>
-        <Text strong>Effective config:</Text>
-        <pre style={{ background: '#fafafa', padding: 8, fontSize: 11, maxHeight: 160, overflow: 'auto' }}>{JSON.stringify(eff, null, 2)}</pre>
-      </div>
-      <div style={{ marginBottom: 8 }}>
-        <Text strong>Config sources:</Text>
-        <pre style={{ background: '#fafafa', padding: 8, fontSize: 11, maxHeight: 120, overflow: 'auto' }}>{JSON.stringify(srcs, null, 2)}</pre>
-      </div>
-      <div style={{ marginBottom: 8 }}>
-        <Text strong>Last run state:</Text>
-        <pre style={{ background: '#fafafa', padding: 8, fontSize: 11, maxHeight: 100, overflow: 'auto' }}>{JSON.stringify(d.lastRunState || null, null, 2)}</pre>
-      </div>
-      <div>
-        <Text strong>Warnings (categorized):</Text>
-        {warns.length === 0 ? (
-          <Empty description="无警告" image={Empty.PRESENTED_IMAGE_SIMPLE} />
-        ) : (
-          <div style={{ marginTop: 4 }}>
-            {warns.map((w, i) => (
-              <div key={i} style={{ marginBottom: 2 }}>
-                <Tag color={catColor(w.category)}>{w.category}</Tag>
-                <Text>{w.message}</Text>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 12 }}>
-        所有数据已通过 redaction helper；不执行网络检查；只读。
-      </Text>
-    </div>
-  );
-}
-
-function ProfileCrudView({ data, queueRunning, activeProfile, onList, onCreate, onRename, onDuplicate, onDelete, onSelect }: { data?: any; queueRunning?: boolean; activeProfile?: string | null; onList: () => void; onCreate: (n: string, v?: any) => void; onRename: (o: string, n: string) => void; onDuplicate: (n: string, nn: string) => void; onDelete: (n: string) => void; onSelect: (n: string) => void; }) {
-  const [createOpen, setCreateOpen] = useState(false);
-  const [renameOpen, setRenameOpen] = useState(false);
-  const [renameTarget, setRenameTarget] = useState('');
-  const [dupOpen, setDupOpen] = useState(false);
-  const [dupTarget, setDupTarget] = useState('');
-  const [form] = Form.useForm();
-  const [renameForm] = Form.useForm();
-  const [dupForm] = Form.useForm();
-
-  const profiles: Record<string, any> = (data && data.profiles) || {};
-  const active = (data && data.activeProfile) || activeProfile || 'local';
-  const isRunning = Boolean(queueRunning);
-  const entries = Object.keys(profiles).sort();
-
-  const openCreate = () => {
-    form.resetFields();
-    form.setFieldsValue({ name: '', fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 128, workerMaxRetries: 2, worktreeScope: 'queue' });
-    setCreateOpen(true);
-  };
-
-  const submitCreate = () => {
-    const vals = form.getFieldsValue();
-    const n = (vals.name || '').trim();
-    if (!n) {
-      message.error('profile name required');
-      return;
-    }
-    const v: any = {};
-    ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'worktreeScope', 'baseUrl', 'queuePath'].forEach(k => { if (vals[k] !== undefined) v[k] = vals[k]; });
-    if (vals.injectKeysToWorker !== undefined) v.injectKeysToWorker = vals.injectKeysToWorker;
-    onCreate(n, v);
-    setCreateOpen(false);
-  };
-
-  const openRename = (n: string) => {
-    setRenameTarget(n);
-    renameForm.resetFields();
-    renameForm.setFieldsValue({ newName: n });
-    setRenameOpen(true);
-  };
-
-  const submitRename = () => {
-    const vals = renameForm.getFieldsValue();
-    const nn = (vals.newName || '').trim();
-    if (!nn || nn === renameTarget) {
-      setRenameOpen(false);
-      return;
-    }
-    onRename(renameTarget, nn);
-    setRenameOpen(false);
-  };
-
-  const openDup = (n: string) => {
-    setDupTarget(n);
-    dupForm.resetFields();
-    dupForm.setFieldsValue({ newName: n + '-copy' });
-    setDupOpen(true);
-  };
-
-  const submitDup = () => {
-    const vals = dupForm.getFieldsValue();
-    const nn = (vals.newName || '').trim();
-    if (!nn) {
-      message.error('new name required');
-      return;
-    }
-    onDuplicate(dupTarget, nn);
-    setDupOpen(false);
-  };
-
-  const doDelete = (n: string) => {
-    if (entries.length <= 1) {
-      message.error('cannot delete last profile');
-      return;
-    }
-    if (n === active) {
-      // still allow delete, handler will switch
-    }
-    onDelete(n);
-  };
-
-  const doSelect = (n: string) => {
-    if (n === active) return;
-    if (isRunning) {
-      message.warning('队列运行中，禁止切换 profile');
-      return;
-    }
-    onSelect(n);
-  };
-
-  return (
-    <div style={{ maxWidth: 720 }}>
-      <Space style={{ marginBottom: 12 }}>
-        <Title level={5} style={{ margin: 0 }}>Settings Profiles</Title>
-        <Button size="small" onClick={onList}>刷新</Button>
-        <Button size="small" type="primary" onClick={openCreate} disabled={isRunning}>创建</Button>
-      </Space>
-
-      {isRunning ? (
-        <Alert type="warning" showIcon style={{ marginBottom: 8 }} message={`队列运行中 (激活 Profile: ${active || '未知'})，禁止切换/删除 profile。`} />
-      ) : null}
-
-      <List
-        bordered
-        dataSource={entries}
-        renderItem={(name: string) => {
-          const p = profiles[name] || {};
-          const isActive = name === active;
-          const summary = [p.fixAgent, p.reviewAgent].filter(Boolean).join(' / ') || '-';
-          return (
-            <List.Item
-              actions={[
-                !isActive ? <Button key="sel" size="small" onClick={() => doSelect(name)} disabled={isRunning}>选择</Button> : <Tag key="act" color="blue">当前</Tag>,
-                <Button key="ren" size="small" onClick={() => openRename(name)} disabled={isRunning}>重命名</Button>,
-                <Button key="dup" size="small" onClick={() => openDup(name)}>复制</Button>,
-                <Button key="del" size="small" danger disabled={isRunning || entries.length <= 1} onClick={() => doDelete(name)}>删除</Button>,
-              ]}
-            >
-              <Space>
-                <Text strong>{name}</Text>
-                {isActive ? <Tag color="success">active</Tag> : null}
-                <Tag>{summary}</Tag>
-                {p.baseUrl ? <Tag>{p.baseUrl}</Tag> : null}
-              </Space>
-            </List.Item>
-          );
-        }}
-      />
-
-      <Text type="secondary" style={{ fontSize: 11, display: 'block', marginTop: 8 }}>
-        仅非敏感配置；不可删除最后一个 profile；运行中禁止切换与删除。
-      </Text>
-
-      <Modal title="创建 Profile" open={createOpen} onOk={submitCreate} onCancel={() => setCreateOpen(false)} okText="创建" cancelText="取消">
-        <Form form={form} layout="vertical">
-          <Form.Item label="名称" name="name" rules={[{ required: true, message: 'name required' }, { pattern: /^[a-zA-Z0-9_-]+$/, message: 'invalid chars (use a-z0-9_-)'} ]}>
-            <Input placeholder="my-profile" />
-          </Form.Item>
-          <Form.Item label="Fix Agent" name="fixAgent">
-            <Select><Select.Option value="grok">grok</Select.Option><Select.Option value="codex">codex</Select.Option></Select>
-          </Form.Item>
-          <Form.Item label="Review Agent" name="reviewAgent">
-            <Select><Select.Option value="codex">codex</Select.Option><Select.Option value="grok">grok</Select.Option><Select.Option value="none">none</Select.Option></Select>
-          </Form.Item>
-          <Form.Item label="Max Turns" name="workerMaxTurns"><InputNumber min={1} /></Form.Item>
-          <Form.Item label="Max Retries" name="workerMaxRetries"><InputNumber min={0} /></Form.Item>
-          <Form.Item label="Worktree Scope" name="worktreeScope">
-            <Select><Select.Option value="queue">queue</Select.Option><Select.Option value="task">task</Select.Option></Select>
-          </Form.Item>
-          <Form.Item label="Base URL" name="baseUrl"><Input /></Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal title={`重命名 ${renameTarget}`} open={renameOpen} onOk={submitRename} onCancel={() => setRenameOpen(false)} okText="重命名" cancelText="取消">
-        <Form form={renameForm} layout="vertical">
-          <Form.Item label="新名称" name="newName" rules={[{ required: true }, { pattern: /^[a-zA-Z0-9_-]+$/, message: 'invalid profile name' }]}>
-            <Input />
-          </Form.Item>
-        </Form>
-      </Modal>
-
-      <Modal title={`复制 ${dupTarget}`} open={dupOpen} onOk={submitDup} onCancel={() => setDupOpen(false)} okText="复制" cancelText="取消">
-        <Form form={dupForm} layout="vertical">
-          <Form.Item label="新名称" name="newName" rules={[{ required: true }, { pattern: /^[a-zA-Z0-9_-]+$/, message: 'invalid profile name' }]}>
-            <Input />
-          </Form.Item>
-        </Form>
-      </Modal>
-    </div>
-  );
-}
-
-function DetailChrome({ children }: { children: React.ReactNode }) {
-  // In detail view, settings is accessible but clicking it will be handled at overview level for v1
-  const handleViewChange = (v: 'workbench' | 'settings') => {
-    if (v === 'settings') {
-      // Switch to overview settings by posting and user can switch
-      postCommand('showOverview');
-      // After overview loads, user can click settings again; for simplicity we stay in workbench here
-    }
-  };
-
-  return (
-    <ConfigProvider
-      prefixCls="agent-ant"
-      csp={window.__AGENT_LOOP_CSP_NONCE__ ? { nonce: window.__AGENT_LOOP_CSP_NONCE__ } : undefined}
-    >
-      <Layout className="native-dashboard native-detail-dashboard">
-        <DashboardSidebar currentView={'workbench'} onViewChange={handleViewChange} />
-        <Layout className="native-main">
-          <Header className="native-header">
-            <Breadcrumb items={[{ title: 'AgentLoop' }, { title: 'Run' }]} />
-          </Header>
-          <Content className="native-content">
-            {children}
-          </Content>
-        </Layout>
-      </Layout>
-    </ConfigProvider>
-  );
-}
-
-function metricItems(payload: DetailPayload) {
-  return [
-    { key: 'iteration', title: '迭代次数', value: String((payload.iterations || []).length), icon: '#' },
-    { key: 'events', title: '事件总数', value: String((payload.events || []).length), icon: 'E' },
-    { key: 'elapsed', title: '耗时', value: compactText(payload.elapsedText), icon: 'T' },
-    { key: 'blocks', title: '阻断次数', value: String(blockCount(payload)), icon: '!' },
-    { key: 'status', title: '最终状态', value: compactText(payload.phaseLabel || payload.status), icon: 'OK', tone: statusTone(payload.status) },
-  ];
-}
-
-function DetailHero({ payload }: { payload: DetailPayload }) {
-  const finalStatus = compactText(payload.phaseLabel || payload.status);
-  return (
-    <section className="native-detail-hero">
-      <div className="native-run-head">
-        <Space direction="vertical" size={10} className="native-run-title">
-          <div className="native-title-line">
-            <Button
-              className="native-back-button"
-              icon={<LeftOutlined />}
-              onClick={() => postCommand('showOverview')}
-              size="small"
-            >
-              返回
-            </Button>
-            <Title level={3}>{compactText(payload.taskLabel, 'AgentLoop Run')}</Title>
-          </div>
-          <Space wrap>
-            <Tag>Queue</Tag>
-            <Tag color={statusTone(payload.status)}>{finalStatus}</Tag>
-            {payload.landing?.status ? <Tag color="success">{compactText(payload.landing.status)}</Tag> : null}
-            {(payload as any).profileName ? <Tag color="blue">Profile: {(payload as any).profileName}</Tag> : null}
-          </Space>
-          <Text type="secondary">
-            Started {compactText(payload.runId)} · RunId: {compactText(payload.runId)} · Commit: {compactText(payload.commit)}
-          </Text>
-        </Space>
-        <Space wrap className="native-run-actions">
-          <Button type="primary" onClick={() => postCommand('runTask', { task: payload.taskPath })}>单跑此任务</Button>
-          {payload.reportPath ? <Button onClick={() => postCommand('openReport', { reportPath: payload.reportPath })}>最终报告</Button> : null}
-          {payload.reportJsonPath ? <Button onClick={() => postCommand('openReport', { reportPath: payload.reportJsonPath })}>结构化报告</Button> : null}
-          {payload.landingPath ? <Button onClick={() => postCommand('openReport', { reportPath: payload.landingPath })}>落地状态</Button> : null}
-          {payload.statePath ? <Button onClick={() => postCommand('openState', { statePath: payload.statePath })}>state.json</Button> : null}
-          <Button onClick={() => postCommand('refresh')}>刷新</Button>
-        </Space>
-      </div>
-      <div className="native-hero-kpis">
-        <div className="native-metric-grid">
-          {metricItems(payload).map((item) => (
-            <div className={`native-metric native-metric-${item.tone || 'default'}`} key={item.key}>
-              <span className="native-metric-icon">{item.icon}</span>
-              <span className="native-metric-copy">
-                <Text type="secondary">{item.title}</Text>
-                <Text strong ellipsis={{ tooltip: item.value }}>{item.value}</Text>
-              </span>
-            </div>
-          ))}
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function DetailProgress({ payload }: { payload: DetailPayload }) {
-  const steps = payload.pipelineSteps || [];
-  if (!steps.length) return null;
-  const activeIndex = Math.max(0, steps.findIndex((step) => step.active));
-  const doneCount = steps.filter((step) => step.done).length;
-  const completed = Math.max(doneCount, activeIndex >= 0 ? activeIndex + 1 : 0);
-  const progressPercent = Math.min(100, Math.round((completed / steps.length) * 100));
-  return (
-    <Card className="native-step-card" styles={{ body: { padding: '14px 18px' } }}>
-      <Space direction="vertical" size="small" className="native-stack">
-        <Space className="native-progress-head" size="middle">
-          <Text type="secondary">整体进度</Text>
-          <Text strong>{progressPercent}%</Text>
-          <span className="native-progress-track">
-            <Progress percent={progressPercent} showInfo={false} />
-          </span>
-        </Space>
-        <div className="native-flow-lane">
-          <AgentLoopFlow payload={payload} />
-        </div>
-        <Steps
-          className="native-steps"
-          size="small"
-          current={activeIndex}
-          items={steps.map((step) => ({
-            title: compactText(step.label || step.key),
-            status: step.done ? 'finish' : step.active ? 'process' : 'wait',
-          }))}
-        />
-      </Space>
-    </Card>
-  );
-}
+// (settings panels extracted)
 
 type FlowNodeState = 'done' | 'active' | 'wait' | 'halt';
 type FlowNodeTone = 'blue' | 'green' | 'purple';
@@ -1972,7 +1269,7 @@ function ReviewPanel({
               </Space>
             </Col>
           </Row>
-          <Text type="secondary">{compactText(round.summary)}</Text>
+          <Text type="secondary" style={{ whiteSpace: 'pre-wrap' }}>{compactText(round.summary)}</Text>
           <CodeBlock text={jsonPreview({ reviewRounds: [round] })} />
         </Space>
       ))}
@@ -1989,7 +1286,9 @@ function DetailTabs({ payload }: { payload: DetailPayload }) {
     <Card className="native-detail-workbench" styles={{ body: { padding: 0 } }}>
       <Tabs
         defaultActiveKey={payload.activeTab || 'review'}
-        tabBarStyle={{ padding: '0 24px', marginBottom: 0 }}
+        tabBarStyle={{
+          padding: '0 24px', marginBottom: 0
+        }}
         items={[
           {
             key: 'review',
@@ -2010,15 +1309,35 @@ function DetailTabs({ payload }: { payload: DetailPayload }) {
             key: 'artifacts',
             label: 'Artifacts',
             children: tabBody(
-              <Descriptions
-                column={1}
-                items={[
-                  { key: 'report', label: '最终报告', children: compactText(payload.reportPath) },
-                  { key: 'json', label: '结构化报告', children: compactText(payload.reportJsonPath) },
-                  { key: 'landing', label: '落地状态', children: compactText(payload.landingPath) },
-                  { key: 'state', label: 'state.json', children: compactText(payload.statePath) },
-                ]}
-              />,
+              <>
+                <Descriptions
+                  column={1}
+                  items={[
+                    { key: 'report', label: '最终报告', children: compactText(payload.reportPath) },
+                    { key: 'json', label: '结构化报告', children: compactText(payload.reportJsonPath) },
+                    { key: 'landing', label: '落地状态', children: compactText(payload.landingPath) },
+                    { key: 'state', label: 'state.json', children: compactText(payload.statePath) },
+                  ]}
+                />
+                {(payload.artifacts || []).length > 0 && (
+                  <div style={{ marginTop: 12 }}>
+                    <Text strong>其他制品</Text>
+                    <List
+                      size="small"
+                      dataSource={payload.artifacts || []}
+                      locale={{ emptyText: '暂无' }}
+                      renderItem={(a: any) => (
+                        <List.Item>
+                          <Space direction="vertical" size={2} style={{ width: '100%' }}>
+                            <Text>{a.title || a.id}</Text>
+                            {a.content ? <CodeBlock text={String(a.content).slice(0, 800)} /> : null}
+                          </Space>
+                        </List.Item>
+                      )}
+                    />
+                  </div>
+                )}
+              </>
             ),
           },
         ]}
@@ -2084,6 +1403,123 @@ function DetailRightRail({ payload }: { payload: DetailPayload }) {
         </Space>
       </Card>
     </Space>
+  );
+}
+
+function DetailChrome({ children }: { children: React.ReactNode }) {
+  return (
+    <ConfigProvider
+      prefixCls="agent-ant"
+      csp={typeof window !== 'undefined' && window.__AGENT_LOOP_CSP_NONCE__ ? { nonce: window.__AGENT_LOOP_CSP_NONCE__ } : undefined}
+    >
+      <Layout className="native-dashboard native-detail-dashboard">
+        <Layout className="native-main">
+          <Header className="native-header">
+            <Breadcrumb items={[{ title: 'AgentLoop' }, { title: 'Run' }]} />
+          </Header>
+          <Content className="native-content">
+            {children}
+          </Content>
+        </Layout>
+      </Layout>
+    </ConfigProvider>
+  );
+}
+
+function metricItems(payload: DetailPayload) {
+  return [
+    { key: 'iteration', title: '迭代次数', value: String((payload.iterations || []).length), icon: '#' },
+    { key: 'events', title: '事件总数', value: String((payload.events || []).length), icon: 'E' },
+    { key: 'elapsed', title: '耗时', value: compactText(payload.elapsedText), icon: 'T' },
+    { key: 'blocks', title: '阻断次数', value: String(blockCount(payload)), icon: '!' },
+    { key: 'status', title: '最终状态', value: compactText(payload.phaseLabel || payload.status), icon: 'OK', tone: statusTone(payload.status) },
+  ];
+}
+
+function DetailHero({ payload }: { payload: DetailPayload }) {
+  const finalStatus = compactText(payload.phaseLabel || payload.status);
+  return (
+    <section className="native-detail-hero">
+      <div className="native-run-head">
+        <Space direction="vertical" size={10} className="native-run-title">
+          <div className="native-title-line">
+            <Button
+              className="native-back-button"
+              icon={<LeftOutlined />}
+              onClick={() => postCommand('showOverview')}
+              size="small"
+            >
+              返回
+            </Button>
+            <Title level={3}>{compactText(payload.taskLabel, 'AgentLoop Run')}</Title>
+          </div>
+          <Space wrap>
+            <Tag>Queue</Tag>
+            <Tag color={statusTone(payload.status)}>{finalStatus}</Tag>
+            {payload.landing?.status ? <Tag color="success">{compactText(payload.landing.status)}</Tag> : null}
+            {(payload as any).profileName ? <Tag color="blue">Profile: {(payload as any).profileName}</Tag> : null}
+          </Space>
+          <Text type="secondary">
+            Started {compactText(payload.runId)} · RunId: {compactText(payload.runId)} · Commit: {compactText(payload.commit)}
+          </Text>
+        </Space>
+        <Space wrap className="native-run-actions">
+          <Button type="primary" onClick={() => postCommand('runTask', { task: payload.taskPath })}>单跑此任务</Button>
+          {payload.reportPath ? <Button onClick={() => postCommand('openReport', { reportPath: payload.reportPath })}>最终报告</Button> : null}
+          {payload.reportJsonPath ? <Button onClick={() => postCommand('openReport', { reportPath: payload.reportJsonPath })}>结构化报告</Button> : null}
+          {payload.landingPath ? <Button onClick={() => postCommand('openReport', { reportPath: payload.landingPath })}>落地状态</Button> : null}
+          {payload.statePath ? <Button onClick={() => postCommand('openState', { statePath: payload.statePath })}>state.json</Button> : null}
+          <Button onClick={() => postCommand('refresh')}>刷新</Button>
+        </Space>
+      </div>
+      <div className="native-hero-kpis">
+        <div className="native-metric-grid">
+          {metricItems(payload).map((item) => (
+            <div className={`native-metric native-metric-${item.tone || 'default'}`} key={item.key}>
+              <span className="native-metric-icon">{item.icon}</span>
+              <span className="native-metric-copy">
+                <Text type="secondary">{item.title}</Text>
+                <Text strong ellipsis={{ tooltip: item.value }}>{item.value}</Text>
+              </span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function DetailProgress({ payload }: { payload: DetailPayload }) {
+  const steps = payload.pipelineSteps || [];
+  if (!steps.length) return null;
+  const activeIndex = Math.max(0, steps.findIndex((step) => step.active));
+  const doneCount = steps.filter((step) => step.done).length;
+  const completed = Math.max(doneCount, activeIndex >= 0 ? activeIndex + 1 : 0);
+  const progressPercent = Math.min(100, Math.round((completed / steps.length) * 100));
+  return (
+    <Card className="native-step-card" styles={{ body: { padding: '14px 18px' } }}>
+      <Space direction="vertical" size="small" className="native-stack">
+        <Space className="native-progress-head" size="middle">
+          <Text type="secondary">整体进度</Text>
+          <Text strong>{progressPercent}%</Text>
+          <span className="native-progress-track">
+            <Progress percent={progressPercent} showInfo={false} />
+          </span>
+        </Space>
+        <div className="native-flow-lane">
+          <AgentLoopFlow payload={payload} />
+        </div>
+        <Steps
+          className="native-steps"
+          size="small"
+          current={activeIndex}
+          items={steps.map((step) => ({
+            title: compactText(step.label || step.key),
+            status: step.done ? 'finish' : step.active ? 'process' : 'wait',
+          }))}
+        />
+      </Space>
+    </Card>
   );
 }
 

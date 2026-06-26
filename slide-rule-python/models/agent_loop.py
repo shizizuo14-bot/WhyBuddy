@@ -103,6 +103,7 @@ class AgentLoopRunDetail(AgentLoopBase):
     iterations: List[Dict[str, Any]] = Field(default_factory=list)
     events: List[AgentLoopEvent] = Field(default_factory=list)
     artifacts: List[AgentLoopArtifact] = Field(default_factory=list)
+    reviewRounds: List[Dict[str, Any]] = Field(default_factory=list)
     grokFix: Optional[Dict[str, Any]] = None
     agentFix: Optional[Dict[str, Any]] = None
     codexReview: Optional[Dict[str, Any]] = None

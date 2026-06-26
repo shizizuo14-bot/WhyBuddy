@@ -13,6 +13,7 @@ import {
   saveSettings,
 } from "./dashboard/agentLoopApi";
 import type { DetailPayload, OverviewPayload } from "./dashboard/dashboardTypes";
+import { normalizeSettingsForUI } from "./dashboard/agentLoopApi";
 import brandLogo from "./dashboard/sliderule-brand.svg";
 import "./dashboard/dashboard.css";
 
@@ -58,7 +59,12 @@ export default function AgentLoopPage() {
       setDetail(next);
       setView("detail");
     } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("404")) {
+        setError(`暂无该任务的运行记录（${runId}）。请先运行该任务后再查看详情。`);
+      } else {
+        setError(msg);
+      }
     }
   }
 
@@ -70,17 +76,9 @@ export default function AgentLoopPage() {
   }
 
   function adaptSettings(raw: any): any {
-    if (!raw) return raw;
-    // Python /settings returns {effective, keys, ...}; Dashboard expects nonSensitive or flat
-    const eff = raw.effective || raw;
-    return {
-      nonSensitive: eff,
-      keys: raw.keys || {},
-      activeProfile: eff?.activeProfile ?? raw.activeProfile ?? "local",
-      baseUrl: eff?.baseUrl ?? "",
-      injectToWorker: eff?.injectKeysToWorker ?? eff?.injectToWorker ?? true,
-      queueRunning: false,
-    };
+    // Delegate to typed view model adapter (112): does deep secret stripping + stable contract fields
+    // before any data reaches DashboardApp render state or nonSensitive.
+    return normalizeSettingsForUI(raw);
   }
 
   useEffect(() => {
@@ -98,15 +96,16 @@ export default function AgentLoopPage() {
           return;
         }
         case "openTask": {
-          // Prefer the explicit runId the row carries; fall back to resolving the task
-          // path to its first matching run.
+          // Prefer lastRunId (from queue outcomes) when available, since detail requires an actual executed run ID.
+          // task.id in queue view is often the task identifier (e.g. "sliderule-...-110"), not a run dir.
           const taskPath = String(extra.taskPath ?? "");
           const explicitRunId = extra.runId ? String(extra.runId) : "";
           const match = (overviewRef.current?.tasks || []).find(
             (t) => t.task === taskPath || t.id === taskPath,
           );
-          const runId = explicitRunId || match?.id || taskPath;
-          if (runId) void openDetail(runId);
+          // any-cast because OverviewTask in types may lag behind queue data which includes lastRunId
+          const candidate = explicitRunId || match?.lastRunId || match?.id || taskPath;
+          if (candidate) void openDetail(candidate);
           return;
         }
         case "showOverview": {
@@ -125,7 +124,24 @@ export default function AgentLoopPage() {
         case "runTask": {
           void (async () => {
             try {
-              await runSingleTask(extra);
+              // Apply current non-secret settings to run control payload (runtime linkage)
+              let runPayload: any = { ...extra };
+              try {
+                const raw = await fetchSettings();
+                const vm = adaptSettings(raw);
+                const ns = vm?.nonSensitive || vm || {};
+                const rt = {
+                  fixAgent: vm?.fixAgent ?? ns.fixAgent,
+                  reviewAgent: vm?.reviewAgent ?? ns.reviewAgent,
+                  activeProfile: vm?.activeProfile ?? ns.activeProfile,
+                  workerMaxTurns: (ns as any).workerMaxTurns,
+                  workerMaxRetries: (ns as any).workerMaxRetries,
+                  worktreeScope: (ns as any).worktreeScope,
+                  queuePath: (ns as any).queuePath,
+                };
+                Object.keys(rt).forEach((k) => { if (rt[k as keyof typeof rt] != null) runPayload[k] = rt[k as keyof typeof rt]; });
+              } catch {}
+              await runSingleTask(runPayload);
               // re-fetch current view
               if (viewRef.current === "detail" && detailRunIdRef.current) {
                 void openDetail(detailRunIdRef.current);
@@ -141,7 +157,24 @@ export default function AgentLoopPage() {
         case "runQueue": {
           void (async () => {
             try {
-              await runQueue(extra);
+              // Apply current non-secret settings to run control payload (runtime linkage)
+              let runPayload: any = { ...extra };
+              try {
+                const raw = await fetchSettings();
+                const vm = adaptSettings(raw);
+                const ns = vm?.nonSensitive || vm || {};
+                const rt = {
+                  fixAgent: vm?.fixAgent ?? ns.fixAgent,
+                  reviewAgent: vm?.reviewAgent ?? ns.reviewAgent,
+                  activeProfile: vm?.activeProfile ?? ns.activeProfile,
+                  workerMaxTurns: (ns as any).workerMaxTurns,
+                  workerMaxRetries: (ns as any).workerMaxRetries,
+                  worktreeScope: (ns as any).worktreeScope,
+                  queuePath: (ns as any).queuePath,
+                };
+                Object.keys(rt).forEach((k) => { if (rt[k as keyof typeof rt] != null) runPayload[k] = rt[k as keyof typeof rt]; });
+              } catch {}
+              await runQueue(runPayload);
               void loadOverview();
             } catch (e: any) {
               window.alert(`运行队列失败：${e?.message || e}`);
@@ -177,7 +210,7 @@ export default function AgentLoopPage() {
               const raw = await fetchSettings();
               dispatchMessage("settings", adaptSettings(raw));
             } catch (e) {
-              dispatchMessage("settings", { nonSensitive: {}, keys: {} });
+              dispatchMessage("settings", normalizeSettingsForUI({}));
             }
           })();
           return;
@@ -195,12 +228,13 @@ export default function AgentLoopPage() {
           return;
         }
         case "getQueueDefaults": {
-          // Honest: no dedicated queueDefaults persistence in this slice; do not emit synthetic success
+          // Honest read-only state (per contract): expose supported keys list for client filtering + safety rejection.
+          // No synthetic full support or write success; apply/preview still dispatch explicit unsupported.
           dispatchMessage("queueDefaults", {
             unsupported: true,
             defaults: {},
-            supportedKeys: [],
-            note: "queue defaults not supported as separate persistence; use non-secret settings load/save or direct queue file",
+            supportedKeys: ["fixAgent", "reviewAgent", "workerMaxTurns", "workerMaxRetries", "worktreeScope", "queuePath"],
+            note: "queue defaults preview uses supported-only patch; full apply is backend queue-file only (read-only here)",
           });
           return;
         }
@@ -217,8 +251,32 @@ export default function AgentLoopPage() {
           return;
         }
         case "listProfiles": {
-          // No real multi-profile store beyond activeProfile; emit no fake list success
-          dispatchMessage("profiles", { profiles: {}, active: null, unsupported: true });
+          // Truthful render using activeProfile + non-secret from /settings (per task & review).
+          // Backend supports only activeProfile state; do not pretend full multi-profile.
+          // Always emit at least the current active row; unsupported=true so CRUD surfaces profileError / disabled.
+          void (async () => {
+            try {
+              const raw = await fetchSettings();
+              const vm = adaptSettings(raw);
+              const ap = vm && vm.activeProfile ? String(vm.activeProfile) : 'local';
+              const base = (vm && vm.nonSensitive) || {};
+              const prof = {
+                fixAgent: vm && vm.fixAgent ? vm.fixAgent : (base as any).fixAgent || 'grok',
+                reviewAgent: vm && vm.reviewAgent ? vm.reviewAgent : (base as any).reviewAgent || 'codex',
+                baseUrl: vm && vm.baseUrl != null ? vm.baseUrl : (base as any).baseUrl || '',
+                workerMaxTurns: (base as any).workerMaxTurns,
+                workerMaxRetries: (base as any).workerMaxRetries,
+                worktreeScope: (base as any).worktreeScope,
+              };
+              dispatchMessage("profiles", {
+                profiles: { [ap]: prof },
+                activeProfile: ap,
+                unsupported: true,
+              });
+            } catch {
+              dispatchMessage("profiles", { profiles: {}, activeProfile: 'local', unsupported: true });
+            }
+          })();
           return;
         }
         case "createProfile":
@@ -257,8 +315,11 @@ export default function AgentLoopPage() {
             try {
               const h = await fetchProviderHealth();
               const p = (extra as any)?.provider || "grok";
-              const entry = (h && (h[p] || h.providers?.[p])) || { provider: p, status: "ok" };
-              dispatchMessage("providerHealth", { provider: p, ok: true, ...entry });
+              // Use real /provider-health response shape honestly (providers[ ].status in ready/missing/skipped/failed).
+              // Only status==='ready' (or explicit ok:true) is success; never treat truthy non-ready status as ok.
+              const entry = (h && (h[p] || (h.providers && h.providers[p]) || h)) || {};
+              const isReady = entry && (String(entry.status || '').toLowerCase() === 'ready' || entry.ok === true);
+              dispatchMessage("providerHealth", { provider: p, ...entry, ok: !!isReady });
             } catch {
               dispatchMessage("providerHealth", { provider: (extra as any)?.provider || "grok", ok: false });
             }
