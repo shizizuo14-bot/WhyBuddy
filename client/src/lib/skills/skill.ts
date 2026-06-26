@@ -96,3 +96,78 @@ export function finalizeReport(findings: Finding[]): ValidationReport {
   const warnings = findings.filter(f => f.severity === "warning");
   return { ok: errors.length === 0, errors, warnings };
 }
+
+// === V2 Skill shared contract (113.01) ===
+// Every runtime-less Skill declares kernel role, dependency refs, policy,
+// publish gates and impact in this vocabulary. All additions are optional
+// so V1 Skill impls (rbac, datamodel, workflow, page, appbundle) remain
+// source-compatible and do not require edits for basic use.
+
+export type KernelRole =
+  | "pdp"           // RBAC = Kernel 1, the PDP host
+  | "ssot"          // DataModel = Kernel 2, the SSOT host
+  | "pep"           // Workflow and Page are PEP execution points that delegate to PDP and bind to SSOT
+  | "assembly-root" // AppBundle = Kernel 6, the assembly root that checks closure and pins versions
+  | "orchestrator";
+
+export type SkillRuntimeRole = "kernel" | "pep" | "assembly" | "delegated";
+
+export interface DependencyRef {
+  skill: string;
+  kind?: string;
+  value?: string;
+  label?: string;
+}
+
+export interface VersionPin {
+  skill: string;
+  version: string;
+  pinnedAt?: string;
+}
+
+export interface PolicyDecision {
+  effect: "allow" | "deny";
+  reasonCode: string;
+  message?: string;
+  by?: string;
+}
+
+export interface PublishGateReport {
+  publishable: boolean;
+  blockers: Finding[];
+  perSkill?: Record<string, { ok: boolean; errors: number; warnings: number }>;
+}
+
+export interface ImpactReport {
+  target: { skill: string; kind: string; value: string };
+  safe: boolean;
+  impacted: Array<{
+    skill: string;
+    node: string;
+    label: string;
+    via: string;
+    depth: number;
+  }>;
+}
+
+export interface SkillCapabilitySurface {
+  kernelRole?: KernelRole;
+  runtimeRole?: SkillRuntimeRole;
+  provides?: ResolvableSurface;
+  delegatesTo?: DependencyRef[];
+  bindsTo?: DependencyRef[];
+  versionPins?: VersionPin[];
+}
+
+/** V2 declaration for a Skill. New fields are optional for source compatibility. */
+export interface SkillDefinition<TModel = unknown> {
+  readonly id: string;
+  readonly title: string;
+  runtimeRole?: SkillRuntimeRole;
+  kernelRole?: KernelRole;
+  provides?: ResolvableSurface;
+  delegatesTo?: DependencyRef[];
+  bindsTo?: DependencyRef[];
+  capability?: SkillCapabilitySurface;
+  versionPin?: VersionPin;
+}

@@ -5,6 +5,17 @@ import { leaveApprovalRbac, rbacSkill } from "./rbac/rbacSkill";
 import { leaveApprovalWorkflow } from "./workflow/workflowSkill";
 import { leaveRequestDataModel } from "./datamodel/dataModelSkill";
 import type { RbacModel } from "./rbac/rbacModel";
+import type {
+  DependencyRef,
+  ImpactReport,
+  KernelRole,
+  PolicyDecision,
+  PublishGateReport,
+  SkillCapabilitySurface,
+  SkillDefinition,
+  SkillRuntimeRole,
+  VersionPin,
+} from "./skill";
 
 const models = {
   datamodel: leaveRequestDataModel,
@@ -52,5 +63,81 @@ describe("kernel ⑥ — publish gate (cross-system closure)", () => {
     // no datamodel registered in this set → rbac dataRule -> datamodel entity cannot resolve
     expect(gate.publishable).toBe(false);
     expect(gate.blockers.some(b => b.code === "PUBLISH_DANGLING_CROSSREF")).toBe(true);
+  });
+});
+
+describe("V2 shared contract — kernel vocabulary (113.01)", () => {
+  it("a V2 Skill can declare PDP (RBAC as Kernel 1) semantics", () => {
+    const pdp: SkillDefinition = {
+      id: "rbac",
+      title: "RBAC",
+      kernelRole: "pdp",
+      runtimeRole: "kernel",
+      provides: { role: ["employee", "manager"], permission: ["leave:create"] },
+      delegatesTo: [] as DependencyRef[],
+      bindsTo: [] as DependencyRef[],
+    };
+    expect(pdp.kernelRole).toBe("pdp" as KernelRole);
+    expect(pdp.runtimeRole).toBe("kernel" as SkillRuntimeRole);
+  });
+
+  it("a V2 Skill can declare SSOT (DataModel as Kernel 2) semantics", () => {
+    const ssot: SkillDefinition = {
+      id: "datamodel",
+      title: "DataModel",
+      kernelRole: "ssot",
+      runtimeRole: "kernel",
+      provides: { entity: ["leave_request"], field: ["leave_request.title"] },
+    };
+    expect(ssot.kernelRole).toBe("ssot");
+  });
+
+  it("a V2 Skill can declare PEP (Workflow/Page) semantics that delegate and bind", () => {
+    const pep: SkillDefinition = {
+      id: "workflow",
+      title: "Workflow",
+      kernelRole: "pep",
+      runtimeRole: "pep",
+      delegatesTo: [{ skill: "rbac", kind: "role" } as DependencyRef],
+      bindsTo: [{ skill: "datamodel", kind: "entity" } as DependencyRef],
+    };
+    expect(pep.kernelRole).toBe("pep");
+    expect(pep.delegatesTo!.length).toBe(1);
+  });
+
+  it("a V2 Skill can declare assembly-root (AppBundle Kernel 6) with version pins", () => {
+    const asm: SkillDefinition = {
+      id: "appbundle",
+      title: "AppBundle",
+      kernelRole: "assembly-root",
+      runtimeRole: "assembly",
+      provides: { app: ["leave_app"] },
+      versionPin: { skill: "rbac", version: "113.0" } as VersionPin,
+      capability: { versionPins: [] } as SkillCapabilitySurface,
+    };
+    expect(asm.kernelRole).toBe("assembly-root");
+  });
+
+  it("typed surfaces: PolicyDecision, PublishGateReport, ImpactReport are usable", () => {
+    const decision: PolicyDecision = { effect: "deny", reasonCode: "RBAC_NO_MATCH" };
+    const gateReport: PublishGateReport = { publishable: false, blockers: [] };
+    const impact: ImpactReport = { target: { skill: "rbac", kind: "role", value: "x" }, safe: true, impacted: [] };
+    expect(decision.effect).toBe("deny");
+    expect(gateReport.publishable).toBe(false);
+    expect(impact.safe).toBe(true);
+  });
+
+  it("existing validate/project/resolve/generate still work after adding V2 types", () => {
+    const report = rbacSkill.validate(leaveApprovalRbac);
+    expect(typeof report.ok).toBe("boolean");
+    const proj = rbacSkill.project(leaveApprovalRbac);
+    expect(Array.isArray(proj.nodes)).toBe(true);
+    const surf = rbacSkill.resolve(leaveApprovalRbac);
+    expect(surf).toBeTruthy();
+    // generate may be present
+    if (rbacSkill.generate) {
+      // do not actually await in pure test unless needed; just confirm callable shape
+      expect(typeof rbacSkill.generate).toBe("function");
+    }
   });
 });
