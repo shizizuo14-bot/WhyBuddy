@@ -86,7 +86,7 @@
         "$p='client/src/lib/skills/datamodel/dataModelModel.ts'; foreach($m in 'fieldId','version','lifecycle','storageRole','namespace'){ if(-not (Select-String -LiteralPath $p -Pattern $m -SimpleMatch -Quiet)){ throw ('missing '+$m+' in '+$p) } }",
         "pnpm exec vitest run client/src/lib/skills/datamodel/dataModelSkill.test.ts --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false",
-        "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/datamodel/dataModelModel.ts client/src/lib/skills/datamodel/dataModelSkill.test.ts"
+        "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/datamodel/dataModelModel.ts client/src/lib/skills/datamodel/dataModelSkill.ts client/src/lib/skills/datamodel/dataModelSkill.test.ts"
       ],
       "enabled": true
     },

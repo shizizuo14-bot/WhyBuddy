@@ -23,6 +23,34 @@ function findDuplicates(ids: string[]): string[] {
   return [...dups];
 }
 
+function withSsotMetadata(model: DataModelModel): DataModelModel {
+  const fieldIds: Record<string, string> = {
+    "employee.id": "f_emp_id_v1",
+    "employee.name": "f_emp_name_v1",
+    "employee.dept": "f_emp_dept_v1",
+    "leave_request.id": "f_leave_id_v1",
+    "leave_request.applicant": "f_leave_applicant_v1",
+    "leave_request.leaveType": "f_leave_type_v1",
+    "leave_request.days": "f_leave_days_v1",
+    "leave_request.reason": "f_leave_reason_v1",
+    "leave_request.approved": "f_leave_approved_v1",
+  };
+
+  return {
+    entities: model.entities.map(entity => ({
+      ...entity,
+      namespace: entity.namespace ?? "hr",
+      fields: entity.fields.map(field => ({
+        ...field,
+        fieldId: field.fieldId ?? fieldIds[`${entity.id}.${field.key}`] ?? `f_${sanitizeId(entity.id)}_${sanitizeId(field.key)}_v1`,
+        version: field.version ?? 1,
+        lifecycle: field.lifecycle ?? "active",
+        storageRole: field.storageRole ?? "ssot",
+      })),
+    })),
+  };
+}
+
 export const dataModelSkill: Skill<DataModelModel> & CrossSkill<DataModelModel> = {
   id: "datamodel",
   title: "数据中台",
@@ -105,7 +133,7 @@ export const dataModelSkill: Skill<DataModelModel> & CrossSkill<DataModelModel> 
 // Worked example — the data layer for "请假审批", with the entities RBAC + Workflow point at.
 // ---------------------------------------------------------------------------
 
-export const leaveRequestDataModel: DataModelModel = {
+export const leaveRequestDataModel: DataModelModel = withSsotMetadata({
   entities: [
     {
       id: "employee",
@@ -129,4 +157,4 @@ export const leaveRequestDataModel: DataModelModel = {
       ],
     },
   ],
-};
+});
