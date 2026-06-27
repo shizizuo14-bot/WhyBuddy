@@ -30,7 +30,7 @@
 
 ## 允许读取和引用的证据
 - `.agent-loop/queue-outcomes.json`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `docs/backend-python-node-route-inventory-90.md`
 - `docs/backend-python-runtime-depth-audit-90.md`
 - `slide-rule-python/tests/test_orchestrate_plan_state_projection.py`

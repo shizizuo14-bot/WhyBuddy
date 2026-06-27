@@ -21,7 +21,7 @@ tests in this task.
 
 Primary evidence paths:
 
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `docs/backend-python-node-route-inventory-90.md`
 - `docs/backend-python-runtime-depth-audit-90.md`
 - `slide-rule-python/tests/test_orchestrate_plan_state_projection.py`

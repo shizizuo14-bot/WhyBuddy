@@ -19,7 +19,7 @@ Web AIGC search/file/vision/audio 已有 bounded runtime bridge，但长尾 adap
 
 ## 允许修改的文件
 - `docs/backend-python-web-aigc-longtail-inventory-89.md`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-web-aigc-longtail-inventory-89.md`
 
 ## 禁止扩大范围

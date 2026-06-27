@@ -45,7 +45,7 @@
 - [x] 5. 给出 Phase 1 实施建议
   - [x] 5.1 拆出不超过 3 个后续实现任务
   - [x] 5.2 明确哪些任务适合 AgentLoop 自动修复，哪些必须人工审查
-  - [x] 5.3 更新 `sliderule-python-migration-status.md` 或后续总表中的 LLM infra 进度口径
+  - [x] 5.3 更新 `000-nodejs-to-python-migration-status.md` 或后续总表中的 LLM infra 进度口径
   - [x] 5.4 重新跑 mojibake 检查
 
 ## 目标
@@ -78,12 +78,12 @@
 - `slide-rule-python/tests/test_config.py`
 - `slide-rule-python/tests/test_su8_live.py`
 - `slide-rule-python/PHASE1_LLM_STATUS.md`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 
 允许本轮更新的文件只有：
 
 - `agent-loop/tasks/backend-python-llm-infra-audit.md`
-- `agent-loop/tasks/sliderule-python-migration-status.md`，仅限补充 LLM infra 审计结论时使用
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`，仅限补充 LLM infra 审计结论时使用
 
 ## 禁止事项
 

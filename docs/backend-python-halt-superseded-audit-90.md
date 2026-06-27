@@ -2,7 +2,7 @@
 
 ## Scope
 
-This report audits current `backend-python-*` queue red/no-diff signals before any 90% migration status refresh. It does not change business code, does not modify `agent-loop/tasks/sliderule-python-migration-status.md`, and does not update the overall migration percentage.
+This report audits current `backend-python-*` queue red/no-diff signals before any 90% migration status refresh. It does not change business code, does not modify `agent-loop/tasks/000-nodejs-to-python-migration-status.md`, and does not update the overall migration percentage.
 
 Inputs checked:
 
@@ -95,5 +95,5 @@ The following items should feed later 90% work and must not be counted as comple
 Required gate from `haltSupersededAudit90Gates`:
 
 ```powershell
-node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-halt-superseded-audit-90.md docs/backend-python-halt-superseded-audit-90.md agent-loop/tasks/sliderule-python-migration-status.md
+node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-halt-superseded-audit-90.md docs/backend-python-halt-superseded-audit-90.md agent-loop/tasks/000-nodejs-to-python-migration-status.md
 ```

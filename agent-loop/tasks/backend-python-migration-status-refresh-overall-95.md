@@ -8,7 +8,7 @@
 ### 状态清单
 - [x] 读取本轮 96 code queue 的每个任务结果、diff 和 gate。
 - [x] 区分 runtime/proxy/contract/docs-only/no-diff/apply-failed。
-- [x] 更新 `sliderule-python-migration-status.md` 的整体进度和 remaining gap。
+- [x] 更新 `000-nodejs-to-python-migration-status.md` 的整体进度和 remaining gap。
 - [x] 如果证据不足，保持保守百分比并解释缺口。
 - [x] gate 全绿。
 - [x] Codex review 确认没有把 docs-only 或 failed/no-diff 计入业务迁移。
@@ -22,7 +22,7 @@
 - 如果整体证据不足以到 95%，必须写真实百分比和下一步缺口，而不是为了目标强行写 95。
 
 ## 允许修改的文件
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-migration-status-refresh-overall-95.md`
 
 ## 允许读取和引用的证据

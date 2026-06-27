@@ -51,7 +51,7 @@
 - `server/routes/__tests__/sliderule.execute-capability.test.ts`
 - `server/routes/__tests__/sliderule.live-delegation.test.ts`
 - `agent-loop/tasks/migrate-sliderule-question-expand.md`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 
 ## 禁止事项
 

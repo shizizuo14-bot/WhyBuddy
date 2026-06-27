@@ -22,7 +22,7 @@
 
 ## 禁止扩大范围
 - 不修改业务代码。
-- 不修改 `sliderule-python-migration-status.md` 的百分比。
+- 不修改 `000-nodejs-to-python-migration-status.md` 的百分比。
 - 不把 `DONE_REVIEWED`（已审查完成）但无 commit/测试证据的任务直接算完成。
 - 不提交 `.agent-loop` 运行产物。
 

@@ -2,7 +2,7 @@
 
 ## 执行状态
 - 状态：人工收束完成（自动回修曾 `HALT_NO_CHANGES`）
-- 目标：在睡觉队列完成后，刷新 `sliderule-python-migration-status.md` 的分层进度口径。
+- 目标：在睡觉队列完成后，刷新 `000-nodejs-to-python-migration-status.md` 的分层进度口径。
 - 角色分工：worker 只整理证据和文档；reviewer 确认不夸大整体迁移比例。
 
 ### 状态清单
@@ -24,7 +24,7 @@
 - 当前进度按证据更新为“整体约 28-34%”，45% 仍是下一阶段目标，不写成已达成事实。
 
 ## 允许修改的文件
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-migration-status-refresh-45.md`
 
 ## 禁止扩大范围

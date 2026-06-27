@@ -20,7 +20,7 @@
 ## 允许修改的文件
 - `docs/backend-python-web-aigc-runtime-evidence-reconcile-88.md`
 - `agent-loop/tasks/backend-python-web-aigc-runtime-evidence-reconcile-88.md`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-production-wiring-smoke-90.md`
 - `docs/backend-python-node-route-inventory-90.md`
 

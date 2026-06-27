@@ -13,7 +13,7 @@ This audit does **not** change business code, does **not** count itself toward m
 
 Evidence drawn strictly from:
 - `agent-loop/scripts/migration-queue.json`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `docs/backend-python-node-route-inventory-90.md`
 - `docs/backend-python-runtime-depth-audit-90.md`
 - `docs/backend-python-production-wiring-reality-95.md`
@@ -117,7 +117,7 @@ Explicit conclusion: After all 100% candidate tasks, Node side has not been redu
 
 ## References
 - Prior 90/95 inventories and production wiring reality explicitly preserved as source of truth for gaps.
-- `sliderule-python-migration-status.md` (97 refresh) states ~92-94% with explicit remaining blockers in Blueprint main, task lifecycle, auth prod, etc.
+- `000-nodejs-to-python-migration-status.md` (97 refresh) states ~92-94% with explicit remaining blockers in Blueprint main, task lifecycle, auth prod, etc.
 - No change to business code performed by this audit.
 
 (End of audit. 100% candidate cutover status: blockers remain; do not announce overall 100%.)

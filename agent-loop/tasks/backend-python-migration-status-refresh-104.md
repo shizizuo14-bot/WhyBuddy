@@ -2,14 +2,14 @@
 
 ## Execution status
 - Status: pending
-- Goal: refresh `sliderule-python-migration-status.md` from the actual 104 queue outcomes, code diffs, gates, and review evidence.
+- Goal: refresh `000-nodejs-to-python-migration-status.md` from the actual 104 queue outcomes, code diffs, gates, and review evidence.
 - Required gate: `migrationStatusRefresh104Gates`
 
 ## Context
 This is the 104 accounting task. It does not create business migration numerator by itself. It must only update progress if the preceding 104 tasks prove real Python-owned runtime takeover or formally remove surfaces from the migration denominator.
 
 ## Allowed files
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - This task file
 
 ## Evidence to read

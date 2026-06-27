@@ -3,14 +3,14 @@
 ## 执行状态
 
 - 状态：待执行
-- 目标：基于 100% 候选队列的真实代码、gate、review、route cutover audit 更新 `sliderule-python-migration-status.md`。只有证据足够时才允许写整体 100%。
+- 目标：基于 100% 候选队列的真实代码、gate、review、route cutover audit 更新 `000-nodejs-to-python-migration-status.md`。只有证据足够时才允许写整体 100%。
 - 角色分工：worker 负责读取 queue outcomes、commits、gate、audit report 并刷新状态；reviewer 确认没有把 docs-only、no-diff、skipped、fake smoke 或失败任务计入业务迁移。
 
 ### 状态清单
 
 - [x] 读取 100% 候选队列每个任务的结果、diff、gate、commit 证据。
 - [x] 区分 runtime、production cutover、thin proxy、compat shell、docs-only、no-diff、failed、rescue patch。
-- [x] 更新 `sliderule-python-migration-status.md` 的整体进度、分层口径和 final blockers。
+- [x] 更新 `000-nodejs-to-python-migration-status.md` 的整体进度、分层口径和 final blockers。
 - [x] 若证据不足以 100%，必须保守写 97-99% 并列出阻塞项。
 - [x] gate 全绿。
 - [x] Codex review 确认没有虚高整体 NodeJS 后端迁移进度。
@@ -21,7 +21,7 @@
 
 ## 允许修改的文件
 
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-migration-status-refresh-100.md`
 
 ## 允许读取和引用的证据

@@ -3,7 +3,7 @@
 ## 执行状态
 
 - 状态：已执行
-- 目标：在本轮 60% 候选队列收尾后，按真实 DONE/HALT 结果刷新 `sliderule-python-migration-status.md`。
+- 目标：在本轮 60% 候选队列收尾后，按真实 DONE/HALT 结果刷新 `000-nodejs-to-python-migration-status.md`。
 - 角色分工：worker 只整理证据和文档；reviewer 确认不把候选目标写成已达成事实。
 
 ### 状态清单
@@ -24,7 +24,7 @@
 
 ## 允许修改的文件
 
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-migration-status-refresh-60.md`
 
 ## 禁止扩大范围

@@ -169,7 +169,7 @@
     "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/tests/test_blueprint_brainstorm_contract.py server/routes/__tests__/blueprint.brainstorm-python-contract.test.ts shared/blueprint/brainstorm-contracts.ts"
   ],
   "migrationStatusRefreshGates": [
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}}"
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}}"
   ],
   "tasks": [
     {
@@ -2691,7 +2691,7 @@
     "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/tests/test_a2a_runtime_contract.py server/routes/__tests__/a2a-python-runtime-contract.test.ts"
   ],
   "migrationStatusRefresh50Gates": [
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}}"
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}}"
   ],
   "ragIngestionProductionStorageGates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_rag_ingestion_production_storage.py tests/test_rag_ingestion_runtime_contract.py tests/test_real_vector_retrieval_production_wiring.py -q --tb=short",
@@ -2790,10 +2790,10 @@
     "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/tests/test_production_observability_rollup.py server/routes/__tests__/python-observability-rollup.test.ts shared/telemetry/contracts.ts"
   ],
   "nodeRouteInventory75Gates": [
-    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-node-route-inventory-75.md agent-loop/tasks/sliderule-python-migration-status.md"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-node-route-inventory-75.md agent-loop/tasks/000-nodejs-to-python-migration-status.md"
   ],
   "migrationStatusRefresh75Gates": [
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}}"
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}}"
   ],
   "agentLoopApplyStatusTaxonomyGates": [
     "node --test agent-loop/test/loopApply.test.js agent-loop/test/run-queue.test.js agent-loop/test/runSummary.test.js agent-loop/test/vscode-extension.test.js",
@@ -2810,13 +2810,13 @@
     "node agent-loop/src/check-mojibake.js {{taskFile}} agent-loop/vscode-extension/src/stateReader.ts agent-loop/vscode-extension/src/runSummary.ts agent-loop/vscode-extension/src/dashboardPanel.ts agent-loop/vscode-extension/media/dashboard.js agent-loop/vscode-extension/media/dashboard.css agent-loop/test/vscode-extension.test.js"
   ],
   "haltSupersededAudit90Gates": [
-    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-halt-superseded-audit-90.md agent-loop/tasks/sliderule-python-migration-status.md"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-halt-superseded-audit-90.md agent-loop/tasks/000-nodejs-to-python-migration-status.md"
   ],
   "nodeRouteInventory90Gates": [
-    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-node-route-inventory-90.md agent-loop/tasks/sliderule-python-migration-status.md"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-node-route-inventory-90.md agent-loop/tasks/000-nodejs-to-python-migration-status.md"
   ],
   "runtimeDepthAudit90Gates": [
-    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-runtime-depth-audit-90.md agent-loop/tasks/sliderule-python-migration-status.md"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-runtime-depth-audit-90.md agent-loop/tasks/000-nodejs-to-python-migration-status.md"
   ],
   "sessionPersistenceRuntimeDiff90Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_session_persistence_contract.py tests/test_v5_smoke.py -q --tb=short",
@@ -2842,13 +2842,13 @@
     "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/sliderule_llm/evidence.py slide-rule-python/sliderule_llm/vector.py slide-rule-python/services/rag_service.py slide-rule-python/services/web_aigc_search_adapter.py slide-rule-python/services/web_aigc_file_adapter.py slide-rule-python/services/web_aigc_vision_audio_adapter.py slide-rule-python/services/telemetry.py shared/telemetry/contracts.ts"
   ],
   "migrationStatusRefresh90Gates": [
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-halt-superseded-audit-90.md docs/backend-python-node-route-inventory-90.md docs/backend-python-runtime-depth-audit-90.md"
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}} docs/backend-python-halt-superseded-audit-90.md docs/backend-python-node-route-inventory-90.md docs/backend-python-runtime-depth-audit-90.md"
   ],
   "runtimeEvidenceReconcile88Gates": [
-    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-runtime-evidence-reconcile-88.md agent-loop/tasks/sliderule-python-migration-status.md agent-loop/tasks/backend-python-auth-permission-audit-runtime-90.md agent-loop/tasks/backend-python-a2a-stream-runtime-boundary-90.md"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-runtime-evidence-reconcile-88.md agent-loop/tasks/000-nodejs-to-python-migration-status.md agent-loop/tasks/backend-python-auth-permission-audit-runtime-90.md agent-loop/tasks/backend-python-a2a-stream-runtime-boundary-90.md"
   ],
   "webAigcRuntimeEvidenceReconcile88Gates": [
-    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-web-aigc-runtime-evidence-reconcile-88.md docs/backend-python-node-route-inventory-90.md agent-loop/tasks/sliderule-python-migration-status.md"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-web-aigc-runtime-evidence-reconcile-88.md docs/backend-python-node-route-inventory-90.md agent-loop/tasks/000-nodejs-to-python-migration-status.md"
   ],
   "taskLifecycleRuntimeBoundary88Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_task_lifecycle_runtime_boundary.py tests/test_task_executor_runtime_bridge.py -q --tb=short",
@@ -2887,10 +2887,10 @@
     "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/services/permission_management.py slide-rule-python/tests/test_permission_route_management_boundary.py server/permission/management-python-boundary.test.ts shared/permission/contracts.ts"
   ],
   "migrationStatusRefresh88Gates": [
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-runtime-evidence-reconcile-88.md docs/backend-python-web-aigc-runtime-evidence-reconcile-88.md"
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}} docs/backend-python-runtime-evidence-reconcile-88.md docs/backend-python-web-aigc-runtime-evidence-reconcile-88.md"
   ],
   "runtimeEvidenceReconcile89Gates": [
-    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-runtime-evidence-reconcile-89.md agent-loop/tasks/sliderule-python-migration-status.md agent-loop/tasks/backend-python-auth-permission-audit-runtime-90.md agent-loop/tasks/backend-python-a2a-stream-runtime-boundary-90.md agent-loop/tasks/backend-python-migration-status-refresh-88.md"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-runtime-evidence-reconcile-89.md agent-loop/tasks/000-nodejs-to-python-migration-status.md agent-loop/tasks/backend-python-auth-permission-audit-runtime-90.md agent-loop/tasks/backend-python-a2a-stream-runtime-boundary-90.md agent-loop/tasks/backend-python-migration-status-refresh-88.md"
   ],
   "permissionRateLimitRuntimeBoundary89Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_permission_rate_limit_runtime_boundary.py tests/test_permission_rate_limit_contract.py -q --tb=short",
@@ -2911,35 +2911,35 @@
     "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/services/blueprint_job_runtime.py slide-rule-python/tests/test_blueprint_job_runtime_boundary.py server/routes/__tests__/blueprint.job-runtime-python-boundary.test.ts shared/blueprint/jobs/types.ts"
   ],
   "webAigcLongtailInventory89Gates": [
-    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-web-aigc-longtail-inventory-89.md docs/backend-python-node-route-inventory-90.md agent-loop/tasks/sliderule-python-migration-status.md"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-web-aigc-longtail-inventory-89.md docs/backend-python-node-route-inventory-90.md agent-loop/tasks/000-nodejs-to-python-migration-status.md"
   ],
   "migrationStatusRefresh89Gates": [
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-runtime-evidence-reconcile-89.md docs/backend-python-web-aigc-longtail-inventory-89.md"
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}} docs/backend-python-runtime-evidence-reconcile-89.md docs/backend-python-web-aigc-longtail-inventory-89.md"
   ],
   "slideruleV5RuntimeClosureAudit95Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_mcp_call_real_runtime.py tests/test_skill_invoke_real_runtime.py tests/test_orchestrate_plan_runtime_route.py tests/test_orchestrate_plan_state_projection.py tests/test_real_vector_retrieval_production_wiring.py tests/test_rag_ingestion_production_storage.py -q --tb=short",
     "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.orchestrate-plan-python-runtime.test.ts server/routes/__tests__/sliderule.orchestrate-plan-state-projection.test.ts server/routes/__tests__/rag-ingestion-python-production-storage.test.ts --reporter=dot",
     "pnpm exec tsc --noEmit --pretty false",
     "node -e \"const fs=require('fs'); const p='docs/backend-python-sliderule-v5-runtime-closure-95.md'; const s=fs.readFileSync(p,'utf8'); if(!s.includes('SlideRule V5') || !s.includes('95')) throw new Error('missing SlideRule V5 runtime closure 95 report content');\"",
-    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-sliderule-v5-runtime-closure-95.md agent-loop/tasks/sliderule-python-migration-status.md docs/backend-python-runtime-evidence-reconcile-89.md docs/backend-python-runtime-depth-audit-90.md docs/backend-python-node-route-inventory-90.md"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-sliderule-v5-runtime-closure-95.md agent-loop/tasks/000-nodejs-to-python-migration-status.md docs/backend-python-runtime-evidence-reconcile-89.md docs/backend-python-runtime-depth-audit-90.md docs/backend-python-node-route-inventory-90.md"
   ],
   "blueprintV5AdjacentRuntimeClosure95Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_orchestrate_plan_state_projection.py tests/test_blueprint_spec_docs_batch_proxy.py tests/test_blueprint_artifact_memory_proxy.py tests/test_blueprint_review_export_proxy.py -q --tb=short",
     "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/sliderule.orchestrate-plan-state-projection.test.ts server/routes/__tests__/blueprint.spec-docs-batch-python-proxy.test.ts server/routes/__tests__/blueprint.artifact-memory-python-proxy.test.ts server/routes/__tests__/blueprint.review-export-python-proxy.test.ts --reporter=dot",
     "pnpm exec tsc --noEmit --pretty false",
     "node -e \"const fs=require('fs'); const p='docs/backend-python-blueprint-v5-adjacent-runtime-95.md'; const s=fs.readFileSync(p,'utf8'); if(!s.includes('Blueprint') || !s.includes('95')) throw new Error('missing Blueprint V5 adjacent runtime 95 report content');\"",
-    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-blueprint-v5-adjacent-runtime-95.md agent-loop/tasks/sliderule-python-migration-status.md docs/backend-python-node-route-inventory-90.md docs/backend-python-runtime-depth-audit-90.md"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-blueprint-v5-adjacent-runtime-95.md agent-loop/tasks/000-nodejs-to-python-migration-status.md docs/backend-python-node-route-inventory-90.md docs/backend-python-runtime-depth-audit-90.md"
   ],
   "productionWiringRealityCheck95Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_real_vector_retrieval_production_wiring.py tests/test_rag_ingestion_production_storage.py tests/test_web_aigc_search_runtime_bridge.py tests/test_web_aigc_file_runtime_bridge.py tests/test_web_aigc_vision_audio_runtime_bridge.py tests/test_telemetry_production_sink.py tests/test_production_observability_rollup.py tests/test_deployment_live_smoke_boundary.py -q --tb=short",
     "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/rag-ingestion-python-production-storage.test.ts server/routes/__tests__/web-aigc.search-python-runtime.test.ts server/routes/__tests__/web-aigc.file-python-runtime.test.ts server/routes/__tests__/web-aigc.vision-audio-python-runtime.test.ts server/routes/__tests__/telemetry-python-production-sink.test.ts server/routes/__tests__/python-observability-rollup.test.ts server/routes/__tests__/python-deployment-live-smoke.test.ts --reporter=dot",
     "pnpm exec tsc --noEmit --pretty false",
     "node -e \"const fs=require('fs'); const p='docs/backend-python-production-wiring-reality-95.md'; const s=fs.readFileSync(p,'utf8'); if(!s.includes('production wiring') || !s.includes('95')) throw new Error('missing production wiring reality 95 report content');\"",
-    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-production-wiring-reality-95.md agent-loop/tasks/sliderule-python-migration-status.md docs/backend-python-web-aigc-runtime-evidence-reconcile-88.md docs/backend-python-web-aigc-longtail-inventory-89.md docs/backend-python-runtime-evidence-reconcile-89.md"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-production-wiring-reality-95.md agent-loop/tasks/000-nodejs-to-python-migration-status.md docs/backend-python-web-aigc-runtime-evidence-reconcile-88.md docs/backend-python-web-aigc-longtail-inventory-89.md docs/backend-python-runtime-evidence-reconcile-89.md"
   ],
   "migrationStatusRefresh95Gates": [
-    "node -e \"const fs=require('fs'); const files=['docs/backend-python-sliderule-v5-runtime-closure-95.md','docs/backend-python-blueprint-v5-adjacent-runtime-95.md','docs/backend-python-production-wiring-reality-95.md']; for (const p of files) { const s=fs.readFileSync(p,'utf8'); if(!s.includes('95')) throw new Error('missing 95 report content: '+p); } const status=fs.readFileSync('agent-loop/tasks/sliderule-python-migration-status.md','utf8'); if(!status.includes('95')) throw new Error('migration status was not refreshed for 95 stage');\"",
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-sliderule-v5-runtime-closure-95.md docs/backend-python-blueprint-v5-adjacent-runtime-95.md docs/backend-python-production-wiring-reality-95.md docs/backend-python-runtime-evidence-reconcile-89.md docs/backend-python-runtime-depth-audit-90.md docs/backend-python-node-route-inventory-90.md"
+    "node -e \"const fs=require('fs'); const files=['docs/backend-python-sliderule-v5-runtime-closure-95.md','docs/backend-python-blueprint-v5-adjacent-runtime-95.md','docs/backend-python-production-wiring-reality-95.md']; for (const p of files) { const s=fs.readFileSync(p,'utf8'); if(!s.includes('95')) throw new Error('missing 95 report content: '+p); } const status=fs.readFileSync('agent-loop/tasks/000-nodejs-to-python-migration-status.md','utf8'); if(!status.includes('95')) throw new Error('migration status was not refreshed for 95 stage');\"",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}} docs/backend-python-sliderule-v5-runtime-closure-95.md docs/backend-python-blueprint-v5-adjacent-runtime-95.md docs/backend-python-production-wiring-reality-95.md docs/backend-python-runtime-evidence-reconcile-89.md docs/backend-python-runtime-depth-audit-90.md docs/backend-python-node-route-inventory-90.md"
   ],
   "blueprintArtifactMemoryRuntimeStore96Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_artifact_memory_runtime_store.py tests/test_blueprint_artifact_memory_proxy.py -q --tb=short",
@@ -2984,8 +2984,8 @@
     "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/services/web_aigc_transaction_flow_adapter.py slide-rule-python/tests/test_web_aigc_transaction_flow_runtime.py server/tests/transaction-flow-python-runtime.test.ts server/routes/transaction-flow.ts server/routes/node-adapters/transaction-flow-node-adapter.ts shared/web-aigc-transaction-flow.ts"
   ],
   "migrationStatusRefreshOverall95Gates": [
-    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/sliderule-python-migration-status.md','utf8'); for (const needle of ['整体 NodeJS 后端','95','Blueprint','Auth','Audit','Task lifecycle','Web AIGC']) { if(!status.includes(needle)) throw new Error('migration status missing overall-95 evidence wording: '+needle); }\"",
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-node-route-inventory-90.md docs/backend-python-runtime-depth-audit-90.md docs/backend-python-production-wiring-reality-95.md"
+    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/000-nodejs-to-python-migration-status.md','utf8'); for (const needle of ['整体 NodeJS 后端','95','Blueprint','Auth','Audit','Task lifecycle','Web AIGC']) { if(!status.includes(needle)) throw new Error('migration status missing overall-95 evidence wording: '+needle); }\"",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}} docs/backend-python-node-route-inventory-90.md docs/backend-python-runtime-depth-audit-90.md docs/backend-python-production-wiring-reality-95.md"
   ],
   "blueprintJobEventStreamRuntime97Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_job_event_stream_runtime.py tests/test_blueprint_job_runtime_boundary.py -q --tb=short",
@@ -3036,8 +3036,8 @@
     "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/services/external_dependency_live_smoke.py slide-rule-python/tests/test_external_dependency_live_smoke_97.py server/routes/__tests__/python-external-dependency-live-smoke.test.ts server/rag/store/qdrant-adapter.ts server/rag/embedding/embedding-provider.ts server/core/web-aigc-runtime-observability.ts shared/telemetry/contracts.ts"
   ],
   "migrationStatusRefresh97Gates": [
-    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/sliderule-python-migration-status.md','utf8'); for (const needle of ['整体 NodeJS 后端','97','Blueprint','Auth','Audit','Task lifecycle','Web AIGC','production wiring']) { if(!status.includes(needle)) throw new Error('migration status missing 97 evidence wording: '+needle); }\"",
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} agent-loop/tasks/backend-python-blueprint-job-event-stream-runtime-97.md agent-loop/tasks/backend-python-blueprint-prompt-preview-runtime-97.md agent-loop/tasks/backend-python-auth-login-register-runtime-97.md agent-loop/tasks/backend-python-permission-audit-hooks-runtime-97.md agent-loop/tasks/backend-python-task-mission-event-replay-runtime-97.md agent-loop/tasks/backend-python-web-aigc-ocr-static-runtime-97.md agent-loop/tasks/backend-python-web-aigc-ai-ppt-runtime-97.md agent-loop/tasks/backend-python-production-external-live-smoke-97.md"
+    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/000-nodejs-to-python-migration-status.md','utf8'); for (const needle of ['整体 NodeJS 后端','97','Blueprint','Auth','Audit','Task lifecycle','Web AIGC','production wiring']) { if(!status.includes(needle)) throw new Error('migration status missing 97 evidence wording: '+needle); }\"",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}} agent-loop/tasks/backend-python-blueprint-job-event-stream-runtime-97.md agent-loop/tasks/backend-python-blueprint-prompt-preview-runtime-97.md agent-loop/tasks/backend-python-auth-login-register-runtime-97.md agent-loop/tasks/backend-python-permission-audit-hooks-runtime-97.md agent-loop/tasks/backend-python-task-mission-event-replay-runtime-97.md agent-loop/tasks/backend-python-web-aigc-ocr-static-runtime-97.md agent-loop/tasks/backend-python-web-aigc-ai-ppt-runtime-97.md agent-loop/tasks/backend-python-production-external-live-smoke-97.md"
   ],
   "blueprintMainRuntimeClosure100Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_main_runtime_closure_100.py tests/test_blueprint_state_runtime_bridge.py tests/test_blueprint_job_runtime_boundary.py tests/test_blueprint_job_event_stream_runtime.py tests/test_blueprint_prompt_preview_runtime.py tests/test_blueprint_review_export_runtime_boundary.py tests/test_blueprint_artifact_memory_runtime_store.py -q --tb=short",
@@ -3071,11 +3071,11 @@
   ],
   "nodeRouteCutoverAudit100Gates": [
     "node -e \"const fs=require('fs'); const p='docs/backend-python-node-route-cutover-audit-100.md'; const s=fs.readFileSync(p,'utf8'); for (const needle of ['100','thin proxy','compat shell','node-owned','production']) { if(!s.includes(needle)) throw new Error('missing cutover audit wording: '+needle); }\"",
-    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-node-route-cutover-audit-100.md agent-loop/tasks/sliderule-python-migration-status.md"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-node-route-cutover-audit-100.md agent-loop/tasks/000-nodejs-to-python-migration-status.md"
   ],
   "migrationStatusRefresh100Gates": [
-    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/sliderule-python-migration-status.md','utf8'); for (const needle of ['NodeJS','Python','Blueprint','Auth','Audit','Task lifecycle','Web AIGC']) { if(!status.includes(needle)) throw new Error('migration status missing 100-stage evidence wording: '+needle); } if(!/(100|99|98|97)/.test(status)) throw new Error('migration status missing refreshed percentage'); if(!/(production cutover|cutover|blocker|blocked|remaining|100% candidate)/i.test(status)) throw new Error('migration status missing cutover or blocker wording');\"",
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} docs/backend-python-node-route-cutover-audit-100.md agent-loop/tasks/backend-python-blueprint-main-runtime-closure-100.md agent-loop/tasks/backend-python-auth-audit-production-closure-100.md agent-loop/tasks/backend-python-task-lifecycle-production-closure-100.md agent-loop/tasks/backend-python-web-aigc-provider-closure-100.md agent-loop/tasks/backend-python-external-provider-cutover-100.md agent-loop/tasks/backend-python-node-route-cutover-audit-100.md"
+    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/000-nodejs-to-python-migration-status.md','utf8'); for (const needle of ['NodeJS','Python','Blueprint','Auth','Audit','Task lifecycle','Web AIGC']) { if(!status.includes(needle)) throw new Error('migration status missing 100-stage evidence wording: '+needle); } if(!/(100|99|98|97)/.test(status)) throw new Error('migration status missing refreshed percentage'); if(!/(production cutover|cutover|blocker|blocked|remaining|100% candidate)/i.test(status)) throw new Error('migration status missing cutover or blocker wording');\"",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}} docs/backend-python-node-route-cutover-audit-100.md agent-loop/tasks/backend-python-blueprint-main-runtime-closure-100.md agent-loop/tasks/backend-python-auth-audit-production-closure-100.md agent-loop/tasks/backend-python-task-lifecycle-production-closure-100.md agent-loop/tasks/backend-python-web-aigc-provider-closure-100.md agent-loop/tasks/backend-python-external-provider-cutover-100.md agent-loop/tasks/backend-python-node-route-cutover-audit-100.md"
   ],
   "blueprintShellStateCutover101Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_shell_state_cutover_101.py tests/test_blueprint_main_runtime_closure_100.py tests/test_blueprint_state_runtime_bridge.py tests/test_blueprint_job_runtime_boundary.py tests/test_blueprint_job_event_stream_runtime.py -q --tb=short",
@@ -3114,14 +3114,14 @@
     "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/services/a2a_core_route_cutover.py slide-rule-python/tests/test_a2a_core_route_cutover_101.py server/routes/__tests__/a2a-core-route-cutover-101.test.ts server/routes/a2a-python-runtime.ts shared/a2a/contracts.ts"
   ],
   "migrationStatusRefresh101Gates": [
-    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/sliderule-python-migration-status.md','utf8'); for (const needle of ['NodeJS','Python','整体工程进度','剩余短板成熟度','Blueprint','Auth','Audit','Task lifecycle','Web AIGC']) { if(!status.includes(needle)) throw new Error('migration status missing 101-stage wording: '+needle); } if(!/(101|100|99|98|97)/.test(status)) throw new Error('migration status missing refreshed percentage');\"",
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} agent-loop/tasks/backend-python-blueprint-shell-state-cutover-101.md agent-loop/tasks/backend-python-task-store-auth-scheduler-cutover-101.md agent-loop/tasks/backend-python-auth-token-mailer-session-cutover-101.md agent-loop/tasks/backend-python-permission-audit-policy-store-cutover-101.md agent-loop/tasks/backend-python-web-aigc-real-provider-readiness-101.md agent-loop/tasks/backend-python-a2a-core-route-cutover-101.md"
+    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/000-nodejs-to-python-migration-status.md','utf8'); for (const needle of ['NodeJS','Python','整体工程进度','剩余短板成熟度','Blueprint','Auth','Audit','Task lifecycle','Web AIGC']) { if(!status.includes(needle)) throw new Error('migration status missing 101-stage wording: '+needle); } if(!/(101|100|99|98|97)/.test(status)) throw new Error('migration status missing refreshed percentage');\"",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}} agent-loop/tasks/backend-python-blueprint-shell-state-cutover-101.md agent-loop/tasks/backend-python-task-store-auth-scheduler-cutover-101.md agent-loop/tasks/backend-python-auth-token-mailer-session-cutover-101.md agent-loop/tasks/backend-python-permission-audit-policy-store-cutover-101.md agent-loop/tasks/backend-python-web-aigc-real-provider-readiness-101.md agent-loop/tasks/backend-python-a2a-core-route-cutover-101.md"
   ],
   "blueprintProductionOwnershipClosure102Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_production_ownership_closure_102.py tests/test_blueprint_shell_state_cutover_101.py tests/test_blueprint_main_runtime_closure_100.py tests/test_blueprint_state_runtime_bridge.py tests/test_blueprint_job_runtime_boundary.py tests/test_blueprint_job_event_stream_runtime.py -q --tb=short",
     "pnpm exec vitest run --config vitest.config.server.ts server/routes/__tests__/blueprint.production-ownership-closure-102.test.ts server/routes/__tests__/blueprint.shell-state-cutover-101.test.ts server/routes/__tests__/blueprint.main-runtime-closure-100.test.ts server/routes/__tests__/blueprint.state-python-runtime.test.ts server/routes/__tests__/blueprint.job-runtime-python-boundary.test.ts server/routes/__tests__/blueprint.job-event-stream-python-runtime.test.ts --reporter=dot",
     "pnpm exec tsc --noEmit --pretty false",
-    "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/services/blueprint_production_ownership_closure.py slide-rule-python/tests/test_blueprint_production_ownership_closure_102.py server/routes/blueprint/production-ownership-closure-python.ts server/routes/__tests__/blueprint.production-ownership-closure-102.test.ts agent-loop/tasks/sliderule-python-migration-status.md"
+    "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/services/blueprint_production_ownership_closure.py slide-rule-python/tests/test_blueprint_production_ownership_closure_102.py server/routes/blueprint/production-ownership-closure-python.ts server/routes/__tests__/blueprint.production-ownership-closure-102.test.ts agent-loop/tasks/000-nodejs-to-python-migration-status.md"
   ],
   "taskLifecycleDurableOwnershipClosure102Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_task_lifecycle_durable_ownership_closure_102.py tests/test_task_store_auth_scheduler_cutover_101.py tests/test_task_lifecycle_production_closure_100.py tests/test_task_lifecycle_runtime_boundary.py tests/test_task_mission_event_replay_runtime.py -q --tb=short",
@@ -3154,8 +3154,8 @@
     "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/services/a2a_production_transport_ownership_closure.py slide-rule-python/tests/test_a2a_production_transport_ownership_closure_102.py server/routes/__tests__/a2a-production-transport-ownership-closure-102.test.ts server/routes/a2a-python-runtime.ts server/core/a2a-client.ts server/core/a2a-server.ts shared/a2a/contracts.ts shared/a2a-protocol.ts"
   ],
   "migrationStatusRefresh102Gates": [
-    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/sliderule-python-migration-status.md','utf8'); for (const needle of ['NodeJS','Python','102','??????','???????','Blueprint','Auth','Audit','Task lifecycle','Web AIGC','A2A']) { if(!status.includes(needle)) throw new Error('migration status missing 102-stage wording: '+needle); } if(!/(102|101|100|99|98)/.test(status)) throw new Error('migration status missing refreshed percentage');\"",
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} agent-loop/tasks/backend-python-blueprint-production-ownership-closure-102.md agent-loop/tasks/backend-python-task-lifecycle-durable-ownership-closure-102.md agent-loop/tasks/backend-python-auth-production-ownership-closure-102.md agent-loop/tasks/backend-python-permission-audit-production-ownership-closure-102.md agent-loop/tasks/backend-python-web-aigc-external-provider-ownership-closure-102.md agent-loop/tasks/backend-python-a2a-production-transport-ownership-closure-102.md"
+    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/000-nodejs-to-python-migration-status.md','utf8'); for (const needle of ['NodeJS','Python','102','??????','???????','Blueprint','Auth','Audit','Task lifecycle','Web AIGC','A2A']) { if(!status.includes(needle)) throw new Error('migration status missing 102-stage wording: '+needle); } if(!/(102|101|100|99|98)/.test(status)) throw new Error('migration status missing refreshed percentage');\"",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}} agent-loop/tasks/backend-python-blueprint-production-ownership-closure-102.md agent-loop/tasks/backend-python-task-lifecycle-durable-ownership-closure-102.md agent-loop/tasks/backend-python-auth-production-ownership-closure-102.md agent-loop/tasks/backend-python-permission-audit-production-ownership-closure-102.md agent-loop/tasks/backend-python-web-aigc-external-provider-ownership-closure-102.md agent-loop/tasks/backend-python-a2a-production-transport-ownership-closure-102.md"
   ],
   "blueprintJobStoreScopeDecision103Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_job_store_scope_decision_103.py tests/test_blueprint_production_ownership_closure_102.py tests/test_blueprint_shell_state_cutover_101.py tests/test_blueprint_job_runtime_boundary.py tests/test_blueprint_job_event_stream_runtime.py -q --tb=short",
@@ -3194,8 +3194,8 @@
     "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/services/a2a_session_stream_runtime_slice.py slide-rule-python/tests/test_a2a_session_stream_runtime_slice_103.py server/routes/__tests__/a2a-session-stream-runtime-slice-103.test.ts server/routes/a2a-python-runtime.ts server/core/a2a-client.ts server/core/a2a-server.ts shared/a2a/contracts.ts shared/a2a-protocol.ts"
   ],
   "migrationScopeReconciliation103Gates": [
-    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/sliderule-python-migration-status.md','utf8'); for (const needle of ['NodeJS','Python','Blueprint','Auth','Audit','Task lifecycle','Web AIGC','A2A']) { if(!status.includes(needle)) throw new Error('migration status missing 103 scope wording: '+needle); } if(!/(103|102|101|100|99|98)/.test(status)) throw new Error('migration status missing refreshed 103 percentage context'); if(!/(python-owned|node-retained|external-owned|out-of-scope|blocked|skipped-live)/i.test(status)) throw new Error('migration status missing ownership/scope wording');\"",
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} agent-loop/tasks/backend-python-blueprint-job-store-scope-decision-103.md agent-loop/tasks/backend-python-task-mission-store-runtime-slice-103.md agent-loop/tasks/backend-python-auth-session-token-boundary-103.md agent-loop/tasks/backend-python-permission-audit-durable-store-boundary-103.md agent-loop/tasks/backend-python-web-aigc-real-provider-live-contract-103.md agent-loop/tasks/backend-python-a2a-session-stream-runtime-slice-103.md"
+    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/000-nodejs-to-python-migration-status.md','utf8'); for (const needle of ['NodeJS','Python','Blueprint','Auth','Audit','Task lifecycle','Web AIGC','A2A']) { if(!status.includes(needle)) throw new Error('migration status missing 103 scope wording: '+needle); } if(!/(103|102|101|100|99|98)/.test(status)) throw new Error('migration status missing refreshed 103 percentage context'); if(!/(python-owned|node-retained|external-owned|out-of-scope|blocked|skipped-live)/i.test(status)) throw new Error('migration status missing ownership/scope wording');\"",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}} agent-loop/tasks/backend-python-blueprint-job-store-scope-decision-103.md agent-loop/tasks/backend-python-task-mission-store-runtime-slice-103.md agent-loop/tasks/backend-python-auth-session-token-boundary-103.md agent-loop/tasks/backend-python-permission-audit-durable-store-boundary-103.md agent-loop/tasks/backend-python-web-aigc-real-provider-live-contract-103.md agent-loop/tasks/backend-python-a2a-session-stream-runtime-slice-103.md"
   ],
   "blueprintJobStoreRuntimeTakeover104Gates": [
     "cd slide-rule-python; & \"{{pythonExe}}\" -m pytest tests/test_blueprint_job_store_runtime_takeover_104.py tests/test_blueprint_job_store_scope_decision_103.py -q --tb=short",
@@ -3306,8 +3306,8 @@
     "node agent-loop/src/check-mojibake.js {{taskFile}} slide-rule-python/services/final_provider_a2a_scope_reconciliation.py slide-rule-python/tests/test_final_provider_a2a_scope_reconciliation_104.py server/tests/final-provider-a2a-scope-reconciliation-104.test.ts shared/telemetry/contracts.ts shared/a2a/contracts.ts"
   ],
   "migrationStatusRefresh104Gates": [
-    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/sliderule-python-migration-status.md','utf8'); for (const needle of ['NodeJS','Python','104','Blueprint','Auth','Audit','Task lifecycle','Web AIGC','A2A']) { if(!status.includes(needle)) throw new Error('migration status missing 104 wording: '+needle); } if(!/(104|103|102|101|100|99|98)/.test(status)) throw new Error('migration status missing refreshed 104 percentage context');\"",
-    "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md {{taskFile}} agent-loop/tasks/backend-python-blueprint-production-denominator-reconciliation-104.md agent-loop/tasks/backend-python-task-production-denominator-reconciliation-104.md agent-loop/tasks/backend-python-final-provider-a2a-scope-reconciliation-104.md"
+    "node -e \"const fs=require('fs'); const status=fs.readFileSync('agent-loop/tasks/000-nodejs-to-python-migration-status.md','utf8'); for (const needle of ['NodeJS','Python','104','Blueprint','Auth','Audit','Task lifecycle','Web AIGC','A2A']) { if(!status.includes(needle)) throw new Error('migration status missing 104 wording: '+needle); } if(!/(104|103|102|101|100|99|98)/.test(status)) throw new Error('migration status missing refreshed 104 percentage context');\"",
+    "node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md {{taskFile}} agent-loop/tasks/backend-python-blueprint-production-denominator-reconciliation-104.md agent-loop/tasks/backend-python-task-production-denominator-reconciliation-104.md agent-loop/tasks/backend-python-final-provider-a2a-scope-reconciliation-104.md"
   ],
   "agentLoopSettingsSchemaRuntime105Gates": [
     "cd agent-loop/vscode-extension; npm run compile",

@@ -26,7 +26,7 @@
 ## 允许读取和引用的证据
 
 - `agent-loop/scripts/migration-queue.json`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `docs/backend-python-node-route-inventory-90.md`
 - `docs/backend-python-runtime-depth-audit-90.md`
 - `docs/backend-python-production-wiring-reality-95.md`

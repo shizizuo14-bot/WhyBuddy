@@ -8,7 +8,7 @@
 ### 状态清单
 - [x] 读取 90% 阶段 queue outcomes（队列结果）。
 - [x] 对照 HALT audit、route inventory、runtime depth audit、生产接线 smoke。
-- [x] 更新 `sliderule-python-migration-status.md` 的分层百分比和下一步建议。
+- [x] 更新 `000-nodejs-to-python-migration-status.md` 的分层百分比和下一步建议。
 - [x] gate 全绿。
 - [x] Codex review 确认没有把 contract/proxy 误写成 production runtime。
 
@@ -17,7 +17,7 @@
 这个任务只在前面 90% 阶段任务完成后执行。最终数字可以是 80%、85%、88%、90%，必须由证据决定。
 
 ## 允许修改的文件
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-migration-status-refresh-90.md`
 
 ## 禁止扩大范围

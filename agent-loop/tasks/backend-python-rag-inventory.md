@@ -30,7 +30,7 @@
 
 - `agent-loop/tasks/backend-python-rag-inventory.md`
 - `docs/backend-python-rag-inventory.md`
-- `agent-loop/tasks/sliderule-python-migration-status.md`（仅同步下一步，不改百分比除非有验证）
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`（仅同步下一步，不改百分比除非有验证）
 
 ## 禁止扩大范围
 

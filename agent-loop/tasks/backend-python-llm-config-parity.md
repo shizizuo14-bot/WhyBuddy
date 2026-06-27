@@ -61,7 +61,7 @@
 - `slide-rule-python/tests/test_config.py`
 - `slide-rule-python/tests/test_pool.py`
 - `agent-loop/tasks/backend-python-llm-config-parity.md`
-- `agent-loop/tasks/sliderule-python-migration-status.md`，仅限同步 LLM infra 状态摘要时使用
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`，仅限同步 LLM infra 状态摘要时使用
 
 ## 禁止事项
 

@@ -2,6 +2,18 @@
 
 这个文件是给人看的迁移总表，用来回答“哪一片已经执行完、哪一片还没做”。详细机器运行记录仍然放在 `.agent-loop/latest/` 和 `.agent-loop/runs/`，这些目录是运行产物，不提交。
 
+## 105 单批次 total cutover 推进计划
+
+105 不再拆成多个阶段队列，而是使用一个单批次队列：
+
+- Queue: `agent-loop/scripts/backend-python-total-cutover-105-queue.json`
+- Tasks: 48 个，全部在 `agent-loop/tasks/`，前缀为 `backend-python-*105.md` 或 `frontend-python-*105.md`
+- 目标：尽快把 NodeJS 后端从业务 owner 降为 Python-first 的薄代理 / 兼容壳 / 明确保留边界，然后让前端整体与 Python 联调。
+- 顺序：Blueprint 主系统 10 个、Task lifecycle 5 个、Auth 5 个、Permission/Audit 6 个、Web AIGC/RAG/provider 7 个、A2A 4 个、前端 Python 联调 7 个、最终切流收口 4 个。
+- 计入口径：只有真实 Python-owned runtime、production wiring、前端 Python path 证据或可执行 cutover guard 才能提高迁移分子。`retained`、`skipped-live`、`external-owned`、`synthetic`、`docs-only` 仍不计入完成。
+
+当前 105 还是计划队列，未更新整体完成率。等 `backend-python-total-cutover-status-refresh-105` 基于队列 outcomes、测试和 route allowlist 审查完成后，再刷新本总表顶部的进度数字。
+
 ## 关键状态词对照
 
 | 关键词 | 中文含义 | 计入口径 |

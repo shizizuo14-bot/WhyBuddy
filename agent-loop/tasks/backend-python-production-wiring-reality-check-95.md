@@ -28,7 +28,7 @@
 
 ## 允许读取和引用的证据
 - `.agent-loop/queue-outcomes.json`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `docs/backend-python-web-aigc-runtime-evidence-reconcile-88.md`
 - `docs/backend-python-web-aigc-longtail-inventory-89.md`
 - `docs/backend-python-runtime-evidence-reconcile-89.md`

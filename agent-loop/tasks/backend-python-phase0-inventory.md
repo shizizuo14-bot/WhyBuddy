@@ -39,7 +39,7 @@
   - [x] 4.4 给出 Phase 1 推荐任务，不超过 3 个
 
 - [x] 5. 更新迁移状态文档
-  - [x] 5.1 将 Phase 0 盘点结论补进 `sliderule-python-migration-status.md` 或后续总表
+  - [x] 5.1 将 Phase 0 盘点结论补进 `000-nodejs-to-python-migration-status.md` 或后续总表
   - [x] 5.2 明确本轮是 `gate-only`，不是 Grok 自动修复，也不是业务迁移完成
   - [x] 5.3 重新跑 mojibake 检查
 
@@ -140,13 +140,13 @@
 - `server/`
 - `shared/`
 - `slide-rule-python/`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - 相关测试文件
 
 允许本轮更新的文件只有：
 
 - `agent-loop/tasks/backend-python-phase0-inventory.md`
-- `agent-loop/tasks/sliderule-python-migration-status.md`，仅限补充 Phase 0 结论时使用
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`，仅限补充 Phase 0 结论时使用
 
 ## 禁止事项
 

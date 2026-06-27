@@ -20,7 +20,7 @@
 ## 允许修改的文件
 - `docs/backend-python-runtime-evidence-reconcile-88.md`
 - `agent-loop/tasks/backend-python-runtime-evidence-reconcile-88.md`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-auth-permission-audit-runtime-90.md`
 - `agent-loop/tasks/backend-python-a2a-stream-runtime-boundary-90.md`
 

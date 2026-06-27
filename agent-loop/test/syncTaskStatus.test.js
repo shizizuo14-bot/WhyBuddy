@@ -135,7 +135,7 @@ test('syncTaskFileFromRun writes the current run without reading list-runs histo
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-sync-run-'));
   const taskPath = 'tasks/migrate-sliderule-gap-ask.md';
   const taskAbsolutePath = path.join(root, taskPath);
-  const migrationPath = path.join(root, 'tasks/sliderule-python-migration-status.md');
+  const migrationPath = path.join(root, 'tasks/000-nodejs-to-python-migration-status.md');
   await fs.mkdir(path.dirname(taskAbsolutePath), { recursive: true });
   await fs.writeFile(taskAbsolutePath, [
     '# gap.ask',
@@ -185,7 +185,7 @@ test('migrationCapabilityForTask resolves absolute discovered paths against repo
 test('syncTaskStatus --all can map discovered tasks to migration capabilities', async () => {
   const root = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-sync-all-'));
   const tasksDir = path.join(root, 'agent-loop', 'tasks');
-  const migrationPath = path.join(tasksDir, 'sliderule-python-migration-status.md');
+  const migrationPath = path.join(tasksDir, '000-nodejs-to-python-migration-status.md');
   const gapTaskPath = path.join(tasksDir, 'migrate-sliderule-gap-ask.md');
   await fs.mkdir(tasksDir, { recursive: true });
   await fs.writeFile(gapTaskPath, [

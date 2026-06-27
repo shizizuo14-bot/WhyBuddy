@@ -28,7 +28,7 @@
 ## 允许修改的文件
 
 - `agent-loop/tasks/sliderule-python-native-capability-audit.md`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `docs/sliderule-python-native-capability-audit.md`
 - `slide-rule-python/tests/test_capabilities.py`（仅当需要补只读审计断言）
 - `server/routes/__tests__/sliderule.execute-capability.test.ts`（仅当需要补只读委托断言）

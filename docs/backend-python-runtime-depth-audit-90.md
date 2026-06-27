@@ -10,7 +10,7 @@ turn contract or proxy evidence into runtime completion.
 Sources checked:
 
 - `agent-loop/scripts/migration-queue.json`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `docs/backend-python-node-route-inventory-75.md`
 - `docs/backend-python-node-route-inventory-90.md`
 - `docs/backend-python-halt-superseded-audit-90.md`
@@ -99,5 +99,5 @@ Cannot count as 90 runtime completion:
 Required gate from `runtimeDepthAudit90Gates`:
 
 ```powershell
-node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-runtime-depth-audit-90.md docs/backend-python-runtime-depth-audit-90.md agent-loop/tasks/sliderule-python-migration-status.md
+node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-runtime-depth-audit-90.md docs/backend-python-runtime-depth-audit-90.md agent-loop/tasks/000-nodejs-to-python-migration-status.md
 ```

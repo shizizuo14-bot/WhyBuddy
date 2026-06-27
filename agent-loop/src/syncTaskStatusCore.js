@@ -51,7 +51,7 @@ export async function syncTaskStatus({
   tasksDir = null,
   dryRun = false,
   includeMigrationStatus = false,
-  migrationStatusPath = 'agent-loop/tasks/sliderule-python-migration-status.md',
+  migrationStatusPath = 'agent-loop/tasks/000-nodejs-to-python-migration-status.md',
   timeZone = undefined,
 } = {}) {
   if (!cwd) throw new Error('cwd is required');
@@ -223,8 +223,8 @@ function resolveTaskPaths({ cwd, taskPaths, all, tasksDir }) {
 
 async function resolveMigrationStatusPath(cwd) {
   for (const candidate of [
-    'agent-loop/tasks/sliderule-python-migration-status.md',
-    'tasks/sliderule-python-migration-status.md',
+    'agent-loop/tasks/000-nodejs-to-python-migration-status.md',
+    'tasks/000-nodejs-to-python-migration-status.md',
   ]) {
     try {
       await fs.access(path.join(cwd, candidate));
@@ -233,7 +233,7 @@ async function resolveMigrationStatusPath(cwd) {
       continue;
     }
   }
-  return 'agent-loop/tasks/sliderule-python-migration-status.md';
+  return 'agent-loop/tasks/000-nodejs-to-python-migration-status.md';
 }
 
 async function resolveTasksDir(cwd) {

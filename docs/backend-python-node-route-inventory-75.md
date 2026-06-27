@@ -48,7 +48,7 @@ The migration target is this repository's NodeJS backend moving toward Python im
 ## Files To Inspect During Execution
 
 - `agent-loop/scripts/migration-queue.json`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `.agent-loop/queue-outcomes.json` when present
 - `.agent-loop/runs/*/final-report.md` and `.agent-loop/runs/*/final-report.json` as read-only evidence
 - Python tests under `slide-rule-python/tests/`

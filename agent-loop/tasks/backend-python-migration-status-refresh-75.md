@@ -17,7 +17,7 @@
 本任务只在前置迁移任务有真实结果后更新状态。目标是争取 75% 候选，但必须以证据为准，不能预填乐观数字。
 
 ## 允许修改的文件
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-migration-status-refresh-75.md`
 
 ## 允许读取的证据

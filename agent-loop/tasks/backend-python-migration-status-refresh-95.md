@@ -8,7 +8,7 @@
 ### 状态清单
 - [x] 读取 95 阶段三份审计报告和当前 queue outcomes。
 - [x] 对照当前 HEAD 的 runtime / production-wiring / docs-only 证据。
-- [x] 更新 `sliderule-python-migration-status.md` 的分层百分比、95 阶段证据表和下一步计划。
+- [x] 更新 `000-nodejs-to-python-migration-status.md` 的分层百分比、95 阶段证据表和下一步计划。
 - [x] 明确整体 NodeJS 后端迁移仍不能写成 95%。
 - [x] gate 全绿。
 - [x] Codex review 确认口径保守、可追溯。
@@ -24,7 +24,7 @@
 最终数字由当前 HEAD 证据决定。不能为了目标数字强行把整体后端写成 95%。
 
 ## 允许修改的文件
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-migration-status-refresh-95.md`
 
 ## 允许读取和引用的证据
@@ -35,7 +35,7 @@
 - `docs/backend-python-runtime-evidence-reconcile-89.md`
 - `docs/backend-python-runtime-depth-audit-90.md`
 - `docs/backend-python-node-route-inventory-90.md`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 
 ## 禁止扩大范围
 - 不改业务代码。

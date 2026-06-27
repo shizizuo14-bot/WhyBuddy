@@ -3,7 +3,7 @@
 ## 执行状态
 
 - 状态：待执行
-- 目标：基于 103 队列真实 outcome、diff、gate 和 review 证据刷新 `sliderule-python-migration-status.md`。只做最后汇总，不新增业务迁移分子；重点是把 `python-owned`、`node-retained`、`external-owned`、`out-of-scope` 从迁移分母里算清楚。
+- 目标：基于 103 队列真实 outcome、diff、gate 和 review 证据刷新 `000-nodejs-to-python-migration-status.md`。只做最后汇总，不新增业务迁移分子；重点是把 `python-owned`、`node-retained`、`external-owned`、`out-of-scope` 从迁移分母里算清楚。
 - 角色分工：worker 负责读取 queue outcomes、任务文档、gate、diff 和 review 证据；reviewer 必须确认没有把 docs-only、retained、skipped-live、external-owned、out-of-scope 虚算成 Python 迁移完成。
 
 ### 状态清单
@@ -21,7 +21,7 @@
 
 ## 允许修改的文件
 
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-migration-scope-reconciliation-103.md`
 
 ## 允许读取和引用的证据

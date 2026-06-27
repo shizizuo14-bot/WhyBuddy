@@ -64,7 +64,7 @@ until those paths or equivalent current `HEAD` runtime evidence are present.
 The task-required gate key is `runtimeEvidenceReconcile88Gates`:
 
 ```text
-node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-runtime-evidence-reconcile-88.md agent-loop/tasks/sliderule-python-migration-status.md agent-loop/tasks/backend-python-auth-permission-audit-runtime-90.md agent-loop/tasks/backend-python-a2a-stream-runtime-boundary-90.md
+node agent-loop/src/check-mojibake.js {{taskFile}} docs/backend-python-runtime-evidence-reconcile-88.md agent-loop/tasks/000-nodejs-to-python-migration-status.md agent-loop/tasks/backend-python-auth-permission-audit-runtime-90.md agent-loop/tasks/backend-python-a2a-stream-runtime-boundary-90.md
 ```
 
 This gate is a mojibake scan only. It confirms report/task files are readable;

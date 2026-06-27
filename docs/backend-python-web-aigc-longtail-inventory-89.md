@@ -94,5 +94,5 @@ or `web_aigc_vision_audio_adapter` bridge evidence.
 Required gate from `webAigcLongtailInventory89Gates`:
 
 ```powershell
-node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-web-aigc-longtail-inventory-89.md docs/backend-python-web-aigc-longtail-inventory-89.md docs/backend-python-node-route-inventory-90.md agent-loop/tasks/sliderule-python-migration-status.md
+node agent-loop/src/check-mojibake.js agent-loop/tasks/backend-python-web-aigc-longtail-inventory-89.md docs/backend-python-web-aigc-longtail-inventory-89.md docs/backend-python-node-route-inventory-90.md agent-loop/tasks/000-nodejs-to-python-migration-status.md
 ```

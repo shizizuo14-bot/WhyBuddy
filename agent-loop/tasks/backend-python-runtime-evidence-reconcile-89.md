@@ -9,7 +9,7 @@
 - [x] 读取当前 `queue-outcomes.json`、最近 commit 和 88/90 阶段任务文件。
 - [x] 复核 auth/session、permission、audit、A2A stream、task lifecycle、Blueprint、Web AIGC 的 HEAD 可见证据。
 - [x] 生成 `docs/backend-python-runtime-evidence-reconcile-89.md`。
-- [x] 更新 `sliderule-python-migration-status.md` 的证据表，但不强行上调百分比。
+- [x] 更新 `000-nodejs-to-python-migration-status.md` 的证据表，但不强行上调百分比。
 - [x] gate 全绿。
 - [x] Codex review 确认没有把 review 绿灯误写成业务迁移完成。
 
@@ -19,7 +19,7 @@
 
 ## 允许修改的文件
 - `docs/backend-python-runtime-evidence-reconcile-89.md`
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-runtime-evidence-reconcile-89.md`
 - `agent-loop/tasks/backend-python-auth-permission-audit-runtime-90.md`
 - `agent-loop/tasks/backend-python-a2a-stream-runtime-boundary-90.md`

@@ -2,7 +2,7 @@
 
 ## 执行状态
 - 状态：待执行
-- 目标：基于 101 final-gap 队列的真实代码、gate、review 和任务结果刷新 `sliderule-python-migration-status.md`，并把“整体工程进度”和“剩余短板成熟度”拆开写。
+- 目标：基于 101 final-gap 队列的真实代码、gate、review 和任务结果刷新 `000-nodejs-to-python-migration-status.md`，并把“整体工程进度”和“剩余短板成熟度”拆开写。
 - 角色分工：worker 负责读取 queue outcomes、commits、gate、任务文档和 diff 证据；reviewer 必须确认没有把 docs-only、no-diff、skipped-live、HALT 或 rescue-only 任务计入业务迁移完成。
 
 ### 状态清单
@@ -21,7 +21,7 @@
 - 剩余短板成熟度：只看还没完全从 Node 拿下来的最后短板，所以百分比可以明显低于整体。
 
 ## 允许修改的文件
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-migration-status-refresh-101.md`
 
 ## 允许读取和引用的证据
@@ -49,7 +49,7 @@
 
 ## 成功标准
 
-- `sliderule-python-migration-status.md` 拆成“整体工程进度”和“剩余短板成熟度”两张表。
+- `000-nodejs-to-python-migration-status.md` 拆成“整体工程进度”和“剩余短板成熟度”两张表。
 - 明确列出 101 本轮成功计入、不能计入、需要人工接管的任务。
 - 对整体百分比使用保守口径；若证据不足，继续写 98-99% 或更保守区间，而不是硬写 100%。
 - 对局部短板解释清楚为什么会低于整体进度。

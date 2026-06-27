@@ -171,7 +171,7 @@ Expected: report does not count docs-only work as migration implementation.
 
 **Files:**
 - Create: `agent-loop/tasks/backend-python-migration-status-refresh-100.md`
-- Modify: `agent-loop/tasks/sliderule-python-migration-status.md`
+- Modify: `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - Modify: `agent-loop/scripts/migration-queue.json`
 
 - [ ] **Step 1: Run the task through AgentLoop**
@@ -189,7 +189,7 @@ Expected: status doc says 100% only if all code tasks and cutover audit support 
 Run:
 
 ```powershell
-node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-migration-status.md agent-loop/tasks/backend-python-migration-status-refresh-100.md
+node agent-loop/src/check-mojibake.js agent-loop/tasks/000-nodejs-to-python-migration-status.md agent-loop/tasks/backend-python-migration-status-refresh-100.md
 ```
 
 Expected: no mojibake findings.

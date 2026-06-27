@@ -3,7 +3,7 @@
 ## 执行状态
 
 - 状态：人工接管完成
-- 目标：在本轮 50% 候选队列收尾后，刷新 `sliderule-python-migration-status.md` 的分层进度口径。
+- 目标：在本轮 50% 候选队列收尾后，刷新 `000-nodejs-to-python-migration-status.md` 的分层进度口径。
 - 角色分工：worker 只整理证据和文档；reviewer 确认不把候选目标写成已达成事实。
 
 ## 状态清单
@@ -46,7 +46,7 @@
 
 ## 允许修改的文件
 
-- `agent-loop/tasks/sliderule-python-migration-status.md`
+- `agent-loop/tasks/000-nodejs-to-python-migration-status.md`
 - `agent-loop/tasks/backend-python-migration-status-refresh-50.md`
 
 ## 禁止扩大范围
