@@ -46,10 +46,10 @@
 
 .native-agent-brand img {
   display: block;
-  height: 32px;
+  height: 64px;
   object-fit: contain;
   object-position: left center;
-  width: 120px;
+  width: 150px;
 }
 
 .native-agent-brand-mark {
@@ -58,10 +58,11 @@
   border-radius: 8px;
   color: #fff;
   display: inline-flex;
+  font-size: 20px;
   font-weight: 800;
-  height: 34px;
+  height: 36px;
   justify-content: center;
-  width: 34px;
+  width: 36px;
 }
 
 .native-agent-nav {
@@ -154,14 +155,15 @@
   /* padding: 12px; */
 }
 
-.native-agent-main > .native-settings-content {
+.native-agent-main > .native-settings-content,
+.native-agent-main > .native-workbench-content {
   padding: 0;
 }
 
 /* Detail uses same scroll container; specificity overrides padding/bg only */
 .native-detail-dashboard .native-content {
   background: linear-gradient(180deg, #fff 0%, #f7fbff 260px, #f6f9fd 100%);
-  padding: 18px 24px 22px;
+  padding: 16px 24px;
 }
 
 .native-scroll-surface,
@@ -225,12 +227,12 @@
 
 .native-settings-shell {
   background: #fff;
-  border: 1px solid #dbe6f5;
+  /* border: 1px solid #dbe6f5;
   border-radius: 12px;
-  box-shadow: 0 14px 34px rgba(25, 49, 93, 0.06);
+  box-shadow: 0 14px 34px rgba(25, 49, 93, 0.06); */
   margin: 0;
-  min-height: calc(100vh - 56px);
-  padding: 28px 30px 30px;
+  min-height: calc(100vh - 48px);
+  padding: 12px;
   width: 100%;
 }
 
@@ -906,10 +908,12 @@
   flex-direction: column;
   gap: 12px;
   margin: 0 auto;
-  /* max-width: 1560px; */
-  /* padding: 12px; */
+  padding: 12px;
   width: 100%;
-  /* box-sizing: border-box; */
+}
+
+.native-workbench-shell.native-sliderule-workbench {
+  padding: 0;
 }
 
 .native-sliderule-content {
@@ -993,11 +997,11 @@
 }
 
 .native-queue-path-row {
-  background: #f4f8ff;
-  border: 1px solid #d9e8ff;
-  border-radius: 8px;
+  /* background: #f4f8ff; */
+  /* border: 1px solid #d9e8ff; */
+  /* border-radius: 8px; */
   margin-top: 8px;
-  padding: 6px 10px;
+  /* padding: 6px 10px; */
 }
 
 .native-workbench-metrics {
@@ -1880,7 +1884,8 @@
     width: 100%;
   }
 
-  .native-agent-main > .native-settings-content {
+  .native-agent-main > .native-settings-content,
+  .native-agent-main > .native-workbench-content {
     padding: 0;
   }
 
@@ -1889,7 +1894,15 @@
     border-left: 0;
     border-right: 0;
     min-height: auto;
-    padding: 22px 16px;
+    padding: 16px;
+  }
+
+  .native-workbench-shell {
+    padding: 12px;
+  }
+
+  .native-workbench-shell.native-sliderule-workbench {
+    padding: 0;
   }
 
   .native-settings-summary-grid {

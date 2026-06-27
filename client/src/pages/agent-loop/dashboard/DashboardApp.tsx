@@ -49,6 +49,10 @@ import type { ColumnsType } from 'antd/es/table';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 export type ViewKey = 'sliderule' | 'workbench' | 'settings';
+
+export function shouldRequestSettingsForView(view: ViewKey): boolean {
+  return view !== 'sliderule';
+}
 import SlideRulePage from '@/pages/SlideRule';
 import type { AgentLoopSettingsViewModel, DetailPayload, OverviewPayload, OverviewTask } from './dashboardTypes';
 import { postCommand } from './bridge';
@@ -109,7 +113,7 @@ function countValue(counts: OverviewPayload['counts'], key: string): number {
 }
 
 function queueTasks(tasks: OverviewTask[]): OverviewTask[] {
-  return tasks.filter((task) => task.enabled !== false);
+  return tasks.filter((task) => task.inQueue !== false && task.enabled !== false);
 }
 
 function taskCategory(task: OverviewTask): FilterKey {
@@ -812,12 +816,14 @@ export function DashboardApp({
     label: `${FILTER_LABELS[key]} ${filterCount(tasks, key, payload.counts)}`,
   }));
 
-  // Load settings on initial mount so that workbench overview/detail labels (active profile, fix/review agents)
-  // and run control rtOpts reflect non-secret settings immediately (per runtime linkage acceptance).
+  // Load settings only for task/config surfaces. The embedded SlideRule surface should not touch
+  // AgentLoop settings or queue endpoints until the user opens workbench/settings.
   // getQueueDefaults etc remain lazy until settings tab per prior design.
   useEffect(() => {
-    postCommand('getSettings');
-  }, []);
+    if (shouldRequestSettingsForView(view)) {
+      postCommand('getSettings');
+    }
+  }, [view]);
 
   // Load additional settings-tab data when switching to settings view
   useEffect(() => {

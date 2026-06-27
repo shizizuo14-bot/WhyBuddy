@@ -6,8 +6,10 @@ Does not write Node events.
 """
 
 import json
+import time
 from typing import Any, Dict, Generator, Iterable, List, Optional
 
+from .agent_loop_event_store import read_events
 from .agent_loop_state_reducer import reduce_run_events
 
 
@@ -84,3 +86,45 @@ def iter_agent_loop_v2_sse_frames(
             yield format_sse_frame("event", e)
     snap = reduce_run_events(evs)
     yield format_sse_frame("snapshot", snap)
+
+
+def _is_terminal_event(event: Dict[str, Any]) -> bool:
+    text = str(event.get("type") or "").upper()
+    status = str(event.get("status") or ((event.get("payload") or {}) if isinstance(event.get("payload"), dict) else {}).get("status") or "").upper()
+    return text in {"RUN_FINALIZED", "RUN_FAILED", "QUEUE_FINISHED"} or status in {"DONE", "FAILED", "EXITED", "COMPLETED"}
+
+
+def iter_agent_loop_live_v2_sse_frames(
+    run_id: str,
+    *,
+    read_events_fn=read_events,
+    poll_interval_seconds: float = 1.0,
+    max_idle_polls: Optional[int] = None,
+) -> Generator[str, None, None]:
+    """Tail v2 event JSONL and yield SSE frames as new events appear."""
+    last_seq = -1
+    seen_events: List[Dict[str, Any]] = []
+    idle_polls = 0
+    while True:
+        events = read_events_fn(run_id, limit=1000) or []
+        new_events = [
+            event for event in events
+            if isinstance(event, dict) and isinstance(event.get("seq"), int) and int(event.get("seq")) > last_seq
+        ]
+
+        if new_events:
+            idle_polls = 0
+            for event in sorted(new_events, key=lambda item: int(item.get("seq") or 0)):
+                last_seq = max(last_seq, int(event.get("seq") or 0))
+                seen_events.append(event)
+                yield format_sse_frame("event", event)
+                if _is_terminal_event(event):
+                    yield format_sse_frame("snapshot", reduce_run_events(seen_events))
+                    return
+        else:
+            idle_polls += 1
+            if max_idle_polls is not None and idle_polls >= max_idle_polls:
+                return
+
+        if poll_interval_seconds > 0:
+            time.sleep(poll_interval_seconds)

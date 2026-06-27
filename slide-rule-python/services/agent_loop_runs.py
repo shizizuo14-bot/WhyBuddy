@@ -36,6 +36,7 @@ from services.agent_loop_paths import (
     resolve_artifact_path,
     resolve_safe_path,
 )
+from services.agent_loop_process_registry import get_background_runtime_status
 from services.agent_loop_settings import load_agent_loop_settings
 
 # 110: central stable artifact index (event refs + size + no-mtime active selection)
@@ -310,6 +311,50 @@ def _discover_queue_files(repo: Path) -> List[Dict[str, Any]]:
     return queues
 
 
+def _queue_file_contains_task(repo: Path, queue_path: Path, normalized_task_path: str) -> bool:
+    if not normalized_task_path:
+        return False
+    queue = _safe_read_json(queue_path) or {}
+    tasks = queue.get("tasks")
+    if not isinstance(tasks, list):
+        return False
+    for task in tasks:
+        if not isinstance(task, dict):
+            continue
+        if _normalize_task_path(str(task.get("task") or "")) == normalized_task_path:
+            return True
+    return False
+
+
+def _find_queue_file_containing_task(repo: Path, available_queues: List[Dict[str, Any]], normalized_task_path: str) -> Optional[Path]:
+    if not normalized_task_path:
+        return None
+    for queue_info in available_queues:
+        rel_path = str(queue_info.get("path") or "").strip()
+        if not rel_path:
+            continue
+        resolved = resolve_safe_path(repo, rel_path)
+        if resolved is not None and _queue_file_contains_task(repo, resolved, normalized_task_path):
+            return resolved
+    return None
+
+
+def _task_id_from_path(task_path: str) -> str:
+    name = Path(str(task_path or "")).name
+    return name[:-3] if name.endswith(".md") else (name or str(task_path or ""))
+
+
+def _discover_task_files(repo: Path) -> List[str]:
+    tasks_dir = repo / "agent-loop" / "tasks"
+    if not tasks_dir.exists() or not tasks_dir.is_dir():
+        return []
+    paths: List[str] = []
+    for path_obj in tasks_dir.glob("*.md"):
+        if path_obj.is_file():
+            paths.append(_repo_relative_path(repo, path_obj))
+    return sorted(paths, key=lambda value: Path(value).name.lower())
+
+
 def _is_active_status(status: Optional[str]) -> bool:
     text = str(status or "").strip().upper()
     return text in {"CODEX_FIX", "GROK_FIX", "CODEX_REVIEW", "GROK_REVIEW", "BUDGET_LOOP_HEAD", "REVIEW_NEEDS_CHANGES"}
@@ -330,6 +375,8 @@ def _classify_triage_category(enabled: bool, auto_disabled: bool, running: bool,
 
 
 def _classify_outcome_group(status: Optional[str], outcome: Optional[str], record: Optional[Dict[str, Any]]) -> Optional[str]:
+    if outcome in {"quarantined", "failed", "crashed", "stopped"}:
+        return outcome
     if status == "DONE_REVIEWED_NO_DIFF":
         return "noDiff"
     if status == "APPLY_CONFLICT":
@@ -399,14 +446,28 @@ def _phase_label(status: Optional[str]) -> str:
 def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any]:
     repo = Path(repo_root) if repo_root else _get_repo_root()
     queue_file = _resolve_queue_file_path(repo)
-    queue_path = _repo_relative_path(repo, queue_file)
     available_queues = _discover_queue_files(repo)
-    latest_queue = available_queues[0] if available_queues else None
-    latest_queue_path = latest_queue.get("path") if isinstance(latest_queue, dict) else None
-    queue_stale = bool(latest_queue_path and latest_queue_path != queue_path)
     outcomes_file = _default_queue_outcomes_path(repo)
     landing_file = _default_queue_landing_path(repo)
     latest_state = _read_latest_state(repo)
+    latest_state_active = _is_active_status(latest_state.get("status") if isinstance(latest_state, dict) else None)
+    background_runtime = get_background_runtime_status()
+    has_background_runtime = bool(background_runtime.get("record"))
+    queue_running = bool(background_runtime.get("running")) if has_background_runtime else False
+    stale_run = bool(background_runtime.get("stale")) if has_background_runtime else latest_state_active
+    running_task_path = _normalize_task_path(
+        (latest_state.get("options") or {}).get("task") if isinstance(latest_state, dict) and isinstance(latest_state.get("options"), dict) else None
+    )
+
+    active_queue_file = _find_queue_file_containing_task(repo, available_queues, running_task_path) if latest_state_active else None
+    if active_queue_file is not None:
+        queue_file = active_queue_file
+
+    queue_path = _repo_relative_path(repo, queue_file)
+    discovered_latest_queue = available_queues[0] if available_queues else None
+    discovered_latest_queue_path = discovered_latest_queue.get("path") if isinstance(discovered_latest_queue, dict) else None
+    latest_queue_path = queue_path if active_queue_file is not None else discovered_latest_queue_path
+    queue_stale = bool(latest_queue_path and latest_queue_path != queue_path)
 
     queue = _safe_read_json(queue_file) or {}
     outcomes = _safe_read_json(outcomes_file) or {"tasks": {}}
@@ -427,8 +488,9 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
         latest_profile = " / ".join(profile_parts) if profile_parts else None
 
     items: List[Dict[str, Any]] = []
+    queued_task_paths = set()
     counts: Dict[str, int] = {
-        "total": len(tasks_in),
+        "total": 0,
         "queueTotal": 0,
         "done": 0,
         "applied": 0,
@@ -446,16 +508,13 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
         "pending": 0,
     }
 
-    queue_running = _is_active_status(latest_state.get("status") if isinstance(latest_state, dict) else None)
-    running_task_path = _normalize_task_path(
-        (latest_state.get("options") or {}).get("task") if isinstance(latest_state, dict) and isinstance(latest_state.get("options"), dict) else None
-    )
-
     for index, task in enumerate(tasks_in):
         if not isinstance(task, dict):
             continue
         task_id = str(task.get("id") or task.get("task") or "").strip()
         task_path = str(task.get("task") or "").strip()
+        if task_path:
+            queued_task_paths.add(_normalize_task_path(task_path))
         record = outcome_map.get(task_id) if isinstance(outcome_map, dict) else None
         if not isinstance(record, dict):
             record = {}
@@ -464,7 +523,7 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
             counts["queueTotal"] += 1
         same_as_running = bool(running_task_path) and _normalize_task_path(task_path) == running_task_path
         running = bool(queue_running) and same_as_running
-        stale = False
+        stale = bool(stale_run and same_as_running)
         manual_rescue_landed = False
         if task_path:
             task_text = ""
@@ -492,6 +551,8 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
             "id": task_id or task_path,
             "task": task_path,
             "enabled": enabled,
+            "inQueue": True,
+            "source": "queue",
             "agent": record.get("agent") or None,
             "fixAgent": record.get("fixAgent") or task.get("fixAgent") or queue_defaults.get("fixAgent") or "grok",
             "reviewAgent": None if task.get("skipReview") is True else (record.get("reviewAgent") or task.get("reviewAgent") or queue_defaults.get("reviewAgent") or "codex"),
@@ -550,18 +611,100 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
         else:
             counts["pending"] += 1
 
+    for task_path in _discover_task_files(repo):
+        normalized_task_path = _normalize_task_path(task_path)
+        if normalized_task_path in queued_task_paths:
+            continue
+        task_id = _task_id_from_path(task_path)
+        record = outcome_map.get(task_id) if isinstance(outcome_map, dict) else None
+        if not isinstance(record, dict):
+            record = {}
+        same_as_running = bool(running_task_path) and normalized_task_path == running_task_path
+        running = bool(queue_running) and same_as_running
+        outcome_group = _classify_outcome_group(record.get("lastStatus"), record.get("lastOutcome"), record)
+        item: Dict[str, Any] = {
+            "id": task_id,
+            "task": task_path,
+            "enabled": True,
+            "inQueue": False,
+            "source": "taskFile",
+            "agent": record.get("agent") or None,
+            "fixAgent": record.get("fixAgent") or queue_defaults.get("fixAgent") or "grok",
+            "reviewAgent": record.get("reviewAgent") or queue_defaults.get("reviewAgent") or "codex",
+            "branch": None,
+            "lastUpdatedAt": record.get("lastUpdatedAt"),
+            "lastUpdatedText": _format_updated_text(record.get("lastUpdatedAt")),
+            "outcome": record.get("lastOutcome"),
+            "outcomeGroup": outcome_group,
+            "status": record.get("lastStatus"),
+            "rawStatus": record.get("lastStatus"),
+            "lastRunId": record.get("lastRunId"),
+            "autoDisabled": bool(record.get("autoDisabled")),
+            "running": running,
+            "stale": bool(stale_run and same_as_running),
+            "applyStatus": record.get("applyStatus"),
+            "rawApplyStatus": record.get("applyStatus"),
+            "applyErrorKind": record.get("applyErrorKind"),
+            "rawApplyErrorKind": record.get("applyErrorKind"),
+            "applyErrorFiles": record.get("applyErrorFiles") if isinstance(record.get("applyErrorFiles"), list) else [],
+            "applyError": record.get("applyError"),
+            "rescuePatchAvailable": bool(record.get("rescuePatchAvailable")),
+            "diffBytes": int(record.get("diffBytes") or 0),
+            "worktreeErrorFiles": record.get("worktreeErrorFiles") if isinstance(record.get("worktreeErrorFiles"), list) else [],
+        }
+        item["category"] = _classify_triage_category(True, bool(record.get("autoDisabled")), running, outcome_group, bool(stale_run and same_as_running))
+        items.append(item)
+
+        if running:
+            counts["running"] += 1
+        elif outcome_group == "applied":
+            counts["applied"] += 1
+            counts["done"] += 1
+        elif outcome_group == "reviewed":
+            counts["reviewed"] += 1
+            counts["done"] += 1
+        elif outcome_group == "noDiff":
+            counts["noDiff"] += 1
+        elif outcome_group == "manualRescueLanded":
+            counts["manualRescueLanded"] += 1
+            counts["done"] += 1
+        elif outcome_group == "applyConflict":
+            counts["applyConflict"] += 1
+        elif outcome_group == "rescuePatch":
+            counts["rescuePatch"] += 1
+            counts["failed"] += 1
+        elif outcome_group == "human":
+            counts["human"] += 1
+        elif outcome_group == "failed":
+            counts["failed"] += 1
+        elif outcome_group == "crashed":
+            counts["crashed"] += 1
+        elif outcome_group == "quarantined":
+            counts["quarantined"] += 1
+        elif outcome_group == "stopped":
+            counts["stopped"] += 1
+        else:
+            counts["pending"] += 1
+
+    counts["total"] = len(items)
+
     current = None
-    if queue_running and isinstance(latest_state, dict):
+    if (latest_state_active or has_background_runtime) and isinstance(latest_state, dict):
         latest_task = _normalize_task_path(
             (latest_state.get("options") or {}).get("task") if isinstance(latest_state.get("options"), dict) else latest_state.get("task")
         )
-        if latest_task:
+        if latest_task or has_background_runtime:
             current = {
-                "taskLabel": latest_task.split("/")[-1].replace(".md", ""),
+                "taskLabel": latest_task.split("/")[-1].replace(".md", "") if latest_task else "queue",
                 "phaseLabel": _phase_label(latest_state.get("status")),
                 "status": latest_state.get("status"),
+                "runId": latest_state.get("runId"),
+                "backgroundRunId": background_runtime.get("runId"),
+                "pid": background_runtime.get("pid"),
+                "heartbeatAt": background_runtime.get("heartbeatAt"),
+                "runtimeStatus": background_runtime.get("status"),
                 "elapsedText": None,
-                "staleRun": None,
+                "staleRun": bool(stale_run),
                 "profileName": latest_profile,
             }
 

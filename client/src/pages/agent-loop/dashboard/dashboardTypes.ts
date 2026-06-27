@@ -11,6 +11,8 @@ export type OverviewTask = {
   outcome?: string | null;
   outcomeGroup?: string | null;
   enabled?: boolean;
+  inQueue?: boolean;
+  source?: string | null;
   autoDisabled?: boolean;
   running?: boolean;
   category?: string | null;
@@ -45,8 +47,13 @@ export type OverviewPayload = {
     taskLabel?: string | null;
     phaseLabel?: string | null;
     status?: string | null;
+    runId?: string | null;
+    backgroundRunId?: string | null;
+    pid?: number | null;
+    heartbeatAt?: string | null;
+    runtimeStatus?: string | null;
     elapsedText?: string | null;
-    staleRun?: unknown;
+    staleRun?: boolean | null;
   } | null;
   tasks?: OverviewTask[];
 };

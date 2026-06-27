@@ -149,12 +149,16 @@ class AgentLoopCommandRequest(AgentLoopBase):
     cwd: Optional[str] = None
     timeoutMs: Optional[int] = None
     env: Optional[Dict[str, str]] = None
+    runId: Optional[str] = None
 
 
 class AgentLoopCommandReceipt(AgentLoopBase):
     """Receipt / result after command execution (no secrets)."""
 
     command: str
+    status: Optional[str] = None
+    runId: Optional[str] = None
+    pid: Optional[int] = None
     exitCode: Optional[int] = None
     stdout: Optional[str] = None
     stderr: Optional[str] = None

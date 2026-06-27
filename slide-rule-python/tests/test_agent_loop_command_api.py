@@ -20,6 +20,42 @@ except Exception as e:
 client = TestClient(app)
 
 
+def test_agentloop_command_api_real_queue_start_returns_background_receipt(monkeypatch):
+    """Real queue starts are background submissions, not blocking subprocess waits."""
+    from models.agent_loop import AgentLoopCommandReceipt  # noqa: WPS433
+    from routes import agent_loop as agent_loop_route  # noqa: WPS433
+
+    def fake_start(req):
+        return AgentLoopCommandReceipt(
+            command="node run-queue.mjs",
+            status="started",
+            runId="bridge-2026-06-27T00-00-00-000Z",
+            pid=12345,
+            exitCode=None,
+            startedAt="2026-06-27T00:00:00.000Z",
+            metadata={"background": True},
+        )
+
+    def fail_sync(*_args, **_kwargs):
+        raise AssertionError("real queue run must not call blocking execute_agent_loop_command")
+
+    monkeypatch.setattr(agent_loop_route, "start_agent_loop_background_command", fake_start)
+    monkeypatch.setattr(agent_loop_route, "execute_agent_loop_command", fail_sync)
+
+    resp = client.post(
+        "/api/agent-loop/queue/run",
+        json={"queue": "agent-loop/scripts/migration-queue.json", "mode": "queue", "dryRun": False},
+    )
+
+    assert resp.status_code == 200, resp.text
+    data = resp.json()
+    assert data["status"] == "started"
+    assert data["runId"] == "bridge-2026-06-27T00-00-00-000Z"
+    assert data["pid"] == 12345
+    assert data["exitCode"] is None
+    assert data["metadata"]["background"] is True
+
+
 def test_agentloop_command_api_108_starts_queue_through_bridge_dry_run():
     """agentloop command api 108 starts queue through bridge dry run
 

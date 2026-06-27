@@ -3,13 +3,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import * as bridge from "./dashboard/bridge";
 import * as api from "./dashboard/agentLoopApi";
 import AgentLoopPage, {
+  createAgentLoopLiveEventHandlers,
   getAgentLoopRunPath,
   getAgentLoopSettingsPath,
   getAgentLoopSliderulePath,
   getAgentLoopWorkbenchPath,
   parseAgentLoopLocation,
+  resolveAgentLoopLiveEventRunId,
+  shouldLoadAgentLoopOverview,
+  shouldPollAgentLoopOverview,
 } from "./AgentLoopPage";
-import { DashboardApp, CliConfigForm, QueueDefaultsView, ProfileCrudView } from "./dashboard/DashboardApp";
+import { DashboardApp, CliConfigForm, QueueDefaultsView, ProfileCrudView, shouldRequestSettingsForView } from "./dashboard/DashboardApp";
 import { LlmKeyForm } from "./dashboard/settings/LlmKeysPanel";
 import { DiagnosticsView } from "./dashboard/settings/DiagnosticsPanel";
 
@@ -53,6 +57,63 @@ describe("AgentLoopPage", () => {
     expect(parseAgentLoopLocation("/agent-loop/workbench")).toEqual({ kind: "workbench" });
     expect(parseAgentLoopLocation("/agent-loop/settings")).toEqual({ kind: "settings" });
     expect(parseAgentLoopLocation("/agent-loop/runs/run%201")).toEqual({ kind: "detail", runId: "run 1" });
+  });
+
+  it("subscribes live events only for background run ids and ignores SSE pings for refresh", () => {
+    expect(
+      resolveAgentLoopLiveEventRunId(
+        { current: { runId: "legacy-state-run", backgroundRunId: null }, tasks: [], counts: {} },
+        { kind: "workbench" },
+      ),
+    ).toBeNull();
+    expect(
+      resolveAgentLoopLiveEventRunId(
+        { current: { runId: "legacy-state-run", backgroundRunId: "bridge-run" }, tasks: [], counts: {} },
+        { kind: "workbench" },
+      ),
+    ).toBe("bridge-run");
+    expect(resolveAgentLoopLiveEventRunId(null, { kind: "detail", runId: "detail-run" })).toBe("detail-run");
+
+    const refresh = vi.fn();
+    const handlers = createAgentLoopLiveEventHandlers(refresh);
+    handlers.onEvent?.({});
+    handlers.onSnapshot?.({});
+    handlers.onError?.(new Error("stream closed"));
+    handlers.onPing?.({});
+
+    expect(refresh).toHaveBeenCalledTimes(3);
+    expect(handlers.onPing).toBeUndefined();
+  });
+
+  it("does not preload task overview or settings while only viewing the SlideRule surface", () => {
+    expect(shouldLoadAgentLoopOverview({ kind: "sliderule" })).toBe(false);
+    expect(shouldLoadAgentLoopOverview({ kind: "settings" })).toBe(false);
+    expect(shouldLoadAgentLoopOverview({ kind: "workbench" })).toBe(true);
+    expect(shouldLoadAgentLoopOverview({ kind: "detail", runId: "run-1" })).toBe(false);
+
+    expect(
+      shouldPollAgentLoopOverview(
+        { queueRunning: true, current: { backgroundRunId: "bridge-run", staleRun: false }, tasks: [], counts: {} },
+        { kind: "sliderule" },
+        "bridge-run",
+      ),
+    ).toBe(false);
+    expect(
+      resolveAgentLoopLiveEventRunId(
+        { current: { backgroundRunId: "bridge-run" }, tasks: [], counts: {} },
+        { kind: "sliderule" },
+      ),
+    ).toBeNull();
+    expect(
+      resolveAgentLoopLiveEventRunId(
+        { current: { backgroundRunId: "bridge-run" }, tasks: [], counts: {} },
+        { kind: "workbench" },
+      ),
+    ).toBe("bridge-run");
+
+    expect(shouldRequestSettingsForView("sliderule")).toBe(false);
+    expect(shouldRequestSettingsForView("workbench")).toBe(true);
+    expect(shouldRequestSettingsForView("settings")).toBe(true);
   });
 
   it("allows the shell router to control DashboardApp settings view", () => {
@@ -175,6 +236,33 @@ describe("AgentLoopPage", () => {
     expect(html).toContain('href="/agent-loop/runs/2026-06-26T22-10-29-045Z"');
     expect(html).toContain("sliderule-v2-hardening-115-queue.json");
     expect(html).toContain("sliderule-v2-hardening-scope-115");
+  });
+
+  it("keeps queue metrics scoped to queue entries while all tasks includes task files", () => {
+    const html = renderToStaticMarkup(
+      <DashboardApp
+        payload={{
+          counts: {},
+          tasks: [
+            {
+              id: "queued-task",
+              task: "agent-loop/tasks/queued-task.md",
+              inQueue: true,
+              category: "pending",
+            },
+            {
+              id: "new-unqueued-task",
+              task: "agent-loop/tasks/new-unqueued-task.md",
+              inQueue: false,
+              category: "pending",
+            },
+          ] as any,
+        }}
+      />,
+    );
+
+    expect(html).toContain("任务队列 1");
+    expect(html).toContain("全部任务 2");
   });
 
   it("keeps the workbench main grid gutter aligned with metric cards", () => {
@@ -385,6 +473,56 @@ describe("agentLoopApi (wired capabilities)", () => {
     expect(res.status).not.toBe("stopped");
     expect(res.status).not.toBe("cancelled");
     expect(res.status).not.toBe("ok");
+  });
+
+  it("agentloop event stream client builds live SSE subscriptions with close cleanup", () => {
+    const originalEventSource = (globalThis as any).EventSource;
+    const listeners: Record<string, (event: { data: string }) => void> = {};
+    const close = vi.fn();
+
+    class FakeEventSource {
+      url: string;
+      onerror: unknown = null;
+      constructor(url: string) {
+        this.url = url;
+        (FakeEventSource as any).last = this;
+      }
+      addEventListener(type: string, fn: (event: { data: string }) => void) {
+        listeners[type] = fn;
+      }
+      close = close;
+    }
+
+    (globalThis as any).EventSource = FakeEventSource;
+    const onEvent = vi.fn();
+    const onSnapshot = vi.fn();
+    const onPing = vi.fn();
+
+    try {
+      expect(api.buildRunEventsStreamUrl("run 1")).toBe(
+        "/api/agent-loop/runs/run%201/events/stream/v2?live=1",
+      );
+      const unsubscribe = api.subscribeRunEvents("run 1", { onEvent, onSnapshot, onPing });
+      const instance = (FakeEventSource as any).last as FakeEventSource;
+      expect(instance.url).toBe("/api/agent-loop/runs/run%201/events/stream/v2?live=1");
+
+      listeners.event({ data: JSON.stringify({ type: "HEARTBEAT", seq: 1 }) });
+      listeners.snapshot({ data: JSON.stringify({ finalized: false }) });
+      listeners.ping({ data: JSON.stringify({ runId: "run 1" }) });
+
+      expect(onEvent).toHaveBeenCalledWith({ type: "HEARTBEAT", seq: 1 });
+      expect(onSnapshot).toHaveBeenCalledWith({ finalized: false });
+      expect(onPing).toHaveBeenCalledWith({ runId: "run 1" });
+
+      unsubscribe();
+      expect(close).toHaveBeenCalledTimes(1);
+    } finally {
+      if (typeof originalEventSource === "undefined") {
+        delete (globalThis as any).EventSource;
+      } else {
+        (globalThis as any).EventSource = originalEventSource;
+      }
+    }
   });
 
   it("agentloop artifact route truth 111 maps report landing and state actions to distinct safe resources", async () => {

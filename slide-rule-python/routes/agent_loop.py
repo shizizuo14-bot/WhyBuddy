@@ -19,12 +19,17 @@ from services.agent_loop_events import (
     build_event_snapshot,
     format_sse_frame,
     iter_agent_loop_sse_frames,
+    iter_agent_loop_live_v2_sse_frames,
     iter_agent_loop_v2_sse_frames,
 )
 from services.agent_loop_event_store import read_events
 from services.agent_loop_state_reducer import reduce_run_events
 from services.agent_loop_legacy_adapter import read_legacy_events
-from services.agent_loop_bridge import build_agent_loop_command, execute_agent_loop_command
+from services.agent_loop_bridge import (
+    build_agent_loop_command,
+    execute_agent_loop_command,
+    start_agent_loop_background_command,
+)
 from services.agent_loop_settings import (
     load_agent_loop_settings,
     save_agent_loop_settings,
@@ -199,11 +204,17 @@ async def run_events_stream(run_id: str):
 
 
 @router.get("/runs/{run_id}/events/stream/v2")
-async def run_events_stream_v2(run_id: str):
+async def run_events_stream_v2(run_id: str, live: Optional[bool] = False):
     """SSE v2 stream: incremental normalized events (replayed) followed by final reducer snapshot frame.
 
-    Deterministic finite generator. Does not affect the v1 /events/stream snapshot route.
+    Default remains finite replay for deterministic API/tests. Use ?live=1 for long-lived tailing.
     """
+    if live and isinstance(run_id, str) and run_id and len(run_id) >= 3:
+        return StreamingResponse(
+            iter_agent_loop_live_v2_sse_frames(run_id),
+            media_type="text/event-stream",
+        )
+
     if not isinstance(run_id, str) or not run_id or len(run_id) < 3:
         evs = []
     else:
@@ -245,7 +256,7 @@ async def start_queue_run(req: CommandRequest):
         build_kwargs["queue_path"] = queue
 
     cmd_req = build_agent_loop_command(**build_kwargs)
-    receipt = execute_agent_loop_command(cmd_req, dry_run=dry)
+    receipt = execute_agent_loop_command(cmd_req, dry_run=True) if dry else start_agent_loop_background_command(cmd_req)
     # ensure no raw env returned (per do-not)
     data = receipt.model_dump(mode="json") if hasattr(receipt, "model_dump") else dict(receipt)
     if "env" in data:
@@ -271,7 +282,7 @@ async def start_task_run(req: CommandRequest):
         cwd=req.cwd,
         env_overrides=req.env,
     )
-    receipt = execute_agent_loop_command(cmd_req, dry_run=dry)
+    receipt = execute_agent_loop_command(cmd_req, dry_run=True) if dry else start_agent_loop_background_command(cmd_req)
     data = receipt.model_dump(mode="json") if hasattr(receipt, "model_dump") else dict(receipt)
     data.pop("env", None) if "env" in data else None
     return data
@@ -290,7 +301,7 @@ async def rerun_command(req: CommandRequest):
         cwd=req.cwd,
         env_overrides=req.env,
     )
-    receipt = execute_agent_loop_command(cmd_req, dry_run=dry)
+    receipt = execute_agent_loop_command(cmd_req, dry_run=True) if dry else start_agent_loop_background_command(cmd_req)
     data = receipt.model_dump(mode="json") if hasattr(receipt, "model_dump") else dict(receipt)
     data.pop("env", None) if "env" in data else None
     return data

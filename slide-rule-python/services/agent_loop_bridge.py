@@ -13,13 +13,35 @@ Supports:
 """
 
 import os
+import re
 import subprocess
+import threading
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from config.settings import get_settings
 from models.agent_loop import AgentLoopCommandRequest, AgentLoopCommandReceipt
+
+try:
+    from services.agent_loop_process_registry import (
+        append_background_event,
+        heartbeat_background_run,
+        read_background_run_record,
+        register_background_process,
+        unregister_background_process,
+        write_background_run_record,
+    )
+except Exception:  # pragma: no cover - direct module execution fallback
+    from agent_loop_process_registry import (  # type: ignore
+        append_background_event,
+        heartbeat_background_run,
+        read_background_run_record,
+        register_background_process,
+        unregister_background_process,
+        write_background_run_record,
+    )
 
 # 109: centralized redaction (reused)
 try:
@@ -63,6 +85,70 @@ def _redact_command(req: AgentLoopCommandRequest) -> str:
         parts.append(_redact_sensitive_text(a) if a else a)
     joined = " ".join(p for p in parts if p)
     return _redact_sensitive_text(joined)
+
+
+def _iso_now() -> str:
+    return datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+
+def _safe_background_run_id(value: Optional[str] = None) -> str:
+    text = str(value or "").strip()
+    if not text:
+        text = "bridge-" + datetime.now(timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+    text = re.sub(r"[^A-Za-z0-9._-]+", "-", text).strip("-")
+    return text or f"bridge-{int(time.time() * 1000)}"
+
+
+def _heartbeat_interval_seconds() -> float:
+    raw = os.environ.get("AGENT_LOOP_HEARTBEAT_SECONDS")
+    try:
+        parsed = float(raw) if raw is not None else 5.0
+        return parsed if parsed > 0 else 5.0
+    except Exception:
+        return 5.0
+
+
+def _command_env(req: AgentLoopCommandRequest) -> Dict[str, str]:
+    env = os.environ.copy()
+    if req.env:
+        for key, value in req.env.items():
+            if isinstance(key, str) and isinstance(value, str):
+                env[key] = value
+    return env
+
+
+def _watch_background_process(run_id: str, process: Any) -> None:
+    interval = _heartbeat_interval_seconds()
+    while True:
+        try:
+            exit_code = process.poll()
+        except Exception:
+            exit_code = 1
+        if exit_code is not None:
+            ended = _iso_now()
+            status = "exited" if exit_code == 0 else "failed"
+            previous = read_background_run_record(run_id) or {}
+            write_background_run_record(
+                {
+                    **previous,
+                    "runId": run_id,
+                    "pid": getattr(process, "pid", None),
+                    "status": status,
+                    "exitCode": exit_code,
+                    "endedAt": ended,
+                    "heartbeatAt": ended,
+                }
+            )
+            append_background_event(
+                run_id,
+                "RUN_FINALIZED" if exit_code == 0 else "RUN_FAILED",
+                {"pid": getattr(process, "pid", None), "exitCode": exit_code},
+                status=status,
+            )
+            unregister_background_process(run_id)
+            return
+        heartbeat_background_run(run_id)
+        time.sleep(interval)
 
 
 def build_agent_loop_command(
@@ -158,26 +244,14 @@ def execute_agent_loop_command(
         red_rec = redact_command_receipt(rec)
         return AgentLoopCommandReceipt(**red_rec)
 
-    # real execution path (caller must ensure node exists)
     try:
-        env = os.environ.copy()
-        if req.env:
-            # only string values
-            for k, v in req.env.items():
-                if isinstance(v, str):
-                    env[k] = v
-
-        timeout_sec = None
-        if req.timeoutMs is not None:
-            timeout_sec = max(0.1, req.timeoutMs / 1000.0)
-
         result = subprocess.run(
             [req.command] + (req.args or []),
             cwd=req.cwd,
-            env=env,
+            env=_command_env(req),
             capture_output=True,
             text=True,
-            timeout=timeout_sec,
+            timeout=max(0.1, req.timeoutMs / 1000.0) if req.timeoutMs is not None else None,
         )
         ended = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         rec = {
@@ -194,13 +268,13 @@ def execute_agent_loop_command(
         return AgentLoopCommandReceipt(**red_rec)
     except subprocess.TimeoutExpired as te:
         ended = datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
-        stdout_val = _redact_sensitive_text((te.stdout or "") if isinstance(getattr(te, "stdout", None), str) else "") if isinstance(getattr(te, "stdout", None), str) else None
-        stderr_val = _redact_sensitive_text((te.stderr or "") if isinstance(getattr(te, "stderr", None), str) else "")
+        stdout_raw = te.stdout if isinstance(getattr(te, "stdout", None), str) else ""
+        stderr_raw = te.stderr if isinstance(getattr(te, "stderr", None), str) else ""
         rec = {
             "command": redacted,
             "exitCode": None,
-            "stdout": stdout_val,
-            "stderr": stderr_val,
+            "stdout": _redact_sensitive_text(stdout_raw) if stdout_raw else None,
+            "stderr": _redact_sensitive_text(stderr_raw),
             "timedOut": True,
             "startedAt": now,
             "endedAt": ended,
@@ -222,3 +296,95 @@ def execute_agent_loop_command(
         }
         red_rec = redact_command_receipt(rec)
         return AgentLoopCommandReceipt(**red_rec)
+
+
+def start_agent_loop_background_command(
+    req: AgentLoopCommandRequest,
+    *,
+    start_watcher: bool = True,
+) -> AgentLoopCommandReceipt:
+    """Start the bridged AgentLoop command in the background and return immediately."""
+    started = _iso_now()
+    redacted = _redact_command(req)
+    run_id = _safe_background_run_id(req.runId)
+
+    if getattr(get_settings(), "AGENT_LOOP_BRIDGE_DRY_RUN", False):
+        rec = {
+            "command": redacted,
+            "status": "dry-run",
+            "runId": run_id,
+            "pid": None,
+            "exitCode": None,
+            "stdout": None,
+            "stderr": None,
+            "timedOut": False,
+            "startedAt": started,
+            "endedAt": started,
+            "metadata": {"dryRun": True, "background": False, "wouldExecute": False},
+        }
+        red_rec = redact_command_receipt(rec)
+        return AgentLoopCommandReceipt(**red_rec)
+
+    try:
+        process = subprocess.Popen(
+            [req.command] + (req.args or []),
+            cwd=req.cwd,
+            env=_command_env(req),
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            text=True,
+        )
+    except Exception as exc:
+        ended = _iso_now()
+        rec = {
+            "command": redacted,
+            "status": "failed",
+            "runId": run_id,
+            "pid": None,
+            "exitCode": 1,
+            "stdout": None,
+            "stderr": _redact_sensitive_text(str(exc)),
+            "timedOut": False,
+            "startedAt": started,
+            "endedAt": ended,
+            "metadata": {"error": "spawn_failed", "background": False},
+        }
+        red_rec = redact_command_receipt(rec)
+        return AgentLoopCommandReceipt(**red_rec)
+
+    pid = getattr(process, "pid", None)
+    record = {
+        "runId": run_id,
+        "pid": pid,
+        "status": "running",
+        "command": redacted,
+        "cwd": req.cwd,
+        "startedAt": started,
+        "heartbeatAt": started,
+        "exitCode": None,
+        "endedAt": None,
+    }
+    write_background_run_record(record)
+    register_background_process(run_id, process)
+    append_background_event(run_id, "RUN_STARTED", {"pid": pid, "command": redacted}, status="running")
+    append_background_event(run_id, "HEARTBEAT", {"pid": pid}, status="running")
+
+    if start_watcher:
+        watcher = threading.Thread(target=_watch_background_process, args=(run_id, process), daemon=True)
+        watcher.start()
+
+    rec = {
+        "command": redacted,
+        "status": "started",
+        "runId": run_id,
+        "pid": pid,
+        "exitCode": None,
+        "stdout": None,
+        "stderr": None,
+        "timedOut": False,
+        "startedAt": started,
+        "endedAt": None,
+        "metadata": {"background": True},
+    }
+    red_rec = redact_command_receipt(rec)
+    return AgentLoopCommandReceipt(**red_rec)

@@ -19,6 +19,7 @@ try:
     from fastapi.testclient import TestClient
     from app import app
     import services.agent_loop_runs as agent_loop_runs
+    from services.agent_loop_process_registry import write_background_run_record
 except Exception as e:
     pytest.skip(f"app import failed (install requirements.txt first): {e}", allow_module_level=True)
 
@@ -110,21 +111,23 @@ def test_agentloop_queue_overview_reads_queue_and_outcomes(tmp_path, monkeypatch
     resp = client.get("/api/agent-loop/queue/overview")
     assert resp.status_code == 200, resp.text
     data = resp.json()
-    assert data["queueRunning"] is True
+    assert data["queueRunning"] is False
     assert data["counts"]["total"] == 2
     assert data["counts"]["queueTotal"] == 1
-    assert data["counts"]["running"] == 1
+    assert data["counts"]["running"] == 0
     assert len(data["tasks"]) == 2
     assert data["tasks"][0]["id"] == "task-a"
-    assert data["tasks"][0]["running"] is True
-    assert data["tasks"][0]["category"] == "running"
+    assert data["tasks"][0]["running"] is False
+    assert data["tasks"][0]["stale"] is True
+    assert data["tasks"][0]["category"] == "attention"
     assert data["tasks"][1]["enabled"] is False
     assert data["tasks"][1]["outcomeGroup"] == "reviewed"
     assert data["tasks"][1]["category"] == "disabled"
     assert data["counts"]["done"] == 1
     assert data["counts"]["reviewed"] == 1
-    assert data["counts"]["pending"] == 0
+    assert data["counts"]["pending"] == 1
     assert data["current"]["taskLabel"] == "task-a"
+    assert data["current"]["staleRun"] is True
     assert data["current"]["profileName"] == "grok / codex"
 
 
@@ -182,3 +185,270 @@ def test_agentloop_queue_overview_reports_stale_active_queue_when_newer_queue_ex
         "agent-loop/scripts/sliderule-v2-skills-113-queue.json",
     ]
     assert data["tasks"][0]["id"] == "old-113-task"
+
+
+def test_agentloop_queue_overview_prefers_queue_containing_active_latest_task(tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    scripts_dir = repo_root / "agent-loop" / "scripts"
+    tasks_dir = repo_root / "agent-loop" / "tasks"
+    latest_dir = repo_root / ".agent-loop" / "latest"
+    scripts_dir.mkdir(parents=True)
+    tasks_dir.mkdir(parents=True)
+    latest_dir.mkdir(parents=True)
+
+    configured_queue = scripts_dir / "sliderule-v2-hardening-115-queue.json"
+    configured_queue.write_text(
+        json.dumps(
+            {
+                "tasks": [
+                    {"id": "old-115-task", "task": "agent-loop/tasks/old-115-task.md", "enabled": True},
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    active_queue = scripts_dir / "backend-python-total-cutover-105-queue.json"
+    active_queue.write_text(
+        json.dumps(
+            {
+                "tasks": [
+                    {
+                        "id": "backend-python-blueprint-job-store-production-takeover-105",
+                        "task": "agent-loop/tasks/backend-python-blueprint-job-store-production-takeover-105.md",
+                        "enabled": True,
+                    },
+                    {
+                        "id": "backend-python-blueprint-event-bus-stream-takeover-105",
+                        "task": "agent-loop/tasks/backend-python-blueprint-event-bus-stream-takeover-105.md",
+                        "enabled": True,
+                    },
+                ]
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tasks_dir / "old-115-task.md").write_text("# old", encoding="utf-8")
+    (tasks_dir / "backend-python-blueprint-job-store-production-takeover-105.md").write_text("# task 1", encoding="utf-8")
+    (tasks_dir / "backend-python-blueprint-event-bus-stream-takeover-105.md").write_text("# task 2", encoding="utf-8")
+    (latest_dir / "state.json").write_text(
+        json.dumps(
+            {
+                "runId": "2026-06-27T13-43-24-683Z",
+                "status": "GROK_FIX",
+                "options": {
+                    "task": "agent-loop/tasks/backend-python-blueprint-event-bus-stream-takeover-105.md",
+                },
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    (repo_root / ".agent-loop" / "queue-outcomes.json").write_text(
+        json.dumps(
+            {
+                "tasks": {
+                    "backend-python-blueprint-job-store-production-takeover-105": {
+                        "lastStatus": "HALT_HUMAN",
+                        "lastOutcome": "quarantined",
+                        "lastRunId": "2026-06-27T13-38-22-100Z",
+                    },
+                    "backend-python-blueprint-event-bus-stream-takeover-105": {
+                        "lastStatus": "GROK_FIX",
+                        "lastOutcome": "failed",
+                        "lastRunId": "2026-06-27T13-43-24-683Z",
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    settings_file = repo_root / "data" / "agent-loop-settings.json"
+    settings_file.parent.mkdir(parents=True)
+    settings_file.write_text(
+        json.dumps({"queuePath": "agent-loop/scripts/sliderule-v2-hardening-115-queue.json"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGENT_LOOP_SETTINGS_FILE", str(settings_file))
+    monkeypatch.setattr(agent_loop_runs, "_get_repo_root", lambda: repo_root)
+
+    data = agent_loop_runs.get_agent_loop_queue_overview(str(repo_root))
+
+    assert data["queuePath"] == "agent-loop/scripts/backend-python-total-cutover-105-queue.json"
+    assert data["latestQueuePath"] == "agent-loop/scripts/backend-python-total-cutover-105-queue.json"
+    assert data["queueStale"] is False
+    assert data["counts"]["total"] == 3
+    assert data["counts"]["queueTotal"] == 2
+    assert data["tasks"][0]["id"] == "backend-python-blueprint-job-store-production-takeover-105"
+    assert data["tasks"][0]["outcomeGroup"] == "quarantined"
+    assert data["tasks"][0]["category"] == "attention"
+    assert data["tasks"][1]["running"] is False
+    assert data["tasks"][1]["stale"] is True
+    assert data["tasks"][1]["category"] == "attention"
+    assert data["tasks"][2]["id"] == "old-115-task"
+    assert data["tasks"][2]["inQueue"] is False
+    assert data["current"]["taskLabel"] == "backend-python-blueprint-event-bus-stream-takeover-105"
+    assert data["current"]["staleRun"] is True
+
+
+def test_agentloop_queue_overview_includes_all_task_files_not_only_queue_entries(tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    scripts_dir = repo_root / "agent-loop" / "scripts"
+    tasks_dir = repo_root / "agent-loop" / "tasks"
+    scripts_dir.mkdir(parents=True)
+    tasks_dir.mkdir(parents=True)
+    (repo_root / ".agent-loop").mkdir(parents=True)
+
+    queue_file = scripts_dir / "migration-queue.json"
+    queue_file.write_text(
+        json.dumps(
+            {
+                "tasks": [
+                    {"id": "queued-task", "task": "agent-loop/tasks/queued-task.md", "enabled": True},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tasks_dir / "queued-task.md").write_text("# queued", encoding="utf-8")
+    (tasks_dir / "new-unqueued-task.md").write_text("# new unqueued", encoding="utf-8")
+
+    settings_file = repo_root / "data" / "agent-loop-settings.json"
+    settings_file.parent.mkdir(parents=True)
+    settings_file.write_text(
+        json.dumps({"queuePath": "agent-loop/scripts/migration-queue.json"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGENT_LOOP_SETTINGS_FILE", str(settings_file))
+    monkeypatch.setattr(agent_loop_runs, "_get_repo_root", lambda: repo_root)
+
+    data = agent_loop_runs.get_agent_loop_queue_overview(str(repo_root))
+
+    assert data["counts"]["queueTotal"] == 1
+    assert data["counts"]["total"] == 2
+    assert [task["id"] for task in data["tasks"]] == ["queued-task", "new-unqueued-task"]
+    assert data["tasks"][0]["inQueue"] is True
+    assert data["tasks"][0]["category"] == "pending"
+    assert data["tasks"][1]["task"] == "agent-loop/tasks/new-unqueued-task.md"
+    assert data["tasks"][1]["inQueue"] is False
+    assert data["tasks"][1]["enabled"] is True
+    assert data["tasks"][1]["category"] == "pending"
+
+
+def test_agentloop_queue_overview_uses_background_record_and_marks_stale_runs(tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    scripts_dir = repo_root / "agent-loop" / "scripts"
+    tasks_dir = repo_root / "agent-loop" / "tasks"
+    latest_dir = repo_root / ".agent-loop" / "latest"
+    scripts_dir.mkdir(parents=True)
+    tasks_dir.mkdir(parents=True)
+    latest_dir.mkdir(parents=True)
+
+    task_path = "agent-loop/tasks/current-task.md"
+    (scripts_dir / "migration-queue.json").write_text(
+        json.dumps({"tasks": [{"id": "current-task", "task": task_path, "enabled": True}]}),
+        encoding="utf-8",
+    )
+    (tasks_dir / "current-task.md").write_text("# Current task\n", encoding="utf-8")
+    (latest_dir / "state.json").write_text(
+        json.dumps(
+            {
+                "runId": "2026-06-27T01-02-03-004Z",
+                "status": "GROK_FIX",
+                "options": {"task": task_path},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    settings_file = repo_root / "data" / "agent-loop-settings.json"
+    settings_file.parent.mkdir(parents=True)
+    settings_file.write_text(
+        json.dumps({"queuePath": "agent-loop/scripts/migration-queue.json"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGENT_LOOP_SETTINGS_FILE", str(settings_file))
+    monkeypatch.setenv("AGENT_LOOP_CONTROL_DIR", str(repo_root / ".agent-loop" / "control"))
+    monkeypatch.setattr(agent_loop_runs, "_get_repo_root", lambda: repo_root)
+
+    write_background_run_record(
+        {
+            "runId": "bridge-2026-06-27T00-00-00-000Z",
+            "pid": 4567,
+            "status": "running",
+            "startedAt": "2026-06-27T00:00:00.000Z",
+            "heartbeatAt": "2099-01-01T00:00:00.000Z",
+        }
+    )
+
+    running = agent_loop_runs.get_agent_loop_queue_overview(str(repo_root))
+    assert running["queueRunning"] is True
+    assert running["current"]["runId"] == "2026-06-27T01-02-03-004Z"
+    assert running["current"]["backgroundRunId"] == "bridge-2026-06-27T00-00-00-000Z"
+    assert running["current"]["pid"] == 4567
+    assert running["current"]["staleRun"] is False
+
+    write_background_run_record(
+        {
+            "runId": "bridge-2026-06-27T00-00-00-000Z",
+            "pid": 4567,
+            "status": "running",
+            "startedAt": "2026-06-27T00:00:00.000Z",
+            "heartbeatAt": "2000-01-01T00:00:00.000Z",
+        }
+    )
+
+    stale = agent_loop_runs.get_agent_loop_queue_overview(str(repo_root))
+    assert stale["queueRunning"] is False
+    assert stale["current"]["staleRun"] is True
+    assert stale["current"]["backgroundRunId"] == "bridge-2026-06-27T00-00-00-000Z"
+
+
+def test_agentloop_queue_overview_does_not_treat_active_state_as_running_without_background_record(tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    scripts_dir = repo_root / "agent-loop" / "scripts"
+    tasks_dir = repo_root / "agent-loop" / "tasks"
+    latest_dir = repo_root / ".agent-loop" / "latest"
+    scripts_dir.mkdir(parents=True)
+    tasks_dir.mkdir(parents=True)
+    latest_dir.mkdir(parents=True)
+
+    task_path = "agent-loop/tasks/old-active-task.md"
+    (scripts_dir / "migration-queue.json").write_text(
+        json.dumps({"tasks": [{"id": "old-active-task", "task": task_path, "enabled": True}]}),
+        encoding="utf-8",
+    )
+    (tasks_dir / "old-active-task.md").write_text("# Old active task\n", encoding="utf-8")
+    (latest_dir / "state.json").write_text(
+        json.dumps(
+            {
+                "runId": "2026-06-27T13-43-24-683Z",
+                "status": "GROK_FIX",
+                "options": {"task": task_path},
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+    settings_file = repo_root / "data" / "agent-loop-settings.json"
+    settings_file.parent.mkdir(parents=True)
+    settings_file.write_text(
+        json.dumps({"queuePath": "agent-loop/scripts/migration-queue.json"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGENT_LOOP_SETTINGS_FILE", str(settings_file))
+    monkeypatch.setenv("AGENT_LOOP_CONTROL_DIR", str(repo_root / ".agent-loop" / "control"))
+    monkeypatch.setattr(agent_loop_runs, "_get_repo_root", lambda: repo_root)
+
+    data = agent_loop_runs.get_agent_loop_queue_overview(str(repo_root))
+
+    assert data["queueRunning"] is False
+    assert data["counts"]["running"] == 0
+    assert data["tasks"][0]["running"] is False
+    assert data["tasks"][0]["stale"] is True
+    assert data["tasks"][0]["category"] == "attention"
+    assert data["current"]["runId"] == "2026-06-27T13-43-24-683Z"
+    assert data["current"]["backgroundRunId"] is None
+    assert data["current"]["staleRun"] is True

@@ -12,7 +12,9 @@ import {
   runQueue,
   runSingleTask,
   saveSettings,
+  subscribeRunEvents,
 } from "./dashboard/agentLoopApi";
+import type { RunEventSubscriptionHandlers } from "./dashboard/agentLoopApi";
 import type { DetailPayload, OverviewPayload } from "./dashboard/dashboardTypes";
 import { normalizeSettingsForUI } from "./dashboard/agentLoopApi";
 import brandLogo from "./dashboard/sliderule-brand.svg";
@@ -74,6 +76,37 @@ export function parseAgentLoopLocation(location: string): AgentLoopRouteState {
   return { kind: "sliderule" };
 }
 
+export function resolveAgentLoopLiveEventRunId(
+  overview: OverviewPayload | null,
+  route: AgentLoopRouteState,
+): string | null {
+  if (route.kind === "sliderule" || route.kind === "settings") return null;
+  const backgroundRunId = (overview?.current as any)?.backgroundRunId;
+  if (backgroundRunId) return String(backgroundRunId);
+  return route.kind === "detail" ? route.runId : null;
+}
+
+export function shouldLoadAgentLoopOverview(route: AgentLoopRouteState): boolean {
+  return route.kind === "workbench";
+}
+
+export function shouldPollAgentLoopOverview(
+  overview: OverviewPayload | null,
+  route: AgentLoopRouteState,
+  currentRunId: string | null,
+): boolean {
+  if (route.kind !== "workbench" && route.kind !== "detail") return false;
+  return Boolean(overview?.queueRunning || (overview?.current as any)?.staleRun === false || currentRunId);
+}
+
+export function createAgentLoopLiveEventHandlers(refreshCurrentView: () => void): RunEventSubscriptionHandlers {
+  return {
+    onEvent: refreshCurrentView,
+    onSnapshot: refreshCurrentView,
+    onError: refreshCurrentView,
+  };
+}
+
 function useSafeLocation(): [string, (next: string) => void] {
   if (typeof window === "undefined" || typeof location === "undefined") {
     return [getAgentLoopWorkbenchPath(), () => undefined];
@@ -103,6 +136,9 @@ export default function AgentLoopPage() {
   if (route.kind === "detail") {
     detailRunIdRef.current = route.runId;
   }
+
+  const currentRunId = resolveAgentLoopLiveEventRunId(overview, route);
+  const shouldPollOverview = shouldPollAgentLoopOverview(overview, route, currentRunId);
 
   async function loadOverview() {
     setError(null);
@@ -139,6 +175,9 @@ export default function AgentLoopPage() {
   function showDashboardView(next: DashboardRouteView) {
     detailRunIdRef.current = null;
     setDetail(null);
+    if (next === "sliderule" || next === "settings") {
+      setOverview(null);
+    }
     if (next === "sliderule") {
       setLocation(getAgentLoopSliderulePath());
     } else {
@@ -178,17 +217,49 @@ export default function AgentLoopPage() {
     if (!mounted) return;
     if (route.kind === "detail") {
       void openDetail(route.runId);
-    } else {
+    } else if (shouldLoadAgentLoopOverview(route)) {
       detailRunIdRef.current = null;
       setDetail(null);
       void loadOverview();
+    } else {
+      detailRunIdRef.current = null;
+      setDetail(null);
+      setOverview(null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mounted, location]);
 
   useEffect(() => {
+    if (!mounted || !currentRunId) return undefined;
+    const refreshCurrentView = () => {
+      if (viewRef.current === "detail" && detailRunIdRef.current) {
+        void openDetail(detailRunIdRef.current);
+      } else {
+        void loadOverview();
+      }
+    };
+    return subscribeRunEvents(String(currentRunId), createAgentLoopLiveEventHandlers(refreshCurrentView));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, currentRunId]);
+
+  useEffect(() => {
+    if (!mounted || !shouldPollOverview) return undefined;
+    const timer = window.setInterval(() => {
+      if (viewRef.current === "detail" && detailRunIdRef.current) {
+        void openDetail(detailRunIdRef.current);
+      } else {
+        void loadOverview();
+      }
+    }, 4000);
+    return () => window.clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, shouldPollOverview, currentRunId]);
+
+  useEffect(() => {
     setMounted(true);
-    void loadOverview();
+    if (shouldLoadAgentLoopOverview(route)) {
+      void loadOverview();
+    }
 
     setCommandHandler((type, extra) => {
       switch (type) {

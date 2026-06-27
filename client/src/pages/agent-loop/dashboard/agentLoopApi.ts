@@ -31,6 +31,13 @@ export type AgentLoopRunSummary = {
   runTimeUtc?: string | null;
 };
 
+export type RunEventSubscriptionHandlers = {
+  onEvent?: (payload: Record<string, unknown>) => void;
+  onSnapshot?: (payload: Record<string, unknown>) => void;
+  onPing?: (payload: Record<string, unknown>) => void;
+  onError?: (error: unknown) => void;
+};
+
 function shortTaskLabel(taskPath: string | null | undefined): string {
   if (!taskPath) return "-";
   return (taskPath.split("/").pop() || taskPath).replace(/\.md$/, "");
@@ -58,6 +65,35 @@ async function getJson<T>(url: string): Promise<T> {
     throw new Error(`${short} → HTTP ${res.status}`);
   }
   return (await res.json()) as T;
+}
+
+function parseSseJson(event: MessageEvent): Record<string, unknown> {
+  try {
+    const parsed = JSON.parse(String(event?.data || "{}"));
+    return parsed && typeof parsed === "object" ? parsed as Record<string, unknown> : {};
+  } catch {
+    return {};
+  }
+}
+
+export function buildRunEventsStreamUrl(runId: string, live = true): string {
+  const suffix = live ? "?live=1" : "";
+  return `${BASE}/runs/${encodeURIComponent(runId)}/events/stream/v2${suffix}`;
+}
+
+export function subscribeRunEvents(
+  runId: string | null | undefined,
+  handlers: RunEventSubscriptionHandlers = {},
+): () => void {
+  if (!runId || typeof EventSource === "undefined") {
+    return () => undefined;
+  }
+  const source = new EventSource(buildRunEventsStreamUrl(String(runId), true));
+  source.addEventListener("event", (event) => handlers.onEvent?.(parseSseJson(event as MessageEvent)));
+  source.addEventListener("snapshot", (event) => handlers.onSnapshot?.(parseSseJson(event as MessageEvent)));
+  source.addEventListener("ping", (event) => handlers.onPing?.(parseSseJson(event as MessageEvent)));
+  source.onerror = (error) => handlers.onError?.(error);
+  return () => source.close();
 }
 
 // ---- Overview -------------------------------------------------------------
