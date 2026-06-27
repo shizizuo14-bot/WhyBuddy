@@ -89,6 +89,85 @@ describe("AgentLoopPage", () => {
 
     expect(html).toContain('href="/agent-loop/runs/run%201"');
   });
+
+  it("renders the workbench as a queue cockpit with metrics, toolbar, and task inspector", () => {
+    const html = renderToStaticMarkup(
+      <DashboardApp
+        payload={{
+          counts: {
+            queueTotal: 56,
+            total: 56,
+            running: 0,
+          },
+          queuePath: "agent-loop/scripts/sliderule-v2-hardening-115-queue.json",
+          tasks: [
+            {
+              id: "sliderule-v2-hardening-scope-115",
+              task: "agent-loop/tasks/sliderule-v2-hardening-scope-115.md",
+              statusLabel: "DONE_REVIEWED",
+              outcomeGroup: "reviewed",
+              fixAgent: "grok",
+              reviewAgent: "codex",
+              branch: "agent-loop/sliderule-v2-hardening-115-run",
+              diffBytes: 11264,
+              lastUpdatedText: "2026-06-26 22:13:41",
+              lastRunId: "2026-06-26T22-10-29-045Z",
+            },
+          ],
+        }}
+        getTaskRunPath={getAgentLoopRunPath}
+        onOpenTask={vi.fn()}
+      />,
+    );
+
+    expect(html).toContain("native-workbench-hero");
+    expect(html).toContain("native-workbench-metrics");
+    expect((html.match(/native-metric-card/g) || []).length).toBeGreaterThanOrEqual(4);
+    expect(html).toContain("native-table-toolbar");
+    expect(html).toContain("native-task-inspector");
+    expect(html).toContain("native-inspector-timeline");
+    expect(html).toContain('href="/agent-loop/runs/2026-06-26T22-10-29-045Z"');
+    expect(html).toContain("sliderule-v2-hardening-115-queue.json");
+    expect(html).toContain("sliderule-v2-hardening-scope-115");
+  });
+
+  it("does not double count reviewed tasks in the landed metric", () => {
+    const tasks = [
+      ...Array.from({ length: 52 }, (_, index) => ({
+        id: `reviewed-${index}`,
+        task: `agent-loop/tasks/reviewed-${index}.md`,
+        statusLabel: "DONE_REVIEWED",
+        outcomeGroup: "reviewed",
+        category: "landed",
+      })),
+      ...Array.from({ length: 4 }, (_, index) => ({
+        id: `attention-${index}`,
+        task: `agent-loop/tasks/attention-${index}.md`,
+        statusLabel: "HALT_HUMAN",
+        outcomeGroup: "rescuePatch",
+        category: "attention",
+      })),
+    ];
+
+    const html = renderToStaticMarkup(
+      <DashboardApp
+        payload={{
+          counts: {
+            queueTotal: 56,
+            total: 56,
+            done: 52,
+            reviewed: 52,
+            failed: 4,
+          },
+          tasks,
+        }}
+        getTaskRunPath={getAgentLoopRunPath}
+      />,
+    );
+
+    expect(html).toMatch(/已落地[\s\S]*native-metric-value">52<\/div>/);
+    expect(html).not.toContain("已落地104");
+  });
 });
 
 describe("agentLoopApi (wired capabilities)", () => {

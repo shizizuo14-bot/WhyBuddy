@@ -36,7 +36,6 @@ import {
   Row,
   Select,
   Space,
-  Statistic,
   Steps,
   Switch,
   Table,
@@ -252,6 +251,22 @@ function filterCount(tasks: OverviewTask[], filter: FilterKey, counts: OverviewP
   return tasks.filter((task) => taskCategory(task) === filter).length;
 }
 
+function landedCount(counts: OverviewPayload['counts'], tasks: OverviewTask[] = []): number {
+  const fromTasks = tasks.filter((task) => taskCategory(task) === 'landed').length;
+  if (tasks.length > 0) return fromTasks;
+  return Math.max(
+    countValue(counts, 'done'),
+    countValue(counts, 'applied'),
+    countValue(counts, 'reviewed'),
+    countValue(counts, 'manualRescueLanded'),
+    countValue(counts, 'noDiff'),
+  );
+}
+
+function attentionCount(counts: OverviewPayload['counts'], tasks: OverviewTask[] = []): number {
+  return countValue(counts, 'attention') || tasks.filter((task) => taskCategory(task) === 'attention').length;
+}
+
 function OverviewHeader({ payload, settings }: { payload: OverviewPayload; settings?: AgentLoopSettingsViewModel | null }) {
   const queueRunning = Boolean(payload.queueRunning);
   const queueTotal = countValue(payload.counts, 'queueTotal') || queueTasks(payload.tasks || []).length;
@@ -275,33 +290,32 @@ function OverviewHeader({ payload, settings }: { payload: OverviewPayload; setti
   };
 
   return (
-    <Card>
-      <Row align="middle" justify="space-between" gutter={[16, 16]}>
-        <Col flex="auto">
-          <Title level={3}>AgentLoop 控制台</Title>
-          <Text type="secondary">{queueTotal} 个队列任务 / {total} 个全部任务</Text>
+    <section className="native-workbench-hero">
+      <div className="native-hero-title-row">
+        <div className="native-hero-copy">
+          <Text type="secondary" className="native-hero-eyebrow">AgentLoop Workbench</Text>
+          <Title level={2}>任务队列驾驶舱</Title>
+          <Text type="secondary">{queueTotal} 个队列任务 / {total} 个全部任务，本地运行、审查、落地集中在这里看。</Text>
           {(ap || f || r) && (
-            <div style={{ marginTop: 4 }}>
+            <div className="native-hero-tags">
               <Tag color="blue">活跃设置</Tag>
               {ap ? <Tag>Profile: {ap}</Tag> : null}
               {(f || r) ? <Tag>Agent: {f || 'grok'} / {r || 'codex'}</Tag> : null}
             </div>
           )}
-        </Col>
-        <Col>
-          <Space wrap>
-            <Tag color={queueRunning ? 'processing' : 'default'}>{queueRunning ? '运行中' : '待命'}</Tag>
-            {queueRunning ? (
-              <Button danger onClick={() => postCommand('stopRun')}>停止</Button>
-            ) : (
-              <Button type="primary" onClick={() => postCommand('runQueue', rtOpts)}>运行队列</Button>
-            )}
-            <Button onClick={() => postCommand('refresh')}>刷新</Button>
-          </Space>
-        </Col>
-      </Row>
+        </div>
+        <Space wrap className="native-hero-actions">
+          <Tag color={queueRunning ? 'processing' : 'default'}>{queueRunning ? '运行中' : '待命'}</Tag>
+          {queueRunning ? (
+            <Button danger onClick={() => postCommand('stopRun')}>停止</Button>
+          ) : (
+            <Button type="primary" icon={<PlayCircleFilled />} onClick={() => postCommand('runQueue', rtOpts)}>运行队列</Button>
+          )}
+          <Button icon={<ReloadOutlined />} onClick={() => postCommand('refresh')}>刷新</Button>
+        </Space>
+      </div>
       {hasQueuePath ? (
-        <div style={{ marginTop: 12 }}>
+        <div className="native-queue-path-row">
           <Space wrap size={[8, 8]}>
             <Tag color={queueStale ? 'warning' : 'default'}>当前队列</Tag>
             <Text code>{queueName(activeQueuePath)}</Text>
@@ -328,6 +342,31 @@ function OverviewHeader({ payload, settings }: { payload: OverviewPayload; setti
           }
         />
       ) : null}
+    </section>
+  );
+}
+
+function MetricCard({
+  icon,
+  title,
+  value,
+  hint,
+  tone,
+}: {
+  icon: React.ReactNode;
+  title: string;
+  value: number;
+  hint: string;
+  tone: 'blue' | 'green' | 'orange' | 'purple';
+}) {
+  return (
+    <Card className={`native-metric-card native-metric-card-${tone}`} variant="borderless">
+      <div className="native-metric-card-head">
+        <span className="native-metric-icon">{icon}</span>
+        <Text type="secondary">{title}</Text>
+      </div>
+      <div className="native-metric-value">{value}</div>
+      <Text type="secondary" className="native-metric-hint">{hint}</Text>
     </Card>
   );
 }
@@ -337,35 +376,17 @@ function SummaryStats({ payload }: { payload: OverviewPayload }) {
   const tasks = payload.tasks || [];
   const queueTotal = countValue(counts, 'queueTotal') || queueTasks(tasks).length;
   const total = countValue(counts, 'total') || tasks.length;
-  const landed = countValue(counts, 'done')
-    + countValue(counts, 'applied')
-    + countValue(counts, 'reviewed')
-    + countValue(counts, 'manualRescueLanded')
-    + countValue(counts, 'noDiff');
+  const landed = landedCount(counts, tasks);
+  const running = countValue(counts, 'running') || tasks.filter((task) => task.running).length;
+  const attention = attentionCount(counts, tasks);
 
   return (
-    <Row gutter={[16, 16]}>
-      <Col xs={12} lg={6}>
-        <Card>
-          <Statistic title="队列任务" value={queueTotal} />
-        </Card>
-      </Col>
-      <Col xs={12} lg={6}>
-        <Card>
-          <Statistic title="全部任务" value={total} />
-        </Card>
-      </Col>
-      <Col xs={12} lg={6}>
-        <Card>
-          <Statistic title="运行中" value={countValue(counts, 'running')} />
-        </Card>
-      </Col>
-      <Col xs={12} lg={6}>
-        <Card>
-          <Statistic title="已落地" value={landed} />
-        </Card>
-      </Col>
-    </Row>
+    <div className="native-workbench-metrics">
+      <MetricCard icon={<SnippetsOutlined />} title="队列任务" value={queueTotal} hint={`全部 ${total} 个任务`} tone="blue" />
+      <MetricCard icon={<PlayCircleFilled />} title="运行中" value={running} hint={payload.queueRunning ? '队列正在推进' : '当前没有运行'} tone="green" />
+      <MetricCard icon={<ClockCircleOutlined />} title="需关注" value={attention} hint="失败、冲突、接管会出现在这里" tone="orange" />
+      <MetricCard icon={<FileDoneOutlined />} title="已落地" value={landed} hint="通过审查或已应用到主线" tone="purple" />
+    </div>
   );
 }
 
@@ -399,11 +420,13 @@ function QueueTable({
     {
       title: '状态',
       key: 'status',
+      width: 86,
       render: (_, task) => <Tag color={statusColor(task)}>{statusLabel(task)}</Tag>,
     },
     {
       title: '任务',
       key: 'task',
+      width: 330,
       render: (_, task) => (
         <Space direction="vertical" size={0}>
           <Typography.Link href={taskHref(task)} onClick={(event) => openTask(event, task)}>
@@ -418,26 +441,35 @@ function QueueTable({
     {
       title: 'Agent',
       key: 'agent',
-      render: (_, task) => task.agent || formatAgentPair(task),
+      width: 100,
+      render: (_, task) => <span className="native-nowrap">{task.agent || formatAgentPair(task)}</span>,
     },
     {
       title: '分支',
       key: 'branch',
-      render: (_, task) => task.branch || '-',
+      width: 150,
+      render: (_, task) => (
+        <Text className="native-branch-cell" ellipsis={{ tooltip: task.branch || '-' }}>
+          {task.branch || '-'}
+        </Text>
+      ),
     },
     {
       title: '变更',
       key: 'diff',
-      render: (_, task) => formatBytes(task.diffBytes),
+      width: 70,
+      render: (_, task) => <span className="native-nowrap">{formatBytes(task.diffBytes)}</span>,
     },
     {
       title: '最后更新',
       key: 'updated',
+      width: 112,
       render: (_, task) => task.lastUpdatedText || '-',
     },
     {
       title: '操作',
       key: 'action',
+      width: 70,
       render: (_, task) => (
         <Space>
           <Button size="small" href={taskHref(task)} onClick={(event) => openTask(event, task)}>详情</Button>
@@ -451,10 +483,13 @@ function QueueTable({
 
   return (
     <Table
+      className="native-workbench-table"
       rowKey={(task) => task.id || task.task}
       columns={columns}
       dataSource={tasks}
       pagination={{ pageSize: PAGE_SIZE }}
+      scroll={{ x: 918 }}
+      tableLayout="fixed"
     />
   );
 }
@@ -475,33 +510,145 @@ function CurrentRun({ current }: { current: OverviewPayload['current'] }) {
   );
 }
 
-function SidePanel({ payload, settings }: { payload: OverviewPayload; settings?: AgentLoopSettingsViewModel | null }) {
+function TaskInspector({
+  payload,
+  settings,
+  task,
+  getTaskRunPath,
+  onOpenTask,
+}: {
+  payload: OverviewPayload;
+  settings?: AgentLoopSettingsViewModel | null;
+  task: OverviewTask | null;
+  getTaskRunPath?: (runId: string) => string;
+  onOpenTask?: (taskPath: string, runId?: string | null) => void;
+}) {
   const counts = payload.counts || {};
   const tasks = payload.tasks || [];
   const total = countValue(counts, 'total') || tasks.length || 1;
-  const landed = countValue(counts, 'done')
-    + countValue(counts, 'applied')
-    + countValue(counts, 'reviewed')
-    + countValue(counts, 'manualRescueLanded')
-    + countValue(counts, 'noDiff');
+  const landed = landedCount(counts, tasks);
   const progress = Math.min(100, Math.round((landed / total) * 100));
   const eff = (settings && (settings.nonSensitive || settings)) || {};
   const profLabel = settings?.activeProfile || (eff as any).activeProfile;
+  const status = task ? statusLabel(task) : '空闲';
+  const tone = task ? statusColor(task) : 'default';
+  const runId = task ? taskRunCandidate(task) : '';
+  const taskHref = task && getTaskRunPath && runId ? getTaskRunPath(runId) : undefined;
+  const taskDone = task ? taskCategory(task) === 'landed' : false;
+  const taskProgress = taskDone ? 100 : task?.running ? 68 : task ? 34 : 0;
+  const openTask = (event: React.MouseEvent) => {
+    if (!task) return;
+    if (onOpenTask) {
+      event.preventDefault();
+      onOpenTask(task.task, runId);
+      return;
+    }
+    postCommand('openTask', { taskPath: task.task, runId: task.lastRunId || task.id });
+  };
 
   return (
-    <Space direction="vertical" size="middle" className="native-side">
-      <Card title="当前任务">
+    <Card
+      className="native-task-inspector"
+      variant="borderless"
+      title="当前任务"
+      extra={<Tag color={tone}>{status}</Tag>}
+    >
+      <div className="native-inspector-current">
         <CurrentRun current={payload.current || null} />
-        {profLabel ? <Text type="secondary" style={{ fontSize: 12 }}>Profile: {profLabel}</Text> : null}
-      </Card>
-      <Card>
+      </div>
+
+      {task ? (
         <Space direction="vertical" size="middle" className="native-side">
-          <Statistic title="待处理" value={filterCount(tasks, 'pending', counts)} />
-          <Statistic title="需关注" value={filterCount(tasks, 'attention', counts)} />
-          <Progress percent={progress} status={progress >= 100 ? 'success' : 'active'} />
+          <div>
+            <Typography.Link href={taskHref} onClick={openTask} className="native-inspector-task-title">
+              {taskLabel(task)}
+            </Typography.Link>
+            <Text type="secondary" className="native-task-path native-inspector-task-path" ellipsis={{ tooltip: task.task }}>
+              {task.task}
+            </Text>
+          </div>
+
+          <div className="native-inspector-meta">
+            <div>
+              <Text type="secondary">Agent</Text>
+              <Text strong>{task.agent || formatAgentPair(task)}</Text>
+            </div>
+            <div>
+              <Text type="secondary">分支</Text>
+              <Text strong ellipsis={{ tooltip: task.branch || '-' }}>{task.branch || '-'}</Text>
+            </div>
+            <div>
+              <Text type="secondary">最后更新</Text>
+              <Text strong>{task.lastUpdatedText || '-'}</Text>
+            </div>
+          </div>
+
+          <div className="native-inspector-kpis">
+            <div>
+              <span>{formatBytes(task.diffBytes)}</span>
+              <Text type="secondary">变更量</Text>
+            </div>
+            <div>
+              <span>{runId ? '1' : '0'}</span>
+              <Text type="secondary">运行记录</Text>
+            </div>
+            <div>
+              <span>{task.enabled === false ? '停用' : '启用'}</span>
+              <Text type="secondary">队列状态</Text>
+            </div>
+          </div>
+
+          <div>
+            <div className="native-inspector-progress-head">
+              <Text type="secondary">任务推进</Text>
+              <Text strong>{taskProgress}%</Text>
+            </div>
+            <Progress percent={taskProgress} showInfo={false} status={taskDone ? 'success' : task?.running ? 'active' : 'normal'} />
+          </div>
+
+          <div className="native-inspector-summary">
+            <Text type="secondary">
+              {taskDone
+                ? '这条任务已经进入已审查或已落地状态，可以从详情继续核对证据。'
+                : '这条任务还需要继续跑队列或人工核查，优先看运行记录和变更分支。'}
+            </Text>
+          </div>
+
+          <div className="native-inspector-timeline">
+            <div className="native-inspector-timeline-item native-inspector-timeline-item-done">
+              <span />
+              <Text>任务载入</Text>
+            </div>
+            <div className={`native-inspector-timeline-item ${taskDone || task?.running ? 'native-inspector-timeline-item-done' : ''}`}>
+              <span />
+              <Text>执行 / 审查</Text>
+            </div>
+            <div className={`native-inspector-timeline-item ${taskDone ? 'native-inspector-timeline-item-done' : ''}`}>
+              <span />
+              <Text>落地校验</Text>
+            </div>
+          </div>
+
+          <Button block href={taskHref} onClick={openTask}>
+            打开详情
+          </Button>
         </Space>
-      </Card>
-    </Space>
+      ) : (
+        <Empty image={Empty.PRESENTED_IMAGE_SIMPLE} description="暂无任务" />
+      )}
+
+      <div className="native-inspector-footer">
+        <div>
+          <Text type="secondary">整体进度</Text>
+          <Progress percent={progress} status={progress >= 100 ? 'success' : 'active'} />
+        </div>
+        <div className="native-inspector-footer-row">
+          <Text type="secondary">待处理 {filterCount(tasks, 'pending', counts)}</Text>
+          <Text type="secondary">需关注 {filterCount(tasks, 'attention', counts)}</Text>
+        </div>
+        {profLabel ? <Text type="secondary" className="native-inspector-profile">Profile: {profLabel}</Text> : null}
+      </div>
+    </Card>
   );
 }
 
@@ -598,6 +745,7 @@ export function DashboardApp({
 
   const tasks = payload.tasks || [];
   const visibleTasks = useMemo(() => filterTasks(tasks, filter, query), [tasks, filter, query]);
+  const inspectorTask = visibleTasks[0] || queueTasks(tasks)[0] || tasks[0] || null;
   const tabItems = CATEGORY_ORDER.map((key) => ({
     key,
     label: `${FILTER_LABELS[key]} ${filterCount(tasks, key, payload.counts)}`,
@@ -748,16 +896,25 @@ export function DashboardApp({
   };
 
   const workbenchContent = (
-    <Space direction="vertical" size="middle" className="native-stack">
+    <div className="native-workbench-shell">
       <OverviewHeader payload={payload} settings={settingsData} />
       <SummaryStats payload={payload} />
-      <Row gutter={[16, 16]} align="top">
-        <Col xs={24} xl={18}>
-          <Card
-            title="任务列表"
-            extra={<Input.Search placeholder="搜索任务" allowClear onChange={(event) => setQuery(event.target.value)} />}
-          >
+      <Row gutter={[18, 18]} align="top" className="native-workbench-grid">
+        <Col xs={24} xl={17} xxl={18}>
+          <Card className="native-task-table-card" variant="borderless">
+            <div className="native-table-toolbar">
+              <div className="native-table-toolbar-copy">
+                <Title level={4}>任务列表</Title>
+                <Text type="secondary">按状态、Agent、分支快速定位当前队列任务。</Text>
+              </div>
+              <Space wrap className="native-table-toolbar-actions">
+                <Input.Search placeholder="搜索任务" allowClear onChange={(event) => setQuery(event.target.value)} />
+                <Button icon={<SnippetsOutlined />}>筛选</Button>
+                <Button icon={<SettingOutlined />} aria-label="表格设置" />
+              </Space>
+            </div>
             <Tabs
+              className="native-table-tabs"
               activeKey={filter}
               items={tabItems}
               onChange={(next) => setFilter(next as FilterKey)}
@@ -765,11 +922,17 @@ export function DashboardApp({
             <QueueTable tasks={visibleTasks} getTaskRunPath={getTaskRunPath} onOpenTask={onOpenTask} />
           </Card>
         </Col>
-        <Col xs={24} xl={6}>
-          <SidePanel payload={payload} settings={settingsData} />
+        <Col xs={24} xl={7} xxl={6}>
+          <TaskInspector
+            payload={payload}
+            settings={settingsData}
+            task={inspectorTask}
+            getTaskRunPath={getTaskRunPath}
+            onOpenTask={onOpenTask}
+          />
         </Col>
       </Row>
-    </Space>
+    </div>
   );
 
   return (
