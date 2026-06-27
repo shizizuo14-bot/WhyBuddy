@@ -369,7 +369,7 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
 
     if (postFixGate.ok) {
       if (options.skipReview) {
-        if (options.guardTests && iterationRecord.diffGuard.hasFindings) {
+        if (options.guardTests && shouldHaltForGuardTests(iterationRecord.diffGuard, { allowAdvisory: false })) {
           await transition('HALT_HUMAN', {
             iterations,
             ...legacyFixPatch,
@@ -397,7 +397,7 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
         deferPassFinalize: true,
       });
       if (review.kind === 'pass') {
-        if (options.guardTests && iterationRecord.diffGuard.hasFindings) {
+        if (options.guardTests && shouldHaltForGuardTests(iterationRecord.diffGuard, { allowAdvisory: true })) {
           await transition('HALT_HUMAN', {
             ...review.reviewSnapshot,
             iterations,
@@ -427,7 +427,7 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
       return finalizeState(state, options);
     }
 
-    if (options.guardTests && iterationRecord.diffGuard.hasFindings) {
+    if (options.guardTests && shouldHaltForGuardTests(iterationRecord.diffGuard, { allowAdvisory: true })) {
       await transition('HALT_HUMAN', {
         iterations,
         ...legacyFixPatch,
@@ -455,6 +455,13 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
 
   await transition('HALT_BUDGET', { iterations });
   return finalizeState(state, options);
+}
+
+function shouldHaltForGuardTests(diffGuard, { allowAdvisory = false } = {}) {
+  if (!diffGuard) return false;
+  if (!allowAdvisory) return Boolean(diffGuard.hasFindings);
+  if (typeof diffGuard.hasBlockingFindings === 'boolean') return diffGuard.hasBlockingFindings;
+  return Boolean(diffGuard.hasFindings);
 }
 
 async function runFixAttempt({

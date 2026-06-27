@@ -857,7 +857,68 @@ test('runLoop halts when guardTests sees protected test tampering', async () => 
   assert.equal(result.iterations[0].diffGuard.hasFindings, true);
 });
 
-test('runLoop runs post-fix review before guardTests quarantine', async () => {
+test('runLoop allows reviewed protected test additions without guardTests quarantine', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-test-'));
+  const taskPath = path.join(cwd, 'task.md');
+  await fs.writeFile(taskPath, 'fix gate to green\n\n## Acceptance criteria\n\n- gate green\n', 'utf8');
+
+  const gateResults = [
+    gate(false, 1, '1 failed'),
+    gate(true, 0, ''),
+  ];
+  const diffs = [
+    '',
+    protectedTestAdditionDiff(),
+  ];
+  const transitions = [];
+  let codexCalls = 0;
+
+  const result = await runLoop({
+    options: {
+      cwd,
+      fixCwd: cwd,
+      createWorktree: null,
+      task: taskPath,
+      gates: ['npm test'],
+      autoFix: true,
+      skipReview: false,
+      fixAgent: 'grok',
+      reviewAgent: 'codex',
+      scopedReview: true,
+      timeoutMs: 1000,
+      maxIterations: 1,
+      guardTests: true,
+    },
+    runDir: cwd,
+    latestDir: cwd,
+    deps: {
+      resolveAgents: async () => ({ codex: 'codex.exe', grok: 'grok.exe' }),
+      evaluateGate: async () => gateResults.shift(),
+      captureDiff: async () => ({ text: diffs.shift() ?? diffs.at(-1) }),
+      runProcess: async (command, args, options) => {
+        if (command === 'grok.exe') return runOk(command, args, options.cwd, '{"verdict":"changed"}');
+        codexCalls++;
+        return runOk(command, args, options.cwd, '{"verdict":"pass","summary":"reviewed","findings":[]}');
+      },
+      writeArtifact: artifactWriter(cwd),
+      onState: async (state) => transitions.push(state.status),
+    },
+  });
+
+  assert.equal(result.status, 'DONE_REVIEWED');
+  assert.equal(result.guardReason, undefined);
+  assert.equal(codexCalls, 1);
+  assert.equal(result.reviewRounds.length, 1);
+  assert.equal(result.reviewRounds[0].decision, 'pass');
+  assert.equal(result.iterations[0].diffGuard.hasFindings, true);
+  assert.equal(result.iterations[0].diffGuard.hasBlockingFindings, false);
+  assert.deepEqual(
+    transitions.filter((status) => status === 'POST_FIX_GATE_RESULT' || status === 'CODEX_REVIEW' || status === 'DONE_REVIEWED'),
+    ['POST_FIX_GATE_RESULT', 'CODEX_REVIEW', 'DONE_REVIEWED']
+  );
+});
+
+test('runLoop still quarantines reviewed protected test net deletions', async () => {
   const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-test-'));
   const taskPath = path.join(cwd, 'task.md');
   await fs.writeFile(taskPath, 'fix gate to green\n\n## Acceptance criteria\n\n- gate green\n', 'utf8');
@@ -910,6 +971,7 @@ test('runLoop runs post-fix review before guardTests quarantine', async () => {
   assert.equal(codexCalls, 1);
   assert.equal(result.reviewRounds.length, 1);
   assert.equal(result.reviewRounds[0].decision, 'pass');
+  assert.equal(result.iterations[0].diffGuard.hasBlockingFindings, true);
   assert.deepEqual(
     transitions.filter((status) => status === 'POST_FIX_GATE_RESULT' || status === 'CODEX_REVIEW' || status === 'HALT_HUMAN'),
     ['POST_FIX_GATE_RESULT', 'CODEX_REVIEW', 'HALT_HUMAN']
@@ -2098,5 +2160,17 @@ function protectedTestDiff() {
 -  assert.equal(value, 2);
 -});
 +test('keeps strict behavior', () => {});
+`;
+}
+
+function protectedTestAdditionDiff() {
+  return `diff --git a/src/example.test.js b/src/example.test.js
+--- a/src/example.test.js
++++ b/src/example.test.js
+@@ -1 +1,4 @@
+ import assert from 'node:assert/strict';
++test('keeps strict behavior covered', () => {
++  assert.equal(value, 2);
++});
 `;
 }

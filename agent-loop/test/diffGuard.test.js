@@ -15,11 +15,33 @@ index 1111111..2222222 100644
 `);
 
   assert.equal(result.hasFindings, true);
+  assert.equal(result.hasBlockingFindings, true);
   assert.deepEqual(result.files.map((file) => file.path), ['src/example.test.js']);
   assert.equal(result.files[0].protected, true);
   assert.equal(result.files[0].netDeletedLines, 2);
   assert.equal(result.findings.some((finding) => finding.reason === 'protected_path_changed'), true);
   assert.equal(result.findings.some((finding) => finding.reason === 'protected_file_net_deletion'), true);
+  assert.equal(result.blockingFindings.length, 2);
+});
+
+test('analyzeDiffGuard treats protected test additions as advisory when no lines are net-deleted', () => {
+  const result = analyzeDiffGuard(`diff --git a/src/example.test.js b/src/example.test.js
+--- a/src/example.test.js
++++ b/src/example.test.js
+@@ -1 +1,4 @@
+ import assert from 'node:assert/strict';
++test('keeps strict behavior covered', () => {
++  assert.equal(value, 2);
++});
+`);
+
+  assert.equal(result.hasFindings, true);
+  assert.equal(result.hasBlockingFindings, false);
+  assert.equal(result.findings.length, 1);
+  assert.equal(result.findings[0].reason, 'protected_path_changed');
+  assert.equal(result.findings[0].severity, 'advisory');
+  assert.deepEqual(result.advisoryFindings, result.findings);
+  assert.deepEqual(result.blockingFindings, []);
 });
 
 test('analyzeDiffGuard flags package test script and test config edits', () => {
@@ -42,8 +64,10 @@ diff --git a/vitest.config.ts b/vitest.config.ts
 `);
 
   assert.equal(result.hasFindings, true);
+  assert.equal(result.hasBlockingFindings, true);
   assert.deepEqual(result.files.map((file) => file.path), ['package.json', 'vitest.config.ts']);
   assert.equal(result.findings.filter((finding) => finding.reason === 'protected_path_changed').length, 2);
+  assert.equal(result.blockingFindings.length, 2);
 });
 
 test('analyzeDiffGuard ignores ordinary source edits', () => {
@@ -56,6 +80,9 @@ test('analyzeDiffGuard ignores ordinary source edits', () => {
 `);
 
   assert.equal(result.hasFindings, false);
+  assert.equal(result.hasBlockingFindings, false);
+  assert.deepEqual(result.advisoryFindings, []);
+  assert.deepEqual(result.blockingFindings, []);
   assert.deepEqual(result.files, [
     {
       path: 'src/example.js',
@@ -82,7 +109,9 @@ test('analyzeDiffGuard supports policy protected globs', () => {
   });
 
   assert.equal(result.hasFindings, true);
+  assert.equal(result.hasBlockingFindings, true);
   assert.equal(result.findings[0].reason, 'protected_path_changed');
+  assert.equal(result.findings[0].severity, 'blocking');
   assert.equal(result.findings[0].path, 'docs/contract.md');
 });
 
@@ -99,10 +128,13 @@ test('analyzeDiffGuard can protect or allow task markdown edits by policy', () =
     policy: { protectTaskDocs: true },
   });
   assert.equal(protectedResult.hasFindings, true);
+  assert.equal(protectedResult.hasBlockingFindings, true);
   assert.equal(protectedResult.findings[0].reason, 'protected_task_doc_changed');
+  assert.equal(protectedResult.findings[0].severity, 'blocking');
 
   const allowedResult = analyzeDiffGuard(diff, {
     policy: { protectTaskDocs: false },
   });
   assert.equal(allowedResult.hasFindings, false);
+  assert.equal(allowedResult.hasBlockingFindings, false);
 });
