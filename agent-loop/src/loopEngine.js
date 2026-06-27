@@ -368,15 +368,15 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
     });
 
     if (postFixGate.ok) {
-      if (options.guardTests && iterationRecord.diffGuard.hasFindings) {
-        await transition('HALT_HUMAN', {
-          iterations,
-          ...legacyFixPatch,
-          guardReason: 'POSSIBLE_TEST_TAMPER',
-        });
-        return finalizeState(state, options);
-      }
       if (options.skipReview) {
+        if (options.guardTests && iterationRecord.diffGuard.hasFindings) {
+          await transition('HALT_HUMAN', {
+            iterations,
+            ...legacyFixPatch,
+            guardReason: 'POSSIBLE_TEST_TAMPER',
+          });
+          return finalizeState(state, options);
+        }
         taskText = await completeTaskChecklistOnSuccess({ options, fixCwd, taskText });
         await transition('DONE_FIXED', { iterations });
         return finalizeState(state, options);
@@ -394,7 +394,22 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
         transition,
         iterations,
         currentGate: postFixGate,
+        deferPassFinalize: true,
       });
+      if (review.kind === 'pass') {
+        if (options.guardTests && iterationRecord.diffGuard.hasFindings) {
+          await transition('HALT_HUMAN', {
+            ...review.reviewSnapshot,
+            iterations,
+            ...legacyFixPatch,
+            guardReason: 'POSSIBLE_TEST_TAMPER',
+          });
+          return finalizeState(state, options);
+        }
+        taskText = await completeTaskChecklistOnSuccess({ options, fixCwd, taskText });
+        await transition('DONE_REVIEWED', { ...review.reviewSnapshot, iterations, pendingReview: null });
+        return finalizeState(state, options);
+      }
       if (review.kind === 'terminal') return review.state;
       // Review asked for changes → spend the next budget slot on a review-driven
       // fix instead of finalizing.
@@ -551,7 +566,15 @@ async function writeGateArtifacts({ prefix, gate, writeArtifact }) {
 // (pass/halt — caller should return state) or a continue result carrying the
 // findings for the next review-driven fix iteration.
 async function handleReview(args) {
-  const { state, options, transition, taskText, fixCwd, iterations = state.iterations } = args;
+  const {
+    state,
+    options,
+    transition,
+    taskText,
+    fixCwd,
+    iterations = state.iterations,
+    deferPassFinalize = false,
+  } = args;
   const review = await runReview(args);
 
   state.reviewRounds.push({
@@ -575,6 +598,9 @@ async function handleReview(args) {
   };
 
   if (review.decision === 'pass') {
+    if (deferPassFinalize) {
+      return { kind: 'pass', reviewSnapshot };
+    }
     const completedTaskText = await completeTaskChecklistOnSuccess({ options, fixCwd, taskText });
     args.taskText = completedTaskText;
     await transition('DONE_REVIEWED', { ...reviewSnapshot, pendingReview: null });

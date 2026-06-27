@@ -857,6 +857,132 @@ test('runLoop halts when guardTests sees protected test tampering', async () => 
   assert.equal(result.iterations[0].diffGuard.hasFindings, true);
 });
 
+test('runLoop runs post-fix review before guardTests quarantine', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-test-'));
+  const taskPath = path.join(cwd, 'task.md');
+  await fs.writeFile(taskPath, 'fix gate to green\n\n## Acceptance criteria\n\n- gate green\n', 'utf8');
+
+  const gateResults = [
+    gate(false, 1, '1 failed'),
+    gate(true, 0, ''),
+  ];
+  const diffs = [
+    '',
+    protectedTestDiff(),
+  ];
+  const transitions = [];
+  let codexCalls = 0;
+
+  const result = await runLoop({
+    options: {
+      cwd,
+      fixCwd: cwd,
+      createWorktree: null,
+      task: taskPath,
+      gates: ['npm test'],
+      autoFix: true,
+      skipReview: false,
+      fixAgent: 'grok',
+      reviewAgent: 'codex',
+      scopedReview: true,
+      timeoutMs: 1000,
+      maxIterations: 1,
+      guardTests: true,
+    },
+    runDir: cwd,
+    latestDir: cwd,
+    deps: {
+      resolveAgents: async () => ({ codex: 'codex.exe', grok: 'grok.exe' }),
+      evaluateGate: async () => gateResults.shift(),
+      captureDiff: async () => ({ text: diffs.shift() ?? diffs.at(-1) }),
+      runProcess: async (command, args, options) => {
+        if (command === 'grok.exe') return runOk(command, args, options.cwd, '{"verdict":"changed"}');
+        codexCalls++;
+        return runOk(command, args, options.cwd, '{"verdict":"pass","summary":"reviewed","findings":[]}');
+      },
+      writeArtifact: artifactWriter(cwd),
+      onState: async (state) => transitions.push(state.status),
+    },
+  });
+
+  assert.equal(result.status, 'HALT_HUMAN');
+  assert.equal(result.guardReason, 'POSSIBLE_TEST_TAMPER');
+  assert.equal(codexCalls, 1);
+  assert.equal(result.reviewRounds.length, 1);
+  assert.equal(result.reviewRounds[0].decision, 'pass');
+  assert.deepEqual(
+    transitions.filter((status) => status === 'POST_FIX_GATE_RESULT' || status === 'CODEX_REVIEW' || status === 'HALT_HUMAN'),
+    ['POST_FIX_GATE_RESULT', 'CODEX_REVIEW', 'HALT_HUMAN']
+  );
+});
+
+test('runLoop lets post-fix review request another fix before guardTests quarantine', async () => {
+  const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-test-'));
+  const taskPath = path.join(cwd, 'task.md');
+  await fs.writeFile(taskPath, 'fix gate to green\n\n## Acceptance criteria\n\n- gate green\n', 'utf8');
+
+  const gateResults = [
+    gate(false, 1, '1 failed'),
+    gate(true, 0, ''),
+    gate(true, 0, ''),
+  ];
+  const diffs = [
+    '',
+    protectedTestDiff(),
+    'diff --git a/src/example.js b/src/example.js\n+review fix\n',
+  ];
+  const reviewVerdicts = [
+    '{"verdict":"needs_changes","summary":"fix the adapter","findings":[{"severity":"major","path":"src/example.js","message":"missing adapter"}]}',
+    '{"verdict":"pass","summary":"reviewed","findings":[]}',
+  ];
+  const transitions = [];
+  let codexCalls = 0;
+  let grokCalls = 0;
+
+  const result = await runLoop({
+    options: {
+      cwd,
+      fixCwd: cwd,
+      createWorktree: null,
+      task: taskPath,
+      gates: ['npm test'],
+      autoFix: true,
+      skipReview: false,
+      fixAgent: 'grok',
+      reviewAgent: 'codex',
+      scopedReview: true,
+      timeoutMs: 1000,
+      maxIterations: 2,
+      guardTests: true,
+    },
+    runDir: cwd,
+    latestDir: cwd,
+    deps: {
+      resolveAgents: async () => ({ codex: 'codex.exe', grok: 'grok.exe' }),
+      evaluateGate: async () => gateResults.shift(),
+      captureDiff: async () => ({ text: diffs.shift() ?? diffs.at(-1) }),
+      runProcess: async (command, args, options) => {
+        if (command === 'grok.exe') {
+          grokCalls++;
+          return runOk(command, args, options.cwd, '{"verdict":"changed"}');
+        }
+        codexCalls++;
+        return runOk(command, args, options.cwd, reviewVerdicts.shift() ?? '{"verdict":"pass","findings":[]}');
+      },
+      writeArtifact: artifactWriter(cwd),
+      onState: async (state) => transitions.push(state.status),
+    },
+  });
+
+  assert.equal(result.status, 'DONE_REVIEWED');
+  assert.equal(grokCalls, 2);
+  assert.equal(codexCalls, 2);
+  assert.equal(result.reviewRounds.length, 2);
+  assert.equal(result.reviewRounds[0].decision, 'needs_changes');
+  assert.equal(result.reviewRounds[1].decision, 'pass');
+  assert.equal(transitions.includes('REVIEW_NEEDS_CHANGES'), true);
+});
+
 test('runLoop applies guardPolicy protected globs during diff guard', async () => {
   const cwd = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-test-'));
   const taskPath = path.join(cwd, 'task.md');
