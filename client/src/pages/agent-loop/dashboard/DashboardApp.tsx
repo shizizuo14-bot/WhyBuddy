@@ -368,7 +368,32 @@ function SummaryStats({ payload }: { payload: OverviewPayload }) {
   );
 }
 
-function QueueTable({ tasks }: { tasks: OverviewTask[] }) {
+function taskRunCandidate(task: OverviewTask): string {
+  return String(task.lastRunId || task.id || task.task || "");
+}
+
+function QueueTable({
+  tasks,
+  getTaskRunPath,
+  onOpenTask,
+}: {
+  tasks: OverviewTask[];
+  getTaskRunPath?: (runId: string) => string;
+  onOpenTask?: (taskPath: string, runId?: string | null) => void;
+}) {
+  const openTask = (event: React.MouseEvent, task: OverviewTask) => {
+    if (onOpenTask) {
+      event.preventDefault();
+      onOpenTask(task.task, taskRunCandidate(task));
+      return;
+    }
+    postCommand('openTask', { taskPath: task.task, runId: task.lastRunId || task.id });
+  };
+  const taskHref = (task: OverviewTask) => {
+    const runId = taskRunCandidate(task);
+    return getTaskRunPath && runId ? getTaskRunPath(runId) : undefined;
+  };
+
   const columns: ColumnsType<OverviewTask> = [
     {
       title: '状态',
@@ -380,7 +405,7 @@ function QueueTable({ tasks }: { tasks: OverviewTask[] }) {
       key: 'task',
       render: (_, task) => (
         <Space direction="vertical" size={0}>
-          <Typography.Link onClick={() => postCommand('openTask', { taskPath: task.task, runId: task.lastRunId || task.id })}>
+          <Typography.Link href={taskHref(task)} onClick={(event) => openTask(event, task)}>
             {taskLabel(task)}
           </Typography.Link>
           <Text type="secondary" className="native-task-path" ellipsis={{ tooltip: task.task }}>
@@ -414,7 +439,7 @@ function QueueTable({ tasks }: { tasks: OverviewTask[] }) {
       key: 'action',
       render: (_, task) => (
         <Space>
-          <Button size="small" onClick={() => postCommand('openTask', { taskPath: task.task, runId: task.lastRunId || task.id })}>详情</Button>
+          <Button size="small" href={taskHref(task)} onClick={(event) => openTask(event, task)}>详情</Button>
           {task.enabled === false && task.id ? (
             <Button size="small" onClick={() => postCommand('reEnable', { taskId: task.id })}>启用</Button>
           ) : null}
@@ -526,10 +551,25 @@ function AgentLoopTopbar({ view }: { view: ViewKey }) {
   );
 }
 
-export function DashboardApp({ payload, initialView = 'workbench' as ViewKey }: { payload: OverviewPayload; initialView?: ViewKey }) {
+export function DashboardApp({
+  payload,
+  initialView = 'workbench' as ViewKey,
+  view: controlledView,
+  onViewChange,
+  getTaskRunPath,
+  onOpenTask,
+}: {
+  payload: OverviewPayload;
+  initialView?: ViewKey;
+  view?: ViewKey;
+  onViewChange?: (next: ViewKey) => void;
+  getTaskRunPath?: (runId: string) => string;
+  onOpenTask?: (taskPath: string, runId?: string | null) => void;
+}) {
   const [filter, setFilter] = useState<FilterKey>('queue');
   const [query, setQuery] = useState('');
-  const [view, setView] = useState<ViewKey>(initialView);
+  const [internalView, setInternalView] = useState<ViewKey>(initialView);
+  const view = controlledView ?? internalView;
   const [settingsData, setSettingsData] = useState<AgentLoopSettingsViewModel | null>(null);
   const [providerTests, setProviderTests] = useState<any[]>([]);
   const [workerCliTests, setWorkerCliTests] = useState<any[]>([]);
@@ -685,6 +725,13 @@ export function DashboardApp({ payload, initialView = 'workbench' as ViewKey }: 
     postCommand('selectProfile', { name });
   };
 
+  const handleViewChange = (next: ViewKey) => {
+    if (controlledView === undefined) {
+      setInternalView(next);
+    }
+    onViewChange?.(next);
+  };
+
   const workbenchContent = (
     <Space direction="vertical" size="middle" className="native-stack">
       <OverviewHeader payload={payload} settings={settingsData} />
@@ -700,7 +747,7 @@ export function DashboardApp({ payload, initialView = 'workbench' as ViewKey }: 
               items={tabItems}
               onChange={(next) => setFilter(next as FilterKey)}
             />
-            <QueueTable tasks={visibleTasks} />
+            <QueueTable tasks={visibleTasks} getTaskRunPath={getTaskRunPath} onOpenTask={onOpenTask} />
           </Card>
         </Col>
         <Col xs={24} xl={6}>
@@ -716,7 +763,7 @@ export function DashboardApp({ payload, initialView = 'workbench' as ViewKey }: 
       csp={typeof window !== 'undefined' && window.__AGENT_LOOP_CSP_NONCE__ ? { nonce: window.__AGENT_LOOP_CSP_NONCE__ } : undefined}
     >
       <Layout className="native-dashboard native-agent-shell">
-        <AgentLoopSidebar view={view} onViewChange={setView} />
+        <AgentLoopSidebar view={view} onViewChange={handleViewChange} />
         <Layout className="native-main native-agent-main">
           <AgentLoopTopbar view={view} />
           <Content className={`native-content ${view === 'settings' ? 'native-settings-content' : 'native-workbench-content'}`}>

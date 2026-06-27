@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import { useLocation } from "wouter";
 
 import { DashboardApp, DashboardDetailApp } from "./dashboard/DashboardApp";
 import { setCommandHandler } from "./dashboard/bridge";
@@ -23,9 +24,58 @@ if (typeof window !== "undefined") {
 }
 
 type View = "overview" | "detail";
+type DashboardRouteView = "workbench" | "settings";
+
+export type AgentLoopRouteState =
+  | { kind: "workbench" }
+  | { kind: "settings" }
+  | { kind: "detail"; runId: string };
+
+export function getAgentLoopWorkbenchPath(): string {
+  return "/agent-loop/workbench";
+}
+
+export function getAgentLoopSettingsPath(): string {
+  return "/agent-loop/settings";
+}
+
+export function getAgentLoopRunPath(runId: string): string {
+  return `/agent-loop/runs/${encodeURIComponent(runId)}`;
+}
+
+export function parseAgentLoopLocation(location: string): AgentLoopRouteState {
+  const rawPath = (location || "/agent-loop").split(/[?#]/, 1)[0] || "/agent-loop";
+  const path = rawPath.length > 1 ? rawPath.replace(/\/+$/, "") : rawPath;
+  const normalized = path.toLowerCase();
+
+  if (normalized === "/agent-loop" || normalized === "/agent-loop/workbench") {
+    return { kind: "workbench" };
+  }
+  if (normalized === "/agent-loop/settings") {
+    return { kind: "settings" };
+  }
+
+  const runPrefix = "/agent-loop/runs/";
+  if (normalized.startsWith(runPrefix)) {
+    const encodedRunId = path.slice(runPrefix.length);
+    if (encodedRunId) {
+      return { kind: "detail", runId: decodeURIComponent(encodedRunId) };
+    }
+  }
+
+  return { kind: "workbench" };
+}
+
+function useSafeLocation(): [string, (next: string) => void] {
+  if (typeof window === "undefined" || typeof location === "undefined") {
+    return [getAgentLoopWorkbenchPath(), () => undefined];
+  }
+  return useLocation();
+}
 
 export default function AgentLoopPage() {
-  const [view, setView] = useState<View>("overview");
+  const [location, setLocation] = useSafeLocation();
+  const route = parseAgentLoopLocation(location);
   const [overview, setOverview] = useState<OverviewPayload | null>(null);
   const [detail, setDetail] = useState<DetailPayload | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -39,8 +89,12 @@ export default function AgentLoopPage() {
   const overviewRef = useRef<OverviewPayload | null>(null);
   overviewRef.current = overview;
   const viewRef = useRef<View>("overview");
+  const view: View = route.kind === "detail" ? "detail" : "overview";
   viewRef.current = view;
   const detailRunIdRef = useRef<string | null>(null);
+  if (route.kind === "detail") {
+    detailRunIdRef.current = route.runId;
+  }
 
   async function loadOverview() {
     setError(null);
@@ -57,7 +111,6 @@ export default function AgentLoopPage() {
       detailRunIdRef.current = runId;
       const next = await fetchDetail(runId);
       setDetail(next);
-      setView("detail");
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err);
       if (msg.includes("404")) {
@@ -65,6 +118,34 @@ export default function AgentLoopPage() {
       } else {
         setError(msg);
       }
+    }
+  }
+
+  function showWorkbench() {
+    detailRunIdRef.current = null;
+    setDetail(null);
+    setLocation(getAgentLoopWorkbenchPath());
+    void loadOverview();
+  }
+
+  function showDashboardView(next: DashboardRouteView) {
+    detailRunIdRef.current = null;
+    setDetail(null);
+    setLocation(next === "settings" ? getAgentLoopSettingsPath() : getAgentLoopWorkbenchPath());
+  }
+
+  function openTaskRoute(taskPath: string, runId?: string | null) {
+    // Prefer lastRunId (from queue outcomes) when available, since detail requires an actual executed run ID.
+    // task.id in queue view is often the task identifier (e.g. "sliderule-...-110"), not a run dir.
+    const explicitRunId = runId ? String(runId) : "";
+    const match = (overviewRef.current?.tasks || []).find(
+      (t) => t.task === taskPath || t.id === taskPath,
+    );
+    // any-cast because OverviewTask in types may lag behind queue data which includes lastRunId
+    const candidate = explicitRunId || match?.lastRunId || match?.id || taskPath;
+    if (candidate) {
+      setLocation(getAgentLoopRunPath(candidate));
+      void openDetail(candidate);
     }
   }
 
@@ -82,6 +163,18 @@ export default function AgentLoopPage() {
   }
 
   useEffect(() => {
+    if (!mounted) return;
+    if (route.kind === "detail") {
+      void openDetail(route.runId);
+    } else {
+      detailRunIdRef.current = null;
+      setDetail(null);
+      void loadOverview();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [mounted, location]);
+
+  useEffect(() => {
     setMounted(true);
     void loadOverview();
 
@@ -96,21 +189,12 @@ export default function AgentLoopPage() {
           return;
         }
         case "openTask": {
-          // Prefer lastRunId (from queue outcomes) when available, since detail requires an actual executed run ID.
-          // task.id in queue view is often the task identifier (e.g. "sliderule-...-110"), not a run dir.
           const taskPath = String(extra.taskPath ?? "");
-          const explicitRunId = extra.runId ? String(extra.runId) : "";
-          const match = (overviewRef.current?.tasks || []).find(
-            (t) => t.task === taskPath || t.id === taskPath,
-          );
-          // any-cast because OverviewTask in types may lag behind queue data which includes lastRunId
-          const candidate = explicitRunId || match?.lastRunId || match?.id || taskPath;
-          if (candidate) void openDetail(candidate);
+          openTaskRoute(taskPath, extra.runId ? String(extra.runId) : null);
           return;
         }
         case "showOverview": {
-          setView("overview");
-          void loadOverview();
+          showWorkbench();
           return;
         }
         case "openReport":
@@ -342,6 +426,8 @@ export default function AgentLoopPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  const dashboardView: DashboardRouteView = route.kind === "settings" ? "settings" : "workbench";
+
   return (
     <main data-testid="agent-loop-page" className="agent-loop-root">
       {error ? (
@@ -356,7 +442,13 @@ export default function AgentLoopPage() {
       ) : view === "detail" && detail ? (
         <DashboardDetailApp payload={detail} />
       ) : (
-        <DashboardApp payload={overview ?? { tasks: [], counts: {} }} />
+        <DashboardApp
+          payload={overview ?? { tasks: [], counts: {} }}
+          view={dashboardView}
+          onViewChange={showDashboardView}
+          getTaskRunPath={getAgentLoopRunPath}
+          onOpenTask={openTaskRoute}
+        />
       )}
     </main>
   );

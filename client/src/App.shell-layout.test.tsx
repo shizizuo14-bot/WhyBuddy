@@ -60,11 +60,12 @@ vi.mock("wouter", () => ({
       (path === "/debug/:section" &&
         current.startsWith("/debug/") &&
         current !== "/debug/autopilot-spec-documents-workbench") ||
-      (path?.toLowerCase() === "/agent-loop" &&
-        (current.toLowerCase().replace(/\/$/, "") === "/agent-loop" ||
-         current.toLowerCase().replace(/\/$/, "").startsWith("/agent-loop/") ||
-         current.toLowerCase().replace(/\/$/, "") === "/agentloop" ||
-         current.toLowerCase().replace(/\/$/, "").startsWith("/agentloop/"))) ||
+      (path === "/agent-loop/workbench" && current === "/agent-loop/workbench") ||
+      (path === "/agent-loop/settings" && current === "/agent-loop/settings") ||
+      (path === "/agent-loop/runs/:runId" && current.startsWith("/agent-loop/runs/")) ||
+      (path === "/agent-loop" && current === "/agent-loop") ||
+      (path === "/AgentLoop" && current === "/AgentLoop") ||
+      (path === "/AgentLoop/" && current === "/AgentLoop/") ||
       (!path && current === "/404");
 
     if (!matches) return null;
@@ -176,6 +177,7 @@ vi.mock("./pages/lineage/LineagePage", () => ({
 
 vi.mock("./pages/agent-loop/AgentLoopPage", () => ({
   default: () => <main data-testid="agent-loop-page" />,
+  getAgentLoopWorkbenchPath: () => "/agent-loop/workbench",
 }));
 
 vi.mock("./pages/NotFound", () => ({
@@ -309,7 +311,7 @@ describe("AppShell fixed sidebar layout", () => {
 
   it("mounts AgentLoop as a chrome-free first-class route", () => {
     signInForShell();
-    locationState.current = "/agent-loop";
+    locationState.current = "/agent-loop/workbench";
     viewportState.isMobile = false;
     viewportState.isTablet = false;
 
@@ -325,6 +327,9 @@ describe("AppShell fixed sidebar layout", () => {
   it("chrome-free logic + isAgentLoopLocation is case and slash tolerant", () => {
     // even if user visits /AgentLoop or /agent-loop/ the main sidebar must be suppressed
     expect(isAgentLoopLocation("/agent-loop")).toBe(true);
+    expect(isAgentLoopLocation("/agent-loop/workbench")).toBe(true);
+    expect(isAgentLoopLocation("/agent-loop/settings")).toBe(true);
+    expect(isAgentLoopLocation("/agent-loop/runs/2026-06-27T01-02-03-004Z")).toBe(true);
     expect(isAgentLoopLocation("/AgentLoop")).toBe(true);
     expect(isAgentLoopLocation("/AGENT-LOOP/")).toBe(true);
     expect(isAgentLoopLocation("/agent-loop?foo=1")).toBe(true);
