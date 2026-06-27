@@ -1,10 +1,13 @@
 import { describe, expect, it } from "vitest";
 
 import { deriveApplication, slideRule } from "./slideRule";
-import { leaveApprovalRbac } from "./rbac/rbacSkill";
+import { leaveApprovalRbac, rbacSkill } from "./rbac/rbacSkill";
 import { leaveApprovalWorkflow } from "./workflow/workflowSkill";
 import type { WorkflowModel } from "./workflow/workflowModel";
 import { dataModelSkill, leaveRequestDataModel } from "./datamodel/dataModelSkill";
+import { normalizeCrossRef } from "./skill";
+import { Orchestrator } from "./orchestrator";
+import type { Skill, CrossSkill } from "./skill";
 
 describe("SlideRule orchestrator — end-to-end (一句话 → 架构 + gate)", () => {
   it("derives a coherent application from one intent, with the gate green", async () => {
@@ -84,6 +87,7 @@ describe("SlideRule orchestrator — end-to-end (一句话 → 架构 + gate)", 
     // feed an inconsistent pair: workflow assigns approval to a role RBAC never defined.
     const badWorkflow: WorkflowModel = structuredClone(leaveApprovalWorkflow);
     badWorkflow.nodes.find(n => n.id === "a_mgr")!.assigneeRole = "director";
+    badWorkflow.nodes.find(n => n.id === "a_mgr")!.assigneeRoleRef = "director";
 
     const result = slideRule.assemble("请假审批", {
       rbac: leaveApprovalRbac,
@@ -93,5 +97,159 @@ describe("SlideRule orchestrator — end-to-end (一句话 → 架构 + gate)", 
     expect(result.ok).toBe(false);
     const wf = result.report.bySkill.find(s => s.skillId === "workflow")!;
     expect(wf.errors.some(e => e.code === "WF_ASSIGNEE_MISSING_ROLE")).toBe(true);
+  });
+
+  it("normalizeCrossRef standardizes fields (fromNode/toSkill/toKind/toValue/label/severity) with defaults", () => {
+    const norm = normalizeCrossRef({
+      fromNode: "  wf_a  ",
+      toSkill: " rbac ",
+      toKind: " role ",
+      toValue: " manager ",
+      label: " 审批人 ",
+      severity: undefined,
+    });
+    expect(norm).toEqual({
+      fromNode: "wf_a",
+      toSkill: "rbac",
+      toKind: "role",
+      toValue: "manager",
+      label: "审批人",
+      severity: "error",
+    });
+
+    const normWarn = normalizeCrossRef({ fromNode: "n", toSkill: "s", toKind: "k", toValue: "v", severity: "warning" });
+    expect(normWarn.severity).toBe("warning");
+  });
+
+  it("unresolved cross-skill references remain explicit as ghosts (未接入) in combined projection (negative case)", () => {
+    // Provide rbac+workflow but omit datamodel: workflow's fieldRef and rbac's dataRule will dangle
+    const result = slideRule.assemble("请假审批", {
+      rbac: leaveApprovalRbac,
+      workflow: leaveApprovalWorkflow,
+    });
+    expect(result.mermaid).toContain("(未接入)");
+    expect(result.mermaid).toMatch(/ext_datamodel_/);
+    // cross edges to ghost are present (do not disappear)
+    expect(result.mermaid).toMatch(/-\.->.*ext_datamodel/);
+  });
+
+  it("publishGate positive: all cross-skill refs resolve when full skills present", async () => {
+    const full = await deriveApplication("请假审批");
+    const gate = slideRule.publishGate(full.spec.skills);
+    expect(gate.publishable).toBe(true);
+    expect(gate.blockers).toHaveLength(0);
+    expect(gate.unresolvedRefs?.length ?? 0).toBe(0);
+    expect(gate.result.mermaid).not.toContain("(未接入)");
+  });
+
+  it("publishGate negative: unresolved cross-skill refs make publishGate fail and stay explicit", () => {
+    // missing datamodel => cross refs from rbac/workflow to datamodel are unresolved
+    const gate = slideRule.publishGate({
+      rbac: leaveApprovalRbac,
+      workflow: leaveApprovalWorkflow,
+    });
+    expect(gate.publishable).toBe(false);
+    expect(gate.blockers.some(b => b.code === "PUBLISH_DANGLING_CROSSREF")).toBe(true);
+    expect(gate.unresolvedRefs && gate.unresolvedRefs.length > 0).toBe(true);
+    expect(gate.result.mermaid).toContain("(未接入)");
+    // normalized refs are present
+    expect(gate.unresolvedRefs!.some(r => r.toSkill === "datamodel" && r.severity === "error")).toBe(true);
+  });
+
+  it("publishGate respects severity: warning dangling cross-refs do not block (positive soft), error does (negative)", () => {
+    // helper to build a minimal skill pair for focused gate test (runtime-less)
+    function makeSkills(warningRef: boolean) {
+      const provider: Skill<{}> & CrossSkill<{}> = {
+        id: "provider",
+        title: "Provider",
+        validate: () => ({ ok: true, errors: [], warnings: [] }),
+        project: () => ({ nodes: [], edges: [], mermaid: "" }),
+        resolve: () => ({}),
+        crossRefs: () => [],
+        refNodeId: () => null,
+      };
+      const consumer: Skill<{}> & CrossSkill<{}> = {
+        id: "consumer",
+        title: "Consumer",
+        validate: () => ({ ok: true, errors: [], warnings: [] }),
+        project: () => ({ nodes: [{ id: "c_node", label: "c", kind: "node" }], edges: [], mermaid: "" }),
+        resolve: () => ({}),
+        crossRefs: () => [{
+          fromNode: "c_node",
+          toSkill: "provider",
+          toKind: "role",
+          toValue: "admin",
+          label: "ref",
+          severity: warningRef ? "warning" : "error",
+        }],
+        refNodeId: () => null,
+      };
+      return { provider, consumer };
+    }
+
+    // warning case: unresolved but soft => publishable true, no blockers from dangling
+    const w = makeSkills(true);
+    const orchW = new Orchestrator().use(w.provider).use(w.consumer);
+    const gateW = orchW.publishGate({ provider: {}, consumer: {} });
+    expect(gateW.publishable).toBe(true);
+    expect(gateW.blockers).toHaveLength(0);
+    expect(gateW.unresolvedRefs && gateW.unresolvedRefs.length > 0).toBe(true);
+    expect(gateW.unresolvedRefs!.some(r => r.severity === "warning")).toBe(true);
+
+    // error case: unresolved hard => publishable false, has blocker
+    const e = makeSkills(false);
+    const orchE = new Orchestrator().use(e.provider).use(e.consumer);
+    const gateE = orchE.publishGate({ provider: {}, consumer: {} });
+    expect(gateE.publishable).toBe(false);
+    expect(gateE.blockers.some(b => b.code === "PUBLISH_DANGLING_CROSSREF")).toBe(true);
+    expect(gateE.unresolvedRefs!.some(r => r.severity === "error")).toBe(true);
+  });
+});
+
+// 115.10.09: orchestrator tests for workflow/page/appbundle references into RBAC new PDP resolve surfaces
+describe("orchestrator cross-skill RBAC PDP resolve boundary — workflow/page/appbundle refs to new surfaces", () => {
+  it("rbac resolve surfaces (rowRule/fieldRule/decisionScope/policy) are exposed and resolvable by workflow/page/appbundle-style consumers (positive cross boundary)", () => {
+    const rbacM = {
+      ...leaveApprovalRbac,
+      policyRules: [
+        { id: "pr_wf_row", effect: "deny", resourceType: "leave_request" },
+        { id: "pr_wf_fld", effect: "allow", fieldRef: "leave_request.status" },
+      ],
+    } as any;
+    const surf = rbacSkill.resolve(rbacM);
+    expect(surf.rowRule).toContain("pr_wf_row");
+    expect(surf.fieldRule).toContain("pr_wf_fld");
+    expect(surf.decisionScope).toContain("RBAC_DECISION_FAIL_CLOSED");
+    expect(Array.isArray(surf.policy)).toBe(true);
+
+    // simulate wf/page/appbundle ref resolution against the surface (as done in publishGate)
+    const surfaces = { rbac: surf };
+    const rowRef = { toSkill: "rbac", toKind: "rowRule", toValue: "pr_wf_row" };
+    const fldRef = { toSkill: "rbac", toKind: "fieldRule", toValue: "pr_wf_fld" };
+    const polRef = { toSkill: "rbac", toKind: "policy", toValue: surf.policy[0] };
+    const decRef = { toSkill: "rbac", toKind: "decisionScope", toValue: "RBAC_DECISION_ALLOW" };
+    expect(surfaces.rbac[rowRef.toKind]?.includes(rowRef.toValue)).toBe(true);
+    expect(surfaces.rbac[fldRef.toKind]?.includes(fldRef.toValue)).toBe(true);
+    expect(surfaces.rbac[polRef.toKind]?.includes(polRef.toValue)).toBe(true);
+    expect(surfaces.rbac[decRef.toKind]?.includes(decRef.toValue)).toBe(true);
+  });
+
+  it("assemble and publishGate compute rbac surfaces with new keys and legacy role/permission remain usable by appbundle/workflow (compat)", () => {
+    const result = slideRule.assemble("rbac surface compat", {
+      rbac: leaveApprovalRbac,
+    });
+    const rbacModel = result.spec.skills.rbac;
+    const surf = rbacSkill.resolve(rbacModel as any);
+    // new surfaces always present (even if empty)
+    expect(Array.isArray(surf.rowRule)).toBe(true);
+    expect(Array.isArray(surf.fieldRule)).toBe(true);
+    expect(Array.isArray(surf.decisionScope)).toBe(true);
+    // workflow/app/page can still ref role/permission
+    expect(surf.role.length).toBeGreaterThan(0);
+    expect(surf.permission.length).toBeGreaterThan(0);
+    // use datamodel to close rbac's dataRule cross (otherwise dangling prevents publishable); new surfaces compat not affected
+    const gate = slideRule.publishGate({ rbac: leaveApprovalRbac, datamodel: leaveRequestDataModel });
+    // surfaces are computed regardless; with minimal pair the rbac cross closes, publishable may be true for this pair
+    expect(gate.unresolvedRefs?.some(r => r.toSkill === "datamodel") ?? false).toBe(false);
   });
 });

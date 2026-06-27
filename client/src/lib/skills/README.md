@@ -53,21 +53,46 @@ DataModel -> RBAC -> Workflow -> Page -> AIGC -> AppBundle
 - Publish gate：应用发布前的总门禁，要求所有 Skill gate 通过，并且所有跨系统引用都闭合。
 - Impact graph：从角色、字段、流程、页面或 AIGC capability 反向追踪所有下游影响面。
 
+## V2 Gate Code Taxonomy (115)
+
+Finding.code 使用稳定前缀 taxonomy，AgentLoop 可按 code 前缀而非 prose message 反应。
+
+前缀规范（RBAC / DATAMODEL / WORKFLOW / PAGE / APPBUNDLE / KERNEL）：
+
+- RBAC_*：RBAC 角色/权限/菜单/用户/SoD/继承/决策等一致性问题。
+- DM_*（DATAMODEL）：实体、字段、版本、生命周期、OLAP 非 SSOT、引用完整性。
+- WF_*（WORKFLOW）：开始/结束节点、可达性、可终止、分支兜底、审批人、PEP/SSOT 绑定。
+- PAGE_*：组件 ID、字段绑定、角色可见、权限渲染、联动规则。
+- APPBUNDLE_*：manifest 重复、版本钉选不完整、跨系统 ref 未闭合、snapshot 问题、PEP bypass。
+- PUBLISH_*（KERNEL）：编排器 publish gate、跨系统 dangling ref（PUBLISH_DANGLING_CROSSREF 等）。
+
+Severity 稳定规则（error vs warning）：
+
+- "error"：硬违规，ValidationReport.ok = false，block publish（finalizeReport 只统计 error 决定 ok）。
+- "warning"：软提示，不影响 ok=true。典型用于“外部 surface 当时未提供，无法立即校验”（如 WF_ASSIGNEE_UNRESOLVED、RBAC_CROSS_REF_UNRESOLVED、AIGC_*_UNRESOLVED）。跨技能编排器后续可能补齐 external 再校验。
+
+所有现有 validation finding 必须遵守上述前缀；新增 code 必须使用这些前缀之一。
+
+参见 skill.ts 中的 FINDING_CODE_PREFIXES、ALLOWED_FINDING_CODE_PREFIXES、isValidFindingCode、Severity、finalizeReport。
+
 ## 当前验证命令
 
-114 AIGC 接入收口时执行：
+115 V2 Skill hardening verification handoff 时执行：
 
 ```powershell
 pnpm exec vitest run client/src/lib/skills --reporter=dot
 pnpm exec tsc --noEmit --pretty false
-node agent-loop/src/check-mojibake.js client/src/lib/skills/README.md docs/intent-to-app/skill-v2-migration-status.md docs/intent-to-app/aigc-skill-114-status.md
+node agent-loop/src/check-mojibake.js client/src/lib/skills/README.md docs/intent-to-app/skill-v2-hardening-115-status.md agent-loop/tasks/sliderule-v2-hardening-verification-handoff-115.md
+node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-hardening-verification-handoff-115.md
 ```
 
 记录结果：
 
-- Skill tests：10 个测试文件，137 个测试通过。
+- Skill tests：10 个测试文件，314 个测试通过。
 - TypeScript：`tsc --noEmit --pretty false` 退出码 0。
-- Mojibake：README/status 文档无乱码发现。
+- Mojibake：README/status/task 文档无乱码发现。
+
+（115 最终基线；兼容 AIGC 114 / purchase approval。）
 
 ## 明确非目标
 

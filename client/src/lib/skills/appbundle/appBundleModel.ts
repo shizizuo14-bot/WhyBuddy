@@ -27,7 +27,9 @@ export interface AppBundleVersionPin {
 
 export interface AppBundleIncludedRefs {
   entities: string[];
+  fields?: string[];
   roles: string[];
+  permissions?: string[];
   workflows: string[];
   pages: string[];
   aigcCapabilities?: string[];
@@ -51,12 +53,33 @@ export interface AppBundleRuntimeSnapshot {
   pinnedRefs: string[];
 }
 
+export interface AppBundleReleaseArtifact {
+  appId: string;
+  appVersion: string;
+  traceId: string;
+  publishGateEvidence: {
+    status: AppBundleGateStatus;
+    passedAt?: string;
+    evidenceSummary?: string;
+  };
+}
+
+export interface AppBundleRollbackTarget {
+  appId: string;
+  appVersion: string;
+  traceId?: string;
+  exists: boolean;
+  immutable: boolean;
+}
+
 export interface AppBundleModel {
   id: string;
   name: string;
   description: string;
   entityRefs: string[];
+  fieldRefs?: string[];
   roleRefs: string[];
+  permissionRefs?: string[];
   workflowRefs: string[];
   pageRefs: string[];
   aigcCapabilityRefs?: string[];
@@ -65,4 +88,6 @@ export interface AppBundleModel {
   versionPins?: AppBundleVersionPin[];
   publishManifest?: AppBundlePublishManifest;
   runtimeSnapshot?: AppBundleRuntimeSnapshot;
+  releaseArtifact?: AppBundleReleaseArtifact;
+  rollbackTargets?: AppBundleRollbackTarget[];
 }

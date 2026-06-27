@@ -42,3 +42,41 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Validation evidence (appended post-review for acceptance)
+
+### Required: vitest on workflow + appbundle tests
+```
+pnpm exec vitest run client/src/lib/skills/workflow/workflowSkill.test.ts client/src/lib/skills/appbundle/appBundleSkill.test.ts --reporter=dot
+```
+Output:
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/workflow/workflowSkill.test.ts (48 tests) 11ms
+ ✓ src/lib/skills/appbundle/appBundleSkill.test.ts (23 tests) 8ms
+
+ Test Files  2 passed (2)
+      Tests  71 passed (71)
+   Start at  09:04:23
+   Duration  410ms (transform 133ms, setup 0ms, collect 205ms, tests 19ms, environment 0ms, prepare 117ms)
+```
+
+### Required: tsc type check
+```
+pnpm exec tsc --noEmit --pretty false
+```
+Output: (exit 0, no errors emitted)
+
+### Required: mojibake check
+```
+node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-workflow-publish-gate-115.md
+```
+Output:
+```
+No mojibake findings.
+```
+
+## Review fixes applied
+- Added dedicated test case in appBundleSkill.test.ts exercising WF_PEP_BYPASS from workflowSkill.validate flowing through validateAppBundlePublishGate as APPBUNDLE_PEP_BYPASS (direct evidence for "AppBundle publishGate sees workflow blockers").
+- Appended fresh passing outputs of required validation commands to satisfy "Validation commands have fresh passing evidence recorded in this task file".

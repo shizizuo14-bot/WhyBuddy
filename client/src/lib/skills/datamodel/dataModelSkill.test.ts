@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { dataModelSkill, leaveRequestDataModel } from "./dataModelSkill";
-import type { DataModelModel } from "./dataModelModel";
+import { dataModelSkill, getFieldLifecycle, leaveRequestDataModel, purchaseApprovalDataModel } from "./dataModelSkill";
+import type { DataModelModel, Relation } from "./dataModelModel";
 
 const clone = (m: DataModelModel): DataModelModel => structuredClone(m);
 
@@ -295,5 +295,610 @@ describe("dataModelSkill — the gate", () => {
     // entities and fields remain distinct sets
     const allIds = new Set([...entNodes.map((n: any) => n.id), ...fldNodes.map((n: any) => n.id)]);
     expect(allIds.size).toBe(entNodes.length + fldNodes.length);
+  });
+
+  it("provides purchase_request.amount field versioning fixture coverage on purchaseApprovalDataModel", () => {
+    // Direct fixture use (not temp model) per task requirement
+    expect(purchaseApprovalDataModel).toBeTruthy();
+    const purchEntity = purchaseApprovalDataModel.entities.find(e => e.id === "purchase_request")!;
+    expect(purchEntity).toBeTruthy();
+    expect(purchEntity.namespace).toBe("procurement");
+    const amount = purchEntity.fields.find(f => f.key === "amount")!;
+    expect(amount).toBeTruthy();
+    expect(amount.name).toBe("Amount");
+    expect(amount.type).toBe("number");
+    expect(amount.required).toBe(true);
+    // SSOT field identity/version/lifecycle/storageRole must be present and deterministic
+    expect(amount.fieldId).toBe("f_purchase_request_amount_v1");
+    expect(amount.version).toBe(1);
+    expect(amount.lifecycle).toBe("active");
+    expect(amount.storageRole).toBe("ssot");
+
+    const report = dataModelSkill.validate(purchaseApprovalDataModel);
+    expect(report.ok).toBe(true);
+    expect(report.errors).toHaveLength(0);
+
+    const surface = dataModelSkill.resolve(purchaseApprovalDataModel);
+    expect(surface.entity).toContain("purchase_request");
+    expect(surface.field).toContain("purchase_request.amount");
+    const amtF = surface.fields.find((f: any) => f.ref === "purchase_request.amount");
+    expect(amtF).toBeTruthy();
+    expect(amtF.fieldId).toBe("f_purchase_request_amount_v1");
+    expect(amtF.version).toBe(1);
+    expect(amtF.lifecycle).toBe("active");
+    // 115.20 sensitive field policy: amount marked and exports PDP delegation metadata
+    expect(amtF.sensitivity).toBe("financial");
+    expect(amtF.policyRef).toBe("pdp:purchase:amount");
+    expect(Array.isArray(amtF.pdpVisibleTo)).toBe(true);
+    expect(amtF.pdpVisibleTo).toContain("finance");
+    expect(amtF.pdpVisibleTo).toContain("admin");
+  });
+
+  it("purchase approval model remains compatible via generate() and carries amount versioning", async () => {
+    const model = await dataModelSkill.generate("purchase request for amount");
+    expect(model).toBe(purchaseApprovalDataModel);
+    const amount = model.entities
+      .find(e => e.id === "purchase_request")!
+      .fields.find(f => f.key === "amount")!;
+    expect(amount.fieldId).toBe("f_purchase_request_amount_v1");
+    expect(amount.version).toBe(1);
+    expect(amount.storageRole).toBe("ssot");
+    const report = dataModelSkill.validate(model);
+    expect(report.ok).toBe(true);
+  });
+
+  // --- 115.20.06 DataModel sensitive field policy focused +ve/-ve (per review findings) ---
+  it("purchase_request.amount is marked sensitive with PDP delegation metadata visible to finance/admin (positive)", () => {
+    const purch = purchaseApprovalDataModel.entities.find(e => e.id === "purchase_request")!;
+    const amount = purch.fields.find(f => f.key === "amount")!;
+    expect(amount.sensitivity).toBe("financial");
+    expect(amount.policyRef).toBe("pdp:purchase:amount");
+    expect(amount.pdpVisibleTo).toEqual(["finance", "admin"]);
+
+    const surface = dataModelSkill.resolve(purchaseApprovalDataModel);
+    const amtF = surface.fields.find((f: any) => f.ref === "purchase_request.amount");
+    expect(amtF.sensitivity).toBe("financial");
+    expect(amtF.policyRef).toBe("pdp:purchase:amount");
+    expect(amtF.pdpVisibleTo).toContain("finance");
+    expect(amtF.pdpVisibleTo).toContain("admin");
+  });
+
+  it("sensitive field without policyRef is rejected by gate (negative)", () => {
+    const bad: DataModelModel = {
+      entities: [{
+        id: "purchase_request",
+        name: "PR",
+        fields: [
+          { key: "id", name: "ID", type: "string", fieldId: "f1", version: 1, lifecycle: "active", storageRole: "ssot" },
+          { key: "secretAmount", name: "Secret", type: "number", sensitivity: "financial", fieldId: "f2", version: 1, lifecycle: "active", storageRole: "ssot" /* no policyRef */ },
+        ],
+      }],
+    };
+    const report = dataModelSkill.validate(bad);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_SENSITIVE_FIELD_NO_POLICY")).toBe(true);
+  });
+
+  it("non-sensitive fields (sensitivity none or absent) do not require policyRef (positive compat)", () => {
+    const okM: DataModelModel = {
+      entities: [{
+        id: "e",
+        name: "E",
+        fields: [
+          { key: "id", name: "ID", type: "string", fieldId: "f1", version: 1, lifecycle: "active", storageRole: "ssot" },
+          { key: "pub", name: "Pub", type: "string", sensitivity: "none", fieldId: "f2", version: 1, lifecycle: "active", storageRole: "ssot" },
+          { key: "norm", name: "Norm", type: "string", fieldId: "f3", version: 1, lifecycle: "active", storageRole: "ssot" },
+        ],
+      }],
+    };
+    const report = dataModelSkill.validate(okM);
+    expect(report.ok).toBe(true);
+    expect(report.errors.some(e => e.code === "DM_SENSITIVE_FIELD_NO_POLICY")).toBe(false);
+  });
+
+  it("project() advances sensitive/policy diagram semantics (policy nodes + edges)", () => {
+    const proj = dataModelSkill.project(purchaseApprovalDataModel);
+    // policy node for the amount's policyRef
+    expect(proj.nodes.some((n: any) => n.kind === "policy" && (n.id || "").includes("pdp_purchase_amount"))).toBe(true);
+    // edge from sensitive amount field to its policy
+    const polEdge = proj.edges.find((e: any) => e.kind === "policy" && (e.label || "").includes("sensitive:financial"));
+    expect(polEdge).toBeTruthy();
+    expect(polEdge!.from).toContain("purchase_request_amount");
+  });
+
+  it("getFieldLifecycle exposes lifecycle from resolve() surface for consumer-side checks (deprecated/removed)", () => {
+    const depM: DataModelModel = {
+      entities: [{
+        id: "e",
+        name: "E",
+        fields: [
+          { key: "id", name: "ID", type: "string", fieldId: "f1", version: 1, lifecycle: "active", storageRole: "ssot" },
+          { key: "old", name: "Old", type: "string", fieldId: "f2", version: 1, lifecycle: "deprecated", storageRole: "ssot" },
+          { key: "gone", name: "Gone", type: "string", fieldId: "f3", version: 1, lifecycle: "removed", storageRole: "ssot" },
+        ],
+      }],
+    };
+    const surf = dataModelSkill.resolve(depM);
+    expect(getFieldLifecycle(surf, "e.id")).toBe("active");
+    expect(getFieldLifecycle(surf, "e.old")).toBe("deprecated");
+    expect(getFieldLifecycle(surf, "e.gone")).toBe("removed");
+    expect(getFieldLifecycle(surf, "e.missing")).toBe(undefined);
+    expect(getFieldLifecycle(undefined as any, "e.id")).toBe(undefined);
+  });
+
+  // --- V2 relation cardinality gate focused tests (positive + negative) ---
+  it("accepts all four cardinalities with valid targets (positive)", () => {
+    const m: DataModelModel = {
+      entities: [
+        { id: "dept", name: "Dept", fields: [{ key: "id", name: "ID", type: "string" }] },
+        { id: "emp", name: "Emp", fields: [{ key: "id", name: "ID", type: "string" }] },
+        { id: "project", name: "Project", fields: [{ key: "id", name: "ID", type: "string" }] },
+      ],
+      relations: [
+        { key: "r11", fromEntity: "dept", toEntity: "emp", cardinality: "one-to-one", name: "head" },
+        { key: "r1n", fromEntity: "dept", toEntity: "emp", cardinality: "one-to-many", name: "members" },
+        { key: "rn1", fromEntity: "emp", toEntity: "dept", cardinality: "many-to-one", name: "dept" },
+        { key: "rnn", fromEntity: "emp", toEntity: "project", cardinality: "many-to-many", name: "assignments" },
+      ],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(true);
+    expect(report.errors).toHaveLength(0);
+  });
+
+  it("accepts self-relation only when allowSelf=true (positive)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "emp", name: "Emp", fields: [{ key: "id", name: "ID", type: "string" }] }],
+      relations: [
+        { key: "mgr", fromEntity: "emp", toEntity: "emp", cardinality: "many-to-one", name: "manager", allowSelf: true },
+      ],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(true);
+  });
+
+  it("accepts bidirectional inverse pair (positive)", () => {
+    const m: DataModelModel = {
+      entities: [
+        { id: "dept", name: "D", fields: [] },
+        { id: "emp", name: "E", fields: [] },
+      ],
+      relations: [
+        { key: "members", fromEntity: "dept", toEntity: "emp", cardinality: "one-to-many", inverse: "deptOf" },
+        { key: "deptOf", fromEntity: "emp", toEntity: "dept", cardinality: "many-to-one", inverse: "members" },
+      ],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(true);
+  });
+
+  it("CATCHES relation missing target entity (negative)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "a", name: "A", fields: [] }],
+      relations: [{ fromEntity: "a", toEntity: "ghost", cardinality: "one-to-many" }],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_REL_MISSING_TO")).toBe(true);
+  });
+
+  it("CATCHES invalid self-relation without allowSelf (negative)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "emp", name: "E", fields: [] }],
+      relations: [{ fromEntity: "emp", toEntity: "emp", cardinality: "one-to-one" }],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_REL_INVALID_SELF")).toBe(true);
+  });
+
+  it("CATCHES inverse ref missing or mismatched (negative)", () => {
+    const m: DataModelModel = {
+      entities: [
+        { id: "dept", name: "D", fields: [] },
+        { id: "emp", name: "E", fields: [] },
+      ],
+      relations: [
+        { key: "members", fromEntity: "dept", toEntity: "emp", cardinality: "one-to-many", inverse: "missingInv" },
+      ],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_REL_INVERSE_MISMATCH")).toBe(true);
+  });
+
+  it("project() emits explicit relation edges with cardinality and inverse labels", () => {
+    const m: DataModelModel = {
+      entities: [
+        { id: "dept", name: "Dept", fields: [] },
+        { id: "emp", name: "Emp", fields: [] },
+      ],
+      relations: [
+        { key: "members", fromEntity: "dept", toEntity: "emp", cardinality: "one-to-many", name: "Members", inverse: "dept" },
+      ],
+    };
+    const proj = dataModelSkill.project(m);
+    const relEdges = proj.edges.filter((e: any) => e.kind === "relation" && e.from.includes("dept") && e.to.includes("emp"));
+    expect(relEdges.length).toBeGreaterThan(0);
+    const label = relEdges[0].label || "";
+    expect(label).toContain("one-to-many");
+    expect(label).toContain("Members");
+    expect(label).toContain("inv:dept");
+  });
+
+  it("CATCHES invalid cardinality value (negative)", () => {
+    const m: DataModelModel = {
+      entities: [
+        { id: "dept", name: "Dept", fields: [] },
+        { id: "emp", name: "Emp", fields: [] },
+      ],
+      relations: [
+        { fromEntity: "dept", toEntity: "emp", cardinality: "unknown-cardinality" as any },
+      ],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_REL_INVALID_CARDINALITY")).toBe(true);
+  });
+
+  // --- migration plan gate focused tests (positive + negative per task) ---
+  it("accepts planned rename with planRef (positive)", () => {
+    const m: DataModelModel = {
+      entities: [
+        { id: "emp", name: "Emp", fields: [{ key: "id", name: "ID", type: "string" }, { key: "fullName", name: "Full Name", type: "string" }] },
+      ],
+      migrationPlan: {
+        id: "plan-rename-001",
+        version: 2,
+        actions: [{ action: "rename", entity: "emp", field: "name", from: "name", to: "fullName", planRef: "TICKET-115-01" }],
+      },
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(true);
+    expect(report.errors).toHaveLength(0);
+  });
+
+  it("accepts planned remove with planRef (positive)", () => {
+    const m: DataModelModel = {
+      entities: [
+        { id: "emp", name: "Emp", fields: [{ key: "id", name: "ID", type: "string" }] },
+      ],
+      migrationPlan: {
+        actions: [{ action: "remove", entity: "emp", field: "legacyCode", planRef: "MIG-115-REMOVE-42" }],
+      },
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(true);
+    expect(report.errors).toHaveLength(0);
+  });
+
+  it("accepts planned type-change with planRef (positive)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "order", name: "Order", fields: [{ key: "amount", name: "Amount", type: "number" }] }],
+      migrationPlan: {
+        actions: [{ action: "type-change", entity: "order", field: "amount", from: "string", to: "number", planRef: "PR-115-TC" }],
+      },
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(true);
+  });
+
+  it("CATCHES destructive remove without planRef (negative)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "emp", name: "Emp", fields: [{ key: "id", name: "ID", type: "string" }] }],
+      migrationPlan: {
+        actions: [{ action: "remove", entity: "emp", field: "oldField" /* no planRef */ }],
+      },
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_MIGRATION_DESTRUCTIVE_NO_PLAN")).toBe(true);
+  });
+
+  it("CATCHES destructive type-change without planRef (negative)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "doc", name: "Doc", fields: [{ key: "ver", name: "Ver", type: "number" }] }],
+      migrationPlan: {
+        actions: [{ action: "type-change", entity: "doc", field: "ver", from: "string", to: "number" }],
+      },
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_MIGRATION_DESTRUCTIVE_NO_PLAN")).toBe(true);
+  });
+
+  it("warns on high-risk deprecate without planRef (but ok=true)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "emp", name: "Emp", fields: [{ key: "id", name: "ID", type: "string" }] }],
+      migrationPlan: {
+        actions: [{ action: "deprecate", entity: "emp", field: "legacy", /*no ref*/ }],
+      },
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(true);
+    expect(report.warnings.some(e => e.code === "DM_MIGRATION_HIGH_RISK_NO_REF")).toBe(true);
+  });
+
+  it("CATCHES invalid migration action type (negative)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "emp", name: "Emp", fields: [{ key: "id", name: "ID", type: "string" }] }],
+      migrationPlan: {
+        actions: [{ action: "drop" as any, entity: "emp", field: "foo" }],
+      },
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_MIGRATION_INVALID_ACTION")).toBe(true);
+  });
+
+  // --- V2 dataset binding model focused tests (positive + negative) ---
+  it("accepts valid dataset binding with entity refs, selected fields, params, output aliases (positive)", () => {
+    const m: DataModelModel = {
+      entities: [
+        { id: "order", name: "Order", fields: [
+          { key: "id", name: "ID", type: "string" },
+          { key: "amount", name: "Amount", type: "number" },
+          { key: "status", name: "Status", type: "string" },
+        ] },
+      ],
+      datasets: [
+        {
+          id: "order_amounts",
+          name: "订单金额",
+          entityRef: "order",
+          selectedFields: [
+            { field: "id" },
+            { field: "amount", alias: "total" },
+            { field: "status" },
+          ],
+          parameters: [{ key: "minAmount", type: "number", required: false }],
+          outputAliases: { "amount": "totalAmount", "status": "orderStatus" },
+        },
+      ],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(true);
+    expect(report.errors).toHaveLength(0);
+
+    const surface = dataModelSkill.resolve(m);
+    expect(surface.dataset).toContain("order_amounts");
+    const ds = surface.datasets.find((d: any) => d.id === "order_amounts");
+    expect(ds).toBeTruthy();
+    expect(ds.entityRef).toBe("order");
+    expect(ds.selectedFields).toContain("amount");
+    expect(ds.selectedFieldRefs).toContain("order.amount");
+    expect(ds.outputAliases["amount"]).toBe("totalAmount");
+    expect(ds.parameters).toContain("minAmount");
+
+    // dataset resolve surface exposes refs usable by consumers
+    expect(dataModelSkill.refNodeId("dataset", "order_amounts")).toBe("ds_order_amounts");
+  });
+
+  it("leaves existing leave/purchase samples compatible and exposes their dataset bindings (compat)", () => {
+    const lrReport = dataModelSkill.validate(leaveRequestDataModel);
+    expect(lrReport.ok).toBe(true);
+    const lrSurf = dataModelSkill.resolve(leaveRequestDataModel);
+    expect(lrSurf.dataset).toContain("leave_summary");
+    const lrDs = lrSurf.datasets.find((d: any) => d.id === "leave_summary");
+    expect(lrDs.entityRef).toBe("leave_request");
+    expect(lrDs.selectedFields).toContain("days");
+    expect(lrDs.outputAliases["days"]).toBe("leaveDays");
+
+    const paReport = dataModelSkill.validate(purchaseApprovalDataModel);
+    expect(paReport.ok).toBe(true);
+    const paSurf = dataModelSkill.resolve(purchaseApprovalDataModel);
+    expect(paSurf.dataset).toContain("purchase_amount_query");
+  });
+
+  it("project() emits dataset nodes and bind/selection edges (V2 diagram)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "e", name: "E", fields: [{ key: "f", name: "F", type: "string" }] }],
+      datasets: [{ id: "d1", entityRef: "e", selectedFields: [{ field: "f", alias: "ff" }] }],
+    };
+    const proj = dataModelSkill.project(m);
+    expect(proj.nodes.some((n: any) => n.id === "ds_d1" && n.kind === "dataset")).toBe(true);
+    const dsEdge = proj.edges.find((e: any) => e.from === "ds_d1" && e.to === "dm_e");
+    expect(dsEdge).toBeTruthy();
+    expect(dsEdge.label).toBe("binds");
+    const selEdge = proj.edges.find((e: any) => e.from === "ds_d1" && e.to.includes("dm_e_f"));
+    expect(selEdge).toBeTruthy();
+    expect(selEdge.label).toBe("ff");
+  });
+
+  it("CATCHES dataset bound to non-existent entity (negative)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "emp", name: "Emp", fields: [{ key: "id", name: "ID", type: "string" }] }],
+      datasets: [{ id: "bad", entityRef: "ghost", selectedFields: [{ field: "id" }] }],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_DATASET_MISSING_ENTITY")).toBe(true);
+  });
+
+  it("CATCHES dataset selecting field not present on entity (negative)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "emp", name: "Emp", fields: [{ key: "id", name: "ID", type: "string" }] }],
+      datasets: [{ id: "badfields", entityRef: "emp", selectedFields: [{ field: "ghostField" }, { field: "id" }] }],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_DATASET_FIELD_NOT_ON_ENTITY")).toBe(true);
+  });
+
+  it("CATCHES duplicate dataset ids (negative)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "e", name: "E", fields: [{ key: "id", name: "ID", type: "string" }] }],
+      datasets: [
+        { id: "dup", entityRef: "e", selectedFields: [{ field: "id" }] },
+        { id: "dup", entityRef: "e", selectedFields: [{ field: "id" }] },
+      ],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_DUP_DATASET_ID")).toBe(true);
+  });
+
+  it("CATCHES dataset missing selectedFields entirely (negative)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "emp", name: "Emp", fields: [{ key: "id", name: "ID", type: "string" }] }],
+      datasets: [{ id: "bad-missing", entityRef: "emp" } as any],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_DATASET_FIELD_INVALID")).toBe(true);
+  });
+
+  it("CATCHES dataset with empty selectedFields array (negative)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "emp", name: "Emp", fields: [{ key: "id", name: "ID", type: "string" }] }],
+      datasets: [{ id: "bad-empty", entityRef: "emp", selectedFields: [] }],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_DATASET_FIELD_INVALID")).toBe(true);
+  });
+
+  it("CATCHES dataset with non-array selectedFields (negative)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "emp", name: "Emp", fields: [{ key: "id", name: "ID", type: "string" }] }],
+      datasets: [{ id: "bad-nonarray", entityRef: "emp", selectedFields: "not-an-array" as any }],
+    };
+    const report = dataModelSkill.validate(m);
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_DATASET_FIELD_INVALID")).toBe(true);
+  });
+
+  it("exposes dataset via resolve even when using full sample with aliases/params", () => {
+    const surf = dataModelSkill.resolve(leaveRequestDataModel);
+    const ds = surf.datasets.find((d: any) => d.id === "leave_summary");
+    expect(ds).toBeTruthy();
+    expect(ds.outputAliases).toBeTruthy();
+    expect(Object.keys(ds.outputAliases).length).toBeGreaterThan(0);
+  });
+
+  // --- 115.20.07 DataModel PDP delegation policy definitions (model/row/field/export) + decisionScope gate (focused +ve/-ve) ---
+  it("policyDefinitions (model/row/field/export) validate when decisionScope present via external.rbac (positive)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "e", name: "E", fields: [{ key: "id", name: "ID", type: "string", fieldId: "f1", version: 1, lifecycle: "active", storageRole: "ssot" }] }],
+      policyDefinitions: [
+        { id: "model_pol", level: "model", decisionScope: "RBAC_DECISION_ALLOW" },
+        { id: "row_pol", level: "row", decisionScope: "RBAC_DECISION_FAIL_CLOSED", name: "row level" },
+        { id: "fld_pol", level: "field", decisionScope: "RBAC_DECISION_ALLOW" },
+        { id: "exp_pol", level: "export", decisionScope: "RBAC_DECISION_FAIL_CLOSED" },
+      ],
+    };
+    const report = dataModelSkill.validate(m, {
+      external: { rbac: { decisionScope: ["RBAC_DECISION_ALLOW", "RBAC_DECISION_FAIL_CLOSED"] } },
+    });
+    expect(report.ok).toBe(true);
+    expect(report.errors.some(e => e.code && e.code.includes("POLICY"))).toBe(false);
+    // resolve exposes the policyDefinition surface
+    const surf = dataModelSkill.resolve(m);
+    expect(surf.policyDefinition).toContain("model_pol");
+    expect(surf.policyDefinition).toContain("exp_pol");
+  });
+
+  it("policyDefinition with missing decisionScope in external.rbac is rejected by gate (negative)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "e", name: "E", fields: [{ key: "id", name: "ID", type: "string", fieldId: "f1", version: 1, lifecycle: "active", storageRole: "ssot" }] }],
+      policyDefinitions: [
+        { id: "bad_scope", level: "row", decisionScope: "RBAC_DECISION_GHOST" },
+      ],
+    };
+    const report = dataModelSkill.validate(m, {
+      external: { rbac: { decisionScope: ["RBAC_DECISION_ALLOW"] } },
+    });
+    expect(report.ok).toBe(false);
+    expect(report.errors.some(e => e.code === "DM_POLICY_DEF_SCOPE_NOT_IN_RBAC")).toBe(true);
+  });
+
+  it("policyDefinition requires level and decisionScope (structure negative)", () => {
+    const bad1: DataModelModel = {
+      entities: [{ id: "e", name: "E", fields: [{ key: "id", name: "ID", type: "string" }] }],
+      policyDefinitions: [{ id: "no_level" } as any],
+    };
+    const r1 = dataModelSkill.validate(bad1);
+    expect(r1.ok).toBe(false);
+    expect(r1.errors.some(e => e.code === "DM_POLICY_DEF_INVALID_LEVEL")).toBe(true);
+
+    const bad2: DataModelModel = {
+      entities: [{ id: "e", name: "E", fields: [{ key: "id", name: "ID", type: "string" }] }],
+      policyDefinitions: [{ id: "no_scope", level: "field" } as any],
+    };
+    const r2 = dataModelSkill.validate(bad2);
+    expect(r2.ok).toBe(false);
+    expect(r2.errors.some(e => e.code === "DM_POLICY_DEF_NO_SCOPE")).toBe(true);
+  });
+
+  it("policyDefinitions project as policy nodes (diagram semantics)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "e", name: "E", fields: [{ key: "id", name: "ID", type: "string" }] }],
+      policyDefinitions: [{ id: "row_access", level: "row", decisionScope: "RBAC_DECISION_ALLOW" }],
+    };
+    const proj = dataModelSkill.project(m);
+    expect(proj.nodes.some((n: any) => n.kind === "policy" && (n.id || "").includes("row_access"))).toBe(true);
+  });
+
+  // --- V2 projector hardening: SSOT central host + migration projection (per review findings) ---
+  it("project() projects SSOT as central host node (kind ssot-host) + host edges to entities/fields/datasets/policies/migrations (positive)", () => {
+    const m: DataModelModel = {
+      entities: [{ id: "e", name: "E", fields: [{ key: "f", name: "F", type: "string", lifecycle: "active" }] }],
+      datasets: [{ id: "d1", entityRef: "e", selectedFields: [{ field: "f" }] }],
+      policyDefinitions: [{ id: "p1", level: "model", decisionScope: "S" }],
+      migrationPlan: { id: "plan-v2", actions: [{ action: "add", entity: "e", field: "f", planRef: "T-115" }] },
+    };
+    const proj = dataModelSkill.project(m);
+    expect(proj.nodes.some((n: any) => n.id === "ssot_datamodel" && n.kind === "ssot-host")).toBe(true);
+    // central host edges exist
+    expect(proj.edges.some((e: any) => e.from === "ssot_datamodel" && e.to === "dm_e" && e.kind === "ssot")).toBe(true);
+    expect(proj.edges.some((e: any) => e.from === "ssot_datamodel" && e.to.includes("dm_e_f") && e.kind === "ssot")).toBe(true);
+    expect(proj.edges.some((e: any) => e.from === "ssot_datamodel" && e.to.includes("mig_") && e.kind === "ssot")).toBe(true);
+    expect(proj.mermaid).toContain("ssot_datamodel");
+    expect(proj.mermaid).toContain("SSOT");
+  });
+
+  it("project() projects migrationPlan/actions as diagram nodes and edges (positive)", () => {
+    const m: DataModelModel = {
+      entities: [
+        { id: "emp", name: "Emp", fields: [{ key: "name", name: "Name", type: "string" }] },
+      ],
+      migrationPlan: {
+        id: "plan-115",
+        version: 2,
+        actions: [
+          { action: "rename", entity: "emp", field: "name", from: "oldName", to: "name", planRef: "TICKET-115-01" },
+          { action: "deprecate", entity: "emp", field: "legacy", planRef: "MIG-42" },
+        ],
+      },
+    };
+    const proj = dataModelSkill.project(m);
+    // migration plan node and per-action nodes
+    expect(proj.nodes.some((n: any) => n.kind === "migration" && (n.id || "").includes("mig_plan_115"))).toBe(true);
+    expect(proj.nodes.some((n: any) => n.kind === "migration" && (n.label || "").includes("rename:emp.name"))).toBe(true);
+    expect(proj.nodes.some((n: any) => n.kind === "migration" && (n.label || "").includes("deprecate"))).toBe(true);
+    // migration edges
+    expect(proj.edges.some((e: any) => e.kind === "migration" && (e.label || "") === "rename")).toBe(true);
+    expect(proj.edges.some((e: any) => e.kind === "migration" && (e.label || "") === "affects")).toBe(true);
+    // mermaid must contain V2 migration nodes
+    expect(proj.mermaid).toContain("mig_");
+    expect(proj.mermaid).toContain("rename");
+  });
+
+  it("project() surfaces field lifecycle in node labels (V2 diagram)", () => {
+    const proj = dataModelSkill.project(leaveRequestDataModel);
+    const fld = proj.nodes.find((n: any) => n.kind === "field" && n.id.includes("approved"));
+    expect(fld).toBeTruthy();
+    expect(fld!.label).toContain("[active]");
+  });
+
+  it("project() emits no migration nodes when migrationPlan absent (compat negative)", () => {
+    const proj = dataModelSkill.project(leaveRequestDataModel);
+    expect(proj.nodes.some((n: any) => n.kind === "migration")).toBe(false);
+    // but SSOT host is always present for V2
+    expect(proj.nodes.some((n: any) => n.id === "ssot_datamodel" && n.kind === "ssot-host")).toBe(true);
+  });
+
+  it("refNodeId supports migration kind", () => {
+    expect(dataModelSkill.refNodeId("migration", "plan-115")).toBe("mig_plan_115");
   });
 });

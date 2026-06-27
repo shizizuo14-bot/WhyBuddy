@@ -6,8 +6,19 @@ import {
   type Projection,
   type ResolvableSurface,
   type Skill,
+  type ValidateContext,
 } from "../skill";
-import type { DataModelModel } from "./dataModelModel";
+import type { DataModelModel, Dataset, MigrationAction, MigrationActionType, PolicyDefinition, Relation, RelationCardinality, SensitivityLevel } from "./dataModelModel";
+
+/** Helper for consumers (Page/Workflow/AIGC) to inspect SSOT field lifecycle from the datamodel surface.
+ *  Enables "cannot silently bind" gate: deprecated -> warning, removed -> error on field refs.
+ */
+export function getFieldLifecycle(surface: ResolvableSurface | any, ref: string): string | undefined {
+  const fields = (surface as any)?.fields;
+  if (!Array.isArray(fields)) return undefined;
+  const f = fields.find((ff: any) => ff && ff.ref === ref);
+  return f ? (f.lifecycle as string | undefined) : undefined;
+}
 
 function sanitizeId(raw: string): string {
   return raw.replace(/[^a-zA-Z0-9_]/g, "_");
@@ -34,6 +45,7 @@ function withSsotMetadata(model: DataModelModel): DataModelModel {
     "leave_request.days": "f_leave_days_v1",
     "leave_request.reason": "f_leave_reason_v1",
     "leave_request.approved": "f_leave_approved_v1",
+    "purchase_request.amount": "f_purchase_request_amount_v1",
   };
 
   return {
@@ -46,8 +58,22 @@ function withSsotMetadata(model: DataModelModel): DataModelModel {
         version: field.version ?? 1,
         lifecycle: field.lifecycle ?? "active",
         storageRole: field.storageRole ?? "ssot",
+        sensitivity: field.sensitivity,
+        policyRef: field.policyRef,
+        pdpVisibleTo: field.pdpVisibleTo,
       })),
     })),
+    relations: model.relations ? [...model.relations] : undefined,
+    migrationPlan: model.migrationPlan,
+    datasets: model.datasets ? model.datasets.map((d: Dataset) => ({
+      id: d.id,
+      name: d.name,
+      entityRef: d.entityRef,
+      selectedFields: (d.selectedFields || []).map(sf => ({ ...sf })),
+      parameters: d.parameters ? [...d.parameters] : undefined,
+      outputAliases: d.outputAliases ? { ...d.outputAliases } : undefined,
+    })) : undefined,
+    policyDefinitions: model.policyDefinitions ? model.policyDefinitions.map((p: PolicyDefinition) => ({ ...p })) : undefined,
   };
 }
 
@@ -56,7 +82,7 @@ export const dataModelSkill: Skill<DataModelModel> & CrossSkill<DataModelModel> 
   title: "数据中台",
 
   // -- THE GATE (entity/field integrity + relation integrity) --------------
-  validate(model: DataModelModel): ReturnType<Skill<DataModelModel>["validate"]> {
+  validate(model: DataModelModel, ctx?: ValidateContext): ReturnType<Skill<DataModelModel>["validate"]> {
     const f: Finding[] = [];
     const entityIds = new Set(model.entities.map(e => e.id));
 
@@ -129,7 +155,158 @@ export const dataModelSkill: Skill<DataModelModel> & CrossSkill<DataModelModel> 
         } else if (fl.lifecycle === "removed") {
           f.push({ code: "DM_FIELD_REMOVED", severity: "error", path: `entities[${entity.id}].fields[${i}]`, message: `字段「${fl.name}」已移除` });
         }
+        // sensitive field policy gate: sensitive fields must carry PDP delegation metadata (policyRef)
+        if (fl.sensitivity && fl.sensitivity !== "none" && !fl.policyRef) {
+          f.push({ code: "DM_SENSITIVE_FIELD_NO_POLICY", severity: "error", path: `entities[${entity.id}].fields[${i}]`, message: `敏感字段「${fl.name}」必须提供 policyRef 以委托 RBAC PDP 决策` });
+        }
       });
+    });
+
+    // -- V2 relation cardinality + inverse + self gate ----------------------
+    const rels: Relation[] = Array.isArray(model.relations) ? model.relations : [];
+    const relKeys = rels.map(r => r.key).filter(Boolean) as string[];
+    for (const dup of findDuplicates(relKeys))
+      f.push({ code: "DM_DUP_RELATION_KEY", severity: "error", path: `relation=${dup}`, message: `关系 key 重复：${dup}` });
+
+    rels.forEach((rel, ri) => {
+      // runtime cardinality gate (TS union does not protect JSON/any/generator input)
+      const card: any = (rel as any).cardinality;
+      const validCards: readonly RelationCardinality[] = ["one-to-one", "one-to-many", "many-to-one", "many-to-many"];
+      if (typeof card !== "string" || !validCards.includes(card as RelationCardinality)) {
+        f.push({ code: "DM_REL_INVALID_CARDINALITY", severity: "error", path: `relations[${ri}]`, message: `关系基数无效：${card}，必须是 one-to-one、one-to-many、many-to-one 或 many-to-many 之一` });
+      }
+      if (!entityIds.has(rel.fromEntity)) {
+        f.push({ code: "DM_REL_MISSING_FROM", severity: "error", path: `relations[${ri}]`, message: `关系源实体不存在：${rel.fromEntity}` });
+      }
+      if (!entityIds.has(rel.toEntity)) {
+        f.push({ code: "DM_REL_MISSING_TO", severity: "error", path: `relations[${ri}]`, message: `关系目标实体不存在：${rel.toEntity}` });
+      }
+      const isSelf = rel.fromEntity === rel.toEntity;
+      if (isSelf && !rel.allowSelf) {
+        f.push({ code: "DM_REL_INVALID_SELF", severity: "error", path: `relations[${ri}]`, message: `自关系必须显式 allowSelf=true：${rel.fromEntity} -> ${rel.toEntity}` });
+      }
+      if (rel.inverse) {
+        // inverse must exist and point back
+        const inv = rels.find(r => (r.key && r.key === rel.inverse) || (r.name && r.name === rel.inverse));
+        const pointsBack = inv && inv.fromEntity === rel.toEntity && inv.toEntity === rel.fromEntity;
+        if (!pointsBack) {
+          f.push({ code: "DM_REL_INVERSE_MISMATCH", severity: "error", path: `relations[${ri}]`, message: `inverse 引用缺失或不匹配：${rel.inverse}` });
+        }
+      }
+    });
+
+    // -- V2 migration plan gate (add/rename/deprecate/remove/type-change) ----
+    // Pure data validation only. Destructive actions require explicit planRef evidence.
+    // High-risk actions without planRef get warnings. Existing models without plan remain compatible.
+    const plan = (model as any).migrationPlan as { id?: string; version?: number; actions?: MigrationAction[] } | undefined;
+    if (plan) {
+      if (!Array.isArray(plan.actions)) {
+        f.push({ code: "DM_MIGRATION_PLAN_NO_ACTIONS", severity: "error", path: "migrationPlan", message: "migrationPlan 必须包含 actions 数组" });
+      } else {
+        const destructive = new Set(["remove", "type-change"]);
+        const highRisk = new Set(["deprecate", "rename"]);
+        plan.actions.forEach((act: MigrationAction, i: number) => {
+          if (!act || !act.action || !act.entity) {
+            f.push({ code: "DM_MIGRATION_ACTION_INVALID", severity: "error", path: `migrationPlan.actions[${i}]`, message: "迁移动作缺少 action 或 entity" });
+            return;
+          }
+          const actType = act.action;
+          // runtime enum gate for action (TS union alone cannot protect JSON/any/generator inputs)
+          const validActions: readonly MigrationActionType[] = ["add", "rename", "deprecate", "remove", "type-change"];
+          if (typeof actType !== "string" || !validActions.includes(actType as MigrationActionType)) {
+            f.push({ code: "DM_MIGRATION_INVALID_ACTION", severity: "error", path: `migrationPlan.actions[${i}]`, message: `迁移动作类型无效：${actType}，只允许 add/rename/deprecate/remove/type-change` });
+            return;
+          }
+          const hasRef = !!act.planRef && typeof act.planRef === "string" && act.planRef.trim().length > 0;
+          const path = `migrationPlan.actions[${i}]`;
+          const target = act.field ? `${act.entity}.${act.field}` : act.entity;
+          if (destructive.has(actType) && !hasRef) {
+            f.push({ code: "DM_MIGRATION_DESTRUCTIVE_NO_PLAN", severity: "error", path, message: `破坏性迁移 ${actType} 于 ${target} 缺少 planRef 证据` });
+          } else if ((highRisk.has(actType) || destructive.has(actType)) && !hasRef) {
+            // high-risk (rename/deprecate) without ref -> warning (destructive already errored above)
+            f.push({ code: "DM_MIGRATION_HIGH_RISK_NO_REF", severity: "warning", path, message: `高风险迁移 ${actType} 于 ${target} 建议提供 planRef` });
+          }
+          if (actType === "rename" || actType === "type-change") {
+            if (!act.from || !act.to) {
+              f.push({ code: "DM_MIGRATION_FROM_TO_REQUIRED", severity: "error", path, message: `${actType} 动作必须提供 from/to：${target}` });
+            }
+          }
+          if (actType === "add" && !act.to && !act.field) {
+            f.push({ code: "DM_MIGRATION_ADD_TARGET_REQUIRED", severity: "warning", path, message: `add 动作建议提供 field 或 to 说明新增目标：${target}` });
+          }
+        });
+      }
+    }
+
+    // -- V2 dataset binding model gate (entityRef + selected field refs against entity + aliases) ---
+    const datasets: Dataset[] = Array.isArray((model as any).datasets) ? (model as any).datasets : [];
+    const dsIds = datasets.map((d: any) => (d && d.id)).filter(Boolean) as string[];
+    for (const dup of findDuplicates(dsIds))
+      f.push({ code: "DM_DUP_DATASET_ID", severity: "error", path: `dataset=${dup}`, message: `数据集 id 重复：${dup}` });
+
+    datasets.forEach((ds: any, di: number) => {
+      if (!ds || !ds.id || typeof ds.id !== "string" || !ds.entityRef || typeof ds.entityRef !== "string") {
+        f.push({ code: "DM_DATASET_INVALID", severity: "error", path: `datasets[${di}]`, message: "数据集缺少有效 id 或 entityRef" });
+        return;
+      }
+      if (!entityIds.has(ds.entityRef)) {
+        f.push({ code: "DM_DATASET_MISSING_ENTITY", severity: "error", path: `datasets[${di}].entityRef`, message: `数据集「${ds.id}」绑定到不存在的实体：${ds.entityRef}` });
+        return;
+      }
+      if (!Array.isArray(ds.selectedFields) || ds.selectedFields.length === 0) {
+        f.push({ code: "DM_DATASET_FIELD_INVALID", severity: "error", path: `datasets[${di}].selectedFields`, message: `数据集「${ds.id}」必须声明非空的 selectedFields 数组以提供 field mapping outputs` });
+        return;
+      }
+      const targetEnt = model.entities.find(e => e.id === ds.entityRef)!;
+      const entFieldKeys = new Set(targetEnt.fields.map(fl => fl.key));
+      const sel = ds.selectedFields;
+      sel.forEach((sf: any, si: number) => {
+        const fld = sf && typeof sf.field === "string" ? sf.field : "";
+        if (!fld) {
+          f.push({ code: "DM_DATASET_FIELD_INVALID", severity: "error", path: `datasets[${di}].selectedFields[${si}]`, message: `数据集「${ds.id}」的字段选择无效` });
+          return;
+        }
+        if (!entFieldKeys.has(fld)) {
+          f.push({ code: "DM_DATASET_FIELD_NOT_ON_ENTITY", severity: "error", path: `datasets[${di}].selectedFields[${si}].field`, message: `数据集「${ds.id}」选择的字段「${fld}」在实体「${ds.entityRef}」上不存在` });
+        }
+      });
+      // basic outputAliases validation (string targets)
+      if (ds.outputAliases && typeof ds.outputAliases === "object") {
+        Object.entries(ds.outputAliases).forEach(([alias, tgt]) => {
+          if (typeof tgt !== "string" || !tgt) {
+            f.push({ code: "DM_DATASET_ALIAS_INVALID", severity: "error", path: `datasets[${di}].outputAliases.${alias}`, message: `数据集输出别名「${alias}」目标无效` });
+          }
+        });
+      }
+    });
+
+    // -- 115.20.07 PDP delegation: represent model/row/field/export policy defs as inputs; validate point to RBAC PDP decisionScopes via external
+    // DataModel defines policy inputs only. All allow/deny delegated to RBAC PDP. No local decisions implemented here.
+    const policyDefs: any[] = Array.isArray((model as any).policyDefinitions) ? (model as any).policyDefinitions : [];
+    const pdIds = policyDefs.map((p: any) => (p && p.id)).filter((x: any) => typeof x === "string" && x) as string[];
+    for (const dup of findDuplicates(pdIds)) {
+      f.push({ code: "DM_DUP_POLICY_DEF_ID", severity: "error", path: `policyDefinition=${dup}`, message: `策略定义 id 重复：${dup}` });
+    }
+    const rbacExternal: any = (ctx?.external && (ctx.external as any)["rbac"]) || {};
+    const knownDecisionScopes: string[] = Array.isArray(rbacExternal.decisionScope) ? rbacExternal.decisionScope : [];
+    const validLevels: readonly string[] = ["model", "row", "field", "export"];
+    policyDefs.forEach((pd: any, i: number) => {
+      if (!pd || typeof pd.id !== "string" || !pd.id.trim()) {
+        f.push({ code: "DM_POLICY_DEF_INVALID", severity: "error", path: `policyDefinitions[${i}]`, message: "策略定义必须具有非空 id" });
+        return;
+      }
+      if (typeof pd.level !== "string" || !validLevels.includes(pd.level)) {
+        f.push({ code: "DM_POLICY_DEF_INVALID_LEVEL", severity: "error", path: `policyDefinitions[${i}].level`, message: `策略定义 level 必须是 model/row/field/export 之一：${pd.level}` });
+        return;
+      }
+      if (typeof pd.decisionScope !== "string" || !pd.decisionScope.trim()) {
+        f.push({ code: "DM_POLICY_DEF_NO_SCOPE", severity: "error", path: `policyDefinitions[${i}].decisionScope`, message: `策略定义「${pd.id}」必须指定 decisionScope 以指向 RBAC PDP` });
+        return;
+      }
+      // cross-skill gate: when RBAC external surface provided, scope must exist (enables gate reject on missing)
+      if (knownDecisionScopes.length > 0 && !knownDecisionScopes.includes(pd.decisionScope)) {
+        f.push({ code: "DM_POLICY_DEF_SCOPE_NOT_IN_RBAC", severity: "error", path: `policyDefinitions[${i}].decisionScope`, message: `策略定义「${pd.id}」引用的 decisionScope「${pd.decisionScope}」不存在于 RBAC PDP decisionScope 面` });
+      }
     });
 
     return finalizeReport(f);
@@ -141,11 +318,70 @@ export const dataModelSkill: Skill<DataModelModel> & CrossSkill<DataModelModel> 
     const fieldNodes = model.entities.flatMap(e =>
       e.fields.map(fl => ({
         id: `dm_${sanitizeId(e.id)}_${sanitizeId(fl.key)}`,
-        label: fl.name,
+        label: `${fl.name} [${fl.lifecycle ?? "active"}]`,
         kind: "field",
       }))
     );
-    const nodes = [...entityNodes, ...fieldNodes];
+    const datasetNodes = (model.datasets || []).map((ds: Dataset) => ({
+      id: `ds_${sanitizeId(ds.id)}`,
+      label: ds.name || ds.id,
+      kind: "dataset",
+    }));
+    // 115.20 sensitive field policy: project policy nodes for policyRef (PDP delegation semantics in diagram)
+    const policyNodes: Array<{id: string; label: string; kind: string}> = [];
+    const policyEdges: Array<{from: string; to: string; label?: string; kind: string}> = [];
+    const seenPolicies = new Set<string>();
+    model.entities.forEach(e => {
+      e.fields.forEach(fl => {
+        if (fl.policyRef && !seenPolicies.has(fl.policyRef)) {
+          seenPolicies.add(fl.policyRef);
+          policyNodes.push({ id: `pol_${sanitizeId(fl.policyRef)}`, label: `policy:${fl.policyRef}`, kind: "policy" });
+        }
+        if (fl.sensitivity && fl.sensitivity !== "none" && fl.policyRef) {
+          policyEdges.push({
+            from: `dm_${sanitizeId(e.id)}_${sanitizeId(fl.key)}`,
+            to: `pol_${sanitizeId(fl.policyRef)}`,
+            label: `sensitive:${fl.sensitivity}`,
+            kind: "policy",
+          });
+        }
+      });
+    });
+    // 115.20.07: also surface model/row/field/export policyDefinitions as policy nodes for V2 diagram semantics
+    (model.policyDefinitions || []).forEach((pd: PolicyDefinition) => {
+      if (pd && pd.id && !seenPolicies.has(pd.id)) {
+        seenPolicies.add(pd.id);
+        policyNodes.push({ id: `pol_${sanitizeId(pd.id)}`, label: `policy:${pd.id}[${pd.level}]`, kind: "policy" });
+      }
+    });
+    // V2: project SSOT as the central host node (kind ssot-host) with centralized edges
+    const ssotHostId = "ssot_datamodel";
+    const migrationNodes: Array<{ id: string; label: string; kind: string }> = [];
+    const migrationEdges: Array<{ from: string; to: string; label?: string; kind: string }> = [];
+    const plan = (model as any).migrationPlan as { id?: string; version?: number; actions?: MigrationAction[] } | undefined;
+    if (plan && Array.isArray(plan.actions)) {
+      const planId = `mig_${sanitizeId(plan.id || "plan")}`;
+      const planLabel = plan.id ? `migration:${plan.id}` : "migrationPlan";
+      migrationNodes.push({ id: planId, label: planLabel, kind: "migration" });
+      plan.actions.forEach((act: MigrationAction, i: number) => {
+        const tgt = act.field ? `${act.entity}.${act.field}` : act.entity;
+        const fromTo = (act.from && act.to) ? ` ${act.from}->${act.to}` : "";
+        const actLabel = `${act.action}:${tgt}${fromTo}`;
+        const actId = `mig_${sanitizeId(plan.id || "plan")}_act${i}`;
+        migrationNodes.push({ id: actId, label: actLabel, kind: "migration" });
+        migrationEdges.push({ from: planId, to: actId, label: act.action, kind: "migration" });
+        migrationEdges.push({ from: actId, to: `dm_${sanitizeId(act.entity)}`, label: "affects", kind: "migration" });
+      });
+    }
+
+    const nodes = [
+      { id: ssotHostId, label: "SSOT", kind: "ssot-host" },
+      ...entityNodes,
+      ...fieldNodes,
+      ...datasetNodes,
+      ...policyNodes,
+      ...migrationNodes,
+    ];
     const edges: Projection["edges"] = [];
     // preserve entity-level ref relations for coarse consumers
     model.entities.forEach(e => {
@@ -154,6 +390,19 @@ export const dataModelSkill: Skill<DataModelModel> & CrossSkill<DataModelModel> 
         .forEach(fl =>
           edges.push({ from: `dm_${sanitizeId(e.id)}`, to: `dm_${sanitizeId(fl.refEntity!)}`, label: fl.name, kind: "relation" }),
         );
+    });
+    // V2 explicit relations: project cardinality + inverse in labels for diagrams
+    const projRels: Relation[] = Array.isArray(model.relations) ? model.relations : [];
+    projRels.forEach(rel => {
+      const labelParts = [rel.name || rel.key || rel.cardinality];
+      if (rel.cardinality) labelParts.push(`(${rel.cardinality})`);
+      if (rel.inverse) labelParts.push(`inv:${rel.inverse}`);
+      edges.push({
+        from: `dm_${sanitizeId(rel.fromEntity)}`,
+        to: `dm_${sanitizeId(rel.toEntity)}`,
+        label: labelParts.join(" "),
+        kind: "relation",
+      });
     });
     // ownership edges so diagrams clearly connect entities to their SSOT fields
     model.entities.forEach(e => {
@@ -166,6 +415,46 @@ export const dataModelSkill: Skill<DataModelModel> & CrossSkill<DataModelModel> 
         });
       });
     });
+    // V2 dataset bindings: nodes + bind edges + selected field projections for diagram semantics
+    (model.datasets || []).forEach((ds: Dataset) => {
+      edges.push({
+        from: `ds_${sanitizeId(ds.id)}`,
+        to: `dm_${sanitizeId(ds.entityRef)}`,
+        label: "binds",
+        kind: "relation",
+      });
+      (ds.selectedFields || []).forEach((sf) => {
+        edges.push({
+          from: `ds_${sanitizeId(ds.id)}`,
+          to: `dm_${sanitizeId(ds.entityRef)}_${sanitizeId(sf.field)}`,
+          label: sf.alias || sf.field,
+          kind: "contains",
+        });
+      });
+    });
+    // 115.20: add sensitive policy delegation edges for diagram V2 semantics
+    edges.push(...policyEdges);
+
+    // V2: central SSOT host edges to entities, fields, datasets, policies, migrations (and PDP delegation via policy)
+    entityNodes.forEach(en => {
+      edges.push({ from: ssotHostId, to: en.id, label: "hosts", kind: "ssot" });
+    });
+    fieldNodes.forEach(fn => {
+      edges.push({ from: ssotHostId, to: fn.id, label: "hosts field", kind: "ssot" });
+    });
+    datasetNodes.forEach(dn => {
+      edges.push({ from: ssotHostId, to: dn.id, label: "hosts", kind: "ssot" });
+    });
+    policyNodes.forEach(pn => {
+      edges.push({ from: ssotHostId, to: pn.id, label: "hosts", kind: "ssot" });
+    });
+    migrationNodes.forEach(mn => {
+      edges.push({ from: ssotHostId, to: mn.id, label: "hosts", kind: "ssot" });
+    });
+
+    // migration action edges
+    edges.push(...migrationEdges);
+
     const lines: string[] = ["flowchart LR"];
     for (const n of nodes) lines.push(`  ${n.id}[("${n.label}")]`);
     for (const e of edges) lines.push(`  ${e.from} -->|${e.label ?? ""}| ${e.to}`);
@@ -180,14 +469,31 @@ export const dataModelSkill: Skill<DataModelModel> & CrossSkill<DataModelModel> 
       // keep bare string field refs for compat with entity-level / coarse consumers
       field: model.entities.flatMap(e => e.fields.map(fl => `${e.id}.${fl.key}`)),
       // field-level SSOT surface with version + lifecycle metadata (for downstream field refs)
+      // 115.20: also exports sensitivity + policyRef + pdpVisibleTo for PDP delegation on sensitive fields
       fields: model.entities.flatMap(e =>
         e.fields.map(fl => ({
           ref: `${e.id}.${fl.key}`,
           version: fl.version ?? 1,
           lifecycle: fl.lifecycle ?? "active",
           fieldId: fl.fieldId,
+          sensitivity: fl.sensitivity,
+          policyRef: fl.policyRef,
+          pdpVisibleTo: fl.pdpVisibleTo,
         }))
       ),
+      // V2 dataset binding surface: expose dataset refs for Page/Workflow/AIGC/AppBundle consumers
+      dataset: (model.datasets || []).map((ds: Dataset) => ds.id),
+      // detailed dataset refs with entity, selected field refs, parameter refs, output aliases
+      datasets: (model.datasets || []).map((ds: Dataset) => ({
+        id: ds.id,
+        entityRef: ds.entityRef,
+        selectedFields: (ds.selectedFields || []).map(sf => sf.field),
+        selectedFieldRefs: (ds.selectedFields || []).map(sf => `${ds.entityRef}.${sf.field}`),
+        parameters: (ds.parameters || []).map(p => p.key),
+        outputAliases: ds.outputAliases || {},
+      })),
+      // 115.20.07: expose policyDefinition ids (PDP policy inputs defined here, decisions delegated to RBAC)
+      policyDefinition: (model.policyDefinitions || []).map((p: PolicyDefinition) => p.id),
     };
     return surf;
   },
@@ -205,6 +511,9 @@ export const dataModelSkill: Skill<DataModelModel> & CrossSkill<DataModelModel> 
       if (ent && fld) return `dm_${sanitizeId(ent)}_${sanitizeId(fld)}`;
       return null;
     }
+    if (kind === "dataset") return `ds_${sanitizeId(value)}`;
+    if (kind === "policyDefinition" || kind === "policy") return `pol_${sanitizeId(value)}`;
+    if (kind === "migration") return `mig_${sanitizeId(value)}`;
     return null;
   },
 
@@ -241,6 +550,20 @@ export const leaveRequestDataModel: DataModelModel = withSsotMetadata({
         { key: "reason", name: "事由", type: "string" },
         { key: "approved", name: "是否通过", type: "boolean" },
       ],
+    },
+  ],
+  datasets: [
+    {
+      id: "leave_summary",
+      name: "请假汇总",
+      entityRef: "leave_request",
+      selectedFields: [
+        { field: "id" },
+        { field: "days", alias: "leaveDays" },
+        { field: "approved", alias: "isApproved" },
+      ],
+      parameters: [{ key: "applicantId", type: "ref", required: true }],
+      outputAliases: { "days": "leaveDays", "approved": "isApproved", "id": "requestId" },
     },
   ],
 });
@@ -286,13 +609,27 @@ export const purchaseApprovalDataModel: DataModelModel = withSsotMetadata({
         { key: "requester", name: "Requester", type: "ref", refEntity: "employee", required: true },
         { key: "department", name: "Department", type: "ref", refEntity: "department", required: true },
         { key: "vendor", name: "Vendor", type: "ref", refEntity: "vendor", required: true },
-        { key: "amount", name: "Amount", type: "number", required: true },
+        { key: "amount", name: "Amount", type: "number", required: true, sensitivity: "financial", policyRef: "pdp:purchase:amount", pdpVisibleTo: ["finance", "admin"] },
         { key: "status", name: "Approval Status", type: "enum", enumValues: ["draft", "approved", "rejected", "fulfilled"] },
         { key: "budgetChecked", name: "Budget Check", type: "boolean" },
         { key: "managerApproved", name: "Manager Approved", type: "boolean" },
         { key: "financeApproved", name: "Finance Approved", type: "boolean" },
         { key: "procurementFulfilled", name: "Procurement Fulfilled", type: "boolean" },
       ],
+    },
+  ],
+  datasets: [
+    {
+      id: "purchase_amount_query",
+      name: "采购金额查询",
+      entityRef: "purchase_request",
+      selectedFields: [
+        { field: "id" },
+        { field: "amount" },
+        { field: "status", alias: "approvalStatus" },
+      ],
+      parameters: [{ key: "requesterId", required: true }],
+      outputAliases: { "amount": "reqAmount", "status": "approvalStatus" },
     },
   ],
 });

@@ -42,3 +42,31 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Fresh validation evidence (recorded after review fixes for 115.10.03)
+
+All changes limited to allowed files. Extended PolicyContext with approverCount/approverUserIds; implemented dual-control minApprovers + distinct approver check inside decideRbacPolicy (after self-grant); added dual ref + minApprovers validation in validate; added 3 focused dual-control decision +/- cases (denies low count/dupe; allows distinct>=2) + preserved/adjusted non-self case for compatibility. Self-grant denial + prior behavior untouched.
+
+### Required: pnpm exec vitest run client/src/lib/skills/rbac/rbacSkill.test.ts --reporter=dot
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/rbac/rbacSkill.test.ts (33 tests) 8ms
+
+ Test Files  1 passed (1)
+      Tests  33 passed (33)
+   Start at  06:43:11
+   Duration  329ms (transform 45ms, setup 0ms, collect 50ms, tests 8ms, environment 0ms, prepare 53ms)
+```
+
+### Required: pnpm exec tsc --noEmit --pretty false
+```
+<no output / exit 0>
+```
+
+### Required: node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-rbac-sod-policy-model-115.md
+```
+No mojibake findings.
+```
+
+Evidence fresh at 2026-06-27. Dual-control checks now enforceable on pure decision surface; review findings addressed (Finding 1/2).

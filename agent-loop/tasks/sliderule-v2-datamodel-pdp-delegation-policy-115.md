@@ -43,3 +43,15 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Fresh validation evidence (2026-06-27, post review fix for 115.20.07)
+- Implementation added PolicyDefinition (model/row/field/export) to DataModelModel, validate gate checks decisionScope via external.rbac (errors when missing scope provided in external), project/resolve surface the defs. +ve/-ve focused tests added. Existing compat preserved.
+- `pnpm exec vitest run client/src/lib/skills/datamodel/dataModelSkill.test.ts client/src/lib/skills/rbac/rbacSkill.test.ts --reporter=dot`:
+  RUN  v2.1.9 ...
+   ✓ src/lib/skills/datamodel/dataModelSkill.test.ts (51 tests) 13ms
+   ✓ src/lib/skills/rbac/rbacSkill.test.ts (60 tests) 14ms
+  Test Files  2 passed (2)
+       Tests  111 passed (111)
+- `pnpm exec tsc --noEmit --pretty false`: exit 0 (no output)
+- `node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-datamodel-pdp-delegation-policy-115.md`: No mojibake findings.
+- Status evidence appended per acceptance; do not mark reviewed until human.

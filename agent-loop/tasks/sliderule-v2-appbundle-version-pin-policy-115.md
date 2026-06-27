@@ -42,3 +42,32 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Implementation notes (115.50.03)
+- Added `isFixedPinVersion` pure predicate (rejects "latest", "*", "^...", "1.x", ranges, wildcards).
+- Enforced in `appBundleSkill.validate` (new error code APPBUNDLE_VERSION_PIN_MOVABLE) and in `validateAppBundlePublishGate` (maps to APPBUNDLE_VERSION_UNPINNED; rejects in expected ref pin check).
+- Added focused gate tests: positive (all fixed pins => publishable true), negatives (latest; wildcard/range => publishable false, VERSION_UNPINNED).
+- No changes to model contract, no runtime, no unrelated files, no test deletion/weakening.
+- Existing leave/purchase/AIGC 114 bundles and paths remain compatible (use "1.0.0" fixed pins).
+
+## Validation evidence (fresh after fix, 2026-06-27)
+Command: pnpm exec vitest run client/src/lib/skills/appbundle/appBundleSkill.test.ts --reporter=dot
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/appbundle/appBundleSkill.test.ts (35 tests) 11ms
+ Test Files  1 passed (1)
+      Tests  35 passed (35)
+   Start at  09:52:52
+   Duration  365ms (transform 97ms, setup 0ms, collect 116ms, tests 11ms, environment 0ms, prepare 67ms)
+```
+
+Command: pnpm exec tsc --noEmit --pretty false
+```
+(exit 0, no diagnostics)
+```
+
+Command: node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-appbundle-version-pin-policy-115.md
+```
+No mojibake findings.
+```

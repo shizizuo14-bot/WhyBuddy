@@ -23,14 +23,14 @@
 - Do not mark this task reviewed until the required validation commands have fresh evidence.
 
 ## Implementation steps
-- [ ] Start from a clean worktree or queue worktree and inspect current Skill behavior.
-- [ ] Write or update the failing test that proves this hardening behavior is missing.
-- [ ] Add release artifact metadata for version, pins, publish gate evidence, and trace ids.
-- [ ] Add rollback target metadata pointing to prior release artifacts.
-- [ ] Validate rollback targets exist and are immutable.
-- [ ] Implement the smallest runtime-less model, validator, projector, resolve, or impact change needed.
-- [ ] Update documentation only when it clarifies the new V2 contract.
-- [ ] Append review evidence after validation passes.
+- [x] Start from a clean worktree or queue worktree and inspect current Skill behavior.
+- [x] Write or update the failing test that proves this hardening behavior is missing.
+- [x] Add release artifact metadata for version, pins, publish gate evidence, and trace ids.
+- [x] Add rollback target metadata pointing to prior release artifacts.
+- [x] Validate rollback targets exist and are immutable.
+- [x] Implement the smallest runtime-less model, validator, projector, resolve, or impact change needed.
+- [x] Update documentation only when it clarifies the new V2 contract.
+- [x] Append review evidence after validation passes.
 
 ## Required validation
 - `pnpm exec vitest run client/src/lib/skills/appbundle/appBundleSkill.test.ts --reporter=dot`
@@ -42,3 +42,35 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Fresh validation evidence (post-fix, 2026-06-27)
+
+### 1. vitest (specific file)
+```
+cmd /c "..\..\node_modules\.bin\vitest.cmd run client/src/lib/skills/appbundle/appBundleSkill.test.ts --reporter=dot"
+```
+Output:
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/appbundle/appBundleSkill.test.ts (51 tests) 15ms
+
+ Test Files  1 passed (1)
+      Tests  51 passed (51)
+   Start at  10:06:20
+   Duration  451ms (transform 103ms, setup 0ms, collect 124ms, tests 15ms, environment 0ms, prepare 71ms)
+
+(51 tests include original + new focused +/ - cases for releaseArtifact trace/gate-evidence and rollbackTargets exist/immutable)
+
+### 2. tsc --noEmit
+```
+cmd /c "..\..\node_modules\.bin\tsc.cmd --noEmit --pretty false"
+```
+Exit: 0 (clean, no errors)
+
+### 3. check-mojibake
+```
+cmd /c "node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-appbundle-release-artifact-rollback-115.md"
+```
+Output: No mojibake findings.
+
+All required gates pass with fresh evidence. Existing purchase/leave + AIGC 114 compat preserved. New release artifact (traceId + publishGateEvidence) and rollback target (exists+immutable validation) represented in model/skill/resolve/project.

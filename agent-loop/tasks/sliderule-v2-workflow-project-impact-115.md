@@ -42,3 +42,36 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Fresh validation evidence (appended post-fix per review)
+
+### 1. vitest
+Command: `pnpm exec vitest run client/src/lib/skills/workflow/workflowSkill.test.ts client/src/lib/skills/impact.test.ts --reporter=dot`
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/workflow/workflowSkill.test.ts (48 tests) 10ms
+ ✓ src/lib/skills/impact.test.ts (14 tests) 19ms
+
+ Test Files  2 passed (2)
+      Tests  62 passed (62)
+   Start at  09:08:16
+   Duration  387ms (transform 144ms, setup 0ms, collect 204ms, tests 30ms, environment 0ms, prepare 147ms)
+```
+All tests passing (added version/node impact coverage + mermaid asserts).
+
+### 2. tsc
+Command: `pnpm exec tsc --noEmit --pretty false`
+```
+(exit code 0, no output)
+```
+Type check clean.
+
+### 3. mojibake
+Command: `node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-workflow-project-impact-115.md`
+```
+No mojibake findings.
+```
+(exit code 0)
+
+Evidence recorded 2026-06-27.

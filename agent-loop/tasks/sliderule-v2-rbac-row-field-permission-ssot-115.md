@@ -43,3 +43,36 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Validation evidence (appended after fixes per 115.10.07 review)
+
+### pnpm exec vitest run client/src/lib/skills/rbac/rbacSkill.test.ts client/src/lib/skills/datamodel/dataModelSkill.test.ts --reporter=dot
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/datamodel/dataModelSkill.test.ts (15 tests) 6ms
+ ✓ src/lib/skills/rbac/rbacSkill.test.ts (54 tests) 10ms
+
+ Test Files  2 passed (2)
+      Tests  69 passed (69)
+   Start at  07:09:59
+   Duration  315ms (transform 89ms, setup 0ms, collect 120ms, tests 16ms, environment 0ms, prepare 138ms)
+VITEST_EXIT=0
+```
+
+### pnpm exec tsc --noEmit --pretty false
+```
+TSC_EXIT=0
+```
+
+### node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-rbac-row-field-permission-ssot-115.md
+```
+No mojibake findings.
+MOJI_EXIT=0
+```
+
+- 5 new focused 115.10.07 tests added (row +ve, row -ve, fieldRef +ve, unresolved warn, fieldRef -ve, plus fields surface compat).
+- PolicyRule now models row via resourceType (entity id), field via fieldRef (entity.field SSOT id).
+- validate + crossRefs now cover policy row/field against datamodel.entity / .field surfaces with warn (no surface) + error (missing).
+- Existing 115.10.06 field deny test updated to fieldRef; all legacy paths + purchase/leave remain compatible.
+- All required gates fresh pass.

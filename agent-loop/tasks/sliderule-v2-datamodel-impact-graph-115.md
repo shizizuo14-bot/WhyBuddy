@@ -23,14 +23,14 @@
 - Do not mark this task reviewed until the required validation commands have fresh evidence.
 
 ## Implementation steps
-- [ ] Start from a clean worktree or queue worktree and inspect current Skill behavior.
-- [ ] Write or update the failing test that proves this hardening behavior is missing.
-- [ ] Add field deletion and field deprecation impact examples.
-- [ ] Show paths from purchase_request.amount to page components, workflow branches, AIGC capabilities, and app bundle.
-- [ ] Keep impact output deterministic.
-- [ ] Implement the smallest runtime-less model, validator, projector, resolve, or impact change needed.
-- [ ] Update documentation only when it clarifies the new V2 contract.
-- [ ] Append review evidence after validation passes.
+- [x] Start from a clean worktree or queue worktree and inspect current Skill behavior.
+- [x] Write or update the failing test that proves this hardening behavior is missing.
+- [x] Add field deletion and field deprecation impact examples.
+- [x] Show paths from purchase_request.amount to page components, workflow branches, AIGC capabilities, and app bundle.
+- [x] Keep impact output deterministic.
+- [x] Implement the smallest runtime-less model, validator, projector, resolve, or impact change needed.
+- [x] Update documentation only when it clarifies the new V2 contract.
+- [x] Append review evidence after validation passes.
 
 ## Required validation
 - `pnpm exec vitest run client/src/lib/skills/impact.test.ts client/src/lib/skills/datamodel/dataModelSkill.test.ts --reporter=dot`
@@ -42,3 +42,34 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Implementation notes (post-review fix)
+- Updated purchaseModels to include purchase page + appbundle so multi-hop graph for purchase_request.amount can reach Page/Workflow/AppBundle (plus existing AIGC).
+- Added multi-hop path assertions: dm -> cmp_amount -> page -> app; dm -> wf -> app; dm -> aigc.
+- Added focused tests covering field deprecation (with RBAC policy cross) and field removal (deletion) impact paths (positive multi-hop + negative safe case).
+- All changes limited to allowed files; no test deletions/weakening; purchase/AIGC compat preserved.
+
+## Fresh validation evidence (recorded after fixes)
+### vitest
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+  src/lib/skills/datamodel/dataModelSkill.test.ts (51 tests) 11ms
+  src/lib/skills/impact.test.ts (12 tests) 18ms
+
+ Test Files  2 passed (2)
+      Tests  63 passed (63)
+   Start at  08:18:18
+   Duration  450ms (transform 130ms, setup 0ms, collect 185ms, tests 28ms, environment 0ms, prepare 143ms)
+```
+
+### tsc
+```
+(no output; exit 0)
+```
+
+### mojibake
+```
+No mojibake findings.
+```
+
+All commands executed with fresh passing results on 2026-06-27.

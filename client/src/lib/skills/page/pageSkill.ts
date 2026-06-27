@@ -8,7 +8,15 @@ import {
   type Skill,
   type ValidateContext,
 } from "../skill";
-import type { LinkageAction, PageComponent, PageModel, TriggerEvent } from "./pageModel";
+import {
+  ALLOWED_TRIGGER_EVENTS,
+  PAGE_EVENT_SCHEMAS,
+  type LinkageAction,
+  type PageComponent,
+  type PageModel,
+  type TriggerEvent,
+} from "./pageModel";
+import { getFieldLifecycle } from "../datamodel/dataModelSkill";
 
 function sanitizeId(raw: string): string {
   return raw.replace(/[^a-zA-Z0-9_]/g, "_");
@@ -59,6 +67,60 @@ function isLinkageCompatible(
   if (event === "onClick" && source.type !== "button") return false;
   if (action === "setOptions" && target.type !== "select") return false;
   return true;
+}
+
+/** Validate optional action payloadRef against the source event's emitted schema OR page-level binding fields. */
+function isValidActionPayloadRef(event: TriggerEvent, payloadRef: string | undefined, model: PageModel): boolean {
+  if (payloadRef === undefined) return true;
+  if (typeof payloadRef !== "string" || payloadRef.length === 0) return false;
+  const schema = PAGE_EVENT_SCHEMAS[event];
+  if (schema && schema.emitted.includes(payloadRef)) return true;
+  // Also resolve against page bindings (known fields)
+  const boundFields = new Set<string>();
+  for (const c of model.components) {
+    const f = c.bindingSchema?.field ?? c.field;
+    if (f) boundFields.add(f);
+  }
+  return boundFields.has(payloadRef);
+}
+
+/** Pure validation helper for page resource refs (assets/routes/workflowLaunch/appMenu) against provided external surfaces. */
+function checkResourceListRefs(
+  refs: string[] | undefined,
+  available: string[] | undefined,
+  unresolvedCode: string,
+  missingCode: string,
+  pathBase: string,
+  kindLabel: string,
+  findings: Finding[],
+  pageName: string,
+): void {
+  if (!refs || refs.length === 0) return;
+  refs.forEach((ref, i) => {
+    if (available === undefined) {
+      findings.push({
+        code: unresolvedCode,
+        severity: "warning",
+        path: `${pathBase}[${i}]`,
+        message: `Page "${pageName}" references ${kindLabel} "${ref}", but no ${kindLabel} surface was provided.`,
+      });
+    } else if (!available.includes(ref)) {
+      findings.push({
+        code: missingCode,
+        severity: "error",
+        path: `${pathBase}[${i}]`,
+        message: `Page "${pageName}" references missing ${kindLabel}: ${ref}`,
+      });
+    }
+  });
+}
+
+function getFieldPdpVisibleTo(surface: any, ref: string): string[] | undefined {
+  const fields = (surface as any)?.fields;
+  if (!Array.isArray(fields)) return undefined;
+  const f = fields.find((ff: any) => ff && ff.ref === ref);
+  const v = f ? (f.pdpVisibleTo as string[] | undefined) : undefined;
+  return Array.isArray(v) ? v : undefined;
 }
 
 export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
@@ -126,6 +188,44 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
       });
     });
 
+    // Cross-skill refs for page resource refs (workflow/asset/route/appMenu) to advance V2 diagram connect
+    (model.workflowLaunchRefs ?? []).forEach(wf => {
+      refs.push({
+        fromNode: pageNodeId(model.id),
+        toSkill: "workflow",
+        toKind: "workflow",
+        toValue: wf,
+        label: "workflow launch",
+      });
+    });
+    (model.assetRefs ?? []).forEach(a => {
+      refs.push({
+        fromNode: pageNodeId(model.id),
+        toSkill: "asset",
+        toKind: "asset",
+        toValue: a,
+        label: "asset",
+      });
+    });
+    (model.routeRefs ?? []).forEach(r => {
+      refs.push({
+        fromNode: pageNodeId(model.id),
+        toSkill: "route",
+        toKind: "route",
+        toValue: r,
+        label: "route",
+      });
+    });
+    (model.appMenuRefs ?? []).forEach(m => {
+      refs.push({
+        fromNode: pageNodeId(model.id),
+        toSkill: "appMenu",
+        toKind: "menu",
+        toValue: m,
+        label: "app menu",
+      });
+    });
+
     return refs;
   },
 
@@ -142,6 +242,10 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
     const datamodelFields = ctx?.external?.datamodel?.field;
     const rbacRoles = ctx?.external?.rbac?.role;
     const rbacPermissions = ctx?.external?.rbac?.permission;
+    const workflowIds = ctx?.external?.workflow?.workflow;
+    const assetList = ctx?.external?.asset?.asset;
+    const routeList = ctx?.external?.route?.route;
+    const appMenuList = ctx?.external?.appMenu?.menu;
     const isV2Mode = Boolean(
       model.traceSpan ||
       model.componentVersion ||
@@ -189,6 +293,23 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
             path: `components[${componentIndex}].field`,
             message: `Component "${component.label}" binds missing DataModel field: ${component.field}`,
           });
+        } else {
+          const lc = getFieldLifecycle(ctx?.external?.datamodel, component.field);
+          if (lc === "deprecated") {
+            f.push({
+              code: "PAGE_FIELD_DEPRECATED",
+              severity: "warning",
+              path: `components[${componentIndex}].field`,
+              message: `Component "${component.label}" binds deprecated DataModel SSOT field: ${component.field}`,
+            });
+          } else if (lc === "removed") {
+            f.push({
+              code: "PAGE_FIELD_REMOVED",
+              severity: "error",
+              path: `components[${componentIndex}].field`,
+              message: `Component "${component.label}" binds removed DataModel SSOT field: ${component.field}`,
+            });
+          }
         }
       }
 
@@ -219,21 +340,58 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
             message: `Component "${component.label}" has a BindingSchema, but no DataModel SSOT surface was provided.`,
           });
         } else {
-          if (!datamodelEntities.includes(component.bindingSchema.entity)) {
+          const bs = component.bindingSchema;
+          if (!datamodelEntities.includes(bs.entity)) {
             f.push({
               code: "PAGE_BINDING_ENTITY_MISSING",
               severity: "error",
               path: `components[${componentIndex}].bindingSchema.entity`,
-              message: `Component "${component.label}" binds missing DataModel entity: ${component.bindingSchema.entity}`,
+              message: `Component "${component.label}" binds missing DataModel entity: ${bs.entity}`,
             });
           }
-          if (!datamodelFields.includes(component.bindingSchema.field)) {
+          if (!datamodelFields.includes(bs.field)) {
             f.push({
               code: "PAGE_BINDING_FIELD_MISSING",
               severity: "error",
               path: `components[${componentIndex}].bindingSchema.field`,
-              message: `Component "${component.label}" binds missing DataModel SSOT field: ${component.bindingSchema.field}`,
+              message: `Component "${component.label}" binds missing DataModel SSOT field: ${bs.field}`,
             });
+          } else {
+            const lc = getFieldLifecycle(ctx?.external?.datamodel, bs.field);
+            if (lc === "deprecated") {
+              f.push({
+                code: "PAGE_BINDING_FIELD_DEPRECATED",
+                severity: "warning",
+                path: `components[${componentIndex}].bindingSchema.field`,
+                message: `Component "${component.label}" binds deprecated DataModel SSOT field: ${bs.field}`,
+              });
+            } else if (lc === "removed") {
+              f.push({
+                code: "PAGE_BINDING_FIELD_REMOVED",
+                severity: "error",
+                path: `components[${componentIndex}].bindingSchema.field`,
+                message: `Component "${component.label}" binds removed DataModel SSOT field: ${bs.field}`,
+              });
+            }
+          }
+          if (datamodelEntities.includes(bs.entity) && datamodelFields.includes(bs.field)) {
+            const [fieldEnt] = bs.field.split(".");
+            if (fieldEnt !== bs.entity) {
+              f.push({
+                code: "PAGE_BINDING_FIELD_ENTITY_MISMATCH",
+                severity: "error",
+                path: `components[${componentIndex}].bindingSchema.field`,
+                message: `Component "${component.label}" bindingSchema field "${bs.field}" does not belong to declared entity "${bs.entity}"`,
+              });
+            }
+            if (bs.entity !== model.entity) {
+              f.push({
+                code: "PAGE_BINDING_ENTITY_MISMATCH",
+                severity: "error",
+                path: `components[${componentIndex}].bindingSchema.entity`,
+                message: `Component "${component.label}" bindingSchema entity "${bs.entity}" does not match page entity "${model.entity}"`,
+              });
+            }
           }
         }
       }
@@ -282,7 +440,72 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
           });
         }
       });
+
+      // Field-level visibility policy constraint (core of page/component/field visibility gate)
+      // Error if a bound field's component exposes it to roles outside the DataModel pdpVisibleTo (e.g. amount only to finance/admin).
+      const boundField = component.bindingSchema?.field ?? component.field;
+      if (boundField) {
+        const pdpVisible = getFieldPdpVisibleTo(ctx?.external?.datamodel, boundField);
+        if (pdpVisible && pdpVisible.length > 0) {
+          const effRoles: string[] = (component.permissionRender?.roleRefs && component.permissionRender.roleRefs.length > 0)
+            ? component.permissionRender.roleRefs
+            : (component.visibleToRoles ?? []);
+          effRoles.forEach((role, roleIndex) => {
+            if (!pdpVisible.includes(role)) {
+              f.push({
+                code: "PAGE_FIELD_VISIBILITY_VIOLATION",
+                severity: "error",
+                path: `components[${componentIndex}].${component.permissionRender ? "permissionRender.roleRefs" : "visibleToRoles"}[${roleIndex}]`,
+                message: `Component "${component.label}" for field "${boundField}" references role "${role}" not allowed by DataModel pdpVisibleTo [${pdpVisible.join(", ")}]`,
+              });
+            }
+          });
+        }
+      }
     });
+
+    // Page resource reference gate (V2 115.40): assets, routes, workflow launch refs, app menu refs.
+    // Workflow refs validated against Workflow resolve surface (ctx.external.workflow) when connected.
+    checkResourceListRefs(
+      model.workflowLaunchRefs,
+      workflowIds,
+      "PAGE_WORKFLOW_LAUNCH_REF_UNRESOLVED",
+      "PAGE_REF_MISSING_WORKFLOW_LAUNCH",
+      "workflowLaunchRefs",
+      "workflow",
+      f,
+      model.name,
+    );
+    checkResourceListRefs(
+      model.assetRefs,
+      assetList,
+      "PAGE_ASSET_REF_UNRESOLVED",
+      "PAGE_REF_MISSING_ASSET",
+      "assetRefs",
+      "asset",
+      f,
+      model.name,
+    );
+    checkResourceListRefs(
+      model.routeRefs,
+      routeList,
+      "PAGE_ROUTE_REF_UNRESOLVED",
+      "PAGE_REF_MISSING_ROUTE",
+      "routeRefs",
+      "route",
+      f,
+      model.name,
+    );
+    checkResourceListRefs(
+      model.appMenuRefs,
+      appMenuList,
+      "PAGE_APP_MENU_REF_UNRESOLVED",
+      "PAGE_REF_MISSING_APP_MENU",
+      "appMenuRefs",
+      "app menu",
+      f,
+      model.name,
+    );
 
     model.linkageRules.forEach((rule, ruleIndex) => {
       const source = byComponent.get(rule.source.component);
@@ -304,6 +527,17 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
           message: `Linkage rule "${rule.id}" points at missing target component: ${rule.target.component}`,
         });
       }
+
+      const ev = rule.source.event;
+      if (typeof ev !== "string" || !(ALLOWED_TRIGGER_EVENTS as readonly string[]).includes(ev)) {
+        f.push({
+          code: "PAGE_LINKAGE_INVALID_EVENT",
+          severity: "error",
+          path: `linkageRules[${ruleIndex}].source.event`,
+          message: `Linkage rule "${rule.id}" uses invalid source event "${ev}". Allowed events: ${ALLOWED_TRIGGER_EVENTS.join(", ")}.`,
+        });
+      }
+
       if (!isLinkageCompatible(source, rule.source.event, target, rule.target.action)) {
         f.push({
           code: "PAGE_LINKAGE_ACTION_INCOMPATIBLE",
@@ -311,6 +545,19 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
           path: `linkageRules[${ruleIndex}]`,
           message: `Linkage rule "${rule.id}" is incompatible: ${rule.source.event} from ${source?.type ?? "missing"} -> ${rule.target.action} on ${target?.type ?? "missing"}.`,
         });
+      }
+
+      // V2 event schema gate: validate action payloadRef (if present) against emitted from event or page bindings
+      const payloadRef = rule.target.payloadRef;
+      if (payloadRef !== undefined) {
+        if (!isValidActionPayloadRef(rule.source.event, payloadRef, model)) {
+          f.push({
+            code: "PAGE_LINKAGE_PAYLOAD_REF_INVALID",
+            severity: "error",
+            path: `linkageRules[${ruleIndex}].target.payloadRef`,
+            message: `Linkage rule "${rule.id}" action payloadRef "${payloadRef}" is not a valid emitted ref for event "${rule.source.event}" and does not match any bound field on the page.`,
+          });
+        }
       }
     });
 
@@ -336,7 +583,9 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
       ...model.linkageRules.map(rule => ({
         from: componentNodeId(rule.source.component),
         to: componentNodeId(rule.target.component),
-        label: rule.target.action,
+        label: rule.target.payloadRef
+          ? `${rule.source.event}:${rule.target.action}(${rule.target.payloadRef})`
+          : `${rule.source.event}:${rule.target.action}`,
         kind: "linkage",
       })),
       ...model.components.flatMap(component => {
@@ -365,8 +614,42 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
             kind: "permission",
           });
         });
+        // Project visibility edges to advance V2 diagram semantics for page/region/component/field visibility
+        component.visibleToRoles?.forEach(role => {
+          pepEdges.push({
+            from: componentNodeId(component.id),
+            to: rbacRoleNodeId(role),
+            label: "visibleTo",
+            kind: "visibility",
+          });
+        });
         return pepEdges;
       }),
+      // V2 resource ref edges (workflow launch, route, asset, menu) for page resource gate diagram semantics
+      ...(model.workflowLaunchRefs ?? []).map(wf => ({
+        from: pageNodeId(model.id),
+        to: `wf_${sanitizeId(wf)}`,
+        label: "launch",
+        kind: "launch",
+      })),
+      ...(model.routeRefs ?? []).map(r => ({
+        from: pageNodeId(model.id),
+        to: `route_${sanitizeId(r)}`,
+        label: "route",
+        kind: "route",
+      })),
+      ...(model.assetRefs ?? []).map(a => ({
+        from: pageNodeId(model.id),
+        to: `asset_${sanitizeId(a)}`,
+        label: "asset",
+        kind: "asset",
+      })),
+      ...(model.appMenuRefs ?? []).map(m => ({
+        from: pageNodeId(model.id),
+        to: `menu_${sanitizeId(m)}`,
+        label: "menu",
+        kind: "menu",
+      })),
     ];
 
     const lines: string[] = ["flowchart LR"];
@@ -376,7 +659,7 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
   },
 
   resolve(model: PageModel): ResolvableSurface {
-    return {
+    const surf: any = {
       page: [model.id],
       component: model.components.map(c => c.id),
       entity: [model.entity],
@@ -387,6 +670,10 @@ export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
         })),
       ],
     };
+    if (model.pageVersion) surf.pageVersion = model.pageVersion;
+    if (model.published !== undefined) surf.published = model.published;
+    if (model.snapshotRefs && model.snapshotRefs.length > 0) surf.snapshotRefs = [...model.snapshotRefs];
+    return surf as ResolvableSurface;
   },
 
   async generate(intent: string): Promise<PageModel> {
@@ -439,6 +726,9 @@ for (const component of leaveApprovalPage.components) {
   }
   component.componentVersion = "1.0.0";
 }
+leaveApprovalPage.pageVersion = "1.0.0";
+leaveApprovalPage.published = true;
+leaveApprovalPage.snapshotRefs = ["page:page_leave_request@1.0.0"];
 
 export const purchaseApprovalPage: PageModel = {
   id: "page_purchase_request",
@@ -448,7 +738,7 @@ export const purchaseApprovalPage: PageModel = {
     { id: "requester", type: "select", label: "Requester", field: "purchase_request.requester", visibleToRoles: ["requester", "department_manager", "finance", "procurement"] },
     { id: "department", type: "select", label: "Department", field: "purchase_request.department", visibleToRoles: ["requester", "department_manager", "finance", "procurement"] },
     { id: "vendor", type: "select", label: "Vendor", field: "purchase_request.vendor", visibleToRoles: ["requester", "department_manager", "finance", "procurement"] },
-    { id: "amount", type: "number", label: "Amount", field: "purchase_request.amount", visibleToRoles: ["requester", "department_manager", "finance"] },
+    { id: "amount", type: "number", label: "Amount", field: "purchase_request.amount", visibleToRoles: ["finance"] },
     { id: "status", type: "select", label: "Approval Status", field: "purchase_request.status", visibleToRoles: ["requester", "department_manager", "finance", "procurement"] },
     { id: "budgetCheck", type: "switch", label: "Budget Check", field: "purchase_request.budgetChecked", visibleToRoles: ["department_manager", "finance"] },
     { id: "submit", type: "button", label: "Submit Purchase", visibleToRoles: ["requester"] },
@@ -493,3 +783,6 @@ for (const component of purchaseApprovalPage.components) {
   }
   component.componentVersion = "1.0.0";
 }
+purchaseApprovalPage.pageVersion = "1.0.0";
+purchaseApprovalPage.published = true;
+purchaseApprovalPage.snapshotRefs = ["page:page_purchase_request@1.0.0"];

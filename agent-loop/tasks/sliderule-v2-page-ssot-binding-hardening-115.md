@@ -42,3 +42,43 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Fresh validation evidence (post-review fix, 2026-06-27)
+Addresses review:
+- Finding 1 (pageSkill.ts): BindingSchema now rejects entity/field prefix mismatch and binding entity != PageModel.entity. Added `PAGE_BINDING_FIELD_ENTITY_MISMATCH` and `PAGE_BINDING_ENTITY_MISMATCH` errors in validate. Added focused negative mismatch test case (positive covered by existing coherent page + PEP tests).
+- Finding 2 (this file): Appended fresh evidence below per acceptance.
+
+All changes limited to allowed files. No tests deleted/weakened. No runtime code.
+
+### Required validation commands (fresh runs)
+
+#### 1. vitest
+```
+=== VITEST RUN 2026-06-27 09:12:00 ===
+
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+  ✓ src/lib/skills/datamodel/dataModelSkill.test.ts (56 tests) 12ms
+  ✓ src/lib/skills/page/pageSkill.test.ts (20 tests) 6ms
+
+ Test Files  2 passed (2)
+      Tests  76 passed (76)
+   Start at  09:12:01
+   Duration  342ms (transform 102ms, setup 0ms, collect 154ms, tests 18ms, environment 0ms, prepare 136ms)
+```
+Exit: 0
+
+#### 2. tsc
+```
+=== TSC RUN 2026-06-27 09:12:01 ===
+```
+Exit: 0 (noEmit clean)
+
+#### 3. mojibake
+```
+=== MOJIBAKE 2026-06-27 09:12:04 ===
+No mojibake findings.
+```
+Exit: 0
+
+Evidence recorded per "Validation commands have fresh passing evidence recorded in this task file."

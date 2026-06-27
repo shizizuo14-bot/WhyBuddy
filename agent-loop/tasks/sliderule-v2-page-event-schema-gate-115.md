@@ -42,3 +42,39 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Validation evidence (appended after review fix - fresh run)
+Date: 2026-06-27
+
+Executed required commands (using working relative invocation matching spec):
+
+### 1. pnpm exec vitest run client/src/lib/skills/page/pageSkill.test.ts --reporter=dot
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/page/pageSkill.test.ts (27 tests) 8ms
+
+ Test Files  1 passed (1)
+      Tests  27 passed (27)
+   Start at  09:25:05
+   Duration  362ms (transform 76ms, setup 0ms, collect 84ms, tests 8ms, environment 0ms, prepare 67ms)
+```
+All tests pass (including 3 new focused event schema payload tests).
+
+### 2. pnpm exec tsc --noEmit --pretty false
+```
+(exit 0, no type errors)
+```
+
+### 3. node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-page-event-schema-gate-115.md
+```
+No mojibake findings.
+```
+
+## Review findings addressed (only within allowed files)
+- pageModel.ts: Added EventSchema interface + PAGE_EVENT_SCHEMAS representing inputs and emitted payload refs. Extended LinkageRule.target with optional payloadRef.
+- pageSkill.ts: Added isValidActionPayloadRef; validate now checks action payload refs against event emitted schemas and page bindings. Updated projector labels to include event+payload for V2 diagram semantics advance. Old linkages without payloadRef remain compatible.
+- pageSkill.test.ts: Added "pageSkill - page event schema and action payload gate (V2)" describe with positive (emitted "value", binding field) and negative (invalid payloadRef on onClick) cases. Field visibility tests untouched.
+- This md: appended fresh evidence above.
+
+Existing purchase/leave samples and prior V2 PEP behavior unchanged and still pass.

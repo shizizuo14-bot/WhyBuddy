@@ -43,3 +43,36 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Execution updates (post-review fix 115.20.06)
+- Implemented sensitivity level, policyRef, pdpVisibleTo on Field (dataModelModel.ts).
+- purchase_request.amount now marked: sensitivity="financial", policyRef="pdp:purchase:amount", pdpVisibleTo=["finance","admin"].
+- Added DM_SENSITIVE_FIELD_NO_POLICY validation gate requiring policyRef for sensitive fields (PDP delegation).
+- resolve() now exports sensitivity/policyRef/pdpVisibleTo on fields surface.
+- project() emits policy nodes + sensitive policy edges for V2 diagram semantics.
+- Added focused positive (amount visible to finance/admin) + negative (sensitive without policyRef errors) + compat tests.
+- All prior behavior (SSOT/version/lifecycle/dataset, leave/purchase compat) preserved; no tests deleted/weakened.
+- Status remains PENDING until reviewer marks; validation evidence appended below.
+
+## Fresh required validation evidence (recorded after edit)
+- Command: pnpm exec vitest run client/src/lib/skills/datamodel/dataModelSkill.test.ts client/src/lib/skills/rbac/rbacSkill.test.ts --reporter=dot
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+  src/lib/skills/rbac/rbacSkill.test.ts (60 tests) 12ms
+  src/lib/skills/datamodel/dataModelSkill.test.ts (47 tests) 12ms
+
+ Test Files  2 passed (2)
+      Tests  107 passed (107)
+   Start at  08:03:17
+   Duration  343ms (transform 107ms, setup 0ms, collect 143ms, tests 24ms, environment 0ms, prepare 131ms)
+```
+- Command: pnpm exec tsc --noEmit --pretty false
+```
+(no errors, exit 0)
+```
+- Command: node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-datamodel-sensitive-field-policy-115.md
+```
+No mojibake findings.
+```
+All required validations have fresh passing evidence.

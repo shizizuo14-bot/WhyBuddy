@@ -42,3 +42,19 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Post-fix validation evidence (2026-06-27)
+- Command: `pnpm exec vitest run client/src/lib/skills/page/pageSkill.test.ts --reporter=dot`
+  Result: exit 0; 24 tests passed (existing + new "catches linkage rules with invalid source event name")
+
+- Command: `pnpm exec tsc --noEmit --pretty false`
+  Result: exit 0 (no type errors)
+
+- Command: `node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-page-linkage-rule-hardening-115.md`
+  Result: "No mojibake findings."
+
+## Changes addressing review (Finding 1, Finding 2)
+- client/src/lib/skills/page/pageModel.ts: exported ALLOWED_TRIGGER_EVENTS runtime list.
+- client/src/lib/skills/page/pageSkill.ts: validate() now explicitly checks rule.source.event membership (runtime guard for non-TS inputs); new error code PAGE_LINKAGE_INVALID_EVENT.
+- client/src/lib/skills/page/pageSkill.test.ts: added focused negative case proving invalid event fails (positive via existing valid linkages and coherent-page test).
+- No existing tests weakened, no scope creep, compat with legacy pages preserved.

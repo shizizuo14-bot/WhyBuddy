@@ -8,7 +8,8 @@ import {
   type Skill,
   type ValidateContext,
 } from "../skill";
-import type { WorkflowEdge, WorkflowModel, WorkflowNode } from "./workflowModel";
+import type { WorkflowEdge, WorkflowInstanceSnapshot, WorkflowModel, WorkflowNode } from "./workflowModel";
+import { getFieldLifecycle } from "../datamodel/dataModelSkill";
 
 // ---------------------------------------------------------------------------
 // Graph helpers — this is where "the hard skill" lives: execution semantics.
@@ -75,17 +76,29 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
     const refs: CrossRefEdge[] = [];
     // every approval node points OUT at an RBAC role (workflow ←→ rbac) — cross uses assigneeRole for compatibility with existing ref tests
     model.nodes
-      .filter(n => n.type === "approval" && n.assigneeRole)
+      .filter(n => n.type === "approval" && n.assigneeRoleRef)
       .forEach(n => {
         refs.push({
           fromNode: `wf_${sanitizeId(n.id)}`,
           toSkill: "rbac",
           toKind: "role",
-          toValue: n.assigneeRole!,
+          toValue: n.assigneeRoleRef!,
           label: "审批人",
         });
       });
-    // branch/form nodes bind fields to DataModel SSOT (PEP delegation)
+    // V2 115: escalationRoleRef for timeout also cross to RBAC
+    model.nodes
+      .filter(n => n.escalationRoleRef)
+      .forEach(n => {
+        refs.push({
+          fromNode: `wf_${sanitizeId(n.id)}`,
+          toSkill: "rbac",
+          toKind: "role",
+          toValue: n.escalationRoleRef!,
+          label: "超时升级",
+        });
+      });
+    // branch/form nodes bind fields to DataModel SSOT (PEP delegation) -- fieldRef is now required
     model.nodes
       .filter(n => n.type === "branch" && n.fieldRef)
       .forEach(n => {
@@ -115,6 +128,7 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
   },
   refNodeId(kind: string, value: string): string | null {
     if (kind === "workflow") return `wf_${sanitizeId(value)}`;
+    if (kind === "version") return `wf_${sanitizeId(value)}_ver`;
     // other skills may reference a workflow node by id.
     return kind === "node" ? `wf_${sanitizeId(value)}` : null;
   },
@@ -173,14 +187,21 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
     }
 
     // 3) Branch coverage (the path-coverage gate) --------------------------
+    // NOTE: local model.fields FieldDecl (type/enumValues) drive coverage only for exec path analysis.
+    // Local field-schema semantics are quarantined; form/branch fields must bind to DataModel SSOT via fieldRef.
     model.nodes.filter(n => n.type === "branch").forEach(branch => {
       const outs = adj.get(branch.id) ?? [];
-      if (!branch.field) {
+      const effField = branch.field || (branch.fieldRef ? branch.fieldRef.split(".").pop() : undefined);
+      if (!effField) {
         f.push({ code: "WF_BRANCH_NO_FIELD", severity: "error", path: `nodes[${branch.id}]`, message: `分支「${branch.name}」未指定判断字段` });
         return;
       }
-      if (!fieldKeys.has(branch.field))
-        f.push({ code: "WF_REF_MISSING_FIELD", severity: "error", path: `nodes[${branch.id}].field`, message: `分支「${branch.name}」引用了不存在的字段：${branch.field}` });
+      // SSOT binding gate (required, not optional): must declare fieldRef; cannot rely on local field only
+      if (!branch.fieldRef) {
+        f.push({ code: "WF_SSOT_BINDING_REQUIRED", severity: "error", path: `nodes[${branch.id}].fieldRef`, message: `分支「${branch.name}」必须声明 fieldRef 绑定到 DataModel SSOT 字段（entity.field），表单字段不能继续拥有本地字段定义` });
+      }
+      if (!fieldKeys.has(effField))
+        f.push({ code: "WF_REF_MISSING_FIELD", severity: "error", path: `nodes[${branch.id}].field`, message: `分支「${branch.name}」引用了不存在的字段：${effField}` });
 
       const defaults = outs.filter(e => e.isDefault);
       const conditional = outs.filter(e => e.when);
@@ -191,7 +212,7 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
       if (defaults.length > 1)
         f.push({ code: "WF_BRANCH_MULTI_DEFAULT", severity: "error", path: `nodes[${branch.id}]`, message: `分支「${branch.name}」有多个默认分支` });
 
-      const fieldDecl = model.fields.find(fl => fl.key === branch.field);
+      const fieldDecl = model.fields.find(fl => fl.key === effField);
       if (fieldDecl?.type === "enum") {
         // exhaustive iff every enum value is covered by an equality edge, OR a default exists
         const covered = new Set(conditional.filter(e => e.when?.op === "==").map(e => String(e.when!.value)));
@@ -201,7 +222,7 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
         // bonus: enum value typo
         conditional.forEach(e => {
           if (e.when?.op === "==" && !(fieldDecl.enumValues ?? []).includes(String(e.when.value)))
-            f.push({ code: "WF_BAD_ENUM_VALUE", severity: "warning", path: `edges[${e.id}]`, message: `分支条件值 "${e.when.value}" 不在字段「${branch.field}」的枚举范围内` });
+            f.push({ code: "WF_BAD_ENUM_VALUE", severity: "warning", path: `edges[${e.id}]`, message: `分支条件值 "${e.when.value}" 不在字段「${effField}」的枚举范围内` });
         });
       } else {
         // non-enumerable field MUST have a default, else some value matches nothing → stuck
@@ -213,18 +234,66 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
     // 4) Approval assignee — CROSS-SKILL to RBAC ---------------------------
     const rbacRoles = ctx?.external?.rbac?.role;
     model.nodes.filter(n => n.type === "approval").forEach(node => {
-      if (!node.assigneeRole) {
+      const am = node.approvalMode;
+      if (am != null && !["any", "all", "sequential", "percentage"].includes(am)) {
+        f.push({ code: "WF_APPROVAL_INVALID_MODE", severity: "error", path: `nodes[${node.id}].approvalMode`, message: `审批节点「${node.name}」的 approvalMode 无效：${am}，仅支持 any/all/sequential/percentage` });
+      }
+      if (am === "percentage") {
+        const th = (node as any).threshold;
+        if (th == null || typeof th !== "number" || !Number.isFinite(th) || !Number.isInteger(th) || th < 1 || th > 100) {
+          f.push({ code: "WF_APPROVAL_INVALID_THRESHOLD", severity: "error", path: `nodes[${node.id}].threshold`, message: `审批节点「${node.name}」的 approvalMode 为 percentage 时必须设置 1~100 的整数 threshold` });
+        }
+      }
+      if (!node.assigneeRole && !node.assigneeRoleRef) {
         f.push({ code: "WF_APPROVAL_NO_ASSIGNEE", severity: "error", path: `nodes[${node.id}]`, message: `审批节点「${node.name}」没有指定审批人角色` });
         return;
       }
+      if (!node.assigneeRoleRef) {
+        f.push({ code: "WF_ASSIGNEE_ROLE_REF_REQUIRED", severity: "error", path: `nodes[${node.id}].assigneeRoleRef`, message: `approval node must use assigneeRoleRef for RBAC PDP delegation` });
+        return;
+      }
       if (rbacRoles === undefined) {
-        f.push({ code: "WF_ASSIGNEE_UNRESOLVED", severity: "warning", path: `nodes[${node.id}].assigneeRole`, message: `审批节点「${node.name}」的审批人角色「${node.assigneeRole}」未接入 RBAC 能力面,无法校验` });
-      } else if (!rbacRoles.includes(node.assigneeRole)) {
-        f.push({ code: "WF_ASSIGNEE_MISSING_ROLE", severity: "error", path: `nodes[${node.id}].assigneeRole`, message: `审批节点「${node.name}」指定的审批人角色在 RBAC 中不存在：${node.assigneeRole}` });
+        f.push({ code: "WF_ASSIGNEE_UNRESOLVED", severity: "warning", path: `nodes[${node.id}].assigneeRoleRef`, message: `审批节点「${node.name}」的审批人角色「${node.assigneeRoleRef}」未接入 RBAC 能力面,无法校验` });
+      } else if (!rbacRoles.includes(node.assigneeRoleRef)) {
+        f.push({ code: "WF_ASSIGNEE_MISSING_ROLE", severity: "error", path: `nodes[${node.id}].assigneeRoleRef`, message: `审批节点「${node.name}」指定的审批人角色在 RBAC 中不存在：${node.assigneeRoleRef}` });
       }
     });
 
-    // 5) PEP delegation guard: Workflow is PEP only; approvals/policy must delegate to RBAC PDP (never local auth)
+    // 5) Timeout action model validation (V2 115, runtime-less) ---------------
+    model.nodes.forEach(node => {
+      const td = (node as any).timeoutDuration;
+      if (td != null) {
+        if (typeof td !== "number" || !Number.isFinite(td) || td <= 0 || !Number.isInteger(td)) {
+          f.push({ code: "WF_TIMEOUT_INVALID_DURATION", severity: "error", path: `nodes[${node.id}].timeoutDuration`, message: `节点「${node.name}」的 timeoutDuration 必须是正整数` });
+        }
+        const tgt = (node as any).timeoutTarget;
+        if (tgt != null) {
+          if (typeof tgt !== "string" || !nodeIds.has(tgt)) {
+            f.push({ code: "WF_TIMEOUT_INVALID_TARGET", severity: "error", path: `nodes[${node.id}].timeoutTarget`, message: `节点「${node.name}」的 timeoutTarget 指向不存在的节点：${tgt}` });
+          } else if (tgt === node.id) {
+            f.push({ code: "WF_TIMEOUT_SELF_TARGET", severity: "error", path: `nodes[${node.id}].timeoutTarget`, message: `节点「${node.name}」的 timeoutTarget 不能指向自身` });
+          }
+        }
+        const aa = (node as any).autoAction;
+        if (aa != null && !["escalate", "approve", "reject", "notify"].includes(aa)) {
+          f.push({ code: "WF_TIMEOUT_INVALID_ACTION", severity: "error", path: `nodes[${node.id}].autoAction`, message: `节点「${node.name}」的 autoAction 无效，仅支持 escalate/approve/reject/notify` });
+        }
+      }
+    });
+    // escalation role ref validation (cross-skill to RBAC like assignee)
+    const escRbacRoles = ctx?.external?.rbac?.role;
+    model.nodes.forEach(node => {
+      const esc = (node as any).escalationRoleRef;
+      if (esc) {
+        if (escRbacRoles === undefined) {
+          f.push({ code: "WF_ESCALATION_ROLE_UNRESOLVED", severity: "warning", path: `nodes[${node.id}].escalationRoleRef`, message: `节点「${node.name}」的 escalationRoleRef「${esc}」未接入 RBAC 能力面,无法校验` });
+        } else if (!escRbacRoles.includes(esc)) {
+          f.push({ code: "WF_ESCALATION_ROLE_MISSING", severity: "error", path: `nodes[${node.id}].escalationRoleRef`, message: `节点「${node.name}」的 escalationRoleRef 在 RBAC 中不存在：${esc}` });
+        }
+      }
+    });
+
+    // 6) PEP delegation guard: Workflow is PEP only; approvals/policy must delegate to RBAC PDP (never local auth)
     const hasApprovals = model.nodes.some(n => n.type === "approval");
     if (hasApprovals) {
       if (!model.pep) {
@@ -238,13 +307,68 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
       }
     }
 
-    // 6) DataModel SSOT bindings for declared fieldRefs (branch/form fields); do not silently accept when refs declared
+    // 7) SSOT form binding contract gate: fieldRefs / branch.fieldRef MUST be entity.field refs to DataModel SSOT.
+    // Bare local keys (e.g. "approved") are rejected even without DM surface (no more local masquerading as binding).
+    (model.fieldRefs || []).forEach((fr, i) => {
+      if (typeof fr !== "string" || !fr.includes(".")) {
+        f.push({
+          code: "WF_SSOT_BINDING_REQUIRED",
+          severity: "error",
+          path: `fieldRefs[${i}]`,
+          message: `fieldRefs 必须使用 "entity.field" 格式绑定到 DataModel SSOT，不能使用本地字段 key（如 "${fr}"）`,
+        });
+      }
+    });
+    model.nodes.filter(n => n.type === "branch" && n.fieldRef).forEach(node => {
+      if (typeof node.fieldRef !== "string" || !node.fieldRef!.includes(".")) {
+        f.push({
+          code: "WF_SSOT_BINDING_REQUIRED",
+          severity: "error",
+          path: `nodes[${node.id}].fieldRef`,
+          message: `分支「${node.name}」的 fieldRef 必须是 "entity.field" DataModel SSOT 绑定，不能是本地字段 key`,
+        });
+      }
+    });
+
+    // 7b) SSOT binding required gate (fixes optional gate): local fields must bind via fieldRefs; branch nodes must use fieldRef
+    // This prevents workflows from continuing to own local field definitions without DataModel SSOT binding.
+    if ((model.fields || []).length > 0) {
+      if (!model.fieldRefs || model.fieldRefs.length === 0) {
+        f.push({
+          code: "WF_SSOT_BINDING_REQUIRED",
+          severity: "error",
+          path: "fieldRefs",
+          message: "Workflow 声明了本地 fields，必须声明 fieldRefs 将表单字段绑定到 DataModel SSOT（entity.field refs），不能继续拥有本地字段定义",
+        });
+      } else {
+        const unbound = (model.fields || []).filter((fl) => !(model.fieldRefs || []).some((fr) => fr.endsWith("." + fl.key)));
+        if (unbound.length > 0) {
+          f.push({
+            code: "WF_SSOT_BINDING_REQUIRED",
+            severity: "error",
+            path: "fieldRefs",
+            message: `本地字段 [${unbound.map((u) => u.key).join(", ")}] 未绑定到对应 DataModel entity.field（fieldRefs 中缺失）`,
+          });
+        }
+      }
+    }
+
+    // 8) DataModel SSOT bindings for declared fieldRefs (branch/form fields).
+    // Gate above requires fieldRefs/fieldRef declarations (binding not optional); here we validate the declared refs against DM surface (existence + lifecycle).
     const dmFields = ctx?.external?.datamodel?.field;
+    const dmSurface = ctx?.external?.datamodel;
     (model.fieldRefs || []).forEach((fr, i) => {
       if (dmFields === undefined) {
         f.push({ code: "WF_FIELD_UNRESOLVED", severity: "warning", path: `fieldRefs[${i}]`, message: `Workflow fieldRef「${fr}」未接入 DataModel 能力面,无法校验` });
       } else if (!dmFields.includes(fr)) {
         f.push({ code: "WF_SSOT_MISSING_FIELD", severity: "error", path: `fieldRefs[${i}]`, message: `Workflow fieldRef 引用了 DataModel 中不存在的 SSOT 字段：${fr}` });
+      } else {
+        const lc = getFieldLifecycle(dmSurface, fr);
+        if (lc === "deprecated") {
+          f.push({ code: "WF_SSOT_FIELD_DEPRECATED", severity: "warning", path: `fieldRefs[${i}]`, message: `Workflow fieldRef references deprecated DataModel SSOT field: ${fr}` });
+        } else if (lc === "removed") {
+          f.push({ code: "WF_SSOT_FIELD_REMOVED", severity: "error", path: `fieldRefs[${i}]`, message: `Workflow fieldRef references removed DataModel SSOT field: ${fr}` });
+        }
       }
     });
     model.nodes.filter(n => n.type === "branch" && n.fieldRef).forEach(node => {
@@ -252,10 +376,66 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
         f.push({ code: "WF_FIELD_UNRESOLVED", severity: "warning", path: `nodes[${node.id}].fieldRef`, message: `分支「${node.name}」的 fieldRef 未接入 DataModel 能力面,无法校验` });
       } else if (!dmFields.includes(node.fieldRef!)) {
         f.push({ code: "WF_SSOT_MISSING_FIELD", severity: "error", path: `nodes[${node.id}].fieldRef`, message: `分支「${node.name}」引用了不存在的 DataModel SSOT 字段：${node.fieldRef}` });
+      } else {
+        const lc = getFieldLifecycle(dmSurface, node.fieldRef!);
+        if (lc === "deprecated") {
+          f.push({ code: "WF_SSOT_FIELD_DEPRECATED", severity: "warning", path: `nodes[${node.id}].fieldRef`, message: `分支「${node.name}」的 fieldRef references deprecated DataModel SSOT field: ${node.fieldRef}` });
+        } else if (lc === "removed") {
+          f.push({ code: "WF_SSOT_FIELD_REMOVED", severity: "error", path: `nodes[${node.id}].fieldRef`, message: `分支「${node.name}」的 fieldRef references removed DataModel SSOT field: ${node.fieldRef}` });
+        }
       }
     });
 
     void byId; // (kept for future per-node lookups)
+
+    // 10) V2 115.30.09 workflow variable reference gate: every variable reference
+    // (fieldRefs, branch.fieldRef, refs inside branch/action conditions) must point to
+    // a known SSOT field (declared in fieldRefs) or defined process variable (model.variables).
+    // This is in addition to (not replacing) format/entity checks and external DM surface checks.
+    const declaredSSOT = new Set<string>((model.fieldRefs || []));
+    const declaredProcessVars = new Set<string>(((model as any).variables || []));
+    const allKnownVars = new Set<string>([...declaredSSOT, ...declaredProcessVars]);
+
+    const usedVariableRefs = new Set<string>();
+    (model.fieldRefs || []).forEach((fr) => usedVariableRefs.add(fr));
+    model.nodes
+      .filter((n) => n.type === "branch" && n.fieldRef)
+      .forEach((n) => usedVariableRefs.add(n.fieldRef!));
+    // support process var refs inside branch/action conditions (e.g. when.varRef on edges for rhs dynamic compare)
+    model.nodes
+      .filter((n) => n.type === "branch")
+      .forEach((n) => {
+        const vr = (n as any).varRef;
+        if (typeof vr === "string") usedVariableRefs.add(vr);
+      });
+    model.edges.forEach((e) => {
+      const w: any = e.when;
+      if (w && typeof w.varRef === "string") {
+        usedVariableRefs.add(w.varRef);
+      }
+    });
+
+    usedVariableRefs.forEach((ref) => {
+      if (!allKnownVars.has(ref)) {
+        f.push({
+          code: "WF_VAR_REF_UNKNOWN",
+          severity: "error",
+          path: "variables",
+          message: `变量引用 "${ref}" 未指向已知 SSOT 字段或已定义 process variable`,
+        });
+      }
+    });
+
+    // 9) V2 115.30 workflow instance snapshot: versions + published state (snapshots must freeze published versions)
+    if (model.version !== undefined) {
+      if (typeof model.version !== "string" || model.version.trim() === "") {
+        f.push({ code: "WF_SNAPSHOT_INVALID_VERSION", severity: "error", path: "version", message: "workflow version 必须是有效非空字符串" });
+      }
+    }
+    if (model.published === false) {
+      f.push({ code: "WF_SNAPSHOT_UNPUBLISHED_VERSION", severity: "error", path: "published", message: "实例 snapshot 只能冻结 published=true 的 workflow version" });
+    }
+
     return finalizeReport(f);
   },
 
@@ -266,10 +446,20 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
       let label = n.name;
       if (n.type === "approval") {
         const role = n.assigneeRoleRef || n.assigneeRole;
-        if (role) label = `${n.name}<br/>@${role}`;
+        const mode = n.approvalMode ? `(${n.approvalMode})` : "";
+        if (role) label = `${n.name}<br/>@${role} ${mode}`.trim();
       } else if (n.type === "branch") {
         const fref = n.fieldRef || n.field;
         if (fref) label = `${n.name}<br/>${fref}`;
+      }
+      // V2 115: show timeout metadata in diagram labels
+      const td = (n as any).timeoutDuration;
+      const tgt = (n as any).timeoutTarget;
+      const esc = (n as any).escalationRoleRef;
+      const act = (n as any).autoAction;
+      if (td != null) {
+        const tinfo = `⏱${td}${tgt ? `→${tgt}` : ""}${esc ? `@${esc}` : ""}${act ? ` ${act}` : ""}`;
+        label = `${label}<br/>${tinfo}`;
       }
       switch (n.type) {
         case "start":
@@ -284,11 +474,17 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
     const idOf = new Map(model.nodes.map(n => [n.id, `wf_${sanitizeId(n.id)}`]));
     const workflowId = `wf_${sanitizeId(model.id)}`;
     const startNodes = model.nodes.filter(n => n.type === "start");
+    const approvalRoleRefs = [...new Set(model.nodes
+      .filter(n => n.type === "approval" && n.assigneeRoleRef)
+      .map(n => n.assigneeRoleRef!))];
     const nodes = [
       { id: workflowId, label: model.name, kind: "workflow" },
+      ...(model.version ? [{ id: `${workflowId}_ver`, label: `v${model.version}`, kind: "version" }] : []),
       ...model.nodes.map(n => ({ id: idOf.get(n.id)!, label: n.name, kind: n.type })),
+      ...approvalRoleRefs.map(role => ({ id: `role_${sanitizeId(role)}`, label: `RBAC role: ${role}`, kind: "rbacRole" })),
     ];
     const edges = [
+      ...(model.version ? [{ from: `${workflowId}_ver`, to: workflowId, label: "version", kind: "version" }] : []),
       ...startNodes.map(n => ({
         from: workflowId,
         to: idOf.get(n.id) ?? `wf_${sanitizeId(n.id)}`,
@@ -298,15 +494,48 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
       ...model.edges.map(e => ({
         from: idOf.get(e.from) ?? `wf_${sanitizeId(e.from)}`,
         to: idOf.get(e.to) ?? `wf_${sanitizeId(e.to)}`,
-        label: e.isDefault ? "默认" : e.when ? `${e.when.op}${e.when.value}` : "",
-        kind: "flow",
+        label: e.isTimeout ? "timeout" : (e.isDefault ? "默认" : e.when ? `${e.when.op}${e.when.value}` : ""),
+        kind: e.isTimeout ? "timeout" : "flow",
       })),
     ];
+    model.nodes
+      .filter(n => n.type === "approval" && n.assigneeRoleRef)
+      .forEach(n => {
+        edges.push({
+          from: idOf.get(n.id) ?? `wf_${sanitizeId(n.id)}`,
+          to: `role_${sanitizeId(n.assigneeRoleRef!)}`,
+          label: "PDP role",
+          kind: "cross",
+        });
+      });
+    // V2 115: synthesize timeout edges from node timeoutTarget for diagram projection (even if not explicit edge)
+    model.nodes.forEach(n => {
+      const td = (n as any).timeoutDuration;
+      const tgt = (n as any).timeoutTarget as string | undefined;
+      if (td != null && tgt) {
+        const fromId = idOf.get(n.id)!;
+        const toId = idOf.get(tgt) ?? `wf_${sanitizeId(tgt)}`;
+        // avoid duplicate if explicit timeout edge already present
+        const hasExplicit = edges.some(ed => ed.from === fromId && ed.to === toId && ed.kind === "timeout");
+        if (!hasExplicit) {
+          edges.push({ from: fromId, to: toId, label: `timeout(${td})`, kind: "timeout" });
+        }
+      }
+    });
 
     const lines: string[] = ["flowchart TD"];
-    lines.push(`  ${workflowId}["${model.name}"]`);
+    const verSuffix = model.version ? ` v${model.version}` : "";
+    lines.push(`  ${workflowId}["${model.name}${verSuffix}"]`);
+    if (model.version) {
+      const verId = `${workflowId}_ver`;
+      lines.push(`  ${verId}{{"v${model.version}"}}`);
+      lines.push(`  ${verId} -.->|version| ${workflowId}`);
+    }
     for (const n of model.nodes) lines.push(`  ${shape(n)[1]}`);
-    for (const e of edges) lines.push(`  ${e.from} -->${e.label ? `|${e.label}|` : ""} ${e.to}`);
+    for (const e of edges) {
+      const arrow = e.kind === "cross" ? "-.->" : "-->";
+      lines.push(`  ${e.from} ${arrow}${e.label ? `|${e.label}|` : ""} ${e.to}`);
+    }
     return { nodes, edges, mermaid: lines.join("\n") };
   },
 
@@ -315,6 +544,7 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
     return {
       workflow: [model.id],
       node: model.nodes.map(n => n.id),
+      ...(model.version ? { version: [model.id] } : {}),
     };
   },
 
@@ -324,6 +554,58 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
     throw new Error(`workflowSkill.generate: 需要接入推演引擎来为意图生成流程：「${intent}」`);
   },
 };
+
+// ---------------------------------------------------------------------------
+// V2 115.30: runtime-less instance snapshot surfaces (pure data + validation)
+// ---------------------------------------------------------------------------
+
+/** Pure factory: freeze a snapshot of a workflow definition (process version + form bindings + vars) at start time. */
+export function createWorkflowInstanceSnapshot(
+  model: WorkflowModel,
+  instanceId: string,
+  initialVariables: Record<string, unknown> = {}
+): WorkflowInstanceSnapshot {
+  return {
+    id: instanceId,
+    workflowId: model.id,
+    processVersion: model.version ?? "0.0.0",
+    versionPublished: model.published === true,
+    frozenFormFieldRefs: [...(model.fieldRefs ?? [])],
+    initialVariables: { ...initialVariables },
+  };
+}
+
+/** Pure validator for instance snapshots: enforces they point only to published workflow versions. */
+export function validateWorkflowInstanceSnapshot(
+  snapshot: WorkflowInstanceSnapshot
+): ReturnType<Skill<WorkflowModel>["validate"]> {
+  const f: Finding[] = [];
+  if (!snapshot.versionPublished) {
+    f.push({
+      code: "WF_INSTANCE_SNAPSHOT_UNPUBLISHED",
+      severity: "error",
+      path: "versionPublished",
+      message: `实例快照必须指向 published workflow version，当前 ${snapshot.workflowId}@${snapshot.processVersion} 未发布`,
+    });
+  }
+  if (typeof snapshot.processVersion !== "string" || snapshot.processVersion.trim() === "") {
+    f.push({
+      code: "WF_INSTANCE_SNAPSHOT_INVALID_VERSION",
+      severity: "error",
+      path: "processVersion",
+      message: "snapshot processVersion 必须是有效字符串",
+    });
+  }
+  if (!Array.isArray(snapshot.frozenFormFieldRefs)) {
+    f.push({
+      code: "WF_INSTANCE_SNAPSHOT_INVALID_BINDINGS",
+      severity: "error",
+      path: "frozenFormFieldRefs",
+      message: "frozenFormFieldRefs 必须是数组",
+    });
+  }
+  return finalizeReport(f);
+}
 
 // ---------------------------------------------------------------------------
 // Worked example — the "请假审批" flow, designed to reference the RBAC sample's roles.
@@ -338,6 +620,8 @@ export const leaveApprovalWorkflow: WorkflowModel = {
   policyCheckRefs: ["leave:approve"],
   fieldRefs: ["leave_request.approved"],
   traceSpan: "wf.leave.approval",
+  version: "1.0.0",
+  published: true,
   fields: [{ key: "approved", type: "boolean" }],
   nodes: [
     { id: "s", type: "start", name: "发起请假" },
@@ -373,6 +657,8 @@ export const purchaseApprovalWorkflow: WorkflowModel = {
     "purchase_request.procurementFulfilled",
   ],
   traceSpan: "wf.purchase.approval",
+  version: "1.0.0",
+  published: true,
   fields: [
     { key: "amount", type: "number" },
     { key: "budgetChecked", type: "boolean" },
@@ -388,7 +674,7 @@ export const purchaseApprovalWorkflow: WorkflowModel = {
       name: "Department manager approval",
       assigneeRole: "department_manager",
       assigneeRoleRef: "department_manager",
-      approvalMode: "any",
+      approvalMode: "sequential",
     },
     { id: "budget", type: "branch", name: "Budget check", field: "budgetChecked", fieldRef: "purchase_request.budgetChecked" },
     {
@@ -397,16 +683,18 @@ export const purchaseApprovalWorkflow: WorkflowModel = {
       name: "Finance approval",
       assigneeRole: "finance",
       assigneeRoleRef: "finance",
-      approvalMode: "any",
+      approvalMode: "percentage",
+      // threshold: V2 hardening requires for percentage; cast bypasses WorkflowNode interface (edit scope limits)
+      ...( { threshold: 60 } as any ),
     },
     { id: "finance_result", type: "branch", name: "Finance result", field: "financeApproved", fieldRef: "purchase_request.financeApproved" },
     {
       id: "procurement",
       type: "approval",
-      name: "Procurement fulfillment",
+      name: "Buyer / Procurement fulfillment",
       assigneeRole: "procurement",
       assigneeRoleRef: "procurement",
-      approvalMode: "any",
+      approvalMode: "all",
     },
     {
       id: "fulfillment",

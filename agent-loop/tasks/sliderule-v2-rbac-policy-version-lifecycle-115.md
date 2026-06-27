@@ -42,3 +42,15 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Validation evidence (appended after review_needs_changes fix)
+- Run date: 2026-06-27 (fresh after model + impl)
+- `pnpm exec vitest run client/src/lib/skills/rbac/rbacSkill.test.ts --reporter=dot` → 58 tests passed (was 54; +4 focused lifecycle +ve/-ve)
+- `pnpm exec tsc --noEmit --pretty false` → exit 0 (clean)
+- `node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-rbac-policy-version-lifecycle-115.md` → No mojibake findings.
+- Changes (only allowed files):
+  - client/src/lib/skills/rbac/rbacModel.ts: added PolicyLifecycleState="draft"|"published"|"effective"|"retired"; added version?, lifecycleState? to PolicyRule; added policyVersion?, policyLifecycleState? to PolicyDecision.
+  - client/src/lib/skills/rbac/rbacSkill.ts: import type; validate() now checks effective policies published/not-retired contract; project() adds pdp_policy_lifecycle + lifecycle_* nodes + version/state in labels/edges; resolve() surfaces @ver#state; decideRbacPolicy() filters retired (effective only), attaches version/state to decisions on policy-driven deny.
+  - client/src/lib/skills/rbac/rbacSkill.test.ts: 4 new tests (positive: effective/published accepted+reported+projected; negative: retired accepted in model but ignored in PDP so allow not vetoed); compat preserved.
+- Core goal met: PDP decisions now carry policyVersion + policyLifecycleState; effective policies validated/published/not-retired enforced via filter+contract.
+- All prior behavior (purchase/leave/114) remains compatible (new fields optional).

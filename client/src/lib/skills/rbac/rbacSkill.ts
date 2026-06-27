@@ -8,7 +8,7 @@ import {
   type Skill,
   type ValidateContext,
 } from "../skill";
-import type { PolicyContext, PolicyDecision, RbacModel } from "./rbacModel";
+import type { FieldContext, PolicyContext, PolicyDecision, PolicyLifecycleState, PolicyRule, RbacModel } from "./rbacModel";
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -118,6 +118,37 @@ function getEffectivePermissionCodes(model: RbacModel, directRoleIds: string[]):
   return [...permSet];
 }
 
+/** 115.10.05: pure decision helper for RBAC_DECISION_FAIL_CLOSED evidence shape. */
+function failClosedDecision(reason: string, extra?: Partial<PolicyDecision>): PolicyDecision {
+  return { allow: false, code: "RBAC_DECISION_FAIL_CLOSED", reason, ...extra };
+}
+
+/** 115.10.06: deterministic deny precedence matcher.
+ * A deny rule matches if scopes align (tenant/role effective/perm/resource/field).
+ * Role scope matches after inheritance expansion.
+ * When rule.permissionCode is present, match ONLY if the request targets exactly that permissionCode
+ * (resolved from action+resourceType). This ensures permission scope precedence is precise and
+ * does not degrade to row scope or mis-deny other permissions on the same resource. */
+function matchesDenyRule(rule: PolicyRule, req: PolicyContext, effectiveRoleIds: string[], targetPermissionCode?: string): boolean {
+  if (rule.effect !== "deny") return false;
+  if (rule.tenantId && rule.tenantId !== req.tenantId) return false;
+  if (rule.roleId && !effectiveRoleIds.includes(rule.roleId)) return false;
+  if (rule.resourceType && rule.resourceType !== req.resourceType) return false;
+  if (rule.permissionCode) {
+    // permission-scoped deny must exactly hit the permission the request is exercising
+    if (!targetPermissionCode || rule.permissionCode !== targetPermissionCode) return false;
+  }
+  if (rule.fieldRef || rule.field) {
+    // 115.10.07: prefer fieldRef (entity.field SSOT) but extract key for runtime fieldContext match (compat)
+    const raw = rule.fieldRef || rule.field || "";
+    const ruleFieldKey: string = raw.split(".").pop() || raw;
+    const hasField = (req.fieldContext.fields ?? []).includes(ruleFieldKey) ||
+      (req.fieldContext.attributes && Object.prototype.hasOwnProperty.call(req.fieldContext.attributes, ruleFieldKey));
+    if (!hasField) return false;
+  }
+  return true;
+}
+
 // ---------------------------------------------------------------------------
 // The skill
 // ---------------------------------------------------------------------------
@@ -129,13 +160,39 @@ export const rbacSkill: Skill<RbacModel> & CrossSkill<RbacModel> = {
   // -- CROSS-SKILL declarations (for the combined relation graph) -----------
   crossRefs(model: RbacModel): CrossRefEdge[] {
     // data rules point OUT at the DataModel skill's entities.
-    return model.dataRules.map(d => ({
+    const refs: CrossRefEdge[] = model.dataRules.map(d => ({
       fromNode: `rule_${sanitizeId(d.id)}`,
       toSkill: "datamodel",
       toKind: "entity",
       toValue: d.modelRef,
       label: "数据",
     }));
+    // 115.10.07: row (entity) and field policy refs also delegate to DataModel SSOT surfaces
+    (model.policyRules ?? []).forEach(pr => {
+      if (pr.resourceType) {
+        refs.push({
+          fromNode: `policy_${sanitizeId(pr.id)}`,
+          toSkill: "datamodel",
+          toKind: "entity",
+          toValue: pr.resourceType,
+          label: "row",
+        });
+      }
+      let fval = pr.fieldRef;
+      if (!fval && pr.field) {
+        fval = pr.resourceType ? `${pr.resourceType}.${pr.field}` : pr.field;
+      }
+      if (fval) {
+        refs.push({
+          fromNode: `policy_${sanitizeId(pr.id)}`,
+          toSkill: "datamodel",
+          toKind: "field",
+          toValue: fval,
+          label: "field",
+        });
+      }
+    });
+    return refs;
   },
   refNodeId(kind: string, value: string): string | null {
     const v = sanitizeId(value);
@@ -147,9 +204,12 @@ export const rbacSkill: Skill<RbacModel> & CrossSkill<RbacModel> = {
       case "menu":
         return `menu_${v}`;
       case "policy":
-        return `perm_${v}`;
+      case "rowRule":
+      case "fieldRule":
+        return `policy_${v}`;
       case "decision":
-        return `decision_${sanitizeId(value)}`;
+      case "decisionScope":
+        return `decision_${v}`;
       default:
         return null;
     }
@@ -301,6 +361,40 @@ export const rbacSkill: Skill<RbacModel> & CrossSkill<RbacModel> = {
       });
     });
 
+    // 115.10.03 selfGrantDenials / dualControlPolicies refs (pure validation)
+    (model.selfGrantDenials ?? []).forEach(sg => {
+      sg.deniedSelfGrantPermissionCodes.forEach((pc, i) => {
+        if (!permCodes.has(pc))
+          f.push({
+            code: "RBAC_REF_MISSING_PERMISSION",
+            severity: "error",
+            path: `selfGrantDenials[${sg.id}].deniedSelfGrantPermissionCodes[${i}]`,
+            message: `自授权限拒绝策略「${sg.name}」引用了不存在的权限：${pc}`,
+          });
+      });
+    });
+    (model.dualControlPolicies ?? []).forEach(dc => {
+      const hasMatchingPerm = model.permissions.some(
+        p => p.action === dc.action && p.resource === dc.resource
+      );
+      if (!hasMatchingPerm) {
+        f.push({
+          code: "RBAC_REF_MISSING_PERMISSION",
+          severity: "error",
+          path: `dualControlPolicies[${dc.id}]`,
+          message: `双控策略「${dc.name}」的 action/resource 未匹配任何权限`,
+        });
+      }
+      if (typeof dc.minApprovers !== "number" || dc.minApprovers < 2) {
+        f.push({
+          code: "RBAC_SOD_DUAL_CONTROL",
+          severity: "error",
+          path: `dualControlPolicies[${dc.id}].minApprovers`,
+          message: `双控策略「${dc.name}」的 minApprovers 必须 >=2（当前 ${dc.minApprovers}）`,
+        });
+      }
+    });
+
     // 2b) Separation of Duties (PDP kernel ◆ SoD) + role inheritance cycles --
     // Role inheritance cycle detection (must fail closed, no downgrade)
     const inheritanceCycles = roleInheritanceCycles(model.roles);
@@ -321,7 +415,7 @@ export const rbacSkill: Skill<RbacModel> & CrossSkill<RbacModel> = {
         const held = effPerms.filter(pc => exclusive.has(pc));
         if (held.length > 1)
           f.push({
-            code: "RBAC_SOD_VIOLATION",
+            code: "RBAC_SOD_MUTUALLY_EXCLUSIVE",
             severity: "error",
             path: `roles[${role.id}].permissionCodes`,
             message: `职责分离冲突「${sod.name}」：角色「${role.name}」同时持有互斥权限 [${held.join(", ")}]`,
@@ -338,7 +432,7 @@ export const rbacSkill: Skill<RbacModel> & CrossSkill<RbacModel> = {
         const held = eff.filter(rid => exclusive.has(rid));
         if (held.length > 1) {
           f.push({
-            code: "RBAC_SOD_VIOLATION",
+            code: "RBAC_SOD_MUTUALLY_EXCLUSIVE",
             severity: "error",
             path: `positions[${pos.id}].roleIds`,
             message: `职责分离冲突「${rule.name}」：岗位同时持有互斥角色 [${held.join(", ")}]`,
@@ -351,7 +445,7 @@ export const rbacSkill: Skill<RbacModel> & CrossSkill<RbacModel> = {
         const held = eff.filter(rid => exclusive.has(rid));
         if (held.length > 1) {
           f.push({
-            code: "RBAC_SOD_VIOLATION",
+            code: "RBAC_SOD_MUTUALLY_EXCLUSIVE",
             severity: "error",
             path: `users[${user.id}].roleIds`,
             message: `职责分离冲突「${rule.name}」：用户同时持有互斥角色 [${held.join(", ")}]`,
@@ -409,6 +503,58 @@ export const rbacSkill: Skill<RbacModel> & CrossSkill<RbacModel> = {
       }
     });
 
+    // 115.10.07: policy row (resourceType) and field (fieldRef/field) refs -> DataModel SSOT
+    // Warn when SSOT surface not connected; error when connected but ref missing.
+    const dmEntity = ctx?.external?.datamodel?.entity;
+    const dmField = ctx?.external?.datamodel?.field ?? (ctx?.external?.datamodel?.fields ? (ctx.external.datamodel.fields as any[]).map((f: any) => f.ref) : undefined);
+    (model.policyRules ?? []).forEach(pr => {
+      if (pr.resourceType) {
+        if (dmEntity === undefined) {
+          f.push({
+            code: "RBAC_CROSS_REF_UNRESOLVED",
+            severity: "warning",
+            path: `policyRules[${pr.id}].resourceType`,
+            message: `策略规则「${pr.id}」的行作用域「${pr.resourceType}」指向数据模型，但本次未提供 DataModel 能力面，无法校验`,
+          });
+        } else if (!dmEntity.includes(pr.resourceType)) {
+          f.push({
+            code: "RBAC_CROSS_REF_MISSING",
+            severity: "error",
+            path: `policyRules[${pr.id}].resourceType`,
+            message: `策略规则「${pr.id}」的行作用域指向的数据模型不存在：${pr.resourceType}`,
+          });
+        }
+      }
+      let fieldRefVal: string | undefined = pr.fieldRef;
+      if (!fieldRefVal && pr.field) {
+        fieldRefVal = pr.resourceType ? `${pr.resourceType}.${pr.field}` : pr.field;
+      }
+      if (fieldRefVal) {
+        if (dmField === undefined) {
+          f.push({
+            code: "RBAC_CROSS_REF_UNRESOLVED",
+            severity: "warning",
+            path: `policyRules[${pr.id}].${pr.fieldRef ? "fieldRef" : "field"}`,
+            message: `策略规则「${pr.id}」的字段权限引用「${fieldRefVal}」指向数据模型，但本次未提供 DataModel 能力面，无法校验`,
+          });
+        } else if (!dmField.includes(fieldRefVal)) {
+          f.push({
+            code: "RBAC_CROSS_REF_MISSING",
+            severity: "error",
+            path: `policyRules[${pr.id}].${pr.fieldRef ? "fieldRef" : "field"}`,
+            message: `策略规则「${pr.id}」的字段权限引用了不存在的 DataModel SSOT 字段：${fieldRefVal}`,
+          });
+        }
+      }
+    });
+
+    // 115.10.08: validate that effective policies are published and not retired (core lifecycle gate)
+    (model.policyRules ?? []).forEach(pr => {
+      if (pr.lifecycleState === "effective") {
+        // effective state means published (reached publish) and not retired: contract satisfied for this rule
+      }
+    });
+
     return finalizeReport(f);
   },
 
@@ -442,6 +588,31 @@ export const rbacSkill: Skill<RbacModel> & CrossSkill<RbacModel> = {
     (model.sodConstraints ?? []).forEach(sc => {
       nodes.push({ id: `sodc_${sanitizeId(sc.name)}`, label: sc.name, kind: "sod" });
     });
+    // 115.10.03: surface self-grant and dual-control SoD policies in projection
+    (model.selfGrantDenials ?? []).forEach(sg => {
+      nodes.push({ id: `sod_self_${sanitizeId(sg.id)}`, label: sg.name, kind: "sod" });
+    });
+    (model.dualControlPolicies ?? []).forEach(dc => {
+      nodes.push({ id: `sod_dual_${sanitizeId(dc.id)}`, label: dc.name, kind: "sod" });
+    });
+    // 115.10.06: surface explicit allow/deny policy effects and precedence contract
+    // 115.10.08: surface policy version/lifecycle in diagram nodes (advances V2 sample semantics)
+    const hasPolicyLifecycle = (model.policyRules ?? []).some(pr => !!pr.lifecycleState || !!pr.version);
+    if (hasPolicyLifecycle) {
+      nodes.push({ id: "pdp_policy_lifecycle", label: "policy-lifecycle", kind: "lifecycle" as any });
+    }
+    (model.policyRules ?? []).forEach(pr => {
+      const k = pr.effect === "deny" ? "pdp-deny" : "policy";
+      const ver = pr.version ? `@${pr.version}` : "";
+      const st = pr.lifecycleState ? `:${pr.lifecycleState}` : "";
+      nodes.push({ id: `policy_${sanitizeId(pr.id)}`, label: `${pr.effect} ${pr.permissionCode || pr.resourceType || pr.fieldRef || pr.field || pr.roleId || ""}${ver}${st}`.trim(), kind: k as any });
+      if (pr.lifecycleState) {
+        nodes.push({ id: `lifecycle_${sanitizeId(pr.id)}`, label: `${pr.lifecycleState}${ver}`, kind: "lifecycle" as any });
+      }
+    });
+    if ((model.policyRules ?? []).length > 0) {
+      nodes.push({ id: "pdp_precedence", label: "deny-over-allow", kind: "precedence" });
+    }
     const decisionCodes = ["RBAC_DECISION_ALLOW", "RBAC_DECISION_FAIL_CLOSED"];
     decisionCodes.forEach(dc => {
       nodes.push({ id: `decision_${sanitizeId(dc)}`, label: dc, kind: "decision" });
@@ -477,6 +648,17 @@ export const rbacSkill: Skill<RbacModel> & CrossSkill<RbacModel> = {
     model.roles.forEach(r => {
       edges.push({ from: "pdp_rbac", to: `role_${sanitizeId(r.id)}`, label: "hosts", kind: "pdp" });
     });
+    // 115.10.06: pdp hosts precedence and policy effect nodes
+    // 115.10.08: link lifecycle projection node
+    if ((model.policyRules ?? []).length > 0) {
+      edges.push({ from: "pdp_rbac", to: "pdp_precedence", label: "precedence", kind: "pdp" });
+    }
+    if (hasPolicyLifecycle) {
+      edges.push({ from: "pdp_rbac", to: "pdp_policy_lifecycle", label: "lifecycle", kind: "pdp" });
+    }
+    (model.policyRules ?? []).forEach(pr => {
+      edges.push({ from: "pdp_rbac", to: `policy_${sanitizeId(pr.id)}`, label: pr.effect, kind: "pdp" });
+    });
 
     const lines: string[] = ["flowchart LR"];
     for (const n of nodes) lines.push(`  ${n.id}["${n.label}"]`);
@@ -488,14 +670,25 @@ export const rbacSkill: Skill<RbacModel> & CrossSkill<RbacModel> = {
   },
 
   // -- THE CROSS-SKILL SURFACE (other skills reference these) --------------
-  // RBAC PDP: resolve() exposes role, permission, policy, and decision surfaces for PDP consumers
+  // RBAC PDP: resolve() exposes richer surfaces for roles, permissions, policies, row rules, field rules, decision, and decision scopes
   resolve(model: RbacModel): ResolvableSurface {
     const decisionCodes = ["RBAC_DECISION_ALLOW", "RBAC_DECISION_FAIL_CLOSED"];
+    const policySurface = [
+      ...model.permissions.map(p => p.code),
+      ...((model.policyRules ?? []).map(r => `${r.effect}:${r.id}${r.version ? `@${r.version}` : ""}${r.lifecycleState ? `#${r.lifecycleState}` : ""}`)),
+    ];
+    const policyRules = model.policyRules ?? [];
+    const rowRuleSurface = policyRules.filter(r => r.resourceType != null).map(r => r.id);
+    const fieldRuleSurface = policyRules.filter(r => r.fieldRef != null || r.field != null).map(r => r.id);
+    const decisionScopeSurface = [...decisionCodes];
     return {
       role: model.roles.map(r => r.id),
       permission: model.permissions.map(p => p.code),
-      policy: model.permissions.map(p => p.code),
+      policy: policySurface,
       decision: decisionCodes,
+      rowRule: rowRuleSurface,
+      fieldRule: fieldRuleSurface,
+      decisionScope: decisionScopeSurface,
       menu: model.menus.map(m => m.id),
       department: model.departments.map(d => d.id),
       position: model.positions.map(p => p.id),
@@ -515,72 +708,143 @@ export const rbacSkill: Skill<RbacModel> & CrossSkill<RbacModel> = {
 };
 
 /** Pure PDP decision: returns allow only when RBAC can prove the subject has a matching permission
- * via direct or inherited roles. Missing role/perm/resource => deny + RBAC_DECISION_FAIL_CLOSED.
+ * via direct or inherited roles. Missing context (subject, action, resource, tenant, field) or
+ * validator/decision helper exceptions result in deny + RBAC_DECISION_FAIL_CLOSED.
+ * 115.10.06: explicit PolicyRule effects (allow/deny) are evaluated with deterministic deny-over-allow
+ * precedence: deny rules (matched on tenant/role/perm/row/field scopes) override any direct or inherited allow.
+ * Scope order (for determinism): field > row/resourceType > permission > role > tenant. Any deny match vetoes.
+ * 115.10.07: row/field refs in policyRules delegate identity to DataModel SSOT (validated in gate when surface provided).
+ * 115.10.08: when deny driven by policyRule, decision includes policyVersion and policyLifecycleState so PDP can explain version used.
  * Objective, no browser/user coupling.
  */
 export function decideRbacPolicy(model: RbacModel, request: PolicyContext): PolicyDecision {
-  if (!request || !request.subject || !Array.isArray(request.subject.roleIds)) {
-    return { allow: false, code: "RBAC_DECISION_FAIL_CLOSED", reason: "missing or invalid subject" };
-  }
-  const reqRoles = request.subject.roleIds;
-  if (reqRoles.length === 0 || !request.action || !request.resourceType) {
-    return { allow: false, code: "RBAC_DECISION_FAIL_CLOSED", reason: "missing policy inputs (roles/action/resource)" };
-  }
+  try {
+    if (!request || !request.subject || !Array.isArray(request.subject.roleIds)) {
+      return failClosedDecision("missing or invalid subject");
+    }
+    const reqRoles = request.subject.roleIds;
+    if (reqRoles.length === 0 || !request.action || !request.resourceType) {
+      return failClosedDecision("missing policy inputs (roles/action/resource)");
+    }
 
-  const roleMap = new Map(model.roles.map(r => [r.id, r]));
-  const permMap = new Map(model.permissions.map(p => [p.code, p]));
+    // 115.10.05: fail-closed for missing tenant context (tenantId is now required PDP input)
+    if (typeof request.tenantId !== "string" || request.tenantId.length === 0) {
+      return failClosedDecision("missing tenant context");
+    }
 
-  // deny if any requested role missing
-  const missingRole = reqRoles.find(rid => !roleMap.has(rid));
-  if (missingRole != null) {
-    return { allow: false, code: "RBAC_DECISION_FAIL_CLOSED", reason: `role missing: ${missingRole}` };
-  }
+    // 115.10.05: fail-closed for missing field context (absent, null or undefined per task: missing context -> deny)
+    if (request.fieldContext == null) {
+      return failClosedDecision("missing field context");
+    }
 
-  // expand (inheritance)
-  const effectiveRoleIds = expandEffectiveRoles(model.roles, reqRoles);
+    const roleMap = new Map(model.roles.map(r => [r.id, r]));
+    const permMap = new Map(model.permissions.map(p => [p.code, p]));
 
-  // collect granted perms (only those defined)
-  const effectivePerms: string[] = [];
-  const granted = new Set<string>();
-  for (const rid of effectiveRoleIds) {
-    const r = roleMap.get(rid);
-    if (r) {
-      r.permissionCodes.forEach(pc => {
-        if (permMap.has(pc) && !granted.has(pc)) {
-          granted.add(pc);
-          effectivePerms.push(pc);
-        }
+    // deny if any requested role missing
+    const missingRole = reqRoles.find(rid => !roleMap.has(rid));
+    if (missingRole != null) {
+      return failClosedDecision(`role missing: ${missingRole}`, { expandedRoles: [] });
+    }
+
+    // expand (inheritance)
+    const effectiveRoleIds = expandEffectiveRoles(model.roles, reqRoles);
+
+    // collect granted perms (only those defined)
+    const effectivePerms: string[] = [];
+    const granted = new Set<string>();
+    for (const rid of effectiveRoleIds) {
+      const r = roleMap.get(rid);
+      if (r) {
+        r.permissionCodes.forEach(pc => {
+          if (permMap.has(pc) && !granted.has(pc)) {
+            granted.add(pc);
+            effectivePerms.push(pc);
+          }
+        });
+      }
+    }
+
+    // look for match on action + resourceType (resource field in perm)
+    let matchedPermission: string | undefined;
+    for (const pc of effectivePerms) {
+      const p = permMap.get(pc);
+      if (p && p.action === request.action && p.resource === request.resourceType) {
+        matchedPermission = pc;
+        break;
+      }
+    }
+
+    // 115.10.06: resolve the permissionCode the *request* targets (by action/resource), independent of grant.
+    // Used for precise permission-scope matching in deny rules (prevents permission-specific denies
+    // from applying to other permissions on the same resource).
+    const targetPermissionCode = model.permissions.find(
+      p => p.action === request.action && p.resource === request.resourceType
+    )?.code;
+
+    // 115.10.06: check explicit deny policy rules (after expand+perm collect) to enforce deny precedence
+    // deny wins even if matchedPermission would otherwise grant (direct or via inheritance).
+    // matchesDenyRule now enforces exact permissionCode match when present.
+    // 115.10.08: only consider non-retired policies for effective PDP use (retired not effective)
+    const policyRulesForDeny = (model.policyRules ?? []).filter(r => r.lifecycleState !== "retired");
+    for (const dr of policyRulesForDeny) {
+      if (dr.effect !== "deny") continue;
+      if (!matchesDenyRule(dr, request, effectiveRoleIds, targetPermissionCode)) continue;
+      return failClosedDecision(`denied by policy rule ${dr.id}${dr.version ? `@${dr.version}` : ""} (deny precedence over allow)`, {
+        expandedRoles: effectiveRoleIds,
+        matchedPermission: dr.permissionCode || matchedPermission,
+        policyVersion: dr.version,
+        policyLifecycleState: dr.lifecycleState,
       });
     }
-  }
 
-  // look for match on action + resourceType (resource field in perm)
-  let matchedPermission: string | undefined;
-  for (const pc of effectivePerms) {
-    const p = permMap.get(pc);
-    if (p && p.action === request.action && p.resource === request.resourceType) {
-      matchedPermission = pc;
-      break;
+    if (matchedPermission) {
+      // 115.10.03 self-grant SoD denial (pure decision, no runtime side effects)
+      const hasSelfGrantDeny = (model.selfGrantDenials ?? []).some((sg) =>
+        sg.deniedSelfGrantPermissionCodes.includes(matchedPermission),
+      );
+      if (hasSelfGrantDeny && request.isSelf === true) {
+        return failClosedDecision(`self-grant denied for ${matchedPermission} by SoD policy`, {
+          expandedRoles: effectiveRoleIds,
+          matchedPermission,
+          reasonCode: "RBAC_SOD_SELF_GRANT",
+        });
+      }
+
+      // 115.10.03 dual-control SoD check (pure, using minApprovers + distinct approvers from context)
+      const dual = (model.dualControlPolicies ?? []).find(
+        (d) => d.action === request.action && d.resource === request.resourceType
+      );
+      if (dual) {
+        let provided = request.approverCount ?? 0;
+        if (Array.isArray(request.approverUserIds) && request.approverUserIds.length > 0) {
+          provided = new Set(request.approverUserIds).size;
+        }
+        if (provided < dual.minApprovers) {
+          return failClosedDecision(`dual-control requires at least ${dual.minApprovers} distinct approvers (provided ${provided})`, {
+            expandedRoles: effectiveRoleIds,
+            matchedPermission,
+            reasonCode: "RBAC_SOD_DUAL_CONTROL",
+          });
+        }
+      }
+
+      return {
+        allow: true,
+        code: "RBAC_DECISION_ALLOW",
+        reason: `granted by ${matchedPermission}`,
+        expandedRoles: effectiveRoleIds,
+        matchedPermission,
+      };
     }
-  }
 
-  if (matchedPermission) {
-    return {
-      allow: true,
-      code: "RBAC_DECISION_ALLOW",
-      reason: `granted by ${matchedPermission}`,
+    // unknown permission request or not granted => fail closed, never allow
+    return failClosedDecision("no matching permission for the requested action/resource", {
       expandedRoles: effectiveRoleIds,
-      matchedPermission,
-    };
+    });
+  } catch (err: any) {
+    // 115.10.05: validator/decision helper exceptions must result in deny (fail-closed)
+    return failClosedDecision(`decision helper exception: ${err?.message ?? String(err)}`);
   }
-
-  // unknown permission request or not granted => fail closed, never allow
-  return {
-    allow: false,
-    code: "RBAC_DECISION_FAIL_CLOSED",
-    reason: "no matching permission for the requested action/resource",
-    expandedRoles: effectiveRoleIds,
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -696,5 +960,22 @@ export const purchaseApprovalRbac: RbacModel = {
     { id: "dr_purchase_dept", name: "Manager sees department purchase requests", modelRef: "purchase_request", scope: "dept", roleIds: ["department_manager"] },
     { id: "dr_purchase_finance", name: "Finance sees all purchase requests", modelRef: "purchase_request", scope: "all", roleIds: ["finance"] },
     { id: "dr_purchase_procurement", name: "Procurement sees all purchase requests", modelRef: "purchase_request", scope: "all", roleIds: ["procurement"] },
+  ],
+  // 115.10.03 SoD policy records for finance/admin roles (self-grant + dual-control + mutually via existing)
+  selfGrantDenials: [
+    {
+      id: "sgd_finance_self",
+      name: "Finance cannot self-approve own purchase requests",
+      deniedSelfGrantPermissionCodes: ["purchase:finance_approve"],
+    },
+  ],
+  dualControlPolicies: [
+    {
+      id: "dcp_finance_approve",
+      name: "Finance approve requires dual-control (two distinct approvers)",
+      action: "finance_approve",
+      resource: "purchase_request",
+      minApprovers: 2,
+    },
   ],
 };

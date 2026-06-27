@@ -41,3 +41,31 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Fresh validation evidence (post-review fix)
+
+### Required: pnpm exec vitest run client/src/lib/skills/rbac/rbacSkill.test.ts --reporter=dot
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/rbac/rbacSkill.test.ts (26 tests) 7ms
+
+ Test Files  1 passed (1)
+      Tests  26 passed (26)
+   Start at  06:37:19
+   Duration  328ms (transform 45ms, setup 0ms, collect 49ms, tests 7ms, environment 0ms, prepare 53ms)
+```
+
+### Required: pnpm exec tsc --noEmit --pretty false
+```
+(exit code 0, no errors)
+```
+
+### Required: node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-rbac-role-inheritance-gate-115.md
+```
+No mojibake findings.
+```
+
+- Focused regression test added for missing parent in `inheritsRoleIds` (RBAC_REF_MISSING_ROLE on inherits path).
+- All existing tests (purchase, leave, AIGC114 compat, cycles, SoD, inheritance resolve) remain passing.
+- Gate evidence fresh after the minimal targeted edit.

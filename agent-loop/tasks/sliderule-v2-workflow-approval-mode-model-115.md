@@ -42,3 +42,29 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Fresh passing validation evidence (appended per acceptance)
+
+### pnpm exec vitest run client/src/lib/skills/workflow/workflowSkill.test.ts --reporter=dot
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/workflow/workflowSkill.test.ts (28 tests) 6ms
+
+ Test Files  1 passed (1)
+      Tests  28 passed (28)
+   Start at  08:36:50
+   Duration  487ms (transform 68ms, setup 0ms, collect 77ms, tests 6ms, environment 0ms, prepare 52ms)
+```
+
+### pnpm exec tsc --noEmit --pretty false
+```
+(exit code 0, no errors)
+```
+
+### node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-workflow-approval-mode-model-115.md
+```
+No mojibake findings.
+```
+
+All gates passed with fresh output after model + fixture + validator + projector + test updates.

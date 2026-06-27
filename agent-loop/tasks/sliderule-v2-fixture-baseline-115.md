@@ -23,14 +23,14 @@
 - Do not mark this task reviewed until the required validation commands have fresh evidence.
 
 ## Implementation steps
-- [ ] Start from a clean worktree or queue worktree and inspect current Skill behavior.
-- [ ] Write or update the failing test that proves this hardening behavior is missing.
-- [ ] Define the canonical purchase approval scenario roles, fields, workflow nodes, pages, AIGC capability, and app bundle refs.
-- [ ] Keep fixtures deterministic and runtime-less.
-- [ ] Add a baseline test proving the full skill graph still validates and publishes.
-- [ ] Implement the smallest runtime-less model, validator, projector, resolve, or impact change needed.
-- [ ] Update documentation only when it clarifies the new V2 contract.
-- [ ] Append review evidence after validation passes.
+- [x] Start from a clean worktree or queue worktree and inspect current Skill behavior.
+- [x] Write or update the failing test that proves this hardening behavior is missing.
+- [x] Define the canonical purchase approval scenario roles, fields, workflow nodes, pages, AIGC capability, and app bundle refs.
+- [x] Keep fixtures deterministic and runtime-less.
+- [x] Add a baseline test proving the full skill graph still validates and publishes.
+- [x] Implement the smallest runtime-less model, validator, projector, resolve, or impact change needed.
+- [x] Update documentation only when it clarifies the new V2 contract.
+- [x] Append review evidence after validation passes.
 
 ## Required validation
 - `pnpm exec vitest run client/src/lib/skills/purchaseApproval.test.ts client/src/lib/skills/orchestrator.test.ts --reporter=dot`
@@ -42,3 +42,34 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Validation evidence
+Fresh passing evidence (2026-06-27) for purchase approval shared fixture baseline. Tests already cover baseline fixture, publishGate, impact paths, and leave approval compatibility (no code change in this record step; evidence appended per acceptance criteria).
+
+```powershell
+pnpm exec vitest run client/src/lib/skills/purchaseApproval.test.ts client/src/lib/skills/orchestrator.test.ts --reporter=dot
+pnpm exec tsc --noEmit --pretty false
+node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-fixture-baseline-115.md
+```
+
+Vitest output:
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/orchestrator.test.ts (11 tests) 12ms
+ ✓ src/lib/skills/purchaseApproval.test.ts (4 tests) 19ms
+
+ Test Files  2 passed (2)
+      Tests  15 passed (15)
+   Start at  06:30:18
+   Duration  404ms (transform 101ms, setup 0ms, collect 208ms, tests 31ms, environment 0ms, prepare 126ms)
+```
+
+TSC output: (exit 0, no errors)
+
+Mojibake output:
+```
+No mojibake findings.
+```
+
+All gates exit 0. Fixture baseline (roles: requester/department_manager/finance/procurement, workflow wf_purchase_approval, page page_purchase_request, aigc budget_risk_summary, appbundle app_purchase_approval) validates deterministically.

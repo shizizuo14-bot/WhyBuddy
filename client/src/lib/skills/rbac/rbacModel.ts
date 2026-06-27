@@ -85,7 +85,30 @@ export interface SoDRule {
   severity: "error" | "warning";
 }
 
+/** 115.10.03: Self-grant denial SoD policy: subject may not self-grant/exercise these permissions on self (e.g. finance self-approve). */
+export interface SelfGrantDenial {
+  id: string;
+  name: string;
+  /** permission codes that are denied for self-grant/self-approval */
+  deniedSelfGrantPermissionCodes: string[];
+}
+
+/** 115.10.03: Dual-control SoD policy: declares actions/resources requiring multiple distinct approvers. */
+export interface DualControlPolicy {
+  id: string;
+  name: string;
+  action: string;
+  resource: string;
+  minApprovers: number;
+}
+
 /** Typed policy request/context for PDP decisions (V2). */
+export interface FieldContext {
+  /** V2: explicit field/attribute context for PDP decisions. Required in PolicyContext; absence results in RBAC_DECISION_FAIL_CLOSED. */
+  fields?: string[];
+  attributes?: Record<string, unknown>;
+}
+
 export interface PolicyContext {
   /** subject role refs (and optional finer subject) */
   subject: {
@@ -95,8 +118,15 @@ export interface PolicyContext {
   action: string;
   resourceType: string;
   resourceId?: string;
-  tenantId?: string;
+  tenantId: string;
   scope?: string;
+  /** 115.10.05 field context shape (required PDP context for V2 fail-closed: missing or absent fieldContext must result in deny) */
+  fieldContext: FieldContext;
+  /** when true, subject is acting on self (used by self-grant SoD checks) */
+  isSelf?: boolean;
+  /** dual-control context: count or distinct approver userIds (pure data for minApprovers check) */
+  approverCount?: number;
+  approverUserIds?: string[];
 }
 
 /** PDP decision result. Default is deny (fail-closed) when proof of allow is absent. */
@@ -106,6 +136,43 @@ export interface PolicyDecision {
   reason: string;
   expandedRoles?: string[];
   matchedPermission?: string;
+  /** Stable machine-readable reason for specialized deny cases, e.g. RBAC_SOD_SELF_GRANT. */
+  reasonCode?: string;
+  /** 115.10.08: policy version/lifecycle reported so PDP can explain which policy version was used */
+  policyVersion?: string;
+  policyLifecycleState?: PolicyLifecycleState;
+}
+
+/** 115.10.06: policy effect for explicit allow/deny rules (deny must override allow). */
+export type PolicyEffect = "allow" | "deny";
+
+/** 115.10.08: RBAC policy lifecycle states. Effective policies (used by PDP) are published and not retired. */
+export type PolicyLifecycleState = "draft" | "published" | "effective" | "retired";
+
+/** 115.10.06: explicit policy rule with allow/deny effect.
+ * Deterministic precedence contract: deny rules win over direct or inherited allow at any scope.
+ * Scope evaluation order for determinism (most-to-least specific): field, row (resourceType), permission, role, tenant.
+ * Matching a deny at any applicable scope results in deny decision.
+ * 115.10.07: row (resourceType) and field policy refs delegate to DataModel SSOT via entity/field ids (modelRef/fieldRef surface). */
+export interface PolicyRule {
+  id: string;
+  effect: PolicyEffect;
+  /** tenant scope filter */
+  tenantId?: string;
+  /** role scope (denies/allows apply after role inheritance expansion) */
+  roleId?: string;
+  /** permission scope */
+  permissionCode?: string;
+  /** row scope: DataModel entity id (SSOT ref for row-level policy) */
+  resourceType?: string;
+  /** field scope: DataModel "entity.field" id (SSOT stable field identity ref); delegates to datamodel field surface */
+  fieldRef?: string;
+  /** field scope (compat): bare field key or legacy value; when fieldRef present its key part is preferred for matching */
+  field?: string;
+  reason?: string;
+  /** 115.10.08: policy version and lifecycle data; PDP decisions report the version used */
+  version?: string;
+  lifecycleState?: PolicyLifecycleState;
 }
 
 export interface RbacModel {
@@ -120,6 +187,11 @@ export interface RbacModel {
   sodConstraints?: SodConstraint[];
   /** V2 PDP SoD rules (role based). */
   sodRules?: SoDRule[];
+  /** 115.10.03 SoD policy records covering self-grant denial and dual-control checks (mutually exclusive permissions via sodConstraints). */
+  selfGrantDenials?: SelfGrantDenial[];
+  dualControlPolicies?: DualControlPolicy[];
   /** fail-closed policy posture: true means default-deny for unauthenticated or unruled decisions. */
   failClosed?: boolean;
+  /** 115.10.06: explicit allow/deny policy rules; presence enables deny-over-allow precedence. */
+  policyRules?: PolicyRule[];
 }

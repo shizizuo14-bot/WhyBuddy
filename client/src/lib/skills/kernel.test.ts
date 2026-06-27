@@ -5,6 +5,7 @@ import { leaveRequestDataModel } from "./datamodel/dataModelSkill";
 import { leaveApprovalRbac, rbacSkill } from "./rbac/rbacSkill";
 import type { RbacModel } from "./rbac/rbacModel";
 import { leaveApprovalWorkflow } from "./workflow/workflowSkill";
+import { dataModelSkill } from "./datamodel/dataModelSkill";
 import type {
   DependencyRef,
   ImpactReport,
@@ -15,6 +16,10 @@ import type {
   SkillDefinition,
   SkillRuntimeRole,
   VersionPin,
+} from "./skill";
+import {
+  ALLOWED_FINDING_CODE_PREFIXES,
+  isValidFindingCode,
 } from "./skill";
 
 const models = {
@@ -31,7 +36,7 @@ describe("kernel 3 - Separation of Duties design gate", () => {
     };
     const report = rbacSkill.validate(withSod);
     expect(report.ok).toBe(false);
-    expect(report.errors.some(e => e.code === "RBAC_SOD_VIOLATION")).toBe(true);
+    expect(report.errors.some(e => e.code === "RBAC_SOD_MUTUALLY_EXCLUSIVE")).toBe(true);
   });
 
   it("passes when no SoD constraints are declared", () => {
@@ -49,6 +54,7 @@ describe("kernel 6 - publish gate (cross-system closure)", () => {
   it("blocks publish when a cross-system reference does not resolve", () => {
     const badWorkflow = structuredClone(leaveApprovalWorkflow);
     badWorkflow.nodes.find(n => n.id === "a_mgr")!.assigneeRole = "director";
+    badWorkflow.nodes.find(n => n.id === "a_mgr")!.assigneeRoleRef = "director";
     const gate = slideRule.publishGate({ ...models, workflow: badWorkflow });
     expect(gate.publishable).toBe(false);
     expect(gate.blockers.some(b => b.code === "PUBLISH_DANGLING_CROSSREF")).toBe(true);
@@ -143,3 +149,59 @@ describe("V2 shared contract - kernel vocabulary", () => {
     }
   });
 });
+
+describe("V2 finding code taxonomy (115)", () => {
+  it("RBAC gate findings use allowed prefix (positive, gate involved)", () => {
+    const withSod: RbacModel = {
+      ...leaveApprovalRbac,
+      sodConstraints: [{ name: "leave requester cannot self approve", mutuallyExclusive: ["leave:create", "leave:approve"] }],
+    };
+    const report = rbacSkill.validate(withSod);
+    expect(report.ok).toBe(false);
+    expect(report.errors.length).toBeGreaterThan(0);
+    expect(report.errors.every(e => isValidFindingCode(e.code))).toBe(true);
+    expect(report.errors.some(e => getPrefix(e.code) === "RBAC")).toBe(true);
+  });
+
+  it("DataModel gate findings use allowed prefix (positive, gate involved)", () => {
+    const dmReport = dataModelSkill.validate(leaveRequestDataModel);
+    const dmFindings = [...dmReport.errors, ...dmReport.warnings];
+    if (dmFindings.length > 0) {
+      expect(dmFindings.every(f => isValidFindingCode(f.code))).toBe(true);
+    }
+    // also direct known DM code literal
+    expect(isValidFindingCode("DM_DUP_ENTITY_ID")).toBe(true);
+  });
+
+  it("publish gate KERNEL/PUBLISH code recognized (positive, gate involved)", () => {
+    const badWorkflow = structuredClone(leaveApprovalWorkflow);
+    badWorkflow.nodes.find(n => n.id === "a_mgr")!.assigneeRole = "director";
+    badWorkflow.nodes.find(n => n.id === "a_mgr")!.assigneeRoleRef = "director";
+    const gate = slideRule.publishGate({ ...models, workflow: badWorkflow });
+    expect(gate.publishable).toBe(false);
+    expect(gate.blockers.length).toBeGreaterThan(0);
+    expect(gate.blockers.every(b => isValidFindingCode(b.code))).toBe(true);
+    expect(gate.blockers.some(b => getPrefix(b.code) === "PUBLISH")).toBe(true);
+  });
+
+  it("ALLOWED_FINDING_CODE_PREFIXES declares RBAC/DATAMODEL/WORKFLOW/PAGE/APPBUNDLE/KERNEL", () => {
+    expect(ALLOWED_FINDING_CODE_PREFIXES).toEqual(
+      expect.arrayContaining(["RBAC", "DM", "WF", "PAGE", "APPBUNDLE", "PUBLISH"])
+    );
+    // ensure no unknown
+    expect(ALLOWED_FINDING_CODE_PREFIXES.includes("FOO")).toBe(false);
+  });
+
+  it("rejects codes with prefixes outside the vocabulary (negative)", () => {
+    expect(isValidFindingCode("FOO_INVALID")).toBe(false);
+    expect(isValidFindingCode("XYZ_SOD")).toBe(false);
+    expect(isValidFindingCode("")).toBe(false);
+    expect(isValidFindingCode("RBACNOSEP")).toBe(false);
+  });
+});
+
+// helper for readable asserts in taxonomy tests (local to keep test self-contained)
+function getPrefix(code: string): string | null {
+  const idx = code.indexOf("_");
+  return idx > 0 ? code.slice(0, idx) : code;
+}

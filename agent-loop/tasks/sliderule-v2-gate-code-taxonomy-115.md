@@ -42,3 +42,46 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Review evidence (post-fix, 2026-06-27)
+
+### Implementation summary
+- Defined stable `FINDING_CODE_PREFIXES` (RBAC, DATAMODEL=DM, WORKFLOW=WF, PAGE, APPBUNDLE, KERNEL=PUBLISH) + `isValidFindingCode`, `getFindingCodePrefix`, `ALLOWED_...` in client/src/lib/skills/skill.ts
+- Exported for AgentLoop to match by prefix.
+- Added focused taxonomy tests in kernel.test.ts: positive cases via RBAC/DM/PUBLISH gates + literal known codes; negative cases for unknown prefixes. All use at least one gate call for pos.
+- Documented prefixes + error/warning severity rules in README.md.
+- All changes limited to allowed files. No runtime, no other files touched. Existing tests/behavior preserved.
+
+### Required validation 1
+Command: `pnpm exec vitest run client/src/lib/skills/kernel.test.ts --reporter=dot`
+(Executed via shared bin for env: & "...\\vitest.cmd" run ...)
+Exit code: 0
+Output:
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/kernel.test.ts (15 tests) 8ms
+
+ Test Files  1 passed (1)
+      Tests  15 passed (15)
+   Start at  06:25:14
+   Duration  397ms (transform 90ms, setup 0ms, collect 108ms, tests 8ms, environment 0ms, prepare 52ms)
+```
+
+### Required validation 2
+Command: `node agent-loop/src/check-mojibake.js client/src/lib/skills/README.md agent-loop/tasks/sliderule-v2-gate-code-taxonomy-115.md`
+Exit code: 0
+Output:
+```
+No mojibake findings.
+```
+
+### Required validation 3
+Command: `node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-gate-code-taxonomy-115.md`
+Exit code: 0
+Output:
+```
+No mojibake findings.
+```
+
+All gates fresh passing. Taxonomy now implemented per spec.

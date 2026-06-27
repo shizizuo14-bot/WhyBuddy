@@ -23,12 +23,20 @@ export interface WorkflowNode {
   assigneeRole?: string;
   /** V2 PEP mirror: typed RBAC role ref for PDP delegation (keeps backward compat with assigneeRole). */
   assigneeRoleRef?: string;
-  /** approval node: 或签(any) / 会签(all). */
-  approvalMode?: "any" | "all";
-  /** branch node: the field whose value selects the outgoing edge. */
+  /** approval node: 或签(any) / 会签(all) / 顺序(sequential) / 百分比(percentage). */
+  approvalMode?: "any" | "all" | "sequential" | "percentage";
+  /** branch node: the (local) field key used for branch coverage execution semantics. */
   field?: string;
-  /** V2: DataModel SSOT field ref (preferred over plain local for form/branch binding in PEP). */
+  /** V2 REQUIRED: DataModel SSOT binding as entity.field ref. Workflow form/branch fields must bind to SSOT instead of owning local field definitions. Local field schema decisions are quarantined to internal coverage analysis only. */
   fieldRef?: string;
+  /** V2 115 timeout action model (runtime-less): duration (positive int, e.g. minutes), timeout target node, escalation role, auto action metadata. */
+  timeoutDuration?: number;
+  /** timeout target node id for automatic transition on timeout. */
+  timeoutTarget?: string;
+  /** escalation role ref for timeout handling (cross-skill to rbac, like assignee). */
+  escalationRoleRef?: string;
+  /** automatic action to take on timeout. */
+  autoAction?: "escalate" | "approve" | "reject" | "notify";
 }
 
 export interface WorkflowEdge {
@@ -39,6 +47,8 @@ export interface WorkflowEdge {
   when?: { op: CompareOp; value: string | number | boolean };
   /** the else-edge of a branch; taken when no `when` matches. */
   isDefault?: boolean;
+  /** V2 115: marks this as a timeout transition edge for automatic action projection. */
+  isTimeout?: boolean;
 }
 
 export interface WorkflowModel {
@@ -50,12 +60,32 @@ export interface WorkflowModel {
   actorRoleRef?: string;
   /** V2 PEP: policy check refs delegated to RBAC PDP. */
   policyCheckRefs?: string[];
-  /** V2 PEP: form/branch field refs bound to DataModel SSOT. */
+  /** V2 PEP: form/branch field refs bound to DataModel SSOT. REQUIRED: local form fields must bind here (entity.field) instead of owning definitions. */
   fieldRefs?: string[];
   /** optional trace span for PEP execution. */
   traceSpan?: string;
-  /** the fields this process operates on, so branch conditions can be checked. (local keys kept for exec semantics) */
+  /** V2 115.30: process version frozen by instance snapshots at start time. */
+  version?: string;
+  /** V2 115.30: only published workflow versions may be snapshotted by instances. */
+  published?: boolean;
+  /** local decls (keys + type/enum) quarantined strictly for branch coverage path-semantics gate (exec analysis). Field schema authority is DataModel SSOT via fieldRefs binding. */
   fields: FieldDecl[];
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
+}
+
+/** V2 115.30: Workflow instance snapshot — freezes process version + form field refs + initial variables at start time.
+ * Pure data model. Snapshots must reference a published workflow version.
+ */
+export interface WorkflowInstanceSnapshot {
+  id: string;
+  workflowId: string;
+  /** frozen process version (from the workflow definition at start) */
+  processVersion: string;
+  /** must be true: snapshots only valid for published versions */
+  versionPublished: boolean;
+  /** frozen copy of form field refs (model.fieldRefs) at instantiation */
+  frozenFormFieldRefs: string[];
+  /** snapshot of caller-provided initial variables at start (pure data) */
+  initialVariables: Record<string, unknown>;
 }

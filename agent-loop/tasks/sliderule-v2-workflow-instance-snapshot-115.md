@@ -42,3 +42,33 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Fresh validation evidence (post 115.30.07 snapshot fix)
+
+- Command: `pnpm exec vitest run client/src/lib/skills/workflow/workflowSkill.test.ts --reporter=dot`
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/client
+
+ ✓ src/lib/skills/workflow/workflowSkill.test.ts (16 tests) 5ms
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  08:49:07
+   Duration  371ms (transform 63ms, setup 0ms, collect 69ms, tests 5ms, environment 0ms, prepare 68ms)
+```
+
+- Command: `pnpm exec tsc --noEmit --pretty false`
+```
+(exit code 0; no type errors)
+```
+
+- Command: `node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-workflow-instance-snapshot-115.md`
+```
+No mojibake findings.
+```
+
+## Changes addressing review
+- Added `WorkflowInstanceSnapshot` + `version`/`published` to workflowModel.ts
+- Added snapshot freeze + published version checks inside validate() and dedicated pure snapshot validate/create in workflowSkill.ts
+- Added positive (published freeze+validate pass) + negative (unpublished snapshot fails) cases in workflowSkill.test.ts
+- Updated fixtures and task evidence; all existing tests + compat preserved.

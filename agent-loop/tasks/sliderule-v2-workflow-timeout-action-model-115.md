@@ -42,3 +42,25 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Implementation progress (post-review)
+- [x] Added timeoutDuration, timeoutTarget, escalationRoleRef, autoAction to WorkflowNode; isTimeout to WorkflowEdge (model).
+- [x] Added timeout target node validation, escalation role ref validation (incl. RBAC cross), duration/action checks.
+- [x] Projector now emits timeout metadata in node labels and timeout edges (synthetic from timeoutTarget + explicit isTimeout edges).
+- [x] Added crossRefs for escalationRoleRef.
+- [x] Added 7 focused tests in workflowSkill.test.ts (positive + multiple negative gate cases for timeout/escalation).
+- [x] All existing 32 tests + new remain passing; purchase/leave fixtures untouched.
+- [x] Updated task doc with evidence only.
+
+## Required validation (fresh evidence 2026-06-27)
+- `pnpm exec vitest run client/src/lib/skills/workflow/workflowSkill.test.ts --reporter=dot`
+  Result: ✓ 39 tests passed (8ms). Includes positive timeout+escalation+target+action; negative: invalid target, bad duration, bad action, missing role, and projector timeout edges.
+- `pnpm exec tsc --noEmit --pretty false`
+  Result: exit 0 (no type errors).
+- `node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-workflow-timeout-action-model-115.md`
+  Result: No mojibake findings.
+
+## Review resolution notes
+- Addresses all 4 findings: model types added, validator+projector surfaces implemented, tests with pos/neg added, evidence recorded here.
+- Gate was already green; now specific hardening + fresh evidence in task file.
+- No unrelated files, no runtime, no test deletion/weakening, compat preserved.

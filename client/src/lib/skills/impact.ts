@@ -173,6 +173,13 @@ export function buildDependencyGraph(
       const target = nodeKey(ref.toSkill, targetNode);
       if (!nodeByKey.has(source) || !nodeByKey.has(target)) continue;
       addEdge(edges, { from: target, to: source, kind: "crossRef", label: ref.label });
+      if (
+        skill.id === "rbac" &&
+        ref.toSkill === "datamodel" &&
+        (ref.label === "field" || ref.label === "row")
+      ) {
+        addEdge(edges, { from: source, to: target, kind: "crossRef", label: `${ref.label} policy scope` });
+      }
     }
   }
 

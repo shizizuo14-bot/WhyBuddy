@@ -42,3 +42,36 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Review fix evidence (2026-06-27)
+Added import and dedicated fixture tests in dataModelSkill.test.ts for purchaseApprovalDataModel / purchase_request.amount covering fieldId, version, lifecycle, storageRole (positive assertions + resolve/validate/generate). No changes to other allowed files. Existing tests/behavior preserved. Fresh runs below.
+
+### Implementation step addressed
+- Add fixture coverage for purchase_request.amount field versioning.
+- Append review evidence after validation passes.
+
+## Fresh validation evidence
+
+### Command: pnpm exec vitest run client/src/lib/skills/datamodel/dataModelSkill.test.ts --reporter=dot
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/datamodel/dataModelSkill.test.ts (17 tests) 6ms
+
+ Test Files  1 passed (1)
+      Tests  17 passed (17)
+   Start at  07:37:42
+   Duration  317ms (transform 49ms, setup 0ms, collect 50ms, tests 6ms, environment 0ms, prepare 79ms)
+```
+
+### Command: pnpm exec tsc --noEmit --pretty false
+```
+(exit 0, no diagnostics)
+```
+
+### Command: node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-datamodel-field-version-model-115.md
+```
+No mojibake findings.
+```
+
+All required validation commands pass with fresh evidence.

@@ -41,3 +41,39 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Review remediation changes (to address needs_changes)
+
+- In workflowSkill.ts: added variable reference collection (fieldRefs + branch.fieldRef + node.varRef + edge.when.varRef for branch/action conditions) + known set = declaredSSOT (fieldRefs) UNION declaredProcessVars (model.variables) + WF_VAR_REF_UNKNOWN error for any ref not pointing to known. Logic placed after DM checks; does not alter or weaken prior SSOT binding, DM surface, branch coverage, or other gates.
+- In workflowSkill.test.ts: added dedicated describe with 1+ pos cases (defined process var in condition passes; SSOT fieldRef via varRef passes), 1+ neg cases (undefined process var errors; branch fieldRef not in fieldRefs mismatch errors), + compat test. Minor update in one DM test to declare the test ref so new gate isolates the DM surface error.
+- No changes outside allowed files. Existing leave/purchase fixtures + tests remain compatible and pass.
+- Implementation steps completed; focused gate tests added per acceptance.
+
+## Fresh validation evidence (after remediation)
+
+### vitest (required)
+Command: `pnpm exec vitest run client/src/lib/skills/workflow/workflowSkill.test.ts --reporter=dot`
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/workflow/workflowSkill.test.ts (48 tests) 10ms
+
+ Test Files  1 passed (1)
+      Tests  48 passed (48)
+   Start at  08:58:13
+   Duration  351ms (transform 72ms, setup 0ms, collect 83ms, tests 10ms, environment 0ms, prepare 70ms)
+```
+exitCode: 0
+
+### tsc (required)
+Command: `pnpm exec tsc --noEmit --pretty false`
+exitCode: 0 (clean; no type errors emitted)
+
+### mojibake (required)
+Command: `node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-workflow-variable-reference-gate-115.md`
+```
+No mojibake findings.
+```
+exitCode: 0
+
+All acceptance criteria met. Gate evidence fresh as of 2026-06-27.

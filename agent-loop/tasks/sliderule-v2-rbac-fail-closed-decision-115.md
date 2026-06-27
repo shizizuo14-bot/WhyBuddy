@@ -42,3 +42,87 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Implementation steps (completed)
+- [x] Start from a clean worktree or queue worktree and inspect current Skill behavior.
+- [x] Write or update the failing test that proves this hardening behavior is missing.
+- [x] Add a pure decision helper or decision evidence shape.
+- [x] Encode fail-closed semantics for missing subject, action, resource, tenant, or field context.
+- [x] Test that exceptional or incomplete context produces deny evidence.
+- [x] Implement the smallest runtime-less model, validator, projector, resolve, or impact change needed.
+- [x] Update documentation only when it clarifies the new V2 contract.
+- [x] Append review evidence after validation passes.
+
+## Fresh validation evidence (appended per acceptance + review finding 3)
+Date: 2026-06-27 (worktree local)
+Required commands executed with fresh results:
+
+1. `pnpm exec vitest run client/src/lib/skills/rbac/rbacSkill.test.ts --reporter=dot`
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/rbac/rbacSkill.test.ts (39 tests) 8ms
+
+ Test Files  1 passed (1)
+      Tests  39 passed (39)
+   Start at  06:54:07
+   Duration  339ms (transform 42ms, setup 0ms, collect 48ms, tests 8ms, environment 0ms, prepare 49ms)
+```
+
+2. `pnpm exec tsc --noEmit --pretty false`
+```
+(exit code 0, no errors emitted)
+```
+
+3. `node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-rbac-fail-closed-decision-115.md`
+```
+No mojibake findings.
+```
+
+These satisfy the required gate commands with fresh passing evidence recorded here (external gate green does not substitute).
+
+## Review response notes (addresses all findings)
+- Finding 1 (test coverage): Added dedicated tests in rbacSkill.test.ts for:
+  - missing subject (本体) -> RBAC_DECISION_FAIL_CLOSED
+  - missing tenant context -> RBAC_DECISION_FAIL_CLOSED (with +ve tenant case)
+  - missing field context (null) -> RBAC_DECISION_FAIL_CLOSED (with +ve fieldContext present case)
+  - decision helper exception (via internal throw) -> RBAC_DECISION_FAIL_CLOSED
+  Total tests increased; existing + new have +ve/-ve; no tests weakened/deleted.
+- Finding 2 (model): Updated PolicyContext: tenantId is now required (string, not optional); added FieldContext shape exported with fields/attributes for expressing field context. Fail-closed checks in decide use these.
+- Finding 3 (task file): This section appends the fresh command + output evidence as required.
+- Model and decide changes are minimal, runtime-less, preserve purchase/leave compat (all prior decide paths updated for tenant only, behavior identical).
+- Uses pure failClosedDecision helper + try/catch in decideRbacPolicy.
+
+## Fresh validation evidence (after review fixes for fieldContext semantics 115.10.05)
+
+All changes limited to allowed files per task.
+
+- rbacModel.ts: fieldContext declared required (not optional) in PolicyContext to express "PDP decision必需上下文".
+- rbacSkill.ts: decideRbacPolicy now treats missing/undefined/absent fieldContext (== null) as fail-closed deny (was only explicit === null).
+- rbacSkill.test.ts: Added focused negative test for default/undefined fieldContext producing RBAC_DECISION_FAIL_CLOSED; updated all allow-positive and non-field-specific negative decide calls to include fieldContext so they reach their original logic (no test bodies/logic weakened, no deletes; now locks missing-field deny semantics).
+- Existing purchase approval, leave, SoD, inheritance behavior remains compatible.
+- New behavior has +ve (with fieldContext allow) and -ve (absent fieldContext deny) cases.
+
+### Required: pnpm exec vitest run client/src/lib/skills/rbac/rbacSkill.test.ts --reporter=dot
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+
+ ✓ src/lib/skills/rbac/rbacSkill.test.ts (40 tests) 9ms
+
+ Test Files  1 passed (1)
+      Tests  40 passed (40)
+   Start at  06:58:00
+   Duration  395ms (transform 59ms, setup 0ms, collect 60ms, tests 9ms, environment 0ms, prepare 81ms)
+```
+
+### Required: pnpm exec tsc --noEmit --pretty false
+```
+<no output / exit 0>
+```
+
+### Required: node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-rbac-fail-closed-decision-115.md
+```
+No mojibake findings.
+```
+
+Evidence fresh at 2026-06-27 (post final edit). Addresses review findings 1,2,3 directly. Gate green + these records satisfy.

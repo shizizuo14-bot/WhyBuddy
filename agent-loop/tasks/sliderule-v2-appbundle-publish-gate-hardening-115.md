@@ -42,3 +42,33 @@
 - New behavior has focused tests with at least one positive case and one negative case when a gate is involved.
 - Existing purchase approval and AIGC 114 behavior remains compatible.
 - Validation commands have fresh passing evidence recorded in this task file.
+
+## Review evidence (fresh after 115.50.02 fixes)
+
+### Implementation summary
+- Fixed precise source paths in dangling ref checks: now reports `menuEntries[N].roleRefs[M]`, `menuEntries[N].pageRef`, `pageBindings[N].pageRef`, `pageBindings[N].workflowRef` (and top level) instead of flattened roleRefs[N] etc.
+- validateAppBundlePublishGate now returns perSkillSummaries (grouped by target skillId with blockers and unresolvedCount) and unresolvedRefs[] carrying {sourceSkill, path, kind, targetValue, code} for dangling refs, missing pins, ghosts, peps.
+- Added 7 focused negative gate tests (plus existing) asserting precise paths + source/kind/target + per-skill summaries for broken role (top+menu), page (menu+bind), workflow (bind), AIGC, entity (datamodel), and version pins. Positive cases preserved.
+- Existing purchase/leave/AIGC 114 behavior and tests remain compatible (no weakening).
+
+### Required validation (run 2026-06-27)
+- Command: `& "../../node_modules/.bin/vitest.cmd" run client/src/lib/skills/appbundle/appBundleSkill.test.ts client/src/lib/skills/orchestrator.test.ts --reporter=dot`
+- Result: exit 0, all 45 tests passed (32 appbundle + 13 orchestrator)
+```
+ RUN  v2.1.9 C:/Users/wangchunji/Documents/cube-pets-office/.worktrees/sliderule-v2-hardening-115-run/client
+  src/lib/skills/orchestrator.test.ts (13 tests) 15ms
+  src/lib/skills/appbundle/appBundleSkill.test.ts (32 tests) 10ms
+ Test Files  2 passed (2)
+      Tests  45 passed (45)
+```
+
+- Command: `& "../../node_modules/.bin/tsc.cmd" --noEmit --pretty false`
+- Result: exit 0 (no output = clean)
+
+- Command: `node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-v2-appbundle-publish-gate-hardening-115.md`
+- Result: exit 0
+```
+No mojibake findings.
+```
+
+Status remains PENDING per instructions until human review; fresh evidence appended.

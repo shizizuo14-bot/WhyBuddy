@@ -8,14 +8,15 @@
 //   2) assemble: validate EVERY model against the FULL set of cross-skill surfaces,
 //      project each, then stitch the per-skill diagrams + cross-skill edges into one graph.
 
-import type {
-  CrossRefEdge,
-  CrossSkill,
-  Finding,
-  Projection,
-  ResolvableSurface,
-  Skill,
-  ValidationReport,
+import {
+  normalizeCrossRef,
+  type CrossRefEdge,
+  type CrossSkill,
+  type Finding,
+  type Projection,
+  type ResolvableSurface,
+  type Skill,
+  type ValidationReport,
 } from "./skill";
 import { analyzeImpact, buildDependencyGraph as buildImpactDependencyGraph } from "./impact";
 import type { DependencyGraph, ImpactReport, ResourceRef } from "./impact";
@@ -46,7 +47,7 @@ function register<T>(skill: Skill<T> & Partial<CrossSkill<T>>): RegisteredSkill 
     validate: (model, surfaces) => skill.validate(model as T, { external: surfaces }),
     project: model => skill.project(model as T),
     resolve: model => skill.resolve(model as T),
-    crossRefs: model => (skill.crossRefs ? skill.crossRefs(model as T) : []),
+    crossRefs: model => (skill.crossRefs ? skill.crossRefs(model as T).map(normalizeCrossRef) : []),
     refNodeId: (kind, value) => (skill.refNodeId ? skill.refNodeId(kind, value) : null),
   };
 }
@@ -157,6 +158,8 @@ export class Orchestrator {
     publishable: boolean;
     blockers: Finding[];
     result: OrchestratorResult;
+    /** Unresolved cross-refs (after normalize) remain explicit for contract visibility. */
+    unresolvedRefs?: CrossRefEdge[];
   } {
     const result = this.assemble("(publish)", models);
     const blockers: Finding[] = result.runs.flatMap(r => r.report.errors);
@@ -164,21 +167,26 @@ export class Orchestrator {
     // closure check: resolve every cross-ref against the full set of registered surfaces
     const active = this.skills.filter(s => s.id in models);
     const surfaces = new Map(active.map(s => [s.id, s.resolve(models[s.id])]));
+    const unresolvedRefs: CrossRefEdge[] = [];
     for (const skill of active) {
       for (const ref of skill.crossRefs(models[skill.id])) {
         const targetSurface = surfaces.get(ref.toSkill);
         const resolved = targetSurface?.[ref.toKind]?.includes(ref.toValue) ?? false;
-        if (!resolved)
-          blockers.push({
-            code: "PUBLISH_DANGLING_CROSSREF",
-            severity: "error",
-            path: `${skill.id}:${ref.fromNode}`,
-            message: `跨系统引用未闭合：${skill.id} 经「${ref.label ?? ""}」引用 ${ref.toSkill}.${ref.toKind}="${ref.toValue}"，但目标不存在/未接入`,
-          });
+        if (!resolved) {
+          unresolvedRefs.push(ref);
+          if ((ref.severity ?? "error") === "error") {
+            blockers.push({
+              code: "PUBLISH_DANGLING_CROSSREF",
+              severity: "error",
+              path: `${skill.id}:${ref.fromNode}`,
+              message: `跨系统引用未闭合：${skill.id} 经「${ref.label ?? ""}」引用 ${ref.toSkill}.${ref.toKind}="${ref.toValue}"，但目标不存在/未接入`,
+            });
+          }
+        }
       }
     }
 
-    return { publishable: blockers.length === 0, blockers, result };
+    return { publishable: blockers.length === 0, blockers, result, unresolvedRefs };
   }
 
   buildDependencyGraph(models: Record<string, unknown>): DependencyGraph {
