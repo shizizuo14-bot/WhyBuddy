@@ -11,13 +11,13 @@
     "reviewAgent": "codex",
     "reviewModel": "gpt-5.5",
     "scopedReview": true,
-    "workerMaxTurns": 128,
+    "workerMaxTurns": 512,
     "workerMaxRetries": 1,
-    "grokMaxTurns": 128,
+    "grokMaxTurns": 512,
     "grokMaxRetries": 1,
     "reviewMaxTurns": 6,
     "guardTests": false,
-    "maxIterations": 3,
+    "maxIterations": 16,
     "agentIdleTimeoutMs": 300000,
     "agentTimeoutMs": 600000,
     "noSyncTaskStatus": false,
@@ -45,7 +45,9 @@
         "$p='docs/rbac-skill/AIGC 中台 · V2标准详图（样板）.md'; foreach($m in 'Model Datasource / Field Binding','Output Schema','Provider KeyRef / SecretRef','Retrieval Policy','Citation Policy','Trace Evidence','AigcCapability','FLOW_PUBLISH_GATE -.④'){ if(-not (Select-String -LiteralPath $p -Pattern $m -SimpleMatch -Quiet)){ throw ('missing '+$m+' in '+$p) } }",
         "node agent-loop/src/check-mojibake.js {{taskFile}} docs/rbac-skill/AIGC 中台 · V2标准详图（样板）.md",
         "git diff --name-only"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-aigc-model-114",
@@ -56,7 +58,9 @@
         "pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false",
         "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/aigc/aigcModel.ts client/src/lib/skills/aigc/aigcSkill.ts client/src/lib/skills/aigc/aigcSkill.test.ts"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-aigc-provider-router-114",
@@ -67,7 +71,9 @@
         "pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false",
         "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/aigc/aigcModel.ts client/src/lib/skills/aigc/aigcSkill.ts client/src/lib/skills/aigc/aigcSkill.test.ts"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-aigc-prompt-output-schema-114",
@@ -78,7 +84,9 @@
         "pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false",
         "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/aigc/aigcModel.ts client/src/lib/skills/aigc/aigcSkill.ts client/src/lib/skills/aigc/aigcSkill.test.ts"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-aigc-rag-policy-114",
@@ -89,7 +97,9 @@
         "pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false",
         "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/aigc/aigcModel.ts client/src/lib/skills/aigc/aigcSkill.ts client/src/lib/skills/aigc/aigcSkill.test.ts"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-aigc-tool-runtime-114",
@@ -100,7 +110,9 @@
         "pnpm exec vitest run client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false",
         "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/aigc/aigcModel.ts client/src/lib/skills/aigc/aigcSkill.ts client/src/lib/skills/aigc/aigcSkill.test.ts"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-aigc-pep-rbac-gate-114",
@@ -112,7 +124,9 @@
         "pnpm exec vitest run client/src/lib/skills/rbac/rbacSkill.test.ts client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false",
         "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/aigc/aigcSkill.ts client/src/lib/skills/aigc/aigcSkill.test.ts"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-aigc-ssot-binding-gate-114",
@@ -123,7 +137,9 @@
         "pnpm exec vitest run client/src/lib/skills/datamodel/dataModelSkill.test.ts client/src/lib/skills/aigc/aigcSkill.test.ts --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false",
         "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/aigc/aigcSkill.ts client/src/lib/skills/aigc/aigcSkill.test.ts"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-aigc-project-resolve-114",
@@ -135,7 +151,9 @@
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false",
         "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/aigc/aigcSkill.ts client/src/lib/skills/aigc/aigcSkill.test.ts client/src/lib/skills/orchestrator.test.ts"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-aigc-impact-graph-114",
@@ -147,7 +165,9 @@
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false",
         "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/impact.test.ts"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-appbundle-aigc-pins-publish-114",
@@ -159,7 +179,9 @@
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false",
         "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/appbundle/appBundleModel.ts client/src/lib/skills/appbundle/appBundleSkill.ts client/src/lib/skills/appbundle/appBundleSkill.test.ts"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-aigc-purchase-approval-e2e-114",
@@ -171,7 +193,9 @@
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false",
         "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/purchaseApproval.test.ts client/src/lib/skills/aigc/aigcSkill.ts"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-aigc-verification-handoff-114",
@@ -182,7 +206,9 @@
         "pnpm exec tsc --noEmit --pretty false",
         "node agent-loop/src/check-mojibake.js client/src/lib/skills/README.md docs/intent-to-app/skill-v2-migration-status.md docs/intent-to-app/aigc-skill-114-status.md",
         "git diff --name-only"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     }
   ]
 }

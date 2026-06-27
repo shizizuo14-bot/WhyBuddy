@@ -80,7 +80,7 @@ export function ProfileCrudView({
       name: '',
       fixAgent: 'grok',
       reviewAgent: 'codex',
-      workerMaxTurns: 128,
+      workerMaxTurns: 512,
       workerMaxRetries: 2,
       worktreeScope: 'queue',
     });

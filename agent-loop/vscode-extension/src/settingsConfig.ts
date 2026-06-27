@@ -693,7 +693,7 @@ export function getEffectiveConfig(): AgentLoopConfig {
     reviewAgent: reviewAgent || 'codex',
     fixModel,
     reviewModel,
-    workerMaxTurns: getValue<number>('workerMaxTurns', 128) ?? 128,
+    workerMaxTurns: getValue<number>('workerMaxTurns', 512) ?? 512,
     workerMaxRetries: getValue<number>('workerMaxRetries', 2) ?? 2,
     queuePath: getValue<string>('queuePath', 'agent-loop/scripts/migration-queue.json') || 'agent-loop/scripts/migration-queue.json',
     worktreeScope: getValue<string>('worktreeScope', 'queue') || 'queue',
@@ -721,7 +721,7 @@ export const PROFILE_PRESETS: Record<string, NonSecretProfile> = {
   local: { fixAgent: 'grok', reviewAgent: 'codex', baseUrl: '' },
   proxy: { fixAgent: 'grok', reviewAgent: 'grok', baseUrl: 'http://127.0.0.1:8080' },
   ci: { fixAgent: 'codex', reviewAgent: 'none', workerMaxTurns: 32 },
-  production: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 128, baseUrl: '' },
+  production: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 512, baseUrl: '' },
 };
 
 export function getActiveProfileKey(raw: unknown): string {

@@ -46,7 +46,7 @@ SETTING_ENUMS: Dict[str, Tuple[str, ...]] = {
 DEFAULT_NON_SECRET: Dict[str, Any] = {
     "fixAgent": "grok",
     "reviewAgent": "codex",
-    "workerMaxTurns": 128,
+    "workerMaxTurns": 512,
     "workerMaxRetries": 2,
     "queuePath": "agent-loop/scripts/migration-queue.json",
     "worktreeScope": "queue",

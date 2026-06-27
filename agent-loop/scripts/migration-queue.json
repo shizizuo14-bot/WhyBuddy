@@ -11,7 +11,7 @@
     "reviewAgent": "codex",
     "reviewModel": "gpt-5.5",
     "scopedReview": true,
-    "workerMaxTurns": 128,
+    "workerMaxTurns": 512,
     "workerMaxRetries": 1,
     "workerEnv": {
       "HTTP_PROXY": "http://127.0.0.1:7890",
@@ -19,11 +19,11 @@
       "ALL_PROXY": "http://127.0.0.1:7890",
       "NO_PROXY": "localhost,127.0.0.1,::1"
     },
-    "grokMaxTurns": 128,
+    "grokMaxTurns": 512,
     "grokMaxRetries": 1,
     "reviewMaxTurns": 6,
     "guardTests": true,
-    "maxIterations": 3,
+    "maxIterations": 16,
     "agentIdleTimeoutMs": 300000,
     "agentTimeoutMs": 600000,
     "noSyncTaskStatus": true,
@@ -178,8 +178,8 @@
       "gatesKey": "agentLoopSettingsSchemaConfigSurface107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-effective-config-runtime-107",
@@ -187,8 +187,8 @@
       "gatesKey": "agentLoopSettingsEffectiveConfigRuntime107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-worker-env-secret-injection-107",
@@ -196,8 +196,8 @@
       "gatesKey": "agentLoopSettingsWorkerEnvSecretInjection107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-cli-worker-routing-107",
@@ -205,8 +205,8 @@
       "gatesKey": "agentLoopSettingsCliWorkerRouting107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-provider-health-cli-107",
@@ -214,8 +214,8 @@
       "gatesKey": "agentLoopSettingsProviderHealthCli107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-provider-health-cache-107",
@@ -223,8 +223,8 @@
       "gatesKey": "agentLoopSettingsProviderHealthCache107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-profile-storage-schema-107",
@@ -232,8 +232,8 @@
       "gatesKey": "agentLoopSettingsProfileStorageSchema107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-profile-crud-ui-107",
@@ -241,8 +241,8 @@
       "gatesKey": "agentLoopSettingsProfileCrudUi107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-profile-run-guard-107",
@@ -250,8 +250,8 @@
       "gatesKey": "agentLoopSettingsProfileRunGuard107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-queue-defaults-sync-107",
@@ -259,8 +259,8 @@
       "gatesKey": "agentLoopSettingsQueueDefaultsSync107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-import-export-files-107",
@@ -268,8 +268,8 @@
       "gatesKey": "agentLoopSettingsImportExportFiles107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-diagnostics-artifacts-107",
@@ -277,8 +277,8 @@
       "gatesKey": "agentLoopSettingsDiagnosticsArtifacts107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-ui-product-polish-107",
@@ -286,8 +286,8 @@
       "gatesKey": "agentLoopSettingsUiProductPolish107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-dev-preview-mocks-107",
@@ -295,8 +295,8 @@
       "gatesKey": "agentLoopSettingsDevPreviewMocks107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-test-harness-coverage-107",
@@ -304,8 +304,8 @@
       "gatesKey": "agentLoopSettingsTestHarnessCoverage107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-docs-operator-runbook-107",
@@ -313,8 +313,8 @@
       "gatesKey": "agentLoopSettingsDocsOperatorRunbook107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-release-readiness-vsix-107",
@@ -322,8 +322,8 @@
       "gatesKey": "agentLoopSettingsReleaseReadinessVsix107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-security-redaction-audit-107",
@@ -331,8 +331,8 @@
       "gatesKey": "agentLoopSettingsSecurityRedactionAudit107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-workspace-trust-107",
@@ -340,8 +340,8 @@
       "gatesKey": "agentLoopSettingsWorkspaceTrust107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-settings-runner-task-generation-107",
@@ -349,8 +349,8 @@
       "gatesKey": "agentLoopSettingsRunnerTaskGeneration107Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "agent-loop-apply-status-taxonomy",
@@ -358,8 +358,8 @@
       "gatesKey": "agentLoopApplyStatusTaxonomyGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "AgentLoop infrastructure repair completed"
     },
     {
@@ -368,8 +368,8 @@
       "gatesKey": "agentLoopQueueWorktreeModeGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "AgentLoop infrastructure repair completed"
     },
     {
@@ -378,8 +378,8 @@
       "gatesKey": "agentLoopDashboardOutcomeGroupsGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "AgentLoop infrastructure repair completed"
     },
     {
@@ -388,8 +388,8 @@
       "gatesKey": "taskExecutorRuntimeBridgeGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "completed in main: 8d465116"
     },
     {
@@ -398,8 +398,8 @@
       "gatesKey": "knowledgeAdminRuntimeBridgeGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -408,8 +408,8 @@
       "gatesKey": "blueprintMainStateContractGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -418,8 +418,8 @@
       "gatesKey": "blueprintJobRuntimeProxyGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -428,8 +428,8 @@
       "gatesKey": "blueprintStageEditProxyGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -438,8 +438,8 @@
       "gatesKey": "roleRuntimeProxyContractGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -448,8 +448,8 @@
       "gatesKey": "sessionPersistenceContractGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -458,8 +458,8 @@
       "gatesKey": "nlCommandRuntimeContractGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -468,8 +468,8 @@
       "gatesKey": "workflowRuntimeContractGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -478,8 +478,8 @@
       "gatesKey": "ragIngestionRuntimeContractGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -488,8 +488,8 @@
       "gatesKey": "telemetryRouteContractGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -498,8 +498,8 @@
       "gatesKey": "a2aRuntimeContractGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -508,8 +508,8 @@
       "gatesKey": "blueprintArtifactMemoryProxyGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -518,8 +518,8 @@
       "gatesKey": "blueprintReviewExportProxyGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -528,8 +528,8 @@
       "gatesKey": "deploymentLiveSmokeBoundaryGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue"
     },
     {
@@ -538,8 +538,8 @@
       "gatesKey": "productionObservabilityRollupGates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "completed in main: 923bd432"
     },
     {
@@ -548,8 +548,8 @@
       "gatesKey": "nodeRouteInventory75Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by backend-python 90 percent queue; 75 inventory had apply-status ambiguity"
     },
     {
@@ -558,8 +558,8 @@
       "gatesKey": "migrationStatusRefresh75Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "completed in main: d661ec40; superseded by backend-python 90 percent queue"
     },
     {
@@ -568,8 +568,8 @@
       "gatesKey": "haltSupersededAudit90Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -582,8 +582,8 @@
       "gatesKey": "nodeRouteInventory90Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -596,8 +596,8 @@
       "gatesKey": "runtimeDepthAudit90Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -610,8 +610,8 @@
       "gatesKey": "sessionPersistenceRuntimeDiff90Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -624,8 +624,8 @@
       "gatesKey": "authPermissionAuditRuntime90Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -638,8 +638,8 @@
       "gatesKey": "a2aStreamRuntimeBoundary90Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -652,8 +652,8 @@
       "gatesKey": "productionWiringSmoke90Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -666,8 +666,8 @@
       "gatesKey": "migrationStatusRefresh90Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -680,8 +680,8 @@
       "gatesKey": "runtimeEvidenceReconcile88Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 8,
       "agentTimeoutMs": 1200000,
       "agentIdleTimeoutMs": 600000,
@@ -694,8 +694,8 @@
       "gatesKey": "webAigcRuntimeEvidenceReconcile88Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 8,
       "agentTimeoutMs": 1200000,
       "agentIdleTimeoutMs": 600000,
@@ -708,8 +708,8 @@
       "gatesKey": "taskLifecycleRuntimeBoundary88Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -722,8 +722,8 @@
       "gatesKey": "blueprintStateRuntimeBridge88Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -736,8 +736,8 @@
       "gatesKey": "blueprintStageEditRuntimeBridge88Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -750,8 +750,8 @@
       "gatesKey": "authSessionProductionPersistence88Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -764,8 +764,8 @@
       "gatesKey": "auditProductionSink88Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -778,8 +778,8 @@
       "gatesKey": "permissionRouteManagementBoundary88Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -792,8 +792,8 @@
       "gatesKey": "migrationStatusRefresh88Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 8,
       "agentTimeoutMs": 1200000,
       "agentIdleTimeoutMs": 600000,
@@ -806,8 +806,8 @@
       "gatesKey": "runtimeEvidenceReconcile89Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 8,
       "agentTimeoutMs": 1200000,
       "agentIdleTimeoutMs": 600000,
@@ -820,8 +820,8 @@
       "gatesKey": "permissionRateLimitRuntimeBoundary89Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -834,8 +834,8 @@
       "gatesKey": "a2aStreamRuntimeBoundary89Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -848,8 +848,8 @@
       "gatesKey": "blueprintJobRuntimeBoundary89Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -862,8 +862,8 @@
       "gatesKey": "webAigcLongtailInventory89Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 8,
       "agentTimeoutMs": 1200000,
       "agentIdleTimeoutMs": 600000,
@@ -876,8 +876,8 @@
       "gatesKey": "migrationStatusRefresh89Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 8,
       "agentTimeoutMs": 1200000,
       "agentIdleTimeoutMs": 600000,
@@ -890,8 +890,8 @@
       "gatesKey": "slideruleV5RuntimeClosureAudit95Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -904,8 +904,8 @@
       "gatesKey": "blueprintV5AdjacentRuntimeClosure95Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -918,8 +918,8 @@
       "gatesKey": "productionWiringRealityCheck95Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -932,8 +932,8 @@
       "gatesKey": "migrationStatusRefresh95Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -946,8 +946,8 @@
       "gatesKey": "blueprintArtifactMemoryRuntimeStore96Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -960,8 +960,8 @@
       "gatesKey": "blueprintReviewExportRuntimeBoundary96Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -974,8 +974,8 @@
       "gatesKey": "taskRouteLifecycleRuntime96Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -988,8 +988,8 @@
       "gatesKey": "authSessionRefreshLogoutRuntime96Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1002,8 +1002,8 @@
       "gatesKey": "auditRetentionExportRuntime96Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1016,8 +1016,8 @@
       "gatesKey": "webAigcDynamicChartRuntime96Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1030,8 +1030,8 @@
       "gatesKey": "webAigcTransactionFlowRuntime96Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1044,8 +1044,8 @@
       "gatesKey": "migrationStatusRefreshOverall95Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1058,8 +1058,8 @@
       "gatesKey": "blueprintJobEventStreamRuntime97Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1072,8 +1072,8 @@
       "gatesKey": "blueprintPromptPreviewRuntime97Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1086,8 +1086,8 @@
       "gatesKey": "authLoginRegisterRuntime97Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1100,8 +1100,8 @@
       "gatesKey": "permissionAuditHooksRuntime97Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1114,8 +1114,8 @@
       "gatesKey": "taskMissionEventReplayRuntime97Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1128,8 +1128,8 @@
       "gatesKey": "webAigcOcrStaticRuntime97Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1142,8 +1142,8 @@
       "gatesKey": "webAigcAiPptRuntime97Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1156,8 +1156,8 @@
       "gatesKey": "productionExternalLiveSmoke97Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1170,8 +1170,8 @@
       "gatesKey": "migrationStatusRefresh97Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1184,8 +1184,8 @@
       "gatesKey": "blueprintMainRuntimeClosure100Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1198,8 +1198,8 @@
       "gatesKey": "authAuditProductionClosure100Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1212,8 +1212,8 @@
       "gatesKey": "taskLifecycleProductionClosure100Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1226,8 +1226,8 @@
       "gatesKey": "webAigcProviderClosure100Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1240,8 +1240,8 @@
       "gatesKey": "externalProviderCutover100Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1254,8 +1254,8 @@
       "gatesKey": "nodeRouteCutoverAudit100Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1268,8 +1268,8 @@
       "gatesKey": "migrationStatusRefresh100Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1282,8 +1282,8 @@
       "gatesKey": "blueprintShellStateCutover101Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1296,8 +1296,8 @@
       "gatesKey": "taskStoreAuthSchedulerCutover101Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1310,8 +1310,8 @@
       "gatesKey": "authTokenMailerSessionCutover101Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1324,8 +1324,8 @@
       "gatesKey": "permissionAuditPolicyStoreCutover101Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1338,8 +1338,8 @@
       "gatesKey": "webAigcRealProviderReadiness101Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1352,8 +1352,8 @@
       "gatesKey": "a2aCoreRouteCutover101Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1366,8 +1366,8 @@
       "gatesKey": "migrationStatusRefresh101Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1380,8 +1380,8 @@
       "gatesKey": "blueprintProductionOwnershipClosure102Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1394,8 +1394,8 @@
       "gatesKey": "taskLifecycleDurableOwnershipClosure102Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1408,8 +1408,8 @@
       "gatesKey": "authProductionOwnershipClosure102Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1422,8 +1422,8 @@
       "gatesKey": "permissionAuditProductionOwnershipClosure102Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1436,8 +1436,8 @@
       "gatesKey": "webAigcExternalProviderOwnershipClosure102Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1450,8 +1450,8 @@
       "gatesKey": "a2aProductionTransportOwnershipClosure102Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1464,8 +1464,8 @@
       "gatesKey": "migrationStatusRefresh102Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1478,8 +1478,8 @@
       "gatesKey": "blueprintJobStoreScopeDecision103Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1492,8 +1492,8 @@
       "gatesKey": "taskMissionStoreRuntimeSlice103Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1506,8 +1506,8 @@
       "gatesKey": "authSessionTokenBoundary103Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1520,8 +1520,8 @@
       "gatesKey": "permissionAuditDurableStoreBoundary103Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1534,8 +1534,8 @@
       "gatesKey": "webAigcRealProviderLiveContract103Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1548,8 +1548,8 @@
       "gatesKey": "a2aSessionStreamRuntimeSlice103Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1562,8 +1562,8 @@
       "gatesKey": "migrationScopeReconciliation103Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1576,8 +1576,8 @@
       "gatesKey": "blueprintJobStoreRuntimeTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1590,8 +1590,8 @@
       "gatesKey": "blueprintEventBusRuntimeTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1604,8 +1604,8 @@
       "gatesKey": "blueprintLedgerRuntimeTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1618,8 +1618,8 @@
       "gatesKey": "blueprintReplanRuntimeTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1632,8 +1632,8 @@
       "gatesKey": "blueprintPromptPackageRuntimeTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1646,8 +1646,8 @@
       "gatesKey": "blueprintPreviewStateRuntimeTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1660,8 +1660,8 @@
       "gatesKey": "blueprintProductionDenominatorReconciliation104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1674,8 +1674,8 @@
       "gatesKey": "taskDurableMissionStoreTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1688,8 +1688,8 @@
       "gatesKey": "taskProjectAuthRuntimeTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1702,8 +1702,8 @@
       "gatesKey": "taskSchedulerRuntimeTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1716,8 +1716,8 @@
       "gatesKey": "taskEventPersistenceTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1730,8 +1730,8 @@
       "gatesKey": "taskProductionDenominatorReconciliation104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1744,8 +1744,8 @@
       "gatesKey": "authSessionRepositoryTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1758,8 +1758,8 @@
       "gatesKey": "authTokenIssuanceTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1772,8 +1772,8 @@
       "gatesKey": "authMailerUserStoreScope104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1786,8 +1786,8 @@
       "gatesKey": "permissionPolicyStoreTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1800,8 +1800,8 @@
       "gatesKey": "auditDurableStoreRetentionTakeover104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1814,8 +1814,8 @@
       "gatesKey": "finalProviderA2aScopeReconciliation104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1828,8 +1828,8 @@
       "gatesKey": "migrationStatusRefresh104Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "reviewMaxTurns": 10,
       "agentTimeoutMs": 1800000,
       "agentIdleTimeoutMs": 600000,
@@ -1842,8 +1842,8 @@
       "gatesKey": "agentLoopSettingsSchemaRuntime105Gates",
       "enabled": false,
       "guardTests": true,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1852,8 +1852,8 @@
       "gatesKey": "agentLoopSettingsSecretStorage105Gates",
       "enabled": false,
       "guardTests": true,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1862,8 +1862,8 @@
       "gatesKey": "agentLoopSettingsWorkerEnvInjection105Gates",
       "enabled": false,
       "guardTests": true,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1872,8 +1872,8 @@
       "gatesKey": "agentLoopSettingsProviderHealthCheck105Gates",
       "enabled": false,
       "guardTests": true,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1882,8 +1882,8 @@
       "gatesKey": "agentLoopSettingsCliWorkerRouting105Gates",
       "enabled": false,
       "guardTests": true,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1892,8 +1892,8 @@
       "gatesKey": "agentLoopSettingsProfileManagement105Gates",
       "enabled": false,
       "guardTests": true,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1902,8 +1902,8 @@
       "gatesKey": "agentLoopSettingsQueueDefaultsEditor105Gates",
       "enabled": false,
       "guardTests": true,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1912,8 +1912,8 @@
       "gatesKey": "agentLoopSettingsImportExportRedaction105Gates",
       "enabled": false,
       "guardTests": true,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1922,8 +1922,8 @@
       "gatesKey": "agentLoopSettingsDiagnosticsView105Gates",
       "enabled": false,
       "guardTests": true,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1932,8 +1932,8 @@
       "gatesKey": "agentLoopSettingsTestHarness105Gates",
       "enabled": false,
       "guardTests": true,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1942,8 +1942,8 @@
       "gatesKey": "agentLoopSettingsUiPolish105Gates",
       "enabled": false,
       "guardTests": true,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1952,8 +1952,8 @@
       "gatesKey": "agentLoopSettingsReleaseReadiness105Gates",
       "enabled": false,
       "guardTests": true,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1962,8 +1962,8 @@
       "gatesKey": "agentLoopSettingsContractSchema106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1972,8 +1972,8 @@
       "gatesKey": "agentLoopSettingsMessageSecretContract106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1982,8 +1982,8 @@
       "gatesKey": "agentLoopSettingsTestHarnessVscodeShim106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -1992,8 +1992,8 @@
       "gatesKey": "agentLoopSettingsRuntimeConfigReader106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -2002,8 +2002,8 @@
       "gatesKey": "agentLoopSettingsWorkerEnvInjection106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -2012,8 +2012,8 @@
       "gatesKey": "agentLoopSettingsCliWorkerRouting106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -2022,8 +2022,8 @@
       "gatesKey": "agentLoopSettingsProviderHealthCli106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -2032,8 +2032,8 @@
       "gatesKey": "agentLoopSettingsProviderHealthLlm106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -2042,8 +2042,8 @@
       "gatesKey": "agentLoopSettingsProfileCrud106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -2052,8 +2052,8 @@
       "gatesKey": "agentLoopSettingsProfileRunGuard106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -2062,8 +2062,8 @@
       "gatesKey": "agentLoopSettingsQueueDefaultsPreview106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -2072,8 +2072,8 @@
       "gatesKey": "agentLoopSettingsQueueDefaultsApply106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -2082,8 +2082,8 @@
       "gatesKey": "agentLoopSettingsImportExportRedaction106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -2092,8 +2092,8 @@
       "gatesKey": "agentLoopSettingsDiagnosticsView106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -2102,8 +2102,8 @@
       "gatesKey": "agentLoopSettingsUiProductPolish106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -2112,8 +2112,8 @@
       "gatesKey": "agentLoopSettingsReleaseReadiness106Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 2,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by AgentLoop Settings 107 full settings wave"
     },
     {
@@ -2122,8 +2122,8 @@
       "gatesKey": "slideruleAgentLoopIntegrationInventory108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2132,8 +2132,8 @@
       "gatesKey": "slideruleAgentLoopRuntimeBoundaryDesign108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2142,8 +2142,8 @@
       "gatesKey": "slideruleAgentLoopDataModelAlignment108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2152,8 +2152,8 @@
       "gatesKey": "slideruleAgentLoopRunsApiBootstrap108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2162,8 +2162,8 @@
       "gatesKey": "slideruleAgentLoopRunsOverviewApi108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2172,8 +2172,8 @@
       "gatesKey": "slideruleAgentLoopRunDetailApi108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2182,8 +2182,8 @@
       "gatesKey": "slideruleAgentLoopEventStreamApi108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2192,8 +2192,8 @@
       "gatesKey": "slideruleAgentLoopWorkerBridge108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2202,8 +2202,8 @@
       "gatesKey": "slideruleAgentLoopCommandApi108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2212,8 +2212,8 @@
       "gatesKey": "slideruleAgentLoopSettingsApi108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2222,8 +2222,8 @@
       "gatesKey": "slideruleAgentLoopProviderHealthApi108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2232,8 +2232,8 @@
       "gatesKey": "slideruleAgentLoopDashboardPort108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2242,8 +2242,8 @@
       "gatesKey": "slideruleAgentLoopNavigationShell108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2252,8 +2252,8 @@
       "gatesKey": "slideruleAgentLoopTaskDetailView108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2262,8 +2262,8 @@
       "gatesKey": "slideruleAgentLoopPathSecurity108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2272,8 +2272,8 @@
       "gatesKey": "slideruleAgentLoopSecretRedaction108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2282,8 +2282,8 @@
       "gatesKey": "slideruleAgentLoopPythonTests108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2292,8 +2292,8 @@
       "gatesKey": "slideruleAgentLoopReleaseRunbook108Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
       "disabledReason": "superseded by SlideRule AgentLoop 109 rescue wave after Grok 403/auth halt"
     },
     {
@@ -2302,8 +2302,8 @@
       "gatesKey": "slideruleAgentLoopNavigationShell109Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-task-detail-view-109",
@@ -2311,8 +2311,8 @@
       "gatesKey": "slideruleAgentLoopTaskDetailView109Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-path-security-109",
@@ -2320,8 +2320,8 @@
       "gatesKey": "slideruleAgentLoopPathSecurity109Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-secret-redaction-109",
@@ -2329,8 +2329,8 @@
       "gatesKey": "slideruleAgentLoopSecretRedaction109Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-python-tests-109",
@@ -2338,8 +2338,8 @@
       "gatesKey": "slideruleAgentLoopPythonTests109Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-release-runbook-109",
@@ -2347,8 +2347,8 @@
       "gatesKey": "slideruleAgentLoopReleaseRunbook109Gates",
       "enabled": false,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-event-envelope-110",
@@ -2356,8 +2356,8 @@
       "gatesKey": "slideruleAgentLoopEventEnvelope110Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-event-store-110",
@@ -2365,8 +2365,8 @@
       "gatesKey": "slideruleAgentLoopEventStore110Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-state-reducer-110",
@@ -2374,8 +2374,8 @@
       "gatesKey": "slideruleAgentLoopStateReducer110Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-legacy-event-adapter-110",
@@ -2383,8 +2383,8 @@
       "gatesKey": "slideruleAgentLoopLegacyEventAdapter110Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-event-read-api-110",
@@ -2392,8 +2392,8 @@
       "gatesKey": "slideruleAgentLoopEventReadApi110Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-sse-stream-v2-110",
@@ -2401,8 +2401,8 @@
       "gatesKey": "slideruleAgentLoopSseStreamV2110Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-web-route-shell-110",
@@ -2410,8 +2410,8 @@
       "gatesKey": "slideruleAgentLoopWebRouteShell110Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-flow-event-projection-110",
@@ -2419,8 +2419,8 @@
       "gatesKey": "slideruleAgentLoopFlowEventProjection110Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-node-event-adapter-110",
@@ -2428,8 +2428,8 @@
       "gatesKey": "slideruleAgentLoopNodeEventAdapter110Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-python-worker-adapter-110",
@@ -2437,8 +2437,8 @@
       "gatesKey": "slideruleAgentLoopPythonWorkerAdapter110Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-artifact-index-110",
@@ -2446,8 +2446,8 @@
       "gatesKey": "slideruleAgentLoopArtifactIndex110Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-replay-release-readiness-110",
@@ -2455,8 +2455,8 @@
       "gatesKey": "slideruleAgentLoopReplayReleaseReadiness110Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-secret-settings-semantics-111",
@@ -2464,8 +2464,8 @@
       "gatesKey": "slideruleAgentLoopSecretSettingsSemantics111Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-cancel-semantics-111",
@@ -2473,8 +2473,8 @@
       "gatesKey": "slideruleAgentLoopCancelSemantics111Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-artifact-route-truth-111",
@@ -2482,8 +2482,8 @@
       "gatesKey": "slideruleAgentLoopArtifactRouteTruth111Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-settings-profile-runtime-111",
@@ -2491,8 +2491,8 @@
       "gatesKey": "slideruleAgentLoopSettingsProfileRuntime111Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-web-bridge-interaction-tests-111",
@@ -2500,8 +2500,8 @@
       "gatesKey": "slideruleAgentLoopWebBridgeInteractionTests111Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-setting-shell-independent-route-112",
@@ -2509,8 +2509,8 @@
       "gatesKey": "slideruleAgentLoopSettingShellIndependentRoute112Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-setting-view-model-contract-112",
@@ -2518,8 +2518,8 @@
       "gatesKey": "slideruleAgentLoopSettingViewModelContract112Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-setting-layout-summary-tabs-112",
@@ -2527,8 +2527,8 @@
       "gatesKey": "slideruleAgentLoopSettingLayoutSummaryTabs112Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-setting-cli-config-panel-112",
@@ -2536,8 +2536,8 @@
       "gatesKey": "slideruleAgentLoopSettingCliConfigPanel112Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-setting-llm-keys-panel-112",
@@ -2545,8 +2545,8 @@
       "gatesKey": "slideruleAgentLoopSettingLlmKeysPanel112Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-setting-queue-defaults-panel-112",
@@ -2554,8 +2554,8 @@
       "gatesKey": "slideruleAgentLoopSettingQueueDefaultsPanel112Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-setting-diagnostics-panel-112",
@@ -2563,8 +2563,8 @@
       "gatesKey": "slideruleAgentLoopSettingDiagnosticsPanel112Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-setting-profiles-panel-112",
@@ -2572,8 +2572,8 @@
       "gatesKey": "slideruleAgentLoopSettingProfilesPanel112Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-setting-import-export-redacted-112",
@@ -2581,8 +2581,8 @@
       "gatesKey": "slideruleAgentLoopSettingImportExportRedacted112Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-setting-component-split-112",
@@ -2590,8 +2590,8 @@
       "gatesKey": "slideruleAgentLoopSettingComponentSplit112Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-setting-runtime-linkage-112",
@@ -2599,8 +2599,8 @@
       "gatesKey": "slideruleAgentLoopSettingRuntimeLinkage112Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-agentloop-setting-visual-regression-readiness-112",
@@ -2608,8 +2608,8 @@
       "gatesKey": "slideruleAgentLoopSettingVisualRegressionReadiness112Gates",
       "enabled": true,
       "guardTests": false,
-      "workerMaxTurns": 128,
-      "maxIterations": 3
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     }
   ],
   "nodeRouteInventory50Gates": [

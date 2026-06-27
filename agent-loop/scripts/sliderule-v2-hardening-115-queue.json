@@ -11,13 +11,13 @@
     "reviewAgent": "codex",
     "reviewModel": "gpt-5.5",
     "scopedReview": true,
-    "workerMaxTurns": 128,
+    "workerMaxTurns": 512,
     "workerMaxRetries": 1,
-    "grokMaxTurns": 128,
+    "grokMaxTurns": 512,
     "grokMaxRetries": 1,
     "reviewMaxTurns": 6,
     "guardTests": false,
-    "maxIterations": 3,
+    "maxIterations": 16,
     "agentIdleTimeoutMs": 300000,
     "agentTimeoutMs": 600000,
     "noSyncTaskStatus": false,
@@ -44,7 +44,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-skill-contract-hardening-115",
@@ -54,7 +56,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-cross-ref-contract-115",
@@ -64,7 +68,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-gate-code-taxonomy-115",
@@ -74,7 +80,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-impact-graph-contract-115",
@@ -84,7 +92,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-fixture-baseline-115",
@@ -94,7 +104,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-rbac-role-inheritance-model-115",
@@ -104,7 +116,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-rbac-role-inheritance-gate-115",
@@ -114,7 +128,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-rbac-sod-policy-model-115",
@@ -124,7 +140,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-rbac-sod-gate-115",
@@ -134,7 +152,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-rbac-fail-closed-decision-115",
@@ -144,7 +164,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-rbac-deny-precedence-115",
@@ -154,7 +176,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-rbac-row-field-permission-ssot-115",
@@ -164,7 +188,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-rbac-policy-version-lifecycle-115",
@@ -174,7 +200,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-rbac-pdp-resolve-surface-115",
@@ -184,7 +212,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-rbac-pdp-project-impact-115",
@@ -194,7 +224,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-datamodel-field-version-model-115",
@@ -204,7 +236,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-datamodel-field-deprecation-gate-115",
@@ -214,7 +248,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-datamodel-relation-cardinality-gate-115",
@@ -224,7 +260,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-datamodel-migration-plan-gate-115",
@@ -234,7 +272,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-datamodel-dataset-binding-model-115",
@@ -244,7 +284,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-datamodel-sensitive-field-policy-115",
@@ -254,7 +296,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-datamodel-pdp-delegation-policy-115",
@@ -264,7 +308,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-datamodel-ssot-resolve-surface-115",
@@ -274,7 +320,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-datamodel-impact-graph-115",
@@ -284,7 +332,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-datamodel-projector-v2-115",
@@ -294,7 +344,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-workflow-form-ssot-binding-115",
@@ -304,7 +356,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-workflow-assignee-pdp-resolution-115",
@@ -314,7 +368,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-workflow-approval-mode-model-115",
@@ -324,7 +380,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-workflow-approval-mode-gate-115",
@@ -334,7 +392,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-workflow-timeout-action-model-115",
@@ -344,7 +404,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-workflow-delegation-model-115",
@@ -354,7 +416,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-workflow-instance-snapshot-115",
@@ -364,7 +428,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-workflow-version-pins-115",
@@ -374,7 +440,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-workflow-variable-reference-gate-115",
@@ -384,7 +452,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-workflow-path-coverage-hardening-115",
@@ -394,7 +464,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-workflow-publish-gate-115",
@@ -404,7 +476,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-workflow-project-impact-115",
@@ -414,7 +488,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-page-ssot-binding-hardening-115",
@@ -424,7 +500,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-page-permission-render-pdp-115",
@@ -434,7 +512,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-page-component-visibility-gate-115",
@@ -444,7 +524,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-page-linkage-rule-hardening-115",
@@ -454,7 +536,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-page-event-schema-gate-115",
@@ -464,7 +548,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-page-resource-reference-gate-115",
@@ -474,7 +560,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-page-version-snapshot-115",
@@ -484,7 +572,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-page-publish-gate-115",
@@ -494,7 +584,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-page-impact-graph-115",
@@ -504,7 +596,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-page-projector-v2-115",
@@ -514,7 +608,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-appbundle-closure-matrix-115",
@@ -524,7 +620,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-appbundle-publish-gate-hardening-115",
@@ -534,7 +632,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-appbundle-version-pin-policy-115",
@@ -544,7 +644,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-appbundle-runtime-snapshot-115",
@@ -554,7 +656,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-appbundle-impact-closure-115",
@@ -564,7 +668,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-appbundle-release-artifact-rollback-115",
@@ -574,7 +680,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-hardening-purchase-e2e-115",
@@ -584,7 +692,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     },
     {
       "id": "sliderule-v2-hardening-verification-handoff-115",
@@ -594,7 +704,9 @@
         "node agent-loop/src/check-mojibake.js {{taskFile}}",
         "pnpm exec vitest run client/src/lib/skills --reporter=dot",
         "pnpm exec tsc --noEmit --pretty false"
-      ]
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
     }
   ]
 }

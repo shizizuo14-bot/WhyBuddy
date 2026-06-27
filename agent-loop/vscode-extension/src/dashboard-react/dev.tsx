@@ -15,7 +15,7 @@ let mockSettings: any = {
   nonSensitive: {
     fixAgent: 'grok',
     reviewAgent: 'codex',
-    workerMaxTurns: 128,
+    workerMaxTurns: 512,
     workerMaxRetries: 2,
     queuePath: 'agent-loop/scripts/migration-queue.json',
     worktreeScope: 'queue',
@@ -98,7 +98,7 @@ window.__AGENT_LOOP_VSCODE_API__ = {
     if (message?.type === 'getQueueDefaults') {
       setTimeout(() => {
         const payload = {
-          defaults: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 128, workerMaxRetries: 2, skipReview: false, useWorktree: true, worktreeScope: 'queue', maxIterations: 3 },
+          defaults: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 512, workerMaxRetries: 2, skipReview: false, useWorktree: true, worktreeScope: 'queue', maxIterations: 16 },
           supportedKeys: ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'skipReview', 'useWorktree', 'worktreeScope', 'maxIterations'],
           queuePath: 'agent-loop/scripts/migration-queue.json',
         };
@@ -112,7 +112,7 @@ window.__AGENT_LOOP_VSCODE_API__ = {
         if (hasUnsupported) {
           window.dispatchEvent(new MessageEvent('message', { data: { type: 'queuePreview', payload: { ok: false, error: 'redacted error' } } }));
         } else {
-          const before = { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 128, workerMaxRetries: 2, skipReview: false, useWorktree: true, worktreeScope: 'queue', maxIterations: 3 };
+          const before = { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 512, workerMaxRetries: 2, skipReview: false, useWorktree: true, worktreeScope: 'queue', maxIterations: 16 };
           const after = { ...before, ...proposed };
           const diff = Object.keys(after).filter(k => JSON.stringify((before as any)[k]) !== JSON.stringify((after as any)[k])).map(k => ({ key: k, before: (before as any)[k], after: (after as any)[k] }));
           window.dispatchEvent(new MessageEvent('message', { data: { type: 'queuePreview', payload: { ok: true, before, after, diff } } }));
@@ -126,7 +126,7 @@ window.__AGENT_LOOP_VSCODE_API__ = {
         if (hasUnsupported) {
           window.dispatchEvent(new MessageEvent('message', { data: { type: 'queueApply', payload: { ok: false, error: 'redacted error' } } }));
         } else {
-          const before = { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 128, workerMaxRetries: 2, skipReview: false, useWorktree: true, worktreeScope: 'queue', maxIterations: 3 };
+          const before = { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 512, workerMaxRetries: 2, skipReview: false, useWorktree: true, worktreeScope: 'queue', maxIterations: 16 };
           const after = { ...before, ...proposed };
           const diff = Object.keys(after).filter(k => JSON.stringify((before as any)[k]) !== JSON.stringify((after as any)[k])).map(k => ({ key: k, before: (before as any)[k], after: (after as any)[k] }));
           const applied = { ...proposed };
@@ -187,7 +187,7 @@ window.__AGENT_LOOP_VSCODE_API__ = {
       setTimeout(() => {
         const payload = {
           generatedAt: new Date().toISOString(),
-          effectiveConfig: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 128, workerMaxRetries: 2, queuePath: 'agent-loop/scripts/migration-queue.json', worktreeScope: 'queue', baseUrl: '', injectToWorker: true },
+          effectiveConfig: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 512, workerMaxRetries: 2, queuePath: 'agent-loop/scripts/migration-queue.json', worktreeScope: 'queue', baseUrl: '', injectToWorker: true },
           configSources: { fixAgent: 'default', reviewAgent: 'default', workerMaxTurns: 'default', workerMaxRetries: 'default', queuePath: 'default', worktreeScope: 'default', baseUrl: 'default', injectKeysToWorker: 'default' },
           keys: { grokApiKey: 'configured', openaiApiKey: '', anthropicApiKey: '' },
           queuePath: 'agent-loop/scripts/migration-queue.json',

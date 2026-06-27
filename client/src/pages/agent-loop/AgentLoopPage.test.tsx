@@ -935,11 +935,11 @@ it("agentloop setting queue defaults 112 previews supported patch only", () => {
   try {
     qdHtml = renderToStaticMarkup(
       <QueueDefaultsView
-        data={{ defaults: { workerMaxTurns: 128, fixAgent: "grok" }, supportedKeys: ["fixAgent", "reviewAgent", "workerMaxTurns"] }}
+        data={{ defaults: { workerMaxTurns: 512, fixAgent: "grok" }, supportedKeys: ["fixAgent", "reviewAgent", "workerMaxTurns"] }}
         preview={null}
         onPreview={() => {}}
         onApply={() => {}}
-        settingsData={{ nonSensitive: { fixAgent: "grok", workerMaxTurns: 128 } }}
+        settingsData={{ nonSensitive: { fixAgent: "grok", workerMaxTurns: 512 } }}
       />
     );
   } finally {
@@ -1425,12 +1425,12 @@ it("agentloop setting queue defaults visual shell matches reference", () => {
           defaults: {
             fixAgent: "grok",
             reviewAgent: "codex",
-            workerMaxTurns: 128,
+            workerMaxTurns: 512,
             workerMaxRetries: 2,
             skipReview: false,
             useWorktree: true,
             worktreeScope: "queue",
-            maxIterations: 3,
+            maxIterations: 16,
           },
           supportedKeys: [
             "fixAgent",
@@ -1451,7 +1451,7 @@ it("agentloop setting queue defaults visual shell matches reference", () => {
           nonSensitive: {
             fixAgent: "grok",
             reviewAgent: "codex",
-            workerMaxTurns: 256,
+            workerMaxTurns: 512,
           },
         }}
       />
@@ -1506,7 +1506,7 @@ it("agentloop setting diagnostics visual shell matches reference", () => {
           effectiveConfig: {
             fixAgent: "grok",
             reviewAgent: "codex",
-            workerMaxTurns: 128,
+            workerMaxTurns: 512,
             workerMaxRetries: 2,
             queuePath: "agent-loop/scripts/migration-queue.json",
             worktreeScope: "queue",

@@ -124,7 +124,7 @@ export function QueueDefaultsView({ data, preview, onPreview, applyResult, onApp
   const isUnsupported = Boolean(data && (data.unsupported || (supported.length === 0 && !data.defaults)));
   const safeSupported = supported.length ? supported : ['fixAgent', 'reviewAgent', 'workerMaxTurns', 'workerMaxRetries', 'worktreeScope', 'queuePath'];
 
-  const [proposedPatch, setProposedPatch] = useState<Record<string, unknown>>({ workerMaxTurns: 256 });
+  const [proposedPatch, setProposedPatch] = useState<Record<string, unknown>>({ workerMaxTurns: 512 });
   const [lastRejected, setLastRejected] = useState<string[]>([]);
 
   const localDry = useMemo(() => computeClientDryRun(current, proposedPatch), [current, proposedPatch]);

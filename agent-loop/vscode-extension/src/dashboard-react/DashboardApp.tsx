@@ -668,7 +668,7 @@ function CliConfigForm({ initial, onSave, queueRunning, activeProfile }: { initi
       form.setFieldsValue({
         fixAgent: initial.fixAgent || 'grok',
         reviewAgent: initial.reviewAgent || 'codex',
-        workerMaxTurns: initial.workerMaxTurns ?? 128,
+        workerMaxTurns: initial.workerMaxTurns ?? 512,
         workerMaxRetries: initial.workerMaxRetries ?? 2,
         queuePath: initial.queuePath || 'agent-loop/scripts/migration-queue.json',
         worktreeScope: initial.worktreeScope || 'queue',
@@ -1004,7 +1004,7 @@ function SettingsView({ data, onSave, providerTests, onTestProvider, workerCliTe
 }
 
 function QueueDefaultsView({ data, preview, onPreview, applyResult, onApply, settingsData }: { data: any; preview: any; onPreview: (proposed: Record<string, unknown>) => void; applyResult?: any; onApply?: (proposed: Record<string, unknown>) => void; settingsData?: any }) {
-  const [proposedText, setProposedText] = useState('{\n  "workerMaxTurns": 256\n}');
+  const [proposedText, setProposedText] = useState('{\n  "workerMaxTurns": 512\n}');
   const current = (data && data.defaults) || {};
   const supported = (data && data.supportedKeys) || [];
 
@@ -1246,7 +1246,7 @@ function ProfileCrudView({ data, queueRunning, activeProfile, onList, onCreate, 
 
   const openCreate = () => {
     form.resetFields();
-    form.setFieldsValue({ name: '', fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 128, workerMaxRetries: 2, worktreeScope: 'queue' });
+    form.setFieldsValue({ name: '', fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 512, workerMaxRetries: 2, worktreeScope: 'queue' });
     setCreateOpen(true);
   };
 

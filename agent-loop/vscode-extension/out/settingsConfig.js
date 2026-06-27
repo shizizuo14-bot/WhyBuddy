@@ -632,7 +632,7 @@ function getEffectiveConfig() {
         reviewAgent: reviewAgent || 'codex',
         fixModel,
         reviewModel,
-        workerMaxTurns: getValue('workerMaxTurns', 128) ?? 128,
+        workerMaxTurns: getValue('workerMaxTurns', 512) ?? 512,
         workerMaxRetries: getValue('workerMaxRetries', 2) ?? 2,
         queuePath: getValue('queuePath', 'agent-loop/scripts/migration-queue.json') || 'agent-loop/scripts/migration-queue.json',
         worktreeScope: getValue('worktreeScope', 'queue') || 'queue',
@@ -645,7 +645,7 @@ exports.PROFILE_PRESETS = {
     local: { fixAgent: 'grok', reviewAgent: 'codex', baseUrl: '' },
     proxy: { fixAgent: 'grok', reviewAgent: 'grok', baseUrl: 'http://127.0.0.1:8080' },
     ci: { fixAgent: 'codex', reviewAgent: 'none', workerMaxTurns: 32 },
-    production: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 128, baseUrl: '' },
+    production: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 512, baseUrl: '' },
 };
 function getActiveProfileKey(raw) {
     if (typeof raw === 'string' && raw.trim()) {

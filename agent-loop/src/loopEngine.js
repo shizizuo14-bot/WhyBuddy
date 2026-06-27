@@ -215,7 +215,7 @@ export async function runLoop({ options, runId = timestamp(), runDir, latestDir,
   }
 
   const iterations = state.iterations || [];
-  const maxIterations = options.maxIterations ?? 3;
+  const maxIterations = options.maxIterations ?? 16;
   const lastIteration = resumeState ? iterations.at(-1) : null;
   let previousDiff = lastIteration?.diffText ?? baselineDiff.text;
   let currentGate = lastIteration?.gateSnapshot ?? baselineGate;
@@ -518,7 +518,7 @@ async function runFixAttempt({
     agentFix = await runAgentProcess(runProcess, agents.grok, buildGrokJsonArgs({
       promptFile: contextBundle.promptPath,
       cwd: fixCwd,
-      maxTurns: options.workerMaxTurns ?? options.grokMaxTurns ?? 4,
+      maxTurns: options.workerMaxTurns ?? options.grokMaxTurns ?? 512,
       model: options.fixModel,
     }), {
       cwd: fixCwd,

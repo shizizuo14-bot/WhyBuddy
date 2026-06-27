@@ -17,7 +17,7 @@ export function CliConfigForm({ initial, onSave, queueRunning, activeProfile }: 
       form.setFieldsValue({
         fixAgent: initial.fixAgent || 'grok',
         reviewAgent: initial.reviewAgent || 'codex',
-        workerMaxTurns: initial.workerMaxTurns ?? 128,
+        workerMaxTurns: initial.workerMaxTurns ?? 512,
         workerMaxRetries: initial.workerMaxRetries ?? 2,
         queuePath: initial.queuePath || 'agent-loop/scripts/migration-queue.json',
         worktreeScope: initial.worktreeScope || 'queue',

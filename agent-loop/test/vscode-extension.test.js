@@ -105,7 +105,7 @@ function createVscodeMock() {
           reviewAgent: 'codex',
           fixModel: '',
           reviewModel: '',
-          workerMaxTurns: 128,
+          workerMaxTurns: 512,
           workerMaxRetries: 2,
           queuePath: 'agent-loop/scripts/migration-queue.json',
           worktreeScope: 'queue',
@@ -2848,7 +2848,7 @@ test('vscode shim enables requiring compiled Settings-related modules (paths, ge
   assert.equal(cfg.fixAgent, 'grok');
   assert.equal(cfg.reviewAgent, 'codex');
   assert.equal(typeof cfg.workerMaxTurns, 'number');
-  assert.equal(cfg.workerMaxTurns, 128);
+  assert.equal(cfg.workerMaxTurns, 512);
   assert.equal(cfg.workerMaxRetries, 2);
   assert.equal(cfg.injectKeysToWorker, true);
   assert.ok('queuePath' in cfg);
@@ -3555,7 +3555,7 @@ test('settings import export files 107 rejects raw secret fields', () => {
 
 test('settings diagnostics payload shape covers effective config, sources, keys, queue path, repo root, last run state', () => {
   const sample = {
-    effectiveConfig: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 128, queuePath: 'agent-loop/scripts/migration-queue.json', injectToWorker: true },
+    effectiveConfig: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 512, queuePath: 'agent-loop/scripts/migration-queue.json', injectToWorker: true },
     configSources: { fixAgent: 'workspace', queuePath: 'default' },
     keys: { grokApiKey: 'configured', openaiApiKey: '', anthropicApiKey: '' },
     queuePath: 'agent-loop/scripts/migration-queue.json',
@@ -3709,7 +3709,7 @@ test('effective config 107 merges package defaults workspace values and profile 
   let eff = getEffectiveConfig();
   assert.equal(eff.fixAgent, 'grok');
   assert.equal(eff.reviewAgent, 'codex');
-  assert.equal(eff.workerMaxTurns, 128);
+  assert.equal(eff.workerMaxTurns, 512);
   // workspace value overrides package default (107 merge)
   globalThis.__AGENT_LOOP_TEST_CONFIG = { fixAgent: 'codex', reviewAgent: 'grok', workerMaxTurns: 64, queuePath: '/ws/q.json', injectKeysToWorker: false };
   eff = getEffectiveConfig();
@@ -3995,7 +3995,7 @@ test('profile storage 107 validates non-secret profile schema', () => {
   // validate non-secret profile schema roundtrip
   const goodInput = {
     activeProfile: 'proxy',
-    local: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 128 },
+    local: { fixAgent: 'grok', reviewAgent: 'codex', workerMaxTurns: 512 },
     proxy: { fixAgent: 'grok', baseUrl: 'http://proxy:8080', injectKeysToWorker: false },
   };
   const loaded = loadProfileStorage(goodInput);

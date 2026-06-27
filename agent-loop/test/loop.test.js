@@ -47,11 +47,11 @@ test('parseLoopArgs requires cwd, task, and at least one gate', () => {
       timeoutMs: 120000,
       agentIdleTimeoutMs: null,
       agentTimeoutMs: null,
-      maxIterations: 3,
+      maxIterations: 16,
       workerMaxTurns: null,
       workerMaxRetries: null,
       workerEnv: {},
-      grokMaxTurns: 4,
+      grokMaxTurns: 512,
       grokMaxRetries: 1,
       retryBackoffMs: 1000,
       pauseBeforeFix: false,
@@ -214,7 +214,7 @@ test('parseLoopArgs supports worker-max-turns and worker-max-retries for grok/co
   ]);
   assert.equal(parsed.workerMaxTurns, 6);
   assert.equal(parsed.workerMaxRetries, 2);
-  assert.equal(parsed.grokMaxTurns, 4); // grok default remains, worker overrides usage
+  assert.equal(parsed.grokMaxTurns, 512); // grok default remains, worker overrides usage
 });
 
 test('parseLoopArgs supports skip-review for gate-only runs', () => {

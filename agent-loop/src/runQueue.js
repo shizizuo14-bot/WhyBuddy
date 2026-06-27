@@ -135,7 +135,7 @@ export function buildLoopArgsForQueueEntry({
     '--task', entry.task,
     '--lang', entry.lang || defaults.lang || 'zh-CN',
     '--timeout-ms', String(entry.timeoutMs || defaults.timeoutMs || 1800000),
-    '--max-iterations', String(entry.maxIterations ?? defaults.maxIterations ?? 3),
+    '--max-iterations', String(entry.maxIterations ?? defaults.maxIterations ?? 16),
   ];
 
   for (const gate of entryGates) {
@@ -172,7 +172,7 @@ export function buildLoopArgsForQueueEntry({
   const scopedReview = entry.scopedReview ?? defaults.scopedReview;
   if (scopedReview != null) args.push('--scoped-review', String(scopedReview));
 
-  const workerMaxTurns = entry.workerMaxTurns ?? entry.grokMaxTurns ?? defaults.workerMaxTurns ?? defaults.grokMaxTurns;
+  const workerMaxTurns = entry.workerMaxTurns ?? entry.grokMaxTurns ?? defaults.workerMaxTurns ?? defaults.grokMaxTurns ?? 512;
   if (workerMaxTurns != null) args.push('--worker-max-turns', String(workerMaxTurns));
 
   const workerMaxRetries = entry.workerMaxRetries ?? entry.grokMaxRetries ?? defaults.workerMaxRetries ?? defaults.grokMaxRetries;

@@ -131,7 +131,7 @@
         },
         "agentLoop.workerMaxTurns": {
           "type": "number",
-          "default": 128,
+          "default": 512,
           "description": "最大执行轮次"
         },
         "agentLoop.workerMaxRetries": {

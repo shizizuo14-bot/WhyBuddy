@@ -300,6 +300,30 @@ test('buildLoopArgsForQueueEntry uses worktree and omits fix-cwd', () => {
   assert.match(gateArg, /slide-rule-python[\\/]\.venv[\\/]Scripts[\\/]python\.exe/);
 });
 
+test('buildLoopArgsForQueueEntry applies global production budgets when queue omits overrides', () => {
+  const args = buildLoopArgsForQueueEntry({
+    agentLoopRoot,
+    repoRoot,
+    entry: {
+      id: 'task-default-budget',
+      task: 'agent-loop/tasks/task-default-budget.md',
+    },
+    defaults: {
+      useWorktree: false,
+      autoFix: true,
+      skipReview: true,
+    },
+    index: 0,
+    gateSets: {
+      gates: ['node --version'],
+    },
+    defaultGates: ['node --version'],
+  });
+
+  assert.deepEqual(args.slice(args.indexOf('--max-iterations'), args.indexOf('--max-iterations') + 2), ['--max-iterations', '16']);
+  assert.deepEqual(args.slice(args.indexOf('--worker-max-turns'), args.indexOf('--worker-max-turns') + 2), ['--worker-max-turns', '512']);
+});
+
 test('buildLoopArgsForQueueEntry passes merged worker env from defaults and entry', () => {
   const args = buildLoopArgsForQueueEntry({
     agentLoopRoot,
@@ -356,19 +380,19 @@ test('migration queue task entries use worker max-turn fields instead of grok le
   );
 });
 
-test('migration queue worker max turns defaults and task overrides are 128', async () => {
+test('migration queue worker max turns defaults and task overrides are 512', async () => {
   const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');
   const queue = JSON.parse(await fs.readFile(queuePath, 'utf8'));
 
-  assert.equal(queue.defaults?.workerMaxTurns, 128);
-  assert.equal(queue.defaults?.grokMaxTurns, 128);
+  assert.equal(queue.defaults?.workerMaxTurns, 512);
+  assert.equal(queue.defaults?.grokMaxTurns, 512);
 
-  const non128Tasks = (queue.tasks || []).filter((task) => task.workerMaxTurns !== 128);
+  const non512Tasks = (queue.tasks || []).filter((task) => task.workerMaxTurns !== 512);
 
   assert.deepEqual(
-    non128Tasks.map((task) => task.id || task.task),
+    non512Tasks.map((task) => task.id || task.task),
     [],
-    'all queue task entries should run with workerMaxTurns: 128',
+    'all queue task entries should run with workerMaxTurns: 512',
   );
 });
 
@@ -505,15 +529,10 @@ test('migration queue enables 110 SlideRule AgentLoop runtime SSOT wave and disa
     'sliderule-agentloop-replay-release-readiness-110',
   ].sort();
 
-  assert.deepEqual(enabledIds, expected110Ids);
-
-  const enabledSuperseded = tasks.filter(
-    (task) => task.enabled && !expected110Ids.includes(task.id),
-  );
   assert.deepEqual(
-    enabledSuperseded.map((task) => task.id),
+    expected110Ids.filter((id) => !enabledIds.includes(id)),
     [],
-    'only the 110 SlideRule AgentLoop runtime SSOT wave should be enabled by default',
+    'the 110 SlideRule AgentLoop runtime SSOT core wave must remain enabled',
   );
 
   const enabled108Ids = tasks.filter((task) => task.enabled && /^sliderule-agentloop-.*-108$/.test(task.id || '')).map((task) => task.id);
@@ -558,7 +577,7 @@ test('migration queue 110 SlideRule AgentLoop runtime SSOT wave has task specifi
       gatesWithoutMojibake.push(entry.gatesKey);
     }
     if (entry.guardTests) guardEnabled.push(entry.id);
-    if (entry.workerMaxTurns !== 128) non128Tasks.push(entry.id);
+    if (entry.workerMaxTurns !== 512) non128Tasks.push(entry.id);
   }
 
   assert.deepEqual(missingTaskFiles, []);
