@@ -56,7 +56,10 @@ tmp/
 .superpowers/
 terminals/
 .agent-loop/
+.agent-loop-context/
 .worktrees/
+.test-output-*.txt
+.vitest-*.txt
 
 # One-off local diagnostics (npx tsx scripts/_*.mjs)
 scripts/_*.mjs

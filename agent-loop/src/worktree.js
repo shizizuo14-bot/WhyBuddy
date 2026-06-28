@@ -2,6 +2,17 @@ import fs from 'node:fs/promises';
 import path from 'node:path';
 import { runProcess } from './runProcess.js';
 
+const QUEUE_COMMIT_EXCLUDE_PATHS = [
+  '.agent-loop',
+  '.agent-loop/**',
+  '.agent-loop-context',
+  '.agent-loop-context/**',
+  '.worktrees',
+  '.worktrees/**',
+  '.test-output-*.txt',
+  '.vitest-*.txt',
+];
+
 export class WorktreeStateError extends Error {
   constructor({ code, message, files = [] } = {}) {
     super(message || code || 'worktree state error');
@@ -78,16 +89,23 @@ export async function createQueueWorktreeCommit({
     throw new Error(`queue worktree status failed: ${status.stderr || status.spawnError || status.exitCode}`);
   }
   const untrackedFiles = parseStatusPorcelainFiles(status.stdout)
-    .filter((file) => String(status.stdout || '').includes(`?? ${file}`));
+    .filter((file) => String(status.stdout || '').includes(`?? ${file}`))
+    .filter((file) => !isQueueCommitArtifactPath(file));
   const meaningfulTrackedDiff = await hasMeaningfulTrackedDiff({ worktreePath, run, timeoutMs });
   if (!meaningfulTrackedDiff && untrackedFiles.length === 0) {
     const checkpoint = await createWorktreeCheckpoint({ worktreePath, taskId, run, timeoutMs });
     return { ...checkpoint, committed: false };
   }
 
-  const add = await run('git', ['add', '-A'], { cwd: worktreePath, timeoutMs });
+  const add = await run('git', ['add', '-A', '--', ...queueCommitPathspecs()], { cwd: worktreePath, timeoutMs });
   if (add.exitCode !== 0 || add.timedOut || add.spawnError) {
     throw new Error(`queue worktree add failed: ${add.stderr || add.spawnError || add.exitCode}`);
+  }
+
+  const staged = await hasStagedDiff({ worktreePath, run, timeoutMs });
+  if (!staged) {
+    const checkpoint = await createWorktreeCheckpoint({ worktreePath, taskId, run, timeoutMs });
+    return { ...checkpoint, committed: false };
   }
 
   const message = `agent-loop queue checkpoint: ${taskId || 'task'}`;
@@ -109,6 +127,36 @@ async function hasMeaningfulTrackedDiff({
   if (diff.exitCode === 0) return false;
   if (diff.exitCode === 1) return true;
   throw new Error(`queue worktree diff check failed: ${diff.stderr || diff.spawnError || diff.exitCode}`);
+}
+
+async function hasStagedDiff({
+  worktreePath,
+  run,
+  timeoutMs,
+}) {
+  const diff = await run('git', ['diff', '--cached', '--quiet'], { cwd: worktreePath, timeoutMs });
+  if (diff.exitCode === 0) return false;
+  if (diff.exitCode === 1) return true;
+  throw new Error(`queue worktree staged diff check failed: ${diff.stderr || diff.spawnError || diff.exitCode}`);
+}
+
+function queueCommitPathspecs() {
+  return [
+    '.',
+    ...QUEUE_COMMIT_EXCLUDE_PATHS.map((excludePath) => `:(exclude)${excludePath}`),
+  ];
+}
+
+function isQueueCommitArtifactPath(file) {
+  const normalized = normalizeStatusPath(file);
+  return normalized === '.agent-loop'
+    || normalized.startsWith('.agent-loop/')
+    || normalized === '.agent-loop-context'
+    || normalized.startsWith('.agent-loop-context/')
+    || normalized === '.worktrees'
+    || normalized.startsWith('.worktrees/')
+    || /^\.test-output-[^/]*\.txt$/.test(normalized)
+    || /^\.vitest-[^/]*\.txt$/.test(normalized);
 }
 
 export async function restoreWorktreeCheckpoint({

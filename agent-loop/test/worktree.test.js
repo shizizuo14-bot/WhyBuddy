@@ -153,6 +153,40 @@ test('queue worktree commits tracked and untracked success changes into a checkp
   assert.match(files.stdout, /created\.txt/);
 });
 
+test('queue worktree checkpoint leaves runner artifacts out of task commits', async () => {
+  const repo = await fs.mkdtemp(path.join(os.tmpdir(), 'agent-loop-queue-worktree-artifacts-'));
+  await runProcess('git', ['init'], { cwd: repo, timeoutMs: 30000 });
+  await runProcess('git', ['config', 'user.email', 'agent-loop@example.local'], { cwd: repo, timeoutMs: 30000 });
+  await runProcess('git', ['config', 'user.name', 'AgentLoop Test'], { cwd: repo, timeoutMs: 30000 });
+
+  await fs.writeFile(path.join(repo, 'tracked.txt'), 'old\n', 'utf8');
+  await runProcess('git', ['add', 'tracked.txt'], { cwd: repo, timeoutMs: 30000 });
+  await runProcess('git', ['commit', '-m', 'initial'], { cwd: repo, timeoutMs: 30000 });
+
+  await fs.writeFile(path.join(repo, 'tracked.txt'), 'new\n', 'utf8');
+  await fs.mkdir(path.join(repo, '.agent-loop-context', 'current-run'), { recursive: true });
+  await fs.writeFile(path.join(repo, '.agent-loop-context', 'current-run', 'task.md'), '# runtime context\n', 'utf8');
+  await fs.writeFile(path.join(repo, '.test-output-ledger.txt'), 'local test output\n', 'utf8');
+  await fs.writeFile(path.join(repo, '.vitest-ledger-105.txt'), 'local vitest output\n', 'utf8');
+
+  const checkpoint = await createQueueWorktreeCommit({
+    worktreePath: repo,
+    taskId: 'task-a',
+    run: runProcess,
+  });
+
+  assert.equal(checkpoint.committed, true);
+
+  const files = await runProcess('git', ['show', '--name-only', '--format=', checkpoint.ref], {
+    cwd: repo,
+    timeoutMs: 30000,
+  });
+  assert.match(files.stdout, /tracked\.txt/);
+  assert.doesNotMatch(files.stdout, /\.agent-loop-context/);
+  assert.doesNotMatch(files.stdout, /\.test-output-ledger\.txt/);
+  assert.doesNotMatch(files.stdout, /\.vitest-ledger-105\.txt/);
+});
+
 test('queue worktree checkpoint skips EOL-only tracked dirtiness', async () => {
   const calls = [];
   const checkpoint = await createQueueWorktreeCommit({
