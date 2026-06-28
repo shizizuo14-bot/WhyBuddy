@@ -88,16 +88,17 @@ export async function createQueueWorktreeCommit({
   if (status.exitCode !== 0 || status.timedOut || status.spawnError) {
     throw new Error(`queue worktree status failed: ${status.stderr || status.spawnError || status.exitCode}`);
   }
-  const untrackedFiles = parseStatusPorcelainFiles(status.stdout)
-    .filter((file) => String(status.stdout || '').includes(`?? ${file}`))
+  const candidateFiles = parseStatusPorcelainFiles(status.stdout)
     .filter((file) => !isQueueCommitArtifactPath(file));
+  const untrackedFiles = candidateFiles
+    .filter((file) => String(status.stdout || '').includes(`?? ${file}`));
   const meaningfulTrackedDiff = await hasMeaningfulTrackedDiff({ worktreePath, run, timeoutMs });
-  if (!meaningfulTrackedDiff && untrackedFiles.length === 0) {
+  if ((!meaningfulTrackedDiff && untrackedFiles.length === 0) || candidateFiles.length === 0) {
     const checkpoint = await createWorktreeCheckpoint({ worktreePath, taskId, run, timeoutMs });
     return { ...checkpoint, committed: false };
   }
 
-  const add = await run('git', ['add', '-A', '--', ...queueCommitPathspecs()], { cwd: worktreePath, timeoutMs });
+  const add = await run('git', ['add', '-A', '--', ...candidateFiles], { cwd: worktreePath, timeoutMs });
   if (add.exitCode !== 0 || add.timedOut || add.spawnError) {
     throw new Error(`queue worktree add failed: ${add.stderr || add.spawnError || add.exitCode}`);
   }
@@ -138,13 +139,6 @@ async function hasStagedDiff({
   if (diff.exitCode === 0) return false;
   if (diff.exitCode === 1) return true;
   throw new Error(`queue worktree staged diff check failed: ${diff.stderr || diff.spawnError || diff.exitCode}`);
-}
-
-function queueCommitPathspecs() {
-  return [
-    '.',
-    ...QUEUE_COMMIT_EXCLUDE_PATHS.map((excludePath) => `:(exclude)${excludePath}`),
-  ];
 }
 
 function isQueueCommitArtifactPath(file) {
