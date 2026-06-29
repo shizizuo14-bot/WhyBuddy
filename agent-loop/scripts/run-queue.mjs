@@ -4,6 +4,7 @@ import { fileURLToPath } from 'node:url';
 import { readQueueOutcomes, recordQueueTaskOutcome, shouldSkipAutoDisabledTask } from '../src/queueOutcomes.js';
 import { runProcess } from '../src/runProcess.js';
 import {
+  buildResumeUnfinishedPlan,
   buildQueueRestoreFailedSummary,
   buildLoopArgsForQueueEntry,
   buildQueueCompletionMessage,
@@ -24,6 +25,7 @@ import {
   createQueueWorktreeCommit,
   createWorktreeCheckpoint,
   ensureWorktree,
+  getWorktreePath,
   removeWorktree,
   restoreWorktreeCheckpoint,
   WorktreeStateError,
@@ -54,8 +56,9 @@ async function main() {
   const maxConsecutiveNoChanges = defaults.maxConsecutiveNoChanges ?? 3;
   const autoDisableOnNoChanges = defaults.autoDisableOnNoChanges ?? true;
   const cleanupWorktree = defaults.cleanupWorktree ?? true;
-  const outcomes = await readQueueOutcomes(repoRoot);
-  const tasks = filterQueueTasks(queue.tasks || [], selection);
+  const rootOutcomes = await readQueueOutcomes(repoRoot);
+  let outcomes = rootOutcomes;
+  let tasks = filterQueueTasks(queue.tasks || [], { ...selection, resumeUnfinished: false });
 
   if (!tasks.length) {
     throw new Error('migration queue has no enabled tasks');
@@ -77,15 +80,50 @@ async function main() {
   let queueBaseCheckpoint = null;
   let queueCurrentCheckpoint = null;
   let queueRestoreFailed = false;
+  let checkpointTaskIds = new Set();
   if (queueScopeEnabled) {
     try {
       await assertMainWorktreeClean({ repoRoot, run: runProcess, timeoutMs: defaults.timeoutMs || 1800000 });
       const queueWorktreeName = sanitizeWorktreeName(defaults.queueWorktreeName || `queue-${Date.now()}`);
+      const expectedQueueWorktreePath = getWorktreePath({ repoRoot, name: queueWorktreeName });
+      const checkpointTaskIdsFromBranch = await readQueueCheckpointTaskIdsFromBranch({
+        repoRoot,
+        branch: `agent-loop/${queueWorktreeName}`,
+        timeoutMs: defaults.timeoutMs || 1800000,
+      });
+      const worktreeHeadBefore = await readGitHeadIfPresent({
+        cwd: expectedQueueWorktreePath,
+        timeoutMs: defaults.timeoutMs || 1800000,
+      });
+      const checkpointTaskIdsBeforeSync = await readQueueCheckpointTaskIds({
+        cwd: expectedQueueWorktreePath,
+        timeoutMs: defaults.timeoutMs || 1800000,
+      });
       queueWorktree = await ensureWorktree({
         repoRoot,
         name: queueWorktreeName,
         timeoutMs: defaults.timeoutMs || 1800000,
       });
+      const worktreeHeadAfter = await readGitHeadIfPresent({
+        cwd: queueWorktree.path,
+        timeoutMs: defaults.timeoutMs || 1800000,
+      });
+      const checkpointTaskIdsAfterSync = await readQueueCheckpointTaskIds({
+        cwd: queueWorktree.path,
+        timeoutMs: defaults.timeoutMs || 1800000,
+      });
+      checkpointTaskIds = new Set([
+        ...checkpointTaskIdsFromBranch,
+        ...checkpointTaskIdsBeforeSync,
+        ...checkpointTaskIdsAfterSync,
+      ]);
+      outcomes = mergeQueueOutcomes(
+        rootOutcomes,
+        await readQueueOutcomesFromWorktree(queueWorktree.path),
+      );
+      process.stderr.write(
+        `[run-queue] queue worktree sync: path=${queueWorktree.path} headBefore=${worktreeHeadBefore || 'missing'} headAfter=${worktreeHeadAfter || 'unknown'} checkpoints=${checkpointTaskIds.size}\n`,
+      );
       queueBaseCheckpoint = await createWorktreeCheckpoint({
         worktreePath: queueWorktree.path,
         taskId: '__queue_base__',
@@ -127,6 +165,26 @@ async function main() {
       process.exitCode = 1;
       return;
     }
+  }
+
+  if (selection.resumeUnfinished) {
+    const resumePlan = buildResumeUnfinishedPlan({
+      tasks,
+      outcomes,
+      checkpointTaskIds,
+    });
+    tasks = filterQueueTasks(queue.tasks || [], {
+      ...selection,
+      outcomes,
+      checkpointTaskIds,
+    });
+    process.stderr.write(
+      `[run-queue] resume-unfinished preflight: queue=${path.basename(queuePath)} total=${resumePlan.total} clean=${resumePlan.cleanCount} next=${resumePlan.nextTaskId || 'none'} attention=${resumePlan.attentionCount}\n`,
+    );
+  }
+
+  if (!tasks.length) {
+    process.stderr.write('[run-queue] resume-unfinished preflight: no unfinished enabled tasks to run\n');
   }
 
   const results = [];
@@ -452,6 +510,7 @@ function resolveQueueSelection(argv) {
     only: valueAfter('--only'),
     from: valueAfter('--from'),
     limit: valueAfter('--limit'),
+    resumeUnfinished: argv.includes('--resume-unfinished'),
   };
 }
 
@@ -463,6 +522,79 @@ function collectGateSets(queue, defaultGates) {
     if (Array.isArray(value)) gateSets[key] = value;
   }
   return gateSets;
+}
+
+function mergeQueueOutcomes(rootOutcomes = { tasks: {} }, worktreeOutcomes = { tasks: {} }) {
+  return {
+    ...rootOutcomes,
+    ...worktreeOutcomes,
+    tasks: {
+      ...(rootOutcomes?.tasks || {}),
+      ...(worktreeOutcomes?.tasks || {}),
+    },
+  };
+}
+
+async function readQueueOutcomesFromWorktree(worktreePath) {
+  const filePath = path.join(worktreePath, '.agent-loop', 'queue-outcomes.json');
+  try {
+    return JSON.parse(await fs.readFile(filePath, 'utf8'));
+  } catch (error) {
+    if (error.code === 'ENOENT') return { tasks: {} };
+    throw error;
+  }
+}
+
+async function readGitHeadIfPresent({ cwd, timeoutMs }) {
+  try {
+    await fs.access(cwd);
+  } catch {
+    return null;
+  }
+  const result = await runProcess('git', ['rev-parse', 'HEAD'], { cwd, timeoutMs });
+  if (result.exitCode !== 0 || result.timedOut || result.spawnError) return null;
+  return result.stdout.trim() || null;
+}
+
+async function readQueueCheckpointTaskIds({ cwd, timeoutMs }) {
+  try {
+    await fs.access(cwd);
+  } catch {
+    return new Set();
+  }
+  const result = await runProcess('git', [
+    'log',
+    '--format=%s',
+    '--grep=^agent-loop queue checkpoint:',
+  ], { cwd, timeoutMs });
+  if (result.exitCode !== 0 || result.timedOut || result.spawnError) return new Set();
+  const taskIds = result.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .map((line) => line.match(/^agent-loop queue checkpoint:\s*(.+)$/)?.[1]?.trim())
+    .filter(Boolean);
+  return new Set(taskIds);
+}
+
+async function readQueueCheckpointTaskIdsFromBranch({ repoRoot, branch, timeoutMs }) {
+  const exists = await runProcess('git', ['rev-parse', '--verify', '--quiet', branch], {
+    cwd: repoRoot,
+    timeoutMs,
+  });
+  if (exists.exitCode !== 0 || exists.timedOut || exists.spawnError) return new Set();
+  const result = await runProcess('git', [
+    'log',
+    '--format=%s',
+    '--grep=^agent-loop queue checkpoint:',
+    branch,
+  ], { cwd: repoRoot, timeoutMs });
+  if (result.exitCode !== 0 || result.timedOut || result.spawnError) return new Set();
+  const taskIds = result.stdout
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .map((line) => line.match(/^agent-loop queue checkpoint:\s*(.+)$/)?.[1]?.trim())
+    .filter(Boolean);
+  return new Set(taskIds);
 }
 
 main().catch((error) => {

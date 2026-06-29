@@ -443,6 +443,99 @@ def test_agentloop_queue_overview_prefers_newer_queue_worktree_artifacts(tmp_pat
     assert data["tasks"][0]["category"] == "landed"
 
 
+def test_agentloop_queue_overview_merges_root_and_queue_worktree_outcomes(tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    scripts_dir = repo_root / "agent-loop" / "scripts"
+    tasks_dir = repo_root / "agent-loop" / "tasks"
+    root_loop_dir = repo_root / ".agent-loop"
+    worktree_loop_dir = repo_root / ".worktrees" / "backend-python-total-cutover-105" / ".agent-loop"
+    scripts_dir.mkdir(parents=True)
+    tasks_dir.mkdir(parents=True)
+    root_loop_dir.mkdir(parents=True)
+    worktree_loop_dir.mkdir(parents=True)
+
+    queue_file = scripts_dir / "backend-python-total-cutover-105-queue.json"
+    queue_file.write_text(
+        json.dumps(
+            {
+                "defaults": {
+                    "useWorktree": True,
+                    "worktreeScope": "queue",
+                    "queueWorktreeName": "backend-python-total-cutover-105",
+                },
+                "tasks": [
+                    {"id": "task-a", "task": "agent-loop/tasks/task-a.md", "enabled": True},
+                    {"id": "task-b", "task": "agent-loop/tasks/task-b.md", "enabled": True},
+                    {"id": "task-c", "task": "agent-loop/tasks/task-c.md", "enabled": True},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    for name in ("task-a.md", "task-b.md", "task-c.md"):
+        (tasks_dir / name).write_text(f"# {name}\n", encoding="utf-8")
+
+    (root_loop_dir / "queue-outcomes.json").write_text(
+        json.dumps(
+            {
+                "tasks": {
+                    "task-a": {
+                        "lastStatus": "HALT_HUMAN",
+                        "lastOutcome": "quarantined",
+                        "lastRunId": "old-a",
+                    },
+                    "task-b": {
+                        "lastStatus": "DONE_REVIEWED",
+                        "lastOutcome": "done",
+                        "lastRunId": "root-b",
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (worktree_loop_dir / "queue-outcomes.json").write_text(
+        json.dumps(
+            {
+                "tasks": {
+                    "task-a": {
+                        "lastStatus": "DONE_REVIEWED",
+                        "lastOutcome": "done",
+                        "lastRunId": "fresh-a",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (worktree_loop_dir / "queue-landing.json").write_text(json.dumps({"status": "PENDING_QUEUE_LANDING"}), encoding="utf-8")
+    os.utime(root_loop_dir / "queue-outcomes.json", (1000, 1000))
+    os.utime(worktree_loop_dir / "queue-outcomes.json", (2000, 2000))
+    os.utime(worktree_loop_dir / "queue-landing.json", (2000, 2000))
+
+    settings_file = repo_root / "data" / "agent-loop-settings.json"
+    settings_file.parent.mkdir(parents=True)
+    settings_file.write_text(
+        json.dumps({"queuePath": "agent-loop/scripts/backend-python-total-cutover-105-queue.json"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGENT_LOOP_SETTINGS_FILE", str(settings_file))
+    monkeypatch.setattr(agent_loop_runs, "_get_repo_root", lambda: repo_root)
+
+    data = agent_loop_runs.get_agent_loop_queue_overview(str(repo_root))
+    by_id = {task["id"]: task for task in data["tasks"]}
+
+    assert data["queuePath"] == "agent-loop/scripts/backend-python-total-cutover-105-queue.json"
+    assert data["latestQueuePath"] == "agent-loop/scripts/backend-python-total-cutover-105-queue.json"
+    assert by_id["task-a"]["status"] == "DONE_REVIEWED"
+    assert by_id["task-a"]["lastRunId"] == "fresh-a"
+    assert by_id["task-a"]["outcomeGroup"] == "reviewed"
+    assert by_id["task-b"]["status"] == "DONE_REVIEWED"
+    assert by_id["task-b"]["lastRunId"] == "root-b"
+    assert by_id["task-b"]["outcomeGroup"] == "reviewed"
+    assert by_id["task-c"]["category"] == "pending"
+
+
 def test_agentloop_queue_overview_includes_all_task_files_not_only_queue_entries(tmp_path, monkeypatch):
     repo_root = tmp_path / "repo"
     scripts_dir = repo_root / "agent-loop" / "scripts"

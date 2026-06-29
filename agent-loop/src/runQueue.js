@@ -37,7 +37,17 @@ function quoteForPowershell(value) {
   return `& "${value}"`;
 }
 
-export function filterQueueTasks(tasks, { only = null, from = null, limit = null } = {}) {
+export function filterQueueTasks(
+  tasks,
+  {
+    only = null,
+    from = null,
+    limit = null,
+    resumeUnfinished = false,
+    outcomes = { tasks: {} },
+    checkpointTaskIds = new Set(),
+  } = {},
+) {
   const all = tasks || [];
 
   // --only is an explicit single-task run: match against the full queue (including
@@ -56,6 +66,14 @@ export function filterQueueTasks(tasks, { only = null, from = null, limit = null
     selected = selected.slice(index);
   }
 
+  if (resumeUnfinished) {
+    selected = buildResumeUnfinishedPlan({
+      tasks: selected,
+      outcomes,
+      checkpointTaskIds,
+    }).tasks;
+  }
+
   if (limit != null) {
     const count = Number(limit);
     if (!Number.isInteger(count) || count < 1) throw new Error('--limit requires a positive integer');
@@ -63,6 +81,49 @@ export function filterQueueTasks(tasks, { only = null, from = null, limit = null
   }
 
   return selected;
+}
+
+export function buildResumeUnfinishedPlan({
+  tasks = [],
+  outcomes = { tasks: {} },
+  checkpointTaskIds = new Set(),
+} = {}) {
+  const enabledTasks = (tasks || []).filter((entry) => entry.enabled !== false);
+  const records = outcomes?.tasks || {};
+  let firstUnfinishedIndex = enabledTasks.findIndex((entry) => {
+    const taskId = entry.id || entry.task;
+    return !isCleanCompletedQueueTask({
+      taskId,
+      record: records[taskId],
+      checkpointTaskIds,
+    });
+  });
+  if (firstUnfinishedIndex < 0) firstUnfinishedIndex = enabledTasks.length;
+  const cleanTasks = enabledTasks.slice(0, firstUnfinishedIndex);
+  const unfinishedTasks = enabledTasks.slice(firstUnfinishedIndex);
+  return {
+    tasks: unfinishedTasks,
+    cleanCount: cleanTasks.length,
+    attentionCount: unfinishedTasks.length,
+    total: enabledTasks.length,
+    nextTaskId: unfinishedTasks[0] ? (unfinishedTasks[0].id || unfinishedTasks[0].task) : null,
+  };
+}
+
+export function isCleanCompletedQueueTask({
+  taskId,
+  record = null,
+  checkpointTaskIds = new Set(),
+} = {}) {
+  if (!taskId || !record) return false;
+  if (!checkpointTaskIds?.has?.(taskId)) return false;
+  if (record.lastStatus !== 'DONE_REVIEWED') return false;
+  if (record.lastOutcome !== 'done') return false;
+  if (record.rescuePatchAvailable) return false;
+  if (record.applyStatus === 'RESCUE_PATCH_AVAILABLE') return false;
+  if (record.applyStatus && record.applyStatus !== 'APPLIED_TO_MAIN') return false;
+  if (record.applyErrorKind) return false;
+  return true;
 }
 
 export function buildQueueCompletionMessage({

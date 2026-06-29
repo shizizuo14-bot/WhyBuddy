@@ -12,7 +12,9 @@ import {
   classifyQueueOutcome,
   buildQueueRestoreFailedSummary,
   applyDoneSummaryToMain,
+  buildResumeUnfinishedPlan,
   filterQueueTasks,
+  isCleanCompletedQueueTask,
   resolveWorktreeScope,
   resolveEntryGates,
   resolvePythonExe,
@@ -182,6 +184,95 @@ test('filterQueueTasks rejects unknown selectors', () => {
     () => filterQueueTasks([{ id: 'task-a', enabled: true }], { from: 'missing' }),
     /--from target not found: missing/,
   );
+});
+
+test('isCleanCompletedQueueTask requires done reviewed outcome and checkpoint', () => {
+  const checkpointTaskIds = new Set(['task-a']);
+
+  assert.equal(isCleanCompletedQueueTask({
+    taskId: 'task-a',
+    record: { lastStatus: 'DONE_REVIEWED', lastOutcome: 'done' },
+    checkpointTaskIds,
+  }), true);
+
+  assert.equal(isCleanCompletedQueueTask({
+    taskId: 'task-b',
+    record: { lastStatus: 'DONE_REVIEWED', lastOutcome: 'done' },
+    checkpointTaskIds,
+  }), false);
+});
+
+test('isCleanCompletedQueueTask does not skip rescue patches or attention states', () => {
+  const checkpointTaskIds = new Set(['task-a', 'task-b', 'task-c']);
+
+  assert.equal(isCleanCompletedQueueTask({
+    taskId: 'task-a',
+    record: {
+      lastStatus: 'DONE_REVIEWED',
+      lastOutcome: 'done',
+      applyStatus: 'RESCUE_PATCH_AVAILABLE',
+    },
+    checkpointTaskIds,
+  }), false);
+
+  assert.equal(isCleanCompletedQueueTask({
+    taskId: 'task-b',
+    record: {
+      lastStatus: 'HALT_HUMAN',
+      lastOutcome: 'quarantined',
+    },
+    checkpointTaskIds,
+  }), false);
+
+  assert.equal(isCleanCompletedQueueTask({
+    taskId: 'task-c',
+    record: {
+      lastStatus: 'APPLY_CONFLICT',
+      lastOutcome: 'failed',
+      applyErrorKind: 'PATCH_CONFLICT',
+    },
+    checkpointTaskIds,
+  }), false);
+});
+
+test('buildResumeUnfinishedPlan starts from first not clean task', () => {
+  const plan = buildResumeUnfinishedPlan({
+    tasks: [
+      { id: 'task-a', enabled: true },
+      { id: 'task-b', enabled: true },
+      { id: 'task-c', enabled: true },
+    ],
+    outcomes: {
+      tasks: {
+        'task-a': { lastStatus: 'DONE_REVIEWED', lastOutcome: 'done' },
+        'task-b': { lastStatus: 'DONE_REVIEWED', lastOutcome: 'done', rescuePatchAvailable: true },
+      },
+    },
+    checkpointTaskIds: new Set(['task-a', 'task-b']),
+  });
+
+  assert.deepEqual(plan.tasks.map((task) => task.id), ['task-b', 'task-c']);
+  assert.equal(plan.cleanCount, 1);
+  assert.equal(plan.nextTaskId, 'task-b');
+  assert.equal(plan.attentionCount, 2);
+});
+
+test('filterQueueTasks --resume-unfinished keeps --only explicit reruns', () => {
+  const tasks = filterQueueTasks([
+    { id: 'task-a', enabled: true },
+    { id: 'task-b', enabled: true },
+  ], {
+    only: 'task-a',
+    resumeUnfinished: true,
+    outcomes: {
+      tasks: {
+        'task-a': { lastStatus: 'DONE_REVIEWED', lastOutcome: 'done' },
+      },
+    },
+    checkpointTaskIds: new Set(['task-a']),
+  });
+
+  assert.deepEqual(tasks.map((task) => task.id), ['task-a']);
 });
 
 test('buildQueueCompletionMessage says queue finished is not the same as all succeeded', () => {

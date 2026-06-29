@@ -370,7 +370,13 @@ def _queue_artifact_worktree_root(repo: Path, queue_path: Path) -> Optional[Path
     clean_name = _sanitize_overview_worktree_name(raw_name)
     if not clean_name:
         return None
-    candidate = repo / ".worktrees" / clean_name / ".agent-loop"
+    direct_candidate = repo / ".worktrees" / clean_name / ".agent-loop"
+    if direct_candidate.exists() and direct_candidate.is_dir():
+        return direct_candidate
+    nested_candidate = repo / ".worktrees" / clean_name / "agent-loop" / ".agent-loop"
+    if nested_candidate.exists() and nested_candidate.is_dir():
+        return nested_candidate
+    candidate = direct_candidate
     return candidate if candidate.exists() and candidate.is_dir() else None
 
 
@@ -452,6 +458,19 @@ def _select_queue_artifacts(
             selected_mtime = artifact_mtime
 
     return selected_queue, selected_artifacts
+
+
+def _merged_queue_outcomes(repo: Path, artifact_root: Path) -> Dict[str, Any]:
+    root_artifact = _agent_loop_artifact_root(repo)
+    root_outcomes = _safe_read_json(_artifact_queue_outcomes_path(root_artifact)) or {"tasks": {}}
+    selected_outcomes = _safe_read_json(_artifact_queue_outcomes_path(artifact_root)) or {"tasks": {}}
+    root_tasks = root_outcomes.get("tasks") if isinstance(root_outcomes.get("tasks"), dict) else {}
+    selected_tasks = selected_outcomes.get("tasks") if isinstance(selected_outcomes.get("tasks"), dict) else {}
+    if artifact_root.resolve(strict=False) == root_artifact.resolve(strict=False):
+        return {"tasks": dict(root_tasks)}
+    merged = dict(root_tasks)
+    merged.update(selected_tasks)
+    return {"tasks": merged}
 
 
 def _task_id_from_path(task_path: str) -> str:
@@ -593,7 +612,7 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
     queue_stale = bool(latest_queue_path and latest_queue_path != queue_path)
 
     queue = _safe_read_json(queue_file) or {}
-    outcomes = _safe_read_json(outcomes_file) or {"tasks": {}}
+    outcomes = _merged_queue_outcomes(repo, artifact_root)
     landing = _safe_read_json(landing_file)
 
     tasks_in = queue.get("tasks") if isinstance(queue.get("tasks"), list) else []
