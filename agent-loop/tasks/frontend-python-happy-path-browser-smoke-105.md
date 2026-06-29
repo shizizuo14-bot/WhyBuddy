@@ -15,6 +15,9 @@ This task is part of the single-batch NodeJS-to-Python total cutover push. The i
 - `agent-loop/tasks/frontend-python-happy-path-browser-smoke-105.md`
 - `scripts/**`
 - `client/src/pages/**`
+- `slide-rule-python/tests/**`
+- `server/**/__tests__/**`
+- `server/tests/**`
 - `package.json`
 
 ## Evidence to read
