@@ -11,6 +11,7 @@ import {
   buildQueueSummaryFromState,
   applyDoneSummaryToMain,
   filterQueueTasks,
+  mergeQueueOutcomes,
   resolveWorktreeScope,
   sanitizeWorktreeName,
 } from '../src/runQueue.js';
@@ -537,17 +538,6 @@ function collectGateSets(queue, defaultGates) {
     if (Array.isArray(value)) gateSets[key] = value;
   }
   return gateSets;
-}
-
-function mergeQueueOutcomes(rootOutcomes = { tasks: {} }, worktreeOutcomes = { tasks: {} }) {
-  return {
-    ...rootOutcomes,
-    ...worktreeOutcomes,
-    tasks: {
-      ...(rootOutcomes?.tasks || {}),
-      ...(worktreeOutcomes?.tasks || {}),
-    },
-  };
 }
 
 async function readQueueOutcomesFromWorktree(worktreePath) {

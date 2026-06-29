@@ -110,6 +110,54 @@ export function buildResumeUnfinishedPlan({
   };
 }
 
+export function mergeQueueOutcomes(rootOutcomes = { tasks: {} }, worktreeOutcomes = { tasks: {} }) {
+  const mergedTasks = { ...(rootOutcomes?.tasks || {}) };
+  for (const [taskId, worktreeRecord] of Object.entries(worktreeOutcomes?.tasks || {})) {
+    mergedTasks[taskId] = chooseQueueOutcomeRecord(mergedTasks[taskId], worktreeRecord);
+  }
+  return {
+    ...rootOutcomes,
+    ...worktreeOutcomes,
+    tasks: mergedTasks,
+  };
+}
+
+function chooseQueueOutcomeRecord(currentRecord, candidateRecord) {
+  if (!currentRecord) return candidateRecord;
+  if (!candidateRecord) return currentRecord;
+
+  const currentScore = queueOutcomeRecordScore(currentRecord);
+  const candidateScore = queueOutcomeRecordScore(candidateRecord);
+  if (currentScore !== candidateScore) {
+    return candidateScore > currentScore ? candidateRecord : currentRecord;
+  }
+
+  const currentUpdatedAt = Date.parse(currentRecord.lastUpdatedAt || '');
+  const candidateUpdatedAt = Date.parse(candidateRecord.lastUpdatedAt || '');
+  const currentTime = Number.isFinite(currentUpdatedAt) ? currentUpdatedAt : 0;
+  const candidateTime = Number.isFinite(candidateUpdatedAt) ? candidateUpdatedAt : 0;
+  return candidateTime >= currentTime ? candidateRecord : currentRecord;
+}
+
+function queueOutcomeRecordScore(record = {}) {
+  if (isCleanDoneOutcomeRecord(record)) return 30;
+  if (record.rescuePatchAvailable || record.applyStatus === 'RESCUE_PATCH_AVAILABLE') return 10;
+  if (record.applyErrorKind || (record.applyStatus && record.applyStatus !== 'APPLIED_TO_MAIN')) return 10;
+  if (record.lastOutcome === 'quarantined' || String(record.lastStatus || '').startsWith('HALT_')) return 20;
+  if (record.lastOutcome === 'done' || String(record.lastStatus || '').startsWith('DONE_')) return 25;
+  return 0;
+}
+
+function isCleanDoneOutcomeRecord(record = {}) {
+  return (
+    record.lastStatus === 'DONE_REVIEWED'
+    && record.lastOutcome === 'done'
+    && !record.rescuePatchAvailable
+    && !record.applyErrorKind
+    && (!record.applyStatus || record.applyStatus === 'APPLIED_TO_MAIN')
+  );
+}
+
 export function isCleanCompletedQueueTask({
   taskId,
   record = null,

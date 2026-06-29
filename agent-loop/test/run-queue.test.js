@@ -15,6 +15,7 @@ import {
   buildResumeUnfinishedPlan,
   filterQueueTasks,
   isCleanCompletedQueueTask,
+  mergeQueueOutcomes,
   resolveWorktreeScope,
   resolveEntryGates,
   resolvePythonExe,
@@ -255,6 +256,64 @@ test('buildResumeUnfinishedPlan starts from first not clean task', () => {
   assert.equal(plan.cleanCount, 1);
   assert.equal(plan.nextTaskId, 'task-b');
   assert.equal(plan.attentionCount, 2);
+});
+
+test('mergeQueueOutcomes keeps newer clean root completion over stale worktree attention state', () => {
+  const merged = mergeQueueOutcomes(
+    {
+      tasks: {
+        'task-a': {
+          lastStatus: 'DONE_REVIEWED',
+          lastOutcome: 'done',
+          lastUpdatedAt: '2026-06-29T23:23:44.461Z',
+          diffBytes: 57664,
+        },
+        'task-b': {
+          lastStatus: 'DONE_REVIEWED',
+          lastOutcome: 'done',
+          lastUpdatedAt: '2026-06-29T23:40:41.596Z',
+          diffBytes: 39808,
+        },
+        'task-c': {
+          lastStatus: 'HALT_HUMAN',
+          lastOutcome: 'quarantined',
+          lastUpdatedAt: '2026-06-27T17:20:06.183Z',
+        },
+      },
+    },
+    {
+      tasks: {
+        'task-a': {
+          lastStatus: 'DONE_REVIEWED',
+          lastOutcome: 'done',
+          lastUpdatedAt: '2026-06-28T16:32:26.272Z',
+          applyStatus: 'RESCUE_PATCH_AVAILABLE',
+          applyErrorKind: 'PARTIAL_DIFF_GATE_RED',
+          rescuePatchAvailable: true,
+        },
+        'task-c': {
+          lastStatus: 'DONE_REVIEWED',
+          lastOutcome: 'done',
+          lastUpdatedAt: '2026-06-28T17:29:26.931Z',
+        },
+      },
+    },
+  );
+
+  const plan = buildResumeUnfinishedPlan({
+    tasks: [
+      { id: 'task-a', enabled: true },
+      { id: 'task-b', enabled: true },
+      { id: 'task-c', enabled: true },
+    ],
+    outcomes: merged,
+    checkpointTaskIds: new Set(['task-a', 'task-b']),
+  });
+
+  assert.equal(merged.tasks['task-a'].rescuePatchAvailable, undefined);
+  assert.deepEqual(plan.tasks.map((task) => task.id), ['task-c']);
+  assert.equal(plan.cleanCount, 2);
+  assert.equal(plan.nextTaskId, 'task-c');
 });
 
 test('filterQueueTasks --resume-unfinished keeps --only explicit reruns', () => {
