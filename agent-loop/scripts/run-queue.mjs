@@ -46,6 +46,7 @@ async function main() {
 
   const argv = process.argv.slice(2);
   const follow = !argv.includes('--no-follow');
+  const preflightOnly = argv.includes('--preflight-only');
   const queuePath = resolveQueuePath(argv);
   const selection = resolveQueueSelection(argv);
   const queue = JSON.parse(await fs.readFile(queuePath, 'utf8'));
@@ -91,6 +92,10 @@ async function main() {
         branch: `agent-loop/${queueWorktreeName}`,
         timeoutMs: defaults.timeoutMs || 1800000,
       });
+      const checkpointTaskIdsFromAllRefs = await readQueueCheckpointTaskIdsFromAllRefs({
+        repoRoot,
+        timeoutMs: defaults.timeoutMs || 1800000,
+      });
       const worktreeHeadBefore = await readGitHeadIfPresent({
         cwd: expectedQueueWorktreePath,
         timeoutMs: defaults.timeoutMs || 1800000,
@@ -113,6 +118,7 @@ async function main() {
         timeoutMs: defaults.timeoutMs || 1800000,
       });
       checkpointTaskIds = new Set([
+        ...checkpointTaskIdsFromAllRefs,
         ...checkpointTaskIdsFromBranch,
         ...checkpointTaskIdsBeforeSync,
         ...checkpointTaskIdsAfterSync,
@@ -185,6 +191,15 @@ async function main() {
 
   if (!tasks.length) {
     process.stderr.write('[run-queue] resume-unfinished preflight: no unfinished enabled tasks to run\n');
+  }
+
+  if (preflightOnly) {
+    process.stdout.write(`${JSON.stringify({
+      preflightOnly: true,
+      selected: tasks.map((entry) => entry.id || entry.task),
+      selectedCount: tasks.length,
+    }, null, 2)}\n`);
+    return;
   }
 
   const results = [];
@@ -568,12 +583,7 @@ async function readQueueCheckpointTaskIds({ cwd, timeoutMs }) {
     '--grep=^agent-loop queue checkpoint:',
   ], { cwd, timeoutMs });
   if (result.exitCode !== 0 || result.timedOut || result.spawnError) return new Set();
-  const taskIds = result.stdout
-    .split(/\r?\n/)
-    .map((line) => line.trim())
-    .map((line) => line.match(/^agent-loop queue checkpoint:\s*(.+)$/)?.[1]?.trim())
-    .filter(Boolean);
-  return new Set(taskIds);
+  return parseQueueCheckpointSubjects(result.stdout);
 }
 
 async function readQueueCheckpointTaskIdsFromBranch({ repoRoot, branch, timeoutMs }) {
@@ -589,7 +599,22 @@ async function readQueueCheckpointTaskIdsFromBranch({ repoRoot, branch, timeoutM
     branch,
   ], { cwd: repoRoot, timeoutMs });
   if (result.exitCode !== 0 || result.timedOut || result.spawnError) return new Set();
-  const taskIds = result.stdout
+  return parseQueueCheckpointSubjects(result.stdout);
+}
+
+async function readQueueCheckpointTaskIdsFromAllRefs({ repoRoot, timeoutMs }) {
+  const result = await runProcess('git', [
+    'log',
+    '--all',
+    '--format=%s',
+    '--grep=^agent-loop queue checkpoint:',
+  ], { cwd: repoRoot, timeoutMs });
+  if (result.exitCode !== 0 || result.timedOut || result.spawnError) return new Set();
+  return parseQueueCheckpointSubjects(result.stdout);
+}
+
+function parseQueueCheckpointSubjects(stdout = '') {
+  const taskIds = String(stdout)
     .split(/\r?\n/)
     .map((line) => line.trim())
     .map((line) => line.match(/^agent-loop queue checkpoint:\s*(.+)$/)?.[1]?.trim())
