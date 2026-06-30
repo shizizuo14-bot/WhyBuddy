@@ -651,6 +651,66 @@ def test_agentloop_queue_overview_merges_root_and_queue_worktree_outcomes(tmp_pa
     assert by_id["task-c"]["category"] == "pending"
 
 
+def test_agentloop_queue_overview_treats_done_reviewed_as_reviewed_even_with_stale_rescue_fields(tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    scripts_dir = repo_root / "agent-loop" / "scripts"
+    tasks_dir = repo_root / "agent-loop" / "tasks"
+    root_loop_dir = repo_root / ".agent-loop"
+    scripts_dir.mkdir(parents=True)
+    tasks_dir.mkdir(parents=True)
+    root_loop_dir.mkdir(parents=True)
+
+    (scripts_dir / "backend-python-total-cutover-105-queue.json").write_text(
+        json.dumps(
+            {
+                "tasks": [
+                    {"id": "task-done-with-stale-rescue", "task": "agent-loop/tasks/task-done-with-stale-rescue.md", "enabled": True},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tasks_dir / "task-done-with-stale-rescue.md").write_text("# task\n", encoding="utf-8")
+    (root_loop_dir / "queue-outcomes.json").write_text(
+        json.dumps(
+            {
+                "tasks": {
+                    "task-done-with-stale-rescue": {
+                        "lastStatus": "DONE_REVIEWED",
+                        "lastOutcome": "done",
+                        "lastRunId": "clean-run",
+                        "lastUpdatedAt": "2026-06-30T11:08:18.079Z",
+                        "applyStatus": "RESCUE_PATCH_AVAILABLE",
+                        "applyErrorKind": "PARTIAL_DIFF_GATE_RED",
+                        "rescuePatchAvailable": True,
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    settings_file = repo_root / "data" / "agent-loop-settings.json"
+    settings_file.parent.mkdir(parents=True)
+    settings_file.write_text(
+        json.dumps({"queuePath": "agent-loop/scripts/backend-python-total-cutover-105-queue.json"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGENT_LOOP_SETTINGS_FILE", str(settings_file))
+    monkeypatch.setattr(agent_loop_runs, "_get_repo_root", lambda: repo_root)
+
+    data = agent_loop_runs.get_agent_loop_queue_overview(str(repo_root))
+    task = data["tasks"][0]
+
+    assert task["status"] == "DONE_REVIEWED"
+    assert task["outcomeGroup"] == "reviewed"
+    assert task["category"] == "landed"
+    assert task["rescuePatchAvailable"] is False
+    assert task["applyStatus"] is None
+    assert data["counts"]["done"] == 1
+    assert data["counts"]["reviewed"] == 1
+
+
 def test_agentloop_queue_overview_separates_state_time_from_latest_attempt(tmp_path, monkeypatch):
     repo_root = tmp_path / "repo"
     scripts_dir = repo_root / "agent-loop" / "scripts"

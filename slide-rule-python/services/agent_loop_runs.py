@@ -617,17 +617,35 @@ def _classify_outcome_group(status: Optional[str], outcome: Optional[str], recor
         return "noDiff"
     if status == "APPLY_CONFLICT":
         return "applyConflict"
+    if outcome == "done":
+        if status == "DONE_REVIEWED":
+            return "reviewed"
+        return "applied"
     if record and (record.get("applyStatus") == "RESCUE_PATCH_AVAILABLE" or record.get("rescuePatchAvailable")):
         return "rescuePatch"
     if status in {"DIRTY_MAIN_NEEDS_COMMIT", "HALT_STOPPED"}:
         return "stopped"
     if status == "HALT_HUMAN":
         return "human"
-    if outcome == "done":
-        if status == "DONE_REVIEWED":
-            return "reviewed"
-        return "applied"
     return outcome
+
+
+def _display_apply_details(record: Dict[str, Any], outcome_group: Optional[str]) -> Dict[str, Any]:
+    if outcome_group in {"applied", "reviewed", "noDiff"}:
+        return {
+            "applyStatus": None,
+            "applyErrorKind": None,
+            "applyErrorFiles": [],
+            "applyError": None,
+            "rescuePatchAvailable": False,
+        }
+    return {
+        "applyStatus": record.get("applyStatus"),
+        "applyErrorKind": record.get("applyErrorKind"),
+        "applyErrorFiles": record.get("applyErrorFiles") if isinstance(record.get("applyErrorFiles"), list) else [],
+        "applyError": record.get("applyError"),
+        "rescuePatchAvailable": bool(record.get("rescuePatchAvailable")),
+    }
 
 
 def _format_updated_text(value: Optional[str]) -> Optional[str]:
@@ -782,6 +800,7 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
             manual_rescue_landed = bool(record.get("applyStatus") == "MANUAL_RESCUE_LANDED" or record.get("manualRescue") or record.get("manualRescueLanded")) and bool(task_text)
         outcome_group = "manualRescueLanded" if manual_rescue_landed else _classify_outcome_group(record.get("lastStatus"), record.get("lastOutcome"), record)
         item_status = "MANUAL_RESCUE_LANDED" if manual_rescue_landed else record.get("lastStatus")
+        apply_details = _display_apply_details(record, outcome_group)
         branch = None
         explicit_branch = str(record.get("branch") or task.get("branch") or "").strip()
         if explicit_branch:
@@ -819,13 +838,13 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
             "autoDisabled": bool(record.get("autoDisabled")),
             "running": running,
             "stale": stale,
-            "applyStatus": record.get("applyStatus"),
+            "applyStatus": apply_details["applyStatus"],
             "rawApplyStatus": record.get("applyStatus"),
-            "applyErrorKind": record.get("applyErrorKind"),
+            "applyErrorKind": apply_details["applyErrorKind"],
             "rawApplyErrorKind": record.get("applyErrorKind"),
-            "applyErrorFiles": record.get("applyErrorFiles") if isinstance(record.get("applyErrorFiles"), list) else [],
-            "applyError": record.get("applyError"),
-            "rescuePatchAvailable": bool(record.get("rescuePatchAvailable")),
+            "applyErrorFiles": apply_details["applyErrorFiles"],
+            "applyError": apply_details["applyError"],
+            "rescuePatchAvailable": apply_details["rescuePatchAvailable"],
             "diffBytes": int(record.get("diffBytes") or 0),
             "worktreeErrorFiles": record.get("worktreeErrorFiles") if isinstance(record.get("worktreeErrorFiles"), list) else [],
         }
@@ -877,6 +896,7 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
         same_as_running = bool(running_task_path) and normalized_task_path == running_task_path
         running = bool(queue_running) and same_as_running
         outcome_group = _classify_outcome_group(record.get("lastStatus"), record.get("lastOutcome"), record)
+        apply_details = _display_apply_details(record, outcome_group)
         item: Dict[str, Any] = {
             "id": task_id,
             "task": task_path,
@@ -901,13 +921,13 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
             "autoDisabled": bool(record.get("autoDisabled")),
             "running": running,
             "stale": bool(stale_run and same_as_running),
-            "applyStatus": record.get("applyStatus"),
+            "applyStatus": apply_details["applyStatus"],
             "rawApplyStatus": record.get("applyStatus"),
-            "applyErrorKind": record.get("applyErrorKind"),
+            "applyErrorKind": apply_details["applyErrorKind"],
             "rawApplyErrorKind": record.get("applyErrorKind"),
-            "applyErrorFiles": record.get("applyErrorFiles") if isinstance(record.get("applyErrorFiles"), list) else [],
-            "applyError": record.get("applyError"),
-            "rescuePatchAvailable": bool(record.get("rescuePatchAvailable")),
+            "applyErrorFiles": apply_details["applyErrorFiles"],
+            "applyError": apply_details["applyError"],
+            "rescuePatchAvailable": apply_details["rescuePatchAvailable"],
             "diffBytes": int(record.get("diffBytes") or 0),
             "worktreeErrorFiles": record.get("worktreeErrorFiles") if isinstance(record.get("worktreeErrorFiles"), list) else [],
         }

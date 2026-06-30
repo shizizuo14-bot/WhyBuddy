@@ -1297,6 +1297,39 @@ test('updateQueueOutcomeRecord preserves structured apply status details', () =>
   assert.match(record.applyError, /patch does not apply/);
 });
 
+test('updateQueueOutcomeRecord clears stale rescue details after reviewed success', () => {
+  const record = updateQueueOutcomeRecord({
+    record: {
+      lastStatus: 'HALT_HUMAN',
+      lastOutcome: 'failed',
+      applyStatus: 'RESCUE_PATCH_AVAILABLE',
+      applyErrorKind: 'PARTIAL_DIFF_GATE_RED',
+      applyErrorFiles: ['server/routes/auth.ts'],
+      applyError: 'partial diff needs review',
+      rescuePatchAvailable: true,
+      consecutiveNoChanges: 2,
+      autoDisabled: true,
+      autoDisabledAt: '2026-06-30T00:00:00.000Z',
+    },
+    status: 'DONE_REVIEWED',
+    outcome: 'done',
+    runId: 'run-clean',
+    diffBytes: 123,
+  });
+
+  assert.equal(record.lastStatus, 'DONE_REVIEWED');
+  assert.equal(record.lastOutcome, 'done');
+  assert.equal(record.lastRunId, 'run-clean');
+  assert.equal(record.applyStatus, undefined);
+  assert.equal(record.applyErrorKind, undefined);
+  assert.equal(record.applyErrorFiles, undefined);
+  assert.equal(record.applyError, undefined);
+  assert.equal(record.rescuePatchAvailable, false);
+  assert.equal(record.consecutiveNoChanges, 0);
+  assert.equal(record.autoDisabled, false);
+  assert.equal(record.autoDisabledAt, null);
+});
+
 // ===== Settings queue defaults preview coverage (dry-run, no write, workerEnv redaction) =====
 test('migration queue settings preview API does not write migration-queue.json (dry run only)', async () => {
   const queuePath = path.join(agentLoopRoot, 'scripts', 'migration-queue.json');

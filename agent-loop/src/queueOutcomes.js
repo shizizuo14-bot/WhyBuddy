@@ -71,6 +71,13 @@ export function updateQueueOutcomeRecord({
     next.consecutiveNoChanges = 0;
     next.autoDisabled = false;
     next.autoDisabledAt = null;
+    if (outcome === 'done' && !applyStatus && !applyErrorKind && rescuePatchAvailable == null) {
+      delete next.applyStatus;
+      delete next.applyErrorKind;
+      delete next.applyErrorFiles;
+      delete next.applyError;
+      next.rescuePatchAvailable = false;
+    }
   } else if (outcome === 'crashed') {
     // Infra failures should not count toward "grok can't do this task" streaks.
     next.consecutiveNoChanges = record.consecutiveNoChanges || 0;
