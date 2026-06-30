@@ -1715,6 +1715,33 @@ it("agentloop python health adapter preserves degraded and missing config states
   ]);
 });
 
+it("agentloop workbench 105 shows manual queue landing as applied", () => {
+  const html = renderToStaticMarkup(
+    <DashboardApp
+      payload={{
+        counts: { total: 48, queueTotal: 48, done: 48, reviewed: 48 },
+        queueRunning: false,
+        queuePath: "agent-loop/scripts/backend-python-total-cutover-105-queue.json",
+        landing: {
+          status: "APPLIED_TO_MAIN_MANUAL",
+          appliedToMain: true,
+          diffBytes: 314071,
+          taskCounts: { total: 12, patch: 10, done: 12 },
+          appliedCommitRange: "e4a21cd4..32d8e2c6",
+          appliedAt: "2026-07-01T00:00:00.000Z",
+        },
+        tasks: [],
+      }}
+      view="workbench"
+    />,
+  );
+
+  expect(html).toContain("Queue landing applied to main");
+  expect(html).toContain("Manual landing recorded");
+  expect(html).toContain("e4a21cd4..32d8e2c6");
+  expect(html).not.toContain("Queue landing pending");
+});
+
 it("agentloop dashboard shell constrains content to an internal scroll area", () => {
   const css = require("fs").readFileSync(
     require("path").join(__dirname, "dashboard", "dashboard.css"),

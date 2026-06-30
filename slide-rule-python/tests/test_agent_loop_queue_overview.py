@@ -31,6 +31,155 @@ def isolate_agent_loop_control_dir(tmp_path, monkeypatch):
     monkeypatch.setenv("AGENT_LOOP_CONTROL_DIR", str(tmp_path / ".agent-loop" / "control"))
 
 
+def test_agentloop_queue_overview_reads_manual_landing_with_utf8_bom(tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    scripts_dir = repo_root / "agent-loop" / "scripts"
+    tasks_dir = repo_root / "agent-loop" / "tasks"
+    loop_dir = repo_root / ".agent-loop"
+    scripts_dir.mkdir(parents=True)
+    tasks_dir.mkdir(parents=True)
+    loop_dir.mkdir(parents=True)
+
+    (scripts_dir / "backend-python-total-cutover-105-queue.json").write_text(
+        json.dumps(
+            {
+                "tasks": [
+                    {"id": "task-a", "task": "agent-loop/tasks/task-a.md", "enabled": True},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tasks_dir / "task-a.md").write_text("task", encoding="utf-8")
+    (loop_dir / "queue-outcomes.json").write_text(
+        json.dumps(
+            {
+                "tasks": {
+                    "task-a": {
+                        "lastStatus": "DONE_REVIEWED",
+                        "lastOutcome": "done",
+                        "lastUpdatedAt": "2026-07-01T00:00:00.000Z",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    landing = {
+        "status": "APPLIED_TO_MAIN_MANUAL",
+        "appliedToMain": True,
+        "appliedCommitRange": "e4a21cd4..32d8e2c6",
+        "appliedAt": "2026-07-01T00:00:00.000Z",
+    }
+    (loop_dir / "queue-landing.json").write_text(
+        "\ufeff" + json.dumps(landing),
+        encoding="utf-8",
+    )
+    settings_file = repo_root / "data" / "agent-loop-settings.json"
+    settings_file.parent.mkdir(parents=True)
+    settings_file.write_text(
+        json.dumps({"queuePath": "agent-loop/scripts/backend-python-total-cutover-105-queue.json"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGENT_LOOP_SETTINGS_FILE", str(settings_file))
+    monkeypatch.setattr(agent_loop_runs, "_get_repo_root", lambda: repo_root)
+
+    data = agent_loop_runs.get_agent_loop_queue_overview(str(repo_root))
+
+    assert data["landing"]["status"] == "APPLIED_TO_MAIN_MANUAL"
+    assert data["landing"]["appliedToMain"] is True
+    assert data["landing"]["appliedCommitRange"] == "e4a21cd4..32d8e2c6"
+
+
+def test_agentloop_queue_overview_prefers_root_manual_landing_over_worktree_landing(tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    scripts_dir = repo_root / "agent-loop" / "scripts"
+    tasks_dir = repo_root / "agent-loop" / "tasks"
+    root_loop_dir = repo_root / ".agent-loop"
+    worktree_loop_dir = repo_root / ".worktrees" / "backend-python-total-cutover-105" / ".agent-loop"
+    scripts_dir.mkdir(parents=True)
+    tasks_dir.mkdir(parents=True)
+    root_loop_dir.mkdir(parents=True)
+    worktree_loop_dir.mkdir(parents=True)
+
+    queue_file = scripts_dir / "backend-python-total-cutover-105-queue.json"
+    queue_file.write_text(
+        json.dumps(
+            {
+                "defaults": {
+                    "useWorktree": True,
+                    "worktreeScope": "queue",
+                    "queueWorktreeName": "backend-python-total-cutover-105",
+                },
+                "tasks": [
+                    {"id": "task-a", "task": "agent-loop/tasks/task-a.md", "enabled": True},
+                    {"id": "task-b", "task": "agent-loop/tasks/task-b.md", "enabled": True},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tasks_dir / "task-a.md").write_text("# task-a\n", encoding="utf-8")
+    (tasks_dir / "task-b.md").write_text("# task-b\n", encoding="utf-8")
+
+    (root_loop_dir / "queue-landing.json").write_text(
+        json.dumps(
+            {
+                "status": "APPLIED_TO_MAIN_MANUAL",
+                "appliedToMain": True,
+                "appliedCommitRange": "e4a21cd4..32d8e2c6",
+                "appliedCommits": ["e4a21cd4", "d6c0573f", "32d8e2c6"],
+                "taskCounts": {"total": 12, "patch": 10, "done": 12},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (worktree_loop_dir / "queue-landing.json").write_text(
+        json.dumps(
+            {
+                "status": "PENDING_QUEUE_LANDING",
+                "appliedToMain": False,
+                "taskCounts": {"total": 1, "patch": 1, "done": 1},
+            }
+        ),
+        encoding="utf-8",
+    )
+    (worktree_loop_dir / "queue-outcomes.json").write_text(
+        json.dumps(
+            {
+                "tasks": {
+                    "task-a": {
+                        "lastStatus": "DONE_REVIEWED",
+                        "lastOutcome": "done",
+                        "lastRunId": "worktree-a",
+                        "lastUpdatedAt": "2026-07-01T00:00:00.000Z",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    os.utime(root_loop_dir / "queue-landing.json", (1000, 1000))
+    os.utime(worktree_loop_dir / "queue-landing.json", (2000, 2000))
+    os.utime(worktree_loop_dir / "queue-outcomes.json", (2000, 2000))
+
+    settings_file = repo_root / "data" / "agent-loop-settings.json"
+    settings_file.parent.mkdir(parents=True)
+    settings_file.write_text(
+        json.dumps({"queuePath": "agent-loop/scripts/backend-python-total-cutover-105-queue.json"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGENT_LOOP_SETTINGS_FILE", str(settings_file))
+    monkeypatch.setattr(agent_loop_runs, "_get_repo_root", lambda: repo_root)
+
+    data = agent_loop_runs.get_agent_loop_queue_overview(str(repo_root))
+
+    assert data["landing"]["status"] == "APPLIED_TO_MAIN_MANUAL"
+    assert data["landing"]["appliedToMain"] is True
+    assert data["landing"]["appliedCommitRange"] == "e4a21cd4..32d8e2c6"
+    assert data["landing"]["taskCounts"]["patch"] == 10
+
+
 def test_agentloop_queue_overview_reads_queue_and_outcomes(tmp_path, monkeypatch):
     repo_root = tmp_path / "repo"
     agent_loop_dir = repo_root / "agent-loop" / "scripts"

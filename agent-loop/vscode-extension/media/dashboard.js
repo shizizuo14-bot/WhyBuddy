@@ -392,7 +392,8 @@
   function renderLanding(landing) {
     if (!landing || landing.status === 'QUEUE_VERIFIED_NO_DIFF') return '';
     if (Number(landing.diffBytes || 0) <= 0 && landing.status === 'PENDING_QUEUE_LANDING') return '';
-    if (landing.status !== 'PENDING_QUEUE_LANDING' && !landing.appliedToMain) return '';
+    const landingApplied = landing.appliedToMain || ['APPLIED_TO_MAIN', 'APPLIED_TO_MAIN_MANUAL', 'MAIN_GATE_GREEN', 'COMMITTED'].includes(landing.status);
+    if (landing.status !== 'PENDING_QUEUE_LANDING' && !landingApplied) return '';
     const kb = landing.diffBytes ? `${Math.max(1, Math.round(landing.diffBytes / 1024))}KB` : '0';
     const taskCount = landingPatchCount(landing);
     const attentionCount = landingAttentionCount(landing);
@@ -400,7 +401,7 @@
     const attentionNote = attentionCount > 0
       ? `<span class="landing-note">${attentionCount} 个需关注任务未包含在补丁中</span>`
       : '';
-    if (landing.appliedToMain) {
+    if (landingApplied) {
       return `<section class="landing landing-banner done">
         <div class="landing-branch"><span>当前分支</span><b>${esc(branch)}</b></div>
         <div class="landing-info"><b>已落地到 main</b><span>${taskCount} 个成功合并 · ${kb} diff</span>${attentionNote}</div>

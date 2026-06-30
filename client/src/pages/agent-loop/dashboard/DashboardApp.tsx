@@ -281,6 +281,32 @@ function attentionCount(counts: OverviewPayload['counts'], tasks: OverviewTask[]
   return countValue(counts, 'attention') || tasks.filter((task) => taskCategory(task) === 'attention').length;
 }
 
+function landingPatchCount(landing: unknown): number {
+  const value = landing as any;
+  const counted = Number(value?.taskCounts?.patch);
+  if (Number.isFinite(counted)) return counted;
+  if (Array.isArray(value?.patchTasks)) return value.patchTasks.length;
+  if (Array.isArray(value?.tasks)) {
+    const done = value.tasks.filter((task: any) => task?.outcome === 'done').length;
+    return done || value.tasks.length;
+  }
+  return 0;
+}
+
+function isLandingApplied(landing: unknown): boolean {
+  const value = landing as any;
+  const status = String(value?.status || '');
+  return Boolean(value?.appliedToMain) || ['APPLIED_TO_MAIN', 'APPLIED_TO_MAIN_MANUAL', 'MAIN_GATE_GREEN', 'COMMITTED'].includes(status);
+}
+
+function shouldShowLandingStatus(landing: unknown): boolean {
+  const value = landing as any;
+  if (!value || typeof value !== 'object') return false;
+  if (String(value.status || '') === 'QUEUE_VERIFIED_NO_DIFF') return false;
+  if (isLandingApplied(value)) return true;
+  return String(value.status || '') === 'PENDING_QUEUE_LANDING' && Number(value.diffBytes || 0) > 0;
+}
+
 function OverviewHeader({ payload, settings }: { payload: OverviewPayload; settings?: AgentLoopSettingsViewModel | null }) {
   const queueRunning = Boolean(payload.queueRunning);
   const queueTotal = countValue(payload.counts, 'queueTotal') || queueTasks(payload.tasks || []).length;
@@ -293,6 +319,12 @@ function OverviewHeader({ payload, settings }: { payload: OverviewPayload; setti
   const latestQueuePath = payload.latestQueuePath || '';
   const hasQueuePath = Boolean(activeQueuePath);
   const queueStale = Boolean(payload.queueStale && latestQueuePath && activeQueuePath && latestQueuePath !== activeQueuePath);
+  const landing = payload.landing as any;
+  const showLanding = shouldShowLandingStatus(landing);
+  const landingApplied = isLandingApplied(landing);
+  const landingCommitRange = landing?.appliedCommitRange || (Array.isArray(landing?.appliedCommits) ? landing.appliedCommits.join(', ') : '');
+  const landingDiffKb = landing?.diffBytes ? `${Math.max(1, Math.round(Number(landing.diffBytes) / 1024))} KB` : '0 KB';
+  const landingTasks = landingPatchCount(landing);
   const rtOpts = {
     ...(f ? { fixAgent: f } : {}),
     ...(r ? { reviewAgent: r } : {}),
@@ -344,6 +376,23 @@ function OverviewHeader({ payload, settings }: { payload: OverviewPayload; setti
             )}
           </Space>
         </div>
+      ) : null}
+      {showLanding ? (
+        <Alert
+          type={landingApplied ? 'success' : 'warning'}
+          showIcon
+          style={{ marginTop: 12 }}
+          message={landingApplied ? 'Queue landing applied to main' : 'Queue landing pending'}
+          description={
+            <Space direction="vertical" size={2}>
+              <Text>
+                {landingApplied ? 'Manual landing recorded' : 'Patch still needs landing'}: {landingTasks} patch tasks, {landingDiffKb} diff.
+              </Text>
+              {landingCommitRange ? <Text code>{landingCommitRange}</Text> : null}
+              {landing?.appliedAt ? <Text type="secondary">Applied at {String(landing.appliedAt)}</Text> : null}
+            </Space>
+          }
+        />
       ) : null}
       {queueStale ? (
         <Alert

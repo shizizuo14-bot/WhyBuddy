@@ -211,7 +211,7 @@ def _safe_read_json(path_obj: Path) -> Optional[Dict[str, Any]]:
     try:
         if not path_obj.exists() or not path_obj.is_file():
             return None
-        data = json.loads(path_obj.read_text(encoding="utf-8"))
+        data = json.loads(path_obj.read_text(encoding="utf-8-sig"))
         return data if isinstance(data, dict) else None
     except Exception:
         return None
@@ -259,6 +259,21 @@ def _artifact_queue_landing_path(artifact_root: Path) -> Path:
 
 def _artifact_latest_state_path(artifact_root: Path) -> Path:
     return artifact_root / "latest" / "state.json"
+
+
+def _is_landing_applied(landing: Optional[Dict[str, Any]]) -> bool:
+    if not isinstance(landing, dict):
+        return False
+    status = str(landing.get("status") or "")
+    return bool(landing.get("appliedToMain")) or status in {"APPLIED_TO_MAIN", "APPLIED_TO_MAIN_MANUAL", "MAIN_GATE_GREEN", "COMMITTED"}
+
+
+def _select_landing_record(repo: Path, artifact_root: Path) -> Optional[Dict[str, Any]]:
+    artifact_landing = _safe_read_json(_artifact_queue_landing_path(artifact_root))
+    root_landing = _safe_read_json(_default_queue_landing_path(repo))
+    if _is_landing_applied(root_landing):
+        return root_landing
+    return artifact_landing or root_landing
 
 
 def _normalize_task_path(value: Optional[str]) -> str:
@@ -700,7 +715,6 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
     available_queues = _discover_queue_files(repo)
     queue_file, artifact_root = _select_queue_artifacts(repo, queue_file, available_queues)
     outcomes_file = _artifact_queue_outcomes_path(artifact_root)
-    landing_file = _artifact_queue_landing_path(artifact_root)
     latest_state = _read_latest_state_from_artifacts(artifact_root)
     latest_state_active = _is_active_status(latest_state.get("status") if isinstance(latest_state, dict) else None)
     background_runtime = get_background_runtime_status()
@@ -718,7 +732,6 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
         if active_artifact_root is not None and _artifact_root_mtime(active_artifact_root) > 0:
             artifact_root = active_artifact_root
             outcomes_file = _artifact_queue_outcomes_path(artifact_root)
-            landing_file = _artifact_queue_landing_path(artifact_root)
             latest_state = _read_latest_state_from_artifacts(artifact_root)
 
     queue_path = _repo_relative_path(repo, queue_file)
@@ -730,7 +743,7 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
 
     queue = _safe_read_json(queue_file) or {}
     outcomes = _merged_queue_outcomes(repo, artifact_root)
-    landing = _safe_read_json(landing_file)
+    landing = _select_landing_record(repo, artifact_root)
 
     tasks_in = queue.get("tasks") if isinstance(queue.get("tasks"), list) else []
     queue_defaults = queue.get("defaults") if isinstance(queue.get("defaults"), dict) else {}
@@ -1084,7 +1097,7 @@ def list_agent_loop_run_summaries(runs_root: Optional[str] = None) -> List[Agent
 def _safe_read_json(p: Path) -> Optional[Dict[str, Any]]:
     try:
         if p.exists() and p.is_file():
-            return json.loads(p.read_text(encoding="utf-8"))
+            return json.loads(p.read_text(encoding="utf-8-sig"))
     except Exception:
         return None
     return None

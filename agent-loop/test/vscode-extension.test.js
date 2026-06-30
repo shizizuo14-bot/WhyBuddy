@@ -1373,6 +1373,22 @@ test('dashboard overview shows an applied landing without apply action', async (
   assert.doesNotMatch(html, /data-act="applyLanding"/);
 });
 
+test('dashboard overview treats manual queue landing as applied', async () => {
+  const renderer = await loadDashboardRenderer();
+  const html = renderer.renderOverview({
+    counts: { total: 48 }, queueRunning: false, current: null, tasks: [],
+    landing: {
+      status: 'APPLIED_TO_MAIN_MANUAL',
+      appliedToMain: true,
+      diffBytes: 314071,
+      taskCounts: { total: 12, patch: 10, done: 12 },
+      appliedCommitRange: 'e4a21cd4..32d8e2c6',
+    },
+  });
+  assert.doesNotMatch(html, /data-act="applyLanding"/);
+  assert.doesNotMatch(html, /data-act="previewLanding"/);
+});
+
 test('extension package opens the queue view first in the AgentLoop container', async () => {
   const packageJson = JSON.parse(await fs.readFile(path.join(extensionRoot, 'package.json'), 'utf8'));
   const views = packageJson.contributes.views['agent-loop'];
