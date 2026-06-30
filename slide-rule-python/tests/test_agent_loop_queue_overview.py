@@ -483,11 +483,16 @@ def test_agentloop_queue_overview_merges_root_and_queue_worktree_outcomes(tmp_pa
                         "lastStatus": "HALT_HUMAN",
                         "lastOutcome": "quarantined",
                         "lastRunId": "old-a",
+                        "lastUpdatedAt": "2026-06-27T17:20:06.183Z",
+                        "applyStatus": "RESCUE_PATCH_AVAILABLE",
+                        "applyErrorKind": "PARTIAL_DIFF_GATE_RED",
+                        "rescuePatchAvailable": True,
                     },
                     "task-b": {
                         "lastStatus": "DONE_REVIEWED",
                         "lastOutcome": "done",
                         "lastRunId": "root-b",
+                        "lastUpdatedAt": "2026-06-29T23:40:41.596Z",
                     },
                 }
             }
@@ -502,6 +507,16 @@ def test_agentloop_queue_overview_merges_root_and_queue_worktree_outcomes(tmp_pa
                         "lastStatus": "DONE_REVIEWED",
                         "lastOutcome": "done",
                         "lastRunId": "fresh-a",
+                        "lastUpdatedAt": "2026-06-28T17:29:26.931Z",
+                    },
+                    "task-b": {
+                        "lastStatus": "DONE_REVIEWED",
+                        "lastOutcome": "done",
+                        "lastRunId": "stale-rescue-b",
+                        "lastUpdatedAt": "2026-06-28T16:32:26.272Z",
+                        "applyStatus": "RESCUE_PATCH_AVAILABLE",
+                        "applyErrorKind": "PARTIAL_DIFF_GATE_RED",
+                        "rescuePatchAvailable": True,
                     }
                 }
             }
@@ -530,9 +545,13 @@ def test_agentloop_queue_overview_merges_root_and_queue_worktree_outcomes(tmp_pa
     assert by_id["task-a"]["status"] == "DONE_REVIEWED"
     assert by_id["task-a"]["lastRunId"] == "fresh-a"
     assert by_id["task-a"]["outcomeGroup"] == "reviewed"
+    assert by_id["task-a"]["rescuePatchAvailable"] is False
+    assert by_id["task-a"]["applyStatus"] is None
     assert by_id["task-b"]["status"] == "DONE_REVIEWED"
     assert by_id["task-b"]["lastRunId"] == "root-b"
     assert by_id["task-b"]["outcomeGroup"] == "reviewed"
+    assert by_id["task-b"]["rescuePatchAvailable"] is False
+    assert by_id["task-b"]["applyStatus"] is None
     assert by_id["task-c"]["category"] == "pending"
 
 

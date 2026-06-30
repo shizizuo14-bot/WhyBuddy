@@ -316,6 +316,57 @@ test('mergeQueueOutcomes keeps newer clean root completion over stale worktree a
   assert.equal(plan.nextTaskId, 'task-c');
 });
 
+test('mergeQueueOutcomes keeps newer clean worktree completion over stale root quarantine state', () => {
+  const merged = mergeQueueOutcomes(
+    {
+      tasks: {
+        'task-a': {
+          lastStatus: 'DONE_REVIEWED',
+          lastOutcome: 'done',
+          lastUpdatedAt: '2026-06-29T23:23:44.461Z',
+        },
+        'task-b': {
+          lastStatus: 'HALT_HUMAN',
+          lastOutcome: 'quarantined',
+          lastRunId: '2026-06-27T17-39-43-134Z',
+          lastUpdatedAt: '2026-06-27T17:52:27.956Z',
+          applyStatus: 'RESCUE_PATCH_AVAILABLE',
+          applyErrorKind: 'PARTIAL_DIFF_GATE_RED',
+          rescuePatchAvailable: true,
+        },
+      },
+    },
+    {
+      tasks: {
+        'task-b': {
+          lastStatus: 'DONE_REVIEWED',
+          lastOutcome: 'done',
+          lastRunId: '2026-06-28T18-52-33-680Z',
+          lastUpdatedAt: '2026-06-28T19:11:10.174Z',
+          diffBytes: 53716,
+        },
+      },
+    },
+  );
+
+  const plan = buildResumeUnfinishedPlan({
+    tasks: [
+      { id: 'task-a', enabled: true },
+      { id: 'task-b', enabled: true },
+      { id: 'task-c', enabled: true },
+    ],
+    outcomes: merged,
+    checkpointTaskIds: new Set(['task-a', 'task-b']),
+  });
+
+  assert.equal(merged.tasks['task-b'].lastStatus, 'DONE_REVIEWED');
+  assert.equal(merged.tasks['task-b'].lastRunId, '2026-06-28T18-52-33-680Z');
+  assert.equal(merged.tasks['task-b'].rescuePatchAvailable, undefined);
+  assert.deepEqual(plan.tasks.map((task) => task.id), ['task-c']);
+  assert.equal(plan.cleanCount, 2);
+  assert.equal(plan.nextTaskId, 'task-c');
+});
+
 test('filterQueueTasks --resume-unfinished keeps --only explicit reruns', () => {
   const tasks = filterQueueTasks([
     { id: 'task-a', enabled: true },

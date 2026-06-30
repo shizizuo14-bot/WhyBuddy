@@ -460,6 +460,75 @@ def _select_queue_artifacts(
     return selected_queue, selected_artifacts
 
 
+def _parse_outcome_timestamp(value: Optional[str]) -> float:
+    if not value:
+        return 0.0
+    text = str(value).strip()
+    if not text:
+        return 0.0
+    candidates = [
+        text,
+        text.replace("Z", "+00:00"),
+        text.replace(" ", "T").replace("Z", "+00:00"),
+    ]
+    for candidate in candidates:
+        try:
+            dt = datetime.fromisoformat(candidate)
+            if dt.tzinfo is None:
+                dt = dt.replace(tzinfo=timezone.utc)
+            return dt.timestamp()
+        except Exception:
+            continue
+    return 0.0
+
+
+def _is_clean_done_outcome_record(record: Optional[Dict[str, Any]]) -> bool:
+    if not isinstance(record, dict):
+        return False
+    return (
+        record.get("lastStatus") == "DONE_REVIEWED"
+        and record.get("lastOutcome") == "done"
+        and not record.get("rescuePatchAvailable")
+        and not record.get("applyErrorKind")
+        and (not record.get("applyStatus") or record.get("applyStatus") == "APPLIED_TO_MAIN")
+    )
+
+
+def _queue_outcome_record_score(record: Optional[Dict[str, Any]]) -> int:
+    if not isinstance(record, dict):
+        return 0
+    if _is_clean_done_outcome_record(record):
+        return 30
+    if record.get("rescuePatchAvailable") or record.get("applyStatus") == "RESCUE_PATCH_AVAILABLE":
+        return 10
+    if record.get("applyErrorKind") or (record.get("applyStatus") and record.get("applyStatus") != "APPLIED_TO_MAIN"):
+        return 10
+    if record.get("lastOutcome") == "quarantined" or str(record.get("lastStatus") or "").startswith("HALT_"):
+        return 20
+    if record.get("lastOutcome") == "done" or str(record.get("lastStatus") or "").startswith("DONE_"):
+        return 25
+    return 0
+
+
+def _choose_queue_outcome_record(
+    current_record: Optional[Dict[str, Any]],
+    candidate_record: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if not current_record:
+        return candidate_record
+    if not candidate_record:
+        return current_record
+
+    current_score = _queue_outcome_record_score(current_record)
+    candidate_score = _queue_outcome_record_score(candidate_record)
+    if current_score != candidate_score:
+        return candidate_record if candidate_score > current_score else current_record
+
+    current_time = _parse_outcome_timestamp(current_record.get("lastUpdatedAt") or current_record.get("lastRunId"))
+    candidate_time = _parse_outcome_timestamp(candidate_record.get("lastUpdatedAt") or candidate_record.get("lastRunId"))
+    return candidate_record if candidate_time >= current_time else current_record
+
+
 def _merged_queue_outcomes(repo: Path, artifact_root: Path) -> Dict[str, Any]:
     root_artifact = _agent_loop_artifact_root(repo)
     root_outcomes = _safe_read_json(_artifact_queue_outcomes_path(root_artifact)) or {"tasks": {}}
@@ -469,7 +538,8 @@ def _merged_queue_outcomes(repo: Path, artifact_root: Path) -> Dict[str, Any]:
     if artifact_root.resolve(strict=False) == root_artifact.resolve(strict=False):
         return {"tasks": dict(root_tasks)}
     merged = dict(root_tasks)
-    merged.update(selected_tasks)
+    for task_id, candidate_record in selected_tasks.items():
+        merged[task_id] = _choose_queue_outcome_record(merged.get(task_id), candidate_record)
     return {"tasks": merged}
 
 
