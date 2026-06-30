@@ -529,6 +529,20 @@ def _choose_queue_outcome_record(
     return candidate_record if candidate_time >= current_time else current_record
 
 
+def _latest_queue_attempt_record(
+    current_record: Optional[Dict[str, Any]],
+    candidate_record: Optional[Dict[str, Any]],
+) -> Optional[Dict[str, Any]]:
+    if not current_record:
+        return candidate_record
+    if not candidate_record:
+        return current_record
+
+    current_time = _parse_outcome_timestamp(current_record.get("lastUpdatedAt") or current_record.get("lastRunId"))
+    candidate_time = _parse_outcome_timestamp(candidate_record.get("lastUpdatedAt") or candidate_record.get("lastRunId"))
+    return candidate_record if candidate_time >= current_time else current_record
+
+
 def _merged_queue_outcomes(repo: Path, artifact_root: Path) -> Dict[str, Any]:
     root_artifact = _agent_loop_artifact_root(repo)
     root_outcomes = _safe_read_json(_artifact_queue_outcomes_path(root_artifact)) or {"tasks": {}}
@@ -536,11 +550,13 @@ def _merged_queue_outcomes(repo: Path, artifact_root: Path) -> Dict[str, Any]:
     root_tasks = root_outcomes.get("tasks") if isinstance(root_outcomes.get("tasks"), dict) else {}
     selected_tasks = selected_outcomes.get("tasks") if isinstance(selected_outcomes.get("tasks"), dict) else {}
     if artifact_root.resolve(strict=False) == root_artifact.resolve(strict=False):
-        return {"tasks": dict(root_tasks)}
+        return {"tasks": dict(root_tasks), "latestAttempts": dict(root_tasks)}
     merged = dict(root_tasks)
+    latest_attempts = dict(root_tasks)
     for task_id, candidate_record in selected_tasks.items():
         merged[task_id] = _choose_queue_outcome_record(merged.get(task_id), candidate_record)
-    return {"tasks": merged}
+        latest_attempts[task_id] = _latest_queue_attempt_record(latest_attempts.get(task_id), candidate_record)
+    return {"tasks": merged, "latestAttempts": latest_attempts}
 
 
 def _task_id_from_path(task_path: str) -> str:
@@ -688,6 +704,7 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
     tasks_in = queue.get("tasks") if isinstance(queue.get("tasks"), list) else []
     queue_defaults = queue.get("defaults") if isinstance(queue.get("defaults"), dict) else {}
     outcome_map = outcomes.get("tasks") if isinstance(outcomes.get("tasks"), dict) else {}
+    latest_attempt_map = outcomes.get("latestAttempts") if isinstance(outcomes.get("latestAttempts"), dict) else {}
     latest_options = latest_state.get("options") if isinstance(latest_state, dict) and isinstance(latest_state.get("options"), dict) else {}
     latest_profile = None
     if isinstance(latest_options, dict):
@@ -730,6 +747,9 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
         record = outcome_map.get(task_id) if isinstance(outcome_map, dict) else None
         if not isinstance(record, dict):
             record = {}
+        latest_attempt = latest_attempt_map.get(task_id) if isinstance(latest_attempt_map, dict) else None
+        if not isinstance(latest_attempt, dict):
+            latest_attempt = record
         enabled = task.get("enabled") is not False
         if enabled:
             counts["queueTotal"] += 1
@@ -771,6 +791,10 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
             "branch": branch,
             "lastUpdatedAt": record.get("lastUpdatedAt"),
             "lastUpdatedText": _format_updated_text(record.get("lastUpdatedAt")),
+            "stateUpdatedAt": record.get("lastUpdatedAt"),
+            "stateUpdatedText": _format_updated_text(record.get("lastUpdatedAt")),
+            "latestAttemptAt": latest_attempt.get("lastUpdatedAt"),
+            "latestAttemptText": _format_updated_text(latest_attempt.get("lastUpdatedAt")),
             "outcome": record.get("lastOutcome"),
             "outcomeGroup": outcome_group,
             "status": item_status,
@@ -831,6 +855,9 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
         record = outcome_map.get(task_id) if isinstance(outcome_map, dict) else None
         if not isinstance(record, dict):
             record = {}
+        latest_attempt = latest_attempt_map.get(task_id) if isinstance(latest_attempt_map, dict) else None
+        if not isinstance(latest_attempt, dict):
+            latest_attempt = record
         same_as_running = bool(running_task_path) and normalized_task_path == running_task_path
         running = bool(queue_running) and same_as_running
         outcome_group = _classify_outcome_group(record.get("lastStatus"), record.get("lastOutcome"), record)
@@ -846,6 +873,10 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
             "branch": None,
             "lastUpdatedAt": record.get("lastUpdatedAt"),
             "lastUpdatedText": _format_updated_text(record.get("lastUpdatedAt")),
+            "stateUpdatedAt": record.get("lastUpdatedAt"),
+            "stateUpdatedText": _format_updated_text(record.get("lastUpdatedAt")),
+            "latestAttemptAt": latest_attempt.get("lastUpdatedAt"),
+            "latestAttemptText": _format_updated_text(latest_attempt.get("lastUpdatedAt")),
             "outcome": record.get("lastOutcome"),
             "outcomeGroup": outcome_group,
             "status": record.get("lastStatus"),

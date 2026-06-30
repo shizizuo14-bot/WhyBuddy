@@ -183,6 +183,14 @@ function formatAgentPair(task: OverviewTask): string {
   return parts.length > 0 ? parts.join(' / ') : '-';
 }
 
+function stateUpdatedText(task: OverviewTask): string {
+  return task.stateUpdatedText || task.lastUpdatedText || '-';
+}
+
+function latestAttemptText(task: OverviewTask): string {
+  return task.latestAttemptText || task.lastUpdatedText || '-';
+}
+
 function sumDiffBytes(iterations: Array<Record<string, unknown>>): number {
   return iterations.reduce((sum, iteration) => sum + (Number(iteration.diffBytes) || 0), 0);
 }
@@ -472,10 +480,16 @@ function QueueTable({
       render: (_, task) => <span className="native-nowrap">{formatBytes(task.diffBytes)}</span>,
     },
     {
-      title: '最后更新',
-      key: 'updated',
+      title: '状态时间',
+      key: 'stateUpdated',
       width: 112,
-      render: (_, task) => task.lastUpdatedText || '-',
+      render: (_, task) => stateUpdatedText(task),
+    },
+    {
+      title: '最近尝试',
+      key: 'latestAttempt',
+      width: 112,
+      render: (_, task) => latestAttemptText(task),
     },
     {
       title: '操作',
@@ -596,8 +610,12 @@ function TaskInspector({
               <Text strong className="meta-value" ellipsis={{ tooltip: task.branch || '-' }}>{task.branch || '-'}</Text>
             </div>
             <div className="meta-row">
-              <Text type="secondary" className="meta-label">最后更新</Text>
-              <Text strong className="meta-value">{task.lastUpdatedText || '-'}</Text>
+              <Text type="secondary" className="meta-label">状态时间</Text>
+              <Text strong className="meta-value">{stateUpdatedText(task)}</Text>
+            </div>
+            <div className="meta-row">
+              <Text type="secondary" className="meta-label">最近尝试</Text>
+              <Text strong className="meta-value">{latestAttemptText(task)}</Text>
             </div>
           </div>
 

@@ -23,6 +23,10 @@ export type OverviewTask = {
   lastUpdatedAt?: string | null;
   diffBytes?: number | null;
   lastUpdatedText?: string | null;
+  stateUpdatedAt?: string | null;
+  stateUpdatedText?: string | null;
+  latestAttemptAt?: string | null;
+  latestAttemptText?: string | null;
   applyErrorKind?: string | null;
   applyError?: string | null;
   applyErrorFiles?: string[];

@@ -544,15 +544,125 @@ def test_agentloop_queue_overview_merges_root_and_queue_worktree_outcomes(tmp_pa
     assert data["latestQueuePath"] == "agent-loop/scripts/backend-python-total-cutover-105-queue.json"
     assert by_id["task-a"]["status"] == "DONE_REVIEWED"
     assert by_id["task-a"]["lastRunId"] == "fresh-a"
+    assert by_id["task-a"]["stateUpdatedAt"] == "2026-06-28T17:29:26.931Z"
+    assert by_id["task-a"]["latestAttemptAt"] == "2026-06-28T17:29:26.931Z"
     assert by_id["task-a"]["outcomeGroup"] == "reviewed"
     assert by_id["task-a"]["rescuePatchAvailable"] is False
     assert by_id["task-a"]["applyStatus"] is None
     assert by_id["task-b"]["status"] == "DONE_REVIEWED"
     assert by_id["task-b"]["lastRunId"] == "root-b"
+    assert by_id["task-b"]["stateUpdatedAt"] == "2026-06-29T23:40:41.596Z"
+    assert by_id["task-b"]["latestAttemptAt"] == "2026-06-29T23:40:41.596Z"
     assert by_id["task-b"]["outcomeGroup"] == "reviewed"
     assert by_id["task-b"]["rescuePatchAvailable"] is False
     assert by_id["task-b"]["applyStatus"] is None
     assert by_id["task-c"]["category"] == "pending"
+
+
+def test_agentloop_queue_overview_separates_state_time_from_latest_attempt(tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    scripts_dir = repo_root / "agent-loop" / "scripts"
+    tasks_dir = repo_root / "agent-loop" / "tasks"
+    root_loop_dir = repo_root / ".agent-loop"
+    worktree_loop_dir = repo_root / ".worktrees" / "backend-python-total-cutover-105" / ".agent-loop"
+    scripts_dir.mkdir(parents=True)
+    tasks_dir.mkdir(parents=True)
+    root_loop_dir.mkdir(parents=True)
+    worktree_loop_dir.mkdir(parents=True)
+
+    (scripts_dir / "backend-python-total-cutover-105-queue.json").write_text(
+        json.dumps(
+            {
+                "defaults": {
+                    "useWorktree": True,
+                    "worktreeScope": "queue",
+                    "queueWorktreeName": "backend-python-total-cutover-105",
+                },
+                "tasks": [
+                    {"id": "task-clean-then-rescue", "task": "agent-loop/tasks/task-clean-then-rescue.md", "enabled": True},
+                    {"id": "task-rescue-then-clean", "task": "agent-loop/tasks/task-rescue-then-clean.md", "enabled": True},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tasks_dir / "task-clean-then-rescue.md").write_text("# task-clean-then-rescue\n", encoding="utf-8")
+    (tasks_dir / "task-rescue-then-clean.md").write_text("# task-rescue-then-clean\n", encoding="utf-8")
+
+    (root_loop_dir / "queue-outcomes.json").write_text(
+        json.dumps(
+            {
+                "tasks": {
+                    "task-clean-then-rescue": {
+                        "lastStatus": "DONE_REVIEWED",
+                        "lastOutcome": "done",
+                        "lastRunId": "newer-rescue",
+                        "lastUpdatedAt": "2026-06-30T01:05:32.209Z",
+                        "applyStatus": "RESCUE_PATCH_AVAILABLE",
+                        "applyErrorKind": "PARTIAL_DIFF_GATE_RED",
+                        "rescuePatchAvailable": True,
+                    },
+                    "task-rescue-then-clean": {
+                        "lastStatus": "DONE_REVIEWED",
+                        "lastOutcome": "done",
+                        "lastRunId": "newer-clean",
+                        "lastUpdatedAt": "2026-06-30T02:00:00.000Z",
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (worktree_loop_dir / "queue-outcomes.json").write_text(
+        json.dumps(
+            {
+                "tasks": {
+                    "task-clean-then-rescue": {
+                        "lastStatus": "DONE_REVIEWED",
+                        "lastOutcome": "done",
+                        "lastRunId": "older-clean",
+                        "lastUpdatedAt": "2026-06-28T19:11:10.174Z",
+                    },
+                    "task-rescue-then-clean": {
+                        "lastStatus": "DONE_REVIEWED",
+                        "lastOutcome": "done",
+                        "lastRunId": "older-rescue",
+                        "lastUpdatedAt": "2026-06-28T16:32:26.272Z",
+                        "applyStatus": "RESCUE_PATCH_AVAILABLE",
+                        "applyErrorKind": "PARTIAL_DIFF_GATE_RED",
+                        "rescuePatchAvailable": True,
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    os.utime(root_loop_dir / "queue-outcomes.json", (1000, 1000))
+    os.utime(worktree_loop_dir / "queue-outcomes.json", (2000, 2000))
+
+    settings_file = repo_root / "data" / "agent-loop-settings.json"
+    settings_file.parent.mkdir(parents=True)
+    settings_file.write_text(
+        json.dumps({"queuePath": "agent-loop/scripts/backend-python-total-cutover-105-queue.json"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGENT_LOOP_SETTINGS_FILE", str(settings_file))
+    monkeypatch.setattr(agent_loop_runs, "_get_repo_root", lambda: repo_root)
+
+    data = agent_loop_runs.get_agent_loop_queue_overview(str(repo_root))
+    by_id = {task["id"]: task for task in data["tasks"]}
+
+    clean_then_rescue = by_id["task-clean-then-rescue"]
+    assert clean_then_rescue["lastRunId"] == "older-clean"
+    assert clean_then_rescue["stateUpdatedAt"] == "2026-06-28T19:11:10.174Z"
+    assert clean_then_rescue["stateUpdatedText"] == "2026-06-28 19:11:10"
+    assert clean_then_rescue["latestAttemptAt"] == "2026-06-30T01:05:32.209Z"
+    assert clean_then_rescue["latestAttemptText"] == "2026-06-30 01:05:32"
+
+    rescue_then_clean = by_id["task-rescue-then-clean"]
+    assert rescue_then_clean["lastRunId"] == "newer-clean"
+    assert rescue_then_clean["stateUpdatedAt"] == "2026-06-30T02:00:00.000Z"
+    assert rescue_then_clean["latestAttemptAt"] == "2026-06-30T02:00:00.000Z"
 
 
 def test_agentloop_queue_overview_includes_all_task_files_not_only_queue_entries(tmp_path, monkeypatch):
