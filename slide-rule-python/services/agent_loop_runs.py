@@ -435,6 +435,22 @@ def _select_queue_artifacts(
     selected_artifacts = root_artifacts
     selected_mtime = _artifact_root_mtime(root_artifacts)
 
+    configured_artifact_root = _queue_artifact_worktree_root(repo, queue_file)
+    if configured_artifact_root is not None:
+        configured_artifact_mtime = _artifact_root_mtime(configured_artifact_root)
+        configured_artifact_task_ids = _artifact_task_ids(configured_artifact_root)
+        configured_queue_task_ids = _queue_task_ids(queue_file)
+        if (
+            configured_artifact_mtime > 0
+            and (
+                not configured_artifact_task_ids
+                or not configured_queue_task_ids
+                or configured_artifact_task_ids.intersection(configured_queue_task_ids)
+            )
+        ):
+            selected_artifacts = configured_artifact_root
+            selected_mtime = configured_artifact_mtime
+
     for queue_info in available_queues:
         rel_path = str(queue_info.get("path") or "").strip()
         if not rel_path:

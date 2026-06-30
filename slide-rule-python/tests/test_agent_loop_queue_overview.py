@@ -443,6 +443,98 @@ def test_agentloop_queue_overview_prefers_newer_queue_worktree_artifacts(tmp_pat
     assert data["tasks"][0]["category"] == "landed"
 
 
+def test_agentloop_queue_overview_merges_configured_queue_worktree_even_when_root_is_newer(tmp_path, monkeypatch):
+    repo_root = tmp_path / "repo"
+    scripts_dir = repo_root / "agent-loop" / "scripts"
+    tasks_dir = repo_root / "agent-loop" / "tasks"
+    root_loop_dir = repo_root / ".agent-loop"
+    worktree_loop_dir = repo_root / ".worktrees" / "backend-python-total-cutover-105" / ".agent-loop"
+    scripts_dir.mkdir(parents=True)
+    tasks_dir.mkdir(parents=True)
+    root_loop_dir.mkdir(parents=True)
+    worktree_loop_dir.mkdir(parents=True)
+
+    (scripts_dir / "backend-python-total-cutover-105-queue.json").write_text(
+        json.dumps(
+            {
+                "defaults": {
+                    "useWorktree": True,
+                    "worktreeScope": "queue",
+                    "queueWorktreeName": "backend-python-total-cutover-105",
+                },
+                "tasks": [
+                    {"id": "task-clean-in-worktree", "task": "agent-loop/tasks/task-clean-in-worktree.md", "enabled": True},
+                    {"id": "task-root-done", "task": "agent-loop/tasks/task-root-done.md", "enabled": True},
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (tasks_dir / "task-clean-in-worktree.md").write_text("# task-clean-in-worktree\n", encoding="utf-8")
+    (tasks_dir / "task-root-done.md").write_text("# task-root-done\n", encoding="utf-8")
+
+    (root_loop_dir / "queue-outcomes.json").write_text(
+        json.dumps(
+            {
+                "tasks": {
+                    "task-clean-in-worktree": {
+                        "lastStatus": "HALT_HUMAN",
+                        "lastOutcome": "quarantined",
+                        "lastRunId": "root-later-failed",
+                        "lastUpdatedAt": "2026-06-30T09:15:55.153Z",
+                    },
+                    "task-root-done": {
+                        "lastStatus": "DONE_REVIEWED",
+                        "lastOutcome": "done",
+                        "lastRunId": "root-done",
+                        "lastUpdatedAt": "2026-06-30T09:16:00.000Z",
+                    },
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    (worktree_loop_dir / "queue-outcomes.json").write_text(
+        json.dumps(
+            {
+                "tasks": {
+                    "task-clean-in-worktree": {
+                        "lastStatus": "DONE_REVIEWED",
+                        "lastOutcome": "done",
+                        "lastRunId": "worktree-clean",
+                        "lastUpdatedAt": "2026-06-29T21:54:05.338Z",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    os.utime(worktree_loop_dir / "queue-outcomes.json", (1000, 1000))
+    os.utime(root_loop_dir / "queue-outcomes.json", (2000, 2000))
+
+    settings_file = repo_root / "data" / "agent-loop-settings.json"
+    settings_file.parent.mkdir(parents=True)
+    settings_file.write_text(
+        json.dumps({"queuePath": "agent-loop/scripts/backend-python-total-cutover-105-queue.json"}),
+        encoding="utf-8",
+    )
+    monkeypatch.setenv("AGENT_LOOP_SETTINGS_FILE", str(settings_file))
+    monkeypatch.setattr(agent_loop_runs, "_get_repo_root", lambda: repo_root)
+
+    data = agent_loop_runs.get_agent_loop_queue_overview(str(repo_root))
+    by_id = {task["id"]: task for task in data["tasks"]}
+
+    assert data["queuePath"] == "agent-loop/scripts/backend-python-total-cutover-105-queue.json"
+    assert data["latestQueuePath"] == "agent-loop/scripts/backend-python-total-cutover-105-queue.json"
+    assert data["queueStale"] is False
+    assert by_id["task-clean-in-worktree"]["status"] == "DONE_REVIEWED"
+    assert by_id["task-clean-in-worktree"]["lastRunId"] == "worktree-clean"
+    assert by_id["task-clean-in-worktree"]["outcomeGroup"] == "reviewed"
+    assert by_id["task-clean-in-worktree"]["category"] == "landed"
+    assert by_id["task-clean-in-worktree"]["latestAttemptAt"] == "2026-06-30T09:15:55.153Z"
+    assert by_id["task-root-done"]["status"] == "DONE_REVIEWED"
+
+
 def test_agentloop_queue_overview_merges_root_and_queue_worktree_outcomes(tmp_path, monkeypatch):
     repo_root = tmp_path / "repo"
     scripts_dir = repo_root / "agent-loop" / "scripts"
