@@ -87,11 +87,6 @@ def test_session_state_accepts_untrusted_artifacts_from_frontend_runtime(tmp_pat
                 "trustLevel": "untrusted",
                 "passedGates": [],
                 "content": "failed grounding should remain auditable",
-                "producedBy": {
-                    "capabilityRunId": "run-untrusted-001",
-                    "capabilityId": "evidence.search",
-                    "roleId": "grounding",
-                },
             }
         ],
         capabilityRuns=[],

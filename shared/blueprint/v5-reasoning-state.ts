@@ -104,6 +104,10 @@ export interface CapabilityRun {
   }>;
   ledgerEntryId?: string; // 台账留痕
   turnId: string;
+  /** Task goal alignment: result, timing, error for full contract (Python authority owns durable shape). */
+  result?: unknown;
+  timing?: { startedAt?: string; completedAt?: string; durationMs?: number };
+  error?: { code?: string; message?: string; detail?: unknown };
 }
 
 export interface DependencyEdge {
@@ -340,3 +344,76 @@ export interface CapabilityCostRecord {
   source: "estimated" | "server" | "manual";
   createdAt: string;
 }
+
+/**
+ * Golden durable V5.2 session fixture (TS side) for sliderule-python-v52-state-ts-parity-golden-105.
+ * Proves Python/TS schema parity: this shape (incl. currentFocus, userIntervention, new flags)
+ * is accepted by the V5SessionState contract in blueprint (compile-time via satisfies).
+ * Python test mirrors structure for authoritative golden; Vitest proves TS contract consumption (thin consumer).
+ * Node/TS remains thin contract consumer; Python owns the durable state baseline.
+ */
+export const GOLDEN_DURABLE_V52_SESSION = {
+  sessionId: "durable-golden-001",
+  goal: { text: "Prove V5.2 durable state parity", status: "clear" },
+  artifacts: [
+    {
+      id: "art-g1",
+      kind: "evidence",
+      content: "fact from python",
+      trustLevel: "untrusted",
+      passedGates: [],
+      provenance: "llm",
+      producedBy: {
+        capabilityRunId: "run-g1",
+        capabilityId: "evidence.search",
+      },
+    },
+  ],
+  capabilityRuns: [
+    {
+      id: "run-g1",
+      capabilityId: "evidence.search",
+      turnId: "t-g1",
+      inputs: ["g0"],
+      outputs: ["art-g1"],
+      gateResults: [{ gateId: "ground", status: "passed" }],
+      result: { ok: true },
+      timing: { startedAt: "2026-07-02T00:00:00Z", completedAt: "2026-07-02T00:00:01Z", durationMs: 800 },
+      roleId: "researcher",
+      ledgerEntryId: "led-g1",
+    },
+  ],
+  coverageGaps: [],
+  graph: {
+    id: "g-durable-001",
+    jobId: "job-durable-g",
+    stage: "spec_tree",
+    source: "llm",
+    nodes: [],
+    edges: [],
+  },
+  staleArtifactIds: [],
+  supersededArtifactIds: ["art-old-round"],
+  conversation: [],
+  openQuestions: [{ id: "q-g", text: "parity?" }],
+  evidence: [{ id: "e-g", content: "gold" }],
+  decisions: [{ id: "d-g", summary: "chose python" }],
+  risks: [],
+  gates: [{ gateId: "commit", kind: "commit", status: "passed" }],
+  dependencyGraph: [],
+  runtimePhase: "done",
+  lastTurnId: "t-g1",
+  deliveryPhase: "shipped",
+  roleMode: "complex",
+  decisionLedger: [],
+  costLedger: [],
+  flowBoundaryLedger: [],
+  structureGateLedger: [],
+  sessionReplayLog: [{ id: "rep-g", sessionId: "durable-golden-001", at: "2026-07-02T00:00:01Z", kind: "capability_run", turnId: "t-g1" }],
+  reasoningEvents: [],
+  currentFocus: { nodeId: "n1", artifactId: "art-g1" },
+  userIntervention: { intent: "challenge", text: "why this?", targetDecisionId: "d-g" },
+  brainstormDegraded: false,
+  escalated: false,
+  projectionDirtyNodeIds: [],
+} satisfies V5SessionState;
