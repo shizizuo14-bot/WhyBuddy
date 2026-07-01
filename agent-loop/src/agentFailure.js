@@ -11,6 +11,9 @@ export function classifyAgentFailure(result) {
   if (result?.exitCode === 0) return { kind: 'none', retryable: false, agentUnstable: false };
 
   const text = `${result?.stderr || ''}\n${result?.stdout || ''}`.toLowerCase();
+  if (/\b(spending[- ]limit|usage balance exhausted|run out of credits|out of credits|payment required|402)\b/.test(text)) {
+    return { kind: 'quota_exhausted', retryable: false, agentUnstable: true, queueShouldPause: true };
+  }
   if (/\b(rate limit|too many requests|429|quota|temporarily unavailable|overloaded)\b/.test(text)) {
     return { kind: 'rate_limit', retryable: true, agentUnstable: true };
   }

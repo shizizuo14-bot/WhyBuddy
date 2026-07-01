@@ -318,6 +318,7 @@ export function buildQueueSummaryFromState({ entry, state, exitCode = 0 }) {
     exitCode,
     guardReason: state?.guardReason || null,
     worktreeError: state?.worktreeError || null,
+    agentFailureKinds: [...collectQueueAgentFailureKinds(state)],
     applyStatus: null,
     applyErrorKind: null,
     ...runRecord,
@@ -334,6 +335,26 @@ export function buildQueueSummaryFromState({ entry, state, exitCode = 0 }) {
     summary.rescuePatchAvailable = true;
   }
   return summary;
+}
+
+export function shouldPauseQueueAfterSummary(summary = {}) {
+  const failureKinds = new Set(summary?.agentFailureKinds || []);
+  for (const kind of collectQueueAgentFailureKinds(summary)) {
+    failureKinds.add(kind);
+  }
+  return failureKinds.has('quota_exhausted');
+}
+
+function collectQueueAgentFailureKinds(source = {}) {
+  const kinds = new Set();
+  const iterations = Array.isArray(source?.iterations) ? source.iterations : [];
+  for (const iteration of iterations) {
+    if (iteration?.failure?.kind) kinds.add(iteration.failure.kind);
+    for (const attempt of iteration?.attempts || []) {
+      if (attempt?.failure?.kind) kinds.add(attempt.failure.kind);
+    }
+  }
+  return kinds;
 }
 
 function resolveWorkerEnvAssignments({ entry = {}, defaults = {} } = {}) {

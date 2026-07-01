@@ -44,6 +44,7 @@ export function updateQueueOutcomeRecord({
   applyError = null,
   rescuePatchAvailable = null,
   diffBytes = null,
+  queuePauseReason = null,
   maxConsecutiveNoChanges = 3,
   autoDisableOnNoChanges = true,
 }) {
@@ -64,6 +65,7 @@ export function updateQueueOutcomeRecord({
   if (applyError) next.applyError = applyError;
   if (rescuePatchAvailable != null) next.rescuePatchAvailable = Boolean(rescuePatchAvailable);
   if (diffBytes != null) next.diffBytes = Number(diffBytes) || 0;
+  if (queuePauseReason) next.queuePauseReason = queuePauseReason;
 
   if (status === 'HALT_NO_CHANGES') {
     next.consecutiveNoChanges += 1;
@@ -118,6 +120,7 @@ export async function recordQueueTaskOutcome({
     applyError: summary.applyError,
     rescuePatchAvailable: summary.rescuePatchAvailable,
     diffBytes: summary.diffBytes,
+    queuePauseReason: summary.queuePauseReason,
     maxConsecutiveNoChanges,
     autoDisableOnNoChanges,
   });

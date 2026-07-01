@@ -26,6 +26,26 @@ test('classifyAgentFailure marks transport/rate-limit retryable but auth non-ret
   assert.equal(isRetryableAgentFailure(run({ stderr: '401 Unauthorized' })), false);
 });
 
+test('classifyAgentFailure marks exhausted Grok usage as queue-pausing quota exhaustion', () => {
+  assert.deepEqual(classifyAgentFailure(run({
+    stderr: 'API error (status 402 Payment Required): Grok Build usage balance exhausted',
+  })), {
+    kind: 'quota_exhausted',
+    retryable: false,
+    agentUnstable: true,
+    queueShouldPause: true,
+  });
+
+  assert.deepEqual(classifyAgentFailure(run({
+    stderr: '403 Forbidden personal-team-blocked:spending-limit: You have run out of credits',
+  })), {
+    kind: 'quota_exhausted',
+    retryable: false,
+    agentUnstable: true,
+    queueShouldPause: true,
+  });
+});
+
 test('classifyAgentFailure separates max-turns from generic non-zero exits (agent-stable)', () => {
   assert.deepEqual(classifyAgentFailure(run({ stderr: 'Error: max turns reached' })), {
     kind: 'max_turns',

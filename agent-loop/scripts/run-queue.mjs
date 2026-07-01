@@ -14,6 +14,7 @@ import {
   mergeQueueOutcomes,
   resolveWorktreeScope,
   sanitizeWorktreeName,
+  shouldPauseQueueAfterSummary,
 } from '../src/runQueue.js';
 import {
   createLoopProgressWatcher,
@@ -367,6 +368,12 @@ async function main() {
       if (run.stdout) process.stderr.write(run.stdout);
     }
 
+    const pauseQueue = shouldPauseQueueAfterSummary(summary);
+    if (pauseQueue) {
+      summary.outcome = 'stopped';
+      summary.queuePauseReason = 'quota_exhausted';
+    }
+
     const outcomeRecord = await recordQueueTaskOutcome({
       repoRoot,
       entry,
@@ -408,6 +415,11 @@ async function main() {
         process.stderr.write(`[run-queue] queue worktree restore failed (${label}): ${restoreSummary.worktreeError}\n`);
         break;
       }
+    }
+
+    if (pauseQueue) {
+      process.stderr.write(`[run-queue] quota exhausted after ${label}; pausing queue before starting the next task\n`);
+      break;
     }
 
     const shouldCleanupWorktree = cleanupWorktree

@@ -20,6 +20,7 @@ import {
   resolveEntryGates,
   resolvePythonExe,
   resolveQueueGate,
+  shouldPauseQueueAfterSummary,
 } from '../src/runQueue.js';
 import {
   LoopApplyError,
@@ -993,6 +994,36 @@ test('buildQueueSummaryFromState sets outcome from classifyQueueOutcome', () => 
   assert.equal(summary.grokRan, true);
 });
 
+test('buildQueueSummaryFromState exposes quota exhaustion as a queue-pausing failure', () => {
+  const summary = buildQueueSummaryFromState({
+    entry: { id: 'task-quota', task: 'agent-loop/tasks/task-quota.md' },
+    state: {
+      status: 'HALT_HUMAN',
+      iterations: [{
+        iteration: 1,
+        attempts: [{
+          attempt: 1,
+          failure: { kind: 'quota_exhausted', retryable: false, agentUnstable: true },
+        }],
+      }],
+      grokFix: { exitCode: 1 },
+      options: { fixAgent: 'grok', skipReview: true },
+    },
+    exitCode: 1,
+  });
+
+  assert.deepEqual(summary.agentFailureKinds, ['quota_exhausted']);
+  assert.equal(shouldPauseQueueAfterSummary(summary), true);
+});
+
+test('shouldPauseQueueAfterSummary does not pause for ordinary no-change failures', () => {
+  assert.equal(shouldPauseQueueAfterSummary({
+    status: 'HALT_NO_CHANGES',
+    outcome: 'failed',
+    agentFailureKinds: ['nonzero_exit'],
+  }), false);
+});
+
 test('buildQueueSummaryFromState marks failed runs with diff as rescue patch available', () => {
   const summary = buildQueueSummaryFromState({
     entry: { id: 'task-rescue', task: 'agent-loop/tasks/task-rescue.md' },
@@ -1309,6 +1340,20 @@ test('updateQueueOutcomeRecord preserves structured apply status details', () =>
   assert.equal(record.applyErrorKind, 'PATCH_CONFLICT');
   assert.deepEqual(record.applyErrorFiles, ['server/routes/a2a.ts']);
   assert.match(record.applyError, /patch does not apply/);
+});
+
+test('updateQueueOutcomeRecord preserves queue pause reasons', () => {
+  const record = updateQueueOutcomeRecord({
+    record: {},
+    status: 'HALT_HUMAN',
+    outcome: 'stopped',
+    runId: 'run-quota',
+    queuePauseReason: 'quota_exhausted',
+  });
+
+  assert.equal(record.lastStatus, 'HALT_HUMAN');
+  assert.equal(record.lastOutcome, 'stopped');
+  assert.equal(record.queuePauseReason, 'quota_exhausted');
 });
 
 test('updateQueueOutcomeRecord clears stale rescue details after reviewed success', () => {
