@@ -1,41 +1,461 @@
 """
-Coverage/GCOV ported from shared/blueprint/sliderule-coverage-gate.ts and related.
+Coverage/GCOV ported from shared/blueprint/sliderule-coverage-gate.ts .
 
-Uses RAG to ensure G-GROUND and external evidence instead of loose Node gates.
+Python owns required capability authoring + gate evaluation for V5.2 GCOV.
+Exact port of simple/complex/game rules and hasTrustedCommittedForCap (capabilityRuns + producedBy + gated_pass/audited + !stale).
+
+Classification for sliderule-python-v52-gcov-stale-artifact-block-105:
+TS_RUNTIME_OWNED -> NODE_BACKEND_OWNED -> PYTHON_COMPAT -> PYTHON_AUTHORITY
+Python owns blocking of stale artifacts (via staleArtifactIds OR artifact.stale OR artifact.status=="stale")
+from satisfying has_trusted_committed_for_cap, has_grounded_external_evidence, count_grounded_trusted_artifacts and coverage gate.
+No Node fallback; direct Python enforcement.
+
+Classification for sliderule-python-v52-trust-gate-grounding-105:
+Current behavior before this task: PYTHON_COMPAT (is_grounded_evidence_artifact only checked external provenance type; no non-empty content or sources requirement).
+After: PYTHON_AUTHORITY (external provenance evidence must have non-empty content/summary AND traceable sources via sources/payload.sources/url/citations/source; _has_nonempty_content and _has_traceable_source helpers added (evidenceSource not treated as traceable source); legacy F1/F2 paths also gated by nonempty; is_grounded/have/count/evaluate now enforce; negative tests prove rejection including evidenceSource label alone; no Node fallback).
+Python owns G-GROUND external evidence + sources + non-empty content checks.
+
+Classification for sliderule-python-v52-trust-provenance-ledger-105 (review fix 2):
+Current: PYTHON_COMPAT (has_trusted_committed_for_cap checked only producedBy + trustLevel + !stale; ledger helpers existed but standalone/not consulted; no-ledger gated artifacts could satisfy).
+After: PYTHON_COMPAT (has_trusted_committed_for_cap now requires has_provenance_and_trust_ledger from slide_rule_trust; missing ledger blocks trusted committed for coverage/GCOV even with producedBy+gated_pass+!stale; commit helper forces record in exercised paths; direct tests prove no-ledger blocks gate. Full durable field + exhaustive wiring of all construct sites deferred (blocker recorded in status); no overclaim of PYTHON_AUTHORITY. No Node fallback.
+Python provides ledger requirement enforcement in trusted committed gate for this slice.
 """
 
-from typing import Dict, Any, List
+from typing import Any, Dict, List, Optional
+import re
+from datetime import datetime
 from models.v5_state import V5SessionState
+from services.slide_rule_trust import has_provenance_and_trust_ledger
 
-def author_coverage_contract(goal_text: str) -> Dict[str, Any]:
-    is_complex = any(kw in goal_text.lower() for kw in ["风险", "risk", "安全", "审计", "rpg", "游戏"])
-    required = ["critique.generate", "risk.analyze", "synthesis.merge", "evidence.search", "report.write"]
+
+def _get_list(obj: Any, key: str) -> List[Any]:
+    if isinstance(obj, dict):
+        return obj.get(key) or []
+    val = getattr(obj, key, None)
+    return val or []
+
+
+def _get_attr(obj: Any, key: str, default: Any = None) -> Any:
+    if obj is None:
+        return default
+    if isinstance(obj, dict):
+        return obj.get(key, default)
+    return getattr(obj, key, default)
+
+
+def _get_stable_key(g: Any) -> str:
+    """Stable key for gap status carry across reconcile, matches TS: cap:ID for capability gaps, 'ev' for missing_evidence."""
+    cap = _get_attr(g, "requiredCapabilityId")
+    if cap:
+        return f"cap:{cap}"
+    if _get_attr(g, "kind") == "missing_evidence":
+        return "ev"
+    return _get_attr(g, "id") or ""
+
+
+def _is_stale_artifact(artifact: Any, stales: set) -> bool:
+    """Block if id in staleArtifactIds list OR per-artifact stale marker or status=stale.
+    This enforces the task goal: stale artifacts (via either mechanism) must not satisfy
+    trusted committed, grounded evidence or coverage gates.
+    """
+    aid = _get_attr(artifact, "id")
+    if aid in stales:
+        return True
+    if bool(_get_attr(artifact, "stale", False)):
+        return True
+    status = _get_attr(artifact, "status", "active") or "active"
+    if status == "stale":
+        return True
+    return False
+
+
+def _is_healthy_artifact(artifact: Any, stales: set) -> bool:
+    tl = _get_attr(artifact, "trustLevel")
+    return (tl in ("gated_pass", "audited")) and not _is_stale_artifact(artifact, stales)
+
+
+def _has_nonempty_content(art: Any) -> bool:
+    """Require non-empty content or summary for grounded evidence per task (external evidence + sources + non-empty content)."""
+    c = (_get_attr(art, "content") or "").strip()
+    s = (_get_attr(art, "summary") or "").strip()
+    return bool(c or s)
+
+
+def _has_traceable_source(art: Any) -> bool:
+    """Require traceable source fields: sources list (top or payload), url, citations, or source.
+    evidenceSource (legacy label) is NOT treated as a traceable source to prevent only-type-label external evidence from passing.
+    This enforces the sources part of G-GROUND for external evidence (review fix for minor finding).
+    """
+    # top-level sources (as used in some driver dict paths)
+    srcs = _get_attr(art, "sources")
+    if srcs and isinstance(srcs, (list, tuple)) and len(srcs) > 0:
+        return True
+    if srcs and not isinstance(srcs, (list, tuple)) and srcs:
+        return True
+    for k in ("source", "url", "citation", "citations"):
+        v = _get_attr(art, k)
+        if v and (not isinstance(v, (list, tuple)) or len(v) > 0):
+            return True
+
+    payload = _get_attr(art, "payload") or {}
+    if isinstance(payload, dict):
+        p_srcs = payload.get("sources")
+        if p_srcs and isinstance(p_srcs, (list, tuple)) and len(p_srcs) > 0:
+            return True
+        if p_srcs and not isinstance(p_srcs, (list, tuple)) and p_srcs:
+            return True
+        if payload.get("source") or payload.get("url") or payload.get("citations"):
+            return True
+        # deliberately do not treat bare evidenceSource as traceable source (labels like F1/F2 or '会话内综合' are not sufficient)
+    return False
+
+
+def has_trusted_committed_for_cap(state: Any, cap_id: str) -> bool:
+    """Port of TS hasTrustedCommittedForCap + ledger enforcement: capabilityRuns + producedBy + healthy + has_provenance_and_trust_ledger.
+
+    Ledger marker required for trusted committed (per task). Missing ledger (even with producedBy+gated+!stale)
+    blocks recognition in gate (addresses review). Record via commit helper in exercised paths; direct paths
+    without record do not satisfy has_trusted. Full every-committed enforcement deferred (blocker).
+    """
+    runs = _get_list(state, "capabilityRuns")
+    arts = _get_list(state, "artifacts")
+    stales = set(_get_list(state, "staleArtifactIds"))
+    for run in runs:
+        if _get_attr(run, "capabilityId") != cap_id:
+            continue
+        run_id = _get_attr(run, "id")
+        for art in arts:
+            prod = _get_attr(art, "producedBy")
+            prod_run = None
+            if isinstance(prod, dict):
+                prod_run = prod.get("capabilityRunId")
+            elif prod is not None:
+                prod_run = _get_attr(prod, "capabilityRunId")
+            aid = _get_attr(art, "id")
+            if prod_run == run_id and _is_healthy_artifact(art, stales) and has_provenance_and_trust_ledger(state, aid):
+                return True
+    return False
+
+
+def is_external_grounding_provenance(provenance: Optional[str]) -> bool:
+    return provenance in (
+        "mcp:github",
+        "web:search",
+        "repo:static",
+        "rendered_chart_mcp",
+        "rendered_screenshot",
+        "python-rag",  # Python RAG authority equivalent for external evidence in this impl
+    )
+
+
+def is_grounded_evidence_artifact(art: Any) -> bool:
+    prod = _get_attr(art, "producedBy")
+    cap = None
+    if isinstance(prod, dict):
+        cap = prod.get("capabilityId")
+    elif prod is not None:
+        cap = _get_attr(prod, "capabilityId")
+    is_ev = (cap == "evidence.search") or (_get_attr(art, "kind") == "evidence")
+    if not is_ev:
+        return False
+    prov = _get_attr(art, "provenance")
+    if is_external_grounding_provenance(prov):
+        if not _has_nonempty_content(art):
+            return False
+        if not _has_traceable_source(art):
+            return False
+        return True
+    payload = _get_attr(art, "payload") or {}
+    if isinstance(payload, dict):
+        es = payload.get("evidenceSource")
+        if es in ("F1_Github_Source 取数", "F2_Web_Search 取数"):
+            # legacy path: still require non-empty to avoid empty fallback counting
+            if _has_nonempty_content(art):
+                return True
+    text = f"{_get_attr(art, 'summary', '')} {_get_attr(art, 'content', '')}"
+    if ("F1_Github" in text or "F2_Web_Search" in text) and _has_nonempty_content(art):
+        return True
+    return False
+
+
+def has_grounded_external_evidence(state: Any) -> bool:
+    stales = set(_get_list(state, "staleArtifactIds"))
+    for a in _get_list(state, "artifacts"):
+        if not _is_healthy_artifact(a, stales):
+            continue
+        if is_grounded_evidence_artifact(a):
+            return True
+    return False
+
+
+def count_grounded_trusted_artifacts(state: Any) -> int:
+    stales = set(_get_list(state, "staleArtifactIds"))
+    cnt = 0
+    for a in _get_list(state, "artifacts"):
+        if not _is_healthy_artifact(a, stales):
+            continue
+        if is_grounded_evidence_artifact(a):
+            cnt += 1
+    return cnt
+
+
+def author_coverage_contract(
+    goal_text: str, turn_id: Optional[str] = None
+) -> Dict[str, Any]:
+    """Exact port of TS authorCoverageContract requiredCapabilities rules.
+
+    simple: only evidence.search + report.write
+    complex (risk/safety/audit or resolveRoleMode complex): critique + risk + synthesis + evidence + report
+    only game/RPG+complex: + structure.decompose + (intent for extra evidence) + mcp.call + skill.invoke
+    """
+    t = (goal_text or "").lower()
+    # replicate resolveRoleMode(stub, "") || regex from TS author
+    is_complex = False
+    if re.search(r"辩论|brainstorm|多角色|多\s?agent|multi-?agent|复杂|合规|审计|跨部门|平台化|多模块", t):
+        is_complex = True
+    if re.search(r"风险|risk|安全|审计|反驳|复杂|complex|rebuttal", t):
+        is_complex = True
+    # product/build goals default complex (from resolveRoleMode)
+    if re.search(
+        r"工具|系统|应用|平台|产品|功能|服务|模块|网站|小程序|游戏|引擎|\bapp\b|tool|system|platform|feature|product|service|game|engine",
+        t,
+    ) and re.search(
+        r"做|造|搭建|开发|实现|设计|构建|规划|推演|写|build|design|implement|plan", t
+    ):
+        is_complex = True
+
+    mode: str = "complex" if is_complex else "simple"
     if is_complex:
-        required += ["mcp.call", "skill.invoke"]
-    return {
-        "id": f"cov-{hash(goal_text)}",
-        "mode": "complex" if is_complex else "simple",
-        "requiredCapabilities": required,
+        required_capabilities: List[str] = [
+            "critique.generate",
+            "risk.analyze",
+            "synthesis.merge",
+            "evidence.search",
+            "report.write",
+        ]
+    else:
+        required_capabilities = ["evidence.search", "report.write"]
+
+    goal_for_contract = t
+    is_game = bool(re.search(r"rpg|游戏|multi.?agent|多\s?agent|自定义.*游戏", goal_for_contract, re.I))
+    if is_game and is_complex:
+        if "structure.decompose" not in required_capabilities:
+            required_capabilities.append("structure.decompose")
+        if required_capabilities.count("evidence.search") < 2:
+            required_capabilities.append("evidence.search")
+        if "mcp.call" not in required_capabilities:
+            required_capabilities.append("mcp.call")
+        if "skill.invoke" not in required_capabilities:
+            required_capabilities.append("skill.invoke")
+
+    # dedup preserve order (matches TS Set after conditional push)
+    seen = set()
+    deduped: List[str] = []
+    for c in required_capabilities:
+        if c not in seen:
+            seen.add(c)
+            deduped.append(c)
+    required_capabilities = deduped
+
+    conditional_capabilities: List[str] = []
+    now = datetime.now().isoformat()
+    contract_id = f"cov-{turn_id or int(datetime.now().timestamp()*1000)}"
+    blocking_gap_ids: List[str] = []
+
+    gaps: List[Dict[str, Any]] = []
+    for cap in required_capabilities:
+        if cap == "report.write":
+            continue
+        gap_id = f"gap-{cap}-{turn_id or int(datetime.now().timestamp()*1000)}"
+        gap: Dict[str, Any] = {
+            "id": gap_id,
+            "kind": "missing_capability",
+            "label": f"Missing required capability: {cap}",
+            "requiredCapabilityId": cap,
+            "status": "open",
+            "createdAt": now,
+        }
+        gaps.append(gap)
+        blocking_gap_ids.append(gap_id)
+
+    ev_gap_id = f"gap-evidence-{turn_id or int(datetime.now().timestamp()*1000)}"
+    ev_gap: Dict[str, Any] = {
+        "id": ev_gap_id,
+        "kind": "missing_evidence",
+        "label": "Missing grounded external evidence (G-GROUND)",
+        "status": "open",
+        "createdAt": now,
+    }
+    gaps.append(ev_gap)
+    blocking_gap_ids.append(ev_gap_id)
+
+    contract: Dict[str, Any] = {
+        "id": contract_id,
+        "version": 1,
+        "mode": mode,
+        "authoredBy": "system",
+        "authoredAt": now,
+        "frozenAtTurnId": turn_id,
+        "requiredCapabilities": required_capabilities,
+        "conditionalCapabilities": conditional_capabilities,
         "minEvidencePerRequirement": 1,
-        "blockingGapIds": [f"gap-{c}" for c in required if c != "report.write"]
+        "blockingGapIds": blocking_gap_ids,
     }
 
-def evaluate_coverage_gate(state: V5SessionState) -> Dict[str, Any]:
-    contract = state.coverageContract or author_coverage_contract(state.goal.get("text", ""))
-    has_evidence = len([a for a in state.artifacts if a.get("provenance", "").startswith("python-rag") or a.get("kind") == "evidence"]) > 0
-    passed = has_evidence and all(g.get("status") != "open" for g in state.coverageGaps or [])
+    return {"contract": contract, "gaps": gaps}
+
+
+def evaluate_coverage_gate(
+    state: V5SessionState,
+    selected: Optional[List[Dict[str, Any]]] = None,
+    existing_contract: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Port of TS evaluateCoverageGate.
+    missingCapabilities now computed via hasTrustedCommittedForCap (not always []).
+    Resolved/waived gap statuses on capability or evidence gaps now exempt their
+    reqs from missingCapabilities and from grounding/upstream checks so waived
+    coverage gap lifecycle actually unblocks passed (not just reported in waivedGaps).
+    """
+    selected = selected or []
+    contract = existing_contract
+    if not contract:
+        sc = _get_attr(state, "coverageContract")
+        if sc:
+            contract = sc if isinstance(sc, dict) else sc.model_dump() if hasattr(sc, "model_dump") else dict(sc)
+    if not contract:
+        ac = author_coverage_contract(
+            _get_attr(_get_attr(state, "goal", {}), "text", ""),
+            _get_attr(state, "lastTurnId"),
+        )
+        contract = ac["contract"]
+
+    gaps = _get_list(state, "coverageGaps")
+    blocking_ids = contract.get("blockingGapIds", []) if isinstance(contract, dict) else []
+    blocking_gaps = [
+        g for g in gaps
+        if (_get_attr(g, "id") in blocking_ids)
+    ]
+    open_blocking = [g for g in blocking_gaps if _get_attr(g, "status", "open") == "open"]
+    unresolved_gaps = [_get_attr(g, "id") for g in open_blocking]
+    waived_gaps = [
+        _get_attr(g, "id") for g in blocking_gaps if _get_attr(g, "status") == "waived"
+    ]
+
+    # Waived/resolved gap lifecycle: gaps with resolved/waived status for a cap or evidence
+    # exempt the corresponding req from missingCapabilities and from grounding/upstream enforcement.
+    # This makes waived (and carried resolved) actually unblock the gate judgment, not just report.
+    # open gaps still require has_trusted (or set resolved when provided).
+    handled_caps: set = set()
+    ev_handled = False
+    for g in blocking_gaps:
+        st = _get_attr(g, "status", "open")
+        if st in ("resolved", "waived"):
+            cap = _get_attr(g, "requiredCapabilityId")
+            if cap:
+                handled_caps.add(cap)
+            if _get_attr(g, "kind") == "missing_evidence" or not cap:
+                ev_handled = True
+
+    missing: List[str] = []
+    pre_reqs = [
+        c for c in (contract.get("requiredCapabilities", []) if isinstance(contract, dict) else [])
+        if c != "report.write"
+    ]
+    for req in pre_reqs:
+        if not has_trusted_committed_for_cap(state, req):
+            if req not in handled_caps:
+                missing.append(req)
+
+    has_report_intent = any(
+        _get_attr(s, "capabilityId") == "report.write" for s in selected
+    )
+    grounded_count = count_grounded_trusted_artifacts(state)
+    min_grounded = contract.get("minEvidencePerRequirement", 1) if isinstance(contract, dict) else 1
+    upstream_ok = True
+    if has_report_intent and grounded_count < min_grounded:
+        if not ev_handled:
+            upstream_ok = False
+
+    grounding_ok = has_grounded_external_evidence(state) or ev_handled
+    all_blocking_handled = len(open_blocking) == 0
+    passed = all_blocking_handled and len(missing) == 0 and upstream_ok and grounding_ok
+
+    reason = (
+        f"Coverage sufficient (mode={contract.get('mode') if isinstance(contract,dict) else 'n/a'}, grounded_evidence={grounded_count}, G-GROUND ok)"
+        if passed
+        else f"Blocking gaps open: {len(unresolved_gaps)}; missing caps: {', '.join(missing) or 'none'}; upstreams ok: {upstream_ok}; G-GROUND: {grounding_ok} (grounded={grounded_count}/{min_grounded})"
+    )
+
     return {
         "passed": passed,
-        "reason": "Stable RAG evidence + tools" if passed else "Need more external evidence from Python RAG",
-        "missingCapabilities": [],
+        "missingCapabilities": missing,
+        "unresolvedGaps": unresolved_gaps,
+        "waivedGaps": waived_gaps,
+        "reason": reason,
     }
 
+
 def reconcile_coverage(state: V5SessionState) -> V5SessionState:
-    # Port of reconcile: ensure gaps are resolved via RAG
-    contract = state.coverageContract or author_coverage_contract(state.goal.get("text", ""))
-    state.coverageContract = contract
-    # Simulate resolving with RAG
-    for gap in state.coverageGaps or []:
-        if "evidence" in gap.get("label", "").lower():
-            gap["status"] = "resolved"
+    """Port of TS reconcileCoverageContract (upgrade guard + gap status carry)."""
+    goal_text = _get_attr(_get_attr(state, "goal", {}), "text", "") or ""
+    turn_id = _get_attr(state, "lastTurnId")
+    authored = author_coverage_contract(goal_text, turn_id)
+    desired_contract = authored["contract"]
+    desired_gaps = authored["gaps"]
+
+    current = _get_attr(state, "coverageContract")
+    curr_reqs = (
+        current.get("requiredCapabilities", []) if isinstance(current, dict) else []
+    )
+    needs_upgrade = (
+        not current
+        or (current.get("mode") if isinstance(current, dict) else None) != desired_contract.get("mode")
+        or len(curr_reqs) < len(desired_contract.get("requiredCapabilities", []))
+    )
+    if not needs_upgrade:
+        return state
+
+    now = datetime.now().isoformat()
+    existing_gaps = _get_list(state, "coverageGaps")
+    existing_by_id: Dict[str, Any] = {}
+    existing_by_stable: Dict[str, Any] = {}
+    for g in existing_gaps:
+        gid = _get_attr(g, "id")
+        if gid and gid not in existing_by_id:
+            existing_by_id[gid] = g
+        sk = _get_stable_key(g)
+        if sk and sk not in existing_by_stable:
+            existing_by_stable[sk] = g
+
+    merged_gaps: List[Dict[str, Any]] = []
+    for dg in desired_gaps:
+        gid = dg.get("id")
+        prior_by_id = existing_by_id.get(gid) if gid else None
+        sk = _get_stable_key(dg)
+        prior = prior_by_id or existing_by_stable.get(sk)
+        if prior and _get_attr(prior, "status") in ("resolved", "waived"):
+            dg = {**dg, "status": _get_attr(prior, "status"), "updatedAt": _get_attr(prior, "updatedAt", now)}
+        merged_gaps.append(dg)
+
+    # keep extra prior gaps (defensive; matches TS condition on id or cap; ev handled via stable carry)
+    for prior in existing_gaps:
+        pid = _get_attr(prior, "id")
+        pcap = _get_attr(prior, "requiredCapabilityId")
+        if not any(
+            (dg.get("id") == pid) or (pcap and dg.get("requiredCapabilityId") == pcap)
+            for dg in desired_gaps
+        ):
+            merged_gaps.append(prior if isinstance(prior, dict) else prior)
+
+    # preserve authoredAt/frozenAt on contract upgrade per TS reconcile
+    curr_c = current if isinstance(current, dict) else (current.model_dump() if hasattr(current, "model_dump") else {})
+    final_contract = {
+        **desired_contract,
+        "authoredAt": curr_c.get("authoredAt") or desired_contract.get("authoredAt"),
+        "frozenAtTurnId": curr_c.get("frozenAtTurnId") or desired_contract.get("frozenAtTurnId"),
+    }
+
+    # assign (dicts acceptable for this slice; model allows)
+    state.coverageContract = final_contract
+    state.coverageGaps = merged_gaps
     return state
