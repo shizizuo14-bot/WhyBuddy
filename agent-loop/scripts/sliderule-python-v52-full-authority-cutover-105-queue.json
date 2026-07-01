@@ -1,0 +1,1427 @@
+{
+  "cwd": "..",
+  "defaults": {
+    "useWorktree": true,
+    "worktreeScope": "queue",
+    "queueWorktreeName": "sliderule-python-v52-full-authority-cutover-105",
+    "autoFix": true,
+    "skipReview": false,
+    "fixAgent": "grok",
+    "fixModel": "grok-build",
+    "reviewAgent": "codex",
+    "reviewModel": "gpt-5.5",
+    "scopedReview": true,
+    "workerMaxTurns": 512,
+    "workerMaxRetries": 1,
+    "reviewMaxTurns": 8,
+    "guardTests": true,
+    "maxIterations": 16,
+    "agentIdleTimeoutMs": 600000,
+    "agentTimeoutMs": 1800000,
+    "timeoutMs": 3600000,
+    "noSyncTaskStatus": false,
+    "noSyncMigrationStatus": false,
+    "cleanupWorktree": false,
+    "autoDisableOnNoChanges": true,
+    "maxConsecutiveNoChanges": 2,
+    "lang": "zh-CN",
+    "pythonExe": "slide-rule-python/.venv/Scripts/python.exe",
+    "workerEnv": {
+      "HTTP_PROXY": "http://127.0.0.1:7890",
+      "HTTPS_PROXY": "http://127.0.0.1:7890",
+      "ALL_PROXY": "http://127.0.0.1:7890",
+      "NO_PROXY": "localhost,127.0.0.1,::1"
+    }
+  },
+  "gates": [
+    "node agent-loop/src/check-mojibake.js {{taskFile}}",
+    "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Required tests','## Acceptance criteria']) { if(!task.includes(needle)) throw new Error('task missing section: '+needle); }\" {{taskFile}}"
+  ],
+  "metadata": {
+    "intent": "sliderule-python-v52-full-authority-cutover",
+    "frontendTooling": "keep-node-vite-react-pnpm",
+    "backendApiTarget": "python-fastapi-authority",
+    "executionShape": "single-stage-single-queue-single-worktree",
+    "taskCount": 72,
+    "checkpoints": [
+      "StateSchema",
+      "SessionAuthority",
+      "TrustGcov",
+      "PythonDriver",
+      "CapabilityParity",
+      "InteractiveAwait",
+      "BudgetMarathon",
+      "NodeRetirement"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "sliderule-python-v52-state-schema-core-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-state-schema-core-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "StateSchema",
+        "sequence": 1,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-state-runtime-phase-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-state-runtime-phase-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "StateSchema",
+        "sequence": 2,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-state-ledgers-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-state-ledgers-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "StateSchema",
+        "sequence": 3,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-state-replay-events-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-state-replay-events-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "StateSchema",
+        "sequence": 4,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-state-stale-superseded-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-state-stale-superseded-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "StateSchema",
+        "sequence": 5,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-artifact-contract-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-artifact-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "StateSchema",
+        "sequence": 6,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-capability-run-contract-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-capability-run-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "StateSchema",
+        "sequence": 7,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-state-ts-parity-golden-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-state-ts-parity-golden-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "StateSchema",
+        "sequence": 8,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-session-authority-envelope-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-session-authority-envelope-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SessionAuthority",
+        "sequence": 9,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-session-put-sanitize-gcov-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-session-put-sanitize-gcov-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SessionAuthority",
+        "sequence": 10,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-session-merge-preserve-ledgers-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-session-merge-preserve-ledgers-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SessionAuthority",
+        "sequence": 11,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-session-replay-append-only-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-session-replay-append-only-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SessionAuthority",
+        "sequence": 12,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-session-delete-reset-contract-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-session-delete-reset-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SessionAuthority",
+        "sequence": 13,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-session-concurrency-guard-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-session-concurrency-guard-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SessionAuthority",
+        "sequence": 14,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-session-authority-tests-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-session-authority-tests-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SessionAuthority",
+        "sequence": 15,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-session-python-authority-doc-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-session-python-authority-doc-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SessionAuthority",
+        "sequence": 16,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-gcov-required-capabilities-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-gcov-required-capabilities-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "TrustGcov",
+        "sequence": 17,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-gcov-trusted-run-artifact-link-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-gcov-trusted-run-artifact-link-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "TrustGcov",
+        "sequence": 18,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-gcov-stale-artifact-block-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-gcov-stale-artifact-block-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "TrustGcov",
+        "sequence": 19,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-gcov-gap-lifecycle-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-gcov-gap-lifecycle-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "TrustGcov",
+        "sequence": 20,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-trust-gate-grounding-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-trust-gate-grounding-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "TrustGcov",
+        "sequence": 21,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-trust-provenance-ledger-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-trust-provenance-ledger-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "TrustGcov",
+        "sequence": 22,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-ship-gates-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-ship-gates-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "TrustGcov",
+        "sequence": 23,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-quality-baseline-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-quality-baseline-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "TrustGcov",
+        "sequence": 24,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-gcov-contract-tests-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-gcov-contract-tests-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "TrustGcov",
+        "sequence": 25,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-gcov-put-boundary-tests-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-gcov-put-boundary-tests-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "TrustGcov",
+        "sequence": 26,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-driver-phase-machine-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-driver-phase-machine-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "PythonDriver",
+        "sequence": 27,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-driver-pick-next-capabilities-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-driver-pick-next-capabilities-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "PythonDriver",
+        "sequence": 28,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-driver-execute-loop-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-driver-execute-loop-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "PythonDriver",
+        "sequence": 29,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-driver-commit-artifact-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-driver-commit-artifact-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "PythonDriver",
+        "sequence": 30,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-driver-coverage-reentry-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-driver-coverage-reentry-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "PythonDriver",
+        "sequence": 31,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-driver-no-progress-stop-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-driver-no-progress-stop-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "PythonDriver",
+        "sequence": 32,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-driver-convergence-stop-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-driver-convergence-stop-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "PythonDriver",
+        "sequence": 33,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-driver-error-recovery-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-driver-error-recovery-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "PythonDriver",
+        "sequence": 34,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-driver-event-loop-nonblocking-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-driver-event-loop-nonblocking-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "PythonDriver",
+        "sequence": 35,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-driver-fullpath-tests-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-driver-fullpath-tests-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "PythonDriver",
+        "sequence": 36,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-driver-browser-visible-events-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-driver-browser-visible-events-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "PythonDriver",
+        "sequence": 37,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-driver-status-report-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-driver-status-report-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "PythonDriver",
+        "sequence": 38,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-evidence-search-parity-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-evidence-search-parity-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 39,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-report-write-parity-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-report-write-parity-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 40,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-risk-analyze-parity-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-risk-analyze-parity-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 41,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-critique-parity-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-critique-parity-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 42,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-synthesis-parity-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-synthesis-parity-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 43,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-structure-decompose-parity-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-structure-decompose-parity-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 44,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-dialogue-parity-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-dialogue-parity-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 45,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-deliberation-parity-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-deliberation-parity-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 46,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-delivery-handoff-parity-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-delivery-handoff-parity-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 47,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-delivery-prompt-package-parity-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-delivery-prompt-package-parity-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 48,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-visual-preview-parity-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-visual-preview-parity-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 49,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-mcp-skill-contract-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-mcp-skill-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 50,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-cost-telemetry-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-cost-telemetry-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 51,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cap-parity-golden-suite-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cap-parity-golden-suite-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "CapabilityParity",
+        "sequence": 52,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-gready-readiness-chain-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-gready-readiness-chain-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "InteractiveAwait",
+        "sequence": 53,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-gconfirm-route-selection-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-gconfirm-route-selection-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "InteractiveAwait",
+        "sequence": 54,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-user-intervention-invalidation-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-user-intervention-invalidation-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "InteractiveAwait",
+        "sequence": 55,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-replan-from-await-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-replan-from-await-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "InteractiveAwait",
+        "sequence": 56,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-await-browser-contract-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-await-browser-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "InteractiveAwait",
+        "sequence": 57,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-interactive-gates-tests-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-interactive-gates-tests-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "InteractiveAwait",
+        "sequence": 58,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-budget-policy-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-budget-policy-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "BudgetMarathon",
+        "sequence": 59,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-cost-ledger-budget-block-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-cost-ledger-budget-block-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "BudgetMarathon",
+        "sequence": 60,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-marathon-reentry-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-marathon-reentry-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "BudgetMarathon",
+        "sequence": 61,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-round-digest-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-round-digest-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "BudgetMarathon",
+        "sequence": 62,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-budget-escalation-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-budget-escalation-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "BudgetMarathon",
+        "sequence": 63,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-marathon-tests-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-marathon-tests-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "BudgetMarathon",
+        "sequence": 64,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-node-thin-proxy-only-sliderule-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-node-thin-proxy-only-sliderule-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "NodeRetirement",
+        "sequence": 65,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-node-remove-legacy-v5-exec-paths-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-node-remove-legacy-v5-exec-paths-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "NodeRetirement",
+        "sequence": 66,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-dev-all-python-api-mode-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-dev-all-python-api-mode-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "NodeRetirement",
+        "sequence": 67,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-no-node-backend-contract-tests-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-no-node-backend-contract-tests-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "NodeRetirement",
+        "sequence": 68,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-fullpath-browser-smoke-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-fullpath-browser-smoke-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "NodeRetirement",
+        "sequence": 69,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-reset-session-browser-smoke-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-reset-session-browser-smoke-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "NodeRetirement",
+        "sequence": 70,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-migration-final-report-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-migration-final-report-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "NodeRetirement",
+        "sequence": 71,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    },
+    {
+      "id": "sliderule-python-v52-queue-clean-landing-smoke-105",
+      "task": "agent-loop/tasks/sliderule-python-v52-queue-clean-landing-smoke-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "NodeRetirement",
+        "sequence": 72,
+        "total": 72,
+        "worktreePolicy": "same-queue-worktree",
+        "stateAuthorityTarget": "python"
+      }
+    }
+  ]
+}
