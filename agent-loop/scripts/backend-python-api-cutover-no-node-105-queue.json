@@ -1,0 +1,1136 @@
+{
+  "cwd": "..",
+  "defaults": {
+    "useWorktree": true,
+    "worktreeScope": "queue",
+    "queueWorktreeName": "backend-python-api-cutover-no-node-105",
+    "autoFix": true,
+    "skipReview": false,
+    "fixAgent": "grok",
+    "fixModel": "grok-build",
+    "reviewAgent": "codex",
+    "reviewModel": "gpt-5.5",
+    "scopedReview": true,
+    "workerMaxTurns": 512,
+    "workerMaxRetries": 1,
+    "reviewMaxTurns": 8,
+    "guardTests": true,
+    "maxIterations": 16,
+    "agentIdleTimeoutMs": 600000,
+    "agentTimeoutMs": 1800000,
+    "timeoutMs": 3600000,
+    "noSyncTaskStatus": false,
+    "noSyncMigrationStatus": false,
+    "cleanupWorktree": false,
+    "autoDisableOnNoChanges": true,
+    "maxConsecutiveNoChanges": 2,
+    "lang": "zh-CN",
+    "pythonExe": "slide-rule-python/.venv/Scripts/python.exe",
+    "workerEnv": {
+      "HTTP_PROXY": "http://127.0.0.1:7890",
+      "HTTPS_PROXY": "http://127.0.0.1:7890",
+      "ALL_PROXY": "http://127.0.0.1:7890",
+      "NO_PROXY": "localhost,127.0.0.1,::1"
+    }
+  },
+  "gates": [
+    "node agent-loop/src/check-mojibake.js {{taskFile}}",
+    "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Required tests','## Acceptance criteria']) { if(!task.includes(needle)) throw new Error('task missing section: '+needle); }\" {{taskFile}}"
+  ],
+  "metadata": {
+    "intent": "backend-api-no-nodejs-cutover",
+    "frontendTooling": "keep-node-vite-react-pnpm",
+    "backendApiTarget": "python-fastapi-only",
+    "executionShape": "single-stage-single-queue-single-worktree",
+    "checkpoints": [
+      "Foundation",
+      "SlideRule",
+      "AgentLoop",
+      "RAG",
+      "A2A",
+      "Retirement"
+    ]
+  },
+  "tasks": [
+    {
+      "id": "backend-python-no-node-foundation-route-inventory-105",
+      "task": "agent-loop/tasks/backend-python-no-node-foundation-route-inventory-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Foundation",
+        "sequence": 1,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-foundation-callsite-inventory-105",
+      "task": "agent-loop/tasks/backend-python-no-node-foundation-callsite-inventory-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Foundation",
+        "sequence": 2,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-foundation-contract-registry-105",
+      "task": "agent-loop/tasks/backend-python-no-node-foundation-contract-registry-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Foundation",
+        "sequence": 3,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-foundation-health-readiness-105",
+      "task": "agent-loop/tasks/backend-python-no-node-foundation-health-readiness-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Foundation",
+        "sequence": 4,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-foundation-vite-proxy-default-105",
+      "task": "agent-loop/tasks/backend-python-no-node-foundation-vite-proxy-default-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Foundation",
+        "sequence": 5,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-foundation-deprecation-state-model-105",
+      "task": "agent-loop/tasks/backend-python-no-node-foundation-deprecation-state-model-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Foundation",
+        "sequence": 6,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-foundation-provenance-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-foundation-provenance-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Foundation",
+        "sequence": 7,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-foundation-smoke-harness-105",
+      "task": "agent-loop/tasks/backend-python-no-node-foundation-smoke-harness-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Foundation",
+        "sequence": 8,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-sliderule-route-inventory-105",
+      "task": "agent-loop/tasks/backend-python-no-node-sliderule-route-inventory-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SlideRule",
+        "sequence": 9,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-sliderule-route-map-105",
+      "task": "agent-loop/tasks/backend-python-no-node-sliderule-route-map-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SlideRule",
+        "sequence": 10,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-sliderule-orchestrate-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-sliderule-orchestrate-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SlideRule",
+        "sequence": 11,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-sliderule-execute-capability-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-sliderule-execute-capability-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SlideRule",
+        "sequence": 12,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-sliderule-evidence-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-sliderule-evidence-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SlideRule",
+        "sequence": 13,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-sliderule-delivery-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-sliderule-delivery-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SlideRule",
+        "sequence": 14,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-sliderule-visual-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-sliderule-visual-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SlideRule",
+        "sequence": 15,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-sliderule-degraded-error-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-sliderule-degraded-error-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SlideRule",
+        "sequence": 16,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-sliderule-result-rendering-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-sliderule-result-rendering-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SlideRule",
+        "sequence": 17,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-sliderule-node-compat-thin-proxy-105",
+      "task": "agent-loop/tasks/backend-python-no-node-sliderule-node-compat-thin-proxy-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SlideRule",
+        "sequence": 18,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-sliderule-browser-happy-smoke-105",
+      "task": "agent-loop/tasks/backend-python-no-node-sliderule-browser-happy-smoke-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SlideRule",
+        "sequence": 19,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-sliderule-route-retirement-readiness-105",
+      "task": "agent-loop/tasks/backend-python-no-node-sliderule-route-retirement-readiness-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "SlideRule",
+        "sequence": 20,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-route-inventory-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-route-inventory-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 21,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-ledger-source-of-truth-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-ledger-source-of-truth-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 22,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-queue-outcomes-reader-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-queue-outcomes-reader-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 23,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-queue-landing-reader-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-queue-landing-reader-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 24,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-run-history-reader-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-run-history-reader-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 25,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-run-detail-reader-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-run-detail-reader-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 26,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-status-merge-priority-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-status-merge-priority-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 27,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-workbench-list-api-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-workbench-list-api-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 28,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-workbench-detail-api-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-workbench-detail-api-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 29,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-resume-preflight-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-resume-preflight-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 30,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-manual-landed-display-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-manual-landed-display-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 31,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-queue-count-smoke-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-queue-count-smoke-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 32,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-node-compat-thin-proxy-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-node-compat-thin-proxy-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 33,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-agentloop-workbench-browser-smoke-105",
+      "task": "agent-loop/tasks/backend-python-no-node-agentloop-workbench-browser-smoke-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "AgentLoop",
+        "sequence": 34,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-rag-route-inventory-105",
+      "task": "agent-loop/tasks/backend-python-no-node-rag-route-inventory-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "RAG",
+        "sequence": 35,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-rag-api-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-rag-api-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "RAG",
+        "sequence": 36,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-rag-query-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-rag-query-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "RAG",
+        "sequence": 37,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-rag-source-evidence-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-rag-source-evidence-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "RAG",
+        "sequence": 38,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-rag-degraded-empty-result-105",
+      "task": "agent-loop/tasks/backend-python-no-node-rag-degraded-empty-result-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "RAG",
+        "sequence": 39,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-rag-frontend-callsite-cutover-105",
+      "task": "agent-loop/tasks/backend-python-no-node-rag-frontend-callsite-cutover-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "RAG",
+        "sequence": 40,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-rag-node-compat-thin-proxy-105",
+      "task": "agent-loop/tasks/backend-python-no-node-rag-node-compat-thin-proxy-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "RAG",
+        "sequence": 41,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-rag-api-smoke-python-only-105",
+      "task": "agent-loop/tasks/backend-python-no-node-rag-api-smoke-python-only-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "RAG",
+        "sequence": 42,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-a2a-route-inventory-105",
+      "task": "agent-loop/tasks/backend-python-no-node-a2a-route-inventory-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "A2A",
+        "sequence": 43,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-a2a-message-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-a2a-message-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "A2A",
+        "sequence": 44,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-a2a-agent-session-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-a2a-agent-session-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "A2A",
+        "sequence": 45,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-a2a-task-lifecycle-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-a2a-task-lifecycle-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "A2A",
+        "sequence": 46,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-a2a-stream-event-contract-105",
+      "task": "agent-loop/tasks/backend-python-no-node-a2a-stream-event-contract-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "A2A",
+        "sequence": 47,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-a2a-error-retry-cancel-105",
+      "task": "agent-loop/tasks/backend-python-no-node-a2a-error-retry-cancel-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "A2A",
+        "sequence": 48,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-a2a-frontend-callsite-cutover-105",
+      "task": "agent-loop/tasks/backend-python-no-node-a2a-frontend-callsite-cutover-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "A2A",
+        "sequence": 49,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-a2a-node-compat-thin-proxy-105",
+      "task": "agent-loop/tasks/backend-python-no-node-a2a-node-compat-thin-proxy-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "A2A",
+        "sequence": 50,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-a2a-api-smoke-python-only-105",
+      "task": "agent-loop/tasks/backend-python-no-node-a2a-api-smoke-python-only-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "A2A",
+        "sequence": 51,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-final-residual-usage-audit-105",
+      "task": "agent-loop/tasks/backend-python-no-node-final-residual-usage-audit-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Retirement",
+        "sequence": 52,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-final-contract-test-suite-105",
+      "task": "agent-loop/tasks/backend-python-no-node-final-contract-test-suite-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Retirement",
+        "sequence": 53,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-final-browser-smoke-suite-105",
+      "task": "agent-loop/tasks/backend-python-no-node-final-browser-smoke-suite-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Retirement",
+        "sequence": 54,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-final-server-index-retirement-plan-105",
+      "task": "agent-loop/tasks/backend-python-no-node-final-server-index-retirement-plan-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Retirement",
+        "sequence": 55,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-final-routing-docs-105",
+      "task": "agent-loop/tasks/backend-python-no-node-final-routing-docs-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Retirement",
+        "sequence": 56,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-final-deprecated-stub-cleanup-105",
+      "task": "agent-loop/tasks/backend-python-no-node-final-deprecated-stub-cleanup-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Retirement",
+        "sequence": 57,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-final-observability-readiness-105",
+      "task": "agent-loop/tasks/backend-python-no-node-final-observability-readiness-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Retirement",
+        "sequence": 58,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-final-regression-guard-105",
+      "task": "agent-loop/tasks/backend-python-no-node-final-regression-guard-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Retirement",
+        "sequence": 59,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    },
+    {
+      "id": "backend-python-no-node-final-cutover-review-105",
+      "task": "agent-loop/tasks/backend-python-no-node-final-cutover-review-105.md",
+      "enabled": true,
+      "guardTests": true,
+      "workerMaxTurns": 512,
+      "maxIterations": 16,
+      "reviewMaxTurns": 8,
+      "agentTimeoutMs": 1800000,
+      "agentIdleTimeoutMs": 600000,
+      "timeoutMs": 3600000,
+      "metadata": {
+        "phase": "Retirement",
+        "sequence": 60,
+        "total": 60,
+        "worktreePolicy": "same-queue-worktree"
+      }
+    }
+  ]
+}
