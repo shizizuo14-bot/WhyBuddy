@@ -442,8 +442,10 @@ def _select_queue_artifacts(
     """Return (queue_file, artifact_root) for queue overview.
 
     The main workbench runs in the repo root, but queue execution can happen in a
-    queue-scoped worktree. Prefer the freshest matching queue worktree artifacts so
-    the web overview follows the real queue checkpoint instead of stale root files.
+    queue-scoped worktree. The configured queue file is authoritative: switching
+    settings.queuePath must immediately change the visible queue. Worktree
+    artifacts can override the artifact root only for that configured queue; they
+    must not switch the overview back to an older queue with fresher artifacts.
     """
     root_artifacts = _agent_loop_artifact_root(repo)
     selected_queue = queue_file
@@ -465,28 +467,6 @@ def _select_queue_artifacts(
         ):
             selected_artifacts = configured_artifact_root
             selected_mtime = configured_artifact_mtime
-
-    for queue_info in available_queues:
-        rel_path = str(queue_info.get("path") or "").strip()
-        if not rel_path:
-            continue
-        candidate_queue = resolve_safe_path(repo, rel_path)
-        if candidate_queue is None:
-            continue
-        artifact_root = _queue_artifact_worktree_root(repo, candidate_queue)
-        if artifact_root is None:
-            continue
-        artifact_mtime = _artifact_root_mtime(artifact_root)
-        if artifact_mtime <= 0:
-            continue
-        artifact_task_ids = _artifact_task_ids(artifact_root)
-        queue_task_ids = _queue_task_ids(candidate_queue)
-        if artifact_task_ids and queue_task_ids and not artifact_task_ids.intersection(queue_task_ids):
-            continue
-        if artifact_mtime > selected_mtime:
-            selected_queue = candidate_queue
-            selected_artifacts = artifact_root
-            selected_mtime = artifact_mtime
 
     return selected_queue, selected_artifacts
 
@@ -735,11 +715,8 @@ def _queue_overview_from_files(repo_root: Optional[str] = None) -> Dict[str, Any
             latest_state = _read_latest_state_from_artifacts(artifact_root)
 
     queue_path = _repo_relative_path(repo, queue_file)
-    discovered_latest_queue = available_queues[0] if available_queues else None
-    discovered_latest_queue_path = discovered_latest_queue.get("path") if isinstance(discovered_latest_queue, dict) else None
-    using_queue_worktree_artifacts = artifact_root.resolve(strict=False) != _agent_loop_artifact_root(repo).resolve(strict=False)
-    latest_queue_path = queue_path if active_queue_file is not None or using_queue_worktree_artifacts else discovered_latest_queue_path
-    queue_stale = bool(latest_queue_path and latest_queue_path != queue_path)
+    latest_queue_path = queue_path
+    queue_stale = False
 
     queue = _safe_read_json(queue_file) or {}
     outcomes = _merged_queue_outcomes(repo, artifact_root)

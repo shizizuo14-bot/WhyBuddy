@@ -332,8 +332,8 @@ def test_agentloop_queue_overview_reports_stale_active_queue_when_newer_queue_ex
     data = agent_loop_runs.get_agent_loop_queue_overview(str(repo_root))
 
     assert data["queuePath"] == "agent-loop/scripts/sliderule-v2-skills-113-queue.json"
-    assert data["latestQueuePath"] == "agent-loop/scripts/sliderule-v2-hardening-115-queue.json"
-    assert data["queueStale"] is True
+    assert data["latestQueuePath"] == "agent-loop/scripts/sliderule-v2-skills-113-queue.json"
+    assert data["queueStale"] is False
     assert [q["path"] for q in data["availableQueues"]] == [
         "agent-loop/scripts/sliderule-v2-hardening-115-queue.json",
         "agent-loop/scripts/sliderule-v2-skills-113-queue.json",
@@ -445,7 +445,7 @@ def test_agentloop_queue_overview_prefers_queue_containing_active_latest_task(tm
     assert data["current"]["staleRun"] is True
 
 
-def test_agentloop_queue_overview_prefers_newer_queue_worktree_artifacts(tmp_path, monkeypatch):
+def test_agentloop_queue_overview_keeps_configured_queue_when_other_worktree_is_newer(tmp_path, monkeypatch):
     repo_root = tmp_path / "repo"
     scripts_dir = repo_root / "agent-loop" / "scripts"
     tasks_dir = repo_root / "agent-loop" / "tasks"
@@ -578,15 +578,12 @@ def test_agentloop_queue_overview_prefers_newer_queue_worktree_artifacts(tmp_pat
 
     data = agent_loop_runs.get_agent_loop_queue_overview(str(repo_root))
 
-    assert data["queuePath"] == "agent-loop/scripts/backend-python-total-cutover-105-queue.json"
-    assert data["latestQueuePath"] == "agent-loop/scripts/backend-python-total-cutover-105-queue.json"
+    assert data["queuePath"] == "agent-loop/scripts/sliderule-v2-hardening-115-queue.json"
+    assert data["latestQueuePath"] == "agent-loop/scripts/sliderule-v2-hardening-115-queue.json"
     assert data["queueStale"] is False
-    assert data["landing"]["status"] == "PENDING_QUEUE_LANDING"
-    assert data["counts"]["queueTotal"] == 2
-    assert [task["id"] for task in data["tasks"][:2]] == [
-        "backend-python-auth-user-repository-takeover-105",
-        "backend-python-auth-session-repository-production-takeover-105",
-    ]
+    assert data["landing"] is None
+    assert data["counts"]["queueTotal"] == 1
+    assert [task["id"] for task in data["tasks"][:1]] == ["old-115-task"]
     assert data["tasks"][0]["status"] == "DONE_REVIEWED"
     assert data["tasks"][0]["outcomeGroup"] == "reviewed"
     assert data["tasks"][0]["category"] == "landed"
