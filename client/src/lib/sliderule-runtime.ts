@@ -2340,7 +2340,7 @@ export function createServerReasoningRouter(options?: { timeoutMs?: number }): R
       return {
         selected: body.selected,
         rationale: body.rationale,
-        source: body.source,
+        source: body.source === "heuristic_fallback" ? "heuristic_fallback" : "llm",
         // `converged` is the net-new optional convergence boolean (需求 3.3); read
         // defensively so this seam stays compatible before task 2.3 lands it server-side.
         converged: (body as { converged?: boolean }).converged,

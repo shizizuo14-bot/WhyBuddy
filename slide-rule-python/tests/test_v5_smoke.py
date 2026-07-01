@@ -107,6 +107,17 @@ def test_sessions_crud():
     assert sess.get("provenance") == "python-fullpath"
     assert sess.get("backend") == "python"
 
+    r = client.delete(f"/api/sliderule/sessions/{sid}", headers={"X-Internal-Key": INTERNAL_KEY})
+    assert r.status_code == 200
+    deleted = r.json()
+    assert deleted.get("ok") is True
+    assert deleted.get("sessionId") == sid
+    assert deleted.get("provenance") == "python-fullpath"
+    assert deleted.get("backend") == "python"
+
+    r = client.get(f"/api/sliderule/sessions/{sid}", headers={"X-Internal-Key": INTERNAL_KEY})
+    assert r.status_code == 404
+
 def test_orchestrate_and_execute_report_with_native_llm(monkeypatch):
     from sliderule_llm.client import LlmResult
 

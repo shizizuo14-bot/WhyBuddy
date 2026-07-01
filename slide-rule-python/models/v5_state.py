@@ -12,7 +12,7 @@ class Artifact(BaseModel):
     id: str
     kind: str = "evidence"
     provenance: str = "python-rag"  # was ai_generated, mcp:github, template, llm, etc.
-    trustLevel: Optional[Literal["gated_pass", "audited"]] = "gated_pass"
+    trustLevel: Optional[Literal["untrusted", "gated_pass", "audited"]] = "gated_pass"
     passedGates: List[str] = ["commit"]
     title: Optional[str] = None
     summary: Optional[str] = None

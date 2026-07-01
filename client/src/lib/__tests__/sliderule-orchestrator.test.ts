@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { fetchOrchestratePlan } from "../sliderule-orchestrator";
+import { createServerReasoningRouter } from "../sliderule-runtime";
 
 describe("fetchOrchestratePlan (R1-B6)", () => {
   beforeEach(() => {
@@ -56,5 +57,28 @@ describe("fetchOrchestratePlan (R1-B6)", () => {
     );
     expect(result).toBeNull();
     expect(Date.now() - t0).toBeLessThan(500);
+  });
+
+  it("normalizes Python planner source for the runtime router contract", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      json: async () => ({
+        selected: [{ capabilityId: "evidence.search", roleId: "grounding" }],
+        rationale: "python rag planner",
+        source: "python-rag",
+        backend: "python",
+        provenance: "python-rag",
+      }),
+    } as Response);
+
+    const router = createServerReasoningRouter();
+    const result = await router.proposePlan({
+      state: { sessionId: "s", goal: { text: "x" } } as any,
+      turnId: "t-python-source",
+      userText: "x",
+    });
+
+    expect(result.source).toBe("llm");
+    expect(result.selected[0]?.capabilityId).toBe("evidence.search");
   });
 });

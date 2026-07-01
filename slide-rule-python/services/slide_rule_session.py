@@ -8,7 +8,7 @@ from typing import Dict, Any, Optional
 from models.v5_state import Artifact, CapabilityRun, V5SessionState
 from .slide_rule_orchestrator import orchestrate_plan
 from .slide_rule_executor import execute_capability
-from .persistence import load_all, load_session_record, save_all, save_session_record
+from .persistence import delete_session_record, load_all, load_session_record, save_all, save_session_record
 from datetime import datetime
 
 _sessions: Dict[str, V5SessionState] = {}
@@ -52,6 +52,10 @@ def load_session(session_id: str) -> Optional[V5SessionState]:
 def save_session(state: V5SessionState):
     _sessions[state.sessionId] = state
     save_session_record(state)
+
+def delete_session(session_id: str):
+    _sessions.pop(session_id, None)
+    return delete_session_record(session_id)
 
 def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) -> V5SessionState:
     """Main loop: orchestrate + execute caps using Python RAG for stable evidence."""

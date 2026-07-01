@@ -74,6 +74,39 @@ def test_missing_session_returns_node_compatible_not_found_shape(tmp_path):
     }
 
 
+def test_session_state_accepts_untrusted_artifacts_from_frontend_runtime(tmp_path):
+    store_file = tmp_path / "sessions-untrusted.json"
+    state = V5SessionState(
+        sessionId="py-untrusted-001",
+        goal={"text": "persist untrusted artifact", "status": "needs_refinement"},
+        artifacts=[
+            {
+                "id": "art-untrusted-001",
+                "kind": "evidence",
+                "provenance": "llm_fallback",
+                "trustLevel": "untrusted",
+                "passedGates": [],
+                "content": "failed grounding should remain auditable",
+                "producedBy": {
+                    "capabilityRunId": "run-untrusted-001",
+                    "capabilityId": "evidence.search",
+                    "roleId": "grounding",
+                },
+            }
+        ],
+        capabilityRuns=[],
+        coverageGaps=[],
+        conversation=[],
+    )
+
+    saved = save_session_record(state, store_file=store_file)
+    loaded = load_session_record("py-untrusted-001", store_file=store_file)
+
+    assert saved == {"ok": True, "sessionId": "py-untrusted-001"}
+    assert loaded["ok"] is True
+    assert loaded["session"].artifacts[0].trustLevel == "untrusted"
+
+
 def test_corrupt_store_returns_stable_error_shape_for_load_and_list(tmp_path):
     store_file = tmp_path / "sessions.json"
     store_file.write_text("{not-json", encoding="utf-8")

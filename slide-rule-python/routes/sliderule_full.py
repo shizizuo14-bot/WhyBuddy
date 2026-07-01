@@ -16,7 +16,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from typing import Dict, Any, List, Optional
 from models.v5_state import CapabilityRun, V5SessionState
-from services.slide_rule_session import create_session, load_session, save_session, drive_reasoning_turn
+from services.slide_rule_session import create_session, delete_session, load_session, save_session, drive_reasoning_turn
 from services.slide_rule_orchestrator import orchestrate_plan
 from services.v5_capability_executor import execute_v5_capability
 from services.slide_rule_coverage import author_coverage_contract, evaluate_coverage_gate, reconcile_coverage
@@ -204,6 +204,20 @@ async def save_sess(sid: str, state: V5SessionState, x_internal_key: Optional[st
     save_session(state)
     _sessions[sid] = state
     return {"ok": True, "provenance": PROVENANCE_PYTHON_FULLPATH, "backend": PYTHON_BACKEND}
+
+@router.delete("/sessions/{sid}")
+async def delete_sess(sid: str, x_internal_key: Optional[str] = Header(None)):
+    _auth(x_internal_key)
+    result = delete_session(sid)
+    _sessions.pop(sid, None)
+    if not result.get("ok"):
+        if result.get("error") == "not_found":
+            return {"ok": True, "sessionId": sid, "provenance": PROVENANCE_PYTHON_FULLPATH, "backend": PYTHON_BACKEND}
+        return JSONResponse(
+            status_code=500,
+            content={**result, "provenance": PROVENANCE_PYTHON_FULLPATH, "backend": PYTHON_BACKEND},
+        )
+    return {**result, "provenance": PROVENANCE_PYTHON_FULLPATH, "backend": PYTHON_BACKEND}
 
 @router.post("/orchestrate-plan")
 async def plan(payload: Dict[str, Any], x_internal_key: Optional[str] = Header(None)):
