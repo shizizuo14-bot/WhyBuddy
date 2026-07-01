@@ -81,6 +81,25 @@ def _degraded_plan(error_code: str, reason: str, message: str) -> Dict[str, Any]
         "fallbackAvailable": False,
     }
 
+def _coerce_state_payload(raw_state: Any) -> Dict[str, Any]:
+    if not isinstance(raw_state, dict):
+        raise ValueError("state must be an object")
+
+    # Frontend session GET returns { state, provenance, backend }. During local
+    # Python-first dev the client can keep that wrapper and merge fresh runtime
+    # fields beside it before POST /orchestrate-plan. Python owns the endpoint,
+    # so accept the wrapper instead of forcing the browser to special-case it.
+    inner = raw_state.get("state")
+    if isinstance(inner, dict):
+        merged = dict(inner)
+        for key, value in raw_state.items():
+            if key in {"state", "provenance", "backend"}:
+                continue
+            merged[key] = value
+        return merged
+
+    return raw_state
+
 async def _run_orchestrate_plan(payload: Any):
     if not isinstance(payload, dict):
         return _bad_plan_request("request body must be an object")
@@ -90,7 +109,7 @@ async def _run_orchestrate_plan(payload: Any):
         return _bad_plan_request("turnId is required")
 
     try:
-        state = V5SessionState(**payload["state"])
+        state = V5SessionState(**_coerce_state_payload(payload["state"]))
     except (TypeError, ValidationError, ValueError) as error:
         return _bad_plan_request(f"state is invalid: {str(error).splitlines()[0]}")
 

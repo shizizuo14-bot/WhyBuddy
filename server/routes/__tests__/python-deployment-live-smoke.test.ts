@@ -214,4 +214,19 @@ describe("Python deployment live-smoke boundary", () => {
     expect(primarySpy).not.toHaveBeenCalled();
     expect(poolSpy).not.toHaveBeenCalled();
   });
+
+  it("exposes /api/sliderule/health as a Node-to-Python health probe for the browser", async () => {
+    fakePython = await startFakePythonService();
+    nodeRouter = await startNodeSlideruleRouter(fakePython.baseUrl);
+
+    const response = await fetch(`${nodeRouter.baseUrl}/api/sliderule/health`);
+    const body = await response.json();
+
+    expect(response.status).toBe(200);
+    expect(body).toMatchObject({
+      ok: true,
+      backend: "fake-python-sliderule",
+    });
+    expect(body.url).toMatch(/\/health$/);
+  });
 });

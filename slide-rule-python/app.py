@@ -100,6 +100,11 @@ async def health():
         "note": "Active target for Node PYTHON_SLIDE_RULE_* delegation. execute-capability uses mapped executor for core + expanded caps. Keyword RAG. Realistic progress per FINAL_MIGRATION_STATUS.md (~38-42% baseline)."
     }
 
+
+@app.get("/api/sliderule/health")
+async def sliderule_api_health():
+    return await health()
+
 @app.post("/api/sliderule/drive-full")
 async def drive_full(payload: dict, x_internal_key: str = Header(None)):
     if x_internal_key != settings.SLIDE_RULE_INTERNAL_KEY:

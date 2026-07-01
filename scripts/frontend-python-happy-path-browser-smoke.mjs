@@ -1,112 +1,75 @@
 import { mkdirSync } from "node:fs";
 import { join, resolve } from "node:path";
-import { spawn } from "node:child_process";
 import { setTimeout as sleep } from "node:timers/promises";
 
-const PORT = Number.parseInt(process.env.FRONTEND_PYTHON_HAPPY_PORT ?? process.env.SLIDERULE_SMOKE_PORT ?? "3000", 10);
+const PORT = Number.parseInt(
+  process.env.FRONTEND_PYTHON_HAPPY_PORT ?? process.env.SLIDERULE_SMOKE_PORT ?? "3000",
+  10,
+);
 const baseUrl = `http://localhost:${PORT}`;
+const appUrl = `${baseUrl}/agent-loop/sliderule`;
 const dataRoot = resolve("tmp", "frontend-python-happy-path-browser-smoke");
 
 mkdirSync(dataRoot, { recursive: true });
 
-/**
- * frontend-python-happy-path-browser-smoke
- *
- * Browser smoke for the integrated Python-first frontend happy path (task 105).
- * Verifies:
- * 1. App shell loads (SPA served).
- * 2. Goal can be submitted via UI input/send.
- * 3. Python-backed result envelope is received via UI-driven /api/agent-loop/task/run (or /queue/run) POST response; uses captured network result not /health.
- * 4. No fatal console errors during the flow.
- *
- * MUST be run against `dev:all` (Python service on 9700 + VITE_PYTHON_FIRST_API=true). No auto-spawn of frontend-only.
- * Wires as `pnpm run smoke:frontend-python-happy` per required implementation.
- *
- * This + Python test exercising owned endpoints + Node thin-proxy test proves Python path exercised; Node thin proxy (no retained ownership).
- */
-
-function log(msg) {
-  process.stdout.write(`[frontend-python-happy-smoke] ${msg}\n`);
+function log(message) {
+  process.stdout.write(`[frontend-python-happy-smoke] ${message}\n`);
 }
 
 async function isServerReady(url, timeoutMs = 1500) {
   const controller = new AbortController();
-  const t = setTimeout(() => controller.abort(), timeoutMs);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetch(url, { signal: controller.signal, method: "GET" });
-    clearTimeout(t);
-    return res.status < 500;
+    const response = await fetch(url, { method: "GET", signal: controller.signal });
+    clearTimeout(timer);
+    return response.status < 500;
   } catch {
-    clearTimeout(t);
+    clearTimeout(timer);
     return false;
   }
 }
 
 async function waitForServer(url, totalTimeoutMs = 12000) {
-  const start = Date.now();
-  while (Date.now() - start < totalTimeoutMs) {
+  const started = Date.now();
+  while (Date.now() - started < totalTimeoutMs) {
     if (await isServerReady(url)) return true;
     await sleep(350);
   }
   return false;
 }
 
-let devServerProc = null;
-
-function cleanupDevServer() {
-  if (devServerProc) {
+async function resolveChromium() {
+  for (const mod of ["@playwright/test", "playwright", "playwright-core"]) {
     try {
-      if (process.platform === 'win32') {
-        devServerProc.kill();
-      } else {
-        devServerProc.kill('SIGTERM');
-      }
+      const imported = await import(mod);
+      const chromium = imported.chromium || imported.default?.chromium;
+      if (chromium) return chromium;
     } catch {}
-    devServerProc = null;
   }
+  throw new Error("Playwright browser launcher not resolvable. Install playwright or run in the repo dev environment.");
 }
 
-process.once('exit', cleanupDevServer);
-process.once('SIGINT', () => { cleanupDevServer(); process.exit(1); });
-process.once('SIGTERM', () => { cleanupDevServer(); process.exit(1); });
+function hasPythonProvenance(value) {
+  const text = JSON.stringify(value || {}).toLowerCase();
+  return (
+    text.includes("python-rag") ||
+    text.includes("python-fullpath") ||
+    text.includes("python-llm") ||
+    text.includes("slide-rule-python") ||
+    text.includes("v5 full")
+  );
+}
 
 async function runSmoke() {
   log("starting frontend Python happy path browser smoke (Playwright)");
-  log(`target: ${baseUrl} (MUST run against dev:all with Python service on 9700 + VITE_PYTHON_FIRST_API=true)`);
-  log("REQUIREMENT: start full stack first via `node scripts/dev-all.mjs` (or pnpm run dev:all) in another terminal; this smoke does not auto-start partial frontend.");
+  log(`target: ${appUrl} (requires dev:all with Python service on 9700)`);
 
-  let serverUp = await waitForServer(baseUrl, 8000);
-  if (!serverUp) {
-    log("ERROR: no server responding on :3000. This smoke must be run against `dev:all` (Node proxy + Python@9700).");
-    log("Run: node scripts/dev-all.mjs   (then in separate shell: pnpm run smoke:frontend-python-happy )");
-    throw new Error("smoke requires dev:all with Python service; aborting to avoid false positive (no auto dev:frontend spawn)");
+  if (!(await waitForServer(baseUrl, 8000))) {
+    log("ERROR: no server responding on :3000. Start the full stack with `pnpm run dev:all`.");
+    throw new Error("smoke requires dev:all with Python service; aborting to avoid false positive");
   }
 
-  // Resolve playwright (same pattern as sliderule-browser-smoke)
-  let chromium;
-  try {
-    const pwTest = await import("@playwright/test");
-    chromium = pwTest.chromium || pwTest.default?.chromium;
-  } catch {}
-  if (!chromium) {
-    try {
-      const pw = await import("playwright");
-      chromium = pw.chromium || pw.default?.chromium;
-    } catch {}
-  }
-  if (!chromium) {
-    try {
-      const pwCore = await import("playwright-core");
-      chromium = pwCore.chromium || pwCore.default?.chromium;
-    } catch {}
-  }
-  if (!chromium) {
-    throw new Error(
-      "Playwright browser launcher not resolvable.\n" +
-      "Run: pnpm add -D playwright   (or npx playwright install --with-deps)"
-    );
-  }
-
+  const chromium = await resolveChromium();
   const browser = await chromium.launch({
     headless: true,
     args: process.platform === "win32" ? ["--no-sandbox", "--disable-setuid-sandbox"] : ["--no-sandbox"],
@@ -118,157 +81,88 @@ async function runSmoke() {
   const page = await context.newPage();
 
   const consoleErrors = [];
-  page.on("console", (msg) => {
-    if (msg.type() === "error") consoleErrors.push(msg.text());
+  const apiResponses = [];
+  let submitResponse = null;
+  let sawPythonProvenance = false;
+
+  page.on("console", (message) => {
+    if (message.type() === "error") consoleErrors.push(message.text());
   });
-  page.on("pageerror", (err) => {
-    consoleErrors.push(String(err.message || err));
+  page.on("pageerror", (error) => {
+    consoleErrors.push(String(error.message || error));
+  });
+  page.on("response", async (response) => {
+    const url = response.url();
+    if (!url.includes("/api/sliderule/")) return;
+
+    const entry = {
+      url,
+      method: response.request().method(),
+      status: response.status(),
+    };
+    apiResponses.push(entry);
+
+    if (entry.method !== "POST" && entry.method !== "PUT") return;
+    if (entry.status >= 500) return;
+
+    const contentType = response.headers()["content-type"] || "";
+    if (!contentType.includes("json")) return;
+
+    const json = await response.json().catch(() => null);
+    if (!submitResponse) submitResponse = json;
+    if (hasPythonProvenance(json)) sawPythonProvenance = true;
   });
 
-  const pythonBackedResponses = [];
-  let taskRunResponse = null;
-  page.on("response", (resp) => {
-    const u = resp.url();
-    if (u.includes("/api/agent-loop") || u.includes("/api/sliderule") || u.includes("/api/blueprint/spec-documents")) {
-      pythonBackedResponses.push({ url: u, status: resp.status() });
-    }
+  await page.goto(appUrl, { waitUntil: "domcontentloaded", timeout: 20000 });
+  await page.waitForSelector('[data-testid="sliderule-composer-input"]', { timeout: 10000 });
+  log("1. app shell loaded");
+
+  const health = await page.evaluate(async () => {
+    const response = await fetch("/api/sliderule/health");
+    const body = await response.json().catch(() => ({}));
+    return { status: response.status, body };
   });
-
-  // 1. App load
-  await page.goto(baseUrl, { waitUntil: "domcontentloaded", timeout: 20000 }).catch(() => {});
-  await page.waitForTimeout(800);
-  log("1. app load attempted");
-
-  // 2. Submit goal (use common UI patterns for goal input + send)
-  // Must drive a real /task/run or /queue/run POST that returns Python-backed envelope.
-  // Fill + click alone do not count; we wait for the actual submit network call.
-  const goalText = "做一个简单的RBAC权限系统示例（Python-first happy path验证）";
-  let submitted = false;
-  let submitNetworkSeen = false;
-  try {
-    // Try agent-loop specific or generic input for task/goal
-    const input = page.getByPlaceholder(/目标|goal|输入|describe|prompt|task/i).first();
-    if (await input.count() > 0) {
-      await input.fill(goalText).catch(() => {});
-    } else {
-      const anyInput = page.locator('input[type="text"], textarea').first();
-      if (await anyInput.count() > 0) {
-        await anyInput.fill(goalText).catch(() => {});
-      }
-    }
-    // Prefer explicit run buttons from agent-loop dashboard or general send
-    const runBtn = page.getByRole("button", { name: /运行队列|运行|run queue|run task|submit|send|go|开始|创建/i }).first();
-    if (await runBtn.count() > 0) {
-      // Setup wait for the actual submit POST before clicking to avoid race
-      const waitTaskRun = page.waitForResponse((r) => {
-        const uu = r.url();
-        return (uu.includes("/task/run") || uu.includes("/queue/run")) && (r.request().method() === "POST");
-      }, { timeout: 6000 }).catch(() => null);
-      await runBtn.click({ timeout: 3000 }).catch(() => {});
-      const matched = await waitTaskRun;
-      if (matched && matched.status() < 500) {
-        submitNetworkSeen = true;
-        try { taskRunResponse = await matched.json().catch(() => ({})); } catch {}
-      }
-    } else {
-      // fallback prominent button
-      const anyBtn = page.locator('button').first();
-      if (await anyBtn.count() > 0) {
-        const waitTaskRun = page.waitForResponse((r) => {
-          const uu = r.url();
-          return (uu.includes("/task/run") || uu.includes("/queue/run")) && (r.request().method() === "POST");
-        }, { timeout: 6000 }).catch(() => null);
-        await anyBtn.click({ timeout: 1500 }).catch(() => {});
-        const matched = await waitTaskRun;
-        if (matched && matched.status() < 500) {
-          submitNetworkSeen = true;
-          try { taskRunResponse = await matched.json().catch(() => ({})); } catch {}
-        }
-      }
-    }
-    // If network not captured via wait, still attempt broad scan after delay for recorded responses
-    if (!submitNetworkSeen) {
-      await page.waitForTimeout(1200);
-      const postSubmit = pythonBackedResponses.find((p) => (p.url.includes("/task/run") || p.url.includes("/queue/run")) && p.status < 500);
-      if (postSubmit) submitNetworkSeen = true;
-    }
-    submitted = submitNetworkSeen;
-  } catch (e) {
-    log(`submit interaction partial: ${String(e.message || e).slice(0,80)}`);
+  if (health.status !== 200 || !hasPythonProvenance(health.body)) {
+    throw new Error(`Python health did not return healthy provenance: ${JSON.stringify(health).slice(0, 200)}`);
   }
-  await page.waitForTimeout(800);
-  log(`2. goal submit attempted (submitted=${submitted}, networkSubmit=${submitNetworkSeen})`);
+  log("2. Python health is reachable through the frontend proxy");
 
-  // 3. Wait for Python-backed result envelope from the submit (via captured /task/run response or UI)
-  // Do NOT fall back to /health; must be submit-triggered result.
-  await page.waitForSelector('text=/报告|结果|结论|artifact|response|ok|success|Python|python-backed|DONE|queued/i', { timeout: 8000 }).catch(() => {});
-  await page.waitForTimeout(600);
-
-  // Use captured taskRunResponse or scan pythonBackedResponses for the submit POST result
-  let pythonResult = taskRunResponse;
-  if (!pythonResult) {
-    // last resort scan responses for a submit result
-    const submitResp = pythonBackedResponses.find((p) => p.url.includes("/task/run") || p.url.includes("/queue/run"));
-    if (submitResp) {
-      // best effort, status already recorded
-      pythonResult = { status: submitResp.status, url: submitResp.url };
-    }
-  }
-  // If still none, try one direct to confirm proxy but this alone does not satisfy success
-  if (!pythonResult) {
-    try {
-      const r = await page.evaluate(async () => {
-        try {
-          const res = await fetch('/api/agent-loop/task/run', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ task: 'agent-loop/tasks/frontend-python-happy-path-browser-smoke-105.md', dryRun: true }) });
-          const j = await res.json().catch(() => ({}));
-          return { status: res.status, body: j };
-        } catch (e) { return { error: String(e) }; }
-      });
-      pythonResult = r;
-    } catch {}
-  }
-  log(`3. receive python-backed result: responses=${pythonBackedResponses.length} submitResult=${JSON.stringify(pythonResult).slice(0,160)}`);
+  const input = page.locator('[data-testid="sliderule-composer-input"]');
+  await input.fill("Build a simple RBAC permission system example for Python-first happy path verification.");
+  const waitForPythonSubmit = page.waitForResponse((response) => {
+    const url = response.url();
+    return url.includes("/api/sliderule/") && response.request().method() === "POST" && response.status() < 500;
+  }, { timeout: 30000 }).catch(() => null);
+  await input.press("Enter");
+  const matched = await waitForPythonSubmit;
+  await page.waitForTimeout(1200);
+  log(`3. UI submit observed=${Boolean(matched)} apiResponses=${apiResponses.length} pythonProvenance=${sawPythonProvenance}`);
 
   await page.screenshot({ path: join(dataRoot, "happy-path-result.png"), fullPage: false }).catch(() => {});
-
   await context.close();
   await browser.close();
 
-  const fatal = consoleErrors.filter(e => /uncaught|fatal|ReferenceError|TypeError.*null|SyntaxError/i.test(e));
-  if (fatal.length > 0) {
-    log(`FATAL console errors: ${fatal.slice(0,2).join(" | ")}`);
-    throw new Error("fatal console errors during python happy path");
+  const fatalErrors = consoleErrors.filter((line) => {
+    if (/favicon|ResizeObserver|antd/i.test(line)) return false;
+    if (/status of 401|Unauthorized/i.test(line)) return false;
+    if (/status of 404|Not Found/i.test(line)) return false;
+    return /uncaught|fatal|ReferenceError|TypeError|SyntaxError/i.test(line);
+  });
+  if (fatalErrors.length) {
+    throw new Error(`fatal console errors during python happy path: ${fatalErrors.slice(0, 3).join(" | ")}`);
   }
-  if (consoleErrors.length > 0) {
-    log(`non-fatal console msgs observed: ${consoleErrors.slice(0,1).join(" | ")}`);
+  if (!matched) {
+    throw new Error("UI submit did not produce a /api/sliderule POST response");
   }
-
-  // Core success gate per review: must have performed UI submit that produced a /task/run (or /queue/run) response
-  // AND that response (or follow up) must indicate Python-backed (not silent node).
-  const hasSubmitNetwork = submitted || pythonBackedResponses.some(r => (r.url.includes('/task/run') || r.url.includes('/queue/run')) && r.status < 500);
-  let receivedPythonBacked = false;
-  const pr = pythonResult || {};
-  const prStr = JSON.stringify(pr || {}).toLowerCase();
-  const responsesStr = JSON.stringify(pythonBackedResponses || []).toLowerCase();
-  if (pr.status && pr.status < 300 && (prStr.includes('python') || prStr.includes('sliderule-python') || prStr.includes('source') || prStr.includes('envelope') || !prStr.includes('proxy-failed'))) {
-    receivedPythonBacked = true;
-  }
-  if (!receivedPythonBacked && responsesStr.includes('/task/run') && !responsesStr.includes('proxy-failed')) {
-    receivedPythonBacked = true;
-  }
-  if (!hasSubmitNetwork || !receivedPythonBacked) {
-    log(`FAIL: hasSubmitNetwork=${hasSubmitNetwork} receivedPythonBacked=${receivedPythonBacked}`);
-    throw new Error("smoke did not verify submit goal -> Python-backed result envelope (no /task/run python response observed)");
+  if (!sawPythonProvenance && !hasPythonProvenance(submitResponse)) {
+    throw new Error("UI submit did not return Python-backed /api/sliderule provenance");
   }
 
-  log("ALL happy path steps PASSED (load + submit goal + python-backed result envelope + no fatal errors).");
+  log("ALL happy path steps PASSED (load + Python health + UI submit + Python-backed result + no fatal errors).");
   log("Screenshots under tmp/frontend-python-happy-path-browser-smoke/");
-  log("Run against `node scripts/dev-all.mjs` (Python service) + this smoke for repeatable local verification.");
 }
 
-runSmoke().then(() => {
-  process.exit(0);
-}).catch((err) => {
-  console.error("[frontend-python-happy-smoke] FAILED:", err?.message || err);
+runSmoke().catch((error) => {
+  console.error("[frontend-python-happy-smoke] FAILED:", error?.message || error);
   process.exit(1);
 });

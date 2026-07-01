@@ -27,6 +27,62 @@ def test_health():
     assert data["status"] == "ok"
     assert "slide-rule" in data.get("backend", "").lower() or "python" in data.get("backend", "").lower()
 
+
+def test_sliderule_api_health_alias():
+    r = client.get("/api/sliderule/health")
+    assert r.status_code == 200
+    data = r.json()
+    assert data["status"] == "ok"
+    assert "slide-rule" in data.get("backend", "").lower() or "python" in data.get("backend", "").lower()
+
+
+def test_orchestrate_plan_accepts_frontend_session_wrapper(monkeypatch):
+    from services.slide_rule_orchestrator import OrchestratePlanResult
+
+    def fake_orchestrate_plan(state, turn_id, user_text):
+        assert state.sessionId == "wrapped-session"
+        assert state.goal["text"] == "Build RBAC"
+        assert state.graph["nodes"][0]["id"] == "n1"
+        return OrchestratePlanResult(
+            selected=[],
+            rationale="wrapped state accepted",
+            source="python-rag",
+            converged=False,
+        )
+
+    monkeypatch.setattr("routes.sliderule_full.orchestrate_plan", fake_orchestrate_plan)
+
+    r = client.post(
+        "/api/sliderule/orchestrate-plan",
+        json={
+            "state": {
+                "state": {
+                    "sessionId": "wrapped-session",
+                    "goal": {"text": "", "status": "needs_refinement"},
+                    "artifacts": [],
+                    "capabilityRuns": [],
+                    "coverageGaps": [],
+                    "coverageContract": None,
+                    "coverageGate": None,
+                    "graph": {"nodes": [], "edges": []},
+                    "staleArtifactIds": [],
+                    "conversation": [],
+                },
+                "provenance": "python-fullpath",
+                "backend": "python",
+                "goal": {"text": "Build RBAC", "status": "needs_refinement"},
+                "graph": {"nodes": [{"id": "n1"}], "edges": []},
+                "conversation": [{"role": "user", "text": "Build RBAC"}],
+            },
+            "turnId": "turn-wrapper",
+            "userText": "Build RBAC",
+        },
+    )
+    assert r.status_code == 200
+    data = r.json()
+    assert data["source"] == "python-rag"
+    assert data["backend"] == "python"
+
 def test_sessions_crud():
     payload = {"goal": {"text": "分析权限系统的风险并给出最终报告"}, "sessionId": "smoke-001"}
     r = client.post("/api/sliderule/sessions", json=payload, headers={"X-Internal-Key": INTERNAL_KEY})

@@ -22,6 +22,13 @@ import { withStubbedLlmKey } from './helpers/with-stubbed-llm-key.js';
 // This fixes the "mock not taking effect / real Python hit" issue reported in audit.
 vi.mock('../../sliderule/python-delegation.js', () => ({
   callPythonSlideRule: vi.fn(),
+  resolvePythonSlideRuleRuntimeConfig: vi.fn(() => ({
+    baseUrl: 'http://localhost:9700',
+    internalKey: 'test-internal-key',
+    timeoutMs: 120000,
+    healthPath: '/health',
+    proxyMode: 'node-fetch-env',
+  })),
 }));
 
 let slideruleRouter: any;
@@ -313,7 +320,8 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
       expect.stringContaining('localhost:9700'),
       '/api/sliderule/execute-capability',
       expect.objectContaining({ capabilityId: 'report.write', state: expect.any(Object) }),
-      expect.any(String)
+      expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -362,7 +370,8 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         turnId: 't-intent',
         userText: 'Design an RBAC permission workflow',
       }),
-      expect.any(String)
+      expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -412,7 +421,8 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         turnId: 't-gap',
         userText: 'Design a pet office task assignment system',
       }),
-      expect.any(String)
+      expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -462,7 +472,8 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         turnId: 't-critique',
         userText: 'Design a pet office progression system',
       }),
-      expect.any(String)
+      expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -513,6 +524,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         userText: 'Design a pet office progression system',
       }),
       expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -561,6 +573,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         turnId: 't-rebuttal.resolve',
       }),
       expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -609,6 +622,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         turnId: 't-counter.argue',
       }),
       expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -698,6 +712,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         userText: 'Draft a pet office progression spec',
       }),
       expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -749,6 +764,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         userText: 'Map pet office requirements to evidence and risks',
       }),
       expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -801,6 +817,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         userText: 'Write engineering tasks for pet office progression',
       }),
       expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -854,6 +871,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         userText: 'Package prompts for pet office delivery',
       }),
       expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -905,6 +923,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         userText: 'Visualize pet office delivery flow',
       }),
       expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -956,6 +975,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         userText: 'Preview pet office onboarding screens',
       }),
       expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -1010,6 +1030,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         userText: 'Package pet office delivery handoff',
       }),
       expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -1148,6 +1169,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         userText: 'Design a pet office feasibility report',
       }),
       expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -1197,7 +1219,8 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
         turnId: 't-question',
         userText: 'Design onboarding for a pet office sim',
       }),
-      expect.any(String)
+      expect.any(String),
+      expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
   });
 
@@ -1589,5 +1612,4 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
 // server/routes/__tests__/sliderule.live-delegation.test.ts
 // Run with LIVE_NODE_TO_PYTHON_SLIDERULE=1 to exercise real delegation through the Node router.
 // This keeps the main contract tests (17 passed) completely stable and isolated from live service requirements.
-
 

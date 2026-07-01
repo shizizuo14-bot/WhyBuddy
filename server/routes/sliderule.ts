@@ -96,6 +96,7 @@ import {
 } from "../sliderule/pool-json-llm.js";
 import {
   callPythonSlideRule,
+  checkPythonSlideRuleHealth,
   resolvePythonSlideRuleRuntimeConfig,
 } from "../sliderule/python-delegation.js";
 import * as fs from "fs";
@@ -175,6 +176,13 @@ function flushToDisk(): boolean {
 // Initial load (runs once when tsx loads this module; watch will re-exec on file change).
 migrateLegacySessionsFile();
 loadFromDisk();
+
+// GET /api/sliderule/sessions
+// Returns { sessions: [...] } for easy consumption (also accepts raw array on client).
+router.get("/health", async (_req: Request, res: Response) => {
+  const health = await checkPythonSlideRuleHealth(resolvePythonSlideRuleRuntimeConfig());
+  res.status(health.ok ? 200 : 503).json(health);
+});
 
 // GET /api/sliderule/sessions
 // Returns { sessions: [...] } for easy consumption (also accepts raw array on client).
