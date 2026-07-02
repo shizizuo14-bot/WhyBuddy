@@ -73,6 +73,20 @@ export interface ApplicationSpec {
   skills: Record<string, unknown>;
 }
 
+export interface CrossRuntimeGraphEdge {
+  sourceSkill: string;
+  targetSkill: string;
+  state: string;
+  evidenceKey?: string;
+  raw: string;
+}
+
+export interface CrossRuntimeGraph {
+  edges: CrossRuntimeGraphEdge[];
+  bySkill: Record<string, CrossRuntimeGraphEdge[]>;
+  evidenceBySkill: Record<string, string[]>;
+}
+
 export interface OrchestratorResult {
   intent: string;
   /** the gate: true iff every skill's validate passed. */
@@ -80,6 +94,8 @@ export interface OrchestratorResult {
   spec: ApplicationSpec;
   report: AggregateReport;
   runs: SkillRun[];
+  /** runtime evidence graph derived from each skill's resolve().crossSkillRuntimeEdges. */
+  crossRuntimeGraph: CrossRuntimeGraph;
   /** the combined relation diagram (per-skill subgraphs + cross-skill dashed edges). */
   mermaid: string;
 }
@@ -135,6 +151,7 @@ export class Orchestrator {
       warnTotal += report.warnings.length;
     }
 
+    const crossRuntimeGraph = this.buildCrossRuntimeGraphFromSurfaces(active.map(skill => skill.id), surfaces);
     const mermaid = this.combineDiagram(active, models, runs);
     const ok = runs.every(r => r.report.ok);
 
@@ -144,6 +161,7 @@ export class Orchestrator {
       spec: { intent, generatedAt: new Date().toISOString(), skills: { ...models } },
       report: { ok, totals: { errors: errorTotal, warnings: warnTotal }, bySkill },
       runs,
+      crossRuntimeGraph,
       mermaid,
     };
   }
@@ -211,6 +229,46 @@ export class Orchestrator {
 
   impact(models: Record<string, unknown>, target: ResourceRef): ImpactReport {
     return analyzeImpact(this.buildDependencyGraph(models), target);
+  }
+
+  buildCrossRuntimeGraph(models: Record<string, unknown>): CrossRuntimeGraph {
+    const active = this.skills.filter(s => s.id in models);
+    const surfaces: Record<string, ResolvableSurface> = {};
+    for (const skill of active) surfaces[skill.id] = skill.resolve(models[skill.id]);
+    return this.buildCrossRuntimeGraphFromSurfaces(active.map(skill => skill.id), surfaces);
+  }
+
+  private buildCrossRuntimeGraphFromSurfaces(
+    skillIds: string[],
+    surfaces: Record<string, ResolvableSurface>,
+  ): CrossRuntimeGraph {
+    const bySkill: Record<string, CrossRuntimeGraphEdge[]> = {};
+    const evidenceBySkill: Record<string, string[]> = {};
+    const edges: CrossRuntimeGraphEdge[] = [];
+
+    for (const skillId of skillIds) {
+      const surface = surfaces[skillId] ?? {};
+      const rawEdges = Array.isArray(surface.crossSkillRuntimeEdges) ? surface.crossSkillRuntimeEdges : [];
+      const evidence = Array.isArray(surface.runtimeEvidence) ? surface.runtimeEvidence : [];
+      evidenceBySkill[skillId] = [...evidence];
+      bySkill[skillId] = [];
+
+      rawEdges.forEach((raw, index) => {
+        const match = String(raw).match(/^([^:]+?)->([^:]+?):(.+)$/);
+        if (!match) return;
+        const edge: CrossRuntimeGraphEdge = {
+          sourceSkill: match[1],
+          targetSkill: match[2],
+          state: match[3],
+          evidenceKey: evidence[index],
+          raw: String(raw),
+        };
+        bySkill[skillId].push(edge);
+        edges.push(edge);
+      });
+    }
+
+    return { edges, bySkill, evidenceBySkill };
   }
 
   private combineDiagram(

@@ -156,6 +156,44 @@ describe("SlideRule orchestrator — end-to-end (一句话 → 架构 + gate)", 
     expect(gate.unresolvedRefs!.some(r => r.toSkill === "datamodel" && r.severity === "error")).toBe(true);
   });
 
+  it("assembles the cross-runtime evidence graph from all six skill surfaces", async () => {
+    const result = await deriveApplication("purchase approval");
+
+    expect(result.crossRuntimeGraph.edges.length).toBeGreaterThanOrEqual(20);
+    expect(Object.keys(result.crossRuntimeGraph.bySkill)).toEqual([
+      "datamodel",
+      "rbac",
+      "workflow",
+      "page",
+      "aigc",
+      "appbundle",
+    ]);
+    expect(result.crossRuntimeGraph.edges.map(edge => `${edge.sourceSkill}->${edge.targetSkill}:${edge.state}`)).toEqual(
+      expect.arrayContaining([
+        "datamodel->rbac:allowed",
+        "rbac->page:allowed",
+        "workflow->appbundle:allowed",
+        "page->appbundle:allowed",
+        "aigc->rbac:allowed",
+        "appbundle->aigc:allowed",
+      ]),
+    );
+    expect(result.crossRuntimeGraph.evidenceBySkill.appbundle).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("APPBUNDLE_CROSS_RUNTIME_EVIDENCE:app_purchase_approval:aigc"),
+      ]),
+    );
+  });
+
+  it("buildCrossRuntimeGraph works as a pure aggregation API over assembled models", async () => {
+    const result = await deriveApplication("purchase approval");
+    const graph = slideRule.buildCrossRuntimeGraph(result.spec.skills);
+
+    expect(graph.edges).toEqual(result.crossRuntimeGraph.edges);
+    expect(graph.bySkill.rbac.some(edge => edge.targetSkill === "page" && edge.state === "allowed")).toBe(true);
+    expect(graph.bySkill.datamodel.some(edge => edge.targetSkill === "aigc" && edge.evidenceKey?.includes("DM_CROSS_RUNTIME_EVIDENCE"))).toBe(true);
+  });
+
   it("publishGate respects severity: warning dangling cross-refs do not block (positive soft), error does (negative)", () => {
     // helper to build a minimal skill pair for focused gate test (runtime-less)
     function makeSkills(warningRef: boolean) {
