@@ -1,6 +1,19 @@
 import { describe, expect, it } from "vitest";
 
-import { dataModelSkill, getFieldLifecycle, leaveRequestDataModel, purchaseApprovalDataModel } from "./dataModelSkill";
+import {
+  bindingEvidence,
+  buildFieldLineageIndex,
+  dataModelSkill,
+  DM_DATASET_BINDING_FIELD_MISSING,
+  DM_LINEAGE_FIELD_MISSING,
+  DM_MIGRATION_REMOVED_FIELD_BLOCKER,
+  getFieldLifecycle,
+  leaveRequestDataModel,
+  planDataModelMigration,
+  purchaseApprovalDataModel,
+  resolveDatasetBindingRuntime,
+  traceFieldLineage,
+} from "./dataModelSkill";
 import type { DataModelModel, Relation } from "./dataModelModel";
 
 const clone = (m: DataModelModel): DataModelModel => structuredClone(m);
@@ -900,5 +913,204 @@ describe("dataModelSkill — the gate", () => {
 
   it("refNodeId supports migration kind", () => {
     expect(dataModelSkill.refNodeId("migration", "plan-115")).toBe("mig_plan_115");
+  });
+
+  // --- 117 field lineage runtime index (pure, focused +ve/-ve per task) ---
+  it("buildFieldLineageIndex + traceFieldLineage on purchase_request.amount (positive runtime case, covers purchase amount path)", () => {
+    const idx = buildFieldLineageIndex(purchaseApprovalDataModel);
+    expect(idx).toBeTruthy();
+    expect(Array.isArray(idx.fieldRefs)).toBe(true);
+    expect(idx.fieldRefs).toContain("purchase_request.amount");
+    expect(idx.nodes.some((n: any) => n.kind === "field" && n.ref === "purchase_request.amount")).toBe(true);
+    // references from datasets, policies
+    const hasDatasetSel = idx.edges.some((e: any) => e.kind === "selects" && (e.label || "").includes("amount"));
+    const hasPolicy = idx.edges.some((e: any) => e.kind === "policy" && (e.from || "").includes("purchase_request_amount"));
+    expect(hasDatasetSel || hasPolicy).toBe(true);
+
+    const trace = traceFieldLineage(idx, "purchase_request.amount");
+    expect(trace.fieldRef).toBe("purchase_request.amount");
+    expect(trace.findings).toHaveLength(0);
+    expect(Array.isArray(trace.upstream)).toBe(true);
+    expect(Array.isArray(trace.downstream)).toBe(true);
+    // at least some lineage refs derived
+    expect(trace.downstream.length + trace.upstream.length).toBeGreaterThan(0);
+  });
+
+  it("buildFieldLineageIndex + traceFieldLineage on leave model remains compatible", () => {
+    const idx = buildFieldLineageIndex(leaveRequestDataModel);
+    expect(idx.fieldRefs).toContain("leave_request.approved");
+    expect(idx.fieldRefs).toContain("leave_request.days");
+    const trace = traceFieldLineage(idx, "leave_request.days");
+    expect(trace.findings).toHaveLength(0);
+  });
+
+  it("traceFieldLineage on missing field returns DM_LINEAGE_FIELD_MISSING (negative / fail-closed case)", () => {
+    const idx = buildFieldLineageIndex(purchaseApprovalDataModel);
+    const trace = traceFieldLineage(idx, "purchase_request.nonexistent");
+    expect(trace.fieldRef).toBe("purchase_request.nonexistent");
+    expect(trace.findings.length).toBeGreaterThan(0);
+    expect(trace.findings.some((f: any) => f.code === DM_LINEAGE_FIELD_MISSING)).toBe(true);
+    expect(trace.upstream).toHaveLength(0);
+    expect(trace.downstream).toHaveLength(0);
+  });
+
+  it("traceFieldLineage on ghost entity field also yields DM_LINEAGE_FIELD_MISSING (fail-closed)", () => {
+    const idx = buildFieldLineageIndex(leaveRequestDataModel);
+    const trace = traceFieldLineage(idx, "ghost_entity.x");
+    expect(trace.findings.some((f: any) => f.code === DM_LINEAGE_FIELD_MISSING)).toBe(true);
+  });
+
+  // --- 117 runtime pure migration planner: planDataModelMigration + blocker (focused +ve/-ve) ---
+  it("planDataModelMigration no-op on identical leave model is green (positive, preserves compat)", () => {
+    const res = planDataModelMigration(leaveRequestDataModel, leaveRequestDataModel);
+    expect(res).toBeTruthy();
+    expect(Array.isArray(res.migrationActions)).toBe(true);
+    expect(res.migrationActions.length).toBe(0);
+    expect(Array.isArray(res.findings)).toBe(true);
+    expect(res.findings.length).toBe(0);
+  });
+
+  it("planDataModelMigration on identical purchase model is no-op green (positive, preserves compat)", () => {
+    const res = planDataModelMigration(purchaseApprovalDataModel, purchaseApprovalDataModel);
+    expect(res.migrationActions.length).toBe(0);
+    expect(res.findings.length).toBe(0);
+  });
+
+  it("planDataModelMigration detects added field and deprecate lifecycle (positive runtime case)", () => {
+    const prev: DataModelModel = {
+      entities: [{
+        id: "emp",
+        name: "Emp",
+        fields: [
+          { key: "id", name: "ID", type: "string", fieldId: "f1", version: 1, lifecycle: "active", storageRole: "ssot" },
+          { key: "name", name: "Name", type: "string", fieldId: "f2", version: 1, lifecycle: "active", storageRole: "ssot" },
+        ],
+      }],
+    };
+    const next: DataModelModel = {
+      entities: [{
+        id: "emp",
+        name: "Emp",
+        fields: [
+          { key: "id", name: "ID", type: "string", fieldId: "f1", version: 1, lifecycle: "active", storageRole: "ssot" },
+          { key: "name", name: "Name", type: "string", fieldId: "f2", version: 2, lifecycle: "deprecated", storageRole: "ssot" },
+          { key: "email", name: "Email", type: "string", fieldId: "f3", version: 1, lifecycle: "active", storageRole: "ssot" },
+        ],
+      }],
+    };
+    const res = planDataModelMigration(prev, next);
+    expect(res.migrationActions.some(a => a.action === "add" && a.field === "email")).toBe(true);
+    expect(res.migrationActions.some(a => a.action === "deprecate" && a.field === "name")).toBe(true);
+    // no blockers
+    expect(res.findings.some(f => f.code === DM_MIGRATION_REMOVED_FIELD_BLOCKER)).toBe(false);
+  });
+
+  it("planDataModelMigration classifies removed referenced field (by dataset) as blocker (negative/fail-closed case)", () => {
+    const prev: DataModelModel = {
+      entities: [{
+        id: "order",
+        name: "Order",
+        fields: [
+          { key: "id", name: "ID", type: "string", fieldId: "f1", version: 1, lifecycle: "active", storageRole: "ssot" },
+          { key: "legacyAmt", name: "Legacy", type: "number", fieldId: "f2", version: 1, lifecycle: "active", storageRole: "ssot" },
+        ],
+      }],
+      datasets: [{ id: "ds1", entityRef: "order", selectedFields: [{ field: "id" }, { field: "legacyAmt" }] }],
+    };
+    const next: DataModelModel = {
+      entities: [{
+        id: "order",
+        name: "Order",
+        fields: [
+          { key: "id", name: "ID", type: "string", fieldId: "f1", version: 1, lifecycle: "active", storageRole: "ssot" },
+          { key: "legacyAmt", name: "Legacy", type: "number", fieldId: "f2", version: 1, lifecycle: "removed", storageRole: "ssot" },
+        ],
+      }],
+      datasets: [{ id: "ds1", entityRef: "order", selectedFields: [{ field: "id" }, { field: "legacyAmt" }] }],
+    };
+    const res = planDataModelMigration(prev, next);
+    expect(res.migrationActions.some(a => a.action === "remove" && a.field === "legacyAmt")).toBe(true);
+    const blocker = res.findings.find(f => f.code === DM_MIGRATION_REMOVED_FIELD_BLOCKER);
+    expect(blocker).toBeTruthy();
+    expect(blocker!.severity).toBe("error");
+    expect(blocker!.message).toContain("referenced by datasets");
+  });
+
+  it("planDataModelMigration remove without dataset ref does not emit blocker (compat positive)", () => {
+    const prev: DataModelModel = {
+      entities: [{ id: "e", name: "E", fields: [{ key: "id", name: "ID", type: "string", fieldId: "f1", version: 1, lifecycle: "active", storageRole: "ssot" }, { key: "tmp", name: "Tmp", type: "string", fieldId: "f2", version: 1, lifecycle: "active", storageRole: "ssot" }] }],
+    };
+    const next: DataModelModel = {
+      entities: [{ id: "e", name: "E", fields: [{ key: "id", name: "ID", type: "string", fieldId: "f1", version: 1, lifecycle: "active", storageRole: "ssot" }] }],
+    };
+    const res = planDataModelMigration(prev, next);
+    expect(res.migrationActions.some(a => a.action === "remove")).toBe(true);
+    expect(res.findings.some(f => f.code === DM_MIGRATION_REMOVED_FIELD_BLOCKER)).toBe(false);
+  });
+
+  // --- 117 dataset binding runtime focused tests (positive + negative/fail-closed) ---
+  it("resolveDatasetBindingRuntime resolves valid dataset+field bindings with metadata, lifecycle, sensitivity, policyRef (positive, preserves leave/purchase compat)", () => {
+    // positive case using existing purchase sample (amount has policy)
+    const res = resolveDatasetBindingRuntime(purchaseApprovalDataModel, [
+      "purchase_amount_query.amount",
+      "purchase_request.amount",
+      "purchase_amount_query.id",
+    ]);
+    expect(res.ok).toBe(true);
+    expect(res.resolved.length).toBe(3);
+    const amt = res.resolved.find((r: any) => r.ref.includes("amount"));
+    expect(amt).toBeTruthy();
+    expect(amt.entityRef).toBe("purchase_request");
+    expect(amt.fieldKey).toBe("amount");
+    expect(amt.lifecycle).toBe("active");
+    expect(amt.sensitivity).toBe("financial");
+    expect(amt.policyRef).toBe("pdp:purchase:amount");
+    expect(amt.version).toBe(1);
+    // also direct field ref works
+    const idb = res.resolved.find((r: any) => r.ref === "purchase_amount_query.id");
+    expect(idb && idb.entityRef).toBe("purchase_request");
+
+    // positive using leave sample for compat
+    const resLeave = resolveDatasetBindingRuntime(leaveRequestDataModel, ["leave_summary.days", "leave_request.approved"]);
+    expect(resLeave.ok).toBe(true);
+    expect(resLeave.resolved.length).toBe(2);
+    const days = resLeave.resolved.find((r: any) => r.ref.includes("days"));
+    expect(days && days.lifecycle).toBe("active");
+  });
+
+  it("resolveDatasetBindingRuntime produces DM_DATASET_BINDING_FIELD_MISSING and evidence for missing field (negative/fail-closed)", () => {
+    const res = resolveDatasetBindingRuntime(leaveRequestDataModel, ["leave_summary.ghost", "employee.nonexistent"]);
+    expect(res.ok).toBe(false);
+    expect(res.findings.some((f: any) => f.code === DM_DATASET_BINDING_FIELD_MISSING)).toBe(true);
+    // evidence present for consumers (RBAC/AIGC)
+    expect(Array.isArray(res.evidence)).toBe(true);
+    expect(res.evidence.some((e: any) => e.code === DM_DATASET_BINDING_FIELD_MISSING)).toBe(true);
+    expect(res.evidence.some((e: any) => e.ref === "leave_summary.ghost")).toBe(true);
+  });
+
+  it("resolveDatasetBindingRuntime produces stable findings for removed field bindings (fail-closed)", () => {
+    const removedM: DataModelModel = {
+      entities: [{
+        id: "e",
+        name: "E",
+        fields: [
+          { key: "id", name: "ID", type: "string", fieldId: "f1", version: 1, lifecycle: "active", storageRole: "ssot" },
+          { key: "gone", name: "Gone", type: "string", fieldId: "f2", version: 1, lifecycle: "removed", storageRole: "ssot" },
+        ],
+      }],
+      datasets: [{ id: "ds", entityRef: "e", selectedFields: [{ field: "gone" }] }],
+    };
+    const res = resolveDatasetBindingRuntime(removedM, ["ds.gone", "e.gone"]);
+    // removed is hard error via finding
+    expect(res.ok).toBe(false);
+    expect(res.findings.some((f: any) => f.code === "DM_FIELD_REMOVED" || f.code === DM_DATASET_BINDING_FIELD_MISSING)).toBe(true);
+    expect(res.resolved.length).toBe(0);
+  });
+
+  it("bindingEvidence produces stable evidence object for audit", () => {
+    const ev = bindingEvidence(DM_DATASET_BINDING_FIELD_MISSING, "ds.f", "missing field", "error");
+    expect(ev.code).toBe(DM_DATASET_BINDING_FIELD_MISSING);
+    expect(ev.ref).toBe("ds.f");
+    expect(ev.severity).toBe("error");
   });
 });

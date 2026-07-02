@@ -127,6 +127,8 @@ export interface PolicyContext {
   /** dual-control context: count or distinct approver userIds (pure data for minApprovers check) */
   approverCount?: number;
   approverUserIds?: string[];
+  /** 117 runtime SoD: contextual self-approval flag for evaluateRbacSodPolicy to detect selfApproval conflicts */
+  selfApproval?: boolean;
 }
 
 /** PDP decision result. Default is deny (fail-closed) when proof of allow is absent. */
@@ -141,6 +143,10 @@ export interface PolicyDecision {
   /** 115.10.08: policy version/lifecycle reported so PDP can explain which policy version was used */
   policyVersion?: string;
   policyLifecycleState?: PolicyLifecycleState;
+  /** 117: policy id preserved in evidence for row/field policyRef denials (DataModel sensitive field case) */
+  policyId?: string;
+  /** 117: matched SoD rule id for RBAC_RUNTIME_SOD_DENIED evidence */
+  sodRuleId?: string;
 }
 
 /** 115.10.06: policy effect for explicit allow/deny rules (deny must override allow). */
@@ -148,6 +154,9 @@ export type PolicyEffect = "allow" | "deny";
 
 /** 115.10.08: RBAC policy lifecycle states. Effective policies (used by PDP) are published and not retired. */
 export type PolicyLifecycleState = "draft" | "published" | "effective" | "retired";
+
+/** 117: supported field access outcomes for evaluateRbacFieldAccess; denied must map to fail-closed (hidden). */
+export type RbacFieldAccessLevel = "hidden" | "read" | "readonly" | "editable";
 
 /** 115.10.06: explicit policy rule with allow/deny effect.
  * Deterministic precedence contract: deny rules win over direct or inherited allow at any scope.
@@ -194,4 +203,36 @@ export interface RbacModel {
   failClosed?: boolean;
   /** 115.10.06: explicit allow/deny policy rules; presence enables deny-over-allow precedence. */
   policyRules?: PolicyRule[];
+}
+
+/** 117: pure runtime fail-closed code for evaluateRbacRuntimePolicy missing-inputs and default-deny cases. */
+export const RBAC_RUNTIME_FAIL_CLOSED = "RBAC_RUNTIME_FAIL_CLOSED";
+
+/** Pure runtime PDP request (117). Must support subject/user or role refs, action, resourceType, optional resourceId, fieldRef, context scope. */
+export interface RbacRuntimeRequest {
+  subject?: { roleIds?: string[]; userId?: string };
+  action?: string;
+  resourceType?: string;
+  resourceId?: string;
+  /** field ref (entity.field or key) for field-scoped decisions */
+  fieldRef?: string;
+  /** context scope (e.g. self/dept/all) */
+  scope?: string;
+  /** additional fields for full PDP evaluation (tenant, fieldContext etc) */
+  tenantId?: string;
+  fieldContext?: FieldContext;
+  isSelf?: boolean;
+  approverCount?: number;
+  approverUserIds?: string[];
+}
+
+/** Structured runtime decision from evaluateRbacRuntimePolicy (117). */
+export interface RbacRuntimeDecision {
+  effect: "allow" | "deny";
+  reasonCode: string;
+  matchedRoleIds?: string[];
+  matchedPermissionIds?: string[];
+  matchedPolicyIds?: string[];
+  /** true precisely when a deny rule wins (deny overrides allow) */
+  denyPrecedence?: boolean;
 }

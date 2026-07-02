@@ -1,7 +1,20 @@
 import { describe, expect, it } from "vitest";
 
-import { createWorkflowInstanceSnapshot, leaveApprovalWorkflow, purchaseApprovalWorkflow, validateWorkflowInstanceSnapshot, workflowSkill } from "./workflowSkill";
-import type { WorkflowInstanceSnapshot, WorkflowModel } from "./workflowModel";
+import {
+  buildWorkflowFormRuntime,
+  createWorkflowInstanceSnapshot,
+  leaveApprovalWorkflow,
+  policyEvidence,
+  purchaseApprovalWorkflow,
+  resolveWorkflowAssignees,
+  startWorkflowInstance,
+  transitionWorkflowInstance,
+  validateWorkflowInstanceSnapshot,
+  WF_ASSIGNEE_PDP_DENIED,
+  workflowSkill,
+  WF_RUNTIME_INVALID_TRANSITION,
+} from "./workflowSkill";
+import type { WorkflowInstance, WorkflowInstanceSnapshot, WorkflowModel, WorkflowTransitionCommand } from "./workflowModel";
 import { leaveApprovalRbac, rbacSkill } from "../rbac/rbacSkill";
 import { dataModelSkill, leaveRequestDataModel } from "../datamodel/dataModelSkill";
 
@@ -549,5 +562,215 @@ describe("workflowSkill — variable reference gate (SSOT field or defined proce
     expect(r2.ok).toBe(true);
     expect(r1.errors.some((e: any) => e.code === "WF_VAR_REF_UNKNOWN")).toBe(false);
     expect(r2.errors.some((e: any) => e.code === "WF_VAR_REF_UNKNOWN")).toBe(false);
+  });
+});
+
+describe("workflowSkill — pure runtime instance engine (V2 117)", () => {
+  it("startWorkflowInstance creates snapshot-backed instance and freezes version at start", () => {
+    const inst = startWorkflowInstance(purchaseApprovalWorkflow, {
+      id: "inst_p_start",
+      initialVariables: { "purchase_request.amount": 500 },
+    });
+    expect(inst.id).toBe("inst_p_start");
+    expect(inst.snapshot.workflowId).toBe("wf_purchase_approval");
+    expect(inst.snapshot.processVersion).toBe("1.0.0");
+    expect(inst.snapshot.versionPublished).toBe(true);
+    expect(inst.snapshot.frozenFormFieldRefs).toContain("purchase_request.amount");
+    expect(inst.currentNodeId).toBe("submit");
+    expect(inst.status).toBe("running");
+    expect(inst.variables["purchase_request.amount"]).toBe(500);
+  });
+
+  it("purchase approval fixture can advance through at least two nodes (submit + approve with pre-set decision vars)", () => {
+    const seed = {
+      "purchase_request.budgetChecked": true,
+      "purchase_request.financeApproved": true,
+      "purchase_request.procurementFulfilled": true,
+      "purchase_request.amount": 999,
+    };
+    let inst = startWorkflowInstance(purchaseApprovalWorkflow, { id: "purch_rt", initialVariables: seed });
+    expect(inst.currentNodeId).toBe("submit");
+
+    let res = transitionWorkflowInstance(purchaseApprovalWorkflow, inst, { type: "submit" });
+    expect(res.findings).toHaveLength(0);
+    expect(res.instance.currentNodeId).toBe("manager");
+
+    res = transitionWorkflowInstance(purchaseApprovalWorkflow, res.instance, { type: "approve" });
+    expect(res.findings).toHaveLength(0);
+    // manager -> budget (auto-resolve) -> finance
+    expect(res.instance.currentNodeId).toBe("finance");
+    expect(res.instance.status).toBe("running");
+  });
+
+  it("invalid transition returns WF_RUNTIME_INVALID_TRANSITION and leaves instance unchanged (fail-closed)", () => {
+    const inst = startWorkflowInstance(leaveApprovalWorkflow, { id: "bad_rt" });
+    const origId = inst.currentNodeId;
+    const origStatus = inst.status;
+
+    // approve on start node is invalid
+    const bad = transitionWorkflowInstance(leaveApprovalWorkflow, inst, { type: "approve" as any });
+    expect(bad.findings.some((f: any) => f.code === WF_RUNTIME_INVALID_TRANSITION)).toBe(true);
+    expect(bad.instance.currentNodeId).toBe(origId);
+    expect(bad.instance.status).toBe(origStatus);
+    expect(bad.instance.variables).toEqual(inst.variables);
+  });
+
+  it("leave approval fixture compat: can advance submit->approve and auto-resolve branch when vars preset (positive)", () => {
+    const inst0 = startWorkflowInstance(leaveApprovalWorkflow, {
+      id: "leave_rt",
+      initialVariables: { "leave_request.approved": true },
+    });
+    const r1 = transitionWorkflowInstance(leaveApprovalWorkflow, inst0, { type: "submit" });
+    expect(r1.instance.currentNodeId).toBe("a_mgr");
+
+    const r2 = transitionWorkflowInstance(leaveApprovalWorkflow, r1.instance, { type: "approve" });
+    expect(r2.findings).toHaveLength(0);
+    expect(r2.instance.currentNodeId).toBe("e_ok");
+    expect(r2.instance.status).toBe("completed");
+  });
+
+  it("timeout command supported on approval with timeoutTarget (negative if absent)", () => {
+    const w = structuredClone(leaveApprovalWorkflow) as any;
+    w.nodes.find((n: any) => n.id === "a_mgr").timeoutTarget = "e_no";
+    const inst = startWorkflowInstance(w, { id: "to1" });
+    const r1 = transitionWorkflowInstance(w, inst, { type: "submit" });
+    // now at a_mgr
+    const toRes = transitionWorkflowInstance(w, r1.instance, { type: "timeout" });
+    expect(toRes.findings).toHaveLength(0);
+    expect(toRes.instance.currentNodeId).toBe("e_no");
+  });
+
+  it("submit on non-start or approve on non-approval is rejected (fail closed)", () => {
+    const inst = startWorkflowInstance(purchaseApprovalWorkflow, { id: "neg" });
+    const s1 = transitionWorkflowInstance(purchaseApprovalWorkflow, inst, { type: "submit" });
+    // now at manager (approval)
+    const badSubmit = transitionWorkflowInstance(purchaseApprovalWorkflow, s1.instance, { type: "submit" });
+    expect(badSubmit.findings.some((f: any) => f.code === WF_RUNTIME_INVALID_TRANSITION)).toBe(true);
+    expect(badSubmit.instance.currentNodeId).toBe("manager"); // unchanged
+  });
+});
+
+describe("workflowSkill — assignee policy runtime (V2 117, evidence-driven, fail-closed)", () => {
+  const rbacSurfWithEvidence = {
+    rbac: {
+      ...rbacSurface.rbac,
+      policyEvidence: { allow: true, role: "manager", source: "pdp" },
+    },
+  };
+
+  it("positive runtime case: resolves assignee using supplied RBAC policyEvidence (depends on evidence, not local)", () => {
+    const res = resolveWorkflowAssignees(leaveApprovalWorkflow, "a_mgr", { external: rbacSurfWithEvidence });
+    expect(res).not.toBe(WF_ASSIGNEE_PDP_DENIED);
+    const r = res as { assignees: string[]; policyEvidence?: any };
+    expect(r.assignees).toContain("manager");
+    expect(r.policyEvidence).toBeTruthy();
+    expect(r.policyEvidence.allow).toBe(true);
+  });
+
+  it("positive runtime case with purchase fixture (compat)", () => {
+    const purchaseEvidence = {
+      rbac: {
+        role: ["department_manager", "finance", "procurement"],
+        policyEvidence: { allow: true, forNode: "manager" },
+      },
+    };
+    const res = resolveWorkflowAssignees(purchaseApprovalWorkflow, "manager", { external: purchaseEvidence });
+    expect(res).not.toBe(WF_ASSIGNEE_PDP_DENIED);
+    expect((res as any).policyEvidence).toEqual({ allow: true, forNode: "manager" });
+  });
+
+  it("negative/fail-closed: missing PDP evidence returns WF_ASSIGNEE_PDP_DENIED", () => {
+    // only role surface, no policyEvidence -> fail closed
+    const res = resolveWorkflowAssignees(leaveApprovalWorkflow, "a_mgr", { external: { rbac: rbacSurface.rbac } });
+    expect(res).toBe(WF_ASSIGNEE_PDP_DENIED);
+  });
+
+  it("negative/fail-closed: explicit deny in evidence returns WF_ASSIGNEE_PDP_DENIED", () => {
+    const denyCtx = { external: { rbac: { policyEvidence: { allow: false, reason: "policy denied" } } } };
+    const res = resolveWorkflowAssignees(leaveApprovalWorkflow, "a_mgr", denyCtx);
+    expect(res).toBe(WF_ASSIGNEE_PDP_DENIED);
+  });
+
+  it("negative when node has no assigneeRoleRef (fail-closed)", () => {
+    const res = resolveWorkflowAssignees(leaveApprovalWorkflow, "s", { external: { rbac: { policyEvidence: {} } } });
+    expect(res).toBe(WF_ASSIGNEE_PDP_DENIED);
+  });
+
+  it("leaves purchase/leave fixtures and policyEvidence symbol intact for compat", () => {
+    expect(policyEvidence).toBe("policyEvidence");
+    expect(leaveApprovalWorkflow.nodes.some(n => n.assigneeRoleRef)).toBe(true);
+    expect(purchaseApprovalWorkflow.nodes.some(n => n.assigneeRoleRef)).toBe(true);
+  });
+});
+
+describe("workflowSkill — V2 117 workflow form binding runtime (buildWorkflowFormRuntime)", () => {
+  const dmSurface = { datamodel: dataModelSkill.resolve(leaveRequestDataModel) };
+  const cloneAny = (x: any) => structuredClone(x);
+
+  it("positive: buildWorkflowFormRuntime returns fields from frozenFormFieldRefs, lifecycle from DM, allowed pdp when no field deny (purchase/leave compat)", () => {
+    const snap = createWorkflowInstanceSnapshot(leaveApprovalWorkflow, "inst_pos_117");
+    // pass raw model for runtime decide under rbacModel (surface also present for other use)
+    const ctx = { external: { datamodel: dmSurface.datamodel, rbacModel: leaveApprovalRbac } };
+    const rt = buildWorkflowFormRuntime(leaveApprovalWorkflow, snap, ctx);
+
+    expect(rt.formFieldRefs).toEqual(["leave_request.approved"]);
+    expect(rt.fields.length).toBe(1);
+    expect(rt.fields[0].ref).toBe("leave_request.approved");
+    expect(rt.fields[0].lifecycle).toBe("active");
+    expect(rt.fields[0].pdpState).not.toBe("WF_FORM_FIELD_PDP_DENIED");
+    expect(rt.fields[0].editable).toBe(true);
+    expect(rt.findings.length).toBe(0);
+
+    // snapshot frozen honored vs live model mutation (compat positive)
+    const mut = clone(leaveApprovalWorkflow);
+    mut.fieldRefs = [...(mut.fieldRefs ?? []), "leave_request.extra"];
+    const snapMut = createWorkflowInstanceSnapshot(mut, "inst_mut");
+    const rtFrozen = buildWorkflowFormRuntime(leaveApprovalWorkflow, snap, { external: { datamodel: dmSurface.datamodel } });
+    const rtLive = buildWorkflowFormRuntime(mut, snapMut, { external: { datamodel: dmSurface.datamodel } });
+    expect(rtFrozen.formFieldRefs).toEqual(["leave_request.approved"]);
+    expect(rtLive.formFieldRefs).toContain("leave_request.extra");
+
+    // purchase fixture also produces runtime (compat)
+    const pSnap = createWorkflowInstanceSnapshot(purchaseApprovalWorkflow, "inst_p");
+    const prt = buildWorkflowFormRuntime(purchaseApprovalWorkflow, pSnap, { external: {} });
+    expect(prt.formFieldRefs.length).toBeGreaterThan(3);
+    expect(prt.fields.every((f: any) => f.pdpState !== "WF_FORM_FIELD_PDP_DENIED")).toBe(true);
+  });
+
+  it("negative/fail-closed: removed DM field + RBAC field deny produce stable findings and WF_FORM_FIELD_PDP_DENIED, not editable", () => {
+    const base = clone(leaveApprovalWorkflow);
+    const snap = createWorkflowInstanceSnapshot(base, "inst_neg_117");
+
+    // removed lifecycle
+    const remDM = cloneAny(leaveRequestDataModel);
+    const lr = remDM.entities.find((e: any) => e.id === "leave_request")!;
+    const ap = lr.fields.find((f: any) => f.key === "approved")!;
+    ap.lifecycle = "removed";
+    const remDmSurf = { datamodel: dataModelSkill.resolve(remDM) };
+
+    // rbac with explicit field deny rule
+    const denyRbac = cloneAny(leaveApprovalRbac);
+    denyRbac.policyRules = [
+      { id: "pr_field_deny_approved", effect: "deny", resourceType: "leave_request", fieldRef: "leave_request.approved" },
+    ];
+
+    const ctx = { external: { datamodel: remDmSurf.datamodel, rbacModel: denyRbac } };
+    const rt = buildWorkflowFormRuntime(base, snap, ctx);
+
+    expect(rt.formFieldRefs).toEqual(["leave_request.approved"]);
+    expect(rt.fields[0].lifecycle).toBe("removed");
+    expect(rt.fields[0].pdpState).toBe("WF_FORM_FIELD_PDP_DENIED");
+    expect(rt.fields[0].editable).toBe(false);
+    // stable findings for both removed and pdp denied
+    expect(rt.findings.some((f: any) => f.code === "WF_SSOT_FIELD_REMOVED" && f.message.includes("removed"))).toBe(true);
+    expect(rt.findings.some((f: any) => f.code === "WF_FORM_FIELD_PDP_DENIED")).toBe(true);
+  });
+
+  it("frozenFormFieldRefs from instance snapshot take precedence; missing ctx surfaces are graceful (no crash, allowed default)", () => {
+    const snap = createWorkflowInstanceSnapshot(leaveApprovalWorkflow, "inst_frozen");
+    const rt = buildWorkflowFormRuntime(leaveApprovalWorkflow, snap, undefined);
+    expect(rt.formFieldRefs).toEqual(["leave_request.approved"]);
+    expect(rt.fields[0].pdpState).toBe("allowed");
+    expect(rt.findings.length).toBe(0);
   });
 });

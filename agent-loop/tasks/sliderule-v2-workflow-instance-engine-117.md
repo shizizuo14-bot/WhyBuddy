@@ -23,14 +23,14 @@
 - Do not modify unrelated UI or backend files.
 
 ## Required implementation
-- [ ] Add pure exported `startWorkflowInstance(model, input)` that creates a snapshot-backed instance state.
-- [ ] Add pure exported `transitionWorkflowInstance(model, instance, command)` supporting approve/reject/submit/timeout transitions.
-- [ ] Invalid transitions must return findings with `WF_RUNTIME_INVALID_TRANSITION` and leave the instance unchanged.
+- [x] Add pure exported `startWorkflowInstance(model, input)` that creates a snapshot-backed instance state.
+- [x] Add pure exported `transitionWorkflowInstance(model, instance, command)` supporting approve/reject/submit/timeout transitions.
+- [x] Invalid transitions must return findings with `WF_RUNTIME_INVALID_TRANSITION` and leave the instance unchanged.
 
 ## Required tests
-- [ ] Add focused tests before or alongside implementation.
-- [ ] Include at least one positive runtime case and one negative/fail-closed case.
-- [ ] Preserve existing purchase approval and leave approval compatibility when relevant.
+- [x] Add focused tests before or alongside implementation.
+- [x] Include at least one positive runtime case and one negative/fail-closed case.
+- [x] Preserve existing purchase approval and leave approval compatibility when relevant.
 
 ## Required validation
 - `pnpm exec vitest run client/src/lib/skills/workflow/workflowSkill.test.ts --reporter=dot`

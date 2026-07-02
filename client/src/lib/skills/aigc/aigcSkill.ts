@@ -11,9 +11,15 @@ import {
 import type {
   AigcCapability,
   AigcCapabilityKind,
+  AigcInvocationPlan,
   AigcModel,
+  AigcRuntimeContext,
+  OutputSchemaField,
   OutputSchemaFieldType,
+  ToolCallBudget,
 } from "./aigcModel";
+import { AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID } from "./aigcModel";
+export { AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID };
 
 const capabilityKinds: AigcCapabilityKind[] = [
   "summary",
@@ -156,6 +162,84 @@ function capabilityRefs(model: AigcModel): {
       ...model.outputSchemas.flatMap(schema => schema.fields.flatMap(field => (field.writebackFieldRef ? [field.writebackFieldRef] : []))),
     ]),
   };
+}
+
+function isValidFieldValue(value: unknown, field: OutputSchemaField): boolean {
+  if (value === undefined || value === null) return false;
+  switch (field.type) {
+    case "string":
+      return typeof value === "string";
+    case "number":
+      return typeof value === "number" && Number.isFinite(value);
+    case "boolean":
+      return typeof value === "boolean";
+    case "enum":
+      return typeof value === "string" && Array.isArray(field.enumValues) && field.enumValues.includes(value);
+    case "array":
+      return Array.isArray(value);
+    case "object":
+      return typeof value === "object" && value !== null && !Array.isArray(value);
+    default:
+      return false;
+  }
+}
+
+/** Pure runtime validator for AIGC capability outputs against declared schema and citation/evidence policy.
+ *  Returns ValidationReport; on invalid uses AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID.
+ *  RAG-backed (knowledgeSourceRefs present or citationRequired) must carry citationEvidence.
+ */
+export function validateAigcRuntimeOutput(
+  model: AigcModel,
+  capabilityId: string,
+  output: unknown
+): ReturnType<Skill<AigcModel>["validate"]> {
+  const findings: Finding[] = [];
+
+  const capability = model.capabilities.find((c) => c.id === capabilityId);
+  if (!capability) {
+    pushFinding(findings, AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID, "error", "capabilityId", `Capability ${capabilityId} not found in model.`);
+    return finalizeReport(findings);
+  }
+
+  const schema = model.outputSchemas.find((s) => s.id === capability.outputSchemaRef);
+  if (!schema || !Array.isArray(schema.fields) || schema.fields.length === 0) {
+    pushFinding(findings, AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID, "error", "outputSchema", `Output schema not found or empty for capability ${capabilityId}.`);
+    return finalizeReport(findings);
+  }
+
+  if (output === null || typeof output !== "object" || Array.isArray(output)) {
+    pushFinding(findings, AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID, "error", "output", "AIGC output must be a plain object.");
+    return finalizeReport(findings);
+  }
+
+  const out = output as Record<string, unknown>;
+
+  for (const field of schema.fields) {
+    const val = out[field.key];
+    const hasKey = Object.prototype.hasOwnProperty.call(out, field.key);
+    if (field.required && (val === undefined || val === null)) {
+      pushFinding(findings, AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID, "error", `output.${field.key}`, `Missing required output field: ${field.key}`);
+      continue;
+    }
+    if (hasKey && val != null && !isValidFieldValue(val, field)) {
+      pushFinding(findings, AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID, "error", `output.${field.key}`, `Output field ${field.key} has invalid type or value for declared ${field.type}.`);
+    }
+  }
+
+  // citationEvidence requirement for RAG-backed capabilities
+  const isRagBacked = (capability.knowledgeSourceRefs ?? []).length > 0;
+  const citationPolicy = capability.citationPolicyRef
+    ? model.citationPolicies.find((p) => p.id === capability.citationPolicyRef)
+    : null;
+  const citationRequired = isRagBacked || !!(citationPolicy && citationPolicy.citationRequired);
+  if (citationRequired) {
+    const ev = (out as any).citationEvidence;
+    if (!Array.isArray(ev) || ev.length === 0) {
+      pushFinding(findings, AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID, "error", "output.citationEvidence", "RAG-backed capability requires non-empty citationEvidence array in output.");
+    }
+  }
+
+  return finalizeReport(findings);
 }
 
 export const aigcSkill: Skill<AigcModel> & CrossSkill<AigcModel> = {
@@ -576,3 +660,128 @@ export const purchaseRiskAigcModel: AigcModel = {
     },
   ],
 };
+
+export const AIGC_RUNTIME_POLICY_DENIED = "AIGC_RUNTIME_POLICY_DENIED" as const;
+
+export type AigcRuntimePolicyDecision =
+  | typeof AIGC_RUNTIME_POLICY_DENIED
+  | AigcInvocationPlan;
+
+export function evaluateAigcRuntimePolicy(
+  model: AigcModel,
+  capabilityId: string,
+  ctx: AigcRuntimeContext = {}
+): AigcRuntimePolicyDecision {
+  const capability = model.capabilities.find((c) => c.id === capabilityId);
+  if (!capability) {
+    return AIGC_RUNTIME_POLICY_DENIED;
+  }
+
+  // Check provider/model refs
+  const provider = model.providers.find((p) => p.id === capability.providerRef);
+  if (!provider || !provider.modelRef || !provider.providerRef) {
+    return AIGC_RUNTIME_POLICY_DENIED;
+  }
+
+  // Check retrieval policy, citation policy if RAG-backed
+  const usesRAG = (capability.knowledgeSourceRefs ?? []).length > 0;
+  if (usesRAG) {
+    if (!capability.retrievalPolicyRef) {
+      return AIGC_RUNTIME_POLICY_DENIED;
+    }
+    const retrieval = model.retrievalPolicies.find(
+      (p) => p.id === capability.retrievalPolicyRef
+    );
+    if (!retrieval) {
+      return AIGC_RUNTIME_POLICY_DENIED;
+    }
+    const citation = capability.citationPolicyRef
+      ? model.citationPolicies.find((p) => p.id === capability.citationPolicyRef)
+      : null;
+    if (!citation || !citation.citationRequired) {
+      return AIGC_RUNTIME_POLICY_DENIED;
+    }
+  }
+
+  // Check tool policy, represent toolCallBudget
+  let toolCallBudget: ToolCallBudget | undefined;
+  const usesTools = (capability.toolRefs ?? []).length > 0;
+  if (usesTools) {
+    if (!capability.toolPolicyRef) {
+      return AIGC_RUNTIME_POLICY_DENIED;
+    }
+    const toolPolicy = model.toolPolicies.find(
+      (p) => p.id === capability.toolPolicyRef
+    );
+    if (!toolPolicy || toolPolicy.maxCalls <= 0 || toolPolicy.timeoutMs <= 0) {
+      return AIGC_RUNTIME_POLICY_DENIED;
+    }
+    toolCallBudget = { maxCalls: toolPolicy.maxCalls, timeoutMs: toolPolicy.timeoutMs };
+  }
+
+  // RBAC permission evidence must be present and sufficient (fail-closed)
+  const requiredPermissions = capability.permissionRefs ?? [];
+  const rbacPerms: string[] =
+    ctx.rbac?.permission ?? ctx.rbac?.permissions ?? [];
+  if (requiredPermissions.length > 0) {
+    if (rbacPerms.length === 0) {
+      return AIGC_RUNTIME_POLICY_DENIED;
+    }
+    const hasAll = requiredPermissions.every((p) => rbacPerms.includes(p));
+    if (!hasAll) {
+      return AIGC_RUNTIME_POLICY_DENIED;
+    }
+  }
+
+  // DataModel field refs and lifecycle must be evidenced and non-removed (fail-closed)
+  const dm = ctx.datamodel;
+  const dmStringFields: string[] = dm?.field ?? [];
+  const dmRichFields: Array<{ ref: string; lifecycle?: string }> =
+    dm?.fields ?? [];
+  const requiredFields = [
+    ...(capability.inputFieldRefs ?? []),
+    ...(capability.outputFieldRefs ?? []),
+  ];
+  if (requiredFields.length > 0) {
+    if (dmStringFields.length === 0 && dmRichFields.length === 0) {
+      return AIGC_RUNTIME_POLICY_DENIED;
+    }
+    const availableRefs =
+      dmStringFields.length > 0
+        ? dmStringFields
+        : dmRichFields.map((f) => f.ref);
+    for (const f of requiredFields) {
+      if (!availableRefs.includes(f)) {
+        return AIGC_RUNTIME_POLICY_DENIED;
+      }
+      const meta = dmRichFields.find((m) => m.ref === f);
+      if (meta && meta.lifecycle === "removed") {
+        return AIGC_RUNTIME_POLICY_DENIED;
+      }
+    }
+  }
+
+  // Produce invocation plan
+  const plan: AigcInvocationPlan = {
+    capabilityId: capability.id,
+    providerRef: capability.providerRef!,
+    promptRef: capability.promptRef!,
+    outputSchemaRef: capability.outputSchemaRef!,
+  };
+  if (capability.retrievalPolicyRef) {
+    const rp = model.retrievalPolicies.find(
+      (p) => p.id === capability.retrievalPolicyRef
+    )!;
+    plan.retrievalPolicy = { id: rp.id, maxResults: rp.maxResults };
+  }
+  if (capability.citationPolicyRef) {
+    plan.citationPolicy = {
+      id: capability.citationPolicyRef,
+      citationRequired: true,
+    };
+  }
+  if (toolCallBudget) {
+    plan.toolCallBudget = toolCallBudget;
+  }
+  return plan;
+}

@@ -8,7 +8,22 @@ import {
   type Skill,
   type ValidateContext,
 } from "../skill";
-import type { DataModelModel, Dataset, MigrationAction, MigrationActionType, PolicyDefinition, Relation, RelationCardinality, SensitivityLevel } from "./dataModelModel";
+import type {
+  DataModelModel,
+  Dataset,
+  Entity,
+  Field,
+  FieldLineageEdge,
+  FieldLineageIndex,
+  FieldLineageNode,
+  Lifecycle,
+  MigrationAction,
+  MigrationActionType,
+  PolicyDefinition,
+  Relation,
+  RelationCardinality,
+  SensitivityLevel,
+} from "./dataModelModel";
 
 /** Helper for consumers (Page/Workflow/AIGC) to inspect SSOT field lifecycle from the datamodel surface.
  *  Enables "cannot silently bind" gate: deprecated -> warning, removed -> error on field refs.
@@ -18,6 +33,230 @@ export function getFieldLifecycle(surface: ResolvableSurface | any, ref: string)
   if (!Array.isArray(fields)) return undefined;
   const f = fields.find((ff: any) => ff && ff.ref === ref);
   return f ? (f.lifecycle as string | undefined) : undefined;
+}
+
+export const DM_MIGRATION_REMOVED_FIELD_BLOCKER = "DM_MIGRATION_REMOVED_FIELD_BLOCKER";
+
+/**
+ * Pure runtime (in-memory, deterministic, no IO) migration planner.
+ * Diffs previous vs next DataModelModel and emits executable migrationActions
+ * for added/changed/deprecated/removed fields (and type changes).
+ * Removed fields referenced by datasets are classified with DM_MIGRATION_REMOVED_FIELD_BLOCKER findings.
+ */
+export function planDataModelMigration(
+  previousModel: DataModelModel,
+  nextModel: DataModelModel
+): { migrationActions: MigrationAction[]; findings: Finding[] } {
+  const migrationActions: MigrationAction[] = [];
+  const findings: Finding[] = [];
+
+  const prevEntMap = new Map(previousModel.entities.map(e => [e.id, e]));
+  const nextEntMap = new Map(nextModel.entities.map(e => [e.id, e]));
+  const allEntityIds = new Set([...prevEntMap.keys(), ...nextEntMap.keys()]);
+
+  // Build dataset field refs for blocker detection (datasets serve as in-model references;
+  // pages/workflows refs are detected by callers via resolve + getFieldLifecycle).
+  const datasetFieldRefs = new Set<string>();
+  const allDatasets = [
+    ...((previousModel as any).datasets || []),
+    ...((nextModel as any).datasets || []),
+  ];
+  for (const ds of allDatasets) {
+    if (ds && ds.entityRef && Array.isArray(ds.selectedFields)) {
+      for (const sf of ds.selectedFields) {
+        if (sf && typeof sf.field === "string") {
+          datasetFieldRefs.add(`${ds.entityRef}.${sf.field}`);
+        }
+      }
+    }
+  }
+
+  for (const entityId of allEntityIds) {
+    const prevEnt = prevEntMap.get(entityId);
+    const nextEnt = nextEntMap.get(entityId);
+    const prevFields = new Map((prevEnt?.fields || []).map(f => [f.key, f]));
+    const nextFields = new Map((nextEnt?.fields || []).map(f => [f.key, f]));
+    const allFieldKeys = new Set([...prevFields.keys(), ...nextFields.keys()]);
+
+    for (const key of allFieldKeys) {
+      const pf = prevFields.get(key);
+      const nf = nextFields.get(key);
+      const fieldRef = `${entityId}.${key}`;
+
+      if (!pf && nf) {
+        // added field
+        migrationActions.push({
+          action: "add",
+          entity: entityId,
+          field: key,
+        });
+      } else if (pf && !nf) {
+        // removed field
+        migrationActions.push({
+          action: "remove",
+          entity: entityId,
+          field: key,
+          planRef: "generated-plan",
+        });
+        if (datasetFieldRefs.has(fieldRef)) {
+          findings.push({
+            code: DM_MIGRATION_REMOVED_FIELD_BLOCKER,
+            severity: "error",
+            path: `entities[${entityId}].fields[${key}]`,
+            message: `Removed field ${fieldRef} is referenced by datasets and blocks migration`,
+          });
+        }
+      } else if (pf && nf) {
+        // existing field: lifecycle or type changes
+        if (pf.lifecycle !== nf.lifecycle) {
+          if (nf.lifecycle === "deprecated") {
+            migrationActions.push({
+              action: "deprecate",
+              entity: entityId,
+              field: key,
+            });
+          } else if (nf.lifecycle === "removed") {
+            migrationActions.push({
+              action: "remove",
+              entity: entityId,
+              field: key,
+              planRef: "generated-plan",
+            });
+            if (datasetFieldRefs.has(fieldRef)) {
+              findings.push({
+                code: DM_MIGRATION_REMOVED_FIELD_BLOCKER,
+                severity: "error",
+                path: `entities[${entityId}].fields[${key}]`,
+                message: `Removed field ${fieldRef} is referenced by datasets and blocks migration`,
+              });
+            }
+          }
+        }
+        if (pf.type !== nf.type && nf.type) {
+          migrationActions.push({
+            action: "type-change",
+            entity: entityId,
+            field: key,
+            from: pf.type,
+            to: nf.type,
+            planRef: "generated-plan",
+          });
+        }
+        // version change is reported via actions only when accompanied by type or explicit lifecycle;
+        // stable findings carry the intent without side effects
+      }
+    }
+  }
+
+  return { migrationActions, findings };
+}
+
+/** Required runtime symbol for 117: dataset/field binding resolution (pure, deterministic, no I/O). */
+export const DM_DATASET_BINDING_FIELD_MISSING = "DM_DATASET_BINDING_FIELD_MISSING";
+
+/** Stable evidence record for binding resolution (for Page/Workflow/AIGC/RBAC consumers). */
+export interface BindingEvidence {
+  code: string;
+  ref: string;
+  message: string;
+  severity: "error" | "warning";
+}
+
+/** Pure builder for bindingEvidence (exported symbol required by task). */
+export function bindingEvidence(code: string, ref: string, message: string, severity: "error" | "warning" = "error"): BindingEvidence {
+  return { code, ref, message, severity };
+}
+
+/**
+ * resolveDatasetBindingRuntime(model, bindingRefs)
+ * Pure runtime helper: resolves dataset and field bindings to entity/field metadata.
+ * Returns lifecycle, sensitivity, policyRef etc for consumers (Page/Workflow/AIGC).
+ * Missing/deprecated/removed produce stable findings + evidence (fail-closed).
+ */
+export function resolveDatasetBindingRuntime(
+  model: DataModelModel,
+  bindingRefs: string[]
+): {
+  resolved: Array<{
+    ref: string;
+    entityRef: string;
+    fieldKey: string;
+    lifecycle: string;
+    sensitivity?: SensitivityLevel;
+    policyRef?: string;
+    version?: number;
+    fieldId?: string;
+  }>;
+  findings: Finding[];
+  evidence: BindingEvidence[];
+  ok: boolean;
+} {
+  const findings: Finding[] = [];
+  const evidence: BindingEvidence[] = [];
+  const resolved: any[] = [];
+
+  // Build SSOT field metadata lookup from model.entities (pure)
+  const fieldMeta: Record<string, any> = {};
+  (model.entities || []).forEach((e: Entity) => {
+    (e.fields || []).forEach((fl: Field) => {
+      const ref = `${e.id}.${fl.key}`;
+      fieldMeta[ref] = {
+        entityRef: e.id,
+        fieldKey: fl.key,
+        lifecycle: fl.lifecycle ?? "active",
+        sensitivity: fl.sensitivity,
+        policyRef: fl.policyRef,
+        version: fl.version ?? 1,
+        fieldId: fl.fieldId,
+      };
+    });
+  });
+
+  // Map dataset-oriented bindings (e.g. "dsId.field" or alias) to underlying entity.field
+  const dsToField: Record<string, string> = {};
+  (model.datasets || []).forEach((ds: Dataset) => {
+    (ds.selectedFields || []).forEach((sf: any) => {
+      if (sf && typeof sf.field === "string") {
+        const base = `${ds.entityRef}.${sf.field}`;
+        dsToField[`${ds.id}.${sf.field}`] = base;
+        if (sf.alias && typeof sf.alias === "string") {
+          dsToField[`${ds.id}.${sf.alias}`] = base;
+        }
+      }
+    });
+  });
+
+  const refs = Array.isArray(bindingRefs) ? bindingRefs : [];
+  for (const rawRef of refs) {
+    const ref = typeof rawRef === "string" ? rawRef : "";
+    if (!ref) continue;
+    // resolve via dataset binding if applicable, else direct entity.field
+    const target = dsToField[ref] || ref;
+    const meta = fieldMeta[target];
+    if (!meta) {
+      const msg = `Dataset/field binding not resolvable (missing): ${ref}`;
+      findings.push({ code: DM_DATASET_BINDING_FIELD_MISSING, severity: "error", path: `binding=${ref}`, message: msg });
+      evidence.push(bindingEvidence(DM_DATASET_BINDING_FIELD_MISSING, ref, msg, "error"));
+      continue;
+    }
+    // removed: hard error (fail-closed)
+    if (meta.lifecycle === "removed") {
+      const msg = `Dataset/field binding to removed field: ${ref}`;
+      findings.push({ code: "DM_FIELD_REMOVED", severity: "error", path: `binding=${ref}`, message: msg });
+      evidence.push(bindingEvidence("DM_FIELD_REMOVED", ref, msg, "error"));
+      continue;
+    }
+    // deprecated: stable finding (warning)
+    if (meta.lifecycle === "deprecated") {
+      const msg = `Dataset/field binding to deprecated field: ${ref}`;
+      findings.push({ code: "DM_FIELD_DEPRECATED", severity: "warning", path: `binding=${ref}`, message: msg });
+      evidence.push(bindingEvidence("DM_FIELD_DEPRECATED", ref, msg, "warning"));
+    }
+    resolved.push({ ref, ...meta });
+  }
+
+  const hasError = findings.some((f) => f.severity === "error");
+  return { resolved, findings, evidence, ok: !hasError };
 }
 
 function sanitizeId(raw: string): string {
@@ -74,6 +313,166 @@ function withSsotMetadata(model: DataModelModel): DataModelModel {
       outputAliases: d.outputAliases ? { ...d.outputAliases } : undefined,
     })) : undefined,
     policyDefinitions: model.policyDefinitions ? model.policyDefinitions.map((p: PolicyDefinition) => ({ ...p })) : undefined,
+  };
+}
+
+/** Pure runtime constant for missing field in lineage trace (fail-closed behavior). */
+export const DM_LINEAGE_FIELD_MISSING = "DM_LINEAGE_FIELD_MISSING";
+
+/** Build a queryable pure field lineage index from DataModel.
+ *  Collects entity/field nodes + references contributed by datasets (selectedFields),
+ *  policies (policyRef + policyDefinitions), migrations (actions), and relations.
+ *  No side effects, no I/O. 
+ */
+export function buildFieldLineageIndex(model: DataModelModel): FieldLineageIndex {
+  const nodes: FieldLineageNode[] = [];
+  const edges: FieldLineageEdge[] = [];
+  const fieldRefs: string[] = [];
+  const nodeIds = new Set<string>();
+
+  function addNode(n: FieldLineageNode) {
+    if (!nodeIds.has(n.id)) {
+      nodeIds.add(n.id);
+      nodes.push(n);
+    }
+  }
+
+  // Core: entities + fields (SSOT source of truth for lineage)
+  model.entities.forEach((ent) => {
+    const entId = `dm_${sanitizeId(ent.id)}`;
+    addNode({ id: entId, kind: "entity", ref: ent.id });
+    ent.fields.forEach((fl) => {
+      const fRef = `${ent.id}.${fl.key}`;
+      fieldRefs.push(fRef);
+      const fId = `dm_${sanitizeId(ent.id)}_${sanitizeId(fl.key)}`;
+      addNode({ id: fId, kind: "field", ref: fRef });
+      edges.push({ from: entId, to: fId, kind: "contains", label: "field" });
+      // ref fields create cross-entity lineage links
+      if (fl.type === "ref" && fl.refEntity) {
+        const tgtEntId = `dm_${sanitizeId(fl.refEntity)}`;
+        edges.push({ from: fId, to: tgtEntId, kind: "ref", label: fl.key });
+      }
+    });
+  });
+
+  // Datasets: selected fields produce "selects" references (consumer side of lineage)
+  (model.datasets || []).forEach((ds: Dataset) => {
+    const dsId = `ds_${sanitizeId(ds.id)}`;
+    addNode({ id: dsId, kind: "dataset", ref: ds.id });
+    const entId = `dm_${sanitizeId(ds.entityRef)}`;
+    edges.push({ from: dsId, to: entId, kind: "binds", label: "entity" });
+    (ds.selectedFields || []).forEach((sf) => {
+      const fRef = `${ds.entityRef}.${sf.field}`;
+      const fId = `dm_${sanitizeId(ds.entityRef)}_${sanitizeId(sf.field)}`;
+      edges.push({ from: dsId, to: fId, kind: "selects", label: sf.alias || sf.field });
+      // field -> dataset consumer for downstream lineage
+      if (nodeIds.has(fId)) {
+        edges.push({ from: fId, to: dsId, kind: "consumed_by", label: "dataset" });
+      }
+    });
+  });
+
+  // Policies: field policyRef and top level policyDefinitions contribute policy nodes/edges
+  const polIds = new Set<string>();
+  model.entities.forEach((ent) => {
+    ent.fields.forEach((fl) => {
+      if (fl.policyRef) {
+        const pId = `pol_${sanitizeId(fl.policyRef)}`;
+        if (!polIds.has(pId)) {
+          polIds.add(pId);
+          addNode({ id: pId, kind: "policy", ref: fl.policyRef });
+        }
+        const fId = `dm_${sanitizeId(ent.id)}_${sanitizeId(fl.key)}`;
+        edges.push({ from: fId, to: pId, kind: "policy", label: `sensitive:${fl.sensitivity || "policy"}` });
+      }
+    });
+  });
+  (model.policyDefinitions || []).forEach((pd: PolicyDefinition) => {
+    const pId = `pol_${sanitizeId(pd.id)}`;
+    if (!polIds.has(pId)) {
+      polIds.add(pId);
+      addNode({ id: pId, kind: "policy", ref: pd.id });
+    }
+  });
+
+  // Migrations: actions produce "affects" lineage edges to target fields/entities
+  const plan: any = (model as any).migrationPlan;
+  if (plan && Array.isArray(plan.actions)) {
+    const planId = `mig_${sanitizeId(plan.id || "plan")}`;
+    addNode({ id: planId, kind: "migration", ref: plan.id || "plan" });
+    plan.actions.forEach((act: MigrationAction, i: number) => {
+      const tgtRef = act.field ? `${act.entity}.${act.field}` : act.entity;
+      const actId = `mig_act${i}_${sanitizeId(act.entity)}${act.field ? "_" + sanitizeId(act.field) : ""}`;
+      addNode({ id: actId, kind: "migration", ref: `${act.action}:${tgtRef}` });
+      edges.push({ from: planId, to: actId, kind: "migration", label: act.action });
+      const tgtId = act.field
+        ? `dm_${sanitizeId(act.entity)}_${sanitizeId(act.field)}`
+        : `dm_${sanitizeId(act.entity)}`;
+      if (nodeIds.has(tgtId)) {
+        edges.push({ from: actId, to: tgtId, kind: "affects", label: act.action });
+      }
+    });
+  }
+
+  // Relations: contribute entity-entity and thus field propagation edges
+  (model.relations || []).forEach((rel: Relation, ri: number) => {
+    const rId = `rel_${rel.key ? sanitizeId(rel.key) : String(ri)}`;
+    addNode({ id: rId, kind: "relation", ref: rel.key || `${rel.fromEntity}->${rel.toEntity}` });
+    const fromE = `dm_${sanitizeId(rel.fromEntity)}`;
+    const toE = `dm_${sanitizeId(rel.toEntity)}`;
+    edges.push({ from: fromE, to: toE, kind: "relation", label: rel.cardinality });
+  });
+
+  return {
+    nodes,
+    edges,
+    fieldRefs: Array.from(new Set(fieldRefs)),
+  };
+}
+
+/** Trace upstream (sources) / downstream (consumers) for a fieldRef using the index.
+ *  Returns findings containing DM_LINEAGE_FIELD_MISSING on absent field (fail-closed).
+ */
+export function traceFieldLineage(
+  index: FieldLineageIndex,
+  fieldRef: string
+): {
+  fieldRef: string;
+  upstream: string[];
+  downstream: string[];
+  findings: Array<{ code: string; severity?: string; path?: string; message?: string }>;
+} {
+  const findings: Array<{ code: string; severity?: string; path?: string; message?: string }> = [];
+  const present = index.fieldRefs.includes(fieldRef);
+  if (!present) {
+    findings.push({
+      code: DM_LINEAGE_FIELD_MISSING,
+      severity: "error",
+      path: `fieldRef=${fieldRef}`,
+      message: `Field lineage not found: ${fieldRef}`,
+    });
+    return { fieldRef, upstream: [], downstream: [], findings };
+  }
+
+  const [ent, fld] = fieldRef.split(".");
+  const fId = `dm_${sanitizeId(ent)}_${sanitizeId(fld || "")}`;
+
+  const upstream: string[] = [];
+  const downstream: string[] = [];
+  index.edges.forEach((e) => {
+    if (e.to === fId || e.to === fieldRef || (fld && e.to.includes(`_${fld}`))) {
+      upstream.push(e.from);
+    }
+    if (e.from === fId || e.from === fieldRef || (fld && e.from.includes(`_${fld}`))) {
+      downstream.push(e.to);
+    }
+  });
+
+  return {
+    fieldRef,
+    upstream: Array.from(new Set(upstream)),
+    downstream: Array.from(new Set(downstream)),
+    findings,
   };
 }
 

@@ -161,3 +161,26 @@ export interface DataModelModel {
    */
   policyDefinitions?: PolicyDefinition[];
 }
+
+/** Pure runtime field lineage index (V2 117): nodes + edges derived from entities/fields + datasets + policies + migrations + relations.
+ *  Used for impact analysis and binding checks. Deterministic in-memory only.
+ */
+export interface FieldLineageNode {
+  id: string;
+  kind: "entity" | "field" | "dataset" | "policy" | "migration" | "relation";
+  ref: string;
+}
+
+export interface FieldLineageEdge {
+  from: string;
+  to: string;
+  kind: string;
+  label?: string;
+}
+
+export interface FieldLineageIndex {
+  nodes: FieldLineageNode[];
+  edges: FieldLineageEdge[];
+  /** canonical "entity.field" refs present in this model */
+  fieldRefs: string[];
+}

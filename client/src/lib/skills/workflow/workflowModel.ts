@@ -89,3 +89,32 @@ export interface WorkflowInstanceSnapshot {
   /** snapshot of caller-provided initial variables at start (pure data) */
   initialVariables: Record<string, unknown>;
 }
+
+/** V2 117: pure runtime instance state (snapshot-backed, no side effects). */
+export interface WorkflowInstance {
+  id: string;
+  snapshot: WorkflowInstanceSnapshot;
+  currentNodeId: string;
+  status: "running" | "completed" | "rejected";
+  variables: Record<string, unknown>;
+}
+
+/** V2 117: commands for transitionWorkflowInstance. */
+export interface WorkflowTransitionCommand {
+  type: "approve" | "reject" | "submit" | "timeout";
+  variables?: Record<string, unknown>;
+}
+
+/** V2 117 runtime: form field binding result for task forms at runtime (DataModel lifecycle + RBAC field PDP state). */
+export interface WorkflowFormField {
+  ref: string;
+  lifecycle?: string;
+  pdpState: string;
+  editable: boolean;
+}
+
+export interface WorkflowFormRuntime {
+  formFieldRefs: string[];
+  fields: WorkflowFormField[];
+  findings: Array<{ code: string; severity: string; path: string; message: string }>;
+}

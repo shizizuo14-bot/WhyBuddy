@@ -118,3 +118,38 @@ export interface AigcModel {
   toolPolicies: ToolPolicy[];
   traceSpan?: string;
 }
+
+export interface ToolCallBudget {
+  maxCalls: number;
+  timeoutMs: number;
+}
+
+export interface AigcInvocationPlan {
+  capabilityId: string;
+  providerRef: string;
+  promptRef: string;
+  outputSchemaRef: string;
+  retrievalPolicy?: { id: string; maxResults: number };
+  citationPolicy?: { id: string; citationRequired: boolean };
+  toolCallBudget?: ToolCallBudget;
+}
+
+export interface AigcRuntimeContext {
+  rbac?: {
+    permission?: string[];
+    role?: string[];
+    permissions?: string[];
+  };
+  datamodel?: {
+    field?: string[];
+    fields?: Array<{ ref: string; lifecycle?: string }>;
+  };
+}
+
+export interface CitationEvidence {
+  ref: string;
+  source?: string;
+  snippet?: string;
+}
+
+export const AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID = "AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID";

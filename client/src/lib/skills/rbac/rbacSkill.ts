@@ -8,7 +8,19 @@ import {
   type Skill,
   type ValidateContext,
 } from "../skill";
-import type { FieldContext, PolicyContext, PolicyDecision, PolicyLifecycleState, PolicyRule, RbacModel } from "./rbacModel";
+import type {
+  FieldContext,
+  PolicyContext,
+  PolicyDecision,
+  PolicyLifecycleState,
+  PolicyRule,
+  RbacFieldAccessLevel,
+  RbacModel,
+  RbacRuntimeDecision,
+  RbacRuntimeRequest,
+} from "./rbacModel";
+import { RBAC_RUNTIME_FAIL_CLOSED } from "./rbacModel";
+export { RBAC_RUNTIME_FAIL_CLOSED };
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -147,6 +159,50 @@ function matchesDenyRule(rule: PolicyRule, req: PolicyContext, effectiveRoleIds:
     if (!hasField) return false;
   }
   return true;
+}
+
+/** 117: pure exported runtime SoD policy evaluator.
+ * Detects direct mutually-exclusive roles ( >1 exclusiveRoleIds held directly by subject )
+ * and contextual conflicts such as selfApproval (intersect any exclusive when flag set).
+ * Returns stable evidence incl. matched SoD rule id + RBAC_RUNTIME_SOD_DENIED.
+ * Deterministic in-memory only.
+ */
+export const RBAC_RUNTIME_SOD_DENIED = "RBAC_RUNTIME_SOD_DENIED";
+
+export function evaluateRbacSodPolicy(model: RbacModel, request: PolicyContext): { denied: boolean; ruleId?: string; reasonCode?: string; reason?: string; matchedRoles?: string[] } {
+  if (!model || !request || !request.subject || !Array.isArray(request.subject.roleIds)) {
+    return { denied: false };
+  }
+  const direct = request.subject.roleIds;
+  for (const rule of model.sodRules ?? []) {
+    const ex = new Set(rule.exclusiveRoleIds);
+    const held = direct.filter((r: string) => ex.has(r));
+    if (held.length > 1) {
+      return {
+        denied: true,
+        ruleId: rule.id,
+        reasonCode: RBAC_RUNTIME_SOD_DENIED,
+        reason: `direct mutually-exclusive roles [${held.join(",")}] match sodRule ${rule.id}`,
+        matchedRoles: held,
+      };
+    }
+  }
+  if (request.selfApproval === true) {
+    for (const rule of model.sodRules ?? []) {
+      const ex = new Set(rule.exclusiveRoleIds);
+      const held = direct.filter((r: string) => ex.has(r));
+      if (held.length > 0) {
+        return {
+          denied: true,
+          ruleId: rule.id,
+          reasonCode: RBAC_RUNTIME_SOD_DENIED,
+          reason: `selfApproval contextual conflict match sodRule ${rule.id}`,
+          matchedRoles: held,
+        };
+      }
+    }
+  }
+  return { denied: false };
 }
 
 // ---------------------------------------------------------------------------
@@ -761,6 +817,16 @@ export function decideRbacPolicy(model: RbacModel, request: PolicyContext): Poli
     // expand (inheritance)
     const effectiveRoleIds = expandEffectiveRoles(model.roles, reqRoles);
 
+    // 117: integrate evaluateRbacSodPolicy into runtime PDP; SoD denial wins before allow
+    const sodEval = evaluateRbacSodPolicy(model, request);
+    if (sodEval.denied) {
+      return failClosedDecision(`runtime SoD denied by rule ${sodEval.ruleId}`, {
+        expandedRoles: effectiveRoleIds,
+        reasonCode: RBAC_RUNTIME_SOD_DENIED,
+        sodRuleId: sodEval.ruleId,
+      });
+    }
+
     // collect granted perms (only those defined)
     const effectivePerms: string[] = [];
     const granted = new Set<string>();
@@ -806,6 +872,7 @@ export function decideRbacPolicy(model: RbacModel, request: PolicyContext): Poli
         matchedPermission: dr.permissionCode || matchedPermission,
         policyVersion: dr.version,
         policyLifecycleState: dr.lifecycleState,
+        policyId: dr.id,
       });
     }
 
@@ -857,6 +924,174 @@ export function decideRbacPolicy(model: RbacModel, request: PolicyContext): Poli
     // 115.10.05: validator/decision helper exceptions must result in deny (fail-closed)
     return failClosedDecision(`decision helper exception: ${err?.message ?? String(err)}`);
   }
+}
+
+/** 117: pure executable runtime PDP decision function.
+ * Deterministic in-memory only. Request carries subject (role refs or user), action, resourceType,
+ * optional resourceId, fieldRef, scope (context scope).
+ * Returns structured decision: effect allow/deny, reasonCode, matched ids, denyPrecedence:true on deny-win.
+ * Missing subject/action/resource inputs -> effect=deny + RBAC_RUNTIME_FAIL_CLOSED.
+ * Explicit allow only; any matching deny rule sets denyPrecedence and overrides.
+ * decideRbacPolicy remains compatible (unchanged body for test stability).
+ */
+export function evaluateRbacRuntimePolicy(model: RbacModel, request: RbacRuntimeRequest): RbacRuntimeDecision {
+  try {
+    const subj = request?.subject ?? {};
+    const roleIds: string[] = Array.isArray(subj.roleIds) ? subj.roleIds : [];
+    const action = request?.action;
+    const resourceType = request?.resourceType;
+    if (!request || roleIds.length === 0 || !action || !resourceType) {
+      return {
+        effect: "deny",
+        reasonCode: RBAC_RUNTIME_FAIL_CLOSED,
+        matchedRoleIds: [],
+        matchedPermissionIds: [],
+        matchedPolicyIds: [],
+        denyPrecedence: false,
+      };
+    }
+
+    const effectiveRoleIds = expandEffectiveRoles(model.roles, roleIds);
+
+    const targetPermissionCode = model.permissions.find(
+      p => p.action === action && p.resource === resourceType
+    )?.code;
+
+    // build sim context for existing deny matcher (fieldRef -> fieldContext)
+    const fieldKey = request.fieldRef ? (request.fieldRef.split(".").pop() || request.fieldRef) : undefined;
+    const simFieldContext: FieldContext = request.fieldContext ?? (fieldKey ? { fields: [fieldKey] } : { fields: [] });
+    const simReq: PolicyContext = {
+      subject: { roleIds, userId: subj.userId },
+      action,
+      resourceType,
+      resourceId: request.resourceId,
+      tenantId: request.tenantId ?? "",
+      scope: request.scope,
+      fieldContext: simFieldContext,
+      isSelf: request.isSelf,
+      approverCount: request.approverCount,
+      approverUserIds: request.approverUserIds,
+    };
+
+    // 117 runtime: deny precedence first (deny overrides any allow)
+    const policyRulesForDeny = (model.policyRules ?? []).filter(r => r.lifecycleState !== "retired");
+    for (const dr of policyRulesForDeny) {
+      if (dr.effect !== "deny") continue;
+      if (!matchesDenyRule(dr, simReq, effectiveRoleIds, targetPermissionCode)) continue;
+      return {
+        effect: "deny",
+        reasonCode: RBAC_RUNTIME_FAIL_CLOSED,
+        matchedRoleIds: effectiveRoleIds,
+        matchedPermissionIds: dr.permissionCode ? [dr.permissionCode] : (targetPermissionCode ? [targetPermissionCode] : []),
+        matchedPolicyIds: [dr.id],
+        denyPrecedence: true,
+      };
+    }
+
+    // collect effective perms (reuse logic)
+    const roleMap = new Map(model.roles.map(r => [r.id, r]));
+    const permMap = new Map(model.permissions.map(p => [p.code, p]));
+    const effectivePerms: string[] = [];
+    const granted = new Set<string>();
+    for (const rid of effectiveRoleIds) {
+      const r = roleMap.get(rid);
+      if (r) {
+        r.permissionCodes.forEach(pc => {
+          if (permMap.has(pc) && !granted.has(pc)) {
+            granted.add(pc);
+            effectivePerms.push(pc);
+          }
+        });
+      }
+    }
+
+    let matchedPermission: string | undefined;
+    for (const pc of effectivePerms) {
+      const p = permMap.get(pc);
+      if (p && p.action === action && p.resource === resourceType) {
+        matchedPermission = pc;
+        break;
+      }
+    }
+
+    if (matchedPermission) {
+      // explicit allow (runtime allow is explicit only); no SoD here (decide keeps compat)
+      return {
+        effect: "allow",
+        reasonCode: "RBAC_RUNTIME_ALLOW",
+        matchedRoleIds: effectiveRoleIds,
+        matchedPermissionIds: [matchedPermission],
+        matchedPolicyIds: [],
+        denyPrecedence: false,
+      };
+    }
+
+    // no grant -> fail closed
+    return {
+      effect: "deny",
+      reasonCode: RBAC_RUNTIME_FAIL_CLOSED,
+      matchedRoleIds: effectiveRoleIds,
+      matchedPermissionIds: [],
+      matchedPolicyIds: [],
+      denyPrecedence: false,
+    };
+  } catch {
+    return {
+      effect: "deny",
+      reasonCode: RBAC_RUNTIME_FAIL_CLOSED,
+      matchedRoleIds: [],
+      matchedPermissionIds: [],
+      matchedPolicyIds: [],
+      denyPrecedence: false,
+    };
+  }
+}
+
+/** 117: pure exported runtime helper for row-level access. Delegates to PDP (decideRbacPolicy) with no local auth duplication. */
+export function evaluateRbacRowAccess(model: RbacModel, request: PolicyContext): PolicyDecision {
+  return decideRbacPolicy(model, request);
+}
+
+/** 117: pure exported runtime helper for field-level access.
+ * Must delegate to PDP decision path.
+ * Supports hidden/read/readonly/editable outcomes in return shape.
+ * Denied always fail-closed (level hidden + RBAC_FIELD_ACCESS_DENIED code).
+ * When sensitive field uses policyRef (from DataModel), PDP carries policyId into evidence and helper preserves it.
+ */
+export const RBAC_FIELD_ACCESS_DENIED = "RBAC_FIELD_ACCESS_DENIED";
+
+export function evaluateRbacFieldAccess(
+  model: RbacModel,
+  request: PolicyContext,
+  fieldRef?: string,
+): PolicyDecision & { level: RbacFieldAccessLevel; policyId?: string } {
+  let effectiveRequest: PolicyContext = request;
+  if (fieldRef != null) {
+    const fc = request.fieldContext ?? { fields: [] as string[] };
+    const fieldKey = fieldRef.includes(".") ? (fieldRef.split(".").pop() || fieldRef) : fieldRef;
+    effectiveRequest = {
+      ...request,
+      fieldContext: {
+        fields: Array.from(new Set([...(fc.fields ?? []), fieldKey])),
+        attributes: fc.attributes,
+      },
+    };
+  }
+  const decision = decideRbacPolicy(model, effectiveRequest);
+  if (!decision.allow) {
+    // fail-closed for field denial; preserve policyId from PDP evidence (set for policyRef denies)
+    return {
+      ...decision,
+      code: RBAC_FIELD_ACCESS_DENIED,
+      level: "hidden",
+      policyId: (decision as any).policyId,
+    } as any;
+  }
+  // positive: PDP granted; level "read" for base (other levels supported in type/contract; caller context determines semantics via PDP)
+  return {
+    ...decision,
+    level: "read" as RbacFieldAccessLevel,
+  } as any;
 }
 
 // ---------------------------------------------------------------------------

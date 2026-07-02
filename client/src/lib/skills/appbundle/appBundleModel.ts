@@ -51,6 +51,12 @@ export interface AppBundleRuntimeSnapshot {
   appVersion: string;
   refMode: "pinned";
   pinnedRefs: string[];
+  publishGateEvidence?: {
+    status: AppBundleGateStatus;
+    passedAt?: string;
+    evidenceSummary?: string;
+  };
+  closureHash?: string;
 }
 
 export interface AppBundleReleaseArtifact {
@@ -90,4 +96,12 @@ export interface AppBundleModel {
   runtimeSnapshot?: AppBundleRuntimeSnapshot;
   releaseArtifact?: AppBundleReleaseArtifact;
   rollbackTargets?: AppBundleRollbackTarget[];
+}
+
+export interface AppBundleRollbackPlan {
+  appId: string;
+  fromVersion: string;
+  toVersion: string;
+  changedRefs: string[];
+  closureHashMatch?: boolean;
 }

@@ -2,7 +2,15 @@ import { describe, expect, it } from "vitest";
 
 import { dataModelSkill, purchaseApprovalDataModel } from "../datamodel/dataModelSkill";
 import { purchaseApprovalRbac, rbacSkill } from "../rbac/rbacSkill";
-import { aigcSkill, purchaseRiskAigcModel } from "./aigcSkill";
+import {
+  aigcSkill,
+  AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID,
+  AIGC_RUNTIME_POLICY_DENIED,
+  emptyLeaveAigcModel,
+  evaluateAigcRuntimePolicy,
+  purchaseRiskAigcModel,
+  validateAigcRuntimeOutput,
+} from "./aigcSkill";
 import type { AigcModel } from "./aigcModel";
 
 const clone = (model: AigcModel): AigcModel => structuredClone(model);
@@ -250,5 +258,116 @@ describe("aigcSkill - projection, resolve, and crossRefs", () => {
     expect(refs.some(ref => ref.toSkill === "datamodel" && ref.toValue === "purchase_request.amount")).toBe(true);
     expect(refs.some(ref => ref.toSkill === "rbac" && ref.toValue === "finance")).toBe(true);
     expect(aigcSkill.refNodeId("capability", "budget_risk_summary")).toBe("aigc_cap_budget_risk_summary");
+  });
+});
+
+describe("aigcSkill - runtime policy evaluation (117)", () => {
+  const runtimeCtx = {
+    rbac: fullSurface.rbac,
+    datamodel: fullSurface.datamodel,
+  };
+
+  it("evaluates positive invocation plan for purchase capability with full evidence", () => {
+    const decision = evaluateAigcRuntimePolicy(
+      purchaseRiskAigcModel,
+      "budget_risk_summary",
+      runtimeCtx
+    );
+
+    expect(decision).not.toBe(AIGC_RUNTIME_POLICY_DENIED);
+    if (decision !== AIGC_RUNTIME_POLICY_DENIED) {
+      expect(decision.capabilityId).toBe("budget_risk_summary");
+      expect(decision.providerRef).toBe("openai_gpt4o_ref");
+      expect(decision.promptRef).toBe("purchase_risk_prompt");
+      expect(decision.toolCallBudget).toEqual({ maxCalls: 2, timeoutMs: 3000 });
+      expect(decision.retrievalPolicy?.maxResults).toBe(5);
+      expect(decision.citationPolicy?.citationRequired).toBe(true);
+    }
+  });
+
+  it("fails closed (returns AIGC_RUNTIME_POLICY_DENIED) for missing capability, missing RBAC evidence, insufficient permissions, or removed DataModel fields", () => {
+    // missing cap
+    const noCap = evaluateAigcRuntimePolicy(purchaseRiskAigcModel, "nonexistent_cap", runtimeCtx);
+    expect(noCap).toBe(AIGC_RUNTIME_POLICY_DENIED);
+
+    // missing RBAC evidence
+    const noRbac = evaluateAigcRuntimePolicy(purchaseRiskAigcModel, "budget_risk_summary", {});
+    expect(noRbac).toBe(AIGC_RUNTIME_POLICY_DENIED);
+
+    // insufficient perm
+    const weakRbac = evaluateAigcRuntimePolicy(purchaseRiskAigcModel, "budget_risk_summary", {
+      rbac: { permission: ["purchase:view"] }, // missing "purchase:finance_approve"
+      datamodel: fullSurface.datamodel,
+    });
+    expect(weakRbac).toBe(AIGC_RUNTIME_POLICY_DENIED);
+
+    // removed field
+    const removedDm = {
+      field: ["purchase_request.amount", "purchase_request.department", "purchase_request.vendor", "purchase_request.budgetChecked"],
+      fields: [
+        { ref: "purchase_request.vendor", lifecycle: "removed" },
+      ],
+    };
+    const removedField = evaluateAigcRuntimePolicy(purchaseRiskAigcModel, "budget_risk_summary", {
+      rbac: fullSurface.rbac,
+      datamodel: removedDm,
+    });
+    expect(removedField).toBe(AIGC_RUNTIME_POLICY_DENIED);
+  });
+
+  it("denies for leave model (empty capabilities) preserving compatibility", () => {
+    const decision = evaluateAigcRuntimePolicy(emptyLeaveAigcModel, "anything", runtimeCtx);
+    expect(decision).toBe(AIGC_RUNTIME_POLICY_DENIED);
+  });
+});
+
+describe("aigcSkill - runtime output schema and evidence (117)", () => {
+  it("accepts valid output matching schema fields and with citationEvidence for RAG-backed capability", () => {
+    const valid = {
+      riskLevel: "medium",
+      summary: "Medium risk per vendor policy corpus.",
+      recommendedAction: "Request additional review",
+      citationEvidence: [{ ref: "vendor_policy_knowledge:policy-42", snippet: "approved vendors only" }],
+    };
+    const report = validateAigcRuntimeOutput(purchaseRiskAigcModel, "budget_risk_summary", valid);
+    expect(report.ok).toBe(true);
+    expect(report.errors).toHaveLength(0);
+  });
+
+  it("rejects missing required schema field and missing citationEvidence on RAG capability (fail-closed)", () => {
+    const missingField = {
+      riskLevel: "low",
+      summary: "low risk",
+      // missing required recommendedAction
+    };
+    const r1 = validateAigcRuntimeOutput(purchaseRiskAigcModel, "budget_risk_summary", missingField);
+    expect(r1.ok).toBe(false);
+    expect(r1.errors.some((e) => e.code === AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID)).toBe(true);
+
+    const noEvidence = {
+      riskLevel: "high",
+      summary: "high risk detected",
+      recommendedAction: "block",
+      // citationEvidence absent for RAG-backed
+    };
+    const r2 = validateAigcRuntimeOutput(purchaseRiskAigcModel, "budget_risk_summary", noEvidence);
+    expect(r2.ok).toBe(false);
+    expect(r2.errors.some((e) => e.code === AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID)).toBe(true);
+  });
+
+  it("rejects invalid capability id and wrong field types", () => {
+    const badCap = validateAigcRuntimeOutput(purchaseRiskAigcModel, "nonexistent_cap", {});
+    expect(badCap.ok).toBe(false);
+    expect(badCap.errors.some((e) => e.code === AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID)).toBe(true);
+
+    const wrongType = {
+      riskLevel: "unknown",
+      summary: 123,
+      recommendedAction: "proceed",
+      citationEvidence: [],
+    };
+    const r3 = validateAigcRuntimeOutput(purchaseRiskAigcModel, "budget_risk_summary", wrongType);
+    expect(r3.ok).toBe(false);
+    expect(r3.errors.some((e) => e.code === AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID)).toBe(true);
   });
 });

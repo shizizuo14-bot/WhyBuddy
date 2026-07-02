@@ -8,7 +8,7 @@ import {
   type Skill,
   type ValidateContext,
 } from "../skill";
-import type { AppBundleModel, AppBundleSkillId, AppMenuEntry } from "./appBundleModel";
+import type { AppBundleModel, AppBundleSkillId, AppMenuEntry, AppBundleRuntimeSnapshot, AppBundleRollbackPlan } from "./appBundleModel";
 
 function sanitizeId(raw: string): string {
   return raw.replace(/[^a-zA-Z0-9_]/g, "_");
@@ -750,6 +750,194 @@ export function validateAppBundlePublishGate(
   };
 }
 
+export const APPBUNDLE_RUNTIME_CLOSURE_BLOCKED = "APPBUNDLE_RUNTIME_CLOSURE_BLOCKED";
+
+export interface AppBundleRuntimeClosureReport {
+  blocked: boolean;
+  blockers: Finding[];
+  perSkillEvidence: Record<string, {
+    skillId: string;
+    versionPin: { pinned: boolean; version?: string };
+    runtimePolicyEvidence: boolean;
+    dataModelBindings: boolean;
+    rbacPdpDecisions: boolean;
+    workflowPageTaskViewConsistency: boolean;
+    aigcInvocationOutputPolicy: boolean;
+    unresolvedRefs: boolean;
+    evidencePresent: boolean;
+  }>;
+  runtimeClosure?: {
+    skillsChecked: string[];
+    versionPinsChecked: boolean;
+    perSkill: Record<string, unknown>;
+  };
+}
+
+function hasRuntimeEvidenceFields(m: any, skillId: string): { policy: boolean; bindings: boolean; taskView: boolean; aigcPolicy: boolean; present: boolean } {
+  if (!m || typeof m !== "object") return { policy: false, bindings: false, taskView: false, aigcPolicy: false, present: false };
+  const keys = Object.keys(m);
+  const kset = new Set(keys.map((k: string) => k.toLowerCase()));
+  const hasPolicy = kset.has("pep") || kset.has("actorroleref") || kset.has("policycheckrefs") || kset.has("failclosed") || kset.has("permissions") || kset.has("roles") || kset.has("dualcontrolpolicies") || kset.has("datarules") || kset.has("policydefinitions") || !!m.publishManifest || !!m.runtimeSnapshot || !!m.releaseArtifact || !!m.publishGateEvidence;
+  const hasBindings = kset.has("entities") || kset.has("entityrefs") || kset.has("fieldrefs") || kset.has("relations") || kset.has("components") || kset.has("bindings");
+  const hasTaskView = kset.has("components") || kset.has("published") || kset.has("pageversion") || kset.has("snapshotrefs") || kset.has("pagebindings") || kset.has("workflowrefs") || kset.has("menuentries") || kset.has("tasks");
+  const hasAigcPolicy = kset.has("capabilities") || kset.has("outputschemas") || kset.has("retrievalpolicies") || kset.has("citationpolicies") || kset.has("prompttemplates") || kset.has("aigccapabilityrefs") || kset.has("pep");
+  const present = hasPolicy || hasBindings || hasTaskView || hasAigcPolicy || (skillId === "appbundle" && (kset.has("versionpins") || kset.has("runtimesnapshot")));
+  return { policy: hasPolicy, bindings: hasBindings, taskView: hasTaskView, aigcPolicy: hasAigcPolicy, present };
+}
+
+export function evaluateAppBundleRuntimeClosure(models: Record<string, unknown>): AppBundleRuntimeClosureReport {
+  const blockers: Finding[] = [];
+  const perSkillEvidence: AppBundleRuntimeClosureReport["perSkillEvidence"] = {} as any;
+  const appBundleModel = (models.appbundle || models["appBundle"]) as AppBundleModel | undefined;
+
+  const skillsToCheck: AppBundleSkillId[] = ["datamodel", "rbac", "workflow", "page", "aigc", "appbundle"];
+
+  for (const skillId of skillsToCheck) {
+    const skillModel = models[skillId] as any;
+    const ev = hasRuntimeEvidenceFields(skillModel, skillId);
+    const pin = (appBundleModel?.versionPins ?? []).find(p => p.skillId === skillId);
+    const versionPin = pin && isFixedPinVersion(pin.version) ? { pinned: true, version: pin.version } : { pinned: !!pin };
+
+    const evidence = {
+      skillId,
+      versionPin,
+      runtimePolicyEvidence: ev.policy,
+      dataModelBindings: ev.bindings,
+      rbacPdpDecisions: ev.policy,
+      workflowPageTaskViewConsistency: ev.taskView,
+      aigcInvocationOutputPolicy: ev.aigcPolicy,
+      unresolvedRefs: false,
+      evidencePresent: ev.present,
+    };
+
+    // Version pins are required for runtime closure for assembled refs
+    if (appBundleModel && !pin && skillId !== "appbundle") {
+      // only block if the appbundle model declares use of the skill (always for core, conditional for aigc)
+      const declaresUse =
+        skillId === "datamodel" || skillId === "rbac" || skillId === "workflow" || skillId === "page" ||
+        (skillId === "aigc" && (appBundleModel.aigcCapabilityRefs?.length ?? 0) > 0);
+      if (declaresUse) {
+        blockers.push({
+          code: APPBUNDLE_RUNTIME_CLOSURE_BLOCKED,
+          severity: "error",
+          path: `versionPins.${skillId}`,
+          message: `Runtime closure requires a fixed version pin for ${skillId}.`,
+        });
+      }
+    }
+
+    const declaresAigc = (appBundleModel?.aigcCapabilityRefs?.length ?? 0) > 0;
+    if (skillId === "aigc" && declaresAigc && !ev.aigcPolicy) {
+      blockers.push({
+        code: APPBUNDLE_RUNTIME_CLOSURE_BLOCKED,
+        severity: "error",
+        path: "aigc",
+        message: "Missing AIGC runtime evidence for invocation/output policy.",
+      });
+    }
+
+    const declaresPage = !!appBundleModel && (
+      (appBundleModel.pageRefs?.length ?? 0) > 0 ||
+      (appBundleModel.pageBindings?.length ?? 0) > 0 ||
+      (appBundleModel.menuEntries?.length ?? 0) > 0
+    );
+    if (skillId === "page" && declaresPage && !ev.taskView) {
+      blockers.push({
+        code: APPBUNDLE_RUNTIME_CLOSURE_BLOCKED,
+        severity: "error",
+        path: "page",
+        message: "Missing Page runtime evidence for task view consistency.",
+      });
+    }
+
+    // Require runtime evidence present for declared skills (fail-closed)
+    if (skillModel) {
+      if (!ev.present) {
+        blockers.push({
+          code: APPBUNDLE_RUNTIME_CLOSURE_BLOCKED,
+          severity: "error",
+          path: skillId,
+          message: `Skill ${skillId} provides no runtime closure evidence (policy, bindings, views, snapshot).`,
+        });
+      }
+    } else if (appBundleModel) {
+      const requiresModel =
+        skillId === "datamodel" || skillId === "rbac" || skillId === "workflow" || skillId === "page" ||
+        (skillId === "aigc" && declaresAigc) || skillId === "appbundle";
+      if (requiresModel) {
+        blockers.push({
+          code: APPBUNDLE_RUNTIME_CLOSURE_BLOCKED,
+          severity: "error",
+          path: skillId,
+          message: `Runtime closure missing model/evidence for ${skillId}.`,
+        });
+      }
+    }
+
+    perSkillEvidence[skillId] = evidence;
+  }
+
+  // AppBundle own runtime requirements: pins + snapshot
+  if (appBundleModel) {
+    if (!appBundleModel.runtimeSnapshot || !appBundleModel.runtimeSnapshot.pinnedRefs || appBundleModel.runtimeSnapshot.pinnedRefs.length === 0) {
+      blockers.push({
+        code: APPBUNDLE_RUNTIME_CLOSURE_BLOCKED,
+        severity: "error",
+        path: "runtimeSnapshot",
+        message: "AppBundle runtime closure requires runtimeSnapshot with pinnedRefs evidence.",
+      });
+    }
+    if (!appBundleModel.versionPins || appBundleModel.versionPins.length === 0) {
+      blockers.push({
+        code: APPBUNDLE_RUNTIME_CLOSURE_BLOCKED,
+        severity: "error",
+        path: "versionPins",
+        message: "AppBundle runtime closure requires versionPins.",
+      });
+    }
+  } else {
+    blockers.push({
+      code: APPBUNDLE_RUNTIME_CLOSURE_BLOCKED,
+      severity: "error",
+      path: "appbundle",
+      message: "Runtime closure requires appbundle model.",
+    });
+  }
+
+  // unresolved refs: if any ref families have targets but no model provided for that skill when required
+  // (covered above by requiresModel); also treat snapshot mismatch as unresolved for runtime
+  if (appBundleModel && appBundleModel.runtimeSnapshot) {
+    const pinned = new Set(appBundleModel.runtimeSnapshot.pinnedRefs || []);
+    (appBundleModel.versionPins || []).forEach(pin => {
+      const pref = `${pin.skillId}:${pin.ref}@${pin.version}`;
+      if (!pinned.has(pref)) {
+        blockers.push({
+          code: APPBUNDLE_RUNTIME_CLOSURE_BLOCKED,
+          severity: "error",
+          path: "runtimeSnapshot.pinnedRefs",
+          message: `Unresolved pinned ref at runtime: ${pref}`,
+        });
+      }
+    });
+  }
+
+  return {
+    blocked: blockers.length > 0,
+    blockers,
+    perSkillEvidence,
+    runtimeClosure: {
+      skillsChecked: Object.keys(perSkillEvidence),
+      versionPinsChecked: !!appBundleModel?.versionPins?.length,
+      perSkill: perSkillEvidence,
+    },
+  };
+}
+
+export const runtimeClosure = {
+  evaluateAppBundleRuntimeClosure,
+  APPBUNDLE_RUNTIME_CLOSURE_BLOCKED,
+};
+
 export const leaveApprovalAppBundle: AppBundleModel = {
   id: "app_leave_approval",
   name: "请假审批平台",
@@ -948,3 +1136,117 @@ export const purchaseApprovalAppBundle: AppBundleModel = {
     },
   ],
 };
+
+// Pure runtime helpers for 117: deterministic in-memory snapshot/rollback only.
+// No DB, network, secrets, timers, or external calls.
+
+function uniqueByKey<T>(items: T[], keyFn: (item: T) => string): T[] {
+  const seen = new Set<string>();
+  const out: T[] = [];
+  for (const item of items) {
+    const k = keyFn(item);
+    if (!seen.has(k)) {
+      seen.add(k);
+      out.push(item);
+    }
+  }
+  return out;
+}
+
+function simpleStableHash(input: string): string {
+  // Pure deterministic FNV-1a 32-bit variant for closure inputs.
+  let hash = 2166136261;
+  for (let i = 0; i < input.length; i++) {
+    hash ^= input.charCodeAt(i);
+    hash += (hash << 1) + (hash << 4) + (hash << 7) + (hash << 8) + (hash << 24);
+  }
+  return (hash >>> 0).toString(16).padStart(8, "0");
+}
+
+export const APPBUNDLE_ROLLBACK_UNPINNED = "APPBUNDLE_ROLLBACK_UNPINNED";
+
+export function createAppBundleRuntimeSnapshot(
+  model: AppBundleModel,
+  models: any[] = []
+): AppBundleRuntimeSnapshot {
+  const sources = [model, ...(Array.isArray(models) ? models : [])];
+  const rawPins = sources.flatMap((m: any) => (m && m.versionPins) || []);
+  const pins = uniqueByKey(rawPins, (p: any) => `${p.skillId}:${p.ref}`);
+
+  const pinnedRefs = pins
+    .filter((p: any) => typeof p.version === "string" && isFixedPinVersion(p.version))
+    .map((p: any) => pinnedRef(p.skillId, p.ref, p.version))
+    .sort();
+
+  const appVersion =
+    (model.publishManifest && model.publishManifest.appVersion) ||
+    (model.runtimeSnapshot && model.runtimeSnapshot.appVersion) ||
+    "0.0.0";
+
+  const gateEvidence = model.publishManifest
+    ? {
+        status: model.publishManifest.gateStatus,
+        passedAt: model.publishManifest.createdAt,
+        evidenceSummary: model.publishManifest.gateStatus === "passed" ? "captured" : undefined,
+      }
+    : undefined;
+
+  // Capture version pins + refs + publish gate evidence + closure inputs into hash.
+  const hashInput = [
+    model.id,
+    appVersion,
+    pinnedRefs.join(","),
+    gateEvidence ? `${gateEvidence.status}:${gateEvidence.passedAt || ""}` : "",
+  ].join("||");
+
+  const closureHash = simpleStableHash(hashInput);
+
+  return {
+    appId: model.id,
+    appVersion,
+    refMode: "pinned",
+    pinnedRefs,
+    publishGateEvidence: gateEvidence,
+    closureHash,
+  };
+}
+
+export function planAppBundleRollback(
+  currentSnapshot: AppBundleRuntimeSnapshot,
+  targetSnapshot: AppBundleRuntimeSnapshot
+): AppBundleRollbackPlan | "APPBUNDLE_ROLLBACK_UNPINNED" {
+  if (
+    !currentSnapshot ||
+    currentSnapshot.refMode !== "pinned" ||
+    !Array.isArray(currentSnapshot.pinnedRefs) ||
+    currentSnapshot.pinnedRefs.length === 0
+  ) {
+    return APPBUNDLE_ROLLBACK_UNPINNED;
+  }
+  if (
+    !targetSnapshot ||
+    targetSnapshot.refMode !== "pinned" ||
+    !Array.isArray(targetSnapshot.pinnedRefs) ||
+    targetSnapshot.pinnedRefs.length === 0
+  ) {
+    return APPBUNDLE_ROLLBACK_UNPINNED;
+  }
+
+  const currSet = new Set(currentSnapshot.pinnedRefs);
+  const targSet = new Set(targetSnapshot.pinnedRefs);
+  const changed: string[] = [];
+  for (const r of targSet) {
+    if (!currSet.has(r)) changed.push(r);
+  }
+  for (const r of currSet) {
+    if (!targSet.has(r)) changed.push(r);
+  }
+
+  return {
+    appId: targetSnapshot.appId || currentSnapshot.appId,
+    fromVersion: currentSnapshot.appVersion,
+    toVersion: targetSnapshot.appVersion,
+    changedRefs: [...new Set(changed)].sort(),
+    closureHashMatch: currentSnapshot.closureHash === targetSnapshot.closureHash,
+  };
+}

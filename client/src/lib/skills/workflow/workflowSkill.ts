@@ -8,8 +8,17 @@ import {
   type Skill,
   type ValidateContext,
 } from "../skill";
-import type { WorkflowEdge, WorkflowInstanceSnapshot, WorkflowModel, WorkflowNode } from "./workflowModel";
+import type {
+  WorkflowEdge,
+  WorkflowFormRuntime,
+  WorkflowInstance,
+  WorkflowInstanceSnapshot,
+  WorkflowModel,
+  WorkflowNode,
+  WorkflowTransitionCommand,
+} from "./workflowModel";
 import { getFieldLifecycle } from "../datamodel/dataModelSkill";
+import { decideRbacPolicy } from "../rbac/rbacSkill";
 
 // ---------------------------------------------------------------------------
 // Graph helpers — this is where "the hard skill" lives: execution semantics.
@@ -605,6 +614,368 @@ export function validateWorkflowInstanceSnapshot(
     });
   }
   return finalizeReport(f);
+}
+
+// ---------------------------------------------------------------------------
+// V2 117: pure workflow instance runtime (deterministic, in-memory only)
+// ---------------------------------------------------------------------------
+
+export const WF_RUNTIME_INVALID_TRANSITION = "WF_RUNTIME_INVALID_TRANSITION";
+
+/** Find outgoing edges for a node. */
+function getOutgoing(model: WorkflowModel, nodeId: string): WorkflowEdge[] {
+  return model.edges.filter(e => e.from === nodeId);
+}
+
+function getNode(model: WorkflowModel, id: string): WorkflowNode | undefined {
+  return model.nodes.find(n => n.id === id);
+}
+
+function resolveVarValue(key: string | undefined, vars: Record<string, unknown>): unknown {
+  if (!key) return undefined;
+  if (key in vars) return vars[key];
+  if (key.includes(".")) {
+    const parts = key.split(".");
+    let cur: any = vars;
+    for (const p of parts) {
+      if (cur != null && typeof cur === "object" && p in cur) {
+        cur = cur[p];
+      } else {
+        return undefined;
+      }
+    }
+    return cur;
+  }
+  return undefined;
+}
+
+function matchesWhen(when: { op: any; value: any } | undefined, actual: unknown): boolean {
+  if (!when) return false;
+  const v = when.value;
+  const a = actual;
+  switch (when.op) {
+    case "==": return a == v;
+    case "!=": return a != v;
+    case ">": return (a as any) > v;
+    case ">=": return (a as any) >= v;
+    case "<": return (a as any) < v;
+    case "<=": return (a as any) <= v;
+    default: return false;
+  }
+}
+
+function resolveBranchNext(model: WorkflowModel, branchId: string, vars: Record<string, unknown>): string | null {
+  const outs = getOutgoing(model, branchId);
+  const branch = getNode(model, branchId);
+  if (!branch) return null;
+  const eff = (branch as any).fieldRef || branch.field || "";
+  const actual = resolveVarValue(eff, vars) ?? resolveVarValue(eff.split(".").pop(), vars);
+  // conditionals first
+  for (const e of outs) {
+    if (e.when && matchesWhen(e.when as any, actual)) {
+      return e.to;
+    }
+  }
+  const def = outs.find(e => e.isDefault);
+  if (def) return def.to;
+  return null;
+}
+
+/** Apply command at current actionable node to pick immediate next (no auto branch here). */
+function pickNextByCommand(
+  model: WorkflowModel,
+  currentId: string,
+  command: WorkflowTransitionCommand,
+  vars: Record<string, unknown>
+): { nextId: string | null; updatedVars: Record<string, unknown>; invalid: boolean } {
+  const node = getNode(model, currentId);
+  if (!node) return { nextId: null, updatedVars: vars, invalid: true };
+  const outs = getOutgoing(model, currentId);
+  let nextId: string | null = null;
+  let updatedVars = { ...vars };
+  let invalid = false;
+
+  if (node.type === "start") {
+    if (command.type !== "submit") {
+      invalid = true;
+    } else {
+      if (outs.length > 0) {
+        nextId = outs[0].to;
+      } else {
+        invalid = true;
+      }
+      if (command.variables) {
+        updatedVars = { ...updatedVars, ...command.variables };
+      }
+    }
+  } else if (node.type === "approval") {
+    if (command.type === "approve" || command.type === "reject") {
+      if (outs.length > 0) {
+        nextId = outs[0].to;
+      } else {
+        invalid = true;
+      }
+    } else if (command.type === "timeout") {
+      const tgt = (node as any).timeoutTarget as string | undefined;
+      if (tgt && getNode(model, tgt)) {
+        nextId = tgt;
+      } else {
+        invalid = true;
+      }
+    } else {
+      invalid = true;
+    }
+    if (command.variables && !invalid) {
+      updatedVars = { ...updatedVars, ...command.variables };
+    }
+  } else if (node.type === "branch") {
+    if (command.type === "submit" && command.variables) {
+      updatedVars = { ...updatedVars, ...command.variables };
+      nextId = resolveBranchNext(model, currentId, updatedVars);
+      if (!nextId) invalid = true;
+    } else {
+      invalid = true;
+    }
+  } else if (node.type === "end") {
+    invalid = true;
+  } else {
+    invalid = true;
+  }
+
+  if (!invalid && !nextId) invalid = true;
+  return { nextId, updatedVars, invalid };
+}
+
+export function startWorkflowInstance(
+  model: WorkflowModel,
+  input: { id?: string; initialVariables?: Record<string, unknown> } = {}
+): WorkflowInstance {
+  const instId = input.id ?? `inst_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
+  const initialVars = { ...(input.initialVariables ?? {}) };
+  const snapshot = createWorkflowInstanceSnapshot(model, instId, initialVars);
+  const start = model.nodes.find(n => n.type === "start");
+  const currentNodeId = start ? start.id : model.nodes[0]?.id ?? "start";
+  return {
+    id: instId,
+    snapshot,
+    currentNodeId,
+    status: "running",
+    variables: initialVars,
+  };
+}
+
+export function transitionWorkflowInstance(
+  model: WorkflowModel,
+  instance: WorkflowInstance,
+  command: WorkflowTransitionCommand
+): { instance: WorkflowInstance; findings: any[] } {
+  const findings: any[] = [];
+  // never mutate caller instance
+  const baseVars: Record<string, unknown> = { ...instance.variables };
+  const currentId = instance.currentNodeId;
+
+  const node = getNode(model, currentId);
+  if (!node || instance.status === "completed" || instance.status === "rejected") {
+    findings.push({
+      code: WF_RUNTIME_INVALID_TRANSITION,
+      severity: "error",
+      path: "currentNodeId",
+      message: `Invalid transition: no active node at ${currentId}`,
+    });
+    return { instance: structuredClone(instance), findings };
+  }
+
+  const pick = pickNextByCommand(model, currentId, command, baseVars);
+  if (pick.invalid || !pick.nextId) {
+    findings.push({
+      code: WF_RUNTIME_INVALID_TRANSITION,
+      severity: "error",
+      path: `command/${command.type}`,
+      message: `Invalid transition ${command.type} at node ${currentId} (type=${node.type})`,
+    });
+    return { instance: structuredClone(instance), findings };
+  }
+
+  let nextId = pick.nextId!;
+  let nextVars = pick.updatedVars;
+
+  // auto-follow branches (data-driven, until action or end)
+  const MAX = 25;
+  let guard = 0;
+  while (guard++ < MAX) {
+    const n = getNode(model, nextId);
+    if (!n || n.type === "end") break;
+    if (n.type !== "branch") break;
+    const resolved = resolveBranchNext(model, nextId, nextVars);
+    if (!resolved) break;
+    nextId = resolved;
+  }
+
+  const landed = getNode(model, nextId);
+  const newStatus = landed && landed.type === "end" ? "completed" : "running";
+
+  const nextInstance: WorkflowInstance = {
+    id: instance.id,
+    snapshot: instance.snapshot, // frozen at start, never mutate
+    currentNodeId: nextId,
+    status: newStatus,
+    variables: nextVars,
+  };
+
+  return { instance: nextInstance, findings: [] };
+}
+
+// V2 117: Workflow assignee policy runtime (pure, consumes RBAC PDP evidence from ctx)
+// ---------------------------------------------------------------------------
+
+export const WF_ASSIGNEE_PDP_DENIED = "WF_ASSIGNEE_PDP_DENIED";
+
+export const policyEvidence = "policyEvidence";
+
+/** Pure exported runtime helper.
+ *  Resolves assignees for approval nodeId using RBAC decision evidence / policy surface
+ *  supplied in ctx.external.rbac (never decides locally or calls PDP here).
+ *  Missing evidence or deny evidence returns WF_ASSIGNEE_PDP_DENIED (fail-closed).
+ */
+export function resolveWorkflowAssignees(
+  model: WorkflowModel,
+  nodeId: string,
+  ctx: { external?: { rbac?: any } } = {}
+): { assignees: string[]; policyEvidence?: any } | typeof WF_ASSIGNEE_PDP_DENIED {
+  const node = model.nodes.find((n) => n.id === nodeId);
+  if (!node || node.type !== "approval") {
+    return WF_ASSIGNEE_PDP_DENIED;
+  }
+  const roleRef = node.assigneeRoleRef || node.assigneeRole;
+  if (!roleRef) {
+    return WF_ASSIGNEE_PDP_DENIED;
+  }
+  const rbac = ctx?.external?.rbac;
+  if (!rbac) {
+    return WF_ASSIGNEE_PDP_DENIED;
+  }
+  // Consume RBAC decision evidence specifically via policyEvidence (or the exported key); static surfaces (e.g. .decision, .role) do not count as runtime PDP evidence.
+  // Missing/ absent -> fail closed per spec.
+  const evid = rbac.policyEvidence ?? rbac[policyEvidence];
+  if (evid == null) {
+    return WF_ASSIGNEE_PDP_DENIED;
+  }
+  if (typeof evid === "object" && evid !== null && (evid.allow === false || evid.denied === true || evid.code === WF_ASSIGNEE_PDP_DENIED)) {
+    return WF_ASSIGNEE_PDP_DENIED;
+  }
+  // runtime resolution delegates to supplied evidence; return roleRef target + attached evidence
+  return {
+    assignees: [roleRef],
+    policyEvidence: evid,
+  };
+}
+
+// V2 117: pure runtime form binding (DataModel lifecycle + RBAC field PDP)
+// Pure deterministic in-memory only. Honors frozen snapshot. Removed/denied -> stable findings.
+// ---------------------------------------------------------------------------
+
+export const WF_FORM_FIELD_PDP_DENIED = "WF_FORM_FIELD_PDP_DENIED";
+
+/** Pure executable runtime: bind workflow task form fields using frozen snapshot refs,
+ * DataModel lifecycle metadata, and RBAC PDP field permission evidence.
+ * Returns field refs (for current context), per-field state, and stable findings for removed/denied.
+ */
+export function buildWorkflowFormRuntime(
+  model: WorkflowModel,
+  instance: WorkflowInstanceSnapshot,
+  ctx?: any
+): WorkflowFormRuntime {
+  const findings: Array<{ code: string; severity: string; path: string; message: string }> = [];
+  // Honor snapshot frozenFormFieldRefs (V2 115.30 freeze contract); fallback to model only if absent.
+  const frozenRefs: string[] = Array.isArray(instance?.frozenFormFieldRefs) && instance.frozenFormFieldRefs.length > 0
+    ? [...instance.frozenFormFieldRefs]
+    : [...(model.fieldRefs ?? [])];
+
+  const dmSurf = ctx?.external?.datamodel;
+  const rbacModel: any = ctx?.external?.rbacModel ?? ctx?.external?.rbac;
+
+  const fields: Array<{ ref: string; lifecycle?: string; pdpState: string; editable: boolean }> = [];
+
+  const actorRole = model.actorRoleRef;
+  const resourceFromModel = (model.policyCheckRefs && model.policyCheckRefs.length > 0)
+    ? (model.policyCheckRefs[0].split(":")[0] || "leave_request")
+    : "leave_request";
+
+  for (const ref of frozenRefs) {
+    const lifecycle = getFieldLifecycle(dmSurf, ref);
+    let pdpState = "allowed";
+    let editable = true;
+
+    if (lifecycle === "removed") {
+      findings.push({
+        code: "WF_SSOT_FIELD_REMOVED",
+        severity: "error",
+        path: `fieldRefs[${ref}]`,
+        message: `Workflow form fieldRef references removed DataModel SSOT field: ${ref}`,
+      });
+      editable = false;
+    }
+
+    // RBAC field PDP evidence: use decide + direct rule match for stable field deny detection (fail-closed)
+    let fieldDenied = false;
+    const fieldKey = ref.split(".").pop() || ref;
+    const resourceType = ref.split(".")[0] || resourceFromModel;
+
+    if (rbacModel && typeof decideRbacPolicy === "function") {
+      // Direct policyRule inspection for field-scoped deny (stable, independent of base perm match)
+      const prs = (rbacModel.policyRules ?? []);
+      const matchingDeny = prs.some((pr: any) =>
+        pr &&
+        pr.effect === "deny" &&
+        (pr.fieldRef === ref || pr.field === fieldKey || pr.fieldRef === `${resourceType}.${fieldKey}`) &&
+        (pr.lifecycleState == null || pr.lifecycleState !== "retired") &&
+        (!pr.roleId || (actorRole && pr.roleId === actorRole))
+      );
+      if (matchingDeny) {
+        fieldDenied = true;
+      } else {
+        // Fallback: run decide with fieldContext; field deny rules veto even without exact perm match in precedence
+        const candidateRoles = actorRole ? [actorRole] : ["employee"];
+        const cands = ["approve", "create", "view"];
+        for (const act of cands) {
+          try {
+            const dec = decideRbacPolicy(rbacModel, {
+              subject: { roleIds: candidateRoles },
+              action: act,
+              resourceType,
+              tenantId: "t_default",
+              fieldContext: { fields: [fieldKey, ref] },
+            } as any);
+            if (!dec.allow && (dec.reason || "").toLowerCase().includes("policy rule")) {
+              fieldDenied = true;
+              break;
+            }
+          } catch {
+            // pure: exceptions already fail-closed inside decide
+          }
+        }
+      }
+    }
+
+    if (fieldDenied) {
+      pdpState = WF_FORM_FIELD_PDP_DENIED;
+      editable = false;
+      findings.push({
+        code: WF_FORM_FIELD_PDP_DENIED,
+        severity: "error",
+        path: `fieldRefs[${ref}]`,
+        message: `Workflow form field ${ref} is denied by RBAC PDP field permission rule`,
+      });
+    }
+
+    fields.push({ ref, lifecycle, pdpState, editable });
+  }
+
+  return {
+    formFieldRefs: frozenRefs,
+    fields,
+    findings,
+  };
 }
 
 // ---------------------------------------------------------------------------

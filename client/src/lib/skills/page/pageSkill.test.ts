@@ -2,8 +2,19 @@ import { describe, expect, it } from "vitest";
 
 import { dataModelSkill, leaveRequestDataModel, purchaseApprovalDataModel } from "../datamodel/dataModelSkill";
 import { leaveApprovalRbac, purchaseApprovalRbac, rbacSkill } from "../rbac/rbacSkill";
-import { leaveApprovalPage, pageSkill, purchaseApprovalPage } from "./pageSkill";
-import type { BindingSchema, PageModel, PermissionRender } from "./pageModel";
+import {
+  evaluatePageBindingExpressions,
+  leaveApprovalPage,
+  PAGE_BINDING_RUNTIME_ERROR,
+  PAGE_WORKFLOW_TASK_VIEW_INVALID,
+  pageSkill,
+  projectWorkflowTaskView,
+  purchaseApprovalPage,
+  renderPageRuntimePolicy,
+  PAGE_RUNTIME_COMPONENT_HIDDEN,
+  taskActions,
+} from "./pageSkill";
+import type { BindingSchema, ComponentRenderState, PageModel, PageRenderContext, PermissionRender } from "./pageModel";
 
 const clone = (m: PageModel): PageModel => structuredClone(m);
 
@@ -480,5 +491,242 @@ describe("pageSkill - page version snapshot for AppBundle immutable pins (V2 115
     expect((surface as any).snapshotRefs).toBeUndefined();
     // basic page id still there for compat
     expect(surface.page).toContain("page_leave_request");
+  });
+});
+
+describe("pageSkill - runtime render policy (V2 117)", () => {
+  const leaveRbacModel = leaveApprovalRbac;
+  const purchaseRbacModel = purchaseApprovalRbac;
+  const dmSurface = fullSurface.datamodel; // resolved surface
+
+  it("positive: manager sees approve button visible via PermissionRender + RBAC decision evidence", () => {
+    const states = renderPageRuntimePolicy(leaveApprovalPage, {
+      rbac: { model: leaveRbacModel, subjectRoleIds: ["manager"], tenantId: "t1" },
+      dataModelSurface: dmSurface,
+    } as PageRenderContext);
+
+    expect(states["approve"]).toBe("visible");
+    // submit is employee scoped, manager has create too but permissionRender for submit limits to employee
+    // manager can see other fields that match roles
+    expect(states["applicant"]).toBe("visible");
+  });
+
+  it("negative/fail-closed: employee denied on manager-only approve component is hidden, never editable", () => {
+    const states = renderPageRuntimePolicy(leaveApprovalPage, {
+      rbac: { model: leaveRbacModel, subjectRoleIds: ["employee"], tenantId: "t1" },
+      dataModelSurface: dmSurface,
+    } as PageRenderContext);
+
+    expect(states["approve"]).toBe(PAGE_RUNTIME_COMPONENT_HIDDEN);
+    expect(states["approve"]).not.toBe("visible");
+    // employee can still see their own
+    expect(states["submit"]).toBe("visible");
+  });
+
+  it("removed bound field blocks rendering as hidden (DataModel lifecycle)", () => {
+    const remDM = structuredClone(leaveRequestDataModel);
+    remDM.entities.find((e: any) => e.id === "leave_request")!.fields.find((f: any) => f.key === "approved")!.lifecycle = "removed";
+    const remSurf = { datamodel: dataModelSkill.resolve(remDM) };
+    const p = clone(leaveApprovalPage);
+    const approve = p.components.find(c => c.id === "approve")!;
+    approve.field = "leave_request.approved";
+    approve.bindingSchema = { entity: "leave_request", field: "leave_request.approved" };
+
+    const states = renderPageRuntimePolicy(p, {
+      dataModelSurface: remSurf.datamodel,
+    });
+
+    expect(states["approve"]).toBe(PAGE_RUNTIME_COMPONENT_HIDDEN);
+  });
+
+  it("workflow task context can force read-only/disabled or hidden while preserving RBAC", () => {
+    const states = renderPageRuntimePolicy(leaveApprovalPage, {
+      rbac: { model: leaveRbacModel, subjectRoleIds: ["manager"], tenantId: "t1" },
+      workflowTaskContext: { isReadOnly: true },
+    } as PageRenderContext);
+
+    // non-button becomes read-only when workflow says read-only
+    expect(states["days"]).toBe("read-only");
+    // buttons disabled
+    expect(states["approve"]).toBe("disabled"); // was visible by RBAC but wf overrides to disabled
+  });
+
+  it("purchase approval compat: finance role sees amount (pdp constrained field) as visible", () => {
+    const states = renderPageRuntimePolicy(purchaseApprovalPage, {
+      rbac: { model: purchaseRbacModel, subjectRoleIds: ["finance"], tenantId: "t1" },
+      dataModelSurface: dataModelSkill.resolve(purchaseApprovalDataModel),
+    } as PageRenderContext);
+
+    expect(states["amount"]).toBe("visible");
+    expect(states["financeApprove"]).toBe("visible");
+  });
+
+  it("purchase approval negative: requester cannot see finance-only amount (hidden)", () => {
+    const states = renderPageRuntimePolicy(purchaseApprovalPage, {
+      rbac: { model: purchaseRbacModel, subjectRoleIds: ["requester"], tenantId: "t1" },
+      dataModelSurface: dataModelSkill.resolve(purchaseApprovalDataModel),
+    } as PageRenderContext);
+
+    expect(states["amount"]).toBe(PAGE_RUNTIME_COMPONENT_HIDDEN);
+  });
+
+  it("returns visible for components when no rbac ctx supplied (compat, no force deny)", () => {
+    const states = renderPageRuntimePolicy(leaveApprovalPage, {});
+    // when no rbac subject provided, roleMatch short circuits to allow visible (roleRefs present)
+    expect(states["approve"]).toBe("visible");
+  });
+});
+
+describe("pageSkill - 117 binding expression runtime (pure deterministic)", () => {
+  it("evaluates declared bindings to concrete values from input.data (positive)", () => {
+    const data = {
+      "leave_request": {
+        applicant: "alice",
+        leaveType: "annual",
+        days: 5,
+        reason: "rest",
+        approved: true,
+      },
+    };
+    const res = evaluatePageBindingExpressions(leaveApprovalPage, { data });
+
+    expect(res).not.toBe("PAGE_BINDING_RUNTIME_ERROR");
+    expect(res.values["leave_request.days"]).toBe(5);
+    expect(res.values["leave_request.approved"]).toBe(true);
+    expect(res.values.applicant).toBe("alice");
+    expect(res.linkageEvidence).toBeDefined();
+    expect(res.linkageEvidence.kind).toBe("page.linkage.runtime");
+    expect(res.linkageEvidence.modelId).toBe("page_leave_request");
+  });
+
+  it("returns PAGE_BINDING_RUNTIME_ERROR on unresolved binding ref (negative, fail-closed)", () => {
+    const data = { "leave_request": { applicant: "bob" } }; // missing days/approved etc bound by page
+    const res = evaluatePageBindingExpressions(leaveApprovalPage, { data });
+
+    expect(res).toBe(PAGE_BINDING_RUNTIME_ERROR);
+  });
+
+  it("applies linkageRules on matching event and emits linkageEvidence (positive runtime linkage)", () => {
+    const data = {
+      "leave_request": {
+        applicant: "alice",
+        leaveType: "annual",
+        days: 3,
+        reason: "rest",
+        approved: false,
+      },
+    };
+    const res = evaluatePageBindingExpressions(leaveApprovalPage, {
+      data,
+      event: { type: "onChange", payload: true },
+    });
+
+    expect(res).not.toBe("PAGE_BINDING_RUNTIME_ERROR");
+    // lk_type_days: leaveType onChange -> days setVisible(true) in this impl
+    expect(res.visibility.days).toBe(true);
+    expect(res.linkageEvidence.applied).toContain("lk_type_days");
+  });
+
+  it("preserves leave/purchase sample compatibility and resolves purchase fields (positive)", () => {
+    const purchData = {
+      "purchase_request": {
+        requester: "req1",
+        department: "eng",
+        vendor: "acme",
+        amount: 1234,
+        status: "pending",
+        budgetChecked: false,
+        managerApproved: false,
+        financeApproved: false,
+        procurementFulfilled: false,
+      },
+    };
+    const res = evaluatePageBindingExpressions(purchaseApprovalPage, { data: purchData });
+
+    expect(res).not.toBe("PAGE_BINDING_RUNTIME_ERROR");
+    expect(res.values["purchase_request.amount"]).toBe(1234);
+    expect(res.linkageEvidence.modelId).toBe("page_purchase_request");
+  });
+
+  it("fails closed for invalid input model (negative)", () => {
+    const res = evaluatePageBindingExpressions({} as any, {});
+    expect(res).toBe(PAGE_BINDING_RUNTIME_ERROR);
+  });
+});
+
+describe("pageSkill - V2 117 workflow task view projection (pure runtime)", () => {
+  it("projects leave approval page + workflow instance at approval node to task view (positive)", () => {
+    const inst = {
+      id: "inst_leave_1",
+      workflowId: "wf_leave_approval",
+      currentNodeId: "a_mgr",
+      variables: { approved: false },
+    };
+    const view = projectWorkflowTaskView(leaveApprovalPage, inst);
+
+    expect(view).not.toBe(PAGE_WORKFLOW_TASK_VIEW_INVALID);
+    expect(view.currentNodeId).toBe("a_mgr");
+    expect(view.title).toContain("请假申请页");
+    // fields preserve DataModel bindings
+    expect(view.fields.some(f => f.binding === "leave_request.approved")).toBe(true);
+    // actions include workflow state-driven + page buttons
+    const actionIds = view.actions.map(a => a.id);
+    expect(actionIds).toContain("approve");
+    expect(actionIds).toContain("reject");
+    expect(actionIds).toContain("submit");
+    // evidence preserves permissions and datamodel
+    expect(view.evidence.dataModelRefs).toContain("leave_request.approved");
+    expect(view.evidence.permissionRefs.some(r => r.includes("manager") || r.includes("employee"))).toBe(true);
+  });
+
+  it("projects purchase approval page at finance node to actionable view with finance actions (positive)", () => {
+    const inst = {
+      id: "inst_purch_1",
+      workflowId: "wf_purchase_approval",
+      currentNodeId: "finance",
+      variables: {},
+    };
+    const view = projectWorkflowTaskView(purchaseApprovalPage, inst);
+
+    expect(view).not.toBe(PAGE_WORKFLOW_TASK_VIEW_INVALID);
+    expect(view.currentNodeId).toBe("finance");
+    const actionIds = view.actions.map(a => a.id);
+    expect(actionIds).toContain(taskActions.APPROVE);
+    expect(actionIds).toContain(taskActions.REJECT);
+    expect(view.evidence.dataModelRefs).toContain("purchase_request.amount");
+  });
+
+  it("returns PAGE_WORKFLOW_TASK_VIEW_INVALID for missing currentNode or no instance (negative fail-closed)", () => {
+    const bad1 = projectWorkflowTaskView(leaveApprovalPage, undefined as any);
+    expect(bad1).toBe(PAGE_WORKFLOW_TASK_VIEW_INVALID);
+
+    const bad2 = projectWorkflowTaskView(leaveApprovalPage, { workflowId: "wf_x" } as any);
+    expect(bad2).toBe(PAGE_WORKFLOW_TASK_VIEW_INVALID);
+  });
+
+  it("returns PAGE_WORKFLOW_TASK_VIEW_INVALID on workflow/page launch ref mismatch (negative, fail-closed)", () => {
+    const p = structuredClone(leaveApprovalPage);
+    p.workflowLaunchRefs = ["wf_purchase_approval"]; // deliberately mismatch
+    const inst = { id: "i1", workflowId: "wf_leave_approval", currentNodeId: "a_mgr" };
+    const view = projectWorkflowTaskView(p, inst);
+    expect(view).toBe(PAGE_WORKFLOW_TASK_VIEW_INVALID);
+  });
+
+  it("end node produces disabled terminal action and preserves evidence (runtime behavior)", () => {
+    const inst = { id: "i2", workflowId: "wf_leave_approval", currentNodeId: "e_ok", currentNodeType: "end", variables: { approved: true } };
+    const view = projectWorkflowTaskView(leaveApprovalPage, inst);
+    expect(view).not.toBe(PAGE_WORKFLOW_TASK_VIEW_INVALID);
+    expect(view.actions.some(a => a.disabled && (a.disabledReason?.includes("terminal") || a.label === "Done"))).toBe(true);
+  });
+
+  it("preserves purchase/leave pages compatibility without explicit launchRefs (compat positive)", () => {
+    // pages used in prior tests do not always declare workflowLaunchRefs
+    const instLeave = { id: "c1", workflowId: "wf_leave_approval", currentNodeId: "a_mgr" };
+    const v1 = projectWorkflowTaskView(leaveApprovalPage, instLeave);
+    expect(v1).not.toBe(PAGE_WORKFLOW_TASK_VIEW_INVALID);
+
+    const instPurch = { id: "c2", workflowId: "wf_purchase_approval", currentNodeId: "manager" };
+    const v2 = projectWorkflowTaskView(purchaseApprovalPage, instPurch);
+    expect(v2).not.toBe(PAGE_WORKFLOW_TASK_VIEW_INVALID);
   });
 });

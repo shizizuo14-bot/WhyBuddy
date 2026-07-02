@@ -68,6 +68,26 @@ export interface PermissionRender {
   permissionRefs?: string[];
 }
 
+/** Runtime render states for executable Page component policy (V2 117). */
+export type ComponentRenderState = "visible" | "read-only" | "hidden" | "disabled";
+
+/** Pure context for renderPageRuntimePolicy. Supplies RBAC decision evidence, DataModel SSOT lifecycle surface, and Workflow task context. */
+export interface PageRenderContext {
+  /** RBAC model + subject for calling decideRbacPolicy inside policy (pure). */
+  rbac?: {
+    model: any;
+    subjectRoleIds: string[];
+    tenantId: string;
+  };
+  /** DataModel resolved surface for getFieldLifecycle checks (removed blocks rendering). */
+  dataModelSurface?: any;
+  /** Workflow task context (e.g. current step may force read-only/disabled on components). */
+  workflowTaskContext?: {
+    isReadOnly?: boolean;
+    forceHiddenComponentIds?: string[];
+  };
+}
+
 export interface PageModel {
   id: string;
   name: string;
@@ -91,3 +111,49 @@ export interface PageModel {
   /** Snapshot refs for AppBundle to pin the immutable page version definition. */
   snapshotRefs?: string[];
 }
+
+// ---------------------------------------------------------------------------
+// V2 117 runtime: workflow task view projection types (pure, no side effects)
+// ---------------------------------------------------------------------------
+
+export interface TaskAction {
+  id: string;
+  label: string;
+  disabled: boolean;
+  disabledReason?: string;
+}
+
+export interface TaskField {
+  id: string;
+  label: string;
+  type: string;
+  binding?: string;
+  disabled?: boolean;
+}
+
+export interface WorkflowTaskView {
+  title: string;
+  currentNodeId: string;
+  fields: TaskField[];
+  actions: TaskAction[];
+  evidence: {
+    dataModelRefs: string[];
+    permissionRefs: string[];
+  };
+  links?: string[];
+}
+
+export const PAGE_WORKFLOW_TASK_VIEW_INVALID = Object.freeze({
+  _kind: "PAGE_WORKFLOW_TASK_VIEW_INVALID" as const,
+});
+
+export const taskActions = {
+  SUBMIT: "submit",
+  APPROVE: "approve",
+  REJECT: "reject",
+  MANAGER_APPROVE: "managerApprove",
+  FINANCE_APPROVE: "financeApprove",
+  FULFILL: "procurementFulfill",
+} as const;
+
+export type WorkflowTaskViewResult = WorkflowTaskView | typeof PAGE_WORKFLOW_TASK_VIEW_INVALID;

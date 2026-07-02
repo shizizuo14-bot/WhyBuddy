@@ -5,8 +5,20 @@ import { dataModelSkill, leaveRequestDataModel } from "../datamodel/dataModelSki
 import { leaveApprovalPage, pageSkill, purchaseApprovalPage } from "../page/pageSkill";
 import { leaveApprovalRbac, rbacSkill } from "../rbac/rbacSkill";
 import { leaveApprovalWorkflow, workflowSkill } from "../workflow/workflowSkill";
-import { APPBUNDLE_CLOSURE_MATRIX, appBundleSkill, leaveApprovalAppBundle, purchaseApprovalAppBundle, validateAppBundlePublishGate } from "./appBundleSkill";
-import type { AppBundleModel } from "./appBundleModel";
+import {
+  APPBUNDLE_CLOSURE_MATRIX,
+  APPBUNDLE_ROLLBACK_UNPINNED,
+  APPBUNDLE_RUNTIME_CLOSURE_BLOCKED,
+  appBundleSkill,
+  createAppBundleRuntimeSnapshot,
+  evaluateAppBundleRuntimeClosure,
+  leaveApprovalAppBundle,
+  planAppBundleRollback,
+  purchaseApprovalAppBundle,
+  runtimeClosure,
+  validateAppBundlePublishGate,
+} from "./appBundleSkill";
+import type { AppBundleModel, AppBundleRuntimeSnapshot } from "./appBundleModel";
 import { purchaseApprovalDataModel } from "../datamodel/dataModelSkill";
 import { purchaseApprovalRbac } from "../rbac/rbacSkill";
 import { purchaseApprovalWorkflow } from "../workflow/workflowSkill";
@@ -664,5 +676,179 @@ describe("appBundleSkill - V2 rollback targets exist and immutable (115.50.06)",
 
     expect(gate.publishable).toBe(false);
     expect(gate.blockers.some(b => b.code === "APPBUNDLE_ROLLBACK_TARGET_NOT_PRIOR")).toBe(true);
+  });
+});
+
+describe("appBundleSkill - runtime closure (117)", () => {
+  const buildPurchaseModels = () => ({
+    appbundle: purchaseApprovalAppBundle,
+    datamodel: purchaseApprovalDataModel,
+    rbac: purchaseApprovalRbac,
+    workflow: purchaseApprovalWorkflow,
+    page: purchaseApprovalPage,
+    aigc: purchaseRiskAigcModel,
+  });
+
+  const buildLeaveModels = () => ({
+    appbundle: leaveApprovalAppBundle,
+    datamodel: leaveRequestDataModel,
+    rbac: leaveApprovalRbac,
+    workflow: leaveApprovalWorkflow,
+    page: leaveApprovalPage,
+    // note: leave has no aigc refs so no aigc model provided
+  });
+
+  it("exposes required runtime symbols", () => {
+    expect(typeof evaluateAppBundleRuntimeClosure).toBe("function");
+    expect(APPBUNDLE_RUNTIME_CLOSURE_BLOCKED).toBe("APPBUNDLE_RUNTIME_CLOSURE_BLOCKED");
+    expect(runtimeClosure).toBeDefined();
+    expect(typeof runtimeClosure.evaluateAppBundleRuntimeClosure).toBe("function");
+  });
+
+  it("passes positive runtime closure for purchase approval (AIGC + Page evidence present, all pins)", () => {
+    const models = buildPurchaseModels();
+    const report = evaluateAppBundleRuntimeClosure(models);
+
+    expect(report.blocked).toBe(false);
+    expect(report.blockers).toHaveLength(0);
+    expect(report.perSkillEvidence.aigc?.aigcInvocationOutputPolicy).toBe(true);
+    expect(report.perSkillEvidence.page?.workflowPageTaskViewConsistency).toBe(true);
+    expect(report.perSkillEvidence.rbac?.rbacPdpDecisions).toBe(true);
+    expect(report.runtimeClosure?.skillsChecked).toContain("aigc");
+    expect(report.runtimeClosure?.skillsChecked).toContain("page");
+    expect(report.perSkillEvidence.appbundle?.versionPin?.pinned).toBe(true);
+  });
+
+  it("passes positive runtime closure for leave approval (no AIGC required, Page + core evidence)", () => {
+    const models = buildLeaveModels();
+    const report = evaluateAppBundleRuntimeClosure(models);
+
+    expect(report.blocked).toBe(false);
+    expect(report.blockers).toHaveLength(0);
+    expect(report.perSkillEvidence.page?.evidencePresent).toBe(true);
+    // aigc may be present in per-skill map but since not declared in bundle we do not block on it
+    if (report.perSkillEvidence.aigc) {
+      expect(report.perSkillEvidence.aigc.evidencePresent).toBe(false);
+    }
+  });
+
+  it("blocks runtime closure on missing AIGC runtime evidence for purchase (negative fail-closed)", () => {
+    const models = buildPurchaseModels();
+    // remove aigc model to simulate missing runtime evidence
+    delete (models as any).aigc;
+
+    const report = evaluateAppBundleRuntimeClosure(models);
+
+    expect(report.blocked).toBe(true);
+    expect(report.blockers.some(b => b.code === APPBUNDLE_RUNTIME_CLOSURE_BLOCKED && b.message.includes("AIGC"))).toBe(true);
+    expect(report.perSkillEvidence.aigc?.evidencePresent).toBe(false);
+  });
+
+  it("blocks runtime closure on missing Page runtime evidence (negative fail-closed)", () => {
+    const models = buildPurchaseModels();
+    // provide page model without task-view / evidence markers
+    (models as any).page = { id: "page_purchase_request" }; // no components, no published, no refs etc.
+
+    const report = evaluateAppBundleRuntimeClosure(models);
+
+    expect(report.blocked).toBe(true);
+    expect(report.blockers.some(b => b.code === APPBUNDLE_RUNTIME_CLOSURE_BLOCKED && b.message.includes("Page"))).toBe(true);
+  });
+
+  it("blocks via runtime closure when runtimeSnapshot is missing (negative)", () => {
+    const brokenApp = clone(purchaseApprovalAppBundle);
+    delete (brokenApp as any).runtimeSnapshot;
+    const models = { ...buildPurchaseModels(), appbundle: brokenApp };
+
+    const report = evaluateAppBundleRuntimeClosure(models);
+
+    expect(report.blocked).toBe(true);
+    expect(report.blockers.some(b => b.code === APPBUNDLE_RUNTIME_CLOSURE_BLOCKED && b.path.includes("runtimeSnapshot"))).toBe(true);
+  });
+
+  it("reports per-skill evidence listing and does not weaken purchase gate compatibility", () => {
+    const gate = validateAppBundlePublishGate(purchaseApprovalAppBundle, { external: purchaseFullSurface });
+    expect(gate.publishable).toBe(true);
+
+    const report = evaluateAppBundleRuntimeClosure(buildPurchaseModels());
+    expect(report.blocked).toBe(false);
+    expect(Object.keys(report.perSkillEvidence).length).toBeGreaterThanOrEqual(5);
+  });
+});
+
+describe("appBundleSkill - runtime snapshot and rollback (117)", () => {
+  it("createAppBundleRuntimeSnapshot is deterministic for same model (positive)", () => {
+    const s1 = createAppBundleRuntimeSnapshot(leaveApprovalAppBundle);
+    const s2 = createAppBundleRuntimeSnapshot(leaveApprovalAppBundle);
+    expect(s1).toEqual(s2);
+    expect(s1.appId).toBe("app_leave_approval");
+    expect(s1.appVersion).toBe("1.0.0");
+    expect(s1.refMode).toBe("pinned");
+    expect(s1.pinnedRefs).toContain("datamodel:employee@1.0.0");
+    expect(s1.pinnedRefs).toContain("appbundle:app_leave_approval@1.0.0");
+    expect(s1.closureHash).toBeDefined();
+    expect(typeof s1.closureHash).toBe("string");
+
+    // reorder pins -> identical output (deterministic closure)
+    const shuffled = clone(leaveApprovalAppBundle);
+    shuffled.versionPins = [...(shuffled.versionPins ?? [])].reverse();
+    const s3 = createAppBundleRuntimeSnapshot(shuffled);
+    expect(s3.pinnedRefs).toEqual(s1.pinnedRefs);
+    expect(s3.closureHash).toBe(s1.closureHash);
+    expect(s3.publishGateEvidence?.status).toBe("not_run");
+  });
+
+  it("createAppBundleRuntimeSnapshot captures pins/refs/gate/closure hash from model+models (positive)", () => {
+    const snap = createAppBundleRuntimeSnapshot(purchaseApprovalAppBundle, []);
+    expect(snap.pinnedRefs).toContain("aigc:budget_risk_summary@1.0.0");
+    expect(snap.pinnedRefs).toContain("rbac:finance@1.0.0");
+    expect(snap.publishGateEvidence).toBeDefined();
+    expect(snap.closureHash && snap.closureHash.length > 4).toBe(true);
+  });
+
+  it("planAppBundleRollback identifies changed skill versions/refs (positive)", () => {
+    const current = createAppBundleRuntimeSnapshot(leaveApprovalAppBundle);
+    const target: AppBundleRuntimeSnapshot = {
+      appId: "app_leave_approval",
+      appVersion: "0.9.0",
+      refMode: "pinned",
+      pinnedRefs: current.pinnedRefs.map((r) => r.replace(/@1\.0\.0/g, "@0.9.0")),
+    };
+    const plan = planAppBundleRollback(current, target);
+    expect(plan).not.toBe(APPBUNDLE_ROLLBACK_UNPINNED);
+    if (plan !== APPBUNDLE_ROLLBACK_UNPINNED) {
+      expect(plan.appId).toBe("app_leave_approval");
+      expect(plan.fromVersion).toBe("1.0.0");
+      expect(plan.toVersion).toBe("0.9.0");
+      expect(Array.isArray(plan.changedRefs)).toBe(true);
+      expect(plan.changedRefs.length).toBeGreaterThan(0);
+      expect(plan.changedRefs.some((r) => r.includes("@0.9.0"))).toBe(true);
+    }
+  });
+
+  it("planAppBundleRollback returns APPBUNDLE_ROLLBACK_UNPINNED when no pinned versions (negative/fail-closed)", () => {
+    const current = createAppBundleRuntimeSnapshot(leaveApprovalAppBundle);
+    const unpinnedTarget: AppBundleRuntimeSnapshot = {
+      appId: current.appId,
+      appVersion: current.appVersion,
+      refMode: "pinned",
+      pinnedRefs: [],
+    };
+    expect(planAppBundleRollback(current, unpinnedTarget)).toBe(APPBUNDLE_ROLLBACK_UNPINNED);
+
+    const noPinsCurrent: any = { appId: "app_x", appVersion: "1.0.0", refMode: "pinned", pinnedRefs: [] };
+    expect(planAppBundleRollback(noPinsCurrent, current)).toBe(APPBUNDLE_ROLLBACK_UNPINNED);
+
+    const bad: any = { appId: "app_x", appVersion: "1.0.0" }; // missing refMode/pins
+    expect(planAppBundleRollback(bad, current)).toBe(APPBUNDLE_ROLLBACK_UNPINNED);
+  });
+
+  it("create/plan preserve purchase and leave approval compatibility (positive compat)", () => {
+    const pSnap = createAppBundleRuntimeSnapshot(purchaseApprovalAppBundle);
+    expect(pSnap.pinnedRefs.some((r) => r.includes("purchase"))).toBe(true);
+    const lSnap = createAppBundleRuntimeSnapshot(leaveApprovalAppBundle);
+    const lTarget: AppBundleRuntimeSnapshot = { ...lSnap, appVersion: "0.9.0", pinnedRefs: lSnap.pinnedRefs.map((r) => r.replace("@1.0.0", "@0.9.0")) };
+    const lPlan = planAppBundleRollback(lSnap, lTarget);
+    expect(lPlan).not.toBe(APPBUNDLE_ROLLBACK_UNPINNED);
   });
 });

@@ -23,14 +23,14 @@
 - Do not modify unrelated UI or backend files.
 
 ## Required implementation
-- [ ] Add pure exported `buildFieldLineageIndex(model)` returning entity/field nodes and references from datasets, policies, migrations, and relations.
-- [ ] Add `traceFieldLineage(index, fieldRef)` that returns upstream/downstream refs and findings for missing fields.
-- [ ] Use existing DataModel shapes; do not introduce storage or runtime service dependencies.
+- [x] Add pure exported `buildFieldLineageIndex(model)` returning entity/field nodes and references from datasets, policies, migrations, and relations.
+- [x] Add `traceFieldLineage(index, fieldRef)` that returns upstream/downstream refs and findings for missing fields.
+- [x] Use existing DataModel shapes; do not introduce storage or runtime service dependencies.
 
 ## Required tests
-- [ ] Add focused tests before or alongside implementation.
-- [ ] Include at least one positive runtime case and one negative/fail-closed case.
-- [ ] Preserve existing purchase approval and leave approval compatibility when relevant.
+- [x] Add focused tests before or alongside implementation.
+- [x] Include at least one positive runtime case and one negative/fail-closed case.
+- [x] Preserve existing purchase approval and leave approval compatibility when relevant.
 
 ## Required validation
 - `pnpm exec vitest run client/src/lib/skills/datamodel/dataModelSkill.test.ts --reporter=dot`

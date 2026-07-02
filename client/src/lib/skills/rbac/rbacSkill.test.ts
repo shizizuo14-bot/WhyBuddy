@@ -1,7 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import { decideRbacPolicy, leaveApprovalRbac, purchaseApprovalRbac, rbacSkill } from "./rbacSkill";
-import type { FieldContext, PolicyContext, PolicyDecision, PolicyLifecycleState, PolicyRule, RbacModel } from "./rbacModel";
+import {
+  decideRbacPolicy,
+  evaluateRbacFieldAccess,
+  evaluateRbacRowAccess,
+  evaluateRbacRuntimePolicy,
+  evaluateRbacSodPolicy,
+  leaveApprovalRbac,
+  purchaseApprovalRbac,
+  rbacSkill,
+  RBAC_FIELD_ACCESS_DENIED,
+  RBAC_RUNTIME_SOD_DENIED,
+} from "./rbacSkill";
+import type {
+  FieldContext,
+  PolicyContext,
+  PolicyDecision,
+  PolicyLifecycleState,
+  PolicyRule,
+  RbacFieldAccessLevel,
+  RbacModel,
+  RbacRuntimeDecision,
+  RbacRuntimeRequest,
+} from "./rbacModel";
 
 // Deep clone so each test can mutate a fresh copy without leaking.
 const clone = (m: RbacModel): RbacModel => structuredClone(m);
@@ -965,5 +986,287 @@ describe("rbac policy version lifecycle — 115.10.08", () => {
     expect(surf.policy.some((p: string) => p.includes("allow:pr_s@v3#draft"))).toBe(true);
     const proj = rbacSkill.project(m);
     expect(proj.nodes.some(n => (n.label || "").includes("draft") || (n.id || "").includes("lifecycle_"))).toBe(true);
+  });
+});
+
+// 117: runtime PDP evaluateRbacRuntimePolicy focused tests (positive allow + negative/fail-closed + denyPrecedence)
+// Added alongside without altering or weakening any prior decideRbacPolicy / compat tests.
+describe("rbac runtime PDP — evaluateRbacRuntimePolicy (117)", () => {
+  it("evaluateRbacRuntimePolicy returns explicit allow for matching permission (positive runtime case, leave)", () => {
+    const dec = evaluateRbacRuntimePolicy(leaveApprovalRbac, {
+      subject: { roleIds: ["manager"] },
+      action: "approve",
+      resourceType: "leave_request",
+    });
+    expect(dec.effect).toBe("allow");
+    expect(dec.reasonCode).toBe("RBAC_RUNTIME_ALLOW");
+    expect(dec.denyPrecedence).toBe(false);
+    expect(dec.matchedRoleIds).toContain("manager");
+    expect(dec.matchedPermissionIds).toContain("leave:approve");
+    expect(dec.matchedPolicyIds).toEqual([]);
+  });
+
+  it("evaluateRbacRuntimePolicy returns explicit allow using purchase fixture (positive runtime case)", () => {
+    const dec = evaluateRbacRuntimePolicy(purchaseApprovalRbac, {
+      subject: { roleIds: ["requester"] },
+      action: "create",
+      resourceType: "purchase_request",
+    });
+    expect(dec.effect).toBe("allow");
+    expect(dec.reasonCode).toBe("RBAC_RUNTIME_ALLOW");
+    expect(dec.denyPrecedence).toBe(false);
+    expect(dec.matchedPermissionIds).toContain("purchase:create");
+  });
+
+  it("evaluateRbacRuntimePolicy fails closed (RBAC_RUNTIME_FAIL_CLOSED) on missing subject/action/resource (negative fail-closed case)", () => {
+    const dec1 = evaluateRbacRuntimePolicy(leaveApprovalRbac, {
+      subject: { roleIds: [] },
+      action: "create",
+      resourceType: "leave_request",
+    } as RbacRuntimeRequest);
+    expect(dec1.effect).toBe("deny");
+    expect(dec1.reasonCode).toBe("RBAC_RUNTIME_FAIL_CLOSED");
+    expect(dec1.denyPrecedence).toBe(false);
+
+    const dec2 = evaluateRbacRuntimePolicy(leaveApprovalRbac, {
+      subject: { roleIds: ["employee"] },
+      action: "",
+      resourceType: "leave_request",
+    } as RbacRuntimeRequest);
+    expect(dec2.effect).toBe("deny");
+    expect(dec2.reasonCode).toBe("RBAC_RUNTIME_FAIL_CLOSED");
+
+    const dec3 = evaluateRbacRuntimePolicy(leaveApprovalRbac, null as any);
+    expect(dec3.effect).toBe("deny");
+    expect(dec3.reasonCode).toBe("RBAC_RUNTIME_FAIL_CLOSED");
+  });
+
+  it("evaluateRbacRuntimePolicy sets denyPrecedence true and effect deny when policy deny rule matches (deny overrides allow)", () => {
+    const m = clone(leaveApprovalRbac);
+    m.policyRules = [
+      {
+        id: "pr_rt_deny",
+        effect: "deny",
+        roleId: "employee",
+        resourceType: "leave_request",
+        permissionCode: "leave:create",
+      },
+    ];
+    const dec = evaluateRbacRuntimePolicy(m, {
+      subject: { roleIds: ["employee"] },
+      action: "create",
+      resourceType: "leave_request",
+    });
+    expect(dec.effect).toBe("deny");
+    expect(dec.reasonCode).toBe("RBAC_RUNTIME_FAIL_CLOSED");
+    expect(dec.denyPrecedence).toBe(true);
+    expect(dec.matchedPolicyIds).toContain("pr_rt_deny");
+    // even though employee role would grant, deny wins
+    expect(dec.matchedRoleIds).toContain("employee");
+  });
+
+  it("evaluateRbacRuntimePolicy supports fieldRef and scope in request (runtime request shape)", () => {
+    const dec = evaluateRbacRuntimePolicy(leaveApprovalRbac, {
+      subject: { roleIds: ["employee"] },
+      action: "create",
+      resourceType: "leave_request",
+      resourceId: "lr_123",
+      fieldRef: "leave_request.status",
+      scope: "self",
+    });
+    // no deny rule here, should allow (explicit)
+    expect(dec.effect).toBe("allow");
+    expect(dec.reasonCode).toBe("RBAC_RUNTIME_ALLOW");
+  });
+});
+
+// 117: focused runtime tests for row/field PDP helpers (pure, delegate to decideRbacPolicy, fail-closed deny, policyId preserve)
+describe("rbac runtime row and field access — 117", () => {
+  it("evaluateRbacRowAccess positive delegates to PDP and preserves purchase approval compat", () => {
+    const dec = evaluateRbacRowAccess(purchaseApprovalRbac, {
+      subject: { roleIds: ["requester"] },
+      action: "create",
+      resourceType: "purchase_request",
+      tenantId: "t1",
+      fieldContext: { fields: ["amount"] },
+    });
+    expect(dec.allow).toBe(true);
+    expect(dec.code).toBe("RBAC_DECISION_ALLOW");
+    expect(dec.matchedPermission).toBe("purchase:create");
+  });
+
+  it("evaluateRbacRowAccess negative uses fail-closed (no allow leak)", () => {
+    const dec = evaluateRbacRowAccess(leaveApprovalRbac, {
+      subject: { roleIds: ["employee"] },
+      action: "approve",
+      resourceType: "leave_request",
+      tenantId: "t1",
+      fieldContext: { fields: ["status"] },
+    });
+    expect(dec.allow).toBe(false);
+    expect(dec.code).toBe("RBAC_DECISION_FAIL_CLOSED");
+  });
+
+  it("evaluateRbacFieldAccess positive returns supported read outcome and leave compat", () => {
+    const dec = evaluateRbacFieldAccess(leaveApprovalRbac, {
+      subject: { roleIds: ["employee"] },
+      action: "create",
+      resourceType: "leave_request",
+      tenantId: "t1",
+      fieldContext: { fields: ["status"] },
+    });
+    expect(dec.allow).toBe(true);
+    expect(dec.code).toBe("RBAC_DECISION_ALLOW");
+    expect(dec.level).toBe("read");
+  });
+
+  it("evaluateRbacFieldAccess negative fail-closed with RBAC_FIELD_ACCESS_DENIED for sensitive field policyRef + preserves policy id", () => {
+    const m = clone(purchaseApprovalRbac);
+    // sensitive field policy via fieldRef (DataModel provides the ref); deny must be visible and carry id
+    m.policyRules = [
+      {
+        id: "pr_sensitive_amount",
+        effect: "deny",
+        resourceType: "purchase_request",
+        fieldRef: "purchase_request.amount",
+      },
+    ];
+    const dec = evaluateRbacFieldAccess(
+      m,
+      {
+        subject: { roleIds: ["finance"] },
+        action: "finance_approve",
+        resourceType: "purchase_request",
+        tenantId: "t1",
+        fieldContext: { fields: ["amount"] },
+        approverUserIds: ["u_finn", "u_other"],
+      },
+      "purchase_request.amount",
+    );
+    expect(dec.allow).toBe(false);
+    expect(dec.code).toBe(RBAC_FIELD_ACCESS_DENIED);
+    expect(dec.level).toBe("hidden");
+    expect(dec.policyId).toBe("pr_sensitive_amount"); // preserved from DataModel policyRef path
+  });
+
+  it("RBAC_FIELD_ACCESS_DENIED constant is the stable denied code (no permissive)", () => {
+    expect(RBAC_FIELD_ACCESS_DENIED).toBe("RBAC_FIELD_ACCESS_DENIED");
+    // used by field helper on deny
+  });
+});
+
+// 117: runtime SoD policy enforcement tests (evaluateRbacSodPolicy + PDP integration)
+describe("rbac runtime SoD policy — 117 evaluateRbacSodPolicy and decide integration", () => {
+  it("evaluateRbacSodPolicy returns denied=false for no conflict (positive runtime case)", () => {
+    const m = clone(leaveApprovalRbac);
+    m.sodRules = [
+      { id: "sod_emp_mgr", name: "emp vs mgr", exclusiveRoleIds: ["employee", "manager"], severity: "error" },
+    ];
+    const ctx: PolicyContext = {
+      subject: { roleIds: ["employee"] },
+      action: "create",
+      resourceType: "leave_request",
+      tenantId: "t1",
+      fieldContext: { fields: ["status"] },
+    };
+    const res = evaluateRbacSodPolicy(m, ctx);
+    expect(res.denied).toBe(false);
+    expect(res.ruleId).toBeUndefined();
+  });
+
+  it("evaluateRbacSodPolicy denies direct mutually-exclusive roles and returns RBAC_RUNTIME_SOD_DENIED + ruleId (negative fail-closed)", () => {
+    const m = clone(leaveApprovalRbac);
+    m.sodRules = [
+      { id: "sod_emp_mgr_direct", name: "employee manager exclusive", exclusiveRoleIds: ["employee", "manager"], severity: "error" },
+    ];
+    const ctx: PolicyContext = {
+      subject: { roleIds: ["employee", "manager"] },
+      action: "approve",
+      resourceType: "leave_request",
+      tenantId: "t1",
+      fieldContext: { fields: ["status"] },
+    };
+    const res = evaluateRbacSodPolicy(m, ctx);
+    expect(res.denied).toBe(true);
+    expect(res.ruleId).toBe("sod_emp_mgr_direct");
+    expect(res.reasonCode).toBe(RBAC_RUNTIME_SOD_DENIED);
+  });
+
+  it("evaluateRbacSodPolicy denies on selfApproval contextual conflict even with single role (negative)", () => {
+    const m = clone(leaveApprovalRbac);
+    m.sodRules = [
+      { id: "sod_self_approve", name: "self approve sod", exclusiveRoleIds: ["manager"], severity: "error" },
+    ];
+    const ctx: PolicyContext = {
+      subject: { roleIds: ["manager"] },
+      action: "approve",
+      resourceType: "leave_request",
+      tenantId: "t1",
+      fieldContext: { fields: ["status"] },
+      selfApproval: true,
+    };
+    const res = evaluateRbacSodPolicy(m, ctx);
+    expect(res.denied).toBe(true);
+    expect(res.ruleId).toBe("sod_self_approve");
+    expect(res.reasonCode).toBe(RBAC_RUNTIME_SOD_DENIED);
+  });
+
+  it("decideRbacPolicy denies via runtime SoD even when permission would allow (SoD wins over allow)", () => {
+    const m = clone(leaveApprovalRbac);
+    m.sodRules = [
+      { id: "sod_conflict_win", name: "conflict wins", exclusiveRoleIds: ["employee", "manager"], severity: "error" },
+    ];
+    const dec = decideRbacPolicy(m, {
+      subject: { roleIds: ["employee", "manager"] },
+      action: "create",
+      resourceType: "leave_request",
+      tenantId: "t1",
+      fieldContext: { fields: ["status"] },
+    });
+    expect(dec.allow).toBe(false);
+    expect(dec.code).toBe("RBAC_DECISION_FAIL_CLOSED");
+    expect(dec.reasonCode).toBe(RBAC_RUNTIME_SOD_DENIED);
+    expect(dec.sodRuleId).toBe("sod_conflict_win");
+  });
+
+  it("decideRbacPolicy with selfApproval sod deny wins, and purchase/leave fixtures remain compatible (no breakage)", () => {
+    // use a model with sod + selfApproval
+    const m = clone(purchaseApprovalRbac);
+    m.sodRules = [
+      { id: "sod_finance_self", name: "finance self sod", exclusiveRoleIds: ["finance"], severity: "error" },
+    ];
+    const dec = decideRbacPolicy(m, {
+      subject: { roleIds: ["finance"] },
+      action: "finance_approve",
+      resourceType: "purchase_request",
+      tenantId: "t1",
+      fieldContext: { fields: ["amount"] },
+      approverUserIds: ["u1", "u2"],
+      selfApproval: true,
+    });
+    expect(dec.allow).toBe(false);
+    expect(dec.reasonCode).toBe(RBAC_RUNTIME_SOD_DENIED);
+    expect(dec.sodRuleId).toBe("sod_finance_self");
+
+    // compat: standard no-sod calls on fixtures still allow where they did
+    const pos1 = decideRbacPolicy(leaveApprovalRbac, {
+      subject: { roleIds: ["manager"] },
+      action: "approve",
+      resourceType: "leave_request",
+      tenantId: "t1",
+      fieldContext: { fields: ["status"] },
+    });
+    expect(pos1.allow).toBe(true);
+    expect(pos1.code).toBe("RBAC_DECISION_ALLOW");
+
+    const pos2 = decideRbacPolicy(purchaseApprovalRbac, {
+      subject: { roleIds: ["finance"] },
+      action: "finance_approve",
+      resourceType: "purchase_request",
+      tenantId: "t1",
+      fieldContext: { fields: ["amount"] },
+      approverUserIds: ["u_finn", "u_other"],
+    });
+    expect(pos2.allow).toBe(true);
   });
 });

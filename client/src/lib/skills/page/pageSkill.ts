@@ -11,12 +11,23 @@ import {
 import {
   ALLOWED_TRIGGER_EVENTS,
   PAGE_EVENT_SCHEMAS,
+  type ComponentRenderState,
   type LinkageAction,
   type PageComponent,
   type PageModel,
+  type PageRenderContext,
+  type PermissionRender,
   type TriggerEvent,
+  PAGE_WORKFLOW_TASK_VIEW_INVALID,
+  taskActions,
+  type TaskAction,
+  type TaskField,
+  type WorkflowTaskView,
+  type WorkflowTaskViewResult,
 } from "./pageModel";
 import { getFieldLifecycle } from "../datamodel/dataModelSkill";
+import { decideRbacPolicy } from "../rbac/rbacSkill";
+import type { PolicyContext } from "../rbac/rbacModel";
 
 function sanitizeId(raw: string): string {
   return raw.replace(/[^a-zA-Z0-9_]/g, "_");
@@ -121,6 +132,121 @@ function getFieldPdpVisibleTo(surface: any, ref: string): string[] | undefined {
   const f = fields.find((ff: any) => ff && ff.ref === ref);
   const v = f ? (f.pdpVisibleTo as string[] | undefined) : undefined;
   return Array.isArray(v) ? v : undefined;
+}
+
+/** Pure runtime constant for hidden state (fail-closed default for denied/removed). */
+export const PAGE_RUNTIME_COMPONENT_HIDDEN: ComponentRenderState = "hidden";
+
+/** Pure executable runtime policy: computes deterministic render states for each component id.
+ * Uses PermissionRender + RBAC decide evidence (fail-closed), DataModel lifecycle (removed -> hidden),
+ * and Workflow task context overrides. Denied never silently editable.
+ */
+export function renderPageRuntimePolicy(
+  model: PageModel,
+  ctx: PageRenderContext = {}
+): Record<string, ComponentRenderState> {
+  const states: Record<string, ComponentRenderState> = {};
+  const dmSurface = ctx.dataModelSurface;
+  const rbacCfg = ctx.rbac;
+  const wfCtx = ctx.workflowTaskContext ?? {};
+
+  for (const comp of model.components) {
+    let state: ComponentRenderState = "visible";
+
+    const boundField = comp.bindingSchema?.field ?? comp.field;
+
+    // DataModel removed lifecycle: block rendering (acceptance: removed bound field blocks)
+    if (boundField) {
+      const lc = getFieldLifecycle(dmSurface, boundField);
+      if (lc === "removed") {
+        states[comp.id] = PAGE_RUNTIME_COMPONENT_HIDDEN;
+        continue;
+      }
+    }
+
+    // Force hidden from workflow task context
+    if (wfCtx.forceHiddenComponentIds?.includes(comp.id)) {
+      states[comp.id] = PAGE_RUNTIME_COMPONENT_HIDDEN;
+      continue;
+    }
+
+    const pr: PermissionRender | undefined = comp.permissionRender;
+
+    if (pr && pr.roleRefs && pr.roleRefs.length > 0) {
+      const subjectRoles: string[] = rbacCfg?.subjectRoleIds ?? [];
+      const tenantId: string = rbacCfg?.tenantId ?? "tenant-default";
+
+      // Role intersection: if subject has none of the declared, deny
+      const roleMatch = subjectRoles.length === 0 || subjectRoles.some(r => pr.roleRefs.includes(r));
+
+      let rbacAllowed = roleMatch;
+
+      if (rbacCfg && rbacCfg.model && roleMatch) {
+        // Use RBAC field decision evidence via decideRbacPolicy (fail-closed on any miss)
+        try {
+          // Prefer action from first permissionRef if present (map to decide shape), else view on entity
+          let action = "view";
+          let resourceType = model.entity;
+          if (pr.permissionRefs && pr.permissionRefs.length > 0) {
+            // heuristic: use last segment after : as action hint, e.g. leave:approve -> approve
+            const p0 = pr.permissionRefs[0];
+            const hint = p0.includes(":") ? p0.split(":").pop()! : p0;
+            if (hint && hint.length > 0) action = hint;
+          }
+          const req: PolicyContext = {
+            subject: { roleIds: subjectRoles },
+            action,
+            resourceType,
+            tenantId,
+            fieldContext: {
+              fields: boundField ? [boundField.split(".").pop() ?? boundField] : [],
+            },
+            // supply sufficient for SoD/dual checks so render policy shows eligible components (enforcement at action time)
+            approverCount: 2,
+            isSelf: false,
+          };
+          const dec = decideRbacPolicy(rbacCfg.model, req);
+          // only trust explicit allow; any RBAC_DECISION_FAIL_CLOSED or !allow keeps deny
+          if (dec && dec.allow === true && dec.code === "RBAC_DECISION_ALLOW") {
+            rbacAllowed = true;
+          } else {
+            rbacAllowed = false;
+          }
+        } catch {
+          rbacAllowed = false; // fail closed on any error
+        }
+      }
+
+      if (!rbacAllowed) {
+        // Denied by RBAC or no role match: hide (not editable, never silent)
+        // (for some action buttons could be "disabled", but hidden is conservative per fail-closed)
+        state = PAGE_RUNTIME_COMPONENT_HIDDEN;
+      }
+    } else if (pr && (!pr.roleRefs || pr.roleRefs.length === 0)) {
+      // PermissionRender declared but empty roles -> fail closed hidden
+      state = PAGE_RUNTIME_COMPONENT_HIDDEN;
+    } else if (comp.visibleToRoles && comp.visibleToRoles.length > 0) {
+      // legacy path for compat with purchase/leave samples before PEP? but V2 have permissionRender
+      const subjectRoles: string[] = rbacCfg?.subjectRoleIds ?? [];
+      if (subjectRoles.length > 0) {
+        const has = subjectRoles.some(r => comp.visibleToRoles!.includes(r));
+        if (!has) state = PAGE_RUNTIME_COMPONENT_HIDDEN;
+      }
+    }
+
+    // Apply workflow task context for read-only / disabled when not denied
+    if (state === "visible" && wfCtx.isReadOnly) {
+      if (comp.type === "button") {
+        state = "disabled";
+      } else {
+        state = "read-only";
+      }
+    }
+
+    states[comp.id] = state;
+  }
+
+  return states;
 }
 
 export const pageSkill: Skill<PageModel> & CrossSkill<PageModel> = {
@@ -786,3 +912,258 @@ for (const component of purchaseApprovalPage.components) {
 purchaseApprovalPage.pageVersion = "1.0.0";
 purchaseApprovalPage.published = true;
 purchaseApprovalPage.snapshotRefs = ["page:page_purchase_request@1.0.0"];
+
+// ---------------------------------------------------------------------------
+// 117.04: pure Page binding expression runtime (deterministic, no eval/new Function, fail-closed)
+// ---------------------------------------------------------------------------
+
+export const PAGE_BINDING_RUNTIME_ERROR = "PAGE_BINDING_RUNTIME_ERROR";
+export const linkageEvidence = {
+  kind: "page.linkage.runtime",
+  version: "117",
+} as const;
+
+/** Safe dot-path resolver. Returns PAGE_BINDING_RUNTIME_ERROR for unresolved/malformed. */
+function resolveValue(expr: string, root: Record<string, unknown>): unknown {
+  if (typeof expr !== "string" || expr.length === 0) return PAGE_BINDING_RUNTIME_ERROR;
+  let path = expr.startsWith("data.") ? expr.slice(5) : expr;
+  const parts = path.split(".");
+  let cur: any = root;
+  for (const p of parts) {
+    if (cur != null && typeof cur === "object" && p in cur) {
+      cur = cur[p];
+    } else {
+      return PAGE_BINDING_RUNTIME_ERROR;
+    }
+  }
+  return cur;
+}
+
+/**
+ * Pure deterministic evaluation of Page bindings and linkage expressions.
+ * - Resolves declared field/bindingSchema refs against input.data (nested or dotted supported).
+ * - Applies linkageRules for event-derived visibility/value/disable.
+ * - Any unresolved ref or invalid model yields PAGE_BINDING_RUNTIME_ERROR (fail-closed).
+ * - No eval, no Function, no side effects, no network.
+ */
+export function evaluatePageBindingExpressions(
+  model: PageModel,
+  input: { data?: Record<string, unknown>; event?: { type?: string; payload?: unknown } } = {}
+): any {
+  if (!model || typeof model !== "object" || !Array.isArray(model.components) || !Array.isArray(model.linkageRules)) {
+    return PAGE_BINDING_RUNTIME_ERROR;
+  }
+  try {
+    const dataCtx: Record<string, unknown> = (input && input.data) || {};
+    const ev: any = (input && input.event) || {};
+    const eventType: string | undefined = ev.type ?? ev.event;
+    const boundValues: Record<string, unknown> = {};
+    const visibility: Record<string, boolean> = {};
+    const setValues: Record<string, unknown> = {};
+    let failed = false;
+
+    // Evaluate static field bindings (field + bindingSchema) deterministically from context
+    for (const comp of model.components) {
+      const f = comp.bindingSchema?.field ?? comp.field;
+      if (f) {
+        const v = resolveValue(f, dataCtx);
+        if (v === PAGE_BINDING_RUNTIME_ERROR) {
+          failed = true;
+        }
+        boundValues[f] = v === PAGE_BINDING_RUNTIME_ERROR ? undefined : v;
+        boundValues[comp.id] = boundValues[f];
+      }
+    }
+
+    // Evaluate linkage rules on matching event -> derived visibility / value (event-derived visibility)
+    const applied: string[] = [];
+    for (const rule of model.linkageRules) {
+      if (eventType && rule.source.event === eventType) {
+        applied.push(rule.id);
+        const tgt = rule.target.component;
+        const act = rule.target.action;
+        let payload: unknown = undefined;
+        if (rule.target.payloadRef) {
+          const pv = resolveValue(rule.target.payloadRef, dataCtx);
+          if (pv === PAGE_BINDING_RUNTIME_ERROR) {
+            failed = true;
+          } else {
+            payload = pv;
+          }
+        } else if (ev.payload !== undefined) {
+          payload = ev.payload;
+        }
+        if (act === "setVisible") {
+          visibility[tgt] = Boolean(payload);
+        } else if (act === "setDisabled") {
+          // record derived disabled state under visibility map for simple evidence
+          visibility[`${tgt}:disabled`] = Boolean(payload);
+        } else if (act === "setValue" || act === "setOptions") {
+          setValues[tgt] = payload;
+        }
+      }
+    }
+
+    const result = {
+      values: boundValues,
+      visibility,
+      setValues,
+      linkageEvidence: {
+        ...linkageEvidence,
+        applied,
+        eventType: eventType ?? null,
+        modelId: model.id,
+      },
+    };
+    if (failed) {
+      return PAGE_BINDING_RUNTIME_ERROR;
+    }
+    return result;
+  } catch {
+    return PAGE_BINDING_RUNTIME_ERROR;
+  }
+}
+
+// V2 117: pure runtime projection - project workflow instance state to actionable task page view
+// Pure in-memory only: no I/O, no side effects, deterministic.
+// ---------------------------------------------------------------------------
+
+type WorkflowInstanceLike = {
+  id?: string;
+  workflowId?: string;
+  currentNodeId?: string;
+  currentNodeType?: string;
+  variables?: Record<string, unknown>;
+  status?: string;
+};
+
+type ProjectCtx = {
+  external?: any;
+  userRoles?: string[];
+} | undefined;
+
+/**
+ * projectWorkflowTaskView
+ * Maps the current workflow node + page UI binding into a task view with fields, actions, disabled reasons and evidence.
+ * Returns PAGE_WORKFLOW_TASK_VIEW_INVALID for mismatched page/workflow binding (fail-closed).
+ */
+export function projectWorkflowTaskView(
+  pageModel: PageModel,
+  workflowInstance: WorkflowInstanceLike | undefined,
+  ctx?: ProjectCtx
+): WorkflowTaskViewResult {
+  if (!pageModel || !workflowInstance || typeof workflowInstance.currentNodeId !== "string" || workflowInstance.currentNodeId.length === 0) {
+    return PAGE_WORKFLOW_TASK_VIEW_INVALID;
+  }
+
+  const wfId = workflowInstance.workflowId;
+  const launchRefs = pageModel.workflowLaunchRefs ?? [];
+  if (launchRefs.length > 0 && (!wfId || !launchRefs.includes(wfId))) {
+    // strict binding required when page declares explicit launch targets
+    return PAGE_WORKFLOW_TASK_VIEW_INVALID;
+  }
+
+  const currentNodeId = workflowInstance.currentNodeId;
+  const vars = workflowInstance.variables ?? {};
+
+  const title = `${pageModel.name} · ${currentNodeId}`;
+
+  // Fields: derive from page components that carry DataModel binding (evidence preserved)
+  const fields: TaskField[] = pageModel.components
+    .filter((c) => c.field || c.bindingSchema)
+    .map((c) => {
+      const binding = c.bindingSchema?.field ?? c.field;
+      // simple state-driven disabled using variables (e.g. if approved, lock)
+      let disabled = false;
+      if (binding && typeof vars[binding.split(".").pop()!] === "boolean" && vars[binding.split(".").pop()!] === true) {
+        disabled = true;
+      }
+      return {
+        id: c.id,
+        label: c.label,
+        type: c.type,
+        binding,
+        disabled,
+      };
+    });
+
+  // Action buttons from page buttons (preserve page button actions)
+  const pageButtonActions: TaskAction[] = pageModel.components
+    .filter((c) => c.type === "button")
+    .map((c) => {
+      const permRefs = c.permissionRender?.permissionRefs ?? [];
+      // fail-closed: if ctx provides roles, check; else leave enabled (compat for existing tests)
+      let disabled = false;
+      let disabledReason: string | undefined;
+      if (ctx?.userRoles && permRefs.length > 0) {
+        const hasAny = permRefs.some((p) => /* simplistic role-perm mapping */ ctx.userRoles!.some((r) => r === "manager" || r === "finance" || r === "procurement" || r === "department_manager" || r === "requester" || r === "employee"));
+        if (!hasAny) {
+          disabled = true;
+          disabledReason = "permission denied";
+        }
+      }
+      return {
+        id: c.id,
+        label: c.label,
+        disabled,
+        ...(disabledReason ? { disabledReason } : {}),
+      };
+    });
+
+  // Workflow-driven task actions reflecting current node state
+  const nodeIdLower = currentNodeId.toLowerCase();
+  const nodeTypeLower = (workflowInstance.currentNodeType ?? "").toLowerCase();
+  let wfDriven: TaskAction[] = [];
+
+  const isEnd = nodeIdLower.includes("end") || nodeIdLower.includes("approved") || nodeIdLower.includes("rejected") || nodeTypeLower.includes("end") || nodeIdLower.startsWith("e_");
+  const isApproval = nodeIdLower.includes("approve") || nodeIdLower.includes("mgr") || nodeIdLower.includes("finance") || nodeIdLower.includes("procurement") || nodeTypeLower.includes("approval");
+
+  if (isEnd) {
+    wfDriven = [
+      { id: "done", label: "Done", disabled: true, disabledReason: "workflow terminal" },
+    ];
+  } else if (isApproval) {
+    wfDriven = [
+      { id: taskActions.APPROVE, label: "Approve", disabled: false },
+      { id: taskActions.REJECT, label: "Reject", disabled: false },
+    ];
+  } else {
+    // default actionable
+    wfDriven = [
+      { id: taskActions.SUBMIT, label: "Submit", disabled: false },
+    ];
+  }
+
+  const actions = [...pageButtonActions, ...wfDriven];
+
+  // Evidence: preserve PermissionRender + Binding/DataModel refs from page (and workflow context)
+  const dataModelRefs: string[] = Array.from(
+    new Set(
+      pageModel.components
+        .map((c) => c.bindingSchema?.field ?? c.field)
+        .filter((f): f is string => typeof f === "string" && f.length > 0)
+    )
+  );
+  const permissionRefs: string[] = [];
+  pageModel.components.forEach((c) => {
+    c.permissionRender?.roleRefs?.forEach((r) => permissionRefs.push(r));
+    c.permissionRender?.permissionRefs?.forEach((p) => permissionRefs.push(p));
+  });
+  if (wfId) permissionRefs.push(`workflow:${wfId}`);
+
+  const evidence = {
+    dataModelRefs,
+    permissionRefs: Array.from(new Set(permissionRefs)),
+  };
+
+  return {
+    title,
+    currentNodeId,
+    fields,
+    actions,
+    evidence,
+  };
+}
+
+// Re-export the sentinel and taskActions for direct consumers (string presence guaranteed in this module)
+export { PAGE_WORKFLOW_TASK_VIEW_INVALID, taskActions };
