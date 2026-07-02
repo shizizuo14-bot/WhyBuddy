@@ -1,0 +1,371 @@
+{
+  "cwd": "..",
+  "defaults": {
+    "useWorktree": true,
+    "worktreeScope": "queue",
+    "queueWorktreeName": "sliderule-v2-cross-runtime-118-shard-07-run",
+    "autoFix": true,
+    "skipReview": true,
+    "fixAgent": "grok",
+    "fixModel": "grok-build",
+    "reviewAgent": "grok",
+    "reviewModel": "grok-build",
+    "scopedReview": false,
+    "workerMaxTurns": 512,
+    "workerMaxRetries": 1,
+    "grokMaxTurns": 512,
+    "grokMaxRetries": 1,
+    "reviewMaxTurns": 0,
+    "guardTests": false,
+    "maxIterations": 16,
+    "agentIdleTimeoutMs": 1200000,
+    "agentTimeoutMs": 2400000,
+    "noSyncTaskStatus": false,
+    "autoDisableOnNoChanges": false,
+    "cleanupWorktree": false,
+    "timeoutMs": 3600000,
+    "lang": "zh-CN",
+    "pythonExe": "slide-rule-python/.venv/Scripts/python.exe",
+    "workerEnv": {
+      "HTTP_PROXY": "http://127.0.0.1:7890",
+      "HTTPS_PROXY": "http://127.0.0.1:7890",
+      "ALL_PROXY": "http://127.0.0.1:7890",
+      "NO_PROXY": "localhost,127.0.0.1,::1"
+    }
+  },
+  "gates": [
+    "node agent-loop/src/check-mojibake.js {{taskFile}}"
+  ],
+  "tasks": [
+    {
+      "id": "sliderule-v2-cross-workflow-021-runtime-evidence-adapter-to-rbac-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-021-runtime-evidence-adapter-to-rbac-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-022-cross-skill-fixture-to-datamodel-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-022-cross-skill-fixture-to-datamodel-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-023-closure-edge-to-page-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-023-closure-edge-to-page-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-024-fail-closed-bridge-to-appbundle-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-024-fail-closed-bridge-to-appbundle-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-025-runtime-context-normalizer-to-rbac-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-025-runtime-context-normalizer-to-rbac-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-026-versioned-snapshot-link-to-datamodel-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-026-versioned-snapshot-link-to-datamodel-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-027-impact-projection-to-page-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-027-impact-projection-to-page-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-028-audit-trace-to-appbundle-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-028-audit-trace-to-appbundle-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-029-sample-negative-path-to-rbac-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-029-sample-negative-path-to-rbac-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-030-sample-positive-path-to-datamodel-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-030-sample-positive-path-to-datamodel-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-031-runtime-evidence-adapter-to-page-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-031-runtime-evidence-adapter-to-page-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-032-cross-skill-fixture-to-appbundle-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-032-cross-skill-fixture-to-appbundle-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-033-closure-edge-to-rbac-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-033-closure-edge-to-rbac-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-034-fail-closed-bridge-to-datamodel-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-034-fail-closed-bridge-to-datamodel-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-035-runtime-context-normalizer-to-page-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-035-runtime-context-normalizer-to-page-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-036-versioned-snapshot-link-to-appbundle-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-036-versioned-snapshot-link-to-appbundle-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-037-impact-projection-to-rbac-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-037-impact-projection-to-rbac-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-038-audit-trace-to-datamodel-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-038-audit-trace-to-datamodel-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-039-sample-negative-path-to-page-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-039-sample-negative-path-to-page-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-040-sample-positive-path-to-appbundle-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-040-sample-positive-path-to-appbundle-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-041-runtime-evidence-adapter-to-rbac-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-041-runtime-evidence-adapter-to-rbac-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-042-cross-skill-fixture-to-datamodel-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-042-cross-skill-fixture-to-datamodel-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-043-closure-edge-to-page-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-043-closure-edge-to-page-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-044-fail-closed-bridge-to-appbundle-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-044-fail-closed-bridge-to-appbundle-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-045-runtime-context-normalizer-to-rbac-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-045-runtime-context-normalizer-to-rbac-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-046-versioned-snapshot-link-to-datamodel-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-046-versioned-snapshot-link-to-datamodel-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-047-impact-projection-to-page-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-047-impact-projection-to-page-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-048-audit-trace-to-appbundle-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-048-audit-trace-to-appbundle-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-049-sample-negative-path-to-rbac-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-049-sample-negative-path-to-rbac-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    },
+    {
+      "id": "sliderule-v2-cross-workflow-050-sample-positive-path-to-datamodel-118",
+      "task": "agent-loop/tasks/sliderule-v2-cross-workflow-050-sample-positive-path-to-datamodel-118.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Acceptance criteria','118-cross-skill-runtime']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    }
+  ]
+}
