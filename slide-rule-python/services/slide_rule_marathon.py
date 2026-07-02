@@ -1,7 +1,7 @@
 """
 Python-owned V5.2 Marathon / Session Budget orchestration (BudgetMarathon phase).
 
-PYTHON_AUTHORITY for: BudgetPolicy enforcement (via slide_rule_budget), drive_marathon stop classification (session_budget_exhausted, frontier_exhausted, await_human, budget_exhausted), frontier propose, round digest, supersededArtifactIds append, decisionLedger frontier entries + budget_exhausted decisions from costLedger.
+PYTHON_AUTHORITY for: BudgetPolicy enforcement (via slide_rule_budget), drive_marathon stop classification (session_budget_exhausted, frontier_exhausted, await_human, budget_exhausted), frontier propose, round digest (creates persistable round-digest Artifact in state.artifacts + supersededArtifactIds append for context compression), decisionLedger frontier entries + budget_exhausted decisions from costLedger.
 
 Inner turn execution reuses drive_reasoning_turn / drive_full_v5_session at route/driver layer (see slide_rule_session, v5_full_driver, routes); this module provides budget+marathon orchestration slice on top. Accepts optional drive_step for real driver injection.
 
@@ -13,7 +13,7 @@ from typing import Any, Dict, List, Optional, Callable
 from datetime import datetime, timezone
 import time as _time
 
-from models.v5_state import V5SessionState
+from models.v5_state import V5SessionState, Artifact
 from .slide_rule_budget import (
     BudgetPolicy,
     get_default_budget_policy,
@@ -76,7 +76,9 @@ def propose_frontier(
 
 
 def create_round_digest(state: V5SessionState, recent_ids: List[str]) -> Dict[str, Any]:
-    """M6 digest: reuse report builder if available else minimal summary from last artifacts."""
+    """M6 digest: summary dict {title,summary,content,supersededIds} from recent artifacts (for seed + frontier).
+    Actual round-digest Artifact creation + append to state.artifacts (for persistable context compression) is done by caller drive_marathon.
+    """
     arts = getattr(state, "artifacts", []) or []
     recent = [a for a in arts if (isinstance(a, dict) and a.get("id") in recent_ids) or getattr(a, "id", None) in recent_ids]
     content = "\n".join([
@@ -217,6 +219,24 @@ def drive_marathon(
                 if sid and sid not in sup:
                     sup.append(sid)
             working.supersededArtifactIds = sup
+
+            # Create persistable round digest artifact (addresses review finding 1): append to state.artifacts
+            # with id/kind/title/content/provenance/trust/status boundary. Untrusted (no default to trusted).
+            # Relation to superseded: supersededIds list the prior detail artifacts summarized into this digest.
+            digest_id = f"round-digest-{turn_id}"
+            digest_art = Artifact(
+                id=digest_id,
+                kind="round-digest",
+                title=digest.get("title", "轮次小结"),
+                summary=digest.get("summary", ""),
+                content=digest.get("content", ""),
+                provenance="python-marathon",
+                trustLevel="untrusted",
+                status="active",
+            )
+            arts = list(getattr(working, "artifacts", []) or [])
+            arts.append(digest_art)
+            working.artifacts = arts
 
             proposal = propose_frontier(working, digest, previous_frontiers)
             # append to decisionLedger

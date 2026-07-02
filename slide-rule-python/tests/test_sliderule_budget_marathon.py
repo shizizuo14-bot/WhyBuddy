@@ -235,6 +235,19 @@ def test_drive_marathon_records_superseded_and_frontier_ledger():
     assert any((isinstance(d, dict) and d.get("source") == "autopilot_frontier") or getattr(d, "source", None) == "autopilot_frontier" for d in dl)
     assert len(sup) >= 1, "supersededArtifactIds must be appended for digest participants"
 
+    # addresses review finding 2: assert round digest artifact appended to artifacts, and relation to superseded
+    arts = getattr(final, "artifacts", []) or []
+    digest_arts = [
+        a for a in arts
+        if (isinstance(a, dict) and a.get("kind") == "round-digest") or getattr(a, "kind", None) == "round-digest"
+    ]
+    assert len(digest_arts) >= 1, "drive_marathon must append a round-digest Artifact to finalState.artifacts for persistable context compression"
+    digest_ids = [(a.get("id") if isinstance(a, dict) else getattr(a, "id", "")) for a in digest_arts]
+    assert digest_ids[-1], "round-digest artifact must have id"
+    assert digest_ids[-1] not in sup, "latest round-digest artifact remains active (not superseded); supersededIds track the consumed prior details (or prior digests) summarized into it"
+    # ensure the pre-existing input art was digested (relationship)
+    assert "art-x" in sup, "supersededArtifactIds must reference the source artifacts consumed by the round digest(s)"
+
 
 def test_python_budget_marathon_is_authority_no_node_fallback():
     """Meta: import path proves Python module owns the policy; no ts runtime in call graph here."""
