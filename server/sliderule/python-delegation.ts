@@ -2,6 +2,11 @@
  * Thin delegation helper for calling the Python SlideRule V5 backend
  * (slide-rule-python).
  *
+ * Dev startup boundary (this task): `npm run dev` (Vite) + slide-rule-python uvicorn:9700
+ * is the clear default for Vite + Python API mode. Node backend (`npm run dev:server`, port 3001)
+ * is explicit compatibility only (thin proxy shell; start only when sockets/legacy needed or
+ * SLIDERULE_V5_BACKEND=legacy non-prod). Under default, delegation proves no Node ownership.
+ *
  * Runtime boundary:
  * - PYTHON_SLIDE_RULE_BASE_URL controls the target service, default localhost:9700.
  * - PYTHON_SLIDE_RULE_INTERNAL_KEY is sent only on internal POST delegation calls.

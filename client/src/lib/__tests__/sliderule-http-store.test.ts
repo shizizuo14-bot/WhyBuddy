@@ -104,4 +104,25 @@ describe("HttpSlideRuleSessionStore Python compatibility", () => {
     expect(saved.sessionId).toBe("save-python-old-schema");
     expect(saved.artifacts[0]?.trustLevel).toBe("untrusted");
   });
+
+  it("HttpSlideRuleSessionStore proves thin compat proxy / frontend contract consumer (Vite dev + Python API mode)", async () => {
+    // Explicitly for dev-all-python-api-mode: the store consumes /api/sliderule (proxied by Vite to Python 9700 by default).
+    // Node backend is never the owner; store + Vite proxy select python target; Node routes are thin shell.
+    // This Vitest proves only contract consumer behavior (no business ownership asserted in client).
+    const state = makeState("dev-py-api-thin");
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce({
+      ok: true,
+      status: 200,
+      json: async () => ({ state, provenance: "python-fullpath", backend: "python" }),
+    } as Response);
+
+    const store = new HttpSlideRuleSessionStore("/api/sliderule"); // default vite-relative target
+    const loaded = await store.load("dev-py-api-thin");
+
+    expect(fetchSpy).toHaveBeenCalledWith(expect.stringContaining("/api/sliderule/sessions/"), expect.any(Object));
+    expect(loaded?.sessionId).toBe("dev-py-api-thin");
+    // frontend is consumer only; no Node ownership, python signals present
+    expect((loaded as any)?.provenance).toBeUndefined(); // unwrapped
+    expect(loaded?.graph).toBeDefined();
+  });
 });

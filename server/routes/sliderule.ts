@@ -19,78 +19,15 @@
 import { readEnvCompat } from "../../shared/env/read-env-compat.js";
 import express, { Router, type Request, type Response } from "express";
 import type { V5SessionState } from "../../shared/blueprint/v5-reasoning-state.js";
-import { getAIConfig } from "../core/ai-config.js";
-import {
-  callLLM,
-  callLLMJson,
-  callLLMJsonWithUsage,
-  clearPrimaryLLMCooldown,
-} from "../core/llm-client.js";
-import { isEmptyDialogueJsonShape } from "../core/llm-json-budget.js";
 import {
   createExecuteCapabilityLogger,
   provenanceFromBody,
 } from "../sliderule/execute-capability-log.js";
-import { callSlideRuleDialogueJsonLlm } from "../sliderule/json-llm-call.js";
-import { buildStructuredReport } from "../../shared/blueprint/sliderule-report-builder.js";
-import {
-  buildCapabilityContext,
-  formatContextForPrompt,
-  classifyCapabilityTier,
-} from "../../shared/blueprint/sliderule-capability-context.js";
-import {
-  getOutputContract,
-  renderContractForPrompt,
-  renderContractSchema,
-} from "../../shared/blueprint/sliderule-output-contracts.js";
-import { buildCapabilityPrompt } from "../../shared/blueprint/sliderule-capability-prompts.js";
-import { buildFallbackNarration } from "../../shared/blueprint/sliderule-deliverable-sanitize.js";
-import type { GoalStatusForNarration } from "../../shared/blueprint/sliderule-deliverable-sanitize.js";
-import {
-  buildNarrationSystemPrompt,
-  buildNarrationUserPrompt,
-  capabilityDomainAnchoringBlock,
-  detectNarrationHijack,
-} from "../../shared/blueprint/sliderule-narration-immunity.js";
-import { executeGithubMcpCapability } from "../sliderule/github-mcp-adapter.js";
-import { executeRepoStaticInspect } from "../sliderule/repo-static-analyzer.js";
-import {
-  executeEvidenceSearchMapped,
-  executeRepoInspectMapped,
-} from "../sliderule/capability-exec-map.js";
-import {
-  executeStructureDecomposeMapped,
-  isStructureCapability,
-} from "../sliderule/structure-exec-map.js";
-import {
-  executeDeliveryCapabilityMapped,
-  isDeliveryCapability,
-} from "../sliderule/delivery-exec-map.js";
-import {
-  executeVisualCapabilityMapped,
-  isVisualCapability,
-} from "../sliderule/visual-exec-map.js";
-import {
-  executeDeliberationCapabilityMapped,
-  isDeliberationCapability,
-} from "../sliderule/deliberation-exec-map.js";
-import {
-  executeDialogueCapability,
-  isDialogueCapability,
-} from "../sliderule/dialogue-exec-map.js";
-import {
-  buildCapabilityLlmFallback,
-  isLlmContentHijackError,
-} from "../sliderule/capability-llm-fallback.js";
-import { executeOrchestratePlan } from "../sliderule/orchestrate-plan.js";
-import {
-  callPoolJsonLlm,
-  formatPoolSummaryTag,
-  getSlideRuleCapabilityPool,
-  isSlideRuleCapabilityPoolEnabled,
-  shouldSkipPrimaryLlmAfterPoolExhausted,
-  type PoolJsonLlmResult,
-} from "../sliderule/pool-json-llm.js";
+// Legacy Node V5 execute paths (LLM/pool/mapped/GitHub/repo/orchestrate/narration/prompts) isolated:
+// - NEVER imported at module top level (would retain business in prod route file).
+// - Only dynamically imported() inside isLegacyNodeBusinessEnabled() branches or /respond legacy path.
+// - Default (SLIDERULE_V5_BACKEND=python) + prod NEVER loads or reaches LLM/llm-call/narration/prompt/context/output/pool/orchestrate legacy execute.
+// This advances NodeRetirement for V5 execute paths (classification: RETIRED for default path).
 import {
   callPythonSlideRule,
   callPythonSlideRuleGet,
@@ -108,9 +45,15 @@ export { callPythonSlideRule, callPythonSlideRuleGet, delegateToPythonSlideRule 
 
 // Node sliderule routes REDUCED TO THIN PROXY COMPATIBILITY ONLY (V5.2 NodeRetirement).
 // Python FastAPI owns durable session state + sanitize/replay/merge + V5 capability execution.
-// Non-python legacy business logic (LLM/pool/fallback/mapped/GitHub/repo) is ISOLATED to explicit
-// SLIDERULE_V5_BACKEND=legacy + non-production/test boundary only (per review). Default python = delegate or explicit thin error/404.
-// No business ownership remains in Node prod paths under default.
+// Legacy Node V5 execute paths (orchestrate-plan, execute-capability mapped/LLM/GitHub/repo/pool)
+// removed from static import; only dynamic import inside isLegacyNodeBusinessEnabled().
+// Default SLIDERULE_V5_BACKEND=python (prod) = pure thin proxy, never loads/executes legacy business.
+// Classification: execute paths = RETIRED (Node); PYTHON_AUTHORITY (Python via delegation).
+// Legacy retained only for explicit non-prod compat; strict isolation per this NodeRetirement task.
+//
+// Dev startup clarity (sliderule-python-v52-dev-all-python-api-mode-105): `npm run dev` launches Vite which
+// proxies owned /api/sliderule to Python (9700) by default. Node `dev:server` (3001) is explicit compat only
+// (for sockets or SLIDERULE_V5_BACKEND=legacy). This file is thin proxy/compat shell under default.
 const SESSIONS_FILE_ENV = readEnvCompat("SLIDERULE_SESSIONS_FILE");
 const DATA_FILE = SESSIONS_FILE_ENV
   ? path.resolve(process.cwd(), SESSIONS_FILE_ENV)
@@ -122,8 +65,9 @@ function reloadFromDisk(): void { /* thin: Python owns durable; see delegate */ 
 function flushToDisk(): boolean { return true; /* thin */ }
 const sessions = new Map<string, V5SessionState>(); // retained for narrow test surface only; not written by routes
 
-// Legacy isolation per review: full Node business (orchestrate/respond/execute LLM+pool+mapped+specials) only when
-// SLIDERULE_V5_BACKEND=legacy AND (non-prod or explicit test helper). Default (python) = thin proxy only.
+// Legacy isolation (this task): Node V5 exec business (orchestrate/LLM/pool/mapped/GitHub/repo) ONLY when
+// SLIDERULE_V5_BACKEND=legacy AND (non-prod or test helper). In default python/prod: strict no-execute + no module load.
+// respond path also guarded (no Python equivalent, 404 triggers client fallback).
 function isLegacyNodeBusinessEnabled(): boolean {
   const mode = (process.env.SLIDERULE_V5_BACKEND || "python").toLowerCase().trim();
   if (mode === "python") return false;
@@ -263,37 +207,6 @@ type SlideRuleRespondBody = {
   skipped?: Array<{ capabilityId?: string; reason: string }>;
 };
 
-function buildRespondUserPrompt(body: SlideRuleRespondBody): string {
-  const goalStatus = (body.state as any)?.goal?.status as GoalStatusForNarration;
-  const selected = (body.selected || [])
-    .map((s) => `${s.capabilityId || "?"}×${s.roleId || "?"}`)
-    .join(", ");
-  const artifactSummaries = (body.artifacts || [])
-    .map(
-      (a, i) =>
-        `${i + 1}. [${a.kind || "item"}] ${String(a.title || "").slice(0, 80)} — ${String(a.summary || "").slice(0, 200)}`
-    )
-    .join("\n");
-  const skippedSummary = (body.skipped || [])
-    .map((s) => `${s.capabilityId || "?"}:${s.reason}`)
-    .join("; ");
-
-  return buildNarrationUserPrompt({
-    turnId: String(body.turnId || ""),
-    userText: body.userText || "",
-    goalText: (body.state as any)?.goal?.text || "",
-    goalStatus: goalStatus || "needs_refinement",
-    goalStatusBefore: body.goalStatusBefore,
-    interventionIntent: body.intervention?.intent,
-    selectedCount: (body.selected || []).length,
-    selectedLine: selected || "(none)",
-    planReason: body.planReason,
-    skippedSummary: skippedSummary || undefined,
-    artifactSummaries: artifactSummaries || "(none)",
-    mainArtifactContent: body.mainArtifact?.content || null,
-  });
-}
-
 export type NarrationFallbackReason =
   | "no_api_key"
   | "llm_error"
@@ -355,7 +268,9 @@ router.post("/orchestrate-plan", express.json({ limit: "2mb" }), async (req: Req
   }
 
   // Legacy Node business isolated (SLIDERULE_V5_BACKEND=legacy + non-prod/test boundary only)
+  // Dynamic import ensures default python path never loads legacy execute-orchestrate module.
   if (isLegacyNodeBusinessEnabled()) {
+    const { executeOrchestratePlan } = await import("../sliderule/orchestrate-plan.js");
     const result = await executeOrchestratePlan({
       state: body.state,
       turnId: String(body.turnId),
@@ -369,8 +284,8 @@ router.post("/orchestrate-plan", express.json({ limit: "2mb" }), async (req: Req
   return res.status(404).json({ error: "thin_proxy_only", path: "/orchestrate-plan", backend: "python" });
 });
 
-// POST /api/sliderule/respond — thin proxy compat only under default.
-// respond has no Python backend route (client localNarrationFallback on !ok per contract); Node does not own/run narration business in python mode.
+// POST /api/sliderule/respond — thin proxy compat only under default (this NodeRetirement task).
+// respond has no Python backend route (client localNarrationFallback on !ok per contract); Node does not own/run narration business in python mode (explicit 404, legacy LLM only behind guard).
 router.post("/respond", express.json({ limit: "2mb" }), async (req: Request, res: Response) => {
   const body = (req.body || {}) as SlideRuleRespondBody;
 
@@ -387,15 +302,40 @@ router.post("/respond", express.json({ limit: "2mb" }), async (req: Request, res
     return res.status(404).json({ error: "thin_proxy_only", path: "/respond", note: "client localNarrationFallback expected", backend: "python" });
   }
 
-  const goalStatus = (body.state as any)?.goal?.status as GoalStatusForNarration;
+  // Dynamic import ONLY when legacy enabled: default python/prod path never loads narration/llm-client at all.
+  const { getAIConfig } = await import("../core/ai-config.js");
+  const { callLLM } = await import("../core/llm-client.js");
+  const {
+    buildNarrationSystemPrompt,
+    buildNarrationUserPrompt,
+    detectNarrationHijack,
+  } = await import("../../shared/blueprint/sliderule-narration-immunity.js");
+  const { buildFallbackNarration } = await import("../../shared/blueprint/sliderule-deliverable-sanitize.js");
+
+  const goalStatus = (body.state as any)?.goal?.status as any;
   const selectedCount = (body.selected || []).length;
   const hasMain = Boolean(body.mainArtifact?.content);
+
+  const userPromptForNarration = buildNarrationUserPrompt({
+    turnId: String(body.turnId || ""),
+    userText: body.userText || "",
+    goalText: (body.state as any)?.goal?.text || "",
+    goalStatus: goalStatus || "needs_refinement",
+    goalStatusBefore: body.goalStatusBefore,
+    interventionIntent: body.intervention?.intent,
+    selectedCount: (body.selected || []).length,
+    selectedLine: (body.selected || []).map((s: any) => `${s.capabilityId || "?"}×${s.roleId || "?"}`).join(", ") || "(none)",
+    planReason: body.planReason,
+    skippedSummary: (body.skipped || []).map((s: any) => `${s.capabilityId || "?"}:${s.reason}`).join("; ") || undefined,
+    artifactSummaries: (body.artifacts || []).map((a: any, i: number) => `${i + 1}. [${a.kind || "item"}] ${String(a.title || "").slice(0, 80)} — ${String(a.summary || "").slice(0, 200)}`).join("\n") || "(none)",
+    mainArtifactContent: body.mainArtifact?.content || null,
+  });
 
   const fallback = () =>
     buildFallbackNarration({
       userText: body.userText || "",
       goalStatus,
-      goalStatusBefore: body.goalStatusBefore as GoalStatusForNarration,
+      goalStatusBefore: body.goalStatusBefore as any,
       selectedCount,
       interventionIntent: body.intervention?.intent,
       mainArtifactContent: body.mainArtifact?.content || null,
@@ -418,7 +358,7 @@ router.post("/respond", express.json({ limit: "2mb" }), async (req: Request, res
     const { content, usage } = await callLLM(
       [
         { role: "system", content: buildNarrationSystemPrompt(hasMain, selectedCount) },
-        { role: "user", content: buildRespondUserPrompt(body) },
+        { role: "user", content: userPromptForNarration },
       ],
       {
         model: config.model,
@@ -472,35 +412,50 @@ router.post("/respond", express.json({ limit: "2mb" }), async (req: Request, res
 
 type PooledDialogueJson = { title?: string; summary?: string; content?: string };
 
-function formatPooledCapabilityJson(
-  pooled: PoolJsonLlmResult<PooledDialogueJson>,
+// Legacy pool helpers: lazy import pool module only when executed under legacy flag.
+// (ensures default path does not load pool-json-llm legacy execution at static time)
+async function loadPoolModule(): Promise<any> {
+  return await import("../sliderule/pool-json-llm.js");
+}
+
+async function formatPooledCapabilityJson(
+  pooled: any,
   defaultTitle: string
 ) {
+  const poolMod = await loadPoolModule();
+  const tag = poolMod.formatPoolSummaryTag(pooled.model, pooled.poolLabel);
   const title = String(pooled.json.title || defaultTitle).trim();
   const summary = String(pooled.json.summary || "").trim();
   const content = String(pooled.json.content || "").trim();
-  const tag = formatPoolSummaryTag(pooled.model, pooled.poolLabel);
-  return {
+  const out = {
     title,
     summary: summary ? `${summary} ${tag}` : tag,
     content,
     provenance: "llm" as const,
     usage: pooled.usage,
   };
+
+  return out;
 }
 
 async function tryPooledDialogueCapability(
   systemPrompt: string,
   userPrompt: string,
   temperature: number
-): Promise<PoolJsonLlmResult<PooledDialogueJson> | null> {
-  const pooled = await callPoolJsonLlm<PooledDialogueJson>(
+): Promise<any | null> {
+  const poolMod = await loadPoolModule();
+  const pooled = await poolMod.callPoolJsonLlm(
     systemPrompt,
     userPrompt,
     temperature
-  );
-  if (pooled?.json && !isEmptyDialogueJsonShape(pooled.json)) {
-    return pooled;
+  ) as { json?: PooledDialogueJson } | null;
+
+  if (pooled?.json) {
+    // Dynamic load for isEmpty check (legacy only path)
+    const { isEmptyDialogueJsonShape } = await import("../core/llm-json-budget.js");
+    if (!isEmptyDialogueJsonShape(pooled.json)) {
+      return pooled;
+    }
   }
   return null;
 }
@@ -566,17 +521,21 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
   try {
     // GitHub / repo special cases — legacy Node only, isolated to non-prod/test boundary via isLegacyNodeBusinessEnabled.
     // Under default python: thin proxy (no specials, no business ever).
+    // Dynamic import: default path never resolves these legacy modules.
     if (isLegacyNodeBusinessEnabled()) {
+      const ghMod = await import("../sliderule/github-mcp-adapter.js");
+      const repoMod = await import("../sliderule/repo-static-analyzer.js");
+      const capExecMod = await import("../sliderule/capability-exec-map.js");
       if (capabilityId === "source.github.inspect" || capabilityId === "evidence.github.collect") {
-        const gh = await executeGithubMcpCapability(capabilityId, state, inputArtifactIds);
+        const gh = await ghMod.executeGithubMcpCapability(capabilityId, state, inputArtifactIds);
         return sendJson(gh);
       }
       if (capabilityId === "repo.static.inspect") {
-        const result = await executeRepoStaticInspect(capabilityId, state, inputArtifactIds);
+        const result = await repoMod.executeRepoStaticInspect(capabilityId, state, inputArtifactIds);
         return sendJson(result);
       }
       if (capabilityId === "repo.inspect") {
-        const result = await executeRepoInspectMapped(state, inputArtifactIds);
+        const result = await capExecMod.executeRepoInspectMapped(state, inputArtifactIds);
         return sendJson(result);
       }
     }
@@ -671,13 +630,28 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
       );
     }
 
+    // Dynamic import for all remaining legacy V5 mapped/LLM execute paths (GitHub/repo already above).
+    // Ensures production default python route file never executes/loads legacy business even if code retained for compat flag.
+    const capExecMod = await import("../sliderule/capability-exec-map.js");
+    const structMod = await import("../sliderule/structure-exec-map.js");
+    const deliveryMod = await import("../sliderule/delivery-exec-map.js");
+    const visualMod = await import("../sliderule/visual-exec-map.js");
+    const delibMod = await import("../sliderule/deliberation-exec-map.js");
+    const dialMod = await import("../sliderule/dialogue-exec-map.js");
+
+    // Load LLM/narration/prompt helpers lazily here (only executed under legacy flag).
+    const { buildCapabilityPrompt } = await import("../../shared/blueprint/sliderule-capability-prompts.js");
+    const { callSlideRuleDialogueJsonLlm } = await import("../sliderule/json-llm-call.js");
+    const { clearPrimaryLLMCooldown } = await import("../core/llm-client.js");
+    const { getAIConfig: getAIConfigLegacy } = await import("../core/ai-config.js");
+
     if (capabilityId === "evidence.search") {
-      const result = await executeEvidenceSearchMapped(state, inputArtifactIds, roleId);
+      const result = await capExecMod.executeEvidenceSearchMapped(state, inputArtifactIds, roleId);
       return sendJson(result);
     }
 
-    if (isStructureCapability(capabilityId)) {
-      const result = await executeStructureDecomposeMapped(
+    if (structMod.isStructureCapability(capabilityId)) {
+      const result = await structMod.executeStructureDecomposeMapped(
         state,
         inputArtifactIds,
         roleId,
@@ -686,19 +660,19 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
       return sendJson(result);
     }
 
-    if (isDeliveryCapability(capabilityId)) {
-      const result = await executeDeliveryCapabilityMapped(capabilityId, state, inputArtifactIds);
+    if (deliveryMod.isDeliveryCapability(capabilityId)) {
+      const result = await deliveryMod.executeDeliveryCapabilityMapped(capabilityId, state, inputArtifactIds);
       return sendJson(result);
     }
 
-    if (isVisualCapability(capabilityId)) {
-      const result = await executeVisualCapabilityMapped(capabilityId, state);
+    if (visualMod.isVisualCapability(capabilityId)) {
+      const result = await visualMod.executeVisualCapabilityMapped(capabilityId, state);
       return sendJson(result);
     }
 
     const isLlmBacked =
-      isDeliberationCapability(capabilityId) ||
-      isDialogueCapability(capabilityId) ||
+      delibMod.isDeliberationCapability(capabilityId) ||
+      dialMod.isDialogueCapability(capabilityId) ||
       capabilityId === "risk.analyze" ||
       capabilityId === "report.write";
 
@@ -708,10 +682,10 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
       throw err;
     }
 
-    const config = getAIConfig();
+    const config = getAIConfigLegacy();
 
-    if (isDeliberationCapability(capabilityId)) {
-      const result = await executeDeliberationCapabilityMapped({
+    if (delibMod.isDeliberationCapability(capabilityId)) {
+      const result = await delibMod.executeDeliberationCapabilityMapped({
         capabilityId: capabilityId as any,
         state,
         inputArtifactIds,
@@ -724,8 +698,8 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
       return sendJson({ ...result, events: (result as any).events });
     }
 
-    if (isDialogueCapability(capabilityId)) {
-      const result = await executeDialogueCapability({
+    if (dialMod.isDialogueCapability(capabilityId)) {
+      const result = await dialMod.executeDialogueCapability({
         capabilityId: capabilityId as any,
         state,
         inputArtifactIds,
@@ -745,6 +719,7 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
       turnId,
     });
 
+
     if (capabilityId === "risk.analyze" || capabilityId === "report.write") {
       const defaultTitle =
         capabilityId === "risk.analyze" ? "Risk Analysis" : "Report";
@@ -753,8 +728,9 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
         userPrompt,
         temperature
       );
+
       if (pooled) {
-        return sendJson(formatPooledCapabilityJson(pooled, defaultTitle));
+        return sendJson(await formatPooledCapabilityJson(pooled, defaultTitle));
       }
 
       // report.write prefers pool (to avoid large-prompt 504s on high-model primary like su8),
@@ -765,7 +741,7 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
 
     if (
       capabilityId === "risk.analyze" &&
-      shouldSkipPrimaryLlmAfterPoolExhausted()
+      (await (await import("../sliderule/pool-json-llm.js")).shouldSkipPrimaryLlmAfterPoolExhausted())
     ) {
       throw new Error("pool_exhausted_skip_primary");
     }
@@ -806,7 +782,8 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
           clearPrimaryLLMCooldown();
         } catch {}
 
-        if (isSlideRuleCapabilityPoolEnabled()) {
+        const poolMod = await loadPoolModule();
+        if (poolMod.isSlideRuleCapabilityPoolEnabled()) {
           const pooledRetry = await tryPooledDialogueCapability(
             systemPrompt,
             userPrompt,
@@ -818,7 +795,7 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
             console.warn(
               `[sliderule] /execute-capability pool retry succeeded for ${capabilityId}`
             );
-            return sendJson(formatPooledCapabilityJson(pooledRetry, defaultTitle));
+            return sendJson(await formatPooledCapabilityJson(pooledRetry, defaultTitle));
           }
         }
 
@@ -887,13 +864,14 @@ router.post("/execute-capability", express.json({ limit: "2mb" }), async (req: R
       return res.status(status).json({ error: code, message: msg.slice(0, 300) });
     }
 
-    if (isLlmContentHijackError(msg)) {
+    const llmFbMod = await import("../sliderule/capability-llm-fallback.js");
+    if (llmFbMod.isLlmContentHijackError(msg)) {
       console.error("[sliderule] /execute-capability hijack blocked:", msg.slice(0, 200));
       logCap({ error: msg.slice(0, 200), httpStatus: 500 });
       return res.status(500).json({ error: "llm_execution_failed", message: msg.slice(0, 300) });
     }
 
-    const fb = buildCapabilityLlmFallback({
+    const fb = llmFbMod.buildCapabilityLlmFallback({
       capabilityId,
       state,
       inputArtifactIds,

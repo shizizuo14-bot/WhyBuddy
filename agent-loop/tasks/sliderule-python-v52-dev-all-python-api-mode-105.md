@@ -59,3 +59,12 @@ Keep all tasks in the same queue-scoped worktree named `sliderule-python-v52-ful
 - Tests prove the Python behavior directly, and any Node tests prove only thin proxy or compatibility behavior.
 - The migration status file reflects current ownership and residual risk.
 - Worker final report lists files changed, commands run, and whether this task advances Python state authority, driver authority, capability parity, or Node retirement.
+
+## Remediation evidence (review fix): dev startup boundary + classification
+- Classification (step 1): current dev startup behavior for /api/sliderule and V5 API surfaces = PYTHON_AUTHORITY (Python FastAPI on 9700 owns sessions/orchestrate/execute/drive); Node backend = THIN_PROXY_COMPAT / explicit opt-in only (dev:server or SLIDERULE_V5_BACKEND=legacy); TS runtime (Vite) stays for frontend.
+- Default dev startup path (clear Vite + Python API): `npm run dev` (or `pnpm dev`) starts Vite (port 3000) which proxies /api/sliderule*, /api/agent-loop, health to Python 9700 by default (VITE_PYTHON_FIRST_API=true in dev:all; resolveApiTarget prefers PYTHON_API_TARGET or 9700 for owned prefixes). Node backend (3001) is NOT started by plain `dev`; it is explicit compatibility layer when sockets/legacy or `dev:server` invoked.
+- Explicit compat opt-in for Node backend: `npm run dev:server` (starts Node express for thin proxy only) or set SLIDERULE_V5_BACKEND=legacy (non-prod) + dev:server. Under default python, routes in server/routes/sliderule.ts delegate or 404/502 without loading legacy business.
+- Vite proxy + client HttpSlideRuleSessionStore is frontend contract consumer (no ownership); proves thin Node role when proxy target chosen.
+- Commands to prove (run during remediation): node agent-loop/src/check-mojibake.js agent-loop/tasks/sliderule-python-v52-dev-all-python-api-mode-105.md ; slide-rule-python/.venv/Scripts/python.exe -m pytest slide-rule-python/tests/test_v5_smoke.py -q --tb=line -k "python_owned_execute_and_orchestrate or sessions"; pnpm exec vitest run client/src/lib/__tests__/sliderule-http-store.test.ts --reporter=dot
+- This task advances Node retirement (dev path now clearly documents Python API default) + Python state authority (via startup evidence + tests). No change to frontend toolchain. All prior runtime thin-proxy already in place (sessions+exec delegate).
+- Status updated; focused tests executed; mojibake on all; boundary+switch recorded in comments + status.

@@ -317,7 +317,55 @@ describe('orchestrate.plan Node -> Python proxy contract', () => {
     }
   });
 
-  it('task-10: maps every /api/sliderule frontend callsite to Python via thin Node shell (no business ownership)', async () => {
+  it('respond is thin proxy only in default Python mode', async () => {
+    // Under SLIDERULE_V5_BACKEND=python (default), /respond must 404 without ever entering legacy LLM/narration.
+    // This is explicit: no Python impl for respond (client fallback contract).
+    const res = await fetch(`${base}/respond`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        turnId: 'thin-resp',
+        state: { sessionId: 's-thin', goal: { text: 'thin' } },
+      }),
+    });
+    expect(res.status).toBe(404);
+    const body = await res.json().catch(() => ({}));
+    expect(body.error).toBe('thin_proxy_only');
+    expect(body.path).toBe('/respond');
+    // Node route did not execute LLM path; pythonDelegation not relevant here (respond has none).
+  });
+
+  it('Node default path for orchestrate/execute is thin proxy only (delegation spy, no legacy business execution)', async () => {
+    // Real router mounted + delegation spy proves Node is compat proxy, not owner of V5 exec/orchestrate.
+    // Legacy modules (orchestrate-plan, pool, mapped, llm-call, narration) reached only via isLegacy guard.
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+    const pyPayload = { selected: [{ capabilityId: 'evidence.search' }], rationale: 'py-owned', source: 'python-rag', backend: 'python' };
+    pythonDelegation.callPythonSlideRule.mockResolvedValueOnce(pyPayload);
+
+    const orchRes = await fetch(`${base}/orchestrate-plan`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ state: planRequestBody.state, turnId: 't-proxy', userText: 'x' }),
+    });
+    expect(orchRes.status).toBe(200);
+    const orchBody = await orchRes.json();
+    expect(orchBody.source).toBe('python-rag');
+    expect(pythonDelegation.callPythonSlideRule).toHaveBeenCalled();
+
+    // execute path also delegates (spy proves thin, not direct Node LLM/pool execute)
+    pythonDelegation.callPythonSlideRule.mockResolvedValueOnce({ title: 'e', summary: 'e', content: 'py', provenance: 'python-rag', backend: 'python' });
+    const execRes = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ capabilityId: 'evidence.search', state: { sessionId: 'p', goal: { text: 'p' } }, inputArtifactIds: [], roleId: 'agent', turnId: 't2' }),
+    });
+    expect(execRes.status).toBe(200);
+    const execBody = await execRes.json();
+    expect(execBody.provenance).toBe('python-rag');
+    expect(pythonDelegation.callPythonSlideRule).toHaveBeenCalled();
+  });
+
+  it('route-map proof keeps frontend API calls on Python/thin proxy path', async () => {
     // Explicit proof for task 10 route-map: frontend paths (health via alias, orchestrate-plan, execute-capability, sessions via store) target Python.
     // Vite resolveApiTarget sends /api/sliderule* to py; Node /api/sliderule is only thin proxy/delegation when hit directly.
     // Callsites: SlideRule.tsx(health), sliderule-orchestrator.ts, sliderule-runtime.ts, sliderule-http-store.ts, sliderule-narrator.ts(respond fallback).

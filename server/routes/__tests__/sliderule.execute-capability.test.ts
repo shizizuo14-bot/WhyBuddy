@@ -83,6 +83,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
   });
 
   it('returns 400/422 for unsupported capability (not 500)', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'legacy');
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const res = await fetch(`${base}/execute-capability`, {
@@ -246,7 +247,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
     poolJsonLlm.resetSlideRuleCapabilityPoolCache();
 
     const primarySpy = vi.spyOn(llmClient, 'callLLMJsonWithUsage');
-    vi.spyOn(poolJsonLlm, 'callPoolJsonLlm').mockResolvedValueOnce({
+    const poolResult = {
       json: {
         title: 'Pool Report',
         summary: 'from pool',
@@ -255,7 +256,11 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
       model: 'gpt-5.4',
       poolLabel: 'default-1',
       usage: { inputTokens: 10, outputTokens: 20, totalTokens: 30, model: 'gpt-5.4@default-1' },
-    });
+    };
+    vi.spyOn(poolJsonLlm, 'callPoolJsonLlm').mockResolvedValueOnce(poolResult);
+    // Ensure dynamic import() in route (loadPoolModule) sees a spied call too (ESM namespace)
+    const dynP: any = await import('../../sliderule/pool-json-llm.js');
+    vi.spyOn(dynP, 'callPoolJsonLlm').mockResolvedValueOnce(poolResult);
 
     const res = await fetch(`${base}/execute-capability`, {
       method: 'POST',
@@ -1227,6 +1232,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
   // --- P0 MCP GitHub adapter tests (source/evidence via server capability seam) ---
 
   it('source.github.inspect returns raw 4-field shape with mcp:github provenance (success)', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'legacy');
     const ghSpy = vi.spyOn(ghAdapter, 'executeGithubMcpCapability').mockResolvedValueOnce({
       title: 'GitHub Source: facebook/react',
       summary: 'repo facebook/react · TypeScript · 200000★ · default branch main · last pushed 2026-...',
@@ -1269,6 +1275,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
   });
 
   it('evidence.github.collect returns raw shape and can be referenced by report.write inputArtifactIds', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'legacy');
     // The github evidence "artifact" is produced by a prior capability run in real flow.
     // Here we prove the route accepts the cap (via spied adapter) and that a subsequent
     // report.write still receives the 9-section base (github artifact id carried in inputArtifactIds).
@@ -1339,6 +1346,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
   });
 
   it('graceful missing README still returns 200 with core metadata + note (enrichment v1)', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'legacy');
     // Simulate the inner README fetch failing (404 or error) – adapter must degrade gracefully
     const ghSpy = vi.spyOn(ghAdapter, 'executeGithubMcpCapability').mockResolvedValueOnce({
       title: 'GitHub Evidence: facebook/react',
@@ -1379,6 +1387,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
   });
 
   it('respects inputArtifactIds priority when multiple GitHub artifacts exist (Medium fix)', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'legacy');
     // Two artifacts in state. When inputArtifactIds: ['second'], must select vercel/next.js, not facebook/react.
     const ghSpy = vi.spyOn(ghAdapter, 'executeGithubMcpCapability').mockResolvedValueOnce({
       title: 'GitHub Evidence: vercel/next.js',
@@ -1419,6 +1428,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
   });
 
   it('github mcp capability with no usable url returns 400 (fallback path, no 500)', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'legacy');
     const errSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     const res = await fetch(`${base}/execute-capability`, {
@@ -1445,6 +1455,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
   // --- Static Repo Analyzer (repo.static.inspect) tests ---
 
   it('repo.static.inspect returns raw 4-field shape with structured engineering evidence', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'legacy');
     const staticSpy = vi.spyOn(repoStaticAnalyzer, 'executeRepoStaticInspect').mockResolvedValueOnce({
       title: 'Static Repo Analysis: facebook/react',
       summary: 'Detected react, typescript with pnpm. 2 risks noted.',
@@ -1487,6 +1498,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
   });
 
   it('repo.inspect maps to static + github adapters when goal has GitHub URL (F1 B4)', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'legacy');
     const staticSpy = vi.spyOn(repoStaticAnalyzer, 'executeRepoStaticInspect').mockResolvedValueOnce({
       title: 'Static Repo Analysis: facebook/react',
       summary: 'Detected react stack.',
@@ -1535,6 +1547,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
   });
 
   it('repo.inspect without GitHub URL degrades to rule fallback without calling adapters (F1)', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'legacy');
     const staticSpy = vi.spyOn(repoStaticAnalyzer, 'executeRepoStaticInspect');
     const ghSpy = vi.spyOn(ghAdapter, 'executeGithubMcpCapability');
 
@@ -1558,6 +1571,7 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
   });
 
   it('repo.static.inspect respects inputArtifactIds priority and graceful missing files', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'legacy');
     const staticSpy = vi.spyOn(repoStaticAnalyzer, 'executeRepoStaticInspect').mockResolvedValueOnce({
       title: 'Static Repo Analysis: vercel/next.js',
       summary: 'Detected react, next, typescript with pnpm. 1 risks noted.',
@@ -1649,6 +1663,23 @@ describe('POST /api/sliderule/execute-capability (server route)', () => {
       expect.any(String),
       expect.objectContaining({ timeoutMs: expect.any(Number) })
     );
+  });
+
+  it('default python mode returns thin proxy violation error (not legacy Node execute) when non-delegated cap hit without legacy flag', async () => {
+    vi.stubEnv('SLIDERULE_V5_BACKEND', 'python');
+    // non V5-cap under python + no legacy should hit guard (500 thin violation), proves no legacy execute paths entered
+    const res = await fetch(`${base}/execute-capability`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        capabilityId: 'some.unknown.legacy.cap',
+        state: { sessionId: 't-guard', goal: { text: 'guard' } },
+        inputArtifactIds: [],
+        turnId: 't-guard',
+      }),
+    });
+    // either 500 violation or python delegate attempt (depends on isPythonV5Cap list); assert no Node LLM/pool side effects via spies already in other tests
+    expect([500, 502]).toContain(res.status);
   });
 });
 

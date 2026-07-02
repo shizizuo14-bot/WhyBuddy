@@ -15,8 +15,11 @@ import type { SlideRuleSessionStore } from "./sliderule-runtime";
  * - In browser (with vite proxy or full server) it just works.
  * - In tests / pure in-mem usage we never instantiate this unless explicitly asked.
  *
- * The server-side implementation (server/routes/sliderule.ts) is a minimal
- * in-memory Map (no real DB). This is intentional per the "骨架" request.
+ * Node server routes (server/routes/sliderule.ts) are thin compatibility proxy only.
+ * Python FastAPI owns durable V5.2 state, sanitization, replay, and execute-capability/orchestrate semantics.
+ *
+ * Dev startup: Vite (npm run dev) + Python backend (9700) is the clear Python API path.
+ * Http store is frontend contract consumer / thin proxy target selector; Node backend only explicit compat.
  *
  * Usage (when you want to opt into remote/persistent for a demo):
  *   import { HttpSlideRuleSessionStore } from "@/lib/sliderule-http-store";
