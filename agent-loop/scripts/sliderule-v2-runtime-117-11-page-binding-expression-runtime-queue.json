@@ -1,0 +1,55 @@
+{
+  "cwd": "..",
+  "defaults": {
+    "useWorktree": true,
+    "worktreeScope": "queue",
+    "queueWorktreeName": "sliderule-v2-page-binding-expression-runtime-117-run",
+    "autoFix": true,
+    "skipReview": false,
+    "fixAgent": "grok",
+    "fixModel": "grok-build",
+    "reviewAgent": "grok",
+    "reviewModel": "grok-build",
+    "scopedReview": true,
+    "workerMaxTurns": 512,
+    "workerMaxRetries": 1,
+    "grokMaxTurns": 512,
+    "grokMaxRetries": 1,
+    "reviewMaxTurns": 8,
+    "guardTests": false,
+    "maxIterations": 16,
+    "agentIdleTimeoutMs": 300000,
+    "agentTimeoutMs": 600000,
+    "noSyncTaskStatus": false,
+    "autoDisableOnNoChanges": false,
+    "cleanupWorktree": false,
+    "timeoutMs": 1800000,
+    "lang": "zh-CN",
+    "pythonExe": "slide-rule-python/.venv/Scripts/python.exe",
+    "workerEnv": {
+      "HTTP_PROXY": "http://127.0.0.1:7890",
+      "HTTPS_PROXY": "http://127.0.0.1:7890",
+      "ALL_PROXY": "http://127.0.0.1:7890",
+      "NO_PROXY": "localhost,127.0.0.1,::1"
+    }
+  },
+  "gates": [
+    "node agent-loop/src/check-mojibake.js {{taskFile}}"
+  ],
+  "tasks": [
+    {
+      "id": "sliderule-v2-page-binding-expression-runtime-117",
+      "task": "agent-loop/tasks/sliderule-v2-page-binding-expression-runtime-117.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['## Required implementation','## Required tests','## Acceptance criteria']) { if(!task.includes(needle)) throw new Error('task missing section: '+needle); }\" {{taskFile}}",
+        "$p='client/src/lib/skills/page/pageSkill.ts'; if(-not (Select-String -LiteralPath 'client/src/lib/skills/page/pageSkill.ts' -Pattern 'evaluatePageBindingExpressions' -SimpleMatch -Quiet)){ throw 'missing evaluatePageBindingExpressions in client/src/lib/skills/page/pageSkill.ts' }; if(-not (Select-String -LiteralPath 'client/src/lib/skills/page/pageSkill.ts' -Pattern 'PAGE_BINDING_RUNTIME_ERROR' -SimpleMatch -Quiet)){ throw 'missing PAGE_BINDING_RUNTIME_ERROR in client/src/lib/skills/page/pageSkill.ts' }; if(-not (Select-String -LiteralPath 'client/src/lib/skills/page/pageSkill.ts' -Pattern 'linkageEvidence' -SimpleMatch -Quiet)){ throw 'missing linkageEvidence in client/src/lib/skills/page/pageSkill.ts' }",
+        "pnpm exec vitest run client/src/lib/skills/page/pageSkill.test.ts --reporter=dot",
+        "pnpm exec tsc --noEmit --pretty false",
+        "node agent-loop/src/check-mojibake.js {{taskFile}} client/src/lib/skills/page/pageSkill.ts client/src/lib/skills/page/pageModel.ts client/src/lib/skills/page/pageSkill.test.ts"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 16
+    }
+  ]
+}
