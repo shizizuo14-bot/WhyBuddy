@@ -1,11 +1,11 @@
 """
-Focused pytest for Python-owned capability parity (evidence.search + report.write).
+Focused pytest for Python-owned capability parity (evidence.search + report.write + risk.analyze).
 
 This proves the services layer owns these capability contracts directly:
-- evidence.search and report.write use dedicated Python paths.
+- evidence.search, report.write, risk.analyze use dedicated Python paths.
 - direct and mapped paths return sources plus explicit python-rag provenance.
-- report.write produces quality-gate-facing structured report sections.
-- executor results do not forge trust; gate and ledger code elevate trust later.
+- report.write produces quality-gate-facing structured report sections; risk.analyze produces risk artifacts with mitigations + kind + sources.
+- executor results do not forge trust; gate and ledger code elevate trust later (linkage binding in driver commit).
 """
 
 import os
@@ -144,3 +144,129 @@ def test_report_write_does_not_forge_trust():
     assert not hasattr(result, "trustLevel") or getattr(result, "trustLevel", None) is None
     assert result.provenance == "python-rag"
     assert any(marker in result.content for marker in REPORT_SECTION_MARKERS)
+
+
+RISK_SECTION_MARKERS = (
+    "\u98ce\u9669\u6e05\u5355",
+    "\u5f71\u54cd\u8bc4\u4f30",
+    "\u7f13\u89e3\u63aa\u65bd",
+    "\u6b8b\u4f59\u98ce\u9669",
+    "risk",
+    "mitigation",
+    "evidenceRef",
+)
+
+
+def test_risk_analyze_registered_and_not_shared_mcp_skill():
+    assert "risk.analyze" in CAPABILITY_EXECUTORS
+    assert CAPABILITY_EXECUTORS["risk.analyze"].__name__ == "execute_risk"
+    assert "mcp.call" in CAPABILITY_EXECUTORS
+    assert "skill.invoke" in CAPABILITY_EXECUTORS
+
+
+def test_risk_analyze_python_owned_returns_structured_mitigations_python_rag_and_sources():
+    state = _make_state("analyze permission system risks and produce final report")
+
+    result = execute_capability("risk.analyze", state, [], "safety", "t-risk-1")
+
+    assert isinstance(result, ExecuteCapabilityResult)
+    assert result.provenance == "python-rag"
+    assert "risk" in result.title.lower()
+    assert isinstance(result.sources, list) and len(result.sources) > 0
+    hits = sum(1 for marker in RISK_SECTION_MARKERS if marker in result.content)
+    assert hits >= 3, f"risk.analyze content missing structured risk/mitigation sections, got hits={hits}"
+    assert "evidenceRef" in result.content
+    assert result.degraded is False
+    assert "python" in result.provenance
+    # No ledger linkage fields asserted on result (binding is driver-owned per boundary);
+    # this proves the risk artifact + mitigations contract directly.
+
+
+def test_risk_analyze_via_mapped_capability_produces_kind_and_mitigations():
+    state = _make_state("permission system risk scan")
+
+    out = execute_mapped_capability("risk.analyze", state, [], "safety", "t-risk-2")
+
+    assert isinstance(out, dict)
+    assert out.get("provenance") == "python-rag"
+    assert out.get("kind") == "risk"
+    assert isinstance(out.get("sources"), list) and len(out["sources"]) >= 1
+    hits = sum(1 for marker in RISK_SECTION_MARKERS if marker in out.get("content", ""))
+    assert hits >= 3
+    assert "evidenceRef" in out.get("content", "")
+    # Mapped output proves Python risk.analyze contract (kind + mitigations + sources);
+    # real ledger linkage (ledgerEntryId/producedBy on run/artifact) bound by driver commit.
+
+
+def test_risk_analyze_does_not_forge_trust():
+    state = _make_state("no trust risk")
+
+    result = execute_capability("risk.analyze", state, [], "role", "t-risk-t")
+
+    assert not hasattr(result, "trustLevel") or getattr(result, "trustLevel", None) is None
+    assert result.provenance == "python-rag"
+    assert any(marker in result.content for marker in RISK_SECTION_MARKERS)
+    # Results do not carry or forge trust; trust elevation + ledger linkage via driver/gates only.
+
+
+CRITIQUE_SECTION_MARKERS = (
+    "\u6279\u5224",
+    "critique",
+    "\u5f02\u8bae",
+    "objection",
+    "\u53cd\u8bc1",
+    "counterevidence",
+    "\u6743\u8861",
+    "tradeoff",
+    "\u6536\u655b",
+    "convergence",
+    "evidenceRef",
+)
+
+
+def test_critique_generate_registered_and_not_shared_mcp_skill():
+    assert "critique.generate" in CAPABILITY_EXECUTORS
+    assert CAPABILITY_EXECUTORS["critique.generate"].__name__ == "execute_critique"
+    assert "mcp.call" in CAPABILITY_EXECUTORS
+    assert "skill.invoke" in CAPABILITY_EXECUTORS
+
+
+def test_critique_generate_python_owned_returns_structured_sections_python_rag_and_sources():
+    state = _make_state("analyze permission system risks and produce final report")
+
+    result = execute_capability("critique.generate", state, [], "critic", "t-crit-1")
+
+    assert isinstance(result, ExecuteCapabilityResult)
+    assert result.provenance == "python-rag"
+    assert "critique" in result.title.lower()
+    assert isinstance(result.sources, list) and len(result.sources) > 0
+    hits = sum(1 for marker in CRITIQUE_SECTION_MARKERS if marker in result.content)
+    assert hits >= 4, f"critique.generate content missing critique-specific sections, got hits={hits}"
+    assert "evidenceRef" in result.content
+    assert result.degraded is False
+    assert "python" in result.provenance
+
+
+def test_critique_generate_via_mapped_capability_produces_kind_and_sections():
+    state = _make_state("permission system critique")
+
+    out = execute_mapped_capability("critique.generate", state, [], "critic", "t-crit-2")
+
+    assert isinstance(out, dict)
+    assert out.get("provenance") == "python-rag"
+    assert out.get("kind") == "critique"
+    assert isinstance(out.get("sources"), list) and len(out["sources"]) >= 1
+    hits = sum(1 for marker in CRITIQUE_SECTION_MARKERS if marker in out.get("content", ""))
+    assert hits >= 4
+    assert "evidenceRef" in out.get("content", "")
+
+
+def test_critique_generate_does_not_forge_trust():
+    state = _make_state("no trust critique")
+
+    result = execute_capability("critique.generate", state, [], "role", "t-crit-t")
+
+    assert not hasattr(result, "trustLevel") or getattr(result, "trustLevel", None) is None
+    assert result.provenance == "python-rag"
+    assert any(marker in result.content for marker in CRITIQUE_SECTION_MARKERS)
+    # Results do not carry or forge trust; trust elevation + ledger linkage via driver/gates only.

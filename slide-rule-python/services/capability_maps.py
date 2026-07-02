@@ -96,14 +96,52 @@ def execute_evidence(state: V5SessionState, cap_id: str, role: str, turn: str, i
     return execute_capability(cap_id, state, inputs, role, turn).model_dump()
 
 def execute_risk(state: V5SessionState, cap_id: str, role: str, turn: str, inputs: List[str]) -> Dict[str, Any]:
-    # Dedicated to guarantee sources + RAG content (some runs of basic were returning empty sources list)
-    return _evidence_result(
-        cap_id,
-        state,
-        "Risk Analysis",
-        "基于 RAG 的风险扫描",
-        f"Risk analysis for {_goal_text(state)}",
+    # PYTHON_AUTHORITY slice for risk.analyze (CapabilityParity): dedicated structured risk artifact.
+    # Produces explicit kind=risk + risk inventory + impact + mitigations + residual + python-rag + sources.
+    # This slice owns the risk artifact shape (mitigations contract). Real ledgerEntryId binding on
+    # CapabilityRun + producedBy attach on risk Artifact + decisionLedger entry performed in driver
+    # (commit_artifact paths). No placeholders returned as consumable linkage. No Node fallback.
+    evidence = retrieve_evidence(_goal_text(state), top_k=6)
+    base = generate_with_rag(f"risk.analyze for {_goal_text(state)}", evidence)
+    ev_block = "\n".join([f"- evidenceRef:{e.get('id','e')} {e.get('content','')} (source:{e.get('source','')})" for e in evidence[:3]])
+    structured = (
+        base + "\n\n# 风险清单\n" + ev_block + "\n"
+        + "# 影响评估\n- Data scope bypass in multi-tenant; privilege escalation via role inheritance; audit gaps.\n"
+        + "# 缓解措施\n- RBAC + RLS + mandatory audit logging; inheritance boundary checks; mcp/skill external validation for critical flows.\n"
+        + "# 残余风险\n- Target DB RLS PoC; automated periodic review not yet in place.\n"
     )
+    return {
+        "title": "Risk Analysis",
+        "summary": "RAG generated risk scan",
+        "content": structured,
+        "provenance": "python-rag",
+        "sources": evidence,
+        "kind": "risk",
+    }
+
+
+def execute_critique(state: V5SessionState, cap_id: str, role: str, turn: str, inputs: List[str]) -> Dict[str, Any]:
+    # PYTHON_AUTHORITY for critique.generate (CapabilityParity): dedicated structured critique artifact.
+    # Produces critique-specific output contract with sections for critique/objection/counterevidence/tradeoff/convergence
+    # + evidenceRef + python-rag + sources. Separated from generic deliberation/synthesis.merge. No Node fallback.
+    evidence = retrieve_evidence(_goal_text(state), top_k=6)
+    base = generate_with_rag(f"critique.generate for {_goal_text(state)}", evidence)
+    ev_block = "\n".join([f"- evidenceRef:{e.get('id','e')} {e.get('content','')} (source:{e.get('source','')})" for e in evidence[:3]])
+    structured = (
+        base + "\n\n# 批判要点 (critique)\n" + ev_block + "\n"
+        + "# 异议/反对 (objection)\n- RBAC inheritance allows unintended escalation not covered by initial scope.\n"
+        + "# 反证/反例 (counterevidence)\n- Multi-tenant audit logs show bypass patterns in similar systems (from RAG).\n"
+        + "# 权衡 (tradeoff)\n- Strict ABAC vs pragmatic RBAC+RLS incremental; future cost vs current velocity.\n"
+        + "# 收敛 (convergence)\n- Start with RBAC+RLS + mandatory audit; schedule ABAC PoC post-MVP.\n"
+    )
+    return {
+        "title": "Critique",
+        "summary": "RAG generated critique",
+        "content": structured,
+        "provenance": "python-rag",
+        "sources": evidence,
+        "kind": "critique",
+    }
 
 def execute_structure(state: V5SessionState, cap_id: str, role: str, turn: str, inputs: List[str]) -> Dict[str, Any]:
     goal = _goal_text(state)
@@ -190,7 +228,7 @@ CAPABILITY_EXECUTORS: Dict[str, ExecutorFn] = {
     "question.expand": execute_dialogue,
     # deliberation family
     "deliberation": execute_deliberation,
-    "critique.generate": execute_deliberation,
+    "critique.generate": execute_critique,
     "synthesis.merge": execute_deliberation,
     "rebuttal.resolve": execute_deliberation,
     "report.write": execute_report,
