@@ -745,3 +745,137 @@ def test_drive_full_populates_dependency_graph_via_commit():
     assert len(out.dependencyGraph) >= 1
     # prove turnId uses loop-N not fallback 't' (fixes traceability)
     assert any((getattr(r, "turnId", None) or (r.get("turnId") if isinstance(r, dict) else None) or "").startswith("loop-") for r in out.capabilityRuns)
+
+
+# --- Focused tests for no_progress and max_repeat_guard stops + decisionLedger (addresses review Findings 1,2,3)
+# Prove Python-owned safe stops on no state progress streak and per-cap repeat guard, with auditable ledger entries.
+# Classification: PYTHON_AUTHORITY for these stop conditions and ledger records in full driver.
+
+def test_drive_full_v5_stops_on_max_repeat_guard_and_records_ledger():
+    """max_repeat_guard: same cap picked repeatedly; after MAX_REPEAT_PER_CAP runs, remaining filtered to 0 -> stop + ledger."""
+    state = _mk_state("sr-repeat-guard")
+    import services.v5_full_driver as drv_mod
+    import services.slide_rule_session as sess_mod
+    call_log = {"exec": 0}
+
+    def fake_orch(s, t, u):
+        class P:
+            selected = []
+            rationale = "repeat plan"
+        return P()
+
+    def always_same_pick(s, u):
+        return [{"capabilityId": "risk.analyze", "roleId": "安全"}]
+
+    def fake_exec(cap, st, ins, role, tid):
+        call_log["exec"] += 1
+        return {"content": "c", "summary": "s", "sources": []}
+
+    def never_pass(st):
+        return {"passed": False}
+
+    def fake_rec(st): return st
+
+    origs = {
+        "orch": getattr(drv_mod, "orchestrate_plan", None),
+        "pick": getattr(drv_mod, "pick_next_capabilities", None),
+        "exec": getattr(drv_mod, "execute_v5_capability", None),
+        "gate": getattr(drv_mod, "evaluate_coverage_gate", None),
+        "rec": getattr(drv_mod, "reconcile_coverage", None),
+        "commit": getattr(drv_mod, "commit_artifact", None),
+    }
+    drv_mod.orchestrate_plan = fake_orch
+    drv_mod.pick_next_capabilities = always_same_pick
+    drv_mod.execute_v5_capability = fake_exec
+    drv_mod.evaluate_coverage_gate = never_pass
+    drv_mod.reconcile_coverage = fake_rec
+    # ensure commit_artifact from module lookup also bound for override if needed (uses the imported name)
+    try:
+        out = drive_full_v5_session(state, max_loops=10)
+    finally:
+        if origs["orch"] is not None: drv_mod.orchestrate_plan = origs["orch"]
+        if origs["pick"] is not None: drv_mod.pick_next_capabilities = origs["pick"]
+        if origs["exec"] is not None: drv_mod.execute_v5_capability = origs["exec"]
+        if origs["gate"] is not None: drv_mod.evaluate_coverage_gate = origs["gate"]
+        if origs["rec"] is not None: drv_mod.reconcile_coverage = origs["rec"]
+        if origs["commit"] is not None: drv_mod.commit_artifact = origs["commit"]
+
+    assert call_log["exec"] == 2, f"must stop after exactly 2 execs for MAX_REPEAT=2 (0<2,1<2), got {call_log}"
+    assert out.runtimePhase == "awaiting"
+    assert getattr(out, "awaitReason", None) == "max_repeat_guard", "must set awaitReason=max_repeat_guard"
+    assert len(getattr(out, "decisionLedger", [])) >= 1, "must record auditable decisionLedger entry for max_repeat_guard"
+    ledger = getattr(out, "decisionLedger", [])
+    assert any("max_repeat_guard" in (getattr(d, "rationale", "") or (d.get("rationale") if isinstance(d, dict) else "")) for d in ledger), "ledger must contain max_repeat_guard rationale"
+
+
+def test_drive_full_v5_stops_on_no_progress_and_records_ledger():
+    """no_progress: two consecutive loops with no net new artifact (simulated via no-add commit after first) or resolved -> stop + ledger."""
+    state = _mk_state("sr-no-progress")
+    import services.v5_full_driver as drv_mod
+    call_log = {"exec": 0, "commit_adds": 0}
+
+    def fake_orch(s, t, u):
+        class P:
+            selected = []
+            rationale = "no prog plan"
+        return P()
+
+    def always_pick(s, u):
+        return [{"capabilityId": "evidence.search", "roleId": "接地"}]
+
+    def fake_exec(cap, st, ins, role, tid):
+        call_log["exec"] += 1
+        return {"content": "ev", "summary": "e", "sources": []}
+
+    def fake_commit(state, **kwargs):
+        # first commit adds (progress), subsequent simulate no progress (no append)
+        call_log["commit_adds"] += 1
+        if call_log["commit_adds"] == 1:
+            # real-ish minimal add for first
+            from models.v5_state import Artifact, ProducedBy as PB, CapabilityRun
+            art = Artifact.server_construct(id=kwargs.get("id","a1"), kind=kwargs.get("kind","evidence"), provenance="python-rag", content=kwargs.get("content",""), title=kwargs.get("title"), summary=kwargs.get("summary",""), producedBy=kwargs.get("producedBy"))
+            run = CapabilityRun(id=kwargs.get("producedBy").capabilityRunId if kwargs.get("producedBy") else "r", capabilityId=kwargs.get("producedBy").capabilityId if kwargs.get("producedBy") else "c", turnId=kwargs.get("turnId","t"), inputs=[], outputs=[art.id], gateResults=[])
+            arts = getattr(state, "artifacts", []) or []
+            arts.append(art)
+            state.artifacts = arts
+            runs = getattr(state, "capabilityRuns", []) or []
+            runs.append(run)
+            state.capabilityRuns = runs
+            return art, run
+        # no add: simulate failed/no progress commit
+        return type("A", (object,), {"id": "noop"})(), type("R", (object,), {"id": "noop"})()
+
+    def never_pass(st):
+        return {"passed": False}
+
+    def fake_rec(st): return st
+
+    origs = {
+        "orch": getattr(drv_mod, "orchestrate_plan", None),
+        "pick": getattr(drv_mod, "pick_next_capabilities", None),
+        "exec": getattr(drv_mod, "execute_v5_capability", None),
+        "gate": getattr(drv_mod, "evaluate_coverage_gate", None),
+        "rec": getattr(drv_mod, "reconcile_coverage", None),
+        "commit": getattr(drv_mod, "commit_artifact", None),
+    }
+    drv_mod.orchestrate_plan = fake_orch
+    drv_mod.pick_next_capabilities = always_pick
+    drv_mod.execute_v5_capability = fake_exec
+    drv_mod.evaluate_coverage_gate = never_pass
+    drv_mod.reconcile_coverage = fake_rec
+    drv_mod.commit_artifact = fake_commit
+    try:
+        out = drive_full_v5_session(state, max_loops=10)
+    finally:
+        if origs["orch"] is not None: drv_mod.orchestrate_plan = origs["orch"]
+        if origs["pick"] is not None: drv_mod.pick_next_capabilities = origs["pick"]
+        if origs["exec"] is not None: drv_mod.execute_v5_capability = origs["exec"]
+        if origs["gate"] is not None: drv_mod.evaluate_coverage_gate = origs["gate"]
+        if origs["rec"] is not None: drv_mod.reconcile_coverage = origs["rec"]
+        if origs.get("commit") is not None: drv_mod.commit_artifact = origs["commit"]
+
+    assert out.runtimePhase == "awaiting"
+    assert getattr(out, "awaitReason", None) == "no_progress", "must set awaitReason=no_progress on streak>=2"
+    assert len(getattr(out, "decisionLedger", [])) >= 1, "must record auditable decisionLedger entry for no_progress"
+    ledger = getattr(out, "decisionLedger", [])
+    assert any("no_progress" in (getattr(d, "rationale", "") or (d.get("rationale") if isinstance(d, dict) else "")) for d in ledger), "ledger must contain no_progress rationale"
