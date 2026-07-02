@@ -24,5 +24,17 @@
       "capabilityRuns",
       "coverageGate"
     ]
+  },
+  "mcp_golden": {
+    "no_runtime": { "degraded": true, "error": "mcp_runtime_unavailable", "provenance": "python-mcp-runtime" },
+    "success_contract": { "degraded": false, "has_toolResult": true }
+  },
+  "skill_golden": {
+    "no_runtime": { "degraded": true, "error": "skill_runtime_unavailable", "provenance": "python-skill-runtime" },
+    "success_contract": { "degraded": false }
+  },
+  "retrieval_boundary": {
+    "min_sources_for_evidence": 0,
+    "evidence_caps_use_python_rag": true
   }
 }

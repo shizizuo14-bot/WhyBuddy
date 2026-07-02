@@ -6,6 +6,7 @@ No more LLM fallback or template for the ones that were degraded.
 """
 
 from typing import Dict, Any, Callable, List
+import time
 from models.v5_state import V5SessionState
 from .slide_rule_executor import (  # main one
     execute_capability,
@@ -13,6 +14,7 @@ from .slide_rule_executor import (  # main one
     execute_skill_invoke_with_runtime,
     get_mcp_runtime,
     get_skill_runtime,
+    _write_capability_telemetry,
 )
 from .slide_rule_llm import call_stable_llm_for_capability
 from .rag_service import generate_with_rag, retrieve_evidence
@@ -238,7 +240,16 @@ def execute_mcp_or_skill(state: V5SessionState, cap_id: str, role: str, turn: st
     }
 
 def execute_evidence(state: V5SessionState, cap_id: str, role: str, turn: str, inputs: List[str]) -> Dict[str, Any]:
-    return execute_capability(cap_id, state, inputs, role, turn).model_dump()
+    res = execute_capability(cap_id, state, inputs, role, turn)
+    out = res.model_dump() if hasattr(res, "model_dump") else {}
+    # propagate __dict__ attached timing/est (not in model fields) so maps caller can detect and skip re-write for delegate
+    for k in ("timing", "estimatedTokens", "estimatedCostUsd"):
+        v = getattr(res, k, None)
+        if v is None and hasattr(res, "__dict__"):
+            v = getattr(res, "__dict__", {}).get(k)
+        if v is not None:
+            out[k] = v
+    return out
 
 def execute_risk(state: V5SessionState, cap_id: str, role: str, turn: str, inputs: List[str]) -> Dict[str, Any]:
     # PYTHON_AUTHORITY slice for risk.analyze (CapabilityParity): dedicated structured risk artifact.
@@ -587,7 +598,26 @@ CAPABILITY_EXECUTORS: Dict[str, ExecutorFn] = {
 }
 
 def execute_mapped_capability(cap_id: str, state: V5SessionState, inputs: List[str], role: str, turn: str) -> Dict[str, Any]:
+    start_ts = time.time()
     executor = CAPABILITY_EXECUTORS.get(cap_id)
     if executor:
-        return executor(state, cap_id, role, turn, inputs)
-    return execute_capability(cap_id, state, inputs, role, turn).model_dump()
+        out = executor(state, cap_id, role, turn, inputs)
+    else:
+        cap_res = execute_capability(cap_id, state, inputs, role, turn)
+        out = cap_res.model_dump() if hasattr(cap_res, "model_dump") else {}
+        for k in ("timing", "estimatedTokens", "estimatedCostUsd"):
+            v = getattr(cap_res, k, None)
+            if v is None and hasattr(cap_res, "__dict__"):
+                v = getattr(cap_res, "__dict__", {}).get(k)
+            if v is not None:
+                out[k] = v
+    end_ts = time.time()
+    # ensure dict for telemetry write
+    if not isinstance(out, dict):
+        out = out if isinstance(out, dict) else (out.model_dump() if hasattr(out, "model_dump") else {"title": str(out)})
+    # Skip _write if already has timing (came from inner execute_capability delegate e.g. evidence/unknown path).
+    # This prevents double append while using per-run id for uniqueness.
+    # Allows multiple separate runs of same cap/turn to each record (addresses finding 1).
+    if not out.get("timing"):
+        _write_capability_telemetry(state, cap_id, role, turn, out, start_ts, end_ts)
+    return out
