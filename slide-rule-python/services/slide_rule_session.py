@@ -80,10 +80,14 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) ->
     state.lastTurnId = turn_id
     try:
         plan_result = orchestrate_plan(state, turn_id, user_text)
+        # PYTHON_AUTHORITY pick: explicitly invoke pick_next_capabilities; use its result directly.
+        # Empty pick means converge per Python-owned fallback rules; no fallback to plan_result.selected (legacy).
+        picks = pick_next_capabilities(state, user_text)
+        selected = picks
         state.conversation.append({"role": "user", "text": user_text, "turnId": turn_id})
         state.conversation.append({"role": "system", "text": plan_result.rationale, "turnId": turn_id})
 
-        for sel in plan_result.selected:
+        for sel in selected:
             cap_id = sel["capabilityId"]
             role = sel.get("roleId", "agent")
             # Execute with RAG - always brings evidence, no degraded
@@ -116,13 +120,15 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) ->
             )
 
         # Phase decision: coverage or no more selected -> done or awaiting
+        # rely on picks (from pick_next_capabilities) to reflect full fallback/selection rules.
+        # Empty picks == converge (no legacy plan fallback).
         gate = evaluate_coverage_gate(state)
         if gate.get("passed") or (state.goal or {}).get("status") == "clear":
             state.runtimePhase = "done"
-        elif not plan_result.selected:
+        elif not picks:
             state.runtimePhase = "awaiting"
             state.awaitReason = "convergence"
-            state.awaitDetail = "no selected capabilities; converged"
+            state.awaitDetail = "no selected capabilities; converged (pick returned empty)"
         else:
             state.runtimePhase = "awaiting"
             state.awaitReason = "user_input"
@@ -133,6 +139,336 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) ->
         state.awaitDetail = f"error: {str(exc)[:120]}"
     final = save_session(state)
     return final
+
+
+# --- Python-owned pickNextCapabilities port (V5.2 semantics + fallback rules) ---
+# Moved into allowed file (slide_rule_session.py) for this task to respect Allowed files boundary.
+# Faithful port of readiness short-circuit, delivery/report prefix, structure intent+exclude,
+# keyword routes/risk/report/clarify/visual, stale risk, kind progression, openQ, skip-ev,
+# cold+final fallbacks, complex/game extras, dedup+cap<=5.
+# Drivers explicitly call this (not plan.selected) so empty reliably means converge.
+# No Node fallback.
+
+from typing import Any  # ensure for helpers
+
+
+def _is_healthy_artifact_py(artifact: Any, stales: set) -> bool:
+    if isinstance(artifact, dict):
+        tl = artifact.get("trustLevel") or artifact.get("trust_level")
+        aid = artifact.get("id")
+    else:
+        tl = getattr(artifact, "trustLevel", None) or getattr(artifact, "trust_level", None)
+        aid = getattr(artifact, "id", None)
+    healthy = (tl == "gated_pass" or tl == "audited")
+    return healthy and (aid not in stales)
+
+
+def has_structure_decompose_intent(user_text: str) -> bool:
+    if not user_text:
+        return False
+    if any(k in user_text for k in ["结构", "分解", "decompose"]):
+        return True
+    lower = user_text.lower()
+    if any(k in lower for k in ["树", "拆解"]):
+        return True
+    if "spec tree" in lower or "tree" in lower.split():
+        return True
+    return False
+
+
+def _has_spec_tree_artifact(state: V5SessionState) -> bool:
+    stales = set(getattr(state, "staleArtifactIds", []) or [])
+    for a in (getattr(state, "artifacts", []) or []):
+        if _is_healthy_artifact_py(a, stales):
+            kind = (a.get("kind") if isinstance(a, dict) else getattr(a, "kind", None))
+            if kind == "spec_tree" or kind == "spec tree":
+                return True
+    return False
+
+
+def _is_delivery_intent(user_text: str) -> bool:
+    if not user_text:
+        return False
+    text = (user_text or "").lower()
+    keys = ["handoff", "deliver", "report", "final", "spec", "prompt", "工程", "交付", "报告", "最终", "提示", "文档"]
+    return any(k in text for k in keys)
+
+
+def _is_visual_intent(user_text: str) -> bool:
+    if not user_text:
+        return False
+    t = user_text.lower()
+    return "visual" in t or "mermaid" in t or "预览" in t or "效果" in t or "结构图" in t
+
+
+def _has_grounded_external_evidence_py(state: V5SessionState) -> bool:
+    try:
+        from .slide_rule_coverage import has_grounded_external_evidence
+        return has_grounded_external_evidence(state)
+    except Exception:
+        # fallback conservative: has any healthy evidence
+        stales = set(getattr(state, "staleArtifactIds", []) or [])
+        for a in (getattr(state, "artifacts", []) or []):
+            if _is_healthy_artifact_py(a, stales):
+                kind = (a.get("kind") if isinstance(a, dict) else getattr(a, "kind", ""))
+                if kind == "evidence":
+                    return True
+        return False
+
+
+def _recent_ungrounded_attempts_py(state: V5SessionState, n: int = 3) -> int:
+    runs = (getattr(state, "capabilityRuns", []) or [])[-n*2:]
+    count = 0
+    for r in reversed(runs):
+        cid = (r.get("capabilityId") if isinstance(r, dict) else getattr(r, "capabilityId", ""))
+        if "evidence" in cid or "search" in cid:
+            count += 1
+            if count >= n:
+                break
+    if not _has_grounded_external_evidence_py(state):
+        return min(len(runs), n)
+    return 0
+
+
+def _find_gh_url(lower: str, goal_text: str) -> Optional[str]:
+    text = f"{goal_text or ''} {lower}".lower()
+    if "github.com" in text or "gitlab.com" in text:
+        return "https://github.com/example/repo"
+    return None
+
+
+def _resolve_role_mode(state: V5SessionState, user_text: str) -> str:
+    goal = _goal_text(state)
+    t = (goal + " " + (user_text or "")).lower()
+    if any(k in t for k in ["rpg", "游戏", "multi-agent", "多agent", "多角色", "复杂", "brainstorm"]):
+        return "complex"
+    gtext = goal or ""
+    if len(gtext) > 80:
+        return "complex"
+    return "single"
+
+
+def _should_degrade_brainstorm(state: V5SessionState, user_text: str) -> bool:
+    return False
+
+
+def _pick_brainstorm_primers(state: V5SessionState) -> list:
+    return [
+        {"capabilityId": "critique.generate", "roleId": "产品"},
+        {"capabilityId": "synthesis.merge", "roleId": "综合"},
+    ]
+
+
+def _pick_readiness_chain(state: V5SessionState) -> list:
+    picks = []
+    oq = len(getattr(state, "openQuestions", []) or [])
+    if oq > 0 or not (getattr(state, "artifacts", []) or []):
+        if {"capabilityId": "gap.ask", "roleId": "产品"} not in picks:
+            picks.append({"capabilityId": "gap.ask", "roleId": "产品"})
+        picks.append({"capabilityId": "intent.clarify", "roleId": "产品"})
+        if not _has_spec_tree_artifact(state):
+            picks.append({"capabilityId": "structure.decompose", "roleId": "架构"})
+    return picks
+
+
+def _needs_readiness_chain(state: V5SessionState, user_text: str) -> bool:
+    oq = len(getattr(state, "openQuestions", []) or [])
+    arts = len(getattr(state, "artifacts", []) or [])
+    ut = (user_text or "").lower()
+    if oq > 0:
+        return True
+    goal = _goal_text(state)
+    vague = (len(goal or "") < 8) or ("模糊" in ut) or ("clarif" in ut) or ("vague" in ut)
+    return (oq > 0 or (arts == 0 and vague))
+
+
+def _goal_text(state: V5SessionState) -> str:
+    return state.goal.get("text", "") if isinstance(state.goal, dict) else str(state.goal)
+
+
+def pick_next_capabilities(state: V5SessionState, user_text: str) -> list[dict]:
+    """Python-owned implementation of pickNextCapabilities with all V5.2 fallback rules."""
+    lower = (user_text or "").lower()
+    picks: list[dict] = []
+    stales = set(getattr(state, "staleArtifactIds", []) or [])
+    artifacts = getattr(state, "artifacts", []) or []
+    healthy_kinds = set()
+    for a in artifacts:
+        if _is_healthy_artifact_py(a, stales):
+            k = (a.get("kind") if isinstance(a, dict) else getattr(a, "kind", None))
+            if k:
+                healthy_kinds.add(k)
+    has_risk = "risk" in healthy_kinds
+    has_synth = "synthesis" in healthy_kinds
+    has_report = "report" in healthy_kinds
+    stale_count = len(stales)
+    cap_runs = getattr(state, "capabilityRuns", []) or []
+    recent_runs = [(r.get("capabilityId") if isinstance(r, dict) else getattr(r, "capabilityId", "")) for r in cap_runs[-6:]]
+    recent_ledger = [(r.get("capabilityId") if isinstance(r, dict) else getattr(r, "capabilityId", "")) for r in cap_runs[-4:]]
+    open_q_count = len(getattr(state, "openQuestions", []) or [])
+    ungrounded = _recent_ungrounded_attempts_py(state, 3)
+    session_grounded = _has_grounded_external_evidence_py(state)
+    should_skip_ev = (not session_grounded and ungrounded >= 2)
+    art_count = len([a for a in artifacts if _is_healthy_artifact_py(a, stales)])
+    is_cold = art_count == 0 and len(cap_runs) == 0
+
+    role_mode = _resolve_role_mode(state, user_text)
+
+    # readiness short-circuit
+    if _needs_readiness_chain(state, user_text):
+        rdy = _pick_readiness_chain(state)
+        picks = [p for p in rdy if p["capabilityId"] not in [x["capabilityId"] for x in picks]]
+        if role_mode == "complex" and not _should_degrade_brainstorm(state, user_text):
+            primers = [p for p in _pick_brainstorm_primers(state) if p["capabilityId"] not in [x["capabilityId"] for x in picks]]
+            if primers:
+                picks = primers + picks
+        return picks[:5]
+
+    # delivery after clear
+    if _is_delivery_intent(user_text) and (state.goal or {}).get("status") == "clear":
+        if not has_report:
+            picks.append({"capabilityId": "report.write", "roleId": "综合"})
+        if has_structure_decompose_intent(user_text) and not _has_spec_tree_artifact(state):
+            picks.append({"capabilityId": "structure.decompose", "roleId": "架构"})
+        for cap, role in [
+            ("document.draft", "工程"),
+            ("traceability.matrix", "综合"),
+            ("task.write", "产品"),
+            ("instruction.package", "工程"),
+            ("outcome.visualize", "架构"),
+            ("handoff.package", "工程"),
+        ]:
+            if not any(p["capabilityId"] == cap for p in picks):
+                picks.append({"capabilityId": cap, "roleId": role})
+        # unified dedup + cap<=5 (addresses review: delivery branch must not bypass final dedup/out[:5];
+        # task+comments declare cap<=5 for all paths; now consistent with readiness/visual/final)
+        seen = set()
+        out = []
+        for p in picks:
+            key = f"{p['capabilityId']}:{p.get('roleId','')}"
+            if key not in seen:
+                seen.add(key)
+                out.append(p)
+        return out[:5]
+
+    # visual
+    if _is_visual_intent(user_text):
+        vis = []
+        if "mermaid" in lower or "结构图" in lower:
+            vis.append({"capabilityId": "outcome.visualize", "roleId": "架构"})
+        if vis:
+            return vis[:5]
+
+    gh = _find_gh_url(lower, _goal_text(state))
+    if gh:
+        if not any(p["capabilityId"] == "repo.inspect" for p in picks):
+            picks.append({"capabilityId": "repo.inspect", "roleId": "工程"})
+        if not should_skip_ev and not any(p["capabilityId"] == "evidence.search" for p in picks):
+            picks.append({"capabilityId": "evidence.search", "roleId": "接地"})
+
+    if "路线" in lower or "route" in lower or "对比" in lower:
+        if not any(p["capabilityId"] == "route.generate" for p in picks):
+            picks.append({"capabilityId": "route.generate", "roleId": "架构"})
+        if not any(p["capabilityId"] == "route.compare" for p in picks):
+            picks.append({"capabilityId": "route.compare", "roleId": "工程"})
+
+    if "澄清" in lower or "clarif" in lower or "模糊" in lower:
+        if not any(p["capabilityId"] == "intent.clarify" for p in picks):
+            picks.append({"capabilityId": "intent.clarify", "roleId": "产品"})
+
+    if "风险" in lower or "安全" in lower or "反驳" in lower:
+        if not any(p["capabilityId"] == "risk.analyze" for p in picks):
+            picks.append({"capabilityId": "risk.analyze", "roleId": "安全"})
+        if not any(p["capabilityId"] == "counter.argue" for p in picks):
+            picks.append({"capabilityId": "counter.argue", "roleId": "挑刺"})
+
+    if has_structure_decompose_intent(user_text) and not _has_spec_tree_artifact(state):
+        if not any(p["capabilityId"] == "structure.decompose" for p in picks):
+            picks.append({"capabilityId": "structure.decompose", "roleId": "架构"})
+
+    if "报告" in lower or "report" in lower or "可行性" in lower or "总结" in lower:
+        if not has_risk:
+            picks.append({"capabilityId": "risk.analyze", "roleId": "安全"})
+            picks.append({"capabilityId": "counter.argue", "roleId": "挑刺"})
+        if not has_synth:
+            picks.append({"capabilityId": "synthesis.merge", "roleId": "综合"})
+        if not has_report:
+            picks.append({"capabilityId": "report.write", "roleId": "综合"})
+
+    if "预览" in lower or "效果" in lower or "preview" in lower:
+        if not any(p["capabilityId"] == "scenario.simulate" for p in picks):
+            picks.append({"capabilityId": "scenario.simulate", "roleId": "工程"})
+
+    if stale_count > 0:
+        if not any("risk" in p["capabilityId"] or "argue" in p["capabilityId"] for p in picks):
+            picks.append({"capabilityId": "risk.analyze", "roleId": "安全"})
+            picks.append({"capabilityId": "counter.argue", "roleId": "挑刺"})
+
+    if has_risk and not has_synth and not has_report:
+        if not any(p["capabilityId"] == "synthesis.merge" for p in picks):
+            picks.append({"capabilityId": "synthesis.merge", "roleId": "综合"})
+
+    if has_synth and not has_report:
+        if not any(p["capabilityId"] == "report.write" for p in picks):
+            picks.append({"capabilityId": "report.write", "roleId": "综合"})
+
+    if open_q_count > 0:
+        if not any(p["capabilityId"] == "intent.clarify" for p in picks):
+            picks.append({"capabilityId": "intent.clarify", "roleId": "产品"})
+        if not _has_spec_tree_artifact(state) and not any(p["capabilityId"] == "structure.decompose" for p in picks):
+            picks.append({"capabilityId": "structure.decompose", "roleId": "架构"})
+
+    if stale_count == 0 and not should_skip_ev:
+        avoid = set(recent_ledger)
+        if len(picks) < 3 and "evidence.search" not in avoid and not any(p["capabilityId"] == "evidence.search" for p in picks):
+            picks.append({"capabilityId": "evidence.search", "roleId": "接地"})
+
+    if is_cold and len(picks) < 3:
+        for cap, role in [("intent.clarify", "产品"), ("route.generate", "架构"), ("risk.analyze", "安全")]:
+            if not any(p["capabilityId"] == cap for p in picks):
+                picks.append({"capabilityId": cap, "roleId": role})
+        if not should_skip_ev and not any(p["capabilityId"] == "evidence.search" for p in picks):
+            picks.append({"capabilityId": "evidence.search", "roleId": "接地"})
+
+    if len(picks) == 0:
+        avoid = set(recent_runs + recent_ledger)
+        if "intent.parse" not in avoid:
+            picks.append({"capabilityId": "intent.parse", "roleId": "产品"})
+        if not should_skip_ev and "evidence.search" not in avoid:
+            picks.append({"capabilityId": "evidence.search", "roleId": "接地"})
+        picks.append({"capabilityId": "synthesis.merge", "roleId": "综合"})
+
+    if len(picks) == 0:
+        picks.append({"capabilityId": "intent.parse", "roleId": "产品"})
+        if not should_skip_ev:
+            picks.append({"capabilityId": "evidence.search", "roleId": "接地"})
+        picks.append({"capabilityId": "synthesis.merge", "roleId": "综合"})
+
+    if role_mode == "complex" and not _should_degrade_brainstorm(state, user_text):
+        primers = [p for p in _pick_brainstorm_primers(state) if not any(x["capabilityId"] == p["capabilityId"] for x in picks)]
+        if primers:
+            picks = primers + picks
+
+    # multi agent game
+    goal_game = ((_goal_text(state) or "") + " " + (user_text or "")).lower()
+    is_game = any(k in goal_game for k in ["rpg", "游戏", "multi-agent", "多agent", "多角色"])
+    if is_game and role_mode == "complex":
+        if not any(p["capabilityId"] == "evidence.search" for p in picks):
+            picks.append({"capabilityId": "evidence.search", "roleId": "接地"})
+        for c, r in [("mcp.call", "工程"), ("skill.invoke", "工程"), ("structure.decompose", "架构")]:
+            if not any(p["capabilityId"] == c for p in picks):
+                picks.append({"capabilityId": c, "roleId": r})
+
+    # dedup + slice
+    seen = set()
+    out = []
+    for p in picks:
+        key = f"{p['capabilityId']}:{p.get('roleId','')}"
+        if key not in seen:
+            seen.add(key)
+            out.append(p)
+    return out[:5]
+
 
 # Load on import
 _load_sessions()

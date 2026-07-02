@@ -8,6 +8,7 @@ All capabilities now produce real evidence via RAG, no templates, no degraded, n
 from typing import Dict, Any
 from models.v5_state import V5SessionState
 from .slide_rule_orchestrator import orchestrate_plan
+from .slide_rule_session import pick_next_capabilities
 from .v5_capability_executor import execute_v5_capability
 from .persistence import persist_state
 from .slide_rule_coverage import evaluate_coverage_gate, reconcile_coverage
@@ -23,13 +24,18 @@ def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10) ->
     state.runtimePhase = "orchestrating"
     loop = 0
     plan = type("P", (), {"selected": []})()  # safe default for phase decision on early error
+    picks = []
     try:
         while loop < max_loops:
             plan = orchestrate_plan(state, f"loop-{loop}", "drive full path")
+            # PYTHON_AUTHORITY: use explicit pick_next_capabilities for V5.2 selection semantics + fallbacks
+            # (pick is sole authority; empty means converge; no fallback to plan.selected)
+            picks = pick_next_capabilities(state, "drive full path")
             state = reconcile_coverage(state)
-            if not plan.selected:
-                break  # converged
-            for sel in plan.selected:
+            selected = picks
+            if not picks:
+                break  # converged per pick semantics (empty after all rules)
+            for sel in selected:
                 cap = sel["capabilityId"]
                 role = sel.get("roleId", "agent")
                 # Execute via full migrated executor - always real
@@ -66,7 +72,8 @@ def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10) ->
             state.runtimePhase = "done"
         else:
             state.runtimePhase = "awaiting"
-            state.awaitReason = "convergence" if not getattr(plan, "selected", None) else "coverage"
+            # use last picks (from pick_next_capabilities) for convergence; empty pick owns converge decision
+            state.awaitReason = "convergence" if not picks else "coverage"
     except Exception as exc:
         state.runtimePhase = "failed"
         state.awaitReason = "ready"

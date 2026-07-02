@@ -17,7 +17,7 @@ from fastapi.responses import JSONResponse
 from pydantic import ValidationError
 from typing import Dict, Any, List, Optional
 from models.v5_state import CapabilityRun, V5SessionState
-from services.slide_rule_session import create_session, delete_session, load_session, save_session, drive_reasoning_turn
+from services.slide_rule_session import create_session, delete_session, load_session, save_session, drive_reasoning_turn, pick_next_capabilities
 from services.slide_rule_orchestrator import orchestrate_plan
 from services.v5_capability_executor import execute_v5_capability
 from services.slide_rule_coverage import author_coverage_contract, evaluate_coverage_gate, reconcile_coverage
@@ -183,7 +183,16 @@ async def _run_orchestrate_plan(payload: Any):
             return _degraded_plan("planner_config_missing", "config_missing", str(error))
         return _degraded_plan("planner_error", "runtime_error", str(error))
 
-    return result.model_dump()
+    # PYTHON_AUTHORITY for pickNextCapabilities: the /orchestrate-plan API must return selected
+    # derived from the ported pick semantics + all fallback rules (readiness, delivery, cold,
+    # stale, skip-ev, complex/game, etc.), not the orchestrator's internal fixed-candidate list.
+    # Drivers already call pick explicitly; now the exposed backend API delegates selected too.
+    # rationale stays from orchestrate (for plan text), but selected/converged from pick.
+    picks = pick_next_capabilities(state, str(payload.get("userText", "")))
+    dumped = result.model_dump()
+    dumped["selected"] = picks
+    dumped["converged"] = len(picks) == 0
+    return dumped
 
 @router.post("/sessions")
 async def create_sess(payload: Dict[str, Any], x_internal_key: Optional[str] = Header(None)):
