@@ -1182,3 +1182,132 @@ def test_drive_full_v5_from_real_user_instruction_produces_artifacts_gcov_await_
     assert out.runtimePhase in ("awaiting", "done"), f"must end in awaiting or done, got {out.runtimePhase}"
     # also: coverage may set clear, or converge via empty pick after instr-driven round
     assert getattr(out, "awaitReason", None) in ("convergence", "coverage", "max_loops", None) or (out.goal or {}).get("status") == "clear"
+
+
+# --- Focused tests for reasoningEvents + sessionReplayLog browser-visible exposure (per review findings + task goal) ---
+# Prove that drivers append phase/cap events into reasoningEvents and replayLog so returned/persisted state is not frozen-looking.
+# These are Python-owned direct assertions. Classification exercised: PYTHON_AUTHORITY.
+
+def test_drive_reasoning_turn_appends_reasoning_events_and_replay_log():
+    state = _mk_state("sr-events-turn")
+    class DummyPlan:
+        selected = [{"capabilityId": "intent.parse", "roleId": "产品"}]
+        rationale = "test rationale for events"
+
+    import services.slide_rule_session as sess_mod
+    import importlib
+    importlib.reload(sess_mod)
+    from services.slide_rule_session import drive_reasoning_turn as _reloaded_drive
+    orig_orch = sess_mod.__dict__.get("orchestrate_plan")
+    orig_gate = sess_mod.__dict__.get("evaluate_coverage_gate")
+    orig_save = sess_mod.__dict__.get("save_session")
+    orig_exec = sess_mod.__dict__.get("execute_capability")
+    sess_mod.__dict__["orchestrate_plan"] = lambda s, t, u: DummyPlan()
+    sess_mod.__dict__["evaluate_coverage_gate"] = lambda s: {"passed": False}
+    # minimal exec to hit commit path which now also appends via drive (but we append start/complete in drive)
+    def _fake_exec(cid, st, ins, role, tid):
+        class R: pass
+        r = R()
+        r.content = "ok"
+        r.summary = "ok"
+        r.title = "ok"
+        r.provenance = "python-rag"
+        r.sources = []
+        return r
+    sess_mod.__dict__["execute_capability"] = _fake_exec
+    # Spy save calls to prove append-then-persist (mid saves for poll visibility) per review finding 3; stub still prevents side file but counts drive's immediate save calls after start/complete
+    save_calls = []
+    def _spy_save(st):
+        save_calls.append(len(getattr(st, "reasoningEvents", []) or []))
+        return st
+    sess_mod.__dict__["save_session"] = _spy_save
+    try:
+        out = _reloaded_drive(state, "t-ev", "user for events")
+    finally:
+        if orig_orch is not None: sess_mod.__dict__["orchestrate_plan"] = orig_orch
+        if orig_gate is not None: sess_mod.__dict__["evaluate_coverage_gate"] = orig_gate
+        if orig_save is not None: sess_mod.__dict__["save_session"] = orig_save
+        if orig_exec is not None: sess_mod.__dict__["execute_capability"] = orig_exec
+    # assertions prove browser visible events
+    assert len(getattr(out, "reasoningEvents", [])) >= 2, "must append at least phase + cap start/complete to reasoningEvents"
+    kinds = [getattr(e, "kind", None) or (e.get("kind") if isinstance(e, dict) else None) for e in getattr(out, "reasoningEvents", [])]
+    assert "capability_start" in kinds or "capability_complete" in kinds or "think" in kinds, f"expected event kinds, got {kinds}"
+    replay = getattr(out, "sessionReplayLog", [])
+    assert len(replay) >= 1, "must append replay events (decision/conversation/capability_run)"
+    r_kinds = [getattr(r, "kind", None) or (r.get("kind") if isinstance(r, dict) else None) for r in replay]
+    assert any(k in ("decision", "conversation", "capability_run") for k in r_kinds), f"replay kinds {r_kinds}"
+    # cover "append then immediate persist" behavior (review): drive now calls save after phase/cap start (before exec) and after complete
+    assert len(save_calls) >= 3, f"must persist after key events for poll visibility, got {len(save_calls)} saves"
+    assert any(c >= 1 for c in save_calls), "at least one save after initial phase/cap events"
+
+
+def test_drive_full_v5_appends_reasoning_events_phase_and_replay():
+    state = _mk_state("sr-events-full")
+    class DummyPlan:
+        selected = []
+        rationale = "converge for events test"
+    import services.v5_full_driver as drv_mod
+    orig_orch = getattr(drv_mod, "orchestrate_plan", None)
+    orig_pick = getattr(drv_mod, "pick_next_capabilities", None)
+    orig_gate = getattr(drv_mod, "evaluate_coverage_gate", None)
+    orig_rec = getattr(drv_mod, "reconcile_coverage", None)
+    orig_exec = getattr(drv_mod, "execute_v5_capability", None)
+    drv_mod.orchestrate_plan = lambda s, t, u: DummyPlan()
+    drv_mod.pick_next_capabilities = lambda s, u: []
+    drv_mod.evaluate_coverage_gate = lambda s: {"passed": False}
+    drv_mod.reconcile_coverage = lambda s: s
+    drv_mod.execute_v5_capability = lambda *a, **k: {"content": "x", "summary": "x"}
+    try:
+        out = drive_full_v5_session(state, max_loops=1)
+    finally:
+        if orig_orch is not None: drv_mod.orchestrate_plan = orig_orch
+        if orig_pick is not None: drv_mod.pick_next_capabilities = orig_pick
+        if orig_gate is not None: drv_mod.evaluate_coverage_gate = orig_gate
+        if orig_rec is not None: drv_mod.reconcile_coverage = orig_rec
+        if orig_exec is not None: drv_mod.execute_v5_capability = orig_exec
+    # prove events populated (even on converge path via phase emits)
+    reas = getattr(out, "reasoningEvents", []) or []
+    assert len(reas) >= 1, "drive_full must append phase_changed think events to reasoningEvents"
+    re_kinds = [getattr(e, "kind", None) or getattr(e, "kind", None) for e in reas]
+    assert "think" in [k for k in re_kinds if k], f"phase think event expected, got {re_kinds}"
+    repl = getattr(out, "sessionReplayLog", []) or []
+    assert len(repl) >= 1, "drive_full must append at least decision replay for phase start"
+
+
+# Direct test for append + immediate persist + load (polling visibility): proves "事件追加后立即持久化/可轮询读取"
+# This covers review finding 3 for the core mechanism used by drivers during long execs; no reliance on final-only state.
+# Uses isolated store_file to avoid shared store corruption from other minimal-state tests in same run.
+def test_append_reasoning_replay_then_persist_is_visible_to_load_and_get_poll():
+    import os, tempfile
+    from services.slide_rule_session import append_reasoning_event, append_replay_event
+    from services.persistence import save_session_record, load_session_record
+    st = _mk_state("sr-immediate-poll")
+    # simulate driver emitting start before long cap
+    append_replay_event(st, kind="decision", turnId="t-poll", decisionId="phase-orchestrating-poll")
+    append_reasoning_event(
+        st, turnId="t-poll", capabilityRunId="run-poll-cap", capabilityId="intent.parse",
+        kind="capability_start", text="capability_started: intent.parse", roleId="产品", order=1
+    )
+    # Use tmp isolated store for save/load to prove append-then-persist visible (avoids main store junk from sibling tests)
+    tmpstore = None
+    try:
+        fd, tmpstore = tempfile.mkstemp(suffix=".json", prefix="sr-poll-")
+        os.close(fd)
+        # mid-persist using the same persistence used by drivers
+        save_res = save_session_record(st, store_file=tmpstore)
+        assert save_res.get("ok"), f"save_session_record must succeed, got {save_res}"
+        # poll path: direct record (used by load_session / GET)
+        rec = load_session_record("sr-immediate-poll", store_file=tmpstore)
+        assert rec.get("ok"), f"load_session_record must succeed for persisted events, got {rec}"
+        pstate = rec["session"]
+        re_p = getattr(pstate, "reasoningEvents", []) or []
+        kinds = [getattr(e, "kind", None) or (e.get("kind") if isinstance(e, dict) else None) for e in re_p]
+        assert "capability_start" in kinds or any(k in ("think","capability_start") for k in kinds), f"persisted must carry start event for poll, got {kinds}"
+        repl_p = getattr(pstate, "sessionReplayLog", []) or []
+        assert len(repl_p) >= 1, "persisted replay must be visible to poll"
+        # also prove via the append state itself before save (returned drive would have too)
+        assert len(getattr(st, "reasoningEvents", []) or []) >= 1
+    finally:
+        if tmpstore and os.path.exists(tmpstore):
+            try: os.unlink(tmpstore)
+            except: pass

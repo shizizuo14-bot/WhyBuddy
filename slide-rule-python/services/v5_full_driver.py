@@ -9,7 +9,7 @@ from typing import Dict, Any
 from datetime import datetime, timezone
 from models.v5_state import V5SessionState, ProducedBy, SchedulingDecision
 from .slide_rule_orchestrator import orchestrate_plan
-from .slide_rule_session import pick_next_capabilities, commit_artifact
+from .slide_rule_session import pick_next_capabilities, commit_artifact, append_reasoning_event, append_replay_event
 from .v5_capability_executor import execute_v5_capability
 from .persistence import persist_state
 from .slide_rule_coverage import evaluate_coverage_gate, reconcile_coverage
@@ -29,6 +29,11 @@ def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10, us
     """
     state = initial_state
     state.runtimePhase = "orchestrating"
+    turn_base = f"full-{datetime.now(timezone.utc).strftime('%H%M%S')}"
+    append_replay_event(state, kind="decision", turnId=f"loop-0", decisionId=f"phase-orchestrating-full")
+    append_reasoning_event(state, turnId=f"loop-0", capabilityRunId="phase-full-0", capabilityId="driver", kind="think", text="phase_changed: orchestrating (full drive)", order=0)
+    # Immediate persist after phase start so polling GET sees orchestrating before first loop execs
+    persist_state(state)
     loop = 0
     plan = type("P", (), {"selected": []})()  # safe default for phase decision on early error
     picks = []
@@ -110,12 +115,20 @@ def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10, us
                 role = sel.get("roleId", "agent")
                 turn_id = f"loop-{loop}"
                 t0 = _time.time()
+                run_id = f"run-{loop}-{cap}"
+                # Emit start + replay for visibility (phase/cap events in state for browser)
+                append_reasoning_event(
+                    state, turnId=turn_id, capabilityRunId=run_id, capabilityId=cap, kind="capability_start",
+                    text=f"capability_started: {cap}", roleId=role, order=1
+                )
+                append_replay_event(state, kind="capability_run", turnId=turn_id, capabilityId=cap, capabilityRunId=run_id)
+                # Immediate persist before execute: cap_start visible to session GET pollers during long capability exec (review finding 2)
+                persist_state(state)
                 try:
                     # Execute via full migrated executor - always real
                     result = execute_v5_capability(cap, state, [], role, turn_id)
                     # Use Python-owned commitArtifact (artifact+run+gate+dependencyGraph updates)
                     art_id = f"art-{loop}-{cap}"
-                    run_id = f"run-{loop}-{cap}"
                     produced = ProducedBy(capabilityRunId=run_id, capabilityId=cap, roleId=role)
                     kind = "evidence" if "evidence" in cap or cap in ["mcp.call", "skill.invoke"] else ("report" if "report" in cap else "risk")
                     commit_artifact(
@@ -137,6 +150,13 @@ def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10, us
                         last = state.capabilityRuns[-1]
                         if hasattr(last, "timing"):
                             last.timing = {"durationMs": dur}
+                    # Emit complete
+                    append_reasoning_event(
+                        state, turnId=turn_id, capabilityRunId=run_id, capabilityId=cap, kind="capability_complete",
+                        text=f"capability_completed: {cap}", roleId=role, order=2
+                    )
+                    # Persist complete mid so pollers see finish before next cap/loop end
+                    persist_state(state)
                 except Exception as cap_exc:
                     # Record capability error without whole drive fail or state corruption
                     dur = int((_time.time() - t0) * 1000)
@@ -151,6 +171,12 @@ def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10, us
                         roleId=role,
                         timing={"durationMs": dur},
                     )
+                    append_reasoning_event(
+                        state, turnId=turn_id, capabilityRunId=run_id, capabilityId=cap, kind="capability_complete",
+                        text=f"capability_completed: {cap} (error)", roleId=role, order=2
+                    )
+                    # Persist error complete for visibility
+                    persist_state(state)
                     state.awaitDetail = (getattr(state, "awaitDetail", None) or "") + f"; degraded cap {cap}"
                     # continue to next cap or stop decision; error run is auditable record
             executed_loops += 1
@@ -192,6 +218,8 @@ def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10, us
         gate = evaluate_coverage_gate(state)
         if gate.get("passed") or (state.goal or {}).get("status") == "clear":
             state.runtimePhase = "done"
+            append_reasoning_event(state, turnId=f"loop-{loop}", capabilityRunId="phase-full-end", capabilityId="driver", kind="think", text="phase_changed: done", order=10)
+            persist_state(state)
         else:
             state.runtimePhase = "awaiting"
             if getattr(state, "awaitReason", None) in ("no_progress", "max_repeat_guard"):
@@ -201,9 +229,13 @@ def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10, us
             else:
                 # use last picks (from pick_next_capabilities) for convergence; empty pick owns converge decision
                 state.awaitReason = "convergence" if not picks else "coverage"
+            append_reasoning_event(state, turnId=f"loop-{loop}", capabilityRunId="phase-full-end", capabilityId="driver", kind="think", text=f"phase_changed: awaiting ({state.awaitReason or 'coverage'})", order=10)
+            persist_state(state)
     except Exception as exc:
         state.runtimePhase = "failed"
         state.awaitReason = "ready"
         state.awaitDetail = f"drive error: {str(exc)[:120]}"
+        append_reasoning_event(state, turnId=f"loop-{loop}", capabilityRunId="phase-full-end", capabilityId="driver", kind="think", text=f"phase_changed: failed", order=10)
+        persist_state(state)
     persist_state(state)
     return state

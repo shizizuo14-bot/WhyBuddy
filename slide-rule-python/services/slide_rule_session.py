@@ -5,12 +5,12 @@ Provides create, load, save, drive loop using stable Python RAG for evidence ins
 """
 
 from typing import Dict, Any, Optional
-from models.v5_state import Artifact, CapabilityRun, ProducedBy, V5SessionState, DependencyEdge
+from models.v5_state import Artifact, CapabilityRun, ProducedBy, V5SessionState, DependencyEdge, SlideRuleReplayEvent, ReasoningEvent
+from datetime import datetime, timezone
 from .slide_rule_orchestrator import orchestrate_plan
 from .slide_rule_executor import execute_capability
 from .persistence import delete_session_record, load_all, load_session_record, save_all, save_session_record
 from .slide_rule_coverage import evaluate_coverage_gate
-from datetime import datetime
 
 _sessions: Dict[str, V5SessionState] = {}
 
@@ -78,6 +78,14 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) ->
     """
     state.runtimePhase = "orchestrating"
     state.lastTurnId = turn_id
+    # Emit phase change + replay so browser polling returned/persisted state sees orchestrating start (non-frozen)
+    append_replay_event(state, kind="decision", turnId=turn_id, decisionId=f"phase-orchestrating-{turn_id}")
+    append_reasoning_event(
+        state, turnId=turn_id, capabilityRunId=f"phase-{turn_id}", capabilityId="driver", kind="think",
+        text=f"phase_changed: orchestrating (turn {turn_id})", order=0
+    )
+    # Immediate persist after start emit: makes orchestrating visible to GET /sessions poll BEFORE any cap exec (addresses review: no mid-save -> frozen)
+    state = save_session(state)
     try:
         plan_result = orchestrate_plan(state, turn_id, user_text)
         # PYTHON_AUTHORITY pick: explicitly invoke pick_next_capabilities; use its result directly.
@@ -86,18 +94,27 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) ->
         selected = picks
         state.conversation.append({"role": "user", "text": user_text, "turnId": turn_id})
         state.conversation.append({"role": "system", "text": plan_result.rationale, "turnId": turn_id})
+        append_replay_event(state, kind="conversation", turnId=turn_id, conversationId=f"c-{turn_id}")
 
         for sel in selected:
             cap_id = sel["capabilityId"]
             role = sel.get("roleId", "agent")
             import time as _time
             t0 = _time.time()
+            run_id = f"run-{turn_id}-{cap_id}"
+            # Emit capability_started for browser-visible progress (reasoningEvents visible in returned state / poll)
+            append_reasoning_event(
+                state, turnId=turn_id, capabilityRunId=run_id, capabilityId=cap_id, kind="capability_start",
+                text=f"capability_started: {cap_id}", roleId=role, order=1
+            )
+            append_replay_event(state, kind="capability_run", turnId=turn_id, capabilityId=cap_id, capabilityRunId=run_id)
+            # Immediate persist after start append, BEFORE execute_capability (long cap exec must not block pollers from seeing start)
+            state = save_session(state)
             try:
                 # Execute with RAG - always brings evidence, no degraded
                 exec_result = execute_capability(cap_id, state, [], role, turn_id)
                 # Use Python-owned commitArtifact (artifact, run, gate, dependencyGraph updates)
                 art_id = f"art-{turn_id}-{cap_id}"
-                run_id = f"run-{turn_id}-{cap_id}"
                 produced = ProducedBy(capabilityRunId=run_id, capabilityId=cap_id, roleId=role)
                 kind = "evidence" if "evidence" in cap_id or cap_id in ["mcp.call", "skill.invoke"] else "report" if cap_id == "report.write" else "risk"
                 exec_res_dump = exec_result.model_dump() if hasattr(exec_result, "model_dump") else {"title": getattr(exec_result, "title", ""), "summary": getattr(exec_result, "summary", ""), "content": getattr(exec_result, "content", ""), "sources": getattr(exec_result, "sources", [])}
@@ -127,6 +144,13 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) ->
                 else:
                     if isinstance(run, dict):
                         run["timing"] = {"durationMs": dur}
+                # Emit capability_complete so UI sees completion without waiting full drive end
+                append_reasoning_event(
+                    state, turnId=turn_id, capabilityRunId=run_id, capabilityId=cap_id, kind="capability_complete",
+                    text=f"capability_completed: {cap_id}", roleId=role, order=2
+                )
+                # Persist complete immediately so poll sees cap done before next or drive return
+                state = save_session(state)
             except Exception as cap_exc:
                 # Record per-capability error run; preserve prior state (append); do not whole-fail here
                 dur = int((_time.time() - t0) * 1000)
@@ -140,6 +164,12 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) ->
                     roleId=role,
                     timing=timing,
                 )
+                append_reasoning_event(
+                    state, turnId=turn_id, capabilityRunId=run_id, capabilityId=cap_id, kind="capability_complete",
+                    text=f"capability_completed: {cap_id} (error)", roleId=role, order=2
+                )
+                # Persist error complete immediately for poll visibility
+                state = save_session(state)
                 # surface degraded without hiding: set detail, keep phase decision below use current state
                 state.awaitDetail = (state.awaitDetail or "") + f"; degraded cap {cap_id}: {str(cap_exc)[:80]}"
                 # do not raise, record keeps it auditable, prior artifacts/runs intact
@@ -150,18 +180,26 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) ->
         gate = evaluate_coverage_gate(state)
         if gate.get("passed") or (state.goal or {}).get("status") == "clear":
             state.runtimePhase = "done"
+            append_reasoning_event(state, turnId=turn_id, capabilityRunId=f"phase-{turn_id}", capabilityId="driver", kind="think", text="phase_changed: done", order=10)
+            state = save_session(state)
         elif not picks:
             state.runtimePhase = "awaiting"
             state.awaitReason = "convergence"
             state.awaitDetail = "no selected capabilities; converged (pick returned empty)"
+            append_reasoning_event(state, turnId=turn_id, capabilityRunId=f"phase-{turn_id}", capabilityId="driver", kind="think", text="phase_changed: awaiting (convergence)", order=10)
+            state = save_session(state)
         else:
             state.runtimePhase = "awaiting"
             state.awaitReason = "user_input"
             state.awaitDetail = "awaiting further input or coverage"
+            append_reasoning_event(state, turnId=turn_id, capabilityRunId=f"phase-{turn_id}", capabilityId="driver", kind="think", text="phase_changed: awaiting", order=10)
+            state = save_session(state)
     except Exception as exc:
         state.runtimePhase = "failed"
         state.awaitReason = "ready"
         state.awaitDetail = f"error: {str(exc)[:120]}"
+        append_reasoning_event(state, turnId=turn_id, capabilityRunId=f"phase-{turn_id}", capabilityId="driver", kind="think", text=f"phase_changed: failed - {str(exc)[:60]}", order=10)
+        state = save_session(state)
     final = save_session(state)
     return final
 
@@ -212,6 +250,77 @@ def record_capability_run_error(
     runs.append(run)
     state.capabilityRuns = runs
     return run
+
+
+# --- Browser-visible reasoning events + replay exposure (PYTHON_AUTHORITY for this slice) ---
+# Smallest append-only helpers so drive can emit phase/capability progress into durable lists.
+# UI can poll GET session or use returned drive state to see incremental events (no freeze).
+# Uses existing model kinds (capability_start / capability_complete / replay capability_run etc).
+# Phase changes surfaced via runtimePhase + replay "decision" + reasoning "think" for phase markers.
+# No Node fallback; events appended before/after key steps + on save paths.
+
+def append_reasoning_event(
+    state: V5SessionState,
+    *,
+    turnId: str,
+    capabilityRunId: str,
+    capabilityId: str,
+    kind: str,
+    text: str,
+    roleId: Optional[str] = None,
+    order: Optional[int] = None,
+    meta: Optional[Dict[str, Any]] = None,
+) -> ReasoningEvent:
+    """Append a ReasoningEvent for browser-visible substeps (capability boundaries + think markers)."""
+    events = getattr(state, "reasoningEvents", None) or []
+    next_order = order if order is not None else (len(events) + 1)
+    ts = datetime.now(timezone.utc).isoformat()
+    ev = ReasoningEvent(
+        id=f"{capabilityRunId}-ev-{next_order}",
+        turnId=turnId,
+        capabilityRunId=capabilityRunId,
+        capabilityId=capabilityId,
+        kind=kind,  # e.g. "capability_start", "capability_complete", "think"
+        roleId=roleId,
+        text=text,
+        refs=None,
+        meta=meta,
+        order=next_order,
+        ts=ts,
+    )
+    events.append(ev)
+    state.reasoningEvents = events
+    return ev
+
+
+def append_replay_event(
+    state: V5SessionState,
+    *,
+    kind: str,
+    turnId: Optional[str] = None,
+    capabilityId: Optional[str] = None,
+    capabilityRunId: Optional[str] = None,
+    decisionId: Optional[str] = None,
+    conversationId: Optional[str] = None,
+) -> SlideRuleReplayEvent:
+    """Append SlideRuleReplayEvent (capability_run / decision / conversation) for durable replay log."""
+    log = getattr(state, "sessionReplayLog", None) or []
+    idx = len(log) + 1
+    ts = datetime.now(timezone.utc).isoformat()
+    ev = SlideRuleReplayEvent(
+        id=f"replay-{state.sessionId}-{idx}",
+        sessionId=state.sessionId,
+        at=ts,
+        kind=kind,
+        turnId=turnId,
+        capabilityId=capabilityId,
+        capabilityRunId=capabilityRunId,
+        decisionId=decisionId,
+        conversationId=conversationId,
+    )
+    log.append(ev)
+    state.sessionReplayLog = log
+    return ev
 
 
 # --- Python-owned pickNextCapabilities port (V5.2 semantics + fallback rules) ---
