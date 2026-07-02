@@ -22,6 +22,7 @@ from .slide_rule_interactive_gates import (
     gaps_from_gap_ask_content,
     merge_gap_ask_into_state,
     apply_user_intervention_invalidation,
+    set_await_for_browser,
 )
 
 _sessions: Dict[str, V5SessionState] = {}
@@ -189,12 +190,11 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str, in
                         pass
                 ig = evaluate_interactive_gate_after_commit(state, {"capabilityId": cap_id, "turnUserText": user_text or "", "committed": True})
                 if ig.get("park"):
-                    state.runtimePhase = "awaiting"
-                    state.awaitReason = ig.get("gate") or "ready"
-                    state.awaitDetail = ig.get("detail", "readiness gate parked for human answer")
+                    # use hardened browser-contract helper (PYTHON slice) to set phase+awaitReason
+                    state = set_await_for_browser(state, ig.get("gate") or "ready", ig.get("detail", "readiness gate parked for human answer"))
                     append_reasoning_event(
                         state, turnId=turn_id, capabilityRunId=f"phase-{turn_id}", capabilityId="driver", kind="think",
-                        text=f"phase_changed: awaiting ({state.awaitReason}) via G_READY gate", order=9
+                        text=f"phase_changed: awaiting ({getattr(state, 'awaitReason', None) or (state.get('awaitReason') if isinstance(state, dict) else None)}) via G_READY gate", order=9
                     )
                     state = save_session(state)
                     return save_session(state)  # direct early return after G_READY park; skips all subsequent phase decision (prevents awaitReason overwrite to user_input)
@@ -228,9 +228,8 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str, in
         # Short-circuit BEFORE coverage/picks decision to prevent else branch overwriting awaitReason to "user_input".
         # This ensures Python-owned G_READY park is preserved (no self-answer past readiness gate).
         if open_human_question_gap_count(state) > 0 and not user_clears_readiness(user_text or "", state):
-            state.runtimePhase = "awaiting"
-            state.awaitReason = "ready"
-            state.awaitDetail = f"{open_human_question_gap_count(state)} open human question(s) after turn; awaiting clarification"
+            # use hardened browser-contract helper so frontend receives awaitReason + phase (no silent drop)
+            state = set_await_for_browser(state, "ready", f"{open_human_question_gap_count(state)} open human question(s) after turn; awaiting clarification")
             append_reasoning_event(state, turnId=turn_id, capabilityRunId=f"phase-{turn_id}", capabilityId="driver", kind="think", text="phase_changed: awaiting (ready) G_READY", order=10)
             state = save_session(state)
             final = save_session(state)

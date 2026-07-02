@@ -1,10 +1,11 @@
 """
-Focused pytest for Python-owned G_READY + G_CONFIRM/route + user intervention invalidation/stale cascade.
+Focused pytest for Python-owned G_READY + G_CONFIRM/route + user intervention invalidation/stale cascade + replan/re-compare flows.
 
-Covers: G_READY (prior), G_CONFIRM, route pick/reject, + general UserIntervention (targetArtifactId/targetNodeId/targetDecisionId) -> invalidate + depGraph downstream cascade to staleArtifactIds + node challenge + userIntervention record.
-Proves Python owns user intervention invalidation and stale cascade directly (focused, no Node). Part of user-intervention-invalidation task.
+Covers: G_READY, G_CONFIRM, route pick/reject, replan (reject -> stale route + clear await enables re-compare/route.compare re-trigger), + general UserIntervention (targetArtifactId/targetNodeId/targetDecisionId) -> invalidate + depGraph downstream cascade to staleArtifactIds + node challenge + userIntervention record.
+Proves Python owns readiness/confirm/reject/replan flows directly via focused tests (no Node). Part of interactive-gates-tests task.
 
 Run: $env:PYTHONPATH="slide-rule-python"; python -m pytest slide-rule-python/tests/test_sliderule_interactive_gates.py -q --tb=line
+Run with filter: ... -k "ready or confirm or reject or replan or drive or stale or intervention"
 """
 
 import pytest
@@ -543,3 +544,154 @@ def test_invalidate_for_intervention_targetNodeId_resolves_produced_artifact_and
     assert statuses.get("n-tgt") == "challenged"
     assert statuses.get("n-down") == "challenged"
     assert statuses.get("n-up") != "challenged"
+
+
+# --- Browser contract focused test (proves Python-owned await+phase reach frontend receive) ---
+# Per acceptance: focused pytest directly proves Python sets runtimePhase+awaitReason (via helper now used in drive)
+# so that frontend (runtime) receives instead of silent no-op / dropped. Run this -k for gate proof.
+
+def test_set_await_for_browser_helper_and_drive_returns_await_for_frontend_contract():
+    """Direct Python test: helper sets phase+awaitReason; drive after G_READY uses it and returns state with fields for browser.
+    Asserts the exact signals frontend runtime must see (awaitReason, runtimePhase) are present and correct.
+    """
+    from services.slide_rule_interactive_gates import set_await_for_browser
+    st = _mk_state()
+    out = set_await_for_browser(st, "ready", "test detail")
+    assert getattr(out, "runtimePhase", None) == "awaiting"
+    assert getattr(out, "awaitReason", None) == "ready"
+    assert getattr(out, "awaitDetail", None) == "test detail"
+
+    # now simulate drive path using helper (via reload as other drive tests)
+    import services.slide_rule_session as sess_mod
+    import importlib
+    importlib.reload(sess_mod)
+    from services.slide_rule_session import drive_reasoning_turn as _reloaded_drive
+
+    orig_orch = sess_mod.__dict__.get("orchestrate_plan")
+    orig_pick = sess_mod.__dict__.get("pick_next_capabilities")
+    orig_exec = sess_mod.__dict__.get("execute_capability")
+    orig_gate = sess_mod.__dict__.get("evaluate_coverage_gate")
+    orig_save = sess_mod.__dict__.get("save_session")
+
+    class DummyPlan:
+        rationale = "park test"
+
+    class DummyExec:
+        content = "- Q1?\n- Q2?"
+        def model_dump(self):
+            return {"content": self.content}
+
+    def fake_pick(state, user_text):
+        return [{"capabilityId": "gap.ask", "roleId": "产品"}]
+
+    sess_mod.__dict__["orchestrate_plan"] = lambda s, t, u: DummyPlan()
+    sess_mod.__dict__["pick_next_capabilities"] = fake_pick
+    sess_mod.__dict__["execute_capability"] = lambda cap_id, st, ctx, role, tid: DummyExec()
+    sess_mod.__dict__["evaluate_coverage_gate"] = lambda s: {"passed": False}
+    sess_mod.__dict__["save_session"] = lambda st: st
+
+    try:
+        state = _mk_state()
+        out = _reloaded_drive(state, "t-browser-1", "初始目标")
+        # prove frontend receives contract: phase + awaitReason present (no silent)
+        assert getattr(out, "runtimePhase", None) == "awaiting"
+        assert getattr(out, "awaitReason", None) == "ready"
+        assert open_human_question_gap_count(out) >= 1
+    finally:
+        if orig_orch is not None: sess_mod.__dict__["orchestrate_plan"] = orig_orch
+        if orig_pick is not None: sess_mod.__dict__["pick_next_capabilities"] = orig_pick
+        if orig_exec is not None: sess_mod.__dict__["execute_capability"] = orig_exec
+        if orig_gate is not None: sess_mod.__dict__["evaluate_coverage_gate"] = orig_gate
+        if orig_save is not None: sess_mod.__dict__["save_session"] = orig_save
+
+
+# --- replan / re-compare after reject focused parity test (addresses review finding 1) ---
+# Provides direct named test+assert for replan flow boundary using real Python pick:
+# - after confirm park on route.compare, reject text at intake applies stale on prior route.* art + clears await (replan precond, PYTHON apply_route)
+# - real pick_next_capabilities (keyword "路线"/"对比" etc) selects route.* again for replan/re-compare
+# - exec runs the re-compare; evaluate sees express reject -> no park confirm
+# - subsequent state non-confirm. Per-turn logs isolate t-rep-2 pick/exec to prove Python logic (not fake).
+# This + prior apply/reject + drive tests prove readiness/confirm/reject/replan parity in Python.
+
+def test_drive_reject_after_confirm_stales_and_triggers_replan_recompare_flow():
+    """Focused pytest: after G_CONFIRM park, reject triggers via Python-owned:
+    - stale of prior route art (apply_route at intake)
+    - clear await
+    - real pick_next_capabilities re-selects route.compare (replan) on reject turn t-rep-2
+    - exec of re-compare; no re-park (express text); state proceeds.
+    Uses real pick (no hardcoded replan in fake) + per-turn logs to assert t-rep-2 boundary.
+    """
+    import services.slide_rule_session as sess_mod
+    import importlib
+    importlib.reload(sess_mod)
+    from services.slide_rule_session import drive_reasoning_turn as _reloaded_drive
+    from services.slide_rule_session import pick_next_capabilities as real_pick_next
+
+    orig_orch = sess_mod.__dict__.get("orchestrate_plan")
+    orig_pick = sess_mod.__dict__.get("pick_next_capabilities")
+    orig_exec = sess_mod.__dict__.get("execute_capability")
+    orig_gate = sess_mod.__dict__.get("evaluate_coverage_gate")
+    orig_save = sess_mod.__dict__.get("save_session")
+
+    class DummyPlan:
+        rationale = "replan route plan"
+
+    class DummyExec:
+        content = "re-compared routes A B C"
+        def model_dump(self):
+            return {"content": self.content, "title": "re-cmp", "summary": "", "sources": []}
+
+    # per-turn logs to isolate reject turn (t-rep-2) per review finding 1
+    picks_log = []  # [(user_snip, [cap_ids])]
+    exec_log = []   # [(turn_id, cap_id)]
+
+    def pick_logger(state, user_text):
+        # call REAL Python pick_next_capabilities so reject text triggers re-compare via its logic
+        ps = real_pick_next(state, user_text)
+        picks_log.append( ((user_text or "")[:30], [p["capabilityId"] for p in ps]) )
+        return ps
+
+    def fake_exec(cap_id, st, ctx, role, tid):
+        exec_log.append( (tid, cap_id) )
+        return DummyExec()
+
+    sess_mod.__dict__["orchestrate_plan"] = lambda s, t, u: DummyPlan()
+    sess_mod.__dict__["pick_next_capabilities"] = pick_logger
+    sess_mod.__dict__["execute_capability"] = fake_exec
+    sess_mod.__dict__["evaluate_coverage_gate"] = lambda s: {"passed": False}
+    sess_mod.__dict__["save_session"] = lambda st: st
+
+    try:
+        state = _mk_state()
+        # turn 1: route intent -> real pick includes route.* -> execs -> evaluate parks confirm
+        out1 = _reloaded_drive(state, "t-rep-1", "路线对比一下")
+        assert getattr(out1, "awaitReason", None) == "confirm", "G_CONFIRM must park after route.compare"
+        assert getattr(out1, "runtimePhase", None) == "awaiting"
+        assert len(picks_log) == 1
+        t1_caps = picks_log[0][1]
+        assert "route.compare" in t1_caps
+
+        # turn 2 (reject): apply_route stales prior route art + clears; REAL pick triggers route.compare again (replan on reject keywords); exec; no park
+        out2 = _reloaded_drive(out1, "t-rep-2", "都不行，重新对比路线")
+        stales2 = getattr(out2, "staleArtifactIds", []) or []
+        assert "art-t-rep-1-route.compare" in stales2, "reject must mark prior route art stale (replan precond)"
+        assert getattr(out2, "awaitReason", None) != "confirm"
+        # replan proof isolated to reject turn (addresses finding 1)
+        assert len(picks_log) == 2
+        t2_caps = picks_log[1][1]
+        assert "route.compare" in t2_caps, "replan/re-compare must be selected by real Python pick_next_capabilities on reject turn (t-rep-2)"
+        t2_execs = [c for (tid, c) in exec_log if tid == "t-rep-2"]
+        assert "route.compare" in t2_execs, "re-compare cap must execute as part of replan after reject on t-rep-2 turn"
+        assert any("route." in c for c in t2_execs), "route replan execs on t-rep-2"
+
+        # turn 3 (followup replan intent): proceeds, no confirm park
+        out3 = _reloaded_drive(out2, "t-rep-3", "重新生成路线对比")
+        assert getattr(out3, "awaitReason", None) != "confirm"
+        # replan flow state correct (not stuck)
+        assert getattr(out3, "runtimePhase", None) in ("orchestrating", "awaiting", None) or getattr(out3, "awaitReason", None) in (None, "convergence", "user_input")
+    finally:
+        if orig_orch is not None: sess_mod.__dict__["orchestrate_plan"] = orig_orch
+        if orig_pick is not None: sess_mod.__dict__["pick_next_capabilities"] = orig_pick
+        if orig_exec is not None: sess_mod.__dict__["execute_capability"] = orig_exec
+        if orig_gate is not None: sess_mod.__dict__["evaluate_coverage_gate"] = orig_gate
+        if orig_save is not None: sess_mod.__dict__["save_session"] = orig_save

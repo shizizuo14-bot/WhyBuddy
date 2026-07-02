@@ -68,6 +68,25 @@ describe("S11 · G_READY readiness chain", () => {
     expect(autoConfirm).toHaveLength(0);
   });
 
+  it("PYTHON_AUTHORITY signals preserved by thin runtime (frontend contract consumer)", () => {
+    // Proves: when state arrives with Python drive awaitReason+runtimePhase (PYTHON_AUTHORITY),
+    // the runtime (intake + orchestrate paths) retains them for UI receive instead of silent drop/no-op.
+    // Vitest here shows Node/TS layer is thin proxy + contract consumer only.
+    const s = createInitialSessionState("做一个系统", "S11-proxy");
+    const pyState = {
+      ...s,
+      runtimePhase: "awaiting" as const,
+      awaitReason: "ready" as const,
+      awaitDetail: "from python drive",
+      coverageGaps: [],
+    };
+    const { preparedState } = intakeMessage(pyState as any, { turnId: "p-1", userText: "" });
+    // no user resolve text: should keep the python signals (not force overwrite to silent)
+    expect(preparedState.runtimePhase).toBe("awaiting");
+    expect(preparedState.awaitReason).toBe("ready");
+    expect(preparedState.awaitDetail).toBe("from python drive");
+  });
+
   it("G_READY→C_GAP: gap.ask materializes open_question gaps for回补", () => {
     let s = createInitialSessionState("做一个系统", "S11-gap");
     const gaps = gapsFromGapAskContent("- 面向谁使用？\n- 成功标准是什么？", "S11-g", "art-gap");

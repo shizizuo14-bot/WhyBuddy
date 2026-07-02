@@ -580,3 +580,28 @@ def apply_user_intervention_invalidation(state: Any, intervention: Any) -> Any:
     if not intervention:
         return state
     return invalidate_for_intervention(state, intervention)
+
+
+# --- Browser contract helper (smallest slice for awaitReason + runtimePhase receive) ---
+# Hardens Python-owned park so drive returns state that frontend runtime receives
+# (awaitReason + phase) instead of silent no-op / dropped signals.
+# Classification for this slice: PYTHON_AUTHORITY (drive/park); thin TS consumer below.
+def set_await_for_browser(state: Any, reason: str, detail: Optional[str] = None) -> Any:
+    """Set awaiting + awaitReason (and optional detail) for V5.2 browser contract.
+    Ensures returned session state to frontend carries runtimePhase+await* .
+    Used by drive to avoid overwrite paths dropping the park for UI.
+    """
+    if hasattr(state, "runtimePhase"):
+        state.runtimePhase = "awaiting"
+    elif isinstance(state, dict):
+        state["runtimePhase"] = "awaiting"
+    if hasattr(state, "awaitReason"):
+        state.awaitReason = reason
+    elif isinstance(state, dict):
+        state["awaitReason"] = reason
+    if detail is not None:
+        if hasattr(state, "awaitDetail"):
+            state.awaitDetail = detail
+        elif isinstance(state, dict):
+            state["awaitDetail"] = detail
+    return state

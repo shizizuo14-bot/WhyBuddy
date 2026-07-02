@@ -3247,6 +3247,19 @@ export function intakeMessage(
   }
   working = resolveReadinessGapsFromUserText(working, userText);
 
+  // Thin proxy / frontend contract consumer: preserve Python-owned awaitReason + runtimePhase
+  // from server drive responses (PYTHON_AUTHORITY) so UI receives park signals (ready/confirm)
+  // instead of silent no-op (local overwrite drop). Only clear on explicit resolve intent.
+  const incomingRuntimePhase = (state as any).runtimePhase;
+  const incomingAwaitReason = (state as any).awaitReason;
+  const incomingAwaitDetail = (state as any).awaitDetail;
+  if (incomingAwaitReason != null && working.awaitReason == null) {
+    working = { ...working, awaitReason: incomingAwaitReason, awaitDetail: incomingAwaitDetail };
+  }
+  if (incomingRuntimePhase === "awaiting" || incomingRuntimePhase === "done" || incomingRuntimePhase === "failed") {
+    if (working.runtimePhase !== "done") working.runtimePhase = incomingRuntimePhase;
+  }
+
   const clearedByCard =
     Array.isArray(answeredGapIds) &&
     answeredGapIds.length > 0 &&
@@ -3340,8 +3353,12 @@ export function intakeMessage(
   // 图节点由 ORCH/DLEDGER 自主选定能力后再生长（不在 INTAKE 预置 8 个占位节点）。
 
   // 标记阶段：支持外圈 ORCH → AWAIT → INTAKE 证明（RV→DONE 保持 done，不覆写）
+  // Thin proxy: preserve awaiting from Python if this intake had no resolving userText (no-op receive case)
+  // so frontend gets the awaitReason+phase rather than silent orchestrating overwrite.
+  const hasResolveText = (userText || "").trim().length > 0 || (intervention && (intervention.answeredGapIds || []).length > 0);
   const phaseAfterIntake =
-    working.runtimePhase === "done" ? "done" : ("orchestrating" as const);
+    working.runtimePhase === "done" ? "done" :
+    (working.runtimePhase === "awaiting" && !hasResolveText ? "awaiting" : ("orchestrating" as const));
   working = {
     ...working,
     runtimePhase: phaseAfterIntake,
@@ -3455,6 +3472,19 @@ export function orchestrateReasoningTurn(
   context?: OrchestrateContext
 ): { newState: V5SessionState; plan: TurnPlan; newGraphNodes: BrainstormReasoningNode[] } {
   let working = { ...state };
+  // TS_RUNTIME_OWNED thin proxy (frontend contract consumer):
+  // Read and retain awaitReason + runtimePhase set by Python drive (PYTHON_AUTHORITY).
+  // Prevents silent no-op when Python parks for browser to receive the signals.
+  const _incPhase = (state as any).runtimePhase;
+  const _incAwait = (state as any).awaitReason;
+  const _incDetail = (state as any).awaitDetail;
+  if (_incAwait != null && (working as any).awaitReason == null) {
+    (working as any).awaitReason = _incAwait;
+    if (_incDetail != null) (working as any).awaitDetail = _incDetail;
+  }
+  if (_incPhase && ["awaiting", "done", "failed"].includes(_incPhase) && working.runtimePhase !== "done") {
+    working.runtimePhase = _incPhase as any;
+  }
   const turnId = context?.turnId || `turn-${Date.now()}`;
   const userText = context?.userText || "";
   const intervention = context?.intervention;
