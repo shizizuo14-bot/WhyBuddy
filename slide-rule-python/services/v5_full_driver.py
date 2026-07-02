@@ -102,30 +102,55 @@ def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10) ->
                 picks = selected  # for final reason
                 break  # converged per pick semantics (empty after all rules)
             # execute selected
+            import time as _time
             for sel in selected:
                 cap = sel["capabilityId"]
                 role = sel.get("roleId", "agent")
-                # Execute via full migrated executor - always real
-                result = execute_v5_capability(cap, state, [], role, f"loop-{loop}")
-                # Use Python-owned commitArtifact (artifact+run+gate+dependencyGraph updates)
-                art_id = f"art-{loop}-{cap}"
-                run_id = f"run-{loop}-{cap}"
-                produced = ProducedBy(capabilityRunId=run_id, capabilityId=cap, roleId=role)
-                kind = "evidence" if "evidence" in cap or cap in ["mcp.call", "skill.invoke"] else ("report" if "report" in cap else "risk")
                 turn_id = f"loop-{loop}"
-                commit_artifact(
-                    state,
-                    id=art_id,
-                    kind=kind,
-                    content=result.get("content", ""),
-                    summary=result.get("summary", ""),
-                    title=result.get("title"),
-                    provenance=result.get("provenance", "python-rag"),
-                    producedBy=produced,
-                    inputArtifactIds=[],
-                    turnId=turn_id,
-                    sources=result.get("sources", []),
-                )
+                t0 = _time.time()
+                try:
+                    # Execute via full migrated executor - always real
+                    result = execute_v5_capability(cap, state, [], role, turn_id)
+                    # Use Python-owned commitArtifact (artifact+run+gate+dependencyGraph updates)
+                    art_id = f"art-{loop}-{cap}"
+                    run_id = f"run-{loop}-{cap}"
+                    produced = ProducedBy(capabilityRunId=run_id, capabilityId=cap, roleId=role)
+                    kind = "evidence" if "evidence" in cap or cap in ["mcp.call", "skill.invoke"] else ("report" if "report" in cap else "risk")
+                    commit_artifact(
+                        state,
+                        id=art_id,
+                        kind=kind,
+                        content=result.get("content", ""),
+                        summary=result.get("summary", ""),
+                        title=result.get("title"),
+                        provenance=result.get("provenance", "python-rag"),
+                        producedBy=produced,
+                        inputArtifactIds=[],
+                        turnId=turn_id,
+                        sources=result.get("sources", []),
+                    )
+                    # best-effort timing attach on success run (last appended)
+                    dur = int((_time.time() - t0) * 1000)
+                    if getattr(state, "capabilityRuns", None):
+                        last = state.capabilityRuns[-1]
+                        if hasattr(last, "timing"):
+                            last.timing = {"durationMs": dur}
+                except Exception as cap_exc:
+                    # Record capability error without whole drive fail or state corruption
+                    dur = int((_time.time() - t0) * 1000)
+                    err = {"code": "capability_execution_failed", "message": str(cap_exc)[:200], "capabilityId": cap}
+                    # import here to keep top minimal; use the record from session (PYTHON slice)
+                    from .slide_rule_session import record_capability_run_error
+                    record_capability_run_error(
+                        state,
+                        capabilityId=cap,
+                        turnId=turn_id,
+                        error=err,
+                        roleId=role,
+                        timing={"durationMs": dur},
+                    )
+                    state.awaitDetail = (getattr(state, "awaitDetail", None) or "") + f"; degraded cap {cap}"
+                    # continue to next cap or stop decision; error run is auditable record
             executed_loops += 1
             # update progress for no_progress detection
             now_art = len(getattr(state, "artifacts", []) or [])

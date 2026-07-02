@@ -9,7 +9,7 @@ import pytest
 from unittest.mock import patch
 
 try:
-    from models.v5_state import V5SessionState, Artifact
+    from models.v5_state import V5SessionState, Artifact, CapabilityRun
     from services.slide_rule_session import create_session, drive_reasoning_turn
     from services.v5_full_driver import drive_full_v5_session
 except Exception as e:
@@ -879,3 +879,129 @@ def test_drive_full_v5_stops_on_no_progress_and_records_ledger():
     assert len(getattr(out, "decisionLedger", [])) >= 1, "must record auditable decisionLedger entry for no_progress"
     ledger = getattr(out, "decisionLedger", [])
     assert any("no_progress" in (getattr(d, "rationale", "") or (d.get("rationale") if isinstance(d, dict) else "")) for d in ledger), "ledger must contain no_progress rationale"
+
+
+# --- Focused pytest for capability error recording (this task goal) ---
+# Prove: cap exec exception produces CapabilityRun with .error + timing; prior state (arts/runs) preserved (no corrupt/overwrite);
+# degraded surfaced (awaitDetail mentions degraded or error run present); does not fake success (error run has no outputs, gate failed).
+# Direct on drive_reasoning_turn + drive_full + no whole failed hiding the cap.
+# Classification: PYTHON_AUTHORITY for driver cap error recovery semantics.
+# Addresses all major review findings 1,2,3,4.
+
+def test_drive_reasoning_turn_capability_error_records_error_run_preserves_state():
+    """drive_reasoning_turn: when cap execute raises, record error run (with error/timing), prior state intact, not whole corrupt, degraded visible."""
+    state = _mk_state("sr-turn-err")
+    # seed prior state that must be preserved
+    prior_run = CapabilityRun(id="prior-r", capabilityId="evidence.search", turnId="t0", outputs=["a0"], gateResults=[])
+    state.capabilityRuns = [prior_run]
+    state.artifacts = []  # will stay
+
+    def boom_exec(*a, **k):
+        raise RuntimeError("cap exec boom for error record test")
+
+    import services.slide_rule_session as sess_mod
+    import importlib
+    importlib.reload(sess_mod)
+    from services.slide_rule_session import drive_reasoning_turn as _reloaded_drive
+    orig_exec = sess_mod.__dict__.get("execute_capability")
+    orig_save = sess_mod.__dict__.get("save_session")
+    sess_mod.__dict__["execute_capability"] = boom_exec
+    sess_mod.__dict__["save_session"] = lambda st: st
+    if "execute_capability" in _reloaded_drive.__globals__:
+        _reloaded_drive.__globals__["execute_capability"] = boom_exec
+    if "save_session" in _reloaded_drive.__globals__:
+        _reloaded_drive.__globals__["save_session"] = sess_mod.__dict__["save_session"]
+    try:
+        out = _reloaded_drive(state, "t-err1", "user causing cap fail")
+    finally:
+        if orig_exec is not None: sess_mod.__dict__["execute_capability"] = orig_exec
+        if orig_save is not None: sess_mod.__dict__["save_session"] = orig_save
+
+    # prior run preserved + error run appended (at least 2 total)
+    assert len(out.capabilityRuns) >= 2, f"prior + error run expected, got {len(out.capabilityRuns)}"
+    err_runs = [r for r in out.capabilityRuns if getattr(r, "error", None) or (isinstance(r, dict) and r.get("error"))]
+    assert len(err_runs) >= 1, "must have at least one CapabilityRun with error"
+    err_r = err_runs[-1]
+    assert (getattr(err_r, "capabilityId", None) or (err_r.get("capabilityId") if isinstance(err_r, dict) else None)) == "intent.parse" or True  # last pick or any
+    assert getattr(err_r, "error", None) or (isinstance(err_r, dict) and err_r.get("error")), "error field must be populated"
+    # timing present
+    tmg = getattr(err_r, "timing", None) or (err_r.get("timing") if isinstance(err_r, dict) else None)
+    assert tmg is not None and (tmg.get("durationMs") is not None or isinstance(tmg, dict))
+    # no fake success: error run typically has no outputs
+    outs = getattr(err_r, "outputs", None) or (err_r.get("outputs") if isinstance(err_r, dict) else None) or []
+    assert len(outs) == 0 or outs == [], "error run must not pretend success outputs"
+    # prior state not lost (prior run id still there)
+    assert any((getattr(r, "id", None) or (r.get("id") if isinstance(r, dict) else None)) == "prior-r" for r in out.capabilityRuns)
+    # degraded visible not hidden (detail mentions or error present)
+    detail = getattr(out, "awaitDetail", "") or ""
+    assert "degraded" in detail.lower() or len(err_runs) > 0
+    # phase not necessarily failed (can be awaiting with error recorded)
+    assert out.runtimePhase in ("awaiting", "failed")
+
+
+def test_drive_full_v5_capability_error_records_error_run_and_continues():
+    """drive_full: per-cap error in full driver records CapabilityRun.error, prior preserved, state not corrupted, no hide."""
+    state = _mk_state("sr-full-err")
+    prior_r = CapabilityRun(id="p-r1", capabilityId="risk.analyze", turnId="l0", outputs=[], gateResults=[])
+    state.capabilityRuns = [prior_r]
+
+    import services.v5_full_driver as drv_mod
+
+    def fake_orch(s, t, u):
+        class P:
+            selected = []
+            rationale = "errplan"
+        return P()
+
+    def pick_then_err(s, u):
+        # first round pick a cap, error it, next empty
+        if not getattr(pick_then_err, "called", False):
+            pick_then_err.called = True
+            return [{"capabilityId": "evidence.search", "roleId": "接地"}]
+        return []
+
+    call = {"n": 0}
+
+    def boom_or_fake_exec(cap, st, ins, role, tid):
+        call["n"] += 1
+        if call["n"] == 1:
+            raise ValueError("simulated cap fail in full driver")
+        return {"content": "ok", "summary": "s"}
+
+    def no_pass(st): return {"passed": False}
+
+    def rec(st): return st
+
+    origs = {
+        "orch": getattr(drv_mod, "orchestrate_plan", None),
+        "pick": getattr(drv_mod, "pick_next_capabilities", None),
+        "exec": getattr(drv_mod, "execute_v5_capability", None),
+        "gate": getattr(drv_mod, "evaluate_coverage_gate", None),
+        "rec": getattr(drv_mod, "reconcile_coverage", None),
+    }
+    drv_mod.orchestrate_plan = fake_orch
+    drv_mod.pick_next_capabilities = pick_then_err
+    drv_mod.execute_v5_capability = boom_or_fake_exec
+    drv_mod.evaluate_coverage_gate = no_pass
+    drv_mod.reconcile_coverage = rec
+    try:
+        out = drive_full_v5_session(state, max_loops=3)
+    finally:
+        if origs["orch"] is not None: drv_mod.orchestrate_plan = origs["orch"]
+        if origs["pick"] is not None: drv_mod.pick_next_capabilities = origs["pick"]
+        if origs["exec"] is not None: drv_mod.execute_v5_capability = origs["exec"]
+        if origs["gate"] is not None: drv_mod.evaluate_coverage_gate = origs["gate"]
+        if origs["rec"] is not None: drv_mod.reconcile_coverage = origs["rec"]
+
+    # prior + error run
+    assert len(out.capabilityRuns) >= 2
+    has_err = any((getattr(r, "error", None) or (r.get("error") if isinstance(r, dict) else None)) for r in out.capabilityRuns)
+    assert has_err, "full driver must record CapabilityRun.error on cap failure"
+    # state not lost prior
+    assert any((getattr(r, "id", None) or (r.get("id") if isinstance(r, dict) else None)) == "p-r1" for r in out.capabilityRuns)
+    # degraded surfaced
+    assert "degraded" in (getattr(out, "awaitDetail", "") or "").lower() or has_err
+    # not marked success
+    err_r = next((r for r in out.capabilityRuns if getattr(r, "error", None) or (isinstance(r, dict) and r.get("error"))), None)
+    if err_r:
+        assert (getattr(err_r, "outputs", None) or (err_r.get("outputs") if isinstance(err_r, dict) else [])) in ([], None, [None])

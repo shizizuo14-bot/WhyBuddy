@@ -313,6 +313,8 @@ async def exec_cap(payload: Dict[str, Any], x_internal_key: Optional[str] = Head
     state = V5SessionState(**payload["state"])
     cap = payload["capabilityId"]
     if is_python_native_capability(cap):
+        import time as _time
+        t0 = _time.time()
         try:
             if cap == "evidence.search":
                 q = _evidence_query(payload)
@@ -322,11 +324,29 @@ async def exec_cap(payload: Dict[str, Any], x_internal_key: Optional[str] = Head
                 result.update(ev.to_payload_fields())
             else:
                 result = execute_capability(payload)
+            dur = int((_time.time() - t0) * 1000)
+            run_id = f"run-{payload['turnId']}-{cap}"
+            # success path still records run (enriched later); keep prior append for compat
+            state.capabilityRuns.append(CapabilityRun(id=run_id, capabilityId=cap, turnId=payload["turnId"], outputs=[]))
+            # attach timing on last
+            if state.capabilityRuns:
+                last = state.capabilityRuns[-1]
+                if hasattr(last, "timing"): last.timing = {"durationMs": dur}
+            save_session(state)
         except LlmError as e:
+            # record error run first so durable state captures the failure (addresses review: no record before raise)
+            dur = int((_time.time() - t0) * 1000)
+            err = {"code": "llm_native_failed", "message": str(e)[:200], "capabilityId": cap}
+            from services.slide_rule_session import record_capability_run_error
+            record_capability_run_error(
+                state,
+                capabilityId=cap,
+                turnId=payload["turnId"],
+                error=err,
+                timing={"durationMs": dur},
+            )
+            save_session(state)
             raise HTTPException(502, f"python LLM failed for {cap}: {e}")
-        run_id = f"run-{payload['turnId']}-{cap}"
-        state.capabilityRuns.append(CapabilityRun(id=run_id, capabilityId=cap, turnId=payload["turnId"], outputs=[]))
-        save_session(state)
         result = result if isinstance(result, dict) else dict(result)
         result.setdefault("provenance", PROVENANCE_PYTHON_RAG)
         result["backend"] = PYTHON_BACKEND
@@ -336,7 +356,33 @@ async def exec_cap(payload: Dict[str, Any], x_internal_key: Optional[str] = Head
             result.setdefault("visualContract", "python-native-llm")
         return result
     # Use mapped for all V5 caps - stable RAG (execute-capability semantics owned by Python)
-    result = execute_mapped_capability(cap, state, payload.get("inputArtifactIds", []), payload.get("roleId", "agent"), payload["turnId"])
+    import time as _time
+    t0 = _time.time()
+    try:
+        result = execute_mapped_capability(cap, state, payload.get("inputArtifactIds", []), payload.get("roleId", "agent"), payload["turnId"])
+    except Exception as map_exc:
+        # explicit error record + save for mapped path (review: no error record wrapper)
+        dur = int((_time.time() - t0) * 1000)
+        err = {"code": "mapped_capability_failed", "message": str(map_exc)[:200], "capabilityId": cap}
+        from services.slide_rule_session import record_capability_run_error
+        record_capability_run_error(
+            state,
+            capabilityId=cap,
+            turnId=payload["turnId"],
+            error=err,
+            roleId=payload.get("roleId"),
+            timing={"durationMs": dur},
+        )
+        save_session(state)
+        # return degraded envelope so API does not hide; state has the record
+        return {
+            "error": err,
+            "degraded": True,
+            "capabilityId": cap,
+            "backend": PYTHON_BACKEND,
+            "provenance": PROVENANCE_PYTHON_RAG,
+        }
+    dur = int((_time.time() - t0) * 1000)
     # For tools/evidence, always "introduce" via RAG (covers evidence.search + report.write etc)
     if cap in ["mcp.call", "skill.invoke", "evidence.search", "report.write", "risk.analyze"]:
         result["summary"] = result.get("summary") or "检索了外部证据"
@@ -351,6 +397,9 @@ async def exec_cap(payload: Dict[str, Any], x_internal_key: Optional[str] = Head
     # Update state with run (like Node)
     run_id = f"run-{payload['turnId']}-{cap}"
     state.capabilityRuns.append(CapabilityRun(id=run_id, capabilityId=cap, turnId=payload["turnId"], outputs=[]))
+    if state.capabilityRuns:
+        last = state.capabilityRuns[-1]
+        if hasattr(last, "timing"): last.timing = {"durationMs": dur}
     save_session(state)
     return result
 

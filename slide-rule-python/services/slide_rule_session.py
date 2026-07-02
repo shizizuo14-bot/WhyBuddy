@@ -90,35 +90,59 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) ->
         for sel in selected:
             cap_id = sel["capabilityId"]
             role = sel.get("roleId", "agent")
-            # Execute with RAG - always brings evidence, no degraded
-            exec_result = execute_capability(cap_id, state, [], role, turn_id)
-            # Use Python-owned commitArtifact (artifact, run, gate, dependencyGraph updates)
-            art_id = f"art-{turn_id}-{cap_id}"
-            run_id = f"run-{turn_id}-{cap_id}"
-            produced = ProducedBy(capabilityRunId=run_id, capabilityId=cap_id, roleId=role)
-            kind = "evidence" if "evidence" in cap_id or cap_id in ["mcp.call", "skill.invoke"] else "report" if cap_id == "report.write" else "risk"
-            exec_res_dump = exec_result.model_dump() if hasattr(exec_result, "model_dump") else {"title": getattr(exec_result, "title", ""), "summary": getattr(exec_result, "summary", ""), "content": getattr(exec_result, "content", ""), "sources": getattr(exec_result, "sources", [])}
-            # commit_artifact populates art+run (with computed gateResults) + depGraph + ledger
-            art, run = commit_artifact(
-                state,
-                id=art_id,
-                kind=kind,
-                content=getattr(exec_result, "content", ""),
-                summary=getattr(exec_result, "summary", ""),
-                title=getattr(exec_result, "title", None),
-                provenance=getattr(exec_result, "provenance", "python-rag"),
-                producedBy=produced,
-                inputArtifactIds=[],
-                turnId=turn_id,
-                payload={"sources": getattr(exec_result, "sources", [])},
-            )
-            # attach result to the run for this path
-            if hasattr(run, "result"):
-                run.result = exec_res_dump
-            else:
-                # if run became dict in some compat path
-                if isinstance(run, dict):
-                    run["result"] = exec_res_dump
+            import time as _time
+            t0 = _time.time()
+            try:
+                # Execute with RAG - always brings evidence, no degraded
+                exec_result = execute_capability(cap_id, state, [], role, turn_id)
+                # Use Python-owned commitArtifact (artifact, run, gate, dependencyGraph updates)
+                art_id = f"art-{turn_id}-{cap_id}"
+                run_id = f"run-{turn_id}-{cap_id}"
+                produced = ProducedBy(capabilityRunId=run_id, capabilityId=cap_id, roleId=role)
+                kind = "evidence" if "evidence" in cap_id or cap_id in ["mcp.call", "skill.invoke"] else "report" if cap_id == "report.write" else "risk"
+                exec_res_dump = exec_result.model_dump() if hasattr(exec_result, "model_dump") else {"title": getattr(exec_result, "title", ""), "summary": getattr(exec_result, "summary", ""), "content": getattr(exec_result, "content", ""), "sources": getattr(exec_result, "sources", [])}
+                # commit_artifact populates art+run (with computed gateResults) + depGraph + ledger
+                art, run = commit_artifact(
+                    state,
+                    id=art_id,
+                    kind=kind,
+                    content=getattr(exec_result, "content", ""),
+                    summary=getattr(exec_result, "summary", ""),
+                    title=getattr(exec_result, "title", None),
+                    provenance=getattr(exec_result, "provenance", "python-rag"),
+                    producedBy=produced,
+                    inputArtifactIds=[],
+                    turnId=turn_id,
+                    payload={"sources": getattr(exec_result, "sources", [])},
+                )
+                # attach result + timing to the run
+                dur = int((_time.time() - t0) * 1000)
+                if hasattr(run, "result"):
+                    run.result = exec_res_dump
+                else:
+                    if isinstance(run, dict):
+                        run["result"] = exec_res_dump
+                if hasattr(run, "timing"):
+                    run.timing = {"startedAt": None, "completedAt": None, "durationMs": dur}
+                else:
+                    if isinstance(run, dict):
+                        run["timing"] = {"durationMs": dur}
+            except Exception as cap_exc:
+                # Record per-capability error run; preserve prior state (append); do not whole-fail here
+                dur = int((_time.time() - t0) * 1000)
+                timing = {"durationMs": dur}
+                err = {"code": "capability_execution_failed", "message": str(cap_exc)[:200], "capabilityId": cap_id}
+                record_capability_run_error(
+                    state,
+                    capabilityId=cap_id,
+                    turnId=turn_id,
+                    error=err,
+                    roleId=role,
+                    timing=timing,
+                )
+                # surface degraded without hiding: set detail, keep phase decision below use current state
+                state.awaitDetail = (state.awaitDetail or "") + f"; degraded cap {cap_id}: {str(cap_exc)[:80]}"
+                # do not raise, record keeps it auditable, prior artifacts/runs intact
 
         # Phase decision: coverage or no more selected -> done or awaiting
         # rely on picks (from pick_next_capabilities) to reflect full fallback/selection rules.
@@ -140,6 +164,54 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) ->
         state.awaitDetail = f"error: {str(exc)[:120]}"
     final = save_session(state)
     return final
+
+
+# --- Error recovery for capability execution (this task) ---
+# Per-capability errors must record CapabilityRun with error/timing (and result if partial),
+# preserve prior artifacts/runs/ledgers (append-only, no reset), and surface degraded
+# without hiding behind outer failed that drops which cap failed.
+# Drivers wrap individual cap execution; non-cap crash can still outer-fail.
+# Classification (step 1): before this task PYTHON_COMPAT (outer catch, no per-run error), after PYTHON_AUTHORITY.
+# No Node fallback.
+
+def record_capability_run_error(
+    state: V5SessionState,
+    *,
+    capabilityId: str,
+    turnId: str,
+    error: Dict[str, Any],
+    roleId: Optional[str] = None,
+    timing: Optional[Dict[str, Any]] = None,
+    result: Optional[Dict[str, Any]] = None,
+) -> CapabilityRun:
+    """Record failed capability execution into capabilityRuns as durable error record.
+    Appends only; prior state (artifacts, prior runs, ledgers) left intact.
+    Sets no whole-state corruption. Callers decide phase (usually await with degraded detail).
+    """
+    from datetime import datetime, timezone as _tz
+    now_iso = datetime.now(_tz.utc).isoformat()
+    t = dict(timing) if timing else {}
+    if "startedAt" not in t:
+        t["startedAt"] = now_iso
+    if "completedAt" not in t:
+        t["completedAt"] = now_iso
+    run_id = f"run-{turnId}-{capabilityId}"
+    run = CapabilityRun(
+        id=run_id,
+        capabilityId=capabilityId,
+        turnId=turnId,
+        inputs=[],
+        outputs=[],
+        gateResults=[{"gateId": "execution", "status": "failed"}],
+        result=result,
+        roleId=roleId,
+        timing=t,
+        error=dict(error) if error else {"code": "capability_error", "message": "unknown failure"},
+    )
+    runs = getattr(state, "capabilityRuns", None) or []
+    runs.append(run)
+    state.capabilityRuns = runs
+    return run
 
 
 # --- Python-owned pickNextCapabilities port (V5.2 semantics + fallback rules) ---
