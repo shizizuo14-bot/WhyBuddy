@@ -64,6 +64,8 @@ router = APIRouter(tags=["SlideRule V5 (Full Migration to Python)"])  # prefix h
 _sessions: Dict[str, V5SessionState] = {}  # In prod, use DB like Python knowledge
 ORCHESTRATE_PLAN_TIMEOUT_MS_ENV = "SLIDERULE_ORCHESTRATE_PLAN_TIMEOUT_MS"
 DEFAULT_ORCHESTRATE_PLAN_TIMEOUT_MS = 120_000
+EXECUTE_CAPABILITY_TIMEOUT_MS_ENV = "SLIDERULE_EXECUTE_CAPABILITY_TIMEOUT_MS"
+DEFAULT_EXECUTE_CAPABILITY_TIMEOUT_MS = 180_000
 
 def _auth(key: Optional[str]):
     # Allow missing key in non-prod for direct frontend dev proxy to Python (vite /api/sliderule -> 9700)
@@ -80,6 +82,14 @@ def _planner_timeout_seconds() -> float:
         timeout_ms = int(raw)
     except (TypeError, ValueError):
         timeout_ms = DEFAULT_ORCHESTRATE_PLAN_TIMEOUT_MS
+    return max(timeout_ms, 1) / 1000
+
+def _execute_timeout_seconds() -> float:
+    raw = os.getenv(EXECUTE_CAPABILITY_TIMEOUT_MS_ENV, str(DEFAULT_EXECUTE_CAPABILITY_TIMEOUT_MS))
+    try:
+        timeout_ms = int(raw)
+    except (TypeError, ValueError):
+        timeout_ms = DEFAULT_EXECUTE_CAPABILITY_TIMEOUT_MS
     return max(timeout_ms, 1) / 1000
 
 def _bad_plan_request(message: str) -> JSONResponse:
@@ -149,6 +159,26 @@ def _coerce_state_payload(raw_state: Any) -> Dict[str, Any]:
         return merged
 
     return raw_state
+
+
+def _perform_native_execute(payload: Dict[str, Any], cap: str) -> Dict[str, Any]:
+    """Sync function offloaded via to_thread for native LLM/RAG execute paths. Returns dict result."""
+    if cap == "evidence.search":
+        q = _evidence_query(payload)
+        ev = execute_evidence_runtime(q)
+        res = execute_capability(payload, evidence_retriever=lambda _q: ev)
+        res = res if isinstance(res, dict) else dict(res)
+        res.update(ev.to_payload_fields())
+        return res
+    else:
+        res = execute_capability(payload)
+        return res if isinstance(res, dict) else dict(res)
+
+
+def _perform_mapped_execute(cap: str, state: V5SessionState, input_artifact_ids: List[str], role: str, turn: str) -> Dict[str, Any]:
+    """Sync function offloaded via to_thread for mapped capability execution."""
+    return execute_mapped_capability(cap, state, input_artifact_ids, role, turn)
+
 
 async def _run_orchestrate_plan(payload: Any):
     if not isinstance(payload, dict):
@@ -312,27 +342,35 @@ async def exec_cap(payload: Dict[str, Any], x_internal_key: Optional[str] = Head
     _auth(x_internal_key)
     state = V5SessionState(**payload["state"])
     cap = payload["capabilityId"]
+    import time as _time
+    t0 = _time.time()
     if is_python_native_capability(cap):
-        import time as _time
-        t0 = _time.time()
         try:
-            if cap == "evidence.search":
-                q = _evidence_query(payload)
-                ev = execute_evidence_runtime(q)
-                result = execute_capability(payload, evidence_retriever=lambda _q: ev)
-                result = result if isinstance(result, dict) else dict(result)
-                result.update(ev.to_payload_fields())
-            else:
-                result = execute_capability(payload)
+            result = await asyncio.wait_for(
+                asyncio.to_thread(
+                    _perform_native_execute, payload, cap,
+                ),
+                timeout=_execute_timeout_seconds(),
+            )
+        except asyncio.TimeoutError:
             dur = int((_time.time() - t0) * 1000)
-            run_id = f"run-{payload['turnId']}-{cap}"
-            # success path still records run (enriched later); keep prior append for compat
-            state.capabilityRuns.append(CapabilityRun(id=run_id, capabilityId=cap, turnId=payload["turnId"], outputs=[]))
-            # attach timing on last
-            if state.capabilityRuns:
-                last = state.capabilityRuns[-1]
-                if hasattr(last, "timing"): last.timing = {"durationMs": dur}
+            err = {"code": "execute_timeout", "message": "execute-capability timed out", "capabilityId": cap}
+            from services.slide_rule_session import record_capability_run_error
+            record_capability_run_error(
+                state,
+                capabilityId=cap,
+                turnId=payload["turnId"],
+                error=err,
+                timing={"durationMs": dur},
+            )
             save_session(state)
+            return {
+                "error": err,
+                "degraded": True,
+                "capabilityId": cap,
+                "backend": PYTHON_BACKEND,
+                "provenance": PROVENANCE_PYTHON_RAG,
+            }
         except LlmError as e:
             # record error run first so durable state captures the failure (addresses review: no record before raise)
             dur = int((_time.time() - t0) * 1000)
@@ -347,6 +385,15 @@ async def exec_cap(payload: Dict[str, Any], x_internal_key: Optional[str] = Head
             )
             save_session(state)
             raise HTTPException(502, f"python LLM failed for {cap}: {e}")
+        dur = int((_time.time() - t0) * 1000)
+        run_id = f"run-{payload['turnId']}-{cap}"
+        # success path still records run (enriched later); keep prior append for compat
+        state.capabilityRuns.append(CapabilityRun(id=run_id, capabilityId=cap, turnId=payload["turnId"], outputs=[]))
+        # attach timing on last
+        if state.capabilityRuns:
+            last = state.capabilityRuns[-1]
+            if hasattr(last, "timing"): last.timing = {"durationMs": dur}
+        save_session(state)
         result = result if isinstance(result, dict) else dict(result)
         result.setdefault("provenance", PROVENANCE_PYTHON_RAG)
         result["backend"] = PYTHON_BACKEND
@@ -356,10 +403,38 @@ async def exec_cap(payload: Dict[str, Any], x_internal_key: Optional[str] = Head
             result.setdefault("visualContract", "python-native-llm")
         return result
     # Use mapped for all V5 caps - stable RAG (execute-capability semantics owned by Python)
-    import time as _time
-    t0 = _time.time()
     try:
-        result = execute_mapped_capability(cap, state, payload.get("inputArtifactIds", []), payload.get("roleId", "agent"), payload["turnId"])
+        result = await asyncio.wait_for(
+            asyncio.to_thread(
+                _perform_mapped_execute,
+                cap,
+                state,
+                payload.get("inputArtifactIds", []),
+                payload.get("roleId", "agent"),
+                payload["turnId"],
+            ),
+            timeout=_execute_timeout_seconds(),
+        )
+    except asyncio.TimeoutError:
+        dur = int((_time.time() - t0) * 1000)
+        err = {"code": "execute_timeout", "message": "execute-capability timed out", "capabilityId": cap}
+        from services.slide_rule_session import record_capability_run_error
+        record_capability_run_error(
+            state,
+            capabilityId=cap,
+            turnId=payload["turnId"],
+            error=err,
+            roleId=payload.get("roleId"),
+            timing={"durationMs": dur},
+        )
+        save_session(state)
+        return {
+            "error": err,
+            "degraded": True,
+            "capabilityId": cap,
+            "backend": PYTHON_BACKEND,
+            "provenance": PROVENANCE_PYTHON_RAG,
+        }
     except Exception as map_exc:
         # explicit error record + save for mapped path (review: no error record wrapper)
         dur = int((_time.time() - t0) * 1000)
@@ -416,11 +491,13 @@ async def drive(payload: Dict[str, Any], x_internal_key: Optional[str] = Header(
 async def drive_full(payload: Dict[str, Any], x_internal_key: Optional[str] = Header(None)):
     """Python driver authority for multiple capability loops until stop condition (coverage/empty picks/max_loops).
     Wires drive_full_v5_session as the visible full-path multi-loop API (PYTHON_AUTHORITY).
+    Real userText (user instruction) is forwarded so it drives pick/orchestrate/execute/artifacts/GCOV/phase.
     """
     _auth(x_internal_key)
     state = V5SessionState(**payload["state"])
     max_loops = int(payload.get("max_loops", 10))
-    new_state = drive_full_v5_session(state, max_loops=max_loops)
+    user_text = payload.get("userText", "") or payload.get("user_text", "")
+    new_state = drive_full_v5_session(state, max_loops=max_loops, user_instruction=user_text)
     return {"state": new_state.model_dump(), "stateAuthority": STATE_AUTHORITY_PYTHON, "provenance": PROVENANCE_PYTHON_FULLPATH, "backend": PYTHON_BACKEND}
 
 # GCOV endpoint

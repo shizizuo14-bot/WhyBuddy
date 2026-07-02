@@ -14,14 +14,15 @@ from .v5_capability_executor import execute_v5_capability
 from .persistence import persist_state
 from .slide_rule_coverage import evaluate_coverage_gate, reconcile_coverage
 
-def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10) -> V5SessionState:
+def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10, user_instruction: str = "") -> V5SessionState:
     """
     Full replacement for Node's driveReasoningSession.
     Uses orchestrate + execute in loop until converge or budget.
-    PYTHON_AUTHORITY for multi capability loop execution until stop condition.
+    PYTHON_AUTHORITY for full path: real user_instruction flows to orchestrate_plan / pick_next_capabilities,
+    driving capability selection, artifact/commit (via execute), GCOV evaluation, and phase to awaiting/done.
     Stop conditions (locked for test): coverage passed, empty picks from pick_next_capabilities, max_loops, no_progress (2 consecutive loops without new artifact or resolved gap progress), or max_repeat_guard (per-cap repeat limit excluded remaining candidates).
     no_progress and max_repeat_guard also append auditable SchedulingDecision entries to decisionLedger (stop reason, loop, evidence).
-    Classification: PYTHON_AUTHORITY (this slice for safe stops + ledger).
+    Classification: PYTHON_AUTHORITY (user instruction -> artifacts, GCOV, await/done).
     Note: pick_next_capabilities end fallbacks often add picks; use max_loops and coverage for reliable stop in tests.
     All evidence from stable RAG.
     Implements V5.2 phase transitions (idle/orchestrating/awaiting/failed/done) as PYTHON_AUTHORITY.
@@ -42,10 +43,11 @@ def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10) ->
             return sum(1 for g in gaps if (g.get("status") if isinstance(g, dict) else getattr(g, "status", None)) == "resolved")
         prev_resolved = _count_resolved(state)
         while loop < max_loops:
-            plan = orchestrate_plan(state, f"loop-{loop}", "drive full path")
+            ui = user_instruction or ""
+            plan = orchestrate_plan(state, f"loop-{loop}", ui)
             # PYTHON_AUTHORITY: use explicit pick_next_capabilities for V5.2 selection semantics + fallbacks
             # (pick is sole authority; empty means converge; no fallback to plan.selected)
-            picks = pick_next_capabilities(state, "drive full path")
+            picks = pick_next_capabilities(state, ui)
             state = reconcile_coverage(state)
             selected = picks
 

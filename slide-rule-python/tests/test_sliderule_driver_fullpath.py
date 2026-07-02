@@ -1005,3 +1005,180 @@ def test_drive_full_v5_capability_error_records_error_run_and_continues():
     err_r = next((r for r in out.capabilityRuns if getattr(r, "error", None) or (isinstance(r, dict) and r.get("error"))), None)
     if err_r:
         assert (getattr(err_r, "outputs", None) or (err_r.get("outputs") if isinstance(err_r, dict) else [])) in ([], None, [None])
+
+
+# --- Focused tests for /execute-capability non-blocking via to_thread + wait_for (addresses review Finding 1 and 2)
+# Prove: the execute-capability endpoint offloads sync work (native + mapped) to worker thread under wait_for timeout guard.
+# Direct pytest + TestClient on Python route (PYTHON_AUTHORITY for the responsive execute contract).
+# Classification: PYTHON_AUTHORITY for execute-capability event-loop nonblocking behavior.
+
+try:
+    from fastapi.testclient import TestClient
+except Exception:
+    TestClient = None
+
+
+def _mk_exec_state_payload(sid="sr-exec-nb"):
+    return {
+        "sessionId": sid,
+        "goal": {"text": "test execute nonblock", "status": "needs_refinement"},
+        "artifacts": [],
+        "capabilityRuns": [],
+        "coverageGaps": [],
+        "conversation": [],
+        "runtimePhase": "idle",
+    }
+
+
+def test_execute_capability_route_wraps_work_in_to_thread_and_wait_for():
+    """Direct proof that /execute-capability uses asyncio.to_thread + wait_for (not sync inline)."""
+    assert TestClient is not None, "TestClient required"
+    try:
+        from app import app
+        import routes.sliderule_full as rfull
+    except Exception as e:
+        pytest.skip(f"app/route import failed: {e}")
+
+    payload = {
+        "state": _mk_exec_state_payload("sr-nb1"),
+        "capabilityId": "intent.clarify",  # native path
+        "turnId": "t-nb",
+        "userText": "test",
+        "inputArtifactIds": [],
+        "roleId": "agent",
+    }
+
+    # patch performs to avoid LLM and return fast; patch wait/to to assert invocation
+    with patch("routes.sliderule_full._perform_native_execute") as mock_native, \
+         patch("routes.sliderule_full._perform_mapped_execute") as mock_mapped, \
+         patch.object(rfull.asyncio, "to_thread", wraps=rfull.asyncio.to_thread) as mock_tt, \
+         patch.object(rfull.asyncio, "wait_for", wraps=rfull.asyncio.wait_for) as mock_wf:
+        mock_native.return_value = {"title": "nb", "summary": "nb", "content": "nonblock native", "provenance": "python-rag"}
+        mock_mapped.return_value = {"title": "nbm", "summary": "nb", "content": "nonblock mapped", "provenance": "python-rag"}
+        mock_wf.return_value = mock_native.return_value
+
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.post(
+            "/api/sliderule/execute-capability",
+            json=payload,
+            headers={"X-Internal-Key": "dev-slide-rule-internal"},
+        )
+        assert resp.status_code == 200, f"bad: {resp.status_code} {resp.text}"
+        body = resp.json()
+        assert body.get("backend") == "python"
+        # must have used the wrappers for offload
+        assert mock_wf.called, "wait_for must wrap the execute work"
+        # timeout must have been passed (positive)
+        call_kwargs = mock_wf.call_args[1] if mock_wf.call_args and isinstance(mock_wf.call_args[1], dict) else {}
+        to = call_kwargs.get("timeout") if call_kwargs else None
+        # also support positional
+        if to is None and mock_wf.call_args and len(mock_wf.call_args[0]) > 1:
+            to = mock_wf.call_args[0][1]
+        assert to is not None and float(to) > 0, f"wait_for must receive positive timeout, got {to}"
+        assert mock_tt.called or "to_thread" in str(mock_wf.call_args), "to_thread must be used to offload sync exec"
+
+
+def test_execute_capability_timeout_path_records_and_returns_degraded():
+    """Prove timeout on execute path is caught, error run recorded (via side), returns degraded without 5xx crash."""
+    assert TestClient is not None
+    try:
+        from app import app
+        import routes.sliderule_full as rfull
+        import asyncio as aio  # for patch side effect
+    except Exception as e:
+        pytest.skip(f"imports for timeout test: {e}")
+
+    payload = {
+        "state": _mk_exec_state_payload("sr-nb-timeout"),
+        "capabilityId": "risk.analyze",  # can go native or mapped depending patch
+        "turnId": "t-timeout",
+        "userText": "",
+    }
+
+    # force timeout from wait_for for the execute path
+    with patch.object(rfull.asyncio, "wait_for", side_effect=aio.TimeoutError), \
+         patch("routes.sliderule_full._perform_native_execute", return_value={"x":1}), \
+         patch("routes.sliderule_full._perform_mapped_execute", return_value={"x":1}):
+        client = TestClient(app, raise_server_exceptions=False)
+        resp = client.post(
+            "/api/sliderule/execute-capability",
+            json=payload,
+            headers={"X-Internal-Key": "dev-slide-rule-internal"},
+        )
+        assert resp.status_code == 200, "timeout must degrade gracefully (200 + degraded body), not raise"
+        body = resp.json()
+        assert body.get("degraded") is True
+        err = body.get("error") or {}
+        assert err.get("code") == "execute_timeout"
+        assert err.get("capabilityId") == "risk.analyze"
+        assert body.get("backend") == "python"
+
+
+# --- End-to-end from real user instruction to artifacts, GCOV, await/done (addresses review Finding 1+2) ---
+# Direct proof for task goal: user instruction enters drive_full_v5_session, flows to orchestrate/pick (affects selection),
+# produces capabilityRun + artifact via commit path, evaluate_coverage_gate is called, final phase awaiting or done.
+# Classification: PYTHON_AUTHORITY for "full path pytest from user instruction to artifacts, GCOV, and await/done".
+
+def test_drive_full_v5_from_real_user_instruction_produces_artifacts_gcov_await_or_done():
+    """Single focused assertion: real user instruction drives the full Python path to artifacts/runs/gcov/phase."""
+    state = _mk_state("sr-instr-e2e")
+    import services.v5_full_driver as drv_mod
+    captured = {"user_texts": [], "gcov_count": 0, "exec_count": 0}
+
+    def spy_orch(s, t, u):
+        captured["user_texts"].append(str(u))
+        class P:
+            selected = []
+            rationale = "e2e instr plan"
+        return P()
+
+    def spy_pick(s, u):
+        captured["user_texts"].append(str(u))
+        # return one pick first (to drive exec/art), then empty to converge
+        if captured["exec_count"] == 0:
+            return [{"capabilityId": "evidence.search", "roleId": "接地"}]
+        return []
+
+    def spy_exec(cap, st, ins, role, tid):
+        captured["exec_count"] += 1
+        return {"content": "ev grounded from user instr path", "summary": "instr driven", "sources": ["src1"]}
+
+    def spy_gate(st):
+        captured["gcov_count"] += 1
+        # pass gcov after we have at least one art (simulates coverage converge)
+        return {"passed": len(getattr(st, "artifacts", []) or []) >= 1}
+
+    def spy_rec(st):
+        return st
+
+    origs = {
+        "orch": getattr(drv_mod, "orchestrate_plan", None),
+        "pick": getattr(drv_mod, "pick_next_capabilities", None),
+        "exec": getattr(drv_mod, "execute_v5_capability", None),
+        "gate": getattr(drv_mod, "evaluate_coverage_gate", None),
+        "rec": getattr(drv_mod, "reconcile_coverage", None),
+    }
+    drv_mod.orchestrate_plan = spy_orch
+    drv_mod.pick_next_capabilities = spy_pick
+    drv_mod.execute_v5_capability = spy_exec
+    drv_mod.evaluate_coverage_gate = spy_gate
+    drv_mod.reconcile_coverage = spy_rec
+    user_instr = "为大型企业项目提供详细的可行性分析与总结报告"
+    try:
+        out = drive_full_v5_session(state, max_loops=5, user_instruction=user_instr)
+    finally:
+        if origs["orch"] is not None: drv_mod.orchestrate_plan = origs["orch"]
+        if origs["pick"] is not None: drv_mod.pick_next_capabilities = origs["pick"]
+        if origs["exec"] is not None: drv_mod.execute_v5_capability = origs["exec"]
+        if origs["gate"] is not None: drv_mod.evaluate_coverage_gate = origs["gate"]
+        if origs["rec"] is not None: drv_mod.reconcile_coverage = origs["rec"]
+
+    # key assertions for the task goal
+    assert any(user_instr in (ut or "") for ut in captured["user_texts"]), f"user instruction must be passed through to orchestrate/pick, got {captured['user_texts']}"
+    assert captured["exec_count"] >= 1, "exec must run (from pick selected via instr path)"
+    assert len(out.capabilityRuns) >= 1, "must produce capabilityRun from user-instr driven execution"
+    assert len(out.artifacts) >= 1, "must produce artifact from user-instr driven commit_artifact"
+    assert captured["gcov_count"] >= 1, "GCOV evaluate_coverage_gate must be called in the full path loop"
+    assert out.runtimePhase in ("awaiting", "done"), f"must end in awaiting or done, got {out.runtimePhase}"
+    # also: coverage may set clear, or converge via empty pick after instr-driven round
+    assert getattr(out, "awaitReason", None) in ("convergence", "coverage", "max_loops", None) or (out.goal or {}).get("status") == "clear"
