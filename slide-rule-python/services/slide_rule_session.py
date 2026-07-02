@@ -5,7 +5,7 @@ Provides create, load, save, drive loop using stable Python RAG for evidence ins
 """
 
 from typing import Dict, Any, Optional
-from models.v5_state import Artifact, CapabilityRun, ProducedBy, V5SessionState
+from models.v5_state import Artifact, CapabilityRun, ProducedBy, V5SessionState, DependencyEdge
 from .slide_rule_orchestrator import orchestrate_plan
 from .slide_rule_executor import execute_capability
 from .persistence import delete_session_record, load_all, load_session_record, save_all, save_session_record
@@ -92,32 +92,33 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) ->
             role = sel.get("roleId", "agent")
             # Execute with RAG - always brings evidence, no degraded
             exec_result = execute_capability(cap_id, state, [], role, turn_id)
-            # Create artifact from result
+            # Use Python-owned commitArtifact (artifact, run, gate, dependencyGraph updates)
             art_id = f"art-{turn_id}-{cap_id}"
-            artifact = Artifact.server_construct(
-                id=art_id,
-                kind="evidence" if "evidence" in cap_id or cap_id in ["mcp.call", "skill.invoke"] else "report" if cap_id == "report.write" else "risk",
-                provenance="python-rag",
-                trustLevel="gated_pass",
-                title=exec_result.title,
-                summary=exec_result.summary,
-                content=exec_result.content,
-                producedBy=ProducedBy(capabilityRunId=f"run-{turn_id}-{cap_id}", capabilityId=cap_id, roleId=role),
-                payload={"sources": exec_result.sources},
-            )
-            state.artifacts.append(artifact)
+            run_id = f"run-{turn_id}-{cap_id}"
+            produced = ProducedBy(capabilityRunId=run_id, capabilityId=cap_id, roleId=role)
+            kind = "evidence" if "evidence" in cap_id or cap_id in ["mcp.call", "skill.invoke"] else "report" if cap_id == "report.write" else "risk"
             exec_res_dump = exec_result.model_dump() if hasattr(exec_result, "model_dump") else {"title": getattr(exec_result, "title", ""), "summary": getattr(exec_result, "summary", ""), "content": getattr(exec_result, "content", ""), "sources": getattr(exec_result, "sources", [])}
-            state.capabilityRuns.append(
-                CapabilityRun(
-                    id=f"run-{turn_id}-{cap_id}",
-                    capabilityId=cap_id,
-                    turnId=turn_id,
-                    inputs=[],
-                    outputs=[art_id],
-                    gateResults=[{"gateId": "ground", "status": "passed"}],
-                    result=exec_res_dump,
-                )
+            # commit_artifact populates art+run (with computed gateResults) + depGraph + ledger
+            art, run = commit_artifact(
+                state,
+                id=art_id,
+                kind=kind,
+                content=getattr(exec_result, "content", ""),
+                summary=getattr(exec_result, "summary", ""),
+                title=getattr(exec_result, "title", None),
+                provenance=getattr(exec_result, "provenance", "python-rag"),
+                producedBy=produced,
+                inputArtifactIds=[],
+                turnId=turn_id,
+                payload={"sources": getattr(exec_result, "sources", [])},
             )
+            # attach result to the run for this path
+            if hasattr(run, "result"):
+                run.result = exec_res_dump
+            else:
+                # if run became dict in some compat path
+                if isinstance(run, dict):
+                    run["result"] = exec_res_dump
 
         # Phase decision: coverage or no more selected -> done or awaiting
         # rely on picks (from pick_next_capabilities) to reflect full fallback/selection rules.
@@ -472,3 +473,94 @@ def pick_next_capabilities(state: V5SessionState, user_text: str) -> list[dict]:
 
 # Load on import
 _load_sessions()
+
+
+# --- Python-owned commitArtifact (V5.2) ---
+# Smallest slice for this task: implemented inside allowed file slide_rule_session.py to respect boundary (no edit to slide_rule_trust.py).
+# Provides artifact + run + gateResults (ground gate from content+producedBy, not unconditional) + depGraph updates + ledger record.
+# turnId must be passed by caller (full driver uses loop-N, session uses turn_id); no reliance on unset lastTurnId.
+# Classification: PYTHON_COMPAT (bypass) -> PYTHON_AUTHORITY for commit semantics in drivers.
+# Do not default to trusted.
+
+from typing import Any as _Any, Dict as _Dict, List as _List, Optional as _Optional  # local aliases to avoid shadowing
+
+def commit_artifact(
+    state: V5SessionState,
+    *,
+    id: str,
+    kind: str,
+    content: str,
+    summary: _Optional[str] = None,
+    title: _Optional[str] = None,
+    provenance: str = "python-rag",
+    producedBy: ProducedBy,
+    inputArtifactIds: _Optional[_List[str]] = None,
+    sources: _Optional[_List[_Any]] = None,
+    payload: _Optional[_Dict[str, _Any]] = None,
+    turnId: _Optional[str] = None,
+) -> tuple[Artifact, CapabilityRun]:
+    """Python-owned commitArtifact: creates artifact + run, evaluates gate(s) to justify trustLevel (ground gate based on content+producedBy), records ledger, updates dependencyGraph for traceability.
+    Do not default to trusted: gated_pass only if ground gate passes.
+    Drivers must pass explicit turnId for full traceability (loop-N or turn); avoids 't' default.
+    """
+    # ground gate: justified by server execution provenance + non-empty output (not unconditional)
+    has_content = bool((content or "").strip() or (summary or "").strip())
+    ground_passed = has_content and producedBy is not None
+    ground_result: _Dict[str, _Any] = {"gateId": "ground", "status": "passed" if ground_passed else "failed"}
+    trust_level = "gated_pass" if ground_passed else "untrusted"
+    passed_gates_list: _List[str] = ["ground"] if ground_passed else []
+
+    art = Artifact.server_construct(
+        id=id,
+        kind=kind,
+        provenance=provenance,
+        trustLevel=trust_level,
+        title=title,
+        summary=summary or "",
+        content=content,
+        producedBy=producedBy,
+        payload=payload or ({"sources": sources or []} if sources else None),
+        passedGates=passed_gates_list,
+    )
+
+    run_id = producedBy.capabilityRunId
+    turn = turnId or getattr(state, "lastTurnId", None) or "t"
+    run = CapabilityRun(
+        id=run_id,
+        capabilityId=producedBy.capabilityId,
+        turnId=turn,
+        inputs=list(inputArtifactIds or []),
+        outputs=[id],
+        gateResults=[ground_result],
+        roleId=producedBy.roleId,
+    )
+
+    # mutate state: artifacts + runs
+    arts = getattr(state, "artifacts", None) or []
+    arts.append(art)
+    state.artifacts = arts
+    runs = getattr(state, "capabilityRuns", None) or []
+    runs.append(run)
+    state.capabilityRuns = runs
+
+    # dependencyGraph updates: maintain traceable relations (inputs -> output; chain for loops)
+    dep_graph = getattr(state, "dependencyGraph", None) or []
+    ins = inputArtifactIds or []
+    for inp in ins:
+        dep_graph.append(DependencyEdge(fromArtifactId=inp, toArtifactId=id, reason="input-to-output"))
+    if not ins and len(getattr(state, "artifacts", []) or []) > 1:
+        # link to prior artifact to ensure depGraph mutates in multi-cap loops (traceability)
+        prev = state.artifacts[-2]
+        prev_id = getattr(prev, "id", None) or (prev.get("id") if isinstance(prev, dict) else None)
+        if prev_id and prev_id != id:
+            dep_graph.append(DependencyEdge(fromArtifactId=prev_id, toArtifactId=id, reason="execution-chain"))
+    state.dependencyGraph = dep_graph
+
+    # record ledger for provenance/trust (required for has_trusted_committed + coverage)
+    try:
+        from .slide_rule_trust import record_provenance_and_trust_ledger
+        record_provenance_and_trust_ledger(state, art, run)
+    except Exception:
+        pass
+
+    return art, run

@@ -18,6 +18,7 @@ from pydantic import ValidationError
 from typing import Dict, Any, List, Optional
 from models.v5_state import CapabilityRun, V5SessionState
 from services.slide_rule_session import create_session, delete_session, load_session, save_session, drive_reasoning_turn, pick_next_capabilities
+from services.v5_full_driver import drive_full_v5_session
 from services.slide_rule_orchestrator import orchestrate_plan
 from services.v5_capability_executor import execute_v5_capability
 from services.slide_rule_coverage import author_coverage_contract, evaluate_coverage_gate, reconcile_coverage
@@ -355,12 +356,23 @@ async def exec_cap(payload: Dict[str, Any], x_internal_key: Optional[str] = Head
 
 @router.post("/drive-turn")
 async def drive(payload: Dict[str, Any], x_internal_key: Optional[str] = Header(None)):
-    """Full drive like Node's session-driver for full-path."""
+    """Single turn drive (drive_reasoning_turn). Full multi-loop driver authority exposed via /drive-full."""
     _auth(x_internal_key)
     state = V5SessionState(**payload["state"])
     new_state = drive_reasoning_turn(state, payload["turnId"], payload.get("userText", ""))
     # python provenance for turn/drive (covers turn + downstream evidence/report)
     return {"state": new_state.model_dump(), "stateAuthority": STATE_AUTHORITY_PYTHON, "provenance": PROVENANCE_PYTHON_RAG, "backend": PYTHON_BACKEND}
+
+@router.post("/drive-full")
+async def drive_full(payload: Dict[str, Any], x_internal_key: Optional[str] = Header(None)):
+    """Python driver authority for multiple capability loops until stop condition (coverage/empty picks/max_loops).
+    Wires drive_full_v5_session as the visible full-path multi-loop API (PYTHON_AUTHORITY).
+    """
+    _auth(x_internal_key)
+    state = V5SessionState(**payload["state"])
+    max_loops = int(payload.get("max_loops", 10))
+    new_state = drive_full_v5_session(state, max_loops=max_loops)
+    return {"state": new_state.model_dump(), "stateAuthority": STATE_AUTHORITY_PYTHON, "provenance": PROVENANCE_PYTHON_FULLPATH, "backend": PYTHON_BACKEND}
 
 # GCOV endpoint
 @router.post("/coverage")
