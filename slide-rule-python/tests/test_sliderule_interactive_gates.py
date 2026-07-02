@@ -1,9 +1,8 @@
 """
-Focused pytest for Python-owned G_READY + G_CONFIRM/route selection/reject.
+Focused pytest for Python-owned G_READY + G_CONFIRM/route + user intervention invalidation/stale cascade.
 
-Covers: G_READY (prior), G_CONFIRM park, userPicksRoute, userRejectsRouteSelection, expresses,
-apply_route stales/clears, evaluate_confirm uses expresses, drive resume for pick after confirm.
-Proves Python owns the named route select/reject behaviors directly (no Node). Part of gconfirm-route task.
+Covers: G_READY (prior), G_CONFIRM, route pick/reject, + general UserIntervention (targetArtifactId/targetNodeId/targetDecisionId) -> invalidate + depGraph downstream cascade to staleArtifactIds + node challenge + userIntervention record.
+Proves Python owns user intervention invalidation and stale cascade directly (focused, no Node). Part of user-intervention-invalidation task.
 
 Run: $env:PYTHONPATH="slide-rule-python"; python -m pytest slide-rule-python/tests/test_sliderule_interactive_gates.py -q --tb=line
 """
@@ -27,8 +26,10 @@ from services.slide_rule_interactive_gates import (
     user_rejects_route_selection,
     user_expresses_route_selection,
     is_vague_goal,
+    apply_user_intervention_invalidation,
+    invalidate_for_intervention,
 )
-from models.v5_state import V5SessionState, Artifact, ProducedBy
+from models.v5_state import V5SessionState, Artifact, ProducedBy, UserIntervention, DependencyEdge
 
 
 def _mk_state(**overrides):
@@ -359,3 +360,186 @@ def test_drive_confirm_park_and_user_pick_resume_clears_await_and_no_repark():
         if orig_exec is not None: sess_mod.__dict__["execute_capability"] = orig_exec
         if orig_gate is not None: sess_mod.__dict__["evaluate_coverage_gate"] = orig_gate
         if orig_save is not None: sess_mod.__dict__["save_session"] = orig_save
+
+
+# --- user intervention invalidation + stale cascade focused tests (this task) ---
+# Directly prove Python-owned: general UserIntervention marks target+downstream via depGraph,
+# monotonic stale union, graph node challenge, userIntervention persisted, decision ledger update.
+# No reliance on route confirm text path; focused pytest for the review findings.
+
+def _mk_intervention_state():
+    now = datetime.now().isoformat()
+    st = _mk_state(
+        staleArtifactIds=[],
+        graph={"nodes": [
+            {"id": "n-up", "capabilityId": "upstream.cap", "capabilityRunId": "run-t1-up", "status": "done"},
+            {"id": "n-tgt", "capabilityId": "target.cap", "capabilityRunId": "run-t1-tgt", "status": "done"},
+            {"id": "n-down", "capabilityId": "down.cap", "capabilityRunId": "run-t1-down", "status": "done"},
+        ], "edges": []},
+        dependencyGraph=[
+            DependencyEdge(fromArtifactId="up-art", toArtifactId="tgt-art", reason="input-to-output"),
+            DependencyEdge(fromArtifactId="tgt-art", toArtifactId="down-art", reason="input-to-output"),
+        ],
+        artifacts=[
+            Artifact.server_construct(id="up-art", kind="evidence", provenance="t", trustLevel="gated_pass", title="", summary="", content="up", producedBy=ProducedBy(capabilityRunId="run-t1-up", capabilityId="upstream.cap", roleId="a"), passedGates=["ground"]),
+            Artifact.server_construct(id="tgt-art", kind="report", provenance="t", trustLevel="gated_pass", title="", summary="", content="tgt", producedBy=ProducedBy(capabilityRunId="run-t1-tgt", capabilityId="target.cap", roleId="a"), passedGates=["ground"]),
+            Artifact.server_construct(id="down-art", kind="report", provenance="t", trustLevel="gated_pass", title="", summary="", content="down", producedBy=ProducedBy(capabilityRunId="run-t1-down", capabilityId="down.cap", roleId="a"), passedGates=["ground"]),
+        ],
+    )
+    return st
+
+
+def test_invalidate_for_intervention_marks_target_and_downstream_via_depgraph():
+    st = _mk_intervention_state()
+    interv = UserIntervention(targetArtifactId="tgt-art", intent="challenge", text="this target is wrong")
+    out = invalidate_for_intervention(st, interv)
+    stales = getattr(out, "staleArtifactIds", []) or []
+    assert "tgt-art" in stales
+    assert "down-art" in stales  # cascaded
+    assert "up-art" not in stales  # not upstream
+    # userIntervention recorded
+    assert getattr(out, "userIntervention", None) is not None
+    assert out.userIntervention.targetArtifactId == "tgt-art"
+    # graph nodes: target and downstream challenged
+    nodes = (getattr(out, "graph", {}) or {}).get("nodes", [])
+    statuses = {n.get("id") if isinstance(n, dict) else getattr(n, "id", None): (n.get("status") if isinstance(n, dict) else getattr(n, "status", None)) for n in nodes}
+    assert statuses.get("n-tgt") == "challenged"
+    assert statuses.get("n-down") == "challenged"
+    assert statuses.get("n-up") != "challenged"
+
+
+def test_invalidate_for_intervention_monotonic_union_preserves_prior_stales():
+    st = _mk_intervention_state()
+    st.staleArtifactIds = ["prior-1"]
+    interv = {"targetArtifactId": "tgt-art", "intent": "revise", "text": "fix"}
+    out = apply_user_intervention_invalidation(st, interv)
+    stales = set(getattr(out, "staleArtifactIds", []) or [])
+    assert "prior-1" in stales
+    assert "tgt-art" in stales
+    assert "down-art" in stales
+
+
+def test_invalidate_for_intervention_target_decision_challenges_ledger_and_sets_intervention():
+    """targetDecisionId: must challenge ledger AND resolve to artifacts via turn/chose/runs then cascade to target+downstream stale.
+    This directly addresses the review finding: general targetDecisionId triggers depGraph stale cascade (not ledger-only).
+    """
+    now = datetime.now().isoformat()
+    # decision linked via turnId to a run whose output is the target art; dep to downstream
+    st = _mk_state(
+        decisionLedger=[{"id": "d-42", "turnId": "t-d", "createdAt": now, "status": "active", "chose": ["target.cap"]}],
+        graph={"nodes": [
+            {"id": "n-tgt", "capabilityId": "target.cap", "capabilityRunId": "run-t-d-tgt", "status": "done"},
+            {"id": "n-down", "capabilityId": "down.cap", "capabilityRunId": "run-t-d-down", "status": "done"},
+        ], "edges": []},
+        capabilityRuns=[
+            {"id": "run-t-d-tgt", "turnId": "t-d", "capabilityId": "target.cap", "outputs": ["dec-tgt-art"]},
+        ],
+        dependencyGraph=[
+            DependencyEdge(fromArtifactId="dec-tgt-art", toArtifactId="dec-down-art", reason="input-to-output"),
+        ],
+        artifacts=[
+            Artifact.server_construct(id="dec-tgt-art", kind="report", provenance="t", trustLevel="gated_pass", title="", summary="", content="tgt", producedBy=ProducedBy(capabilityRunId="run-t-d-tgt", capabilityId="target.cap", roleId="a"), passedGates=["ground"]),
+            Artifact.server_construct(id="dec-down-art", kind="report", provenance="t", trustLevel="gated_pass", title="", summary="", content="down", producedBy=ProducedBy(capabilityRunId="run-t-d-down", capabilityId="down.cap", roleId="a"), passedGates=["ground"]),
+        ],
+        staleArtifactIds=[],
+    )
+    interv = UserIntervention(targetDecisionId="d-42", intent="challenge", text="reconsider this decision")
+    out = invalidate_for_intervention(st, interv)
+    led = getattr(out, "decisionLedger", []) or []
+    d = next((x for x in led if (x.get("id") if isinstance(x, dict) else getattr(x, "id", None)) == "d-42"), None)
+    assert d is not None
+    assert (d.get("status") if isinstance(d, dict) else getattr(d, "status", None)) == "challenged"
+    assert getattr(out, "userIntervention", None) is not None
+    assert out.userIntervention.targetDecisionId == "d-42"
+    # prove decision resolves to artifact + triggers downstream stale cascade (review finding)
+    stales = set(getattr(out, "staleArtifactIds", []) or [])
+    assert "dec-tgt-art" in stales
+    assert "dec-down-art" in stales  # cascaded via depGraph
+    # nodes for decision-resolved artifacts also challenged
+    nodes = (getattr(out, "graph", {}) or {}).get("nodes", [])
+    statuses = {}
+    for n in nodes:
+        nid = n.get("id") if isinstance(n, dict) else getattr(n, "id", None)
+        nst = n.get("status") if isinstance(n, dict) else getattr(n, "status", None)
+        statuses[nid] = nst
+    assert statuses.get("n-tgt") == "challenged"
+    assert statuses.get("n-down") == "challenged"
+
+
+def test_drive_accepts_intervention_and_applies_stale_cascade():
+    """Driver-level: drive_reasoning_turn accepts intervention kw, applies invalidation before orchestrate.
+    Proves integration and Python ownership of stale cascade on intervention path.
+    """
+    import services.slide_rule_session as sess_mod
+    import importlib
+    importlib.reload(sess_mod)
+    from services.slide_rule_session import drive_reasoning_turn as _reloaded_drive
+
+    orig_orch = sess_mod.__dict__.get("orchestrate_plan")
+    orig_pick = sess_mod.__dict__.get("pick_next_capabilities")
+    orig_exec = sess_mod.__dict__.get("execute_capability")
+    orig_gate = sess_mod.__dict__.get("evaluate_coverage_gate")
+    orig_save = sess_mod.__dict__.get("save_session")
+
+    class DummyPlan:
+        rationale = "intervention plan"
+
+    class DummyExec:
+        content = "after challenge"
+        def model_dump(self):
+            return {"content": self.content, "title": "after", "summary": "", "sources": []}
+
+    def fake_pick(state, user_text):
+        return []  # converge after intervention
+
+    sess_mod.__dict__["orchestrate_plan"] = lambda s, t, u: DummyPlan()
+    sess_mod.__dict__["pick_next_capabilities"] = fake_pick
+    sess_mod.__dict__["execute_capability"] = lambda cap_id, st, ctx, role, tid: DummyExec()
+    sess_mod.__dict__["evaluate_coverage_gate"] = lambda s: {"passed": False}
+    sess_mod.__dict__["save_session"] = lambda st: st
+
+    try:
+        base = _mk_intervention_state()
+        # pass intervention via kwarg (backward compat for 3-arg calls preserved)
+        interv = UserIntervention(targetArtifactId="tgt-art", intent="challenge", text="wrong")
+        out = _reloaded_drive(base, "t-int-1", "user note with intervention", intervention=interv)
+        stales = getattr(out, "staleArtifactIds", []) or []
+        assert "tgt-art" in stales and "down-art" in stales
+        assert getattr(out, "userIntervention", None) is not None
+    finally:
+        if orig_orch is not None: sess_mod.__dict__["orchestrate_plan"] = orig_orch
+        if orig_pick is not None: sess_mod.__dict__["pick_next_capabilities"] = orig_pick
+        if orig_exec is not None: sess_mod.__dict__["execute_capability"] = orig_exec
+        if orig_gate is not None: sess_mod.__dict__["evaluate_coverage_gate"] = orig_gate
+        if orig_save is not None: sess_mod.__dict__["save_session"] = orig_save
+
+
+def test_invalidate_for_intervention_targetNodeId_resolves_produced_artifact_and_cascades_without_node_in_stale():
+    """targetNodeId-only (general support): resolve via capabilityRunId (node -> produced art),
+    seed cascade with artifact id (not node id), mark target node + downstream challenged.
+    Covers review finding: Python must handle targetNodeId to locate artifact for depGraph stale + node mark.
+    """
+    st = _mk_intervention_state()
+    interv = UserIntervention(targetNodeId="n-tgt", intent="challenge", text="challenge this node")
+    out = invalidate_for_intervention(st, interv)
+    stales = set(getattr(out, "staleArtifactIds", []) or [])
+    # critical: node id must NOT leak into staleArtifactIds
+    assert "n-tgt" not in stales
+    assert "tgt-art" in stales
+    assert "down-art" in stales  # cascaded downstream
+    assert "up-art" not in stales
+    # userIntervention records the targetNodeId (no targetArtifactId here)
+    ui = getattr(out, "userIntervention", None)
+    assert ui is not None
+    assert ui.targetNodeId == "n-tgt"
+    assert getattr(ui, "targetArtifactId", None) is None
+    # nodes: target + downstream challenged; upstream untouched
+    nodes = (getattr(out, "graph", {}) or {}).get("nodes", [])
+    statuses = {}
+    for n in nodes:
+        nid = n.get("id") if isinstance(n, dict) else getattr(n, "id", None)
+        nst = n.get("status") if isinstance(n, dict) else getattr(n, "status", None)
+        statuses[nid] = nst
+    assert statuses.get("n-tgt") == "challenged"
+    assert statuses.get("n-down") == "challenged"
+    assert statuses.get("n-up") != "challenged"

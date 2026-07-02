@@ -5,7 +5,7 @@ Provides create, load, save, drive loop using stable Python RAG for evidence ins
 """
 
 from typing import Dict, Any, Optional
-from models.v5_state import Artifact, CapabilityRun, ProducedBy, V5SessionState, DependencyEdge, SlideRuleReplayEvent, ReasoningEvent
+from models.v5_state import Artifact, CapabilityRun, ProducedBy, V5SessionState, DependencyEdge, SlideRuleReplayEvent, ReasoningEvent, UserIntervention
 from datetime import datetime, timezone
 from .slide_rule_orchestrator import orchestrate_plan
 from .slide_rule_executor import execute_capability
@@ -21,6 +21,7 @@ from .slide_rule_interactive_gates import (
     user_rejects_route_selection,
     gaps_from_gap_ask_content,
     merge_gap_ask_into_state,
+    apply_user_intervention_invalidation,
 )
 
 _sessions: Dict[str, V5SessionState] = {}
@@ -82,7 +83,7 @@ def delete_session(session_id: str):
     _sessions.pop(session_id, None)
     return delete_session_record(session_id)
 
-def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) -> V5SessionState:
+def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str, intervention: Optional[UserIntervention] = None) -> V5SessionState:
     """Main loop: orchestrate + execute caps using Python RAG for stable evidence.
     Implements V5.2 runtimePhase machine: idle -> orchestrating -> awaiting|failed|done
     (PYTHON_AUTHORITY for driver phase transitions per task).
@@ -103,6 +104,12 @@ def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) ->
     # G_CONFIRM + route selection/reject (PYTHON_AUTHORITY): user pick clears confirm await; reject stales route artifacts and clears (enables re-compare without re-park).
     # Named behaviors (userPicksRoute/userRejectsRouteSelection + state writes) now in Python; no Node fallback.
     state = apply_route_selection_resolution(state, user_text or "")
+    # User intervention invalidation + stale cascade (PYTHON_AUTHORITY this task): general UserIntervention support.
+    # targetArtifactId/targetNodeId/targetDecisionId trigger target + depGraph downstream cascade into staleArtifactIds (monotonic).
+    # Sets state.userIntervention; challenges graph nodes; handles decision ledger. Called unconditionally if provided.
+    # Classification: was TS_RUNTIME_OWNED (invalidateForIntervention in runtime) now PYTHON_AUTHORITY in drive.
+    # No Node fallback hiding semantics. Route text special-case remains orthogonal.
+    state = apply_user_intervention_invalidation(state, intervention)
     try:
         plan_result = orchestrate_plan(state, turn_id, user_text)
         # PYTHON_AUTHORITY pick: explicitly invoke pick_next_capabilities; use its result directly.

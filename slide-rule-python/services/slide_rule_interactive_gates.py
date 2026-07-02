@@ -1,21 +1,22 @@
 """
-Python port of G_READY + G_CONFIRM / route selection / reject route (userPicksRoute, userRejectsRouteSelection, stale on reject, clear await on pick).
+Python port of G_READY + G_CONFIRM / route selection / reject route + user intervention invalidation and stale cascade.
 
 Port of shared/blueprint/sliderule-interactive-gates.ts slices for interactive gates (P0 V5.1/V5.2).
 Pure functions + minimal state mutators.
 
 Classification:
   G_READY (prior): TS_RUNTIME_OWNED -> PYTHON_COMPAT -> PYTHON_AUTHORITY
-  G_CONFIRM + route selection/reject (this task): TS_RUNTIME_OWNED (in client runtime + shared) -> PYTHON_COMPAT (partial park in evaluate_confirm) -> PYTHON_AUTHORITY (named funcs + apply staling/clear + gate uses expresses + drive resolve + focused tests)
-Python owns the G_CONFIRM park, user pick/reject named behavior, selected route via clear, reject route via stale+reroute in Python drive/state. No Node fallback hiding. Direct pytest + mojibake.
+  G_CONFIRM + route selection/reject (prev): TS_RUNTIME_OWNED -> PYTHON_COMPAT -> PYTHON_AUTHORITY
+  user intervention invalidation + stale cascade (this task): TS_RUNTIME_OWNED (client runtime invalidateForIntervention + intake) -> PYTHON_AUTHORITY (general targetArtifactId/targetNodeId/targetDecisionId + depGraph cascade walk for all three including decision->artifacts + monotonic stale union + node challenge + set userIntervention + drive integration)
+Python owns the general UserIntervention invalidation, target+downstream stale via dependencyGraph cascade, related state/ledger semantics. Route reject remains special text case. No Node fallback hiding. Direct pytest + mojibake.
 
-Smallest slice added: user_*_route funcs, update evaluate_confirm, apply_route_selection_resolution (stale route arts on reject, clear on pick), integration in session drive.
+Smallest slice added: invalidate_for_intervention (target + cascade + union), apply_user_intervention_invalidation, drive param+call; focused intervention tests.
 """
 
 from typing import Any, Dict, List, Optional
 from datetime import datetime
 
-from models.v5_state import V5SessionState, CoverageGap
+from models.v5_state import V5SessionState, CoverageGap, UserIntervention, DependencyEdge
 
 
 READINESS_CLARIFICATION_CAPS = {"question.expand", "gap.ask", "intent.clarify"}
@@ -305,3 +306,277 @@ def apply_route_selection_resolution(state: Any, user_text: str) -> Any:
         state.awaitReason = None
         state.awaitDetail = None
     return state
+
+
+def _resolve_artifacts_for_node(state: Any, node_id: str) -> List[str]:
+    """Resolve targetNodeId to its produced artifact id(s).
+    Prefer node.producedArtifactId; else match node.capabilityRunId / producedRunId to artifact.producedBy.capabilityRunId.
+    Returns list of artifact ids (never node id). Used to seed depGraph cascade for targetNodeId interventions.
+    """
+    if not node_id:
+        return []
+    graph = _get_attr(state, "graph") or {}
+    nodes = list(_get_attr(graph, "nodes") or [])
+    target_node = None
+    for n in nodes:
+        if _get_attr(n, "id") == node_id:
+            target_node = n
+            break
+    if not target_node:
+        return []
+    # explicit producedArtifactId on node (enriched binding)
+    prod = _get_attr(target_node, "producedArtifactId")
+    if prod:
+        return [prod]
+    # resolve via run id
+    n_run = _get_attr(target_node, "capabilityRunId") or _get_attr(target_node, "producedRunId")
+    if n_run:
+        arts = _get_list(state, "artifacts") or []
+        matches = []
+        for a in arts:
+            pb = _get_attr(a, "producedBy") or {}
+            if _get_attr(pb, "capabilityRunId") == n_run:
+                aid = _get_attr(a, "id")
+                if aid:
+                    matches.append(aid)
+        return matches
+    return []
+
+
+def _resolve_artifacts_for_decision(state: Any, decision_id: str) -> List[str]:
+    """Resolve targetDecisionId to its affected artifact id(s) via turn/chose.
+    Matches capabilityRuns by turnId -> outputs, or artifacts via producedBy run prefix / chose capIds.
+    Returns artifact ids only (never decision id). Used to seed depGraph cascade for decision interventions
+    so that targetDecisionId triggers the same target+downstream stale semantics as artifact/node targets.
+    """
+    if not decision_id:
+        return []
+    ledger = _get_list(state, "decisionLedger") or []
+    dec = None
+    for d in ledger:
+        if _get_attr(d, "id") == decision_id:
+            dec = d
+            break
+    if not dec:
+        return []
+    turn = _get_attr(dec, "turnId") or ""
+    chose = _get_attr(dec, "chose") or []
+    matches: List[str] = []
+    # Primary: runs whose turnId matches the decision's turn -> their output artifacts
+    runs = _get_list(state, "capabilityRuns") or []
+    for r in runs:
+        if turn and _get_attr(r, "turnId") == turn:
+            outs = _get_attr(r, "outputs") or []
+            for o in outs:
+                if o and o not in matches:
+                    matches.append(o)
+    # Fallback: artifacts produced in turn-ish or by chose capabilities
+    if not matches:
+        arts = _get_list(state, "artifacts") or []
+        for a in arts:
+            pb = _get_attr(a, "producedBy") or {}
+            runid = _get_attr(pb, "capabilityRunId") or ""
+            capid = _get_attr(pb, "capabilityId") or ""
+            if (turn and runid.startswith(turn)) or (capid in chose):
+                aid = _get_attr(a, "id")
+                if aid and aid not in matches:
+                    matches.append(aid)
+    return matches
+
+
+# --- User intervention invalidation + stale cascade (PYTHON_AUTHORITY for this task) ---
+# Implements general handling for UserIntervention (targetArtifactId / targetNodeId / targetDecisionId + intent/text)
+# using dependencyGraph for downstream cascade. Monotonic union into staleArtifactIds (never shrink here).
+# Marks affected graph nodes challenged; records userIntervention; handles decision ledger challenge.
+# targetDecisionId resolves to artifacts (via _resolve_artifacts_for_decision) then participates in full depGraph cascade.
+# Smallest slice: port core of TS invalidateForIntervention without extras.
+# Classification: TS_RUNTIME_OWNED -> PYTHON_AUTHORITY (this task); called from drive on intake.
+# No Node fallback; Python owns the invalidation + cascade behavior for V5.2 re-entry.
+
+def invalidate_for_intervention(state: Any, intervention: Any) -> Any:
+    """Core cascade: target + downstream via depGraph -> union staleArtifactIds; mark nodes; set intervention.
+    Supports general targetArtifactId / targetNodeId / targetDecisionId (universal invalidation semantics).
+    targetDecisionId: resolve via decision.turnId/chose to produced artifacts then full cascade (not ledger-only).
+    For targetNodeId: resolve to produced artifact id(s) via producedArtifactId or capabilityRunId match;
+    seed depGraph cascade with *artifact ids only* (never write node id to staleArtifactIds); mark the target node + downstream by run.
+    """
+    if not intervention:
+        return state
+    if hasattr(intervention, "model_dump"):
+        interv = intervention.model_dump()
+    elif isinstance(intervention, dict):
+        interv = intervention
+    else:
+        return state
+
+    target_artifact_id = interv.get("targetArtifactId")
+    target_node_id = interv.get("targetNodeId")
+    target_decision_id = interv.get("targetDecisionId")
+
+    # Record the intervention on state (durable, for parity + ledger semantics)
+    try:
+        ui = UserIntervention(
+            targetArtifactId=target_artifact_id,
+            targetNodeId=target_node_id,
+            targetReportSectionId=interv.get("targetReportSectionId"),
+            targetDecisionId=target_decision_id,
+            intent=interv.get("intent", "challenge"),
+            text=interv.get("text", "") or "",
+            answeredGapIds=interv.get("answeredGapIds") or [],
+        )
+        if hasattr(state, "userIntervention"):
+            state.userIntervention = ui
+        else:
+            if isinstance(state, dict):
+                state["userIntervention"] = interv
+    except Exception:
+        # best effort; do not drop cascade
+        if isinstance(state, dict):
+            state["userIntervention"] = interv
+        elif hasattr(state, "__dict__"):
+            try:
+                setattr(state, "userIntervention", interv)
+            except Exception:
+                pass
+
+    # Decision-level challenge (targetDecisionId): mark ledger entry challenged
+    if target_decision_id:
+        ledger = _get_list(state, "decisionLedger")
+        for i, d in enumerate(ledger):
+            if _get_attr(d, "id") == target_decision_id:
+                now = datetime.now().isoformat()
+                if isinstance(d, dict):
+                    nd = {**d, "status": "challenged", "challengedAt": now, "challengeText": interv.get("text") or d.get("challengeText")}
+                    ledger[i] = nd
+                else:
+                    try:
+                        if hasattr(d, "status"):
+                            d.status = "challenged"
+                        if hasattr(d, "challengedAt"):
+                            d.challengedAt = now
+                    except Exception:
+                        pass
+                break
+        if hasattr(state, "decisionLedger"):
+            state.decisionLedger = ledger
+        elif isinstance(state, dict):
+            state["decisionLedger"] = ledger
+
+    # Resolve effective artifact ids for stale cascade (targetNodeId must not leak node id into stale)
+    # targetDecisionId is resolved to artifacts (turn/chose/runs) and participates in same general cascade.
+    initial_art_targets: set = set()
+    if target_artifact_id:
+        initial_art_targets.add(target_artifact_id)
+    if target_node_id:
+        for aid in _resolve_artifacts_for_node(state, target_node_id):
+            if aid:
+                initial_art_targets.add(aid)
+    if target_decision_id:
+        for aid in _resolve_artifacts_for_decision(state, target_decision_id):
+            if aid:
+                initial_art_targets.add(aid)
+
+    # Collect + cascade via dependencyGraph using only artifact ids
+    stale = set(_get_list(state, "staleArtifactIds") or [])
+    affected: set = set(initial_art_targets)
+    if affected:
+        dep_graph = _get_list(state, "dependencyGraph") or []
+        changed = True
+        while changed:
+            changed = False
+            for edge in dep_graph:
+                from_id = _get_attr(edge, "fromArtifactId")
+                to_id = _get_attr(edge, "toArtifactId")
+                if from_id in affected and to_id and to_id not in affected:
+                    affected.add(to_id)
+                    changed = True
+
+        # union monotonically (preserve prior stales)
+        for aid in affected:
+            if aid:
+                stale.add(aid)
+
+        if hasattr(state, "staleArtifactIds"):
+            state.staleArtifactIds = list(stale)
+        else:
+            if isinstance(state, dict):
+                state["staleArtifactIds"] = list(stale)
+
+    # Mark corresponding graph nodes as challenged:
+    # - exact targetNodeId match (for node-only intervention)
+    # - runId match against affected artifacts (downstream cascade)
+    # - also target artifact's run
+    graph = _get_attr(state, "graph") or {}
+    nodes = list(_get_attr(graph, "nodes") or [])
+    if nodes:
+        arts = _get_list(state, "artifacts") or []
+        # target run from explicit target art if present
+        target_run = None
+        if target_artifact_id:
+            t_art = next((a for a in arts if _get_attr(a, "id") == target_artifact_id), None)
+            if t_art:
+                pb = _get_attr(t_art, "producedBy") or {}
+                target_run = _get_attr(pb, "capabilityRunId")
+
+        new_nodes = []
+        for node in nodes:
+            matches = False
+            nid = _get_attr(node, "id")
+            # direct node id match for targetNodeId interventions
+            if target_node_id and nid == target_node_id:
+                matches = True
+            else:
+                n_run = _get_attr(node, "capabilityRunId") or _get_attr(node, "producedRunId")
+                if n_run:
+                    if target_run and n_run == target_run:
+                        matches = True
+                    if not matches:
+                        for aff_id in affected:
+                            for a in arts:
+                                if _get_attr(a, "id") == aff_id:
+                                    apb = _get_attr(a, "producedBy") or {}
+                                    if _get_attr(apb, "capabilityRunId") == n_run:
+                                        matches = True
+                                        break
+                            if matches:
+                                break
+            if matches:
+                if isinstance(node, dict):
+                    node = {**node, "status": "challenged"}
+                else:
+                    try:
+                        if hasattr(node, "status"):
+                            node.status = "challenged"
+                    except Exception:
+                        pass
+            new_nodes.append(node)
+
+        if isinstance(graph, dict):
+            graph = {**graph, "nodes": new_nodes}
+            if hasattr(state, "graph"):
+                state.graph = graph
+            elif isinstance(state, dict):
+                state["graph"] = graph
+
+        # update projectionDirtyNodeIds for downstream consumers
+        dirty = set(_get_list(state, "projectionDirtyNodeIds") or [])
+        for n in new_nodes:
+            if _get_attr(n, "status") == "challenged":
+                nid = _get_attr(n, "id")
+                if nid:
+                    dirty.add(nid)
+        if hasattr(state, "projectionDirtyNodeIds"):
+            state.projectionDirtyNodeIds = list(dirty)
+        elif isinstance(state, dict):
+            state["projectionDirtyNodeIds"] = list(dirty)
+
+    return state
+
+
+def apply_user_intervention_invalidation(state: Any, intervention: Any) -> Any:
+    """INTAKE wrapper: apply general intervention invalidation (target+stale cascade).
+    Called for any UserIntervention (not just route text). Preserves prior state semantics.
+    """
+    if not intervention:
+        return state
+    return invalidate_for_intervention(state, intervention)
