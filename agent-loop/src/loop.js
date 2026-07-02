@@ -31,7 +31,9 @@ async function main() {
     : options;
   const runId = resumeState?.runId || timestamp();
   const runDir = resumeState?.artifacts?.runDir || path.join(activeOptions.cwd, '.agent-loop', 'runs', runId);
-  const latestDir = resumeState?.artifacts?.latestDir || path.join(activeOptions.cwd, '.agent-loop', 'latest');
+  const latestDir = resumeState?.artifacts?.latestDir
+    || process.env.AGENT_LOOP_LATEST_DIR
+    || path.join(activeOptions.cwd, '.agent-loop', 'latest');
   if (!resumeState) {
     await fs.mkdir(runDir, { recursive: true });
     await fs.rm(latestDir, { recursive: true, force: true });

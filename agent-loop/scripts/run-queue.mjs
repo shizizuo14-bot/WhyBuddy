@@ -279,6 +279,12 @@ async function main() {
       env: {
         ...process.env,
         AGENT_LOOP_PROGRESS: follow ? '1' : '0',
+        AGENT_LOOP_LATEST_DIR: path.join(
+          repoRoot,
+          '.agent-loop',
+          'latest-runs',
+          `${process.pid}-${sanitizeWorktreeName(label)}`,
+        ),
       },
       timeoutMs: (entry.timeoutMs || defaults.timeoutMs || 1800000) + 120000,
       signal: abortController.signal,
