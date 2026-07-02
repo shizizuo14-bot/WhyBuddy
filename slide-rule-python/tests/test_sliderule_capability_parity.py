@@ -602,3 +602,173 @@ def test_deliberation_direct_vs_mapped_consistency():
     assert isinstance(d, ExecuteCapabilityResult) and isinstance(m, dict)
     assert d.provenance == m.get("provenance") == "python-rag"
     assert (d.degraded or False) == (m.get("degraded") or False)
+
+
+# Handoff delivery + stale-aware readiness (CapabilityParity seq47)
+# Prove PYTHON_AUTHORITY: dedicated path (not _evidence_result), structured envelope,
+# stale-aware readiness rules (isReadyForHandoff based on staleArtifactIds), deliveryStatus,
+# direct + mapped parity, registration, no trust forgery. Focused pytest per acceptance.
+HANDOFF_CAP = "handoff.package"
+
+
+def test_handoff_package_registered_and_not_shared_mcp_skill():
+    assert HANDOFF_CAP in CAPABILITY_EXECUTORS
+    assert CAPABILITY_EXECUTORS[HANDOFF_CAP].__name__ == "execute_handoff"
+    assert "mcp.call" in CAPABILITY_EXECUTORS
+
+
+def test_handoff_package_python_owned_returns_structured_envelope_and_sources():
+    state = _make_state("produce final delivery handoff for permission system")
+    result = execute_capability(HANDOFF_CAP, state, [], "engineering", "t-hand-1")
+
+    assert isinstance(result, ExecuteCapabilityResult)
+    assert result.provenance == "python-rag"
+    assert "handoff" in result.title.lower() or "handoff" in result.summary.lower()
+    assert isinstance(result.sources, list) and len(result.sources) > 0
+    # envelope fields
+    assert "Handoff Package" in result.content
+    assert "Report Summary" in result.content
+    assert "Traceability Matrix" in result.content
+    assert "Prompt Pack" in result.content
+    assert "Visual Preview" in result.content or "Visual" in result.content
+    assert "Next Actions" in result.content
+    assert "Delivery Status" in result.content
+    assert "staleAware" in result.content or "isReadyForHandoff" in result.content
+    assert result.degraded is False
+    assert "python" in result.provenance
+
+
+def test_handoff_package_via_mapped_produces_kind_delivery_readiness():
+    state = _make_state("bundle handoff for RBAC migration")
+    out = execute_mapped_capability(HANDOFF_CAP, state, [], "engineering", "t-hand-map-1")
+
+    assert isinstance(out, dict)
+    assert out.get("provenance") == "python-rag"
+    assert out.get("kind") == "handoff"
+    assert out.get("deliveryStatus") in ("ready_for_delivery", "stale_blocked")
+    assert isinstance(out.get("sources"), list) and len(out["sources"]) >= 1
+    readiness = out.get("readiness") or {}
+    assert readiness.get("staleAware") is True
+    assert "isReadyForHandoff" in readiness
+    assert "staleArtifactCount" in readiness
+    assert "Report Summary" in out.get("content", "") or "Handoff Package" in out.get("content", "")
+
+
+def test_handoff_package_stale_aware_readiness_blocks_on_stale_artifacts():
+    # stale-aware readiness rule: presence of staleArtifactIds -> not ready, deliveryStatus=stale_blocked
+    state = V5SessionState(
+        sessionId="s-stale",
+        goal={"text": "handoff with stale context"},
+        conversation=[],
+        artifacts=[],
+        capabilityRuns=[],
+        coverageGaps=[],
+        evidence=[],
+        decisions=[],
+        risks=[],
+        gates=[],
+        staleArtifactIds=["art-stale-42", "art-old-7"],
+    )
+    out = execute_mapped_capability(HANDOFF_CAP, state, [], "eng", "t-hand-stale")
+    assert isinstance(out, dict)
+    assert out.get("deliveryStatus") == "stale_blocked"
+    r = out.get("readiness") or {}
+    assert r.get("isReadyForHandoff") is False
+    assert r.get("staleArtifactCount") == 2
+    assert "stale" in str(r.get("reason", "")).lower()
+    # direct path too
+    d = execute_capability(HANDOFF_CAP, state, [], "eng", "t-hand-stale-d")
+    assert isinstance(d, ExecuteCapabilityResult)
+    assert getattr(d, "deliveryStatus", None) == "stale_blocked"
+    rd = getattr(d, "readiness", {}) or {}
+    assert rd.get("isReadyForHandoff") is False
+
+
+def test_handoff_package_ready_when_no_stale():
+    state = _make_state("clean handoff goal")
+    state.staleArtifactIds = []
+    out = execute_mapped_capability(HANDOFF_CAP, state, [], "eng", "t-hand-clean")
+    assert out.get("deliveryStatus") == "ready_for_delivery"
+    assert (out.get("readiness") or {}).get("isReadyForHandoff") is True
+
+
+def test_handoff_package_does_not_forge_trust():
+    state = _make_state("no trust handoff")
+    result = execute_capability(HANDOFF_CAP, state, [], "role", "t-hand-t")
+    assert not hasattr(result, "trustLevel") or getattr(result, "trustLevel", None) is None
+    assert result.provenance == "python-rag"
+    out = execute_mapped_capability(HANDOFF_CAP, state, [], "role", "t-hand-t2")
+    assert out.get("provenance") == "python-rag"
+
+
+# instruction.package (prompt package delivery + ship gate integration) tests (seq48, CapabilityParity)
+# Prove PYTHON_AUTHORITY: registration, dedicated maps/executor paths (not generic),
+# deliveryStatus + gateResults (G_PROMPT + SHIP_CONTENT) for ship gate integration,
+# direct execute_capability + mapped parity, sources + python-rag, no trust forgery.
+# Focused coverage per review findings 1+2.
+PROMPT_PACK_CAP = "instruction.package"
+
+
+def test_prompt_pack_registered_and_not_shared_mcp_skill():
+    assert PROMPT_PACK_CAP in CAPABILITY_EXECUTORS
+    assert CAPABILITY_EXECUTORS[PROMPT_PACK_CAP].__name__ == "execute_prompt_pack"
+    assert "mcp.call" in CAPABILITY_EXECUTORS
+    assert "skill.invoke" in CAPABILITY_EXECUTORS
+
+
+def test_prompt_pack_python_owned_returns_delivery_and_ship_gate_fields():
+    state = _make_state("produce prompt package for RBAC permission system")
+    result = execute_capability(PROMPT_PACK_CAP, state, [], "engineering", "t-pack-1")
+
+    assert isinstance(result, ExecuteCapabilityResult)
+    assert result.provenance == "python-rag"
+    assert "prompt" in result.title.lower() or "pack" in result.title.lower()
+    assert isinstance(result.sources, list) and len(result.sources) > 0
+    assert "Prompt Pack" in result.content
+    assert result.degraded is False
+    assert "python" in result.provenance
+    # delivery + ship gate integration fields (addresses review major finding 1)
+    assert getattr(result, "kind", None) == "prompt_pack"
+    assert getattr(result, "deliveryStatus", None) in ("ready_for_delivery", "stale_blocked")
+    gates = getattr(result, "gateResults") or {}
+    assert "G_PROMPT" in gates or "SHIP_CONTENT" in gates
+    g_prompt = gates.get("G_PROMPT", {}) or gates.get("SHIP_CONTENT", {})
+    assert g_prompt.get("status") in ("passed", "failed")
+
+
+def test_prompt_pack_via_mapped_produces_kind_delivery_gate_results():
+    state = _make_state("build instruction package for handoff delivery")
+    out = execute_mapped_capability(PROMPT_PACK_CAP, state, [], "eng", "t-pack-map-1")
+
+    assert isinstance(out, dict)
+    assert out.get("provenance") == "python-rag"
+    assert out.get("kind") == "prompt_pack"
+    assert out.get("deliveryStatus") in ("ready_for_delivery", "stale_blocked")
+    assert isinstance(out.get("sources"), list) and len(out["sources"]) >= 1
+    gates = out.get("gateResults") or {}
+    assert "G_PROMPT" in gates or "SHIP_CONTENT" in gates
+    assert "Prompt Pack" in out.get("content", "")
+
+
+def test_prompt_pack_ship_gate_results_computed_not_static():
+    # gateResults computed from evidence presence (not unconditional passed)
+    state = _make_state("prompt pack gate computation")
+    with patch("services.capability_maps.retrieve_evidence", return_value=[]):
+        out = execute_mapped_capability(PROMPT_PACK_CAP, state, [], "eng", "t-pack-gate")
+        gates = out.get("gateResults") or {}
+        gp = gates.get("G_PROMPT", {}) or {}
+        sc = gates.get("SHIP_CONTENT", {}) or {}
+        # when no evidence, should be failed (verifiable computation)
+        gp_status = gp.get("status")
+        sc_status = sc.get("status")
+        assert gp_status == "failed" or sc_status == "failed", f"expected at least one failed gate, got G_PROMPT={gp_status}, SHIP_CONTENT={sc_status}"
+        assert "no evidence" in (str(gp.get("reason", "")) + str(sc.get("reason", ""))).lower()
+
+
+def test_prompt_pack_does_not_forge_trust():
+    state = _make_state("no trust prompt pack")
+    result = execute_capability(PROMPT_PACK_CAP, state, [], "role", "t-pack-t")
+    assert not hasattr(result, "trustLevel") or getattr(result, "trustLevel", None) is None
+    assert result.provenance == "python-rag"
+    out = execute_mapped_capability(PROMPT_PACK_CAP, state, [], "role", "t-pack-t2")
+    assert out.get("provenance") == "python-rag"

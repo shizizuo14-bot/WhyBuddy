@@ -391,6 +391,11 @@ def execute_traceability(state: V5SessionState, cap_id: str, role: str, turn: st
     )
 
 def execute_prompt_pack(state: V5SessionState, cap_id: str, role: str, turn: str, inputs: List[str]) -> Dict[str, Any]:
+    # PYTHON_AUTHORITY for instruction.package (prompt package delivery + ship gate integration, CapabilityParity seq48):
+    # Dedicated executor (not generic _evidence_result). Produces structured prompt pack + explicit deliveryStatus
+    # + gateResults with ship gate integration fields (G_PROMPT + SHIP_CONTENT for ship-time content contract).
+    # gateResults are computed (evidence presence), not static. Direct/mapped paths expose for ship gate verification.
+    # No Node fallback; this slice owns the delivery/ship-visible contract for prompt pack capability.
     goal = _goal_text(state)
     evidence = retrieve_evidence(goal, top_k=8)
     content = generate_with_rag(
@@ -407,12 +412,27 @@ def execute_prompt_pack(state: V5SessionState, cap_id: str, role: str, turn: str
         "3. Evidence prompt: retrieve policy, architecture, and risk references before execution.\n"
         "4. Verification prompt: prove report, matrix, and handoff artifacts are non-template and source-backed."
     )
+    has_ev = len(evidence) > 0
+    delivery_status = "ready_for_delivery" if has_ev else "stale_blocked"
+    gate_results = {
+        "G_PROMPT": {
+            "status": "passed" if has_ev else "failed",
+            "reason": "instruction.package produced with RAG evidence sources" if has_ev else "no evidence sources for prompt pack",
+        },
+        "SHIP_CONTENT": {
+            "status": "passed" if has_ev else "failed",
+            "reason": "prompt pack content + sources satisfies ship-time contract (T_CONTENT)" if has_ev else "content missing for ship gate",
+        },
+    }
     return {
         "title": "Prompt Pack",
         "summary": "Packaged executable prompts and verification instructions",
         "content": content,
         "provenance": "python-rag",
         "sources": evidence,
+        "kind": "prompt_pack",
+        "deliveryStatus": delivery_status,
+        "gateResults": gate_results,
     }
 
 def execute_visual(state: V5SessionState, cap_id: str, role: str, turn: str, inputs: List[str]) -> Dict[str, Any]:
@@ -425,13 +445,55 @@ def execute_visual(state: V5SessionState, cap_id: str, role: str, turn: str, inp
     )
 
 def execute_handoff(state: V5SessionState, cap_id: str, role: str, turn: str, inputs: List[str]) -> Dict[str, Any]:
-    return _evidence_result(
-        cap_id,
-        state,
-        "Engineering Handoff",
-        "Bundled report, matrix, prompt pack, visual preview, and next actions",
-        f"handoff.package for {_goal_text(state)}. Bundle report summary, traceability, prompt pack, visual preview, risks, and owner-ready next steps.",
+    # PYTHON_AUTHORITY for handoff.package (CapabilityParity): dedicated handoff delivery capability.
+    # Produces structured readiness/handoff envelope bundling report/matrix/prompt pack/visual/next actions
+    # + explicit deliveryStatus + stale-aware readiness rules (checks staleArtifactIds; blocks delivery if stale present).
+    # Not a generic _evidence_result wrapper; explicit sections + stale判定. No Node fallback.
+    goal = _goal_text(state)
+    # stale-aware readiness rules
+    stale_ids: List[str] = []
+    try:
+        if hasattr(state, "staleArtifactIds"):
+            stale_ids = list(getattr(state, "staleArtifactIds") or [])
+        elif isinstance(state, dict):
+            stale_ids = list(state.get("staleArtifactIds", []) or [])
+    except Exception:
+        stale_ids = []
+    stale_count = len(stale_ids)
+    is_ready = stale_count == 0
+    delivery_status = "ready_for_delivery" if is_ready else "stale_blocked"
+    readiness = {
+        "staleAware": True,
+        "staleArtifactCount": stale_count,
+        "staleArtifactIds": stale_ids,
+        "isReadyForHandoff": is_ready,
+        "reason": "no stale artifacts; ready for handoff" if is_ready else "stale artifacts present; refresh or supersede before delivery handoff",
+    }
+    evidence = retrieve_evidence(goal, top_k=8)
+    base = generate_with_rag(f"handoff.package delivery for {goal}", evidence)
+    ev_block = "\n".join([f"- evidenceRef:{e.get('id','e')} {e.get('content','')} (source:{e.get('source','')})" for e in evidence[:3]])
+    # structured envelope sections per task goal
+    structured = (
+        base + "\n\n# Handoff Package (Python-owned delivery)\n"
+        + "# Report Summary\n" + ev_block + "\n"
+        + "# Traceability Matrix\n- requirements, decisions, risks mapped to sources above.\n"
+        + "# Prompt Pack\n1. Operator: restate goal+stale check; 2. Engineering: implement with freshness.\n"
+        + "# Visual Preview\n- flow: intake -> stale check -> handoff; provenance labels on all.\n"
+        + "# Risks\n- stale artifacts can invalidate downstream trust if handoff proceeds without refresh.\n"
+        + "# Next Actions\n- If isReadyForHandoff: package + commit; else: resolve staleArtifactIds then retry.\n"
+        + f"# Delivery Status\n- {delivery_status}\n"
+        + "# Readiness (stale-aware)\n- staleAware: true\n- isReadyForHandoff: " + str(is_ready) + "\n- staleCount: " + str(stale_count) + "\n"
     )
+    return {
+        "title": "Engineering Handoff Package",
+        "summary": "Bundled report, matrix, prompt pack, visual, next actions with stale-aware readiness",
+        "content": structured,
+        "provenance": "python-rag",
+        "sources": evidence,
+        "kind": "handoff",
+        "deliveryStatus": delivery_status,
+        "readiness": readiness,
+    }
 
 # Map for all V5 caps
 # Core + expanded caps from Node (structure, delivery, visual, handoff, instruction, etc.)

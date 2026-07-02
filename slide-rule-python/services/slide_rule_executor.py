@@ -506,6 +506,86 @@ def execute_capability(
             res.__dict__["error"] = "deliberation_provider_failure"
             return res
 
+    if capability_id == "instruction.package":
+        # PYTHON_AUTHORITY for instruction.package (prompt package delivery capability and ship gate integration, seq48):
+        # Dedicated direct path (not default generic). Mirrors maps contract: produces kind + deliveryStatus + gateResults
+        # (G_PROMPT + SHIP_CONTENT for verifiable ship gate integration). Computed from evidence; no Node fallback.
+        # Content carries prompt pack + sources for ship-time acceptance. Direct execute_capability now owns it.
+        evidence = retrieve_evidence(goal, top_k=8)
+        base = generate_with_rag(f"instruction.package prompt pack for {goal}", evidence)
+        content = base + (
+            "\n\nPrompt Pack:\n"
+            "1. Operator prompt: restate the goal, scope, constraints, and stopping criteria.\n"
+            "2. Engineering prompt: implement RBAC/RLS/audit tasks with source-linked acceptance checks.\n"
+            "3. Evidence prompt: retrieve policy, architecture, and risk references before execution.\n"
+            "4. Verification prompt: prove report, matrix, and handoff artifacts are non-template and source-backed."
+        )
+        has_ev = len(evidence) > 0
+        delivery_status = "ready_for_delivery" if has_ev else "stale_blocked"
+        gate_results = {
+            "G_PROMPT": {
+                "status": "passed" if has_ev else "failed",
+                "reason": "instruction.package produced with RAG evidence sources" if has_ev else "no evidence sources for prompt pack",
+            },
+            "SHIP_CONTENT": {
+                "status": "passed" if has_ev else "failed",
+                "reason": "prompt pack content + sources satisfies ship-time contract (T_CONTENT)" if has_ev else "content missing for ship gate",
+            },
+        }
+        res = ExecuteCapabilityResult(
+            title="Prompt Pack (Python RAG)",
+            summary="Packaged executable prompts for delivery",
+            content=content,
+            provenance="python-rag",
+            sources=evidence,
+            degraded=False,
+        )
+        res.__dict__["kind"] = "prompt_pack"
+        res.__dict__["deliveryStatus"] = delivery_status
+        res.__dict__["gateResults"] = gate_results
+        return res
+
+    if capability_id == "handoff.package":
+        # PYTHON_AUTHORITY for handoff.package (CapabilityParity task): dedicated direct path.
+        # Implements handoff delivery capability envelope + stale-aware readiness rules (inspects staleArtifactIds).
+        # Returns kind, deliveryStatus, readiness envelope (report/matrix/prompt/visual/next sections in content).
+        # Matches mapped path contract; explicit stale判定. No generic default. No Node fallback.
+        evidence = retrieve_evidence(goal, top_k=8)
+        stale_ids = list(getattr(state, "staleArtifactIds", []) or []) if hasattr(state, "staleArtifactIds") else []
+        stale_count = len(stale_ids)
+        is_ready = stale_count == 0
+        delivery_status = "ready_for_delivery" if is_ready else "stale_blocked"
+        readiness = {
+            "staleAware": True,
+            "staleArtifactCount": stale_count,
+            "staleArtifactIds": stale_ids,
+            "isReadyForHandoff": is_ready,
+            "reason": "no stale artifacts; ready for handoff" if is_ready else "stale artifacts present; refresh required before delivery",
+        }
+        base = generate_with_rag(f"handoff.package for {goal}", evidence)
+        ev_block = "\n".join([f"- evidenceRef:{e.get('id','e')} {e.get('content','')} (source:{e.get('source','')})" for e in evidence[:3]])
+        content = (
+            base + "\n\n# Handoff Package (direct Python)\n"
+            + "# Report Summary\n" + ev_block + "\n"
+            + "# Traceability Matrix\n- mapped evidence + decisions.\n"
+            + "# Prompt Pack + Visual\n- operator/eng + mermaid flows.\n"
+            + "# Next Actions\n- resolve stale then handoff.\n"
+            + f"# Delivery Status: {delivery_status}\n"
+            + "# Readiness (stale-aware): isReadyForHandoff=" + str(is_ready) + " staleCount=" + str(stale_count) + "\n"
+        )
+        res = ExecuteCapabilityResult(
+            title="Engineering Handoff Package (Python RAG)",
+            summary="Handoff delivery with stale-aware readiness",
+            content=content,
+            provenance="python-rag",
+            sources=evidence,
+            degraded=False,
+        )
+        res.__dict__["kind"] = "handoff"
+        res.__dict__["deliveryStatus"] = delivery_status
+        res.__dict__["readiness"] = readiness
+        return res
+
     # Default for other caps
     return ExecuteCapabilityResult(
         title=capability_id,
