@@ -459,6 +459,7 @@ export const aigcSkill: Skill<AigcModel> & CrossSkill<AigcModel> = {
 
   resolve(model: AigcModel): ResolvableSurface {
     const refs = capabilityRefs(model);
+    const crossRuntime = buildAigcCrossRuntimeEdges(model);
     return {
       aigc: [model.id],
       capability: model.capabilities.map(cap => cap.id),
@@ -473,6 +474,8 @@ export const aigcSkill: Skill<AigcModel> & CrossSkill<AigcModel> = {
       role: refs.roleRefs,
       permission: refs.permissionRefs,
       field: unique([...refs.inputFieldRefs, ...refs.outputFieldRefs]),
+      runtimeEvidence: crossRuntime.map(edge => edge.evidenceKey),
+      crossSkillRuntimeEdges: crossRuntime.map(edge => `${edge.sourceSkill}->${edge.targetSkill}:${edge.state}`),
     };
   },
 
@@ -540,6 +543,129 @@ export const aigcSkill: Skill<AigcModel> & CrossSkill<AigcModel> = {
     return emptyLeaveAigcModel;
   },
 };
+
+export type AigcRuntimeTargetSkill = "rbac" | "datamodel" | "workflow" | "page" | "appbundle";
+
+export type AigcRuntimeEvidenceState = "allowed" | "blocked";
+
+export interface AigcCrossRuntimeEvidence {
+  sourceSkill: "aigc";
+  targetSkill: AigcRuntimeTargetSkill;
+  evidenceKey: string;
+  state: AigcRuntimeEvidenceState;
+  reasonCode: string;
+  modelId: string;
+  capabilityRefs: string[];
+  roleRefs: string[];
+  permissionRefs: string[];
+  fieldRefs: string[];
+  outputSchemaRefs: string[];
+  toolRefs: string[];
+}
+
+export interface NormalizedAigcRuntimeContext {
+  sourceSkill: "aigc";
+  targetSkill: AigcRuntimeTargetSkill;
+  modelId: string;
+  capabilityRefs: string[];
+  roleRefs: string[];
+  permissionRefs: string[];
+  fieldRefs: string[];
+  upstreamEvidencePresent: boolean;
+  evidence: AigcCrossRuntimeEvidence;
+}
+
+export const AIGC_CROSS_RUNTIME_EVIDENCE = "AIGC_CROSS_RUNTIME_EVIDENCE";
+export const AIGC_RBAC_RUNTIME_EVIDENCE = "AIGC_RBAC_RUNTIME_EVIDENCE";
+export const AIGC_DATAMODEL_RUNTIME_EVIDENCE = "AIGC_DATAMODEL_RUNTIME_EVIDENCE";
+
+function aigcRefsForTarget(model: AigcModel, targetSkill: AigcRuntimeTargetSkill): string[] {
+  const refs = capabilityRefs(model);
+  if (targetSkill === "rbac") return [...refs.roleRefs, ...refs.permissionRefs].sort();
+  if (targetSkill === "datamodel") return [...refs.inputFieldRefs, ...refs.outputFieldRefs, ...model.knowledgeSources.flatMap(source => source.fieldRefs ?? [])].sort();
+  if (targetSkill === "workflow") return model.toolConfigs.filter(tool => tool.kind === "workflow").flatMap(tool => tool.toolRefs).sort();
+  if (targetSkill === "page") return [...refs.outputFieldRefs, ...model.outputSchemas.flatMap(schema => schema.fields.map(field => field.key))].sort();
+  return [
+    ...model.capabilities.map(capability => capability.id),
+    ...refs.roleRefs,
+    ...refs.permissionRefs,
+    ...refs.inputFieldRefs,
+    ...refs.outputFieldRefs,
+  ].sort();
+}
+
+export function createAigcCrossRuntimeEvidence(
+  model: AigcModel,
+  targetSkill: AigcRuntimeTargetSkill,
+  upstreamSurface?: unknown,
+): AigcCrossRuntimeEvidence {
+  const refs = capabilityRefs(model);
+  const targetRefs = aigcRefsForTarget(model, targetSkill);
+  const upstreamEvidencePresent = upstreamSurface !== undefined && upstreamSurface !== null;
+  const state: AigcRuntimeEvidenceState =
+    targetRefs.length > 0 && upstreamEvidencePresent ? "allowed" : "blocked";
+
+  return {
+    sourceSkill: "aigc",
+    targetSkill,
+    evidenceKey: `${AIGC_CROSS_RUNTIME_EVIDENCE}:${targetSkill}:${state}`,
+    state,
+    reasonCode: state === "allowed" ? "AIGC_RUNTIME_EVIDENCE_PRESENT" : "AIGC_RUNTIME_UPSTREAM_ABSENT",
+    modelId: model.id,
+    capabilityRefs: model.capabilities.map(capability => capability.id).sort(),
+    roleRefs: refs.roleRefs.sort(),
+    permissionRefs: refs.permissionRefs.sort(),
+    fieldRefs: unique([...refs.inputFieldRefs, ...refs.outputFieldRefs]).sort(),
+    outputSchemaRefs: model.outputSchemas.map(schema => schema.id).sort(),
+    toolRefs: model.toolConfigs.flatMap(tool => tool.toolRefs).sort(),
+  };
+}
+
+export function normalizeAigcRuntimeContextForSkill(
+  model: AigcModel,
+  targetSkill: AigcRuntimeTargetSkill,
+  upstreamSurface?: unknown,
+): NormalizedAigcRuntimeContext {
+  const evidence = createAigcCrossRuntimeEvidence(model, targetSkill, upstreamSurface);
+  return {
+    sourceSkill: "aigc",
+    targetSkill,
+    modelId: model.id,
+    capabilityRefs: evidence.capabilityRefs,
+    roleRefs: evidence.roleRefs,
+    permissionRefs: evidence.permissionRefs,
+    fieldRefs: evidence.fieldRefs,
+    upstreamEvidencePresent: evidence.state === "allowed",
+    evidence,
+  };
+}
+
+export function buildAigcCrossRuntimeEdges(model: AigcModel): AigcCrossRuntimeEvidence[] {
+  const targets: AigcRuntimeTargetSkill[] = ["rbac", "datamodel", "workflow", "page", "appbundle"];
+  return targets
+    .filter(target => aigcRefsForTarget(model, target).length > 0)
+    .map(target => createAigcCrossRuntimeEvidence(model, target, { declared: aigcRefsForTarget(model, target) }));
+}
+
+export function createAigcRbacRuntimeEvidence(
+  model: AigcModel,
+  upstreamSurface: unknown,
+): AigcCrossRuntimeEvidence {
+  return {
+    ...createAigcCrossRuntimeEvidence(model, "rbac", upstreamSurface),
+    evidenceKey: AIGC_RBAC_RUNTIME_EVIDENCE,
+  };
+}
+
+export function createAigcDataModelRuntimeEvidence(
+  model: AigcModel,
+  upstreamSurface?: unknown,
+): AigcCrossRuntimeEvidence {
+  return {
+    ...createAigcCrossRuntimeEvidence(model, "datamodel", upstreamSurface),
+    evidenceKey: AIGC_DATAMODEL_RUNTIME_EVIDENCE,
+  };
+}
 
 export const emptyLeaveAigcModel: AigcModel = {
   id: "aigc_empty_leave",

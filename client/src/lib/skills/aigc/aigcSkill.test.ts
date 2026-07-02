@@ -4,8 +4,14 @@ import { dataModelSkill, purchaseApprovalDataModel } from "../datamodel/dataMode
 import { purchaseApprovalRbac, rbacSkill } from "../rbac/rbacSkill";
 import {
   aigcSkill,
+  buildAigcCrossRuntimeEdges,
+  createAigcDataModelRuntimeEvidence,
+  createAigcRbacRuntimeEvidence,
+  normalizeAigcRuntimeContextForSkill,
+  AIGC_DATAMODEL_RUNTIME_EVIDENCE,
   AIGC_RUNTIME_OUTPUT_SCHEMA_INVALID,
   AIGC_RUNTIME_POLICY_DENIED,
+  AIGC_RBAC_RUNTIME_EVIDENCE,
   emptyLeaveAigcModel,
   evaluateAigcRuntimePolicy,
   purchaseRiskAigcModel,
@@ -318,6 +324,57 @@ describe("aigcSkill - runtime policy evaluation (117)", () => {
   it("denies for leave model (empty capabilities) preserving compatibility", () => {
     const decision = evaluateAigcRuntimePolicy(emptyLeaveAigcModel, "anything", runtimeCtx);
     expect(decision).toBe(AIGC_RUNTIME_POLICY_DENIED);
+  });
+});
+
+describe("aigcSkill - 118 cross-runtime evidence", () => {
+  it("exposes deterministic aigc cross-runtime edges through resolve", () => {
+    const surface = aigcSkill.resolve(purchaseRiskAigcModel) as any;
+
+    expect(surface.runtimeEvidence).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("AIGC_CROSS_RUNTIME_EVIDENCE:rbac"),
+        expect.stringContaining("AIGC_CROSS_RUNTIME_EVIDENCE:datamodel"),
+      ]),
+    );
+    expect(surface.crossSkillRuntimeEdges).toEqual(
+      expect.arrayContaining(["aigc->rbac:allowed", "aigc->datamodel:allowed"]),
+    );
+  });
+
+  it("builds rbac runtime evidence from capability role and permission refs", () => {
+    const evidence = createAigcRbacRuntimeEvidence(purchaseRiskAigcModel, fullSurface.rbac);
+
+    expect(evidence.evidenceKey).toBe(AIGC_RBAC_RUNTIME_EVIDENCE);
+    expect(evidence.targetSkill).toBe("rbac");
+    expect(evidence.state).toBe("allowed");
+    expect(evidence.roleRefs).toContain("finance");
+    expect(evidence.permissionRefs).toContain("purchase:finance_approve");
+  });
+
+  it("fails closed for datamodel evidence when upstream datamodel surface is absent", () => {
+    const evidence = createAigcDataModelRuntimeEvidence(purchaseRiskAigcModel);
+
+    expect(evidence.evidenceKey).toBe(AIGC_DATAMODEL_RUNTIME_EVIDENCE);
+    expect(evidence.targetSkill).toBe("datamodel");
+    expect(evidence.state).toBe("blocked");
+    expect(evidence.reasonCode).toBe("AIGC_RUNTIME_UPSTREAM_ABSENT");
+  });
+
+  it("normalizes appbundle context and preserves output schema refs", () => {
+    const ctx = normalizeAigcRuntimeContextForSkill(
+      purchaseRiskAigcModel,
+      "appbundle",
+      { app: ["app_purchase_approval"] },
+    );
+
+    expect(ctx.targetSkill).toBe("appbundle");
+    expect(ctx.upstreamEvidencePresent).toBe(true);
+    expect(ctx.capabilityRefs).toContain("budget_risk_summary");
+    expect(ctx.evidence.outputSchemaRefs).toContain("purchase_risk_output");
+    expect(buildAigcCrossRuntimeEdges(purchaseRiskAigcModel).map(edge => edge.targetSkill)).toEqual(
+      expect.arrayContaining(["rbac", "datamodel", "page", "appbundle"]),
+    );
   });
 });
 
