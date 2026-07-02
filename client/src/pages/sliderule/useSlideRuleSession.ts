@@ -169,7 +169,7 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
       SlideRuleRuntime.setSlideRuleSessionStore
     ) {
       // B-5: product default uses durable Http store (survives refresh via server JSON file).
-      // browser-llm on localhost only swaps the LLM executor — the durable store still applies.
+      // browser-llm on localhost only swaps the LLM executor; the durable store still applies.
       SlideRuleRuntime.setSlideRuleSessionStore(createHttpSlideRuleSessionStore());
     }
 
@@ -201,7 +201,7 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
   useEffect(() => {
     const reapplyByok = () => {
       // Re-resolve on any deploy target: adding/removing BYOK keys live-switches the executor
-      // (Pages: browser-llm ↔ pilot demo; localhost: browser-llm ↔ server-llm).
+      // Pages: browser-llm -> pilot demo; localhost: browser-llm -> server-llm.
       const mode = resolveExecutorMode();
       setExecutorMode(mode);
       if (mode === "browser-llm" && SlideRuleRuntime.useBrowserLlmCapabilityExecutor) {
@@ -359,7 +359,7 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
         }).length
       );
 
-      setLiveAction({ label: "正在规划本轮动作…", external: false });
+      setLiveAction({ label: "正在规划本轮动作...", external: false });
 
       const firstLoopPlanCountRef = { value: 0 };
       const driveLoopsRef: SlideRuleRuntime.DriveReasoningResult["loops"] = [];
@@ -399,9 +399,9 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
           if (!payload.gateFailed && !payload.execFailed) return;
           const message = payload.gateFailed
             ? payload.gateMessage === "ground"
-              ? "外部证据未接地 · 本轮为规则推演"
-              : `提交闸未通过${payload.gateMessage ? ` · ${payload.gateMessage}` : ""}`
-            : "能力执行失败，可重试";
+              ? "外部证据未接地 - 本轮转为规则推演"
+              : `提交闸未通过${payload.gateMessage ? ` - ${payload.gateMessage}` : ""}`
+            : "能力执行失败，可以重试";
           appendStep({
             id: `${payload.loopTurnId}-fail-gate-${payload.runIndex}`,
             kind: "capability_fail",
@@ -498,7 +498,7 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
           const digest = createRoundDigest(final, recentIds);
           const proposal = await proposeFrontier(final, digest, []);
           // Append visible evidence of real M3 (prompt + rationale + ledger) into last assistant for demo thickness
-          lastDigestNote = `\n\n【M6 真实 digest 过质量门 + 9段结构化报告】 ${digest.title}\n${(digest.content || "").slice(0, 380)}...\n\n【M3 真实 frontier.propose (prompt+rationale+ledger)】\nseed: ${proposal.seed}\nprompt(节选): ${proposal.prompt.slice(0, 220)}...\nrationale: ${proposal.rationale}\nledgerEntry: ${JSON.stringify(proposal.ledgerEntry).slice(0, 180)}`;
+          lastDigestNote = `\n\n【M6 真实 digest 过质量门 + 9 段结构化报告】${digest.title}\n${(digest.content || "").slice(0, 380)}...\n\n【M3 真实 frontier.propose (prompt+rationale+ledger)】\nseed: ${proposal.seed}\nprompt(节选): ${proposal.prompt.slice(0, 220)}...\nrationale: ${proposal.rationale}\nledgerEntry: ${JSON.stringify(proposal.ledgerEntry).slice(0, 180)}`;
           marathonAutoSeed = proposal.seed;
           // M6 superseded sync + M4 policy attach (for hud + audit visibility)
           if (!final.supersededArtifactIds) final.supersededArtifactIds = [];
@@ -516,7 +516,7 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
             ...prev.slice(0, -1),
             {
               ...last,
-              assistant: (last.assistant || "") + (lastDigestNote || `\n\n[M3/M6] 持续推演自动前沿已生成（见 ledger）。`),
+              assistant: (last.assistant || "") + (lastDigestNote || `\n\n[M3/M6] 持续推演已自动生成下一条前沿线索（见 ledger）。`),
             },
           ];
         });
@@ -526,10 +526,10 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
       if (driveMode === "marathon" && (drive.stopReason === "await_ready" || drive.stopReason === "coverage_sufficient" /* after auto */)) {
         try {
           if (typeof Notification !== "undefined" && Notification.permission === "granted") {
-            new Notification("SlideRule 持续推演", { body: "轮次收敛或需人工确认。点击恢复继续 marathon。" });
+            new Notification("SlideRule 持续推演", { body: "本轮已收敛或需要人工确认。点击后可继续 marathon。" });
           } else if (typeof Notification !== "undefined" && Notification.permission !== "denied") {
             Notification.requestPermission().then((p) => {
-              if (p === "granted") new Notification("SlideRule Marathon", { body: "可恢复自动驾驶" });
+              if (p === "granted") new Notification("SlideRule Marathon", { body: "可以恢复自动驾驶。" });
             });
           }
         } catch {}
@@ -723,10 +723,10 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
 
   const resolveInteractiveGate = useCallback((gateNodeId: string, choice: string | null) => {
     // Pragmatic bridge to existing text-driven G_CONFIRM logic in intakeMessage.
-    // "选方案 ..." triggers userPicksRoute (clears await_confirm, proceeds with choice).
+    // "选择方案 ..." triggers userPicksRoute (clears await_confirm, proceeds with choice).
     // Reject text triggers userRejectsRouteSelection (stales route_options, re-compare).
     const text = choice
-      ? "选方案 A"
+      ? "选择方案 A"
       : "都不行，重新对比路线";
 
     runTurn(text);
@@ -878,7 +878,7 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
     [isRunning, uiTurns, sessionState.sessionId, sessionId, applyPersistedState]
   );
 
-  // reason 已给(节点内联编辑确认)→ 直接重推,不再弹窗;未给(IM footnote 质疑链接)→ 兼容旧 prompt。
+  // If a reason is provided, re-run directly; otherwise ask for a challenge prompt.
   const challengeTurn = async (artifactId: string, reason?: string) => {
     const text =
       (reason && reason.trim()) ||
@@ -917,7 +917,7 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
     setNextGateShouldFail(false);
   }, [isRunning, sessionState.sessionId, sessionId]);
 
-  // G_READY 澄清卡片：未回答的 open_question gaps（带 V4 风格结构化选项）→ 卡片。
+  // G_READY clarification cards: unanswered open_question gaps with V4-style structured options.
   const pendingClarifications = useMemo<ClarificationItem[]>(() => {
     if (isRunning) return [];
     return (sessionState.coverageGaps || [])
@@ -933,7 +933,7 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
       }));
   }, [sessionState.coverageGaps, isRunning]);
 
-  // 一键生成交付物:发一条交付意图消息走既有 S19 流水线(spec树→文档→任务→提示词包→架构图→交接包)。
+  // Generate deliverables by sending one intent through the existing S19 pipeline.
   const generateDeliverables = useCallback(() => {
     if (isRunning) return;
     void runTurn("打包交付：生成 spec 树、规格文档、提示词包、架构图与工程交接包", {
@@ -974,7 +974,7 @@ export function useSlideRuleSession(options: UseSlideRuleSessionOptions = {}) {
     driveMode,
     setDriveMode,
     stop,
-    // M5: real budget for marathon (强制 UI 已弹；此处暴露供 hud 同步)
+    // M5: real marathon budget, surfaced to the HUD for synchronization.
     marathonBudget,
     setMarathonBudget: (b: { maxTokens: number; declaredAt: string }) => setMarathonBudget(b),
     sendMessage,

@@ -616,3 +616,48 @@ def test_v52_queue_clean_landing_smoke_72_tasks_final_landing_patch():
 
     # classification evidence for this landing task
     assert True  # reached: python directly owns the exercised V5.2 landing paths
+
+
+def test_drive_full_accepts_real_execute_capability_result_model(monkeypatch):
+    """Guard the live full-driver path: real execute_v5_capability returns a Pydantic model, not a dict."""
+
+    monkeypatch.setattr(
+        "services.v5_capability_executor.retrieve_evidence",
+        lambda query, top_k=10: [{"source": "unit", "title": "Real model evidence", "url": "memory://unit"}],
+    )
+    monkeypatch.setattr(
+        "services.v5_capability_executor.generate_with_rag",
+        lambda prompt, evidence: "Real ExecuteCapabilityResult model content with evidence.",
+    )
+
+    r = client.post(
+        "/api/sliderule/drive-full",
+        json={
+            "state": {
+                "sessionId": "real-exec-model-105",
+                "goal": {"text": "verify real ExecuteCapabilityResult model", "status": "needs_refinement"},
+                "artifacts": [],
+                "capabilityRuns": [],
+                "coverageGaps": [],
+                "coverageContract": None,
+                "graph": {"nodes": [], "edges": []},
+                "conversation": [],
+                "runtimePhase": "idle",
+            },
+            "turnId": "real-model-t1",
+            "userText": "verify real executor model commit",
+            "max_loops": 1,
+        },
+        headers={"X-Internal-Key": INTERNAL_KEY},
+    )
+
+    assert r.status_code == 200, r.text
+    env = r.json()
+    state = env["state"]
+    assert env.get("backend") == "python"
+    assert env.get("provenance") == "python-fullpath"
+    assert state.get("artifacts"), "real ExecuteCapabilityResult model should be committed as an artifact"
+    assert not any(
+        "object has no attribute 'get'" in str(run.get("error", {}))
+        for run in state.get("capabilityRuns", [])
+    )

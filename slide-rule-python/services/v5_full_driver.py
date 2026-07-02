@@ -14,6 +14,15 @@ from .v5_capability_executor import execute_v5_capability
 from .persistence import persist_state
 from .slide_rule_coverage import evaluate_coverage_gate, reconcile_coverage
 
+
+def _result_to_dict(result: Any) -> Dict[str, Any]:
+    """Normalize executor results from Pydantic models or legacy dicts."""
+    if isinstance(result, dict):
+        return result
+    if hasattr(result, "model_dump"):
+        return result.model_dump()
+    return {}
+
 def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10, user_instruction: str = "") -> V5SessionState:
     """
     Full replacement for Node's driveReasoningSession.
@@ -127,6 +136,7 @@ def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10, us
                 try:
                     # Execute via full migrated executor - always real
                     result = execute_v5_capability(cap, state, [], role, turn_id)
+                    result_data = _result_to_dict(result)
                     # Use Python-owned commitArtifact (artifact+run+gate+dependencyGraph updates)
                     art_id = f"art-{loop}-{cap}"
                     produced = ProducedBy(capabilityRunId=run_id, capabilityId=cap, roleId=role)
@@ -135,14 +145,14 @@ def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10, us
                         state,
                         id=art_id,
                         kind=kind,
-                        content=result.get("content", ""),
-                        summary=result.get("summary", ""),
-                        title=result.get("title"),
-                        provenance=result.get("provenance", "python-rag"),
+                        content=result_data.get("content", ""),
+                        summary=result_data.get("summary", ""),
+                        title=result_data.get("title"),
+                        provenance=result_data.get("provenance", "python-rag"),
                         producedBy=produced,
                         inputArtifactIds=[],
                         turnId=turn_id,
-                        sources=result.get("sources", []),
+                        sources=result_data.get("sources", []),
                     )
                     # best-effort timing attach on success run (last appended)
                     dur = int((_time.time() - t0) * 1000)

@@ -3,7 +3,7 @@ Full port of Node's capability execution for V5.
 
 Covers all from capability-exec-map, dialogue, deliberation, delivery, structure, visual, evidence, mcp, skill, report, risk, etc.
 
-Uses RAG for everything to ensure "外部证据" and stability.
+Uses RAG for external evidence and stable Python-side execution.
 No Node LLM, no pool, no su8, no proxy issues, no template/degraded.
 """
 
@@ -18,12 +18,12 @@ def execute_v5_capability(capability_id: str, state: V5SessionState, input_ids: 
 
     provenance = "python-rag"
     if "mcp" in capability_id or "skill" in capability_id:
-        summary = "检索了外部证据 via tool/skill"
+        summary = "Retrieved external evidence via tool/skill"
     elif "report" in capability_id:
-        summary = "检索了外部证据并生成报告"
-        content = f"【支撑证据】{evidence[0] if evidence else ''}\n【反证】...\n... full structured\n{content}"
+        summary = "Retrieved external evidence and generated a report"
+        content = f"[Supporting evidence] {evidence[0] if evidence else ''}\n[Counter-evidence] ...\n... full structured\n{content}"
     elif "evidence" in capability_id:
-        summary = "检索了外部证据"
+        summary = "Retrieved external evidence"
     else:
         summary = "Stable V5 execution with evidence"
 
