@@ -550,9 +550,12 @@ export const workflowSkill: Skill<WorkflowModel> & CrossSkill<WorkflowModel> = {
 
   // -- CROSS-SKILL SURFACE -------------------------------------------------
   resolve(model: WorkflowModel): ResolvableSurface {
+    const crossRuntime = buildWorkflowCrossRuntimeEdges(model);
     return {
       workflow: [model.id],
       node: model.nodes.map(n => n.id),
+      runtimeEvidence: crossRuntime.map(edge => edge.evidenceKey),
+      crossSkillRuntimeEdges: crossRuntime.map(edge => `${edge.sourceSkill}->${edge.targetSkill}:${edge.state}`),
       ...(model.version ? { version: [model.id] } : {}),
     };
   },
@@ -982,6 +985,134 @@ export function buildWorkflowFormRuntime(
 // Worked example — the "请假审批" flow, designed to reference the RBAC sample's roles.
 //   start → 主管审批(@manager) → 审批结果? → 通过 / 驳回
 // ---------------------------------------------------------------------------
+
+export type WorkflowRuntimeTargetSkill = "rbac" | "datamodel" | "page" | "aigc" | "appbundle";
+
+export type WorkflowRuntimeEvidenceState = "allowed" | "blocked";
+
+export interface WorkflowCrossRuntimeEvidence {
+  sourceSkill: "workflow";
+  targetSkill: WorkflowRuntimeTargetSkill;
+  evidenceKey: string;
+  state: WorkflowRuntimeEvidenceState;
+  reasonCode: string;
+  workflowId: string;
+  nodeRefs: string[];
+  roleRefs: string[];
+  fieldRefs: string[];
+  transitionRefs: string[];
+  snapshotRef?: string;
+}
+
+export interface NormalizedWorkflowRuntimeContext {
+  sourceSkill: "workflow";
+  targetSkill: WorkflowRuntimeTargetSkill;
+  workflowId: string;
+  nodeRefs: string[];
+  roleRefs: string[];
+  fieldRefs: string[];
+  transitionRefs: string[];
+  upstreamEvidencePresent: boolean;
+  evidence: WorkflowCrossRuntimeEvidence;
+}
+
+export const WF_CROSS_RUNTIME_EVIDENCE = "WF_CROSS_RUNTIME_EVIDENCE";
+export const WF_RBAC_RUNTIME_EVIDENCE = "WF_RBAC_RUNTIME_EVIDENCE";
+export const WF_DATAMODEL_RUNTIME_EVIDENCE = "WF_DATAMODEL_RUNTIME_EVIDENCE";
+
+function workflowRoleRefs(model: WorkflowModel): string[] {
+  return [
+    ...(model.actorRoleRef ? [model.actorRoleRef] : []),
+    ...model.nodes.flatMap(node => [node.assigneeRoleRef, node.assigneeRole, node.escalationRoleRef].filter(Boolean) as string[]),
+  ].sort();
+}
+
+function workflowTransitionRefs(model: WorkflowModel): string[] {
+  return model.edges.map(edge => `${edge.from}->${edge.to}${edge.isTimeout ? ":timeout" : ""}`).sort();
+}
+
+function workflowRefsForTarget(model: WorkflowModel, targetSkill: WorkflowRuntimeTargetSkill): string[] {
+  if (targetSkill === "rbac") return [...workflowRoleRefs(model), ...(model.policyCheckRefs ?? [])].sort();
+  if (targetSkill === "datamodel") return [...(model.fieldRefs ?? []), ...model.nodes.flatMap(node => node.fieldRef ? [node.fieldRef] : [])].sort();
+  if (targetSkill === "page") return [model.id, ...model.nodes.map(node => node.id), ...workflowTransitionRefs(model)].sort();
+  if (targetSkill === "aigc") return [...workflowTransitionRefs(model), ...(model.fieldRefs ?? [])].sort();
+  return [model.id, ...workflowRoleRefs(model), ...(model.fieldRefs ?? []), ...workflowTransitionRefs(model)].sort();
+}
+
+export function createWorkflowCrossRuntimeEvidence(
+  model: WorkflowModel,
+  targetSkill: WorkflowRuntimeTargetSkill,
+  upstreamSurface?: unknown,
+  snapshot?: WorkflowInstanceSnapshot,
+): WorkflowCrossRuntimeEvidence {
+  const targetRefs = workflowRefsForTarget(model, targetSkill);
+  const upstreamEvidencePresent = upstreamSurface !== undefined && upstreamSurface !== null;
+  const state: WorkflowRuntimeEvidenceState =
+    targetRefs.length > 0 && upstreamEvidencePresent ? "allowed" : "blocked";
+
+  return {
+    sourceSkill: "workflow",
+    targetSkill,
+    evidenceKey: `${WF_CROSS_RUNTIME_EVIDENCE}:${targetSkill}:${state}`,
+    state,
+    reasonCode: state === "allowed" ? "WF_RUNTIME_EVIDENCE_PRESENT" : "WF_RUNTIME_UPSTREAM_ABSENT",
+    workflowId: model.id,
+    nodeRefs: model.nodes.map(node => node.id).sort(),
+    roleRefs: workflowRoleRefs(model),
+    fieldRefs: [...(model.fieldRefs ?? []), ...model.nodes.flatMap(node => node.fieldRef ? [node.fieldRef] : [])].sort(),
+    transitionRefs: workflowTransitionRefs(model),
+    snapshotRef: snapshot?.id,
+  };
+}
+
+export function normalizeWorkflowRuntimeContextForSkill(
+  model: WorkflowModel,
+  targetSkill: WorkflowRuntimeTargetSkill,
+  upstreamSurface?: unknown,
+  snapshot?: WorkflowInstanceSnapshot,
+): NormalizedWorkflowRuntimeContext {
+  const evidence = createWorkflowCrossRuntimeEvidence(model, targetSkill, upstreamSurface, snapshot);
+  return {
+    sourceSkill: "workflow",
+    targetSkill,
+    workflowId: model.id,
+    nodeRefs: evidence.nodeRefs,
+    roleRefs: evidence.roleRefs,
+    fieldRefs: evidence.fieldRefs,
+    transitionRefs: evidence.transitionRefs,
+    upstreamEvidencePresent: evidence.state === "allowed",
+    evidence,
+  };
+}
+
+export function buildWorkflowCrossRuntimeEdges(model: WorkflowModel): WorkflowCrossRuntimeEvidence[] {
+  const targets: WorkflowRuntimeTargetSkill[] = ["rbac", "datamodel", "page", "aigc", "appbundle"];
+  return targets
+    .filter(target => workflowRefsForTarget(model, target).length > 0)
+    .map(target => createWorkflowCrossRuntimeEvidence(model, target, { declared: workflowRefsForTarget(model, target) }));
+}
+
+export function createWorkflowRbacRuntimeEvidence(
+  model: WorkflowModel,
+  upstreamSurface: unknown,
+  snapshot?: WorkflowInstanceSnapshot,
+): WorkflowCrossRuntimeEvidence {
+  return {
+    ...createWorkflowCrossRuntimeEvidence(model, "rbac", upstreamSurface, snapshot),
+    evidenceKey: WF_RBAC_RUNTIME_EVIDENCE,
+  };
+}
+
+export function createWorkflowDataModelRuntimeEvidence(
+  model: WorkflowModel,
+  upstreamSurface?: unknown,
+  snapshot?: WorkflowInstanceSnapshot,
+): WorkflowCrossRuntimeEvidence {
+  return {
+    ...createWorkflowCrossRuntimeEvidence(model, "datamodel", upstreamSurface, snapshot),
+    evidenceKey: WF_DATAMODEL_RUNTIME_EVIDENCE,
+  };
+}
 
 export const leaveApprovalWorkflow: WorkflowModel = {
   id: "wf_leave_approval",

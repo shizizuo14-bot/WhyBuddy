@@ -2,8 +2,12 @@ import { describe, expect, it } from "vitest";
 
 import {
   buildWorkflowFormRuntime,
+  buildWorkflowCrossRuntimeEdges,
+  createWorkflowDataModelRuntimeEvidence,
+  createWorkflowRbacRuntimeEvidence,
   createWorkflowInstanceSnapshot,
   leaveApprovalWorkflow,
+  normalizeWorkflowRuntimeContextForSkill,
   policyEvidence,
   purchaseApprovalWorkflow,
   resolveWorkflowAssignees,
@@ -11,6 +15,8 @@ import {
   transitionWorkflowInstance,
   validateWorkflowInstanceSnapshot,
   WF_ASSIGNEE_PDP_DENIED,
+  WF_DATAMODEL_RUNTIME_EVIDENCE,
+  WF_RBAC_RUNTIME_EVIDENCE,
   workflowSkill,
   WF_RUNTIME_INVALID_TRANSITION,
 } from "./workflowSkill";
@@ -700,6 +706,58 @@ describe("workflowSkill — assignee policy runtime (V2 117, evidence-driven, fa
     expect(policyEvidence).toBe("policyEvidence");
     expect(leaveApprovalWorkflow.nodes.some(n => n.assigneeRoleRef)).toBe(true);
     expect(purchaseApprovalWorkflow.nodes.some(n => n.assigneeRoleRef)).toBe(true);
+  });
+});
+
+describe("workflowSkill - 118 cross-runtime evidence", () => {
+  it("exposes deterministic workflow cross-runtime edges through resolve", () => {
+    const surface = workflowSkill.resolve(leaveApprovalWorkflow) as any;
+
+    expect(surface.runtimeEvidence).toEqual(
+      expect.arrayContaining([
+        expect.stringContaining("WF_CROSS_RUNTIME_EVIDENCE:rbac"),
+        expect.stringContaining("WF_CROSS_RUNTIME_EVIDENCE:datamodel"),
+      ]),
+    );
+    expect(surface.crossSkillRuntimeEdges).toEqual(
+      expect.arrayContaining(["workflow->rbac:allowed", "workflow->datamodel:allowed"]),
+    );
+  });
+
+  it("builds rbac runtime evidence and carries snapshot refs", () => {
+    const snapshot = createWorkflowInstanceSnapshot(leaveApprovalWorkflow, "wf-inst-118", {});
+    const evidence = createWorkflowRbacRuntimeEvidence(leaveApprovalWorkflow, rbacSurface.rbac, snapshot);
+
+    expect(evidence.evidenceKey).toBe(WF_RBAC_RUNTIME_EVIDENCE);
+    expect(evidence.targetSkill).toBe("rbac");
+    expect(evidence.state).toBe("allowed");
+    expect(evidence.roleRefs).toContain("manager");
+    expect(evidence.snapshotRef).toBe("wf-inst-118");
+  });
+
+  it("fails closed for datamodel evidence when upstream datamodel surface is absent", () => {
+    const evidence = createWorkflowDataModelRuntimeEvidence(leaveApprovalWorkflow);
+
+    expect(evidence.evidenceKey).toBe(WF_DATAMODEL_RUNTIME_EVIDENCE);
+    expect(evidence.targetSkill).toBe("datamodel");
+    expect(evidence.state).toBe("blocked");
+    expect(evidence.reasonCode).toBe("WF_RUNTIME_UPSTREAM_ABSENT");
+  });
+
+  it("normalizes workflow runtime context for appbundle and preserves transitions", () => {
+    const ctx = normalizeWorkflowRuntimeContextForSkill(
+      purchaseApprovalWorkflow,
+      "appbundle",
+      { app: ["app_purchase_approval"] },
+    );
+
+    expect(ctx.targetSkill).toBe("appbundle");
+    expect(ctx.upstreamEvidencePresent).toBe(true);
+    expect(ctx.roleRefs).toContain("finance");
+    expect(ctx.transitionRefs.length).toBeGreaterThan(0);
+    expect(buildWorkflowCrossRuntimeEdges(purchaseApprovalWorkflow).map(edge => edge.targetSkill)).toEqual(
+      expect.arrayContaining(["rbac", "datamodel", "page", "aigc", "appbundle"]),
+    );
   });
 });
 
