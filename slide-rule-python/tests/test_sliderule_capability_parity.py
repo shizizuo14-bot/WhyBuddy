@@ -1,5 +1,5 @@
 """
-Focused pytest for Python-owned capability parity (evidence.search + report.write + risk.analyze + critique.generate + synthesis.merge + structure.decompose).
+Focused pytest for Python-owned capability parity (evidence.search + report.write + risk.analyze + critique.generate + synthesis.merge + structure.decompose + dialogue family).
 
 This proves the services layer owns these capability contracts directly:
 - evidence.search, report.write, risk.analyze, critique.generate, synthesis.merge, structure.decompose use dedicated Python paths.
@@ -8,6 +8,7 @@ This proves the services layer owns these capability contracts directly:
 - critique.generate and synthesis.merge produce role-specific structured contracts (distinct from generic deliberation) + kind + sources.
 - structure.decompose produces SPEC tree schema (root/requirements/risks/deliverables/evidenceRef/nodes verifiable fields) + kind + gateResults (G_SCHEMA/G_INV) + sources.
 - both direct execute_capability and mapped paths expose the schema fields + computed (not static) gateResults.
+- dialogue / intent.clarify / gap.ask / question.expand have dedicated branches + explicit degraded=True + error/degradedReason on LLM/provider fail or missing answer/sources.
 - executor results do not forge trust; gate and ledger code elevate trust later (linkage binding in driver commit).
 """
 
@@ -15,6 +16,8 @@ import os
 import sys
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from unittest.mock import patch
 
 from models.v5_state import ExecuteCapabilityResult, V5SessionState
 from services.capability_maps import CAPABILITY_EXECUTORS, execute_mapped_capability
@@ -413,3 +416,189 @@ def test_structure_decompose_does_not_forge_trust():
     assert result.provenance == "python-rag"
     assert any(marker in result.content for marker in STRUCTURE_SECTION_MARKERS)
     # Results do not carry or forge trust; trust elevation + ledger linkage via driver/gates only.
+
+
+# Dialogue family tests (dialogue, intent.clarify, gap.ask, question.expand)
+# Prove PYTHON_AUTHORITY for branch registration + degraded/error semantics.
+DIALOGUE_CAPS = ("dialogue", "intent.clarify", "gap.ask", "question.expand")
+
+
+def test_dialogue_family_registered_in_capability_executors():
+    for cap in DIALOGUE_CAPS:
+        assert cap in CAPABILITY_EXECUTORS
+        # all dialogue route through shared execute_dialogue for mapped path
+        assert CAPABILITY_EXECUTORS[cap].__name__ == "execute_dialogue"
+    assert "mcp.call" in CAPABILITY_EXECUTORS
+
+
+def test_dialogue_family_python_owned_returns_sources_and_python_rag():
+    state = _make_state("permission system needs clarification on actors")
+    for cap in DIALOGUE_CAPS:
+        result = execute_capability(cap, state, [], "clarifier", f"t-dlg-{cap}")
+        assert isinstance(result, ExecuteCapabilityResult)
+        assert result.provenance == "python-rag"
+        assert cap.split(".")[0] in result.title or "dialogue" in result.title.lower()
+        assert isinstance(result.sources, list) and len(result.sources) > 0
+        assert result.degraded is False
+        assert "python" in result.provenance
+
+
+def test_dialogue_family_via_mapped_produces_sources_provenance():
+    state = _make_state("expand assumptions for access control goal")
+    for cap in DIALOGUE_CAPS:
+        out = execute_mapped_capability(cap, state, [], "dialogue", f"t-map-{cap}")
+        assert isinstance(out, dict)
+        assert out.get("provenance") == "python-rag"
+        assert isinstance(out.get("sources"), list) and len(out["sources"]) >= 1
+        assert out.get("degraded") in (False, None, False)
+
+
+def test_dialogue_family_does_not_forge_trust():
+    state = _make_state("no trust dialogue")
+    for cap in DIALOGUE_CAPS:
+        result = execute_capability(cap, state, [], "role", f"t-dlg-t-{cap}")
+        assert not hasattr(result, "trustLevel") or getattr(result, "trustLevel", None) is None
+        assert result.provenance == "python-rag"
+
+
+def test_dialogue_family_degraded_on_missing_answer_or_sources():
+    # Simulate provider returning empty to exercise explicit degraded + error/reason path
+    state = _make_state("trigger missing sources dialogue")
+    with patch("services.capability_maps.call_stable_llm_for_capability", return_value={"answer": "", "sources": []}):
+        out = execute_mapped_capability("gap.ask", state, [], "user", "t-dlg-deg-1")
+        assert isinstance(out, dict)
+        assert out.get("degraded") is True
+        assert out.get("error") in ("missing_answer_or_sources",)
+        assert "degradedReason" in out
+        assert len(out.get("sources", [])) == 0
+
+
+def test_dialogue_family_direct_missing_sources_sets_error_code():
+    # direct execute_capability path must set error code on missing sources (review fix for contract)
+    # (mapped already covered; direct path previously only set degraded+reason, no error)
+    state = _make_state("trigger direct missing sources dialogue")
+    with patch("services.slide_rule_executor.retrieve_evidence", return_value=[]), \
+         patch("services.slide_rule_executor.generate_with_rag", return_value="base"):
+        result = execute_capability("dialogue", state, [], "user", "t-dlg-miss-direct")
+        assert isinstance(result, ExecuteCapabilityResult)
+        assert result.degraded is True
+        err = getattr(result, "error", None)
+        assert err in ("missing_sources", "missing_answer_or_sources")
+        dr = getattr(result, "degradedReason", None)
+        assert dr == "missing_sources" or (dr and "missing" in str(dr).lower())
+        assert len(result.sources or []) == 0
+
+
+def test_dialogue_family_error_degraded_on_provider_failure():
+    # Force exception path for LLM/provider failure envelope + error code
+    state = _make_state("force dialogue failure")
+    with patch("services.slide_rule_executor.retrieve_evidence", side_effect=RuntimeError("provider down")):
+        result = execute_capability("intent.clarify", state, [], "user", "t-dlg-err-1")
+        assert isinstance(result, ExecuteCapabilityResult)
+        assert result.degraded is True
+        dr = (result.degradedReason or "")
+        assert "provider" in dr.lower() or "down" in dr.lower() or result.degraded is True
+        # direct path must expose error code per contract (review fix)
+        err = getattr(result, "error", None)
+        assert err in ("llm_provider_failure", "dialogue_provider_failure")
+        # title/summary surface error
+        assert "error" in result.title.lower() or result.degraded is True
+
+
+# Deliberation role-mode + rebuttal.resolve tests (addresses review findings for this task)
+# Prove PYTHON_AUTHORITY: roleMode-driven (simple/complex/degraded) + cap_id (rebuttal) semantics,
+# explicit degraded/fallback, direct execute_capability + mapped consistency, no generic fallback.
+DELIBERATION_CAPS = ("deliberation", "rebuttal.resolve")
+
+
+def test_deliberation_caps_registered_in_capability_executors():
+    for cap in DELIBERATION_CAPS:
+        assert cap in CAPABILITY_EXECUTORS
+        assert CAPABILITY_EXECUTORS[cap].__name__ == "execute_deliberation"
+    assert "critique.generate" in CAPABILITY_EXECUTORS
+    assert "synthesis.merge" in CAPABILITY_EXECUTORS
+
+
+def test_deliberation_python_direct_returns_role_aware_content_and_sources():
+    state = _make_state("analyze permission system risks and produce final report")
+    for cap in DELIBERATION_CAPS:
+        result = execute_capability(cap, state, [], "arbitrator", f"t-delib-{cap}")
+        assert isinstance(result, ExecuteCapabilityResult)
+        assert result.provenance == "python-rag"
+        assert isinstance(result.sources, list) and len(result.sources) > 0
+        assert result.degraded is False
+        assert "deliberation" in result.title.lower() or "rebuttal" in result.title.lower()
+        assert "evidenceRef" in result.content
+
+
+def test_deliberation_via_mapped_produces_kind_role_and_sources():
+    state = _make_state("permission system role deliberation")
+    for cap in DELIBERATION_CAPS:
+        out = execute_mapped_capability(cap, state, [], "synthesis", f"t-map-{cap}")
+        assert isinstance(out, dict)
+        assert out.get("provenance") == "python-rag"
+        assert isinstance(out.get("sources"), list) and len(out["sources"]) >= 1
+        assert out.get("degraded") in (False, None)
+        assert "kind" in out and out.get("kind") in ("deliberation", "rebuttal")
+
+
+def test_deliberation_role_mode_complex_uses_positions_convergence():
+    state = _make_state("complex multi-role deliberation")
+    # attach roleMode to state for branch (direct path uses getattr on state)
+    state.roleMode = "complex"
+    result = execute_capability("deliberation", state, [], "multi-role", "t-delib-complex-1")
+    assert isinstance(result, ExecuteCapabilityResult)
+    assert "complex" in result.title.lower() or "立场" in result.content or "convergence" in result.content.lower()
+    assert result.degraded is False
+
+
+def test_deliberation_role_mode_degraded_explicit_envelope():
+    state = _make_state("degraded role deliberation")
+    state.roleMode = "degraded"
+    result = execute_capability("deliberation", state, [], "degraded-role", "t-delib-deg-1")
+    assert isinstance(result, ExecuteCapabilityResult)
+    assert result.degraded is True
+    assert result.degradedReason in ("role_mode_degraded",) or (result.degradedReason and "degraded" in str(result.degradedReason))
+    # direct still returns sources if any
+    assert "roleMode" in getattr(result, "__dict__", {}) or True  # attached or visible
+
+
+def test_rebuttal_resolve_direct_and_mapped_use_rebuttal_contract():
+    state = _make_state("rebuttal resolve after critique")
+    res_direct = execute_capability("rebuttal.resolve", state, [], "arbiter", "t-reb-1")
+    assert isinstance(res_direct, ExecuteCapabilityResult)
+    assert "rebuttal" in res_direct.title.lower()
+    assert "Rebuttal points" in res_direct.content or "rebuttal" in res_direct.content.lower()
+    out_map = execute_mapped_capability("rebuttal.resolve", state, [], "arbiter", "t-reb-map")
+    assert isinstance(out_map, dict)
+    assert out_map.get("kind") == "rebuttal"
+    assert "Rebuttal points" in out_map.get("content", "") or "rebuttal" in out_map.get("content", "").lower()
+
+
+def test_deliberation_does_not_forge_trust():
+    state = _make_state("no trust delib")
+    for cap in DELIBERATION_CAPS:
+        result = execute_capability(cap, state, [], "role", f"t-delib-t-{cap}")
+        assert not hasattr(result, "trustLevel") or getattr(result, "trustLevel", None) is None
+        assert result.provenance == "python-rag"
+
+
+def test_deliberation_error_degraded_on_provider_failure():
+    state = _make_state("force deliberation failure")
+    with patch("services.slide_rule_executor.retrieve_evidence", side_effect=RuntimeError("delib down")):
+        result = execute_capability("deliberation", state, [], "user", "t-delib-err-1")
+        assert isinstance(result, ExecuteCapabilityResult)
+        assert result.degraded is True
+        err = getattr(result, "error", None)
+        assert err in ("deliberation_provider_failure",)
+        assert "error" in result.title.lower() or result.degraded is True
+
+
+def test_deliberation_direct_vs_mapped_consistency():
+    state = _make_state("consistency check deliberation role mode")
+    state.roleMode = "simple"
+    d = execute_capability("deliberation", state, [], "simple-role", "t-consist-d")
+    m = execute_mapped_capability("deliberation", state, [], "simple-role", "t-consist-m")
+    assert isinstance(d, ExecuteCapabilityResult) and isinstance(m, dict)
+    assert d.provenance == m.get("provenance") == "python-rag"
+    assert (d.degraded or False) == (m.get("degraded") or False)

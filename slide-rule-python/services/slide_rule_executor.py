@@ -2,6 +2,7 @@
 Capability executor ported from Node's server/routes/sliderule.ts + exec maps + fallbacks.
 
 All tool/evidence/report paths now use stable RAG → real "外部证据" instead of degraded/template.
+Dialogue family owns explicit branches + degraded/error envelope. Deliberation role-mode semantics + fallback (roleMode simple/complex/degraded + rebuttal.resolve) now owned here + maps (this task).
 """
 
 from dataclasses import dataclass
@@ -370,6 +371,140 @@ def execute_capability(
         res.__dict__["tree"] = tree_schema
         res.__dict__["gateResults"] = gate_results
         return res
+
+    if capability_id in ("dialogue", "intent.clarify", "gap.ask", "question.expand"):
+        # PYTHON_AUTHORITY for dialogue family (CapabilityParity task): dedicated branches + explicit
+        # degraded/error semantics (LLM/provider failure, missing answer/sources, error code/reason).
+        # Mirrors maps contract: sources + python-rag; branch specific title; degraded visible on fail.
+        # Direct execute_capability path now owns dialogue semantics, not generic default.
+        # Classification: PYTHON_COMPAT (generic) -> PYTHON_AUTHORITY; no Node fallback.
+        try:
+            evidence = retrieve_evidence(goal, top_k=4)
+            base = generate_with_rag(f"Dialogue capability {capability_id} for {goal}", evidence)
+            if not evidence or len(evidence) == 0:
+                res = ExecuteCapabilityResult(
+                    title=f"{capability_id} (degraded)",
+                    summary="Dialogue unavailable",
+                    content="Degraded: no evidence sources returned.",
+                    provenance="python-rag",
+                    sources=[],
+                    degraded=True,
+                    degradedReason="missing_sources",
+                )
+                res.__dict__["error"] = "missing_sources"
+                return res
+            # branch-aware contract content for visibility (intent/gap/question distinct)
+            if capability_id == "intent.clarify":
+                content = base + "\n\nClarify questions:\n- What is the precise scope and actors for the goal?"
+            elif capability_id == "gap.ask":
+                content = base + "\n\nGap identified:\n- Missing constraints or assumptions in goal."
+            elif capability_id == "question.expand":
+                content = base + "\n\nExpanded questions:\n- What happens in edge cases and failure modes?"
+            else:
+                content = base
+            return ExecuteCapabilityResult(
+                title=f"{capability_id} (Python dialogue)",
+                summary=f"Dialogue response for {capability_id}",
+                content=content,
+                provenance="python-rag",
+                sources=evidence,
+                degraded=False,
+            )
+        except Exception as exc:
+            res = ExecuteCapabilityResult(
+                title=f"{capability_id} (error)",
+                summary="Dialogue capability execution failed",
+                content=f"Error: {type(exc).__name__}",
+                provenance="python-rag",
+                sources=[],
+                degraded=True,
+                degradedReason="dialogue_provider_failure",
+            )
+            res.__dict__["error"] = "llm_provider_failure"
+            return res
+
+    if capability_id in ("deliberation", "rebuttal.resolve"):
+        # PYTHON_AUTHORITY for deliberation role-mode + rebuttal.resolve (this task goal):
+        # Dedicated direct branch (addresses review: no fall to generic "Executed via stable...").
+        # Role/roleMode semantics: state.roleMode drives simple/complex/degraded; cap_id distinguishes rebuttal.
+        # Produces role-aware structured sections (positions/critiques or rebuttal points + convergence) + sources + python-rag.
+        # Explicit degraded/error envelope on fail (missing/ exception). Matches maps path contract.
+        # Classification: PYTHON_COMPAT (generic) -> PYTHON_AUTHORITY; no Node fallback.
+        try:
+            evidence = retrieve_evidence(goal, top_k=6)
+            role_mode = getattr(state, "roleMode", None) if hasattr(state, "roleMode") else None
+            is_rebuttal = capability_id == "rebuttal.resolve"
+            is_degraded_mode = (role_mode == "degraded")
+            base = generate_with_rag(f"{'rebuttal.resolve' if is_rebuttal else 'deliberation'} {capability_id} role={role_id} mode={role_mode} for {goal}", evidence)
+            ev_block = "\n".join([f"- evidenceRef:{e.get('id','e')} {e.get('content','')} (source:{e.get('source','')})" for e in evidence[:3]])
+            if not evidence or len(evidence) == 0:
+                res = ExecuteCapabilityResult(
+                    title=f"{capability_id} (degraded)",
+                    summary="Deliberation unavailable",
+                    content="Degraded: no evidence sources returned.",
+                    provenance="python-rag",
+                    sources=[],
+                    degraded=True,
+                    degradedReason="missing_sources",
+                )
+                res.__dict__["error"] = "missing_sources"
+                res.__dict__["roleMode"] = role_mode
+                return res
+            if is_degraded_mode:
+                content = base + "\n\n# Deliberation degraded (roleMode)\n- Single-view fallback enforced.\n" + ev_block
+                res = ExecuteCapabilityResult(
+                    title=f"{capability_id} (degraded)",
+                    summary="Deliberation role-mode degraded",
+                    content=content,
+                    provenance="python-rag",
+                    sources=evidence,
+                    degraded=True,
+                    degradedReason="role_mode_degraded",
+                )
+                res.__dict__["roleMode"] = role_mode
+                return res
+            if is_rebuttal:
+                content = (
+                    base + "\n\n# Rebuttal points (response)\n" + ev_block + "\n"
+                    + "# Evidence gaps\n- Role inheritance scope assumptions from upstream.\n"
+                    + "# Verifiable rebuttal path / convergence\n- MVP RBAC+RLS + audit logging.\n"
+                )
+                title = "Rebuttal Resolve (Python RAG)"
+            else:
+                if role_mode == "complex":
+                    content = (
+                        base + "\n\n# 多角色立场 (positions)\n" + ev_block + "\n"
+                        + "# 交叉质疑 (critiques)\n- Role inheritance escalation not caught by basic RBAC.\n"
+                        + "# 收敛/分歧 (convergence/dissent)\n- Incremental vs full ABAC.\n"
+                        + "# 裁决 (convergence decision)\n- RBAC + RLS + mandatory audit.\n"
+                    )
+                    title = "Deliberation (complex role-mode)"
+                else:
+                    content = base + "\n\n# Tradeoffs & objections\n" + ev_block + "\n# Convergence path\n- MVP RBAC+RLS + audit.\n"
+                    title = "Deliberation (simple role-mode)"
+            res = ExecuteCapabilityResult(
+                title=title,
+                summary=f"Deliberation response for {capability_id} (roleMode={role_mode})",
+                content=content,
+                provenance="python-rag",
+                sources=evidence,
+                degraded=False,
+            )
+            res.__dict__["kind"] = "rebuttal" if is_rebuttal else "deliberation"
+            res.__dict__["roleMode"] = role_mode
+            return res
+        except Exception as exc:
+            res = ExecuteCapabilityResult(
+                title=f"{capability_id} (error)",
+                summary="Deliberation capability execution failed",
+                content=f"Error: {type(exc).__name__}",
+                provenance="python-rag",
+                sources=[],
+                degraded=True,
+                degradedReason="deliberation_provider_failure",
+            )
+            res.__dict__["error"] = "deliberation_provider_failure"
+            return res
 
     # Default for other caps
     return ExecuteCapabilityResult(
