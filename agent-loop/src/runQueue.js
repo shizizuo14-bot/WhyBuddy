@@ -150,6 +150,9 @@ function isCleanDoneOutcomeRecord(record = {}) {
   return (
     record.lastStatus === 'DONE_REVIEWED'
     && record.lastOutcome === 'done'
+  ) || (
+    record.lastStatus === 'DONE_FIXED'
+    && Number(record.diffBytes || 0) > 0
   );
 }
 
