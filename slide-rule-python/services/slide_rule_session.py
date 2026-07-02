@@ -9,6 +9,7 @@ from models.v5_state import Artifact, CapabilityRun, ProducedBy, V5SessionState
 from .slide_rule_orchestrator import orchestrate_plan
 from .slide_rule_executor import execute_capability
 from .persistence import delete_session_record, load_all, load_session_record, save_all, save_session_record
+from .slide_rule_coverage import evaluate_coverage_gate
 from datetime import datetime
 
 _sessions: Dict[str, V5SessionState] = {}
@@ -30,7 +31,8 @@ def create_session(goal_text: str, session_id: Optional[str] = None) -> V5Sessio
         artifacts=[],
         capabilityRuns=[],
         coverageGaps=[],
-        conversation=[]
+        conversation=[],
+        runtimePhase="idle"
     )
     _sessions[session_id] = state
     _save_sessions()
@@ -70,42 +72,65 @@ def delete_session(session_id: str):
     return delete_session_record(session_id)
 
 def drive_reasoning_turn(state: V5SessionState, turn_id: str, user_text: str) -> V5SessionState:
-    """Main loop: orchestrate + execute caps using Python RAG for stable evidence."""
-    plan_result = orchestrate_plan(state, turn_id, user_text)
-    state.conversation.append({"role": "user", "text": user_text, "turnId": turn_id})
-    state.conversation.append({"role": "system", "text": plan_result.rationale, "turnId": turn_id})
+    """Main loop: orchestrate + execute caps using Python RAG for stable evidence.
+    Implements V5.2 runtimePhase machine: idle -> orchestrating -> awaiting|failed|done
+    (PYTHON_AUTHORITY for driver phase transitions per task).
+    """
+    state.runtimePhase = "orchestrating"
+    state.lastTurnId = turn_id
+    try:
+        plan_result = orchestrate_plan(state, turn_id, user_text)
+        state.conversation.append({"role": "user", "text": user_text, "turnId": turn_id})
+        state.conversation.append({"role": "system", "text": plan_result.rationale, "turnId": turn_id})
 
-    for sel in plan_result.selected:
-        cap_id = sel["capabilityId"]
-        role = sel.get("roleId", "agent")
-        # Execute with RAG - always brings evidence, no degraded
-        exec_result = execute_capability(cap_id, state, [], role, turn_id)
-        # Create artifact from result
-        art_id = f"art-{turn_id}-{cap_id}"
-        artifact = Artifact.server_construct(
-            id=art_id,
-            kind="evidence" if "evidence" in cap_id or cap_id in ["mcp.call", "skill.invoke"] else "report" if cap_id == "report.write" else "risk",
-            provenance="python-rag",
-            trustLevel="gated_pass",
-            title=exec_result.title,
-            summary=exec_result.summary,
-            content=exec_result.content,
-            producedBy=ProducedBy(capabilityRunId=f"run-{turn_id}-{cap_id}", capabilityId=cap_id, roleId=role),
-            payload={"sources": exec_result.sources},
-        )
-        state.artifacts.append(artifact)
-        state.capabilityRuns.append(
-            CapabilityRun(
-                id=f"run-{turn_id}-{cap_id}",
-                capabilityId=cap_id,
-                turnId=turn_id,
-                inputs=[],
-                outputs=[art_id],
-                gateResults=[{"gateId": "ground", "status": "passed"}],
-                result=exec_result.model_dump(),
+        for sel in plan_result.selected:
+            cap_id = sel["capabilityId"]
+            role = sel.get("roleId", "agent")
+            # Execute with RAG - always brings evidence, no degraded
+            exec_result = execute_capability(cap_id, state, [], role, turn_id)
+            # Create artifact from result
+            art_id = f"art-{turn_id}-{cap_id}"
+            artifact = Artifact.server_construct(
+                id=art_id,
+                kind="evidence" if "evidence" in cap_id or cap_id in ["mcp.call", "skill.invoke"] else "report" if cap_id == "report.write" else "risk",
+                provenance="python-rag",
+                trustLevel="gated_pass",
+                title=exec_result.title,
+                summary=exec_result.summary,
+                content=exec_result.content,
+                producedBy=ProducedBy(capabilityRunId=f"run-{turn_id}-{cap_id}", capabilityId=cap_id, roleId=role),
+                payload={"sources": exec_result.sources},
             )
-        )
+            state.artifacts.append(artifact)
+            exec_res_dump = exec_result.model_dump() if hasattr(exec_result, "model_dump") else {"title": getattr(exec_result, "title", ""), "summary": getattr(exec_result, "summary", ""), "content": getattr(exec_result, "content", ""), "sources": getattr(exec_result, "sources", [])}
+            state.capabilityRuns.append(
+                CapabilityRun(
+                    id=f"run-{turn_id}-{cap_id}",
+                    capabilityId=cap_id,
+                    turnId=turn_id,
+                    inputs=[],
+                    outputs=[art_id],
+                    gateResults=[{"gateId": "ground", "status": "passed"}],
+                    result=exec_res_dump,
+                )
+            )
 
+        # Phase decision: coverage or no more selected -> done or awaiting
+        gate = evaluate_coverage_gate(state)
+        if gate.get("passed") or (state.goal or {}).get("status") == "clear":
+            state.runtimePhase = "done"
+        elif not plan_result.selected:
+            state.runtimePhase = "awaiting"
+            state.awaitReason = "convergence"
+            state.awaitDetail = "no selected capabilities; converged"
+        else:
+            state.runtimePhase = "awaiting"
+            state.awaitReason = "user_input"
+            state.awaitDetail = "awaiting further input or coverage"
+    except Exception as exc:
+        state.runtimePhase = "failed"
+        state.awaitReason = "ready"
+        state.awaitDetail = f"error: {str(exc)[:120]}"
     final = save_session(state)
     return final
 
