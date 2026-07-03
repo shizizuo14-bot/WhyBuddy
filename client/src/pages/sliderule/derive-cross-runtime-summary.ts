@@ -103,3 +103,10 @@ export function derivePublishClosureSummary(
     })),
   };
 }
+
+export function selectPublishClosureSummary(
+  pythonClosure: PublishClosureSummary | null | undefined,
+  previewClosure: PublishClosureSummary | null | undefined
+): PublishClosureSummary | null {
+  return pythonClosure ?? previewClosure ?? null;
+}

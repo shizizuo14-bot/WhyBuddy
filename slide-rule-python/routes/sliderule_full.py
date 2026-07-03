@@ -549,6 +549,7 @@ async def drive_marathon_route(payload: Dict[str, Any], x_internal_key: Optional
         drive_step=drive_reasoning_turn,
     )
     final_state = result.get("finalState")
+    publish_closure = derive_publish_closure_response(final_state) if isinstance(final_state, V5SessionState) else None
     return {
         "state": final_state.model_dump() if hasattr(final_state, "model_dump") else final_state,
         "rounds": result.get("rounds") or [],
@@ -557,6 +558,7 @@ async def drive_marathon_route(payload: Dict[str, Any], x_internal_key: Optional
         "provenance": PROVENANCE_PYTHON_FULLPATH,
         "backend": PYTHON_BACKEND,
         "budgetAuthority": "python",
+        "publishClosure": publish_closure,
     }
 
 # GCOV endpoint

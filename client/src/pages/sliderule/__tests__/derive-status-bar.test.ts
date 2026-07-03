@@ -173,6 +173,14 @@ it("BudgetMarathon: driveMarathon first consumes Python authority endpoint", asy
       backend: "python",
       budgetAuthority: "python",
       state: { ...state, runtimePhase: "awaiting", awaitReason: "budget" },
+      publishClosure: {
+        blocked: false,
+        evidencePresentCount: 6,
+        skillCount: 6,
+        versionPinsChecked: true,
+        topBlockers: [],
+        tierCounts: { hard_blocker: 0, warning: 0, info: 1 },
+      },
       rounds: [{ loopTurnId: "py-1", stopReason: "session_budget_exhausted" }],
       stopReason: "session_budget_exhausted",
     }),
@@ -189,6 +197,7 @@ it("BudgetMarathon: driveMarathon first consumes Python authority endpoint", asy
     );
     expect(res.stopReason).toBe("session_budget_exhausted");
     expect((res.finalState as any).awaitReason).toBe("budget");
+    expect((res.finalState as any).publishClosure?.evidencePresentCount).toBe(6);
   } finally {
     fetchSpy.mockRestore();
   }

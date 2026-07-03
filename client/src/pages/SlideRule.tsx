@@ -23,6 +23,7 @@ import { deriveSlideRuleReasoningViewModel } from "./sliderule/derive-reasoning-
 import {
   deriveCrossRuntimeGraphSummary,
   derivePublishClosureSummary,
+  selectPublishClosureSummary,
   type CrossRuntimeGraphSummary,
   type PublishClosureSummary,
 } from "./sliderule/derive-cross-runtime-summary";
@@ -912,6 +913,8 @@ export default function SlideRule({ embedded = false }: { embedded?: boolean } =
     useState<CrossRuntimeGraphSummary | null>(null);
   const [publishClosure, setPublishClosure] =
     useState<PublishClosureSummary | null>(null);
+  const pythonPublishClosure = (sessionState as { publishClosure?: PublishClosureSummary | null })
+    .publishClosure;
 
   useEffect(() => {
     const intent = goal || latestTurn?.user || "";
@@ -928,20 +931,24 @@ export default function SlideRule({ embedded = false }: { embedded?: boolean } =
         setCrossRuntimeGraph(
           deriveCrossRuntimeGraphSummary(result.crossRuntimeGraph, { exampleLimit: 5 })
         );
+        const previewClosure = derivePublishClosureSummary(
+          publishGate.runtimeClosure,
+          { blockerLimit: 3 }
+        );
         setPublishClosure(
-          derivePublishClosureSummary(publishGate.runtimeClosure, { blockerLimit: 3 })
+          selectPublishClosureSummary(pythonPublishClosure, previewClosure)
         );
       })
       .catch(() => {
         if (!cancelled) {
           setCrossRuntimeGraph(null);
-          setPublishClosure(null);
+          setPublishClosure(selectPublishClosureSummary(pythonPublishClosure, null));
         }
       });
     return () => {
       cancelled = true;
     };
-  }, [goal, latestTurn?.user]);
+  }, [goal, latestTurn?.user, pythonPublishClosure]);
 
   const reasoningViewModel = useMemo(
     () =>

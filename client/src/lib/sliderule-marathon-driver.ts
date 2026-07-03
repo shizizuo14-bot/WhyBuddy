@@ -69,8 +69,11 @@ async function driveMarathonViaPython(
     for (const round of rounds) {
       opts.onRoundComplete?.({}, round);
     }
+    const finalState = body.publishClosure
+      ? { ...(body.state as V5SessionState), publishClosure: body.publishClosure }
+      : (body.state as V5SessionState);
     return {
-      finalState: body.state as V5SessionState,
+      finalState,
       rounds,
       stopReason: (body.stopReason || "await_human") as MarathonStopReason,
     };

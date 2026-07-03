@@ -732,3 +732,72 @@ def test_drive_full_returns_publish_closure_response_when_available(monkeypatch)
     assert env["publishClosure"]["skillCount"] == 6
     assert env["publishClosure"]["versionPinsChecked"] is True
     assert env["publishClosure"]["closureHash"] == "feedface"
+
+
+def test_drive_marathon_returns_publish_closure_response_when_available(monkeypatch):
+    from models.v5_state import CapabilityRun
+
+    def fake_drive_marathon(state, seed_text, budget=None, policy=None, max_rounds=8, drive_step=None):
+        state.capabilityRuns.append(
+            CapabilityRun(
+                id="run-closure-marathon",
+                capabilityId="appbundle.runtimeClosure",
+                turnId="t-closure-marathon",
+                result={
+                    "runtimeClosure": {
+                        "blocked": False,
+                        "blockers": [],
+                        "perSkillEvidence": {
+                            "datamodel": {"evidencePresent": True},
+                            "rbac": {"evidencePresent": True},
+                            "workflow": {"evidencePresent": True},
+                            "page": {"evidencePresent": True},
+                            "aigc": {"evidencePresent": True},
+                            "appbundle": {"evidencePresent": True},
+                        },
+                        "runtimeClosure": {
+                            "skillsChecked": ["datamodel", "rbac", "workflow", "page", "aigc", "appbundle"],
+                            "versionPinsChecked": True,
+                        },
+                        "closureHash": "feedface",
+                        "stableDigest": "deadbeef",
+                        "findingsByTier": {"hard_blocker": [], "warning": [], "info": []},
+                    }
+                },
+            )
+        )
+        return {
+            "finalState": state,
+            "rounds": [{"loopTurnId": "py-1", "stopReason": "session_budget_exhausted"}],
+            "stopReason": "session_budget_exhausted",
+        }
+
+    monkeypatch.setattr("routes.sliderule_full.drive_marathon", fake_drive_marathon)
+
+    r = client.post(
+        "/api/sliderule/drive-marathon",
+        json={
+            "state": {
+                "sessionId": "closure-marathon",
+                "goal": {"text": "return marathon closure", "status": "needs_refinement"},
+                "artifacts": [],
+                "capabilityRuns": [],
+                "coverageGaps": [],
+                "coverageContract": None,
+                "graph": {"nodes": [], "edges": []},
+                "conversation": [],
+                "runtimePhase": "idle",
+            },
+            "seedText": "return marathon closure",
+            "maxRounds": 1,
+            "budget": {},
+            "policy": {},
+        },
+        headers={"X-Internal-Key": INTERNAL_KEY},
+    )
+
+    assert r.status_code == 200, r.text
+    env = r.json()
+    assert env["publishClosure"]["blocked"] is False
+    assert env["publishClosure"]["evidencePresentCount"] == 6
+    assert env["publishClosure"]["skillCount"] == 6

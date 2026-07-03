@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { deriveCrossRuntimeGraphSummary } from "../derive-cross-runtime-summary";
 import type { CrossRuntimeGraph } from "@/lib/skills/orchestrator";
-import { derivePublishClosureSummary } from "../derive-cross-runtime-summary";
+import { derivePublishClosureSummary, selectPublishClosureSummary } from "../derive-cross-runtime-summary";
 
 describe("deriveCrossRuntimeGraphSummary", () => {
   it("summarizes allowed and blocked runtime graph edges for the page", () => {
@@ -167,5 +167,31 @@ describe("deriveCrossRuntimeGraphSummary", () => {
         },
       ],
     });
+  });
+
+  it("prefers Python publish closure over local preview closure", () => {
+    const preview = {
+      blocked: true,
+      blockerCount: 1,
+      evidencePresentCount: 2,
+      skillCount: 6,
+      versionPinsChecked: false,
+      closureHash: "preview",
+      tierCounts: { hard_blocker: 1, warning: 0, info: 0 },
+      topBlockers: [{ code: "PREVIEW_BLOCKED", path: "preview" }],
+    };
+    const python = {
+      blocked: false,
+      blockerCount: 0,
+      evidencePresentCount: 6,
+      skillCount: 6,
+      versionPinsChecked: true,
+      closureHash: "python",
+      tierCounts: { hard_blocker: 0, warning: 1, info: 0 },
+      topBlockers: [],
+    };
+
+    expect(selectPublishClosureSummary(python, preview)?.closureHash).toBe("python");
+    expect(selectPublishClosureSummary(null, preview)?.closureHash).toBe("preview");
   });
 });
