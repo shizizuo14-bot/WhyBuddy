@@ -22,7 +22,9 @@ import { finalNarrationStep } from "./sliderule/turn-route-steps";
 import { deriveSlideRuleReasoningViewModel } from "./sliderule/derive-reasoning-view-model";
 import {
   deriveCrossRuntimeGraphSummary,
+  derivePublishClosureSummary,
   type CrossRuntimeGraphSummary,
+  type PublishClosureSummary,
 } from "./sliderule/derive-cross-runtime-summary";
 import { resolveImSurfaceMode } from "./sliderule/im-surface-mode";
 import { SlideRuleStatusBar } from "./sliderule/SlideRuleStatusBar";
@@ -53,7 +55,7 @@ import {
   type ProjectionDensity,
 } from "./sliderule/sliderule-projection-constants";
 import { fetchJsonSafe, isPythonBackendFailure, isDegradedApiError, getLegacyFallbackReason } from "@/lib/api-client";
-import { deriveApplication } from "@/lib/skills/slideRule";
+import { deriveApplication, slideRule } from "@/lib/skills/slideRule";
 
 // Python full-path E2E wiring (105): /agent-loop/sliderule and /sliderule
 // render this component, while turn/evidence/report calls surface Python
@@ -237,6 +239,7 @@ function SlideRuleImmersion({
   pythonStatusMsg,
   retryPythonBackend,
   crossRuntimeGraph,
+  publishClosure,
 }: {
   goal: string;
   uiTurns: UiTurn[];
@@ -285,6 +288,7 @@ function SlideRuleImmersion({
   pythonStatusMsg?: string;
   retryPythonBackend?: () => void;
   crossRuntimeGraph?: CrossRuntimeGraphSummary | null;
+  publishClosure?: PublishClosureSummary | null;
 }) {
   const sessionId = sessionState.sessionId || "sliderule-v51-product";
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -390,6 +394,7 @@ function SlideRuleImmersion({
                 : undefined
             }
             crossRuntimeGraph={crossRuntimeGraph}
+            publishClosure={publishClosure}
           />
         </div>
       </div>
@@ -902,23 +907,33 @@ export default function SlideRule({ embedded = false }: { embedded?: boolean } =
   const openDeliverables = useCallback(() => setDeliverablesOpen(true), []);
   const [crossRuntimeGraph, setCrossRuntimeGraph] =
     useState<CrossRuntimeGraphSummary | null>(null);
+  const [publishClosure, setPublishClosure] =
+    useState<PublishClosureSummary | null>(null);
 
   useEffect(() => {
     const intent = goal || latestTurn?.user || "";
     if (!intent.trim()) {
       setCrossRuntimeGraph(null);
+      setPublishClosure(null);
       return;
     }
     let cancelled = false;
     deriveApplication(intent)
       .then((result) => {
         if (cancelled) return;
+        const publishGate = slideRule.publishGate(result.spec.skills);
         setCrossRuntimeGraph(
           deriveCrossRuntimeGraphSummary(result.crossRuntimeGraph, { exampleLimit: 5 })
         );
+        setPublishClosure(
+          derivePublishClosureSummary(publishGate.runtimeClosure, { blockerLimit: 3 })
+        );
       })
       .catch(() => {
-        if (!cancelled) setCrossRuntimeGraph(null);
+        if (!cancelled) {
+          setCrossRuntimeGraph(null);
+          setPublishClosure(null);
+        }
       });
     return () => {
       cancelled = true;
@@ -1086,6 +1101,7 @@ export default function SlideRule({ embedded = false }: { embedded?: boolean } =
     pythonStatusMsg,
     retryPythonBackend,
     crossRuntimeGraph,
+    publishClosure,
   };
 
   if (isImmersion) {

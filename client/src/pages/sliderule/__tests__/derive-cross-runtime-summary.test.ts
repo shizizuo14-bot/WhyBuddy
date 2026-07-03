@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { deriveCrossRuntimeGraphSummary } from "../derive-cross-runtime-summary";
 import type { CrossRuntimeGraph } from "@/lib/skills/orchestrator";
+import { derivePublishClosureSummary } from "../derive-cross-runtime-summary";
 
 describe("deriveCrossRuntimeGraphSummary", () => {
   it("summarizes allowed and blocked runtime graph edges for the page", () => {
@@ -51,5 +52,34 @@ describe("deriveCrossRuntimeGraphSummary", () => {
     expect(
       deriveCrossRuntimeGraphSummary({ edges: [], bySkill: {}, evidenceBySkill: {} })
     ).toBeNull();
+  });
+
+  it("summarizes AppBundle publish runtime closure for the page", () => {
+    expect(
+      derivePublishClosureSummary({
+        blocked: false,
+        blockers: [],
+        perSkillEvidence: {
+          datamodel: { evidencePresent: true },
+          rbac: { evidencePresent: true },
+          workflow: { evidencePresent: true },
+          page: { evidencePresent: true },
+          aigc: { evidencePresent: true },
+          appbundle: { evidencePresent: true },
+        } as any,
+        runtimeClosure: {
+          skillsChecked: ["datamodel", "rbac", "workflow", "page", "aigc", "appbundle"],
+          versionPinsChecked: true,
+          perSkill: {} as any,
+        },
+      })
+    ).toEqual({
+      blocked: false,
+      blockerCount: 0,
+      evidencePresentCount: 6,
+      skillCount: 6,
+      versionPinsChecked: true,
+      topBlockers: [],
+    });
   });
 });
