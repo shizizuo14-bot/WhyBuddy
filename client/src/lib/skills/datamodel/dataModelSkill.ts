@@ -962,6 +962,7 @@ export const DM_CROSS_RUNTIME_EVIDENCE = "DM_CROSS_RUNTIME_EVIDENCE";
 export const DM_RBAC_RUNTIME_EVIDENCE = "DM_RBAC_RUNTIME_EVIDENCE";
 export const DM_PAGE_RUNTIME_EVIDENCE = "DM_PAGE_RUNTIME_EVIDENCE";
 export const DM_RBAC_POLICY_IMPACT_EVIDENCE = "DM_RBAC_POLICY_IMPACT_EVIDENCE";
+export const DM_PAGE_BINDING_IMPACT_EVIDENCE = "DM_PAGE_BINDING_IMPACT_EVIDENCE";
 
 export interface DataModelRbacPolicyImpactEvidence {
   evidenceKey: typeof DM_RBAC_POLICY_IMPACT_EVIDENCE;
@@ -970,6 +971,16 @@ export interface DataModelRbacPolicyImpactEvidence {
   changedEntityRefs: string[];
   changedFieldRefs: string[];
   impactedPolicyRefs: string[];
+  hasPositiveEvidence: boolean;
+}
+
+export interface DataModelPageBindingImpactEvidence {
+  evidenceKey: typeof DM_PAGE_BINDING_IMPACT_EVIDENCE;
+  state: DataModelRuntimeEvidenceState;
+  reasonCode: string;
+  changedEntityRefs: string[];
+  changedFieldRefs: string[];
+  impactedPageBindingRefs: string[];
   hasPositiveEvidence: boolean;
 }
 
@@ -1037,6 +1048,65 @@ export function createDataModelRbacPolicyImpactEvidence(
     changedEntityRefs,
     changedFieldRefs,
     impactedPolicyRefs: [],
+    hasPositiveEvidence: false,
+  };
+}
+
+export function createDataModelPageBindingImpactEvidence(
+  model: DataModelModel,
+  changed: { entity?: unknown; field?: unknown } = {},
+  pageBindingFieldRefs: unknown = [],
+): DataModelPageBindingImpactEvidence {
+  const changedEntityRefs = normalizeStringList(changed.entity);
+  const changedFieldRefs = normalizeStringList(changed.field);
+  const bindingRefs = normalizeStringList(pageBindingFieldRefs);
+  const removedFieldRefs = model.entities.flatMap(entity =>
+    entity.fields
+      .filter(field => field.lifecycle === "removed")
+      .map(field => `${entity.id}.${field.key}`)
+  );
+  const removedBindingHits = removedFieldRefs.filter(ref => bindingRefs.includes(ref));
+  const impactedPageBindingRefs = bindingRefs
+    .filter(bindingRef =>
+      changedFieldRefs.some(fieldRef => bindingRef === fieldRef) ||
+      changedEntityRefs.some(entityRef => bindingRef === entityRef || bindingRef.startsWith(`${entityRef}.`))
+    )
+    .sort();
+
+  if (removedBindingHits.length > 0) {
+    return {
+      evidenceKey: DM_PAGE_BINDING_IMPACT_EVIDENCE,
+      state: "blocked",
+      reasonCode: "DM_PAGE_BINDING_IMPACT_FAIL_CLOSED_REMOVED_FIELD",
+      changedEntityRefs,
+      changedFieldRefs,
+      impactedPageBindingRefs: removedBindingHits.sort(),
+      hasPositiveEvidence: false,
+    };
+  }
+
+  if (impactedPageBindingRefs.length > 0) {
+    return {
+      evidenceKey: DM_PAGE_BINDING_IMPACT_EVIDENCE,
+      state: "allowed",
+      reasonCode: "DM_PAGE_BINDING_IMPACT_POSITIVE",
+      changedEntityRefs,
+      changedFieldRefs,
+      impactedPageBindingRefs,
+      hasPositiveEvidence: true,
+    };
+  }
+
+  return {
+    evidenceKey: DM_PAGE_BINDING_IMPACT_EVIDENCE,
+    state: "blocked",
+    reasonCode:
+      changedEntityRefs.length > 0 || changedFieldRefs.length > 0
+        ? "DM_PAGE_BINDING_IMPACT_NO_OVERLAP"
+        : "DM_PAGE_BINDING_IMPACT_NO_EVIDENCE",
+    changedEntityRefs,
+    changedFieldRefs,
+    impactedPageBindingRefs: [],
     hasPositiveEvidence: false,
   };
 }
