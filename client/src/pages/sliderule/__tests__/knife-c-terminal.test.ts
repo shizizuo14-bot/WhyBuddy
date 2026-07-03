@@ -3,7 +3,10 @@ import { buildClearStateWithTrustedReport } from "@/lib/sliderule-fullpath-fixtu
 import { deriveSlideRuleReasoningViewModel } from "../derive-reasoning-view-model";
 import { deriveTrustSeal } from "../derive-trust-seal";
 import { parseReportSections } from "../parse-report-sections";
-import { serializeSlideRuleDeliveryMd } from "../serialize-sliderule-delivery-md";
+import {
+  deriveAppBundleClosureRender,
+  serializeSlideRuleDeliveryMd,
+} from "../serialize-sliderule-delivery-md";
 import { SLIDERULE_TERMINAL_NODE_ID } from "../sliderule-projection-constants";
 import { graphNodeIdForArtifact } from "../derive-lineage-highlight";
 import { latestTrustedReport } from "@shared/blueprint/sliderule-delivery-chain";
@@ -11,7 +14,8 @@ import { latestTrustedReport } from "@shared/blueprint/sliderule-delivery-chain"
 describe("Knife C · terminal delivery platform", () => {
   it("projects terminal node with trust seal when clear + trusted report", () => {
     const { state } = buildClearStateWithTrustedReport("knife-c");
-    const vm = deriveSlideRuleReasoningViewModel(state);
+    const clearState = { ...state, goal: { ...state.goal, status: "clear" as const } };
+    const vm = deriveSlideRuleReasoningViewModel(clearState);
     expect(vm.terminalNode?.id).toBe(SLIDERULE_TERMINAL_NODE_ID);
     expect(vm.terminalMeta?.canExport).toBe(false);
 
@@ -41,6 +45,7 @@ describe("Knife C · terminal delivery platform", () => {
     const { state, reportId } = buildClearStateWithTrustedReport("knife-c-rv");
     const withRv = {
       ...state,
+      goal: { ...state.goal, status: "clear" as const },
       conversation: [
         ...(state.conversation || []),
         {
@@ -58,6 +63,7 @@ describe("Knife C · terminal delivery platform", () => {
     const { state, reportId } = buildClearStateWithTrustedReport("knife-c-rv-stale");
     const withStaleRv = {
       ...state,
+      goal: { ...state.goal, status: "clear" as const },
       artifacts: [
         ...(state.artifacts || []),
         {
@@ -151,6 +157,80 @@ describe("Knife C · terminal delivery platform", () => {
     const preClear = { ...state, goal: { ...state.goal!, status: "needs_refinement" as const } };
     const vm = deriveSlideRuleReasoningViewModel(preClear);
     expect(vm.terminalNode).toBeNull();
+  });
+
+  it("derives AppBundle closure render from trusted closure evidence artifacts", () => {
+    const { state } = buildClearStateWithTrustedReport("knife-c-closure-render");
+    const withoutClosure = deriveAppBundleClosureRender(state);
+    expect(withoutClosure.present).toBe(false);
+    expect(withoutClosure.summaryLines).toEqual([]);
+
+    const closureArtifact = {
+      id: "art-appbundle-closure-119",
+      kind: "evidence" as const,
+      provenance: "ai_generated" as const,
+      trustLevel: "gated_pass" as const,
+      passedGates: ["commit"],
+      producedBy: {
+        capabilityRunId: "run-119",
+        capabilityId: "appbundle.publish" as const,
+        roleId: "closure",
+      },
+      title: "AppBundle Runtime Closure",
+      content: JSON.stringify({
+        blocked: false,
+        closureHash: "feedface",
+        stableDigest: "deadbeef",
+        runtimeClosure: {
+          skillsChecked: ["datamodel", "rbac", "appbundle"],
+          versionPinsChecked: true,
+        },
+      }),
+    };
+    const withClosure = deriveAppBundleClosureRender({
+      ...state,
+      artifacts: [...(state.artifacts || []), closureArtifact],
+    });
+
+    expect(withClosure.present).toBe(true);
+    expect(withClosure.summaryLines.join("\n")).toContain("art-appbundle-closure-119");
+    expect(withClosure.summaryLines.join("\n")).toContain("versionPinsChecked");
+  });
+
+  it("serializes AppBundle closure evidence as a separate delivery section", () => {
+    const { state } = buildClearStateWithTrustedReport("knife-c-closure-md");
+    const closureArtifact = {
+      id: "art-appbundle-closure-md",
+      kind: "evidence" as const,
+      provenance: "ai_generated" as const,
+      trustLevel: "gated_pass" as const,
+      passedGates: ["commit"],
+      producedBy: {
+        capabilityRunId: "run-md",
+        capabilityId: "appbundle.publish" as const,
+        roleId: "closure",
+      },
+      title: "AppBundle Runtime Closure",
+      content: "runtimeClosure versionPinsChecked stableDigest=deadbeef",
+    };
+
+    const md = serializeSlideRuleDeliveryMd({
+      ...state,
+      artifacts: [...(state.artifacts || []), closureArtifact],
+    });
+
+    expect(md).toContain("AppBundle publish/runtime closure");
+    expect(md).toContain("art-appbundle-closure-md");
+    expect(md).toContain("versionPinsChecked");
+  });
+
+  it("serializes fail-closed AppBundle closure note when evidence is absent", () => {
+    const { state } = buildClearStateWithTrustedReport("knife-c-closure-md-negative");
+    const md = serializeSlideRuleDeliveryMd(state);
+
+    expect(md).toContain("AppBundle publish/runtime closure");
+    expect(md).toContain("runtime closure evidence was not found");
+    expect(md).toContain("publish should remain blocked");
   });
 
   it("not_recommended shows terminal without export", () => {
