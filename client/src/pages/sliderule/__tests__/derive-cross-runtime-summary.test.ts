@@ -79,7 +79,93 @@ describe("deriveCrossRuntimeGraphSummary", () => {
       evidencePresentCount: 6,
       skillCount: 6,
       versionPinsChecked: true,
+      closureId: undefined,
+      closureHash: undefined,
+      stableDigest: undefined,
+      tierCounts: {
+        hard_blocker: 0,
+        warning: 0,
+        info: 0,
+      },
       topBlockers: [],
+    });
+  });
+
+  it("surfaces AppBundle closure digest and tier counts for the page", () => {
+    expect(
+      derivePublishClosureSummary(
+        {
+          blocked: true,
+          blockers: [
+            {
+              code: "APPBUNDLE_RUNTIME_CLOSURE_BLOCKED",
+              severity: "error",
+              path: "page",
+              message: "Missing Page runtime evidence for task view consistency.",
+            },
+          ],
+          perSkillEvidence: {
+            page: { evidencePresent: false },
+            appbundle: { evidencePresent: true },
+          } as any,
+          runtimeClosure: {
+            skillsChecked: ["page", "appbundle"],
+            versionPinsChecked: false,
+            perSkill: {} as any,
+          },
+          closureId: "appbundle:app_test@1.0.0:runtime-closure",
+          closureHash: "feedface",
+          generatedAt: "2026-07-03T00:00:00.000Z",
+          stableDigest: "deadbeef",
+          findingsByTier: {
+            hard_blocker: [
+              {
+                code: "APPBUNDLE_RUNTIME_CLOSURE_BLOCKED",
+                severity: "error",
+                path: "page",
+                message: "Missing Page runtime evidence for task view consistency.",
+              },
+            ],
+            warning: [
+              {
+                code: "APPBUNDLE_RUNTIME_AIGC_OPTIONAL",
+                severity: "warning",
+                path: "aigc",
+                message: "AIGC runtime evidence is optional for this app.",
+              },
+            ],
+            info: [
+              {
+                code: "APPBUNDLE_RUNTIME_EVIDENCE_PRESENT",
+                severity: "warning",
+                path: "appbundle",
+                message: "Runtime evidence present for appbundle.",
+              },
+            ],
+          },
+        },
+        { blockerLimit: 1 }
+      )
+    ).toEqual({
+      blocked: true,
+      blockerCount: 1,
+      evidencePresentCount: 1,
+      skillCount: 2,
+      versionPinsChecked: false,
+      closureId: "appbundle:app_test@1.0.0:runtime-closure",
+      closureHash: "feedface",
+      stableDigest: "deadbeef",
+      tierCounts: {
+        hard_blocker: 1,
+        warning: 1,
+        info: 1,
+      },
+      topBlockers: [
+        {
+          code: "APPBUNDLE_RUNTIME_CLOSURE_BLOCKED",
+          path: "page",
+        },
+      ],
     });
   });
 });

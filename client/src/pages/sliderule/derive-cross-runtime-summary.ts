@@ -1,5 +1,6 @@
 import type { CrossRuntimeGraph } from "@/lib/skills/orchestrator";
 import type { AppBundleRuntimeClosureReport } from "@/lib/skills/appbundle/appBundleSkill";
+import type { AppBundleClosureTier } from "@/lib/skills/appbundle/appBundleModel";
 
 export type CrossRuntimeGraphSummary = {
   edgeCount: number;
@@ -21,6 +22,10 @@ export type PublishClosureSummary = {
   evidencePresentCount: number;
   skillCount: number;
   versionPinsChecked: boolean;
+  closureId?: string;
+  closureHash?: string;
+  stableDigest?: string;
+  tierCounts: Record<AppBundleClosureTier, number>;
   topBlockers: Array<{
     code: string;
     path: string;
@@ -72,6 +77,11 @@ export function derivePublishClosureSummary(
   const blockerLimit = options.blockerLimit ?? 3;
   const perSkillEvidence = Object.values(report.perSkillEvidence ?? {});
   const evidencePresentCount = perSkillEvidence.filter((entry) => entry.evidencePresent).length;
+  const findingsByTier = report.findingsByTier ?? {
+    hard_blocker: [],
+    warning: [],
+    info: [],
+  };
 
   return {
     blocked: report.blocked,
@@ -79,6 +89,14 @@ export function derivePublishClosureSummary(
     evidencePresentCount,
     skillCount: report.runtimeClosure.skillsChecked.length,
     versionPinsChecked: report.runtimeClosure.versionPinsChecked,
+    closureId: report.closureId,
+    closureHash: report.closureHash,
+    stableDigest: report.stableDigest,
+    tierCounts: {
+      hard_blocker: findingsByTier.hard_blocker?.length ?? 0,
+      warning: findingsByTier.warning?.length ?? 0,
+      info: findingsByTier.info?.length ?? 0,
+    },
     topBlockers: report.blockers.slice(0, blockerLimit).map((blocker) => ({
       code: blocker.code,
       path: blocker.path,

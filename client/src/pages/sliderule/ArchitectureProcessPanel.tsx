@@ -193,6 +193,21 @@ export function ArchitectureProcessPanel({
                   pins {publishClosure.versionPinsChecked ? "checked" : "missing"}
                 </span>
               </div>
+              <div className="mt-1 flex flex-wrap gap-x-2 gap-y-1 font-mono text-[9px] text-slate-500">
+                {publishClosure.stableDigest && (
+                  <span title={publishClosure.closureId ?? publishClosure.stableDigest}>
+                    digest {publishClosure.stableDigest}
+                  </span>
+                )}
+                {publishClosure.closureHash && (
+                  <span title={publishClosure.closureHash}>hash {publishClosure.closureHash}</span>
+                )}
+                <span className="text-rose-700">
+                  hard {publishClosure.tierCounts.hard_blocker}
+                </span>
+                <span className="text-amber-700">warn {publishClosure.tierCounts.warning}</span>
+                <span className="text-slate-500">info {publishClosure.tierCounts.info}</span>
+              </div>
               {publishClosure.topBlockers.length > 0 && (
                 <div className="mt-1 space-y-0.5">
                   {publishClosure.topBlockers.map((blocker) => (
