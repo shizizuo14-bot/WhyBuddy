@@ -248,6 +248,43 @@ describe("Knife C · terminal delivery platform", () => {
     expect(md).toContain("feedface");
   });
 
+  it("serializes publishClosure blocker path details for markdown review", () => {
+    const { state } = buildClearStateWithTrustedReport("knife-c-python-closure-blockers-md");
+    const md = serializeSlideRuleDeliveryMd({
+      ...state,
+      publishClosure: {
+        blocked: true,
+        blockerCount: 2,
+        evidencePresentCount: 4,
+        skillCount: 6,
+        versionPinsChecked: false,
+        closureHash: "badc0ffe",
+        stableDigest: "cafebabe",
+        tierCounts: { hard_blocker: 2, warning: 0, info: 0 },
+        topBlockers: [
+          {
+            code: "APPBUNDLE_PUBLISH_REF_MISSING",
+            path: "menuEntries[0].roleRefs[2]",
+            affectedSkill: "rbac",
+            ref: "role:finance-admin",
+          },
+          {
+            code: "APPBUNDLE_RUNTIME_CLOSURE_BLOCKED",
+            path: "runtimeSnapshot.pageBindings[1]",
+            affectedSkill: "page",
+            ref: "page:leave-approval",
+          },
+        ],
+      },
+    } as any);
+
+    expect(md).toContain("closure blockers");
+    expect(md).toContain("APPBUNDLE_PUBLISH_REF_MISSING");
+    expect(md).toContain("rbac");
+    expect(md).toContain("menuEntries[0].roleRefs[2]");
+    expect(md).toContain("role:finance-admin");
+  });
+
   it("serializes fail-closed AppBundle closure note when evidence is absent", () => {
     const { state } = buildClearStateWithTrustedReport("knife-c-closure-md-negative");
     const md = serializeSlideRuleDeliveryMd(state);

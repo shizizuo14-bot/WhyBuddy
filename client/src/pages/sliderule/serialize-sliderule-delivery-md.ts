@@ -165,6 +165,11 @@ export interface AppBundleClosureRender {
   summaryLines: string[];
 }
 
+function appendClosureBlockerLines(lines: string[], blockerLines: string[]): string[] {
+  if (blockerLines.length === 0) return lines;
+  return [...lines, "closure blockers:", ...blockerLines];
+}
+
 export function deriveAppBundleClosureRender(state: V5SessionState): AppBundleClosureRender {
   const publishClosure = (state as any).publishClosure;
   if (publishClosure && typeof publishClosure === "object") {
@@ -172,14 +177,23 @@ export function deriveAppBundleClosureRender(state: V5SessionState): AppBundleCl
     const evidencePresentCount = Number(publishClosure.evidencePresentCount ?? 0);
     const skillCount = Number(publishClosure.skillCount ?? 0);
     const tierCounts = publishClosure.tierCounts ?? {};
+    const blockerLines = Array.isArray(publishClosure.topBlockers)
+      ? publishClosure.topBlockers.slice(0, 3).map((blocker: any) => {
+          const code = String(blocker?.code || "UNKNOWN_BLOCKER");
+          const skill = blocker?.affectedSkill ? ` skill=${blocker.affectedSkill}` : "";
+          const path = blocker?.path ? ` path=${blocker.path}` : "";
+          const ref = blocker?.ref ? ` ref=${blocker.ref}` : "";
+          return `- ${code}${skill}${path}${ref}`;
+        })
+      : [];
     return {
       present: true,
-      summaryLines: [
+      summaryLines: appendClosureBlockerLines([
         `python publishClosure: ${blocked ? "blocked" : "closed"}`,
         `${evidencePresentCount}/${skillCount} evidence · pins ${publishClosure.versionPinsChecked ? "checked" : "missing"}`,
         `digest ${publishClosure.stableDigest ?? "n/a"} · hash ${publishClosure.closureHash ?? "n/a"}`,
         `hard ${tierCounts.hard_blocker ?? 0} · warn ${tierCounts.warning ?? 0} · info ${tierCounts.info ?? 0}`,
-      ],
+      ], blockerLines),
     };
   }
 
