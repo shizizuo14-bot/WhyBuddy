@@ -20,7 +20,11 @@ import {
 } from "./skill";
 import { analyzeImpact, buildDependencyGraph as buildImpactDependencyGraph } from "./impact";
 import type { DependencyGraph, ImpactReport, ResourceRef } from "./impact";
-import { evaluateAppBundleRuntimeClosure, APPBUNDLE_RUNTIME_CLOSURE_BLOCKED } from "./appbundle/appBundleSkill";
+import {
+  evaluateAppBundleRuntimeClosure,
+  APPBUNDLE_RUNTIME_CLOSURE_BLOCKED,
+  type AppBundleRuntimeClosureReport,
+} from "./appbundle/appBundleSkill";
 
 export type { DependencyGraph, ImpactPath, ImpactedArtifact, ImpactReport, ResourceRef } from "./impact";
 
@@ -177,6 +181,7 @@ export class Orchestrator {
     publishable: boolean;
     blockers: Finding[];
     result: OrchestratorResult;
+    runtimeClosure?: AppBundleRuntimeClosureReport;
     /** Unresolved cross-refs (after normalize) remain explicit for contract visibility. */
     unresolvedRefs?: CrossRefEdge[];
   } {
@@ -207,10 +212,11 @@ export class Orchestrator {
 
     // 117 runtime closure: execute full AppBundle runtime closure check across all six Skills (pure, deterministic).
     // Adds APPBUNDLE_RUNTIME_CLOSURE_BLOCKED for missing runtime evidence (pins, policy, bindings, PDP, task views, AIGC, unresolved).
+    let runtimeClosure: AppBundleRuntimeClosureReport | undefined;
     if ("appbundle" in models) {
-      const runtimeReport = evaluateAppBundleRuntimeClosure(models);
-      if (runtimeReport.blocked) {
-        runtimeReport.blockers.forEach(b => {
+      runtimeClosure = evaluateAppBundleRuntimeClosure(models);
+      if (runtimeClosure.blocked) {
+        runtimeClosure.blockers.forEach(b => {
           // avoid duplicate codes if already present
           if (!blockers.some(bb => bb.code === b.code && bb.path === b.path && bb.message === b.message)) {
             blockers.push(b);
@@ -219,7 +225,7 @@ export class Orchestrator {
       }
     }
 
-    return { publishable: blockers.length === 0, blockers, result, unresolvedRefs };
+    return { publishable: blockers.length === 0, blockers, result, runtimeClosure, unresolvedRefs };
   }
 
   buildDependencyGraph(models: Record<string, unknown>): DependencyGraph {

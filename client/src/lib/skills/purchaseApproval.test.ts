@@ -47,6 +47,35 @@ describe("purchase approval E2E scenario", () => {
     expect(publishGate.blockers).toHaveLength(0);
   });
 
+  it("returns AppBundle runtime closure evidence from publishGate", async () => {
+    const result = await deriveApplication("purchase approval");
+    const publishGate = slideRule.publishGate(result.spec.skills);
+
+    expect(publishGate.runtimeClosure).toBeDefined();
+    expect(publishGate.runtimeClosure?.blocked).toBe(false);
+    expect(publishGate.runtimeClosure?.blockers).toHaveLength(0);
+    expect(publishGate.runtimeClosure?.runtimeClosure?.skillsChecked).toEqual(
+      expect.arrayContaining(["datamodel", "rbac", "workflow", "page", "aigc", "appbundle"]),
+    );
+    expect(publishGate.runtimeClosure?.perSkillEvidence.aigc.aigcInvocationOutputPolicy).toBe(true);
+    expect(publishGate.runtimeClosure?.perSkillEvidence.page.workflowPageTaskViewConsistency).toBe(true);
+    expect(publishGate.runtimeClosure?.perSkillEvidence.rbac.rbacPdpDecisions).toBe(true);
+  });
+
+  it("blocks publishGate through runtime closure when a declared Skill model is missing", async () => {
+    const result = await deriveApplication("purchase approval");
+    const models = { ...result.spec.skills };
+    delete (models as Record<string, unknown>).aigc;
+    const publishGate = slideRule.publishGate(models);
+
+    expect(publishGate.publishable).toBe(false);
+    expect(publishGate.runtimeClosure?.blocked).toBe(true);
+    expect(publishGate.runtimeClosure?.perSkillEvidence.aigc.evidencePresent).toBe(false);
+    expect(
+      publishGate.blockers.some((blocker) => blocker.code === "APPBUNDLE_RUNTIME_CLOSURE_BLOCKED")
+    ).toBe(true);
+  });
+
   it("returns impact paths for purchase amount and finance role", async () => {
     const result = await deriveApplication("purchase approval");
     const amountImpact = slideRule.impact(result.spec.skills, {
