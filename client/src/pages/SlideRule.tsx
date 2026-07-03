@@ -20,6 +20,10 @@ import { narrationFallbackHint } from "@/lib/sliderule-narrator";
 import { TurnRouteTimeline } from "./sliderule/TurnRouteTimeline";
 import { finalNarrationStep } from "./sliderule/turn-route-steps";
 import { deriveSlideRuleReasoningViewModel } from "./sliderule/derive-reasoning-view-model";
+import {
+  deriveCrossRuntimeGraphSummary,
+  type CrossRuntimeGraphSummary,
+} from "./sliderule/derive-cross-runtime-summary";
 import { resolveImSurfaceMode } from "./sliderule/im-surface-mode";
 import { SlideRuleStatusBar } from "./sliderule/SlideRuleStatusBar";
 import { SlideRuleTopHud } from "./sliderule/SlideRuleTopHud";
@@ -49,6 +53,7 @@ import {
   type ProjectionDensity,
 } from "./sliderule/sliderule-projection-constants";
 import { fetchJsonSafe, isPythonBackendFailure, isDegradedApiError, getLegacyFallbackReason } from "@/lib/api-client";
+import { deriveApplication } from "@/lib/skills/slideRule";
 
 // Python full-path E2E wiring (105): /agent-loop/sliderule and /sliderule
 // render this component, while turn/evidence/report calls surface Python
@@ -231,6 +236,7 @@ function SlideRuleImmersion({
   pythonApiError,
   pythonStatusMsg,
   retryPythonBackend,
+  crossRuntimeGraph,
 }: {
   goal: string;
   uiTurns: UiTurn[];
@@ -278,6 +284,7 @@ function SlideRuleImmersion({
   pythonApiError?: any;
   pythonStatusMsg?: string;
   retryPythonBackend?: () => void;
+  crossRuntimeGraph?: CrossRuntimeGraphSummary | null;
 }) {
   const sessionId = sessionState.sessionId || "sliderule-v51-product";
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -382,6 +389,7 @@ function SlideRuleImmersion({
                 ? (params) => retryCapability(latestTurn.id, params)
                 : undefined
             }
+            crossRuntimeGraph={crossRuntimeGraph}
           />
         </div>
       </div>
@@ -892,6 +900,30 @@ export default function SlideRule({ embedded = false }: { embedded?: boolean } =
   const [focusNodeId, setFocusNodeId] = useState<string | null>(null);
   const [deliverablesOpen, setDeliverablesOpen] = useState(false);
   const openDeliverables = useCallback(() => setDeliverablesOpen(true), []);
+  const [crossRuntimeGraph, setCrossRuntimeGraph] =
+    useState<CrossRuntimeGraphSummary | null>(null);
+
+  useEffect(() => {
+    const intent = goal || latestTurn?.user || "";
+    if (!intent.trim()) {
+      setCrossRuntimeGraph(null);
+      return;
+    }
+    let cancelled = false;
+    deriveApplication(intent)
+      .then((result) => {
+        if (cancelled) return;
+        setCrossRuntimeGraph(
+          deriveCrossRuntimeGraphSummary(result.crossRuntimeGraph, { exampleLimit: 5 })
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setCrossRuntimeGraph(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [goal, latestTurn?.user]);
 
   const reasoningViewModel = useMemo(
     () =>
@@ -1053,6 +1085,7 @@ export default function SlideRule({ embedded = false }: { embedded?: boolean } =
     pythonApiError,
     pythonStatusMsg,
     retryPythonBackend,
+    crossRuntimeGraph,
   };
 
   if (isImmersion) {

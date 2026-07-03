@@ -5,6 +5,7 @@ import { TurnRouteTimeline } from "./TurnRouteTimeline";
 import type { TurnRouteFacts } from "@shared/blueprint/sliderule-turn-route";
 import type { TurnStep } from "./types";
 import type { ActionTrace } from "@shared/blueprint/capability-process-labels";
+import type { CrossRuntimeGraphSummary } from "./derive-cross-runtime-summary";
 
 /**
  * 右上透明浮层 — 完整 V5.1 架构树时间线（INTAKE / ORCH / C_* / ↩ 回边）。
@@ -17,6 +18,7 @@ export function ArchitectureProcessPanel({
   isRunning,
   onRetryCapability,
   onToggleRoute,
+  crossRuntimeGraph,
 }: {
   liveAction: LiveAction | null;
   latestTurn?: {
@@ -37,6 +39,7 @@ export function ArchitectureProcessPanel({
     runIndex: number;
   }) => void;
   onToggleRoute?: () => void;
+  crossRuntimeGraph?: CrossRuntimeGraphSummary | null;
 }) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
@@ -134,6 +137,43 @@ export function ArchitectureProcessPanel({
         retrying={isRunning}
         onRetryCapability={onRetryCapability}
       />
+      {crossRuntimeGraph && (
+        <section
+          className="mt-3 rounded-md border border-slate-200/80 bg-white/70 px-3 py-2 text-[10px] text-slate-600 shadow-sm"
+          data-testid="sliderule-cross-runtime-graph"
+          aria-label="Skill runtime linkage"
+        >
+          <div className="mb-1 flex items-center justify-between gap-3">
+            <span className="font-mono font-semibold uppercase tracking-wide text-slate-500">
+              Skill linkage
+            </span>
+            <span className="font-mono text-slate-500">
+              {crossRuntimeGraph.edgeCount} edges / {crossRuntimeGraph.skillCount} skills
+            </span>
+          </div>
+          <div className="mb-1 flex flex-wrap gap-x-2 gap-y-1 font-mono text-[9px]">
+            <span className="text-emerald-700">allowed {crossRuntimeGraph.allowedCount}</span>
+            {crossRuntimeGraph.blockedCount > 0 && (
+              <span className="text-rose-700">blocked {crossRuntimeGraph.blockedCount}</span>
+            )}
+            <span className="text-slate-500">evidence {crossRuntimeGraph.evidenceCount}</span>
+          </div>
+          <div className="space-y-0.5">
+            {crossRuntimeGraph.examples.map((edge) => (
+              <div
+                key={`${edge.sourceSkill}-${edge.targetSkill}-${edge.state}-${edge.evidenceKey ?? ""}`}
+                className="truncate"
+                title={edge.evidenceKey ?? `${edge.sourceSkill}->${edge.targetSkill}:${edge.state}`}
+              >
+                <span className="font-mono text-slate-700">{edge.sourceSkill}</span>
+                <span className="px-1 text-slate-400">-&gt;</span>
+                <span className="font-mono text-slate-700">{edge.targetSkill}</span>
+                <span className="pl-1 text-slate-400">{edge.state}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
       <div ref={bottomRef} className="h-px shrink-0" aria-hidden />
     </div>
   );
