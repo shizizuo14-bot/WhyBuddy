@@ -5,6 +5,7 @@ import { deriveTrustSeal } from "../derive-trust-seal";
 import { parseReportSections } from "../parse-report-sections";
 import {
   deriveAppBundleClosureRender,
+  enrichReportWriteWithRuntimeClosure,
   serializeSlideRuleDeliveryMd,
 } from "../serialize-sliderule-delivery-md";
 import { SLIDERULE_TERMINAL_NODE_ID } from "../sliderule-projection-constants";
@@ -231,6 +232,50 @@ describe("Knife C · terminal delivery platform", () => {
     expect(md).toContain("AppBundle publish/runtime closure");
     expect(md).toContain("runtime closure evidence was not found");
     expect(md).toContain("publish should remain blocked");
+  });
+
+  it("enriches report.write with AppBundle closure appendix without mutating the artifact", () => {
+    const { state } = buildClearStateWithTrustedReport("knife-c-report-enrich");
+    const report = latestTrustedReport(state)!;
+    const closureArtifact = {
+      id: "art-report-closure-positive",
+      kind: "evidence" as const,
+      provenance: "ai_generated" as const,
+      trustLevel: "gated_pass" as const,
+      passedGates: ["commit"],
+      producedBy: {
+        capabilityRunId: "run-closure-positive",
+        capabilityId: "appbundle.publish" as const,
+        roleId: "closure",
+      },
+      title: "AppBundle Runtime Closure",
+      content: "runtimeClosure versionPinsChecked stableDigest=deadbeef",
+    };
+    const originalContent = report.content;
+
+    const result = enrichReportWriteWithRuntimeClosure(report, {
+      ...state,
+      artifacts: [...(state.artifacts || []), closureArtifact],
+    });
+
+    expect(result.included).toBe(true);
+    expect(result.report).not.toBe(report);
+    expect(result.report.content).toContain("AppBundle publish/runtime closure");
+    expect(result.report.content).toContain("art-report-closure-positive");
+    expect(report.content).toBe(originalContent);
+  });
+
+  it("enriches report.write with a fail-closed AppBundle closure appendix when evidence is absent", () => {
+    const { state } = buildClearStateWithTrustedReport("knife-c-report-enrich-negative");
+    const report = latestTrustedReport(state)!;
+
+    const result = enrichReportWriteWithRuntimeClosure(report, state);
+
+    expect(result.included).toBe(false);
+    expect(result.report).not.toBe(report);
+    expect(result.report.content).toContain("AppBundle publish/runtime closure");
+    expect(result.report.content).toContain("runtime closure evidence was not found");
+    expect(result.report.content).toContain("publish should remain blocked");
   });
 
   it("not_recommended shows terminal without export", () => {

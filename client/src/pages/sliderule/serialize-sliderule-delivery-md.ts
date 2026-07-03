@@ -202,6 +202,38 @@ export function deriveAppBundleClosureRender(state: V5SessionState): AppBundleCl
   };
 }
 
+export function enrichReportWriteWithRuntimeClosure(
+  report: Artifact,
+  state: V5SessionState
+): { report: Artifact; included: boolean } {
+  if (report.producedBy?.capabilityId !== "report.write") {
+    return { report, included: false };
+  }
+
+  const marker = "## AppBundle publish/runtime closure";
+  if (String(report.content || "").includes(marker)) {
+    return { report, included: true };
+  }
+
+  const closureRender = deriveAppBundleClosureRender(state);
+  const appendixLines = [marker, ""];
+  if (closureRender.present) {
+    appendixLines.push(...closureRender.summaryLines);
+  } else {
+    appendixLines.push(
+      "runtime closure evidence was not found; publish should remain blocked until version pins, runtime snapshot, and per-skill runtime evidence are present."
+    );
+  }
+
+  return {
+    report: {
+      ...report,
+      content: `${String(report.content || "").trim()}\n\n${appendixLines.join("\n")}`,
+    },
+    included: closureRender.present,
+  };
+}
+
 export function downloadSlideRuleDeliveryMd(state: V5SessionState, filename?: string): void {
   const md = serializeSlideRuleDeliveryMd(state);
   const blob = new Blob([md], { type: "text/markdown;charset=utf-8" });
