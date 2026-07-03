@@ -29,6 +29,8 @@ export type PublishClosureSummary = {
   topBlockers: Array<{
     code: string;
     path: string;
+    affectedSkill?: string;
+    ref?: string;
   }>;
 };
 
@@ -100,6 +102,8 @@ export function derivePublishClosureSummary(
     topBlockers: report.blockers.slice(0, blockerLimit).map((blocker) => ({
       code: blocker.code,
       path: blocker.path,
+      affectedSkill: (blocker as { affectedSkill?: string }).affectedSkill,
+      ref: (blocker as { ref?: string }).ref,
     })),
   };
 }

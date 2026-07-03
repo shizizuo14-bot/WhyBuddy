@@ -213,10 +213,22 @@ export function ArchitectureProcessPanel({
                   {publishClosure.topBlockers.map((blocker) => (
                     <div
                       key={`${blocker.code}-${blocker.path}`}
+                      data-testid="sliderule-publish-closure-blocker"
+                      data-skill={blocker.affectedSkill ?? ""}
+                      data-ref={blocker.ref ?? ""}
+                      data-path={blocker.path}
                       className="truncate font-mono text-[9px] text-rose-700"
-                      title={`${blocker.code}:${blocker.path}`}
+                      title={[
+                        blocker.code,
+                        blocker.affectedSkill ? `skill=${blocker.affectedSkill}` : null,
+                        blocker.ref ? `ref=${blocker.ref}` : null,
+                        `path=${blocker.path}`,
+                      ]
+                        .filter(Boolean)
+                        .join(" / ")}
                     >
-                      {blocker.code} / {blocker.path}
+                      {blocker.code} / {blocker.affectedSkill ?? "skill?"} /{" "}
+                      {blocker.ref ?? blocker.path}
                     </div>
                   ))}
                 </div>

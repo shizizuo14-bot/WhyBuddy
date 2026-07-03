@@ -102,6 +102,8 @@ describe("deriveCrossRuntimeGraphSummary", () => {
               severity: "error",
               path: "page",
               message: "Missing Page runtime evidence for task view consistency.",
+              affectedSkill: "page",
+              ref: "page_purchase_request",
             },
           ],
           perSkillEvidence: {
@@ -164,6 +166,8 @@ describe("deriveCrossRuntimeGraphSummary", () => {
         {
           code: "APPBUNDLE_RUNTIME_CLOSURE_BLOCKED",
           path: "page",
+          affectedSkill: "page",
+          ref: "page_purchase_request",
         },
       ],
     });
