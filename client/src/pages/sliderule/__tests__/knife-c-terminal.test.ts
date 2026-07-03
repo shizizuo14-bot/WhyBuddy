@@ -225,6 +225,29 @@ describe("Knife C · terminal delivery platform", () => {
     expect(md).toContain("versionPinsChecked");
   });
 
+  it("serializes Python publishClosure state when closure artifact is absent", () => {
+    const { state } = buildClearStateWithTrustedReport("knife-c-python-closure-md");
+    const md = serializeSlideRuleDeliveryMd({
+      ...state,
+      publishClosure: {
+        blocked: false,
+        blockerCount: 0,
+        evidencePresentCount: 6,
+        skillCount: 6,
+        versionPinsChecked: true,
+        closureHash: "feedface",
+        stableDigest: "deadbeef",
+        tierCounts: { hard_blocker: 0, warning: 1, info: 2 },
+        topBlockers: [],
+      },
+    } as any);
+
+    expect(md).toContain("AppBundle publish/runtime closure");
+    expect(md).toContain("python publishClosure");
+    expect(md).toContain("6/6 evidence");
+    expect(md).toContain("feedface");
+  });
+
   it("serializes fail-closed AppBundle closure note when evidence is absent", () => {
     const { state } = buildClearStateWithTrustedReport("knife-c-closure-md-negative");
     const md = serializeSlideRuleDeliveryMd(state);

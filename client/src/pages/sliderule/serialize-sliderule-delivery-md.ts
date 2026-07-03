@@ -166,6 +166,23 @@ export interface AppBundleClosureRender {
 }
 
 export function deriveAppBundleClosureRender(state: V5SessionState): AppBundleClosureRender {
+  const publishClosure = (state as any).publishClosure;
+  if (publishClosure && typeof publishClosure === "object") {
+    const blocked = !!publishClosure.blocked;
+    const evidencePresentCount = Number(publishClosure.evidencePresentCount ?? 0);
+    const skillCount = Number(publishClosure.skillCount ?? 0);
+    const tierCounts = publishClosure.tierCounts ?? {};
+    return {
+      present: true,
+      summaryLines: [
+        `python publishClosure: ${blocked ? "blocked" : "closed"}`,
+        `${evidencePresentCount}/${skillCount} evidence · pins ${publishClosure.versionPinsChecked ? "checked" : "missing"}`,
+        `digest ${publishClosure.stableDigest ?? "n/a"} · hash ${publishClosure.closureHash ?? "n/a"}`,
+        `hard ${tierCounts.hard_blocker ?? 0} · warn ${tierCounts.warning ?? 0} · info ${tierCounts.info ?? 0}`,
+      ],
+    };
+  }
+
   const stale = new Set(state.staleArtifactIds || []);
   const trusted = (state.artifacts || []).filter(
     (artifact: Artifact) =>
