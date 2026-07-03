@@ -657,6 +657,11 @@ def test_drive_full_accepts_real_execute_capability_result_model(monkeypatch):
     assert env.get("backend") == "python"
     assert env.get("provenance") == "python-fullpath"
     assert state.get("artifacts"), "real ExecuteCapabilityResult model should be committed as an artifact"
+    runs = state.get("capabilityRuns", [])
+    assert runs, "real ExecuteCapabilityResult model should be recorded as a capability run"
+    assert isinstance(runs[0].get("result"), dict)
+    assert runs[0]["result"].get("title")
+    assert runs[0]["result"].get("provenance") == "python-rag"
     assert not any(
         "object has no attribute 'get'" in str(run.get("error", {}))
         for run in state.get("capabilityRuns", [])

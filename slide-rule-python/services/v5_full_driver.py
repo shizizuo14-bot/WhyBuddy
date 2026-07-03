@@ -20,7 +20,11 @@ def _result_to_dict(result: Any) -> Dict[str, Any]:
     if isinstance(result, dict):
         return result
     if hasattr(result, "model_dump"):
-        return result.model_dump()
+        try:
+            dumped = result.model_dump()
+        except Exception:
+            return {}
+        return dumped if isinstance(dumped, dict) else {}
     return {}
 
 def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10, user_instruction: str = "") -> V5SessionState:
@@ -158,6 +162,10 @@ def drive_full_v5_session(initial_state: V5SessionState, max_loops: int = 10, us
                     dur = int((_time.time() - t0) * 1000)
                     if getattr(state, "capabilityRuns", None):
                         last = state.capabilityRuns[-1]
+                        if hasattr(last, "result"):
+                            last.result = result_data
+                        elif isinstance(last, dict):
+                            last["result"] = result_data
                         if hasattr(last, "timing"):
                             last.timing = {"durationMs": dur}
                     # Emit complete
