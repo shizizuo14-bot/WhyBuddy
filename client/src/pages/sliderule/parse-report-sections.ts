@@ -11,8 +11,12 @@ export type ReportSection = {
 const SECTION_LABEL_PATTERN =
   "结论(?:（待补证）)?|支撑证据|反证\\/挑战|反证|证据|风险|分歧|多角色立场（面板贡献）|多角色立场|收敛决策|未解缺口|下一步工程化分支|下一步|provenance\\s*\\/\\s*upstream refs";
 
+const APPBUNDLE_CLOSURE_APPENDIX_HEADER =
+  /^\s*#{1,4}\s*AppBundle\s+(?:publish\/runtime\s+closure|发布\/运行时闭包)(?:\s|\(|（|$).*$/im;
+
 function normalizeReportContent(content: string): string {
-  return content
+  const withoutClosureAppendix = content.split(APPBUNDLE_CLOSURE_APPENDIX_HEADER)[0] ?? content;
+  return withoutClosureAppendix
     .replace(/\r\n/g, "\n")
     .replace(/^【[^】]+】\s*/gm, "")
     .trim();
