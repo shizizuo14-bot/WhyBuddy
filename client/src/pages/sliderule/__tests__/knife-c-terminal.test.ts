@@ -243,6 +243,8 @@ describe("Knife C · terminal delivery platform", () => {
     } as any);
 
     expect(md).toContain("AppBundle publish/runtime closure");
+    expect(md).toContain("closure outcome: closed");
+    expect(md).toContain("version pins: checked");
     expect(md).toContain("python publishClosure");
     expect(md).toContain("6/6 evidence");
     expect(md).toContain("feedface");
@@ -278,6 +280,7 @@ describe("Knife C · terminal delivery platform", () => {
       },
     } as any);
 
+    expect(md).toContain("closure outcome: blocked");
     expect(md).toContain("closure blockers");
     expect(md).toContain("APPBUNDLE_PUBLISH_REF_MISSING");
     expect(md).toContain("rbac");
@@ -309,6 +312,8 @@ describe("Knife C · terminal delivery platform", () => {
       },
     } as any);
 
+    expect(md).toContain("closure outcome: blocked");
+    expect(md).toContain("version pins: checked");
     expect(md).toContain("evidence coverage:");
     expect(md).toContain("| datamodel | present |");
     expect(md).toContain("| aigc | missing |");

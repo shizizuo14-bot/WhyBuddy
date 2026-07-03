@@ -215,6 +215,8 @@ export function deriveAppBundleClosureRender(state: V5SessionState): AppBundleCl
     return {
       present: true,
       summaryLines: appendClosureDetailLines([
+        `closure outcome: ${blocked ? "blocked" : "closed"}`,
+        `version pins: ${publishClosure.versionPinsChecked ? "checked" : "missing"}`,
         `python publishClosure: ${blocked ? "blocked" : "closed"}`,
         `${evidencePresentCount}/${skillCount} evidence · pins ${publishClosure.versionPinsChecked ? "checked" : "missing"}`,
         `digest ${publishClosure.stableDigest ?? "n/a"} · hash ${publishClosure.closureHash ?? "n/a"}`,
