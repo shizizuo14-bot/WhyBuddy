@@ -1,0 +1,177 @@
+{
+  "cwd": "..",
+  "defaults": {
+    "useWorktree": true,
+    "worktreeScope": "queue",
+    "queueWorktreeName": "sliderule-v2-closure-report-119-run",
+    "autoFix": true,
+    "skipReview": false,
+    "fixAgent": "grok",
+    "fixModel": "grok-build",
+    "reviewAgent": "codex",
+    "reviewModel": "gpt-5.5",
+    "scopedReview": true,
+    "workerMaxTurns": 512,
+    "workerMaxRetries": 1,
+    "grokMaxTurns": 512,
+    "grokMaxRetries": 1,
+    "reviewMaxTurns": 4,
+    "guardTests": false,
+    "maxIterations": 12,
+    "agentIdleTimeoutMs": 1200000,
+    "agentTimeoutMs": 2400000,
+    "noSyncTaskStatus": false,
+    "autoDisableOnNoChanges": false,
+    "cleanupWorktree": false,
+    "timeoutMs": 3600000,
+    "lang": "zh-CN",
+    "pythonExe": "slide-rule-python/.venv/Scripts/python.exe",
+    "workerEnv": {
+      "HTTP_PROXY": "http://127.0.0.1:7890",
+      "HTTPS_PROXY": "http://127.0.0.1:7890",
+      "ALL_PROXY": "http://127.0.0.1:7890",
+      "NO_PROXY": "localhost,127.0.0.1,::1"
+    }
+  },
+  "gates": [
+    "node agent-loop/src/check-mojibake.js {{taskFile}}"
+  ],
+  "tasks": [
+    {
+      "id": "sliderule-v2-closure-report-01-sliderule-delivery-md-publish-closure-119",
+      "task": "agent-loop/tasks/sliderule-v2-closure-report-01-sliderule-delivery-md-publish-closure-119.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['119-appbundle-runtime-closure','## Required implementation','## Acceptance criteria','codex-reviewed-only']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 12,
+      "fixAgent": "grok",
+      "fixModel": "grok-build",
+      "reviewAgent": "codex",
+      "reviewModel": "gpt-5.5",
+      "scopedReview": true,
+      "skipReview": false
+    },
+    {
+      "id": "sliderule-v2-closure-report-02-sliderule-report-write-runtime-closure-119",
+      "task": "agent-loop/tasks/sliderule-v2-closure-report-02-sliderule-report-write-runtime-closure-119.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['119-appbundle-runtime-closure','## Required implementation','## Acceptance criteria','codex-reviewed-only']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 12,
+      "fixAgent": "grok",
+      "fixModel": "grok-build",
+      "reviewAgent": "codex",
+      "reviewModel": "gpt-5.5",
+      "scopedReview": true,
+      "skipReview": false
+    },
+    {
+      "id": "sliderule-v2-closure-report-03-sliderule-report-blocked-section-119",
+      "task": "agent-loop/tasks/sliderule-v2-closure-report-03-sliderule-report-blocked-section-119.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['119-appbundle-runtime-closure','## Required implementation','## Acceptance criteria','codex-reviewed-only']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 12,
+      "fixAgent": "grok",
+      "fixModel": "grok-build",
+      "reviewAgent": "codex",
+      "reviewModel": "gpt-5.5",
+      "scopedReview": true,
+      "skipReview": false
+    },
+    {
+      "id": "sliderule-v2-closure-report-04-sliderule-report-closed-section-119",
+      "task": "agent-loop/tasks/sliderule-v2-closure-report-04-sliderule-report-closed-section-119.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['119-appbundle-runtime-closure','## Required implementation','## Acceptance criteria','codex-reviewed-only']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 12,
+      "fixAgent": "grok",
+      "fixModel": "grok-build",
+      "reviewAgent": "codex",
+      "reviewModel": "gpt-5.5",
+      "scopedReview": true,
+      "skipReview": false
+    },
+    {
+      "id": "sliderule-v2-closure-report-05-sliderule-report-evidence-coverage-table-119",
+      "task": "agent-loop/tasks/sliderule-v2-closure-report-05-sliderule-report-evidence-coverage-table-119.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['119-appbundle-runtime-closure','## Required implementation','## Acceptance criteria','codex-reviewed-only']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 12,
+      "fixAgent": "grok",
+      "fixModel": "grok-build",
+      "reviewAgent": "codex",
+      "reviewModel": "gpt-5.5",
+      "scopedReview": true,
+      "skipReview": false
+    },
+    {
+      "id": "sliderule-v2-closure-report-06-sliderule-report-blocker-path-rendering-119",
+      "task": "agent-loop/tasks/sliderule-v2-closure-report-06-sliderule-report-blocker-path-rendering-119.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['119-appbundle-runtime-closure','## Required implementation','## Acceptance criteria','codex-reviewed-only']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 12,
+      "fixAgent": "grok",
+      "fixModel": "grok-build",
+      "reviewAgent": "codex",
+      "reviewModel": "gpt-5.5",
+      "scopedReview": true,
+      "skipReview": false
+    },
+    {
+      "id": "sliderule-v2-closure-report-07-sliderule-export-closure-tests-119",
+      "task": "agent-loop/tasks/sliderule-v2-closure-report-07-sliderule-export-closure-tests-119.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['119-appbundle-runtime-closure','## Required implementation','## Acceptance criteria','codex-reviewed-only']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 12,
+      "fixAgent": "grok",
+      "fixModel": "grok-build",
+      "reviewAgent": "codex",
+      "reviewModel": "gpt-5.5",
+      "scopedReview": true,
+      "skipReview": false
+    },
+    {
+      "id": "sliderule-v2-closure-report-08-sliderule-report-fixture-smoke-119",
+      "task": "agent-loop/tasks/sliderule-v2-closure-report-08-sliderule-report-fixture-smoke-119.md",
+      "enabled": true,
+      "gates": [
+        "node -e \"const fs=require('fs'); const task=fs.readFileSync(process.argv[1],'utf8'); for (const needle of ['119-appbundle-runtime-closure','## Required implementation','## Acceptance criteria','codex-reviewed-only']) { if(!task.includes(needle)) throw new Error('task missing marker: '+needle); }\" {{taskFile}}",
+        "node agent-loop/src/check-mojibake.js {{taskFile}}"
+      ],
+      "workerMaxTurns": 512,
+      "maxIterations": 12,
+      "fixAgent": "grok",
+      "fixModel": "grok-build",
+      "reviewAgent": "codex",
+      "reviewModel": "gpt-5.5",
+      "scopedReview": true,
+      "skipReview": false
+    }
+  ]
+}
