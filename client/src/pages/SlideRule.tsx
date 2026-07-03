@@ -520,6 +520,7 @@ function SlideRuleSplitEngineering({
   deliverablesOpen,
   setDeliverablesOpen,
   openDeliverables,
+  publishClosure,
 }: {
   goal: string;
   uiTurns: UiTurn[];
@@ -559,6 +560,7 @@ function SlideRuleSplitEngineering({
   deliverablesOpen: boolean;
   setDeliverablesOpen: (open: boolean) => void;
   openDeliverables: () => void;
+  publishClosure?: PublishClosureSummary | null;
 }) {
   const imScrollRef = useRef<HTMLElement>(null);
   const imBottomRef = useRef<HTMLDivElement>(null);
@@ -658,6 +660,7 @@ function SlideRuleSplitEngineering({
         }
         closureReason={latestTurn?.routeFacts.closureReason ?? null}
         executorMode={executorMode}
+        publishClosure={publishClosure}
       />
 
       <div className={autopilotTheme.split}>

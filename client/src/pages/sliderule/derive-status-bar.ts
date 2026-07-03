@@ -12,6 +12,7 @@ import {
 } from "@shared/blueprint/sliderule-grounding";
 import type { SlideRuleExecutorMode } from "./types";
 import { projectConclusionBadge } from "./conclusion-badge";
+import type { PublishClosureSummary } from "./derive-cross-runtime-summary";
 
 export type StatusBarFacts = {
   goalSnippet: string;
@@ -37,6 +38,9 @@ export type StatusBarFacts = {
   /** Python degraded/timeout/error states from orchestrate-plan (task 16) surfaced in status for UI visibility. */
   planDegraded?: boolean;
   planError?: string | null;
+  publishClosureLabel?: string;
+  publishClosureClassName?: string;
+  publishClosureHint?: string;
 };
 
 export function deriveStatusBarFacts(
@@ -52,6 +56,7 @@ export function deriveStatusBarFacts(
     /** From Python-owned plan when degraded (timeout etc) */
     planDegraded?: boolean;
     planError?: string | null;
+    publishClosure?: PublishClosureSummary | null;
   }
 ): StatusBarFacts {
   const badge = projectConclusionBadge(state);
@@ -191,6 +196,27 @@ export function deriveStatusBarFacts(
       ? "bg-emerald-50 text-emerald-800 ring-emerald-200/80"
       : "bg-violet-50 text-violet-800 ring-violet-200/80";
 
+  const publishClosure = opts.publishClosure;
+  const publishClosureLabel = publishClosure
+    ? publishClosure.blocked
+      ? "publish blocked"
+      : "publish closed"
+    : undefined;
+  const publishClosureClassName = publishClosure
+    ? publishClosure.blocked
+      ? "bg-rose-50 text-rose-800 ring-rose-200/80"
+      : "bg-emerald-50 text-emerald-800 ring-emerald-200/80"
+    : undefined;
+  const publishClosureHint = publishClosure
+    ? [
+        `${publishClosure.evidencePresentCount}/${publishClosure.skillCount} evidence`,
+        publishClosure.versionPinsChecked ? "pins checked" : "pins missing",
+        `hard ${publishClosure.tierCounts.hard_blocker}`,
+        `warn ${publishClosure.tierCounts.warning}`,
+        `info ${publishClosure.tierCounts.info}`,
+      ].join(" - ")
+    : undefined;
+
   return {
     goalSnippet,
     conclusionLabel: badge.label,
@@ -210,6 +236,9 @@ export function deriveStatusBarFacts(
     groundedEvidenceCount,
     executorModeLabel,
     executorModeClassName,
+    publishClosureLabel,
+    publishClosureClassName,
+    publishClosureHint,
     // surfaced for Python planner_* degraded visibility (see useSlideRuleSession + orchestrator pass-through)
     planDegraded: !!opts.planDegraded,
     planError: opts.planError ?? null,

@@ -49,6 +49,40 @@ describe("deriveStatusBarFacts", () => {
     expect(facts.parkHint).toContain("convergence_signal");
   });
 
+  it("surfaces publish closure status as a status-bar badge fact", () => {
+    const state = createInitialSessionState("publish closure status", "status-publish-closure");
+
+    const closed = deriveStatusBarFacts(state, {
+      turnCount: 1,
+      isRunning: false,
+      publishClosure: {
+        blocked: false,
+        evidencePresentCount: 6,
+        skillCount: 6,
+        versionPinsChecked: true,
+        topBlockers: [],
+        tierCounts: { hard_blocker: 0, warning: 1, info: 2 },
+      },
+    });
+    expect(closed.publishClosureLabel).toBe("publish closed");
+    expect(closed.publishClosureHint).toContain("6/6");
+
+    const blocked = deriveStatusBarFacts(state, {
+      turnCount: 1,
+      isRunning: false,
+      publishClosure: {
+        blocked: true,
+        evidencePresentCount: 4,
+        skillCount: 6,
+        versionPinsChecked: false,
+        topBlockers: [{ code: "APPBUNDLE_RUNTIME_CLOSURE_BLOCKED", path: "page" }],
+        tierCounts: { hard_blocker: 2, warning: 1, info: 0 },
+      },
+    });
+    expect(blocked.publishClosureLabel).toBe("publish blocked");
+    expect(blocked.publishClosureHint).toContain("hard 2");
+  });
+
   it("surfaces G-GROUND degraded badge after ungrounded evidence.search", () => {
     const s0 = createInitialSessionState("", "status-ground");
     const { preparedState, context } = intakeMessage(s0, {

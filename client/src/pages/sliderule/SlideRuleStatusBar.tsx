@@ -2,6 +2,7 @@ import React from "react";
 import type { V5SessionState } from "@shared/blueprint/v5-reasoning-state";
 import { deriveStatusBarFacts } from "./derive-status-bar";
 import type { SlideRuleExecutorMode } from "./types";
+import type { PublishClosureSummary } from "./derive-cross-runtime-summary";
 
 export function SlideRuleStatusBar({
   state,
@@ -10,6 +11,7 @@ export function SlideRuleStatusBar({
   driveLoopCount,
   closureReason,
   executorMode,
+  publishClosure,
 }: {
   state: V5SessionState;
   turnCount: number;
@@ -17,6 +19,7 @@ export function SlideRuleStatusBar({
   driveLoopCount?: number;
   closureReason?: string | null;
   executorMode?: SlideRuleExecutorMode;
+  publishClosure?: PublishClosureSummary | null;
 }) {
   const facts = deriveStatusBarFacts(state, {
     turnCount,
@@ -24,6 +27,7 @@ export function SlideRuleStatusBar({
     driveLoopCount,
     closureReason,
     executorMode,
+    publishClosure,
   });
 
   return (
@@ -61,6 +65,15 @@ export function SlideRuleStatusBar({
         >
           {facts.executorModeLabel}
         </span>
+        {facts.publishClosureLabel && (
+          <span
+            data-testid="sliderule-publish-closure-badge"
+            title={facts.publishClosureHint}
+            className={`rounded-full px-2 py-0.5 font-mono text-[10px] font-medium ring-1 ring-inset ${facts.publishClosureClassName}`}
+          >
+            {facts.publishClosureLabel}
+          </span>
+        )}
         <span>
           <span className="text-slate-400">轮次 </span>
           <span className="font-mono font-semibold text-slate-700">{facts.turnCount}</span>
